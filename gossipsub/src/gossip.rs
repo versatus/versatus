@@ -170,7 +170,7 @@ impl GossipService {
     pub fn send_packets(&self, peer: &SocketAddr, packets: Vec<Vec<u8>>) {
         packets.iter().for_each(|packet| {
             if let Err(e) = self.sock.send_to(&packet, peer) {
-                println!("Error sending first hole punch message to peer: {:?}", e);
+                info!("Error sending first hole punch message to peer: {:?}", e);
             };
         });
     }
@@ -184,7 +184,7 @@ impl GossipService {
             if amt > 0 {
                 let packet = Packet::from_bytes(&buf[..amt]);
                 if let Err(e) = thread_sender.send(packet) {
-                    println!("Error forwarding packet to packet processor: {:?}", e);
+                    info!("Error forwarding packet to packet processor: {:?}", e);
                 }
             }
         });
