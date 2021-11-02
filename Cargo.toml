@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "commands",
+    "gossipsub",
+    "vrrb_lib",
+    "vrrb_tui",
+    "vrrb_cli",
+    "vrrb_gui",
+    "network",
+    "node",
+]

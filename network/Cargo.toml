@@ -1,0 +1,18 @@
+[package]
+name = "network"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libp2p = "0.38.0"
+hex = "*"
+sha256 = "1.0.2"
+ritelinked = {version = "0.3.2", features = [ 'serde' ]}
+serde_json = "1.0.64"
+serde = { version = "1.0.101", features = ["derive"] }
+log = "0.4.14"
+tokio = {version = "1.12.0", features = ["full"]}
+gossipsub = { path = "../gossipsub" }
+commands = { path = "../commands" }
