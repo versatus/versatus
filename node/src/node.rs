@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::collections::HashMap;
 use gossipsub::packet::{Packet, Packetize};
+use log::info;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -64,6 +65,34 @@ impl Node {
         }
     }
 
+    pub fn handle_packet(&mut self, packet: &Packet) {        
+        let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
+        let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
+        info!("Received packet {} of {}", &packet_number, &total_packets);
+        let id = String::from_utf8_lossy(&packet.clone().id).to_string();
+        if let Some(map) = self.packet_storage.get_mut(&id) {
+            map.insert(packet_number, packet.clone());
+            if map.len() == total_packets {
+                let message_bytes = Message::assemble(map);
+                let message = Message::from_bytes(&message_bytes);
+                if let Some(command) = message::process_message(message, self.id.clone().to_string()) {
+                    self.command_handler.handle_command(command);
+                };
+            }
+        } else {
+            let mut map = HashMap::new();
+            map.insert(packet_number, packet.clone());
+            self.packet_storage.insert(id, map.clone());
+                if map.clone().len() == total_packets {
+                let message_bytes = Message::assemble(&mut map);
+                let message = Message::from_bytes(&message_bytes);
+                if let Some(command) = message::process_message(message, self.id.clone().to_string()) {
+                    self.command_handler.handle_command(command);
+                };
+            }
+        }
+    }
+
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
         loop {
             let evt = {
@@ -88,24 +117,7 @@ impl Node {
                 match command {
                     Command::ProcessPacket(packet_bytes) => {
                         let packet = Packet::from_bytes(&packet_bytes);
-                        let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
-                        let id = String::from_utf8_lossy(&packet.clone().id).to_string();
-                        if let Some(map) = self.packet_storage.get_mut(&id) {
-                            map.insert(packet_number, packet.clone());
-                            let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
-                            if map.len() == total_packets {
-                                let message_bytes = Message::assemble(map);
-                                let message = Message::from_bytes(&message_bytes);
-
-                                if let Some(command) = message::process_message(message, self.id.clone().to_string()) {
-                                    self.command_handler.handle_command(command);
-                                };
-                            }
-                        } else {
-                            let mut map = HashMap::new();
-                            map.insert(packet_number, packet.clone());
-                            self.packet_storage.insert(id, map);
-                        }
+                        self.handle_packet(&packet);
                     }
                     Command::SendMessage(message) => {
                         if let Some(message) = MessageType::from_bytes(&message) {
