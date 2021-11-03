@@ -2,13 +2,14 @@ use crate::handler::{CommandHandler, MessageHandler};
 use commands::command::Command;
 use gossipsub::message::Message;
 use gossipsub::message_types::MessageType;
-use network::message;
-use libp2p::{identity, PeerId};
-use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::collections::HashMap;
 use gossipsub::packet::{Packet, Packetize};
 use log::info;
+use network::message;
+use secp256k1::Secp256k1;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::error::Error;
+use uuid::Uuid;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -28,8 +29,9 @@ pub enum NodeAuth {
 
 #[allow(dead_code)]
 pub struct Node {
-    pub key: identity::Keypair,
-    pub id: PeerId,
+    secret_key: String,
+    pub pubkey: String,
+    pub id: String,
     pub node_type: NodeAuth,
     pub message_cache: HashMap<String, Vec<u8>>,
     pub packet_storage: HashMap<String, HashMap<u32, Packet>>,
@@ -38,8 +40,8 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn get_id(&self) -> PeerId {
-        self.id
+    pub fn get_id(&self) -> String {
+        self.id.clone()
     }
 
     pub fn get_node_type(&self) -> NodeAuth {
@@ -51,12 +53,15 @@ impl Node {
         command_handler: CommandHandler,
         message_handler: MessageHandler<MessageType, Packet>,
     ) -> Node {
-        let local_key = identity::Keypair::generate_ed25519();
-        let local_peer_id = PeerId::from(local_key.public());
+        let secp = Secp256k1::new();
+        let mut rng = rand::thread_rng();
+        let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
+        let id = Uuid::new_v4().to_simple().to_string();
 
         Node {
-            key: local_key,
-            id: local_peer_id,
+            secret_key: secret_key.to_string(),
+            pubkey: pubkey.to_string(),
+            id,
             node_type,
             message_cache: HashMap::new(),
             packet_storage: HashMap::new(),
@@ -65,7 +70,7 @@ impl Node {
         }
     }
 
-    pub fn handle_packet(&mut self, packet: &Packet) {        
+    pub fn handle_packet(&mut self, packet: &Packet) {
         let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
         let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
         info!("Received packet {} of {}", &packet_number, &total_packets);
@@ -75,7 +80,9 @@ impl Node {
             if map.len() == total_packets {
                 let message_bytes = Message::assemble(map);
                 let message = Message::from_bytes(&message_bytes);
-                if let Some(command) = message::process_message(message, self.id.clone().to_string()) {
+                if let Some(command) =
+                    message::process_message(message, self.id.clone().to_string())
+                {
                     self.command_handler.handle_command(command);
                 };
             }
@@ -83,10 +90,12 @@ impl Node {
             let mut map = HashMap::new();
             map.insert(packet_number, packet.clone());
             self.packet_storage.insert(id, map.clone());
-                if map.clone().len() == total_packets {
+            if map.clone().len() == total_packets {
                 let message_bytes = Message::assemble(&mut map);
                 let message = Message::from_bytes(&message_bytes);
-                if let Some(command) = message::process_message(message, self.id.clone().to_string()) {
+                if let Some(command) =
+                    message::process_message(message, self.id.clone().to_string())
+                {
                     self.command_handler.handle_command(command);
                 };
             }

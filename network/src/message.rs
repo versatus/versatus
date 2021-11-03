@@ -7,6 +7,7 @@ pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
+#[allow(unused_variables)]
 pub fn process_message(message: Message, node_id: String) -> Option<Command> {
     if let Some(message) = MessageType::from_bytes(
         &message.data
@@ -88,6 +89,101 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
             }
             MessageType::ClaimAbandonedMessage { claim, sender_id } => {
                 return Some(Command::ClaimAbandoned(sender_id, claim))
+            }
+            MessageType::Identify {
+                data,
+                pubkey,
+            } => { 
+                // If node type is bootstrap then share peers with the new node
+                // and share the new node with existing peers.
+                // Otherwise do nothing.
+                return None 
+            
+            },
+            MessageType::NewPeer {
+                data,
+            } => { 
+                //TODO: Initialize hole punching protocol
+                return None 
+            },
+            MessageType::KnownPeers {
+                data,
+            } => { 
+                // for up to max peers initialize the hole punching protocol.
+                return None 
+            },
+            MessageType::FirstHolePunch {
+                data,
+                pubkey,
+            } => { 
+                
+                // Initialize the handshake protocol
+                return None 
+            
+            },
+            MessageType::SecondHolePunch {
+                data,
+                pubkey,
+            } => { 
+                // If first hole punch message was already received
+                // ignore, otherwise initialize handshake protocol    
+                return None 
+            },
+            MessageType::FinalHolePunch {
+                data,
+                pubkey,
+            } => { 
+            
+                // If first and/or second hole punch message was received
+                // ignore, otherwise initialize handshake protocol.
+                return None 
+            
+            },
+            MessageType::InitHandshake {
+                data,
+                pubkey,
+                signature,
+            } => { 
+                // validate the signature based on the data and pubkey
+                // if valid, reciprocate handshake.  
+                return None 
+            },
+            MessageType::ReciprocateHandshake {
+                data,
+                pubkey,
+                signature,
+            } => { 
+                // Validate the signature based on the data and pubkey
+                // if valid complete the handshake.
+                return None 
+            },
+            MessageType::CompleteHandshake {
+                data,
+                pubkey,
+                signature,
+            } => { 
+                // Check that the handshake was indeed initialized and
+                // reciprocated. If so, then Validate the signature based 
+                // on data and pubkey, if valid
+                // return a complete handshake message
+                return None 
+            },
+            MessageType::Ping {
+                data,
+                addr,
+                timestamp,
+            } => { 
+                // Return a Pong Message.    
+                return None 
+            },
+            MessageType::Pong {
+                data,
+                addr,
+                timestamp,
+            } => { 
+                // process and log the pong event as a VRRB network event along with the
+                // time that it took for the pong to be received back after the ping was sent.
+                return None 
             }
             _ => None,
         }
