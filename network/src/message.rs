@@ -2,6 +2,7 @@ use crate::components::StateComponent;
 use commands::command::Command;
 use gossipsub::message_types::{MessageType, StateBlock};
 use gossipsub::message::Message;
+use log::info;
 
 pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
@@ -93,93 +94,88 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
             MessageType::Identify {
                 data,
                 pubkey,
-            } => { 
-                // If node type is bootstrap then share peers with the new node
-                // and share the new node with existing peers.
-                // Otherwise do nothing.
-                return None 
-            
+            } => {
+                info!("Received new peer identity initializing bootstrap");
+                return Some(Command::Bootstrap(data, pubkey))
             },
             MessageType::NewPeer {
                 data,
-            } => { 
-                //TODO: Initialize hole punching protocol
-                return None 
+                pubkey
+            } => {
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received new peer {} initializing hole punch", &addr_string);
+                return Some(Command::AddNewPeer(addr_string, pubkey))
             },
             MessageType::KnownPeers {
                 data,
-            } => { 
-                // for up to max peers initialize the hole punching protocol.
-                return None 
+            } => {
+                info!("Received known peers initializing hole punch for each");
+                return Some(Command::AddKnownPeers(data))
             },
             MessageType::FirstHolePunch {
                 data,
                 pubkey,
-            } => { 
-                
-                // Initialize the handshake protocol
-                return None 
-            
+            } => {
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received first holepunch from {} initializing handshake", &addr_string);
+                return Some(Command::InitHandshake(addr_string)) 
             },
             MessageType::SecondHolePunch {
                 data,
                 pubkey,
-            } => { 
-                // If first hole punch message was already received
-                // ignore, otherwise initialize handshake protocol    
-                return None 
+            } => {
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received second holepunch from {} initializing handshake", &addr_string);
+                return Some(Command::InitHandshake(addr_string))
             },
             MessageType::FinalHolePunch {
                 data,
                 pubkey,
-            } => { 
-            
-                // If first and/or second hole punch message was received
-                // ignore, otherwise initialize handshake protocol.
-                return None 
-            
+            } => {       
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received final holepunch from {} initializing handshake", &addr_string);
+                return Some(Command::InitHandshake(addr_string))
             },
             MessageType::InitHandshake {
                 data,
                 pubkey,
                 signature,
-            } => { 
-                // validate the signature based on the data and pubkey
-                // if valid, reciprocate handshake.  
-                return None 
+            } => {
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received init handshake from {} validating and if valid, reciprocating handshake", &addr_string);
+                return Some(Command::ReciprocateHandshake(addr_string, pubkey, signature))
             },
             MessageType::ReciprocateHandshake {
                 data,
                 pubkey,
                 signature,
             } => { 
-                // Validate the signature based on the data and pubkey
-                // if valid complete the handshake.
-                return None 
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received reciprocal handshake from {} validating and if valid, completing handshake", &addr_string);
+                return Some(Command::CompleteHandshake(addr_string, pubkey, signature))
             },
             MessageType::CompleteHandshake {
                 data,
                 pubkey,
                 signature,
-            } => { 
-                // Check that the handshake was indeed initialized and
-                // reciprocated. If so, then Validate the signature based 
-                // on data and pubkey, if valid
-                // return a complete handshake message
-                return None 
+            } => {
+                let addr_string = String::from_utf8_lossy(&data).to_string();
+                info!("Received complete handshake from {} validating and if valid, adding explicit peer", &addr_string);
+                return Some(Command::AddExplicitPeer(addr_string, pubkey))
             },
             MessageType::Ping {
                 data,
                 addr,
                 timestamp,
-            } => { 
-                // Return a Pong Message.    
-                return None 
+            } => {
+                let addr_string = String::from_utf8_lossy(&addr).to_string();
+                return Some(Command::ReturnPong(data, addr_string))
             },
             MessageType::Pong {
                 data,
                 addr,
-                timestamp,
+                ping_timestamp,
+                pong_timestamp,
             } => { 
                 // process and log the pong event as a VRRB network event along with the
                 // time that it took for the pong to be received back after the ping was sent.

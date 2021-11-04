@@ -12,6 +12,7 @@ use secp256k1::{
 };
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
+use std::str::FromStr;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub const MAX_TRANSMIT_SIZE: usize = 65_507;
@@ -224,7 +225,12 @@ impl GossipService {
         Ok(sig)
     }
 
-    pub fn verify(message: String, signature: Signature, pk: PublicKey) -> Result<bool, Error> {
+    pub fn verify(
+        &self,
+        message: String,
+        signature: Signature,
+        pk: PublicKey,
+    ) -> Result<bool, Error> {
         let message_bytes = message.as_bytes().to_owned();
 
         let mut buffer = ByteBuffer::new();
@@ -241,6 +247,145 @@ impl GossipService {
         match valid {
             Ok(()) => Ok(true),
             _ => Err(Error::IncorrectSignature),
+        }
+    }
+
+    pub fn process_gossip_command(&mut self, command: Command) {
+        match command {
+            Command::SendMessage(message_bytes) => {
+                let message = MessageType::from_bytes(&message_bytes);
+                if let Some(message_type) = message {
+                    self.publish(message_type.clone());
+                    let packets = message_type.into_message().as_packet_bytes();
+                    info!("Sent n_packets to all known peers: {}", packets.len());
+                }
+            }
+            Command::AddNewPeer(peer_addr, _) => {
+                let peer_addr: SocketAddr =
+                    peer_addr.parse().expect("Cannot parse peer socket address");
+                let addr_string = format!("{}:{}", &self.ip, &self.port);
+                let addr: SocketAddr = addr_string.parse().expect("Cannot parse socket address");
+                info!("Received new peer {:?} initializing hole punch", &peer_addr);
+                let first_message = MessageType::FirstHolePunch {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey: self.pubkey.to_string().clone(),
+                };
+                let second_message = MessageType::SecondHolePunch {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey: self.pubkey.to_string().clone(),
+                };
+                let final_message = MessageType::FinalHolePunch {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey: self.pubkey.to_string().clone(),
+                };
+
+                if let Err(e) =
+                    self.hole_punch(&peer_addr, first_message, second_message, final_message)
+                {
+                    info!("Error punching hole to peer {:?}", e);
+                };
+            }
+            Command::AddKnownPeers(data) => {
+                let map = serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
+                self.known_peers.extend(map.clone());
+                let addr_string = format!("{}:{}", &self.ip, &self.port);
+                let addr: SocketAddr = addr_string.parse().expect("cannot parse socket address");
+
+                info!(
+                    "Received {} new known peers initializing hole punch for each",
+                    &map.len()
+                );
+                let first_message = MessageType::FirstHolePunch {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey: self.pubkey.to_string().clone(),
+                };
+                let second_message = MessageType::SecondHolePunch {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey: self.pubkey.to_string().clone(),
+                };
+                let final_message = MessageType::FinalHolePunch {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey: self.pubkey.to_string().clone(),
+                };
+                self.known_peers.iter().for_each(|(addr, _)| {
+                    if let Err(e) = self.hole_punch(
+                        addr,
+                        first_message.clone(),
+                        second_message.clone(),
+                        final_message.clone(),
+                    ) {
+                        info!("Error punching hole to peer {:?}", e);
+                    };
+                });
+            }
+            Command::AddExplicitPeer(addr, pubkey) => {
+                let addr: SocketAddr = addr.parse().expect("Cannot parse address");
+                info!("Completed holepunching and handshaking process, adding new explicit peer: {:?}", &addr);
+
+                self.explicit_peers.insert(addr, pubkey);
+            }
+            Command::Bootstrap(addr, pubkey) => {
+                let addr: SocketAddr = addr.parse().expect("Cannot parse address");
+                info!("A new peer {:?} has joined the network, sharing known peers with them as part of bootstrap process", &addr);
+                let known_peers_message = MessageType::KnownPeers {
+                    data: serde_json::to_string(&self.known_peers.clone())
+                        .unwrap()
+                        .as_bytes()
+                        .to_vec(),
+                };
+
+                let packets = known_peers_message.into_message().as_packet_bytes();
+                packets.iter().for_each(|packet| {
+                    if let Err(e) = self.sock.send_to(packet, addr) {
+                        info!("Error sending known peers packet to peer: {:?}", e);
+                    }
+                });
+
+                info!("A new peer {:?} has joined the network, sharing their info with known peers as part of bootstrap process", &addr);
+                let new_peer_message = MessageType::NewPeer {
+                    data: addr.to_string().as_bytes().to_vec(),
+                    pubkey,
+                };
+                let packets = new_peer_message.into_message().as_packet_bytes();
+                self.known_peers.iter().for_each(|(addr, _)| {
+                    packets.iter().for_each(|packet| {
+                        if let Err(e) = self.sock.send_to(packet, addr) {
+                            info!("Error sending new peer packet to peer: {:?}", e);
+                        };
+                    });
+                });
+            }
+            Command::InitHandshake(data) => {
+                let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
+                info!("Hole punching process was successful, intializing hadnshape with peer {:?}", &peer_addr);
+
+                self.init_handshake(&peer_addr)
+            }
+            Command::ReciprocateHandshake(data, pubkey, signature) => {
+                let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
+                if let Ok(signature) = Signature::from_str(&signature) {
+                    if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
+                        if let Ok(true) = self.verify(peer_addr.to_string(), signature, pubkey) {
+                            info!("Initial Handshake is valid, reciprocating handshake with peer {:?}", &peer_addr);
+                            self.reciprocate_handshake(&peer_addr);
+                        }
+                    }
+                };
+            }
+            Command::CompleteHandshake(data, pubkey, signature) => {
+                let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
+                if let Ok(signature) = Signature::from_str(&signature) {
+                    if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
+                        if let Ok(true) = self.verify(peer_addr.to_string(), signature, pubkey) {
+                            info!("Reciprocal Handshake is valid, completing handshake with peer {:?}", &peer_addr);
+                            self.complete_handshake(&peer_addr);
+                        }
+                    }
+                };
+            }
+            Command::SendPing(_) => {}
+            Command::ReturnPong(_, _) => {}
+            _ => {}
         }
     }
 
@@ -262,123 +407,7 @@ impl GossipService {
 
         loop {
             if let Ok(command) = self.receiver.try_recv() {
-                match command {
-                    Command::SendMessage(message_bytes) => {
-                        let message = MessageType::from_bytes(&message_bytes);
-                        if let Some(message_type) = message {
-                            self.publish(message_type.clone());
-                            let packets = message_type.into_message().as_packet_bytes();
-                            info!("n_packets: {:?}", packets.len());
-                        }
-                    }
-                    Command::AddNewPeer(data) => {
-                        let mut map =
-                            serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
-                        let addr_string = format!("{}:{}", &self.ip, &self.port);
-                        let addr: SocketAddr =
-                            addr_string.parse().expect("cannot parse socket address");
-                        let first_message = MessageType::FirstHolePunch {
-                            data: addr.to_string().as_bytes().to_vec(),
-                            pubkey: self.pubkey.to_string().clone(),
-                        };
-                        let second_message = MessageType::SecondHolePunch {
-                            data: addr.to_string().as_bytes().to_vec(),
-                            pubkey: self.pubkey.to_string().clone(),
-                        };
-                        let final_message = MessageType::FinalHolePunch {
-                            data: addr.to_string().as_bytes().to_vec(),
-                            pubkey: self.pubkey.to_string().clone(),
-                        };
-                        let mut iter = map.iter();
-                        if let Some((addr, pubkey)) = iter.next() {
-                            self.hole_punch(addr, first_message, second_message, final_message);
-                        }
-                    }
-                    Command::AddKnownPeers(data) => {
-                        let map =
-                            serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
-                        self.known_peers.extend(map);
-                        let addr_string = format!("{}:{}", &self.ip, &self.port);
-                        let addr: SocketAddr =
-                            addr_string.parse().expect("cannot parse socket address");
-                        let first_message = MessageType::FirstHolePunch {
-                            data: addr.to_string().as_bytes().to_vec(),
-                            pubkey: self.pubkey.to_string().clone(),
-                        };
-                        let second_message = MessageType::SecondHolePunch {
-                            data: addr.to_string().as_bytes().to_vec(),
-                            pubkey: self.pubkey.to_string().clone(),
-                        };
-                        let final_message = MessageType::FinalHolePunch {
-                            data: addr.to_string().as_bytes().to_vec(),
-                            pubkey: self.pubkey.to_string().clone(),
-                        };
-                        self.known_peers.iter().for_each(|(addr, pubkey)| {
-                            self.hole_punch(
-                                addr,
-                                first_message.clone(),
-                                second_message.clone(),
-                                final_message.clone(),
-                            );
-                        });
-                    }
-                    Command::AddExplicitPeer(data) => {
-                        let map =
-                            serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
-                        self.explicit_peers.extend(map);
-                    }
-                    Command::Bootstrap(data) => {
-                        let map =
-                            serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
-                        let known_peers_message = MessageType::KnownPeers {
-                            data: serde_json::to_string(&self.known_peers.clone())
-                                .unwrap()
-                                .as_bytes()
-                                .to_vec(),
-                        };
-
-                        let packets = known_peers_message.into_message().as_packet_bytes();
-                        map.iter().for_each(|(addr, pubkey)| {
-                            packets.iter().for_each(|packet| {
-                                if let Err(e) = self.sock.send_to(packet, addr) {
-                                    info!("Error sending known peers packet to peer: {:?}", e);
-                                }
-                            });
-                        });
-
-                        let new_peer_message = MessageType::NewPeer {
-                            data: serde_json::to_string(&map).unwrap().as_bytes().to_vec(),
-                        };
-                        let packets = new_peer_message.into_message().as_packet_bytes();
-                        self.known_peers.iter().for_each(|(addr, pubkey)| {
-                            packets.iter().for_each(|packet| {
-                                if let Err(e) = self.sock.send_to(packet, addr) {
-                                    info!("Error sending new peer packet to peer: {:?}", e);
-                                };
-                            });
-                        });
-                    }
-                    Command::InitHandshake(data) => {
-                        let peer_addr = String::from_utf8_lossy(&data).into_owned();
-                        let peer_addr: SocketAddr =
-                            peer_addr.parse().expect("cannot parse socket address");
-                        self.init_handshake(&peer_addr)
-                    }
-                    Command::ReciprocateHandshake(data) => {
-                        let peer_addr = String::from_utf8_lossy(&data).into_owned();
-                        let peer_addr: SocketAddr =
-                            peer_addr.parse().expect("cannot parse socket address");
-                    }
-                    Command::CompleteHandshake(data) => {
-                        let peer_addr = String::from_utf8_lossy(&data).into_owned();
-                        let peer_addr: SocketAddr =
-                            peer_addr.parse().expect("cannot parse socket address");
-                        self.complete_handshake(&peer_addr);
-                    }
-                    Command::SendPing(data) => {}
-                    Command::ReturnPong(data) => {}
-                    _ => {}
-                }
+                self.process_gossip_command(command);
             }
         }
     }

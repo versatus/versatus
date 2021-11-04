@@ -98,6 +98,7 @@ pub enum MessageType {
     },
     NewPeer {
         data: Vec<u8>,
+        pubkey: String,
     },
     KnownPeers {
         data: Vec<u8>,
@@ -137,7 +138,8 @@ pub enum MessageType {
     Pong {
         data: Vec<u8>,
         addr: Vec<u8>,
-        timestamp: Vec<u8>,
+        ping_timestamp: Vec<u8>,
+        pong_timestamp: Vec<u8>,
     }
 }
 
