@@ -407,6 +407,7 @@ impl GossipService {
 
         loop {
             if let Ok(command) = self.receiver.try_recv() {
+                info!("Received command: {:?}", &command);
                 self.process_gossip_command(command);
             }
         }

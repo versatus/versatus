@@ -173,6 +173,11 @@ impl CommandHandler {
                     println!("Error sending claim abandoned command to miner: {:?}", e)
                 }
             }
+            Command::Bootstrap(new_peer_addr, new_peer_pubkey) => {
+                if let Err(e) = self.to_swarm_sender.send(Command::Bootstrap(new_peer_addr, new_peer_pubkey)) {
+                    info!("Error sending bootstrap command to swarm: {:?}", e);
+                }
+            }
             _ => {}
         }
     }
