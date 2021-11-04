@@ -3,7 +3,6 @@ use crate::{
     message_types::MessageType,
     packet::{Packet, Packetize},
 };
-use bytebuffer::ByteBuffer;
 use commands::command::Command;
 use log::info;
 use secp256k1::{
@@ -229,19 +228,11 @@ impl GossipService {
 
     pub fn verify(
         &self,
-        message: String,
+        message: &[u8],
         signature: Signature,
         pk: PublicKey,
     ) -> Result<bool, Error> {
-        let message_bytes = message.as_bytes().to_owned();
-
-        let mut buffer = ByteBuffer::new();
-        buffer.write_bytes(&message_bytes);
-        while buffer.len() < 32 {
-            buffer.write_u8(0);
-        }
-        let new_message = buffer.to_bytes();
-        let message_hash = blake3::hash(&new_message);
+        let message_hash = blake3::hash(&message);
         let message_hash = Message::from_slice(message_hash.as_bytes())?;
         let secp = Secp256k1::new();
         let valid = secp.verify(&message_hash, &signature, &pk);
@@ -341,16 +332,10 @@ impl GossipService {
                 info!("A new peer {:?} has joined the network, sharing their info with known peers as part of bootstrap process", &addr);
                 let new_peer_message = MessageType::NewPeer {
                     data: addr.to_string().as_bytes().to_vec(),
-                    pubkey,
+                    pubkey: pubkey.clone(),
                 };
-                let packets = new_peer_message.into_message().as_packet_bytes();
-                self.known_peers.iter().for_each(|(addr, _)| {
-                    packets.iter().for_each(|packet| {
-                        if let Err(e) = self.sock.send_to(packet, addr) {
-                            info!("Error sending new peer packet to peer: {:?}", e);
-                        };
-                    });
-                });
+                self.publish(new_peer_message);
+                self.known_peers.insert(addr, pubkey.clone());
             }
             Command::InitHandshake(data) => {
                 let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
@@ -359,21 +344,27 @@ impl GossipService {
                 self.init_handshake(&peer_addr)
             }
             Command::ReciprocateHandshake(data, pubkey, signature) => {
-                let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
+                let peer_addr: SocketAddr = data.clone().parse().expect("cannot parse socket address");
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
-                        if let Ok(true) = self.verify(peer_addr.to_string(), signature, pubkey) {
+                        if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
                             info!("Initial Handshake is valid, reciprocating handshake with peer {:?}", &peer_addr);
                             self.reciprocate_handshake(&peer_addr);
+                        } else {
+                            info!("Signature validation failed");
                         }
+                    } else {
+                        info!("Pubkey unable to be converted from str");
                     }
+                } else {
+                    info!("Signature unable to be converted from str")
                 };
             }
             Command::CompleteHandshake(data, pubkey, signature) => {
-                let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
+                let peer_addr: SocketAddr = data.clone().parse().expect("cannot parse socket address");
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
-                        if let Ok(true) = self.verify(peer_addr.to_string(), signature, pubkey) {
+                        if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
                             info!("Reciprocal Handshake is valid, completing handshake with peer {:?}", &peer_addr);
                             self.complete_handshake(&peer_addr);
                         }
