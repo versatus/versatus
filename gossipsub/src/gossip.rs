@@ -250,10 +250,10 @@ impl GossipService {
                 if let Some(message_type) = message {
                     self.publish(message_type.clone());
                     let packets = message_type.into_message().as_packet_bytes();
-                    info!("Sent n_packets to all known peers: {}", packets.len());
+                    info!("Sent {} to all known peers: {:?}", packets.len(), &self.known_peers);
                 }
             }
-            Command::AddNewPeer(peer_addr, _) => {
+            Command::AddNewPeer(peer_addr, pubkey) => {
                 let peer_addr: SocketAddr =
                     peer_addr.parse().expect("Cannot parse peer socket address");
                 info!("Received new peer {:?} initializing hole punch", &peer_addr);
@@ -275,6 +275,7 @@ impl GossipService {
                 {
                     info!("Error punching hole to peer {:?}", e);
                 };
+                self.known_peers.insert(peer_addr, pubkey);
             }
             Command::AddKnownPeers(data) => {
                 let map = serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
@@ -309,7 +310,6 @@ impl GossipService {
             Command::AddExplicitPeer(addr, pubkey) => {
                 let addr: SocketAddr = addr.parse().expect("Cannot parse address");
                 info!("Completed holepunching and handshaking process, adding new explicit peer: {:?}", &addr);
-
                 self.explicit_peers.insert(addr, pubkey);
             }
             Command::Bootstrap(addr, pubkey) => {
@@ -395,7 +395,6 @@ impl GossipService {
 
         loop {
             if let Ok(command) = self.receiver.try_recv() {
-                info!("Received command: {:?}", &command);
                 self.process_gossip_command(command);
             }
         }
