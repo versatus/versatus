@@ -9,6 +9,8 @@ edition = "2018"
 rand = {version = "0.6", features = ["std"]}
 hex = "*"
 sha256 = "1.0.2"
+blake3 = "0.3.8"
+bytebuffer = "0.2.1"
 tokio = {version = "1.12.0", features = ["full"]}
 async-std = { version = "1", features = ["attributes", "tokio1"] }
 public-ip = "0.2.1"
