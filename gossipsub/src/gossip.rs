@@ -21,6 +21,7 @@ pub const MAX_TRANSMIT_SIZE: usize = 65_507;
 pub struct GossipServiceConfig {
     ip: String,
     port: u32,
+    public_addr: Option<String>,
     heartbeat_interval: u32,
     history_length: u32,
     history_gossip: u32,
@@ -41,6 +42,7 @@ pub struct GossipService {
     pub receiver: UnboundedReceiver<Command>,
     pub sender: UnboundedSender<Packet>,
     pub ip: String,
+    pub public_addr: String,
     pub port: u32,
     pub heartbeat_interval: u32,
     pub history_length: u32,
@@ -73,12 +75,21 @@ impl GossipService {
     ) -> GossipService {
         let sock =
             UdpSocket::bind(&format!("{}:{}", &config.get_ip(), &config.get_port())).unwrap();
+
+        let public_addr = {
+            if let Some(addr) = config.get_public_addr() {
+                addr
+            } else {
+                format!("{:?}:{:?}", config.get_ip(), config.get_port())
+            }
+        };
         GossipService {
             sock,
             receiver,
             sender,
             ip: config.get_ip(),
             port: config.get_port(),
+            public_addr,
             heartbeat_interval: config.get_heartbeat_interval(),
             history_length: config.get_history_length(),
             history_gossip: config.get_history_gossip(),
@@ -141,13 +152,10 @@ impl GossipService {
     }
 
     pub fn init_handshake(&self, peer: &SocketAddr) {
-        let addr_string = format!("{}:{}", &self.ip, &self.port);
-        let addr: SocketAddr = addr_string.parse().expect("cannot parse socket address");
-        let data = addr.to_string();
-        let result = self.sign(data.clone().as_bytes());
+        let result = self.sign(self.public_addr.clone().as_bytes());
         if let Ok(signature) = result {
             let message = MessageType::InitHandshake {
-                data: data.clone().as_bytes().to_vec(),
+                data: self.public_addr.clone().as_bytes().to_vec(),
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
@@ -159,13 +167,10 @@ impl GossipService {
     }
 
     pub fn reciprocate_handshake(&self, peer: &SocketAddr) {
-        let addr_string = format!("{}:{}", &self.ip, &self.port);
-        let addr: SocketAddr = addr_string.parse().expect("cannot parse socket address");
-        let data = addr.to_string();
-        let result = self.sign(data.clone().as_bytes());
+        let result = self.sign(self.public_addr.clone().as_bytes());
         if let Ok(signature) = result {
             let message = MessageType::ReciprocateHandshake {
-                data: data.clone().as_bytes().to_vec(),
+                data: self.public_addr.clone().as_bytes().to_vec(),
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
@@ -177,13 +182,10 @@ impl GossipService {
     }
 
     pub fn complete_handshake(&self, peer: &SocketAddr) {
-        let addr_string = format!("{}:{}", &self.ip, &self.port);
-        let addr: SocketAddr = addr_string.parse().expect("cannot parse socket address");
-        let data = addr.to_string();
-        let result = self.sign(data.clone().as_bytes());
+        let result = self.sign(self.public_addr.clone().as_bytes());
         if let Ok(signature) = result {
             let message = MessageType::CompleteHandshake {
-                data: data.clone().as_bytes().to_vec(),
+                data: self.public_addr.clone().as_bytes().to_vec(),
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
@@ -263,19 +265,17 @@ impl GossipService {
             Command::AddNewPeer(peer_addr, _) => {
                 let peer_addr: SocketAddr =
                     peer_addr.parse().expect("Cannot parse peer socket address");
-                let addr_string = format!("{}:{}", &self.ip, &self.port);
-                let addr: SocketAddr = addr_string.parse().expect("Cannot parse socket address");
                 info!("Received new peer {:?} initializing hole punch", &peer_addr);
                 let first_message = MessageType::FirstHolePunch {
-                    data: addr.to_string().as_bytes().to_vec(),
+                    data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
                 let second_message = MessageType::SecondHolePunch {
-                    data: addr.to_string().as_bytes().to_vec(),
+                    data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
                 let final_message = MessageType::FinalHolePunch {
-                    data: addr.to_string().as_bytes().to_vec(),
+                    data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
 
@@ -288,23 +288,20 @@ impl GossipService {
             Command::AddKnownPeers(data) => {
                 let map = serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
                 self.known_peers.extend(map.clone());
-                let addr_string = format!("{}:{}", &self.ip, &self.port);
-                let addr: SocketAddr = addr_string.parse().expect("cannot parse socket address");
-
                 info!(
                     "Received {} new known peers initializing hole punch for each",
                     &map.len()
                 );
                 let first_message = MessageType::FirstHolePunch {
-                    data: addr.to_string().as_bytes().to_vec(),
+                    data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
                 let second_message = MessageType::SecondHolePunch {
-                    data: addr.to_string().as_bytes().to_vec(),
+                    data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
                 let final_message = MessageType::FinalHolePunch {
-                    data: addr.to_string().as_bytes().to_vec(),
+                    data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
                 self.known_peers.iter().for_each(|(addr, _)| {
@@ -396,7 +393,7 @@ impl GossipService {
         let thread_sender = self.sender.clone();
         std::thread::spawn(move || loop {
             let mut buf = [0; MAX_TRANSMIT_SIZE];
-            let (amt, _) = thread_socket.recv_from(&mut buf).expect("no data received");
+            let (amt, src) = thread_socket.recv_from(&mut buf).expect("no data received");
             if amt > 0 {
                 let packet = Packet::from_bytes(&buf[..amt]);
                 if let Err(e) = thread_sender.send(packet) {
@@ -423,9 +420,14 @@ impl GossipServiceConfig {
         self.port.clone()
     }
 
+    pub fn get_public_addr(&self) -> Option<String> {
+        self.public_addr.clone()
+    }
+
     pub fn get_heartbeat_interval(&self) -> u32 {
         self.heartbeat_interval.clone()
     }
+
     pub fn get_history_length(&self) -> u32 {
         self.history_length.clone()
     }
@@ -469,6 +471,11 @@ impl GossipServiceConfig {
     pub fn set_port(&mut self, port: u32) {
         self.port = port
     }
+
+    pub fn set_public_addr(&mut self, public_addr: Option<String>) {
+        self.public_addr = public_addr
+    }
+
     pub fn set_heartbeat_interval(&mut self, heartbeat_interval: u32) {
         self.heartbeat_interval = heartbeat_interval
     }
@@ -520,6 +527,7 @@ impl Default for GossipServiceConfig {
         GossipServiceConfig {
             ip,
             port,
+            public_addr: None,
             heartbeat_interval: 2,
             history_length: 5,
             history_gossip: 3,
