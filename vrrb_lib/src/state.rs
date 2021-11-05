@@ -29,8 +29,8 @@ pub struct Components {
 pub struct NetworkState {
     // Path to database
     pub path: String,
-    // hash of the state of credits in the network
     pub ledger: Vec<u8>,
+    // hash of the state of credits in the network
     pub credits: Option<String>,
     // hash of the state of debits in the network
     pub debits: Option<String>,
@@ -189,6 +189,10 @@ impl NetworkState {
             new_claim.nonce_up();
             new_claim_map.insert(pk.clone(), new_claim.clone());
         });
+
+        let mut ledger = Ledger::from_bytes(&self.ledger);
+        ledger.claims = new_claim_map;
+        self.ledger = ledger.as_bytes();
     }
 
     pub fn abandoned_claim(&mut self, hash: String) {
