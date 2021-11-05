@@ -103,6 +103,11 @@ pub enum MessageType {
     KnownPeers {
         data: Vec<u8>,
     },
+    AckMessage {
+        packet_id: String,
+        packet_number: u32,
+        src: String,
+    },
     FirstHolePunch {
         data: Vec<u8>,
         pubkey: String,

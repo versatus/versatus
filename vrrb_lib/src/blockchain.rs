@@ -2,7 +2,7 @@ use crate::block::Block;
 use crate::fields::GettableFields;
 use crate::header::BlockHeader;
 use commands::command::Command;
-use gossipsub::message_types::MessageType;
+use messages::message_types::MessageType;
 use crate::reward::RewardState;
 use crate::state::NetworkState;
 use crate::verifiable::Verifiable;

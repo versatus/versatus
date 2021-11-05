@@ -2,6 +2,8 @@
 members = [
     "commands",
     "gossipsub",
+    "messages",
+    "gd_udp",
     "vrrb_lib",
     "vrrb_tui",
     "vrrb_cli",

@@ -39,3 +39,4 @@ node = { path = "../node" }
 network = { path = "../network" }
 gossipsub = { path = "../gossipsub" }
 commands = { path = "../commands" }
+messages = { path = "../messages" }

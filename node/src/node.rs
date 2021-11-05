@@ -1,8 +1,8 @@
 use crate::handler::{CommandHandler, MessageHandler};
 use commands::command::Command;
-use gossipsub::message::Message;
-use gossipsub::message_types::MessageType;
-use gossipsub::packet::{Packet, Packetize};
+use messages::message::Message;
+use messages::message_types::MessageType;
+use messages::packet::{Packet, Packetize};
 use log::info;
 use network::message;
 use secp256k1::Secp256k1;

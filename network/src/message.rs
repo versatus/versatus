@@ -1,7 +1,7 @@
 use crate::components::StateComponent;
 use commands::command::Command;
-use gossipsub::message_types::{MessageType, StateBlock};
-use gossipsub::message::Message;
+use messages::message_types::{MessageType, StateBlock};
+use messages::message::Message;
 use log::info;
 
 pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
