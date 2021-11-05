@@ -14,7 +14,7 @@ use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-pub const MAX_TRANSMIT_SIZE: usize = 65_507;
+pub const MAX_TRANSMIT_SIZE: usize = 65_535;
 
 #[derive(Debug)]
 pub struct GossipServiceConfig {
@@ -105,6 +105,7 @@ impl GossipService {
     }
 
     pub fn gossip<T: AsMessage>(&self, message: T) {
+        self.sock.set_ttl(255).expect("Unable to set socket ttl");
         let every_n = 1.0 / self.gossip_factor;
         self.known_peers
             .iter()
@@ -117,6 +118,7 @@ impl GossipService {
     }
 
     pub fn publish<T: AsMessage>(&self, message: T) {
+        self.sock.set_ttl(255).expect("Unable to set socket ttl");
         message
             .into_message()
             .as_packet_bytes()
@@ -140,11 +142,9 @@ impl GossipService {
         second_message: T,
         final_message: T,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        self.sock.set_ttl(32).expect("Unable to set socket ttl");
-        self.send_packets(peer, first_message.into_message().as_packet_bytes());
-        self.sock.set_ttl(64).expect("Unable to set socket ttl");
-        self.send_packets(peer, second_message.into_message().as_packet_bytes());
         self.sock.set_ttl(255).expect("Unable to set socket ttl");
+        self.send_packets(peer, first_message.into_message().as_packet_bytes());
+        self.send_packets(peer, second_message.into_message().as_packet_bytes());
         self.send_packets(peer, final_message.into_message().as_packet_bytes());
 
         Ok(())
@@ -158,7 +158,7 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(128).expect("Unable to set socket ttl");
+            self.sock.set_ttl(255).expect("Unable to set socket ttl");
             self.send_packets(peer, message.into_message().as_packet_bytes());
         } else {
             info!("Error signing data");
@@ -173,7 +173,7 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(128).expect("Unable to set socket ttl");
+            self.sock.set_ttl(255).expect("Unable to set socket ttl");
             self.send_packets(peer, message.into_message().as_packet_bytes());
         } else {
             info!("Error signing data");
