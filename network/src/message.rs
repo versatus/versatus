@@ -180,6 +180,13 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 // process and log the pong event as a VRRB network event along with the
                 // time that it took for the pong to be received back after the ping was sent.
                 return None 
+            },
+            MessageType::AckMessage {
+                packet_id,
+                packet_number,
+                src,
+            } => {
+                return None
             }
             _ => None,
         }

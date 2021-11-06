@@ -145,7 +145,7 @@ pub enum MessageType {
         addr: Vec<u8>,
         ping_timestamp: Vec<u8>,
         pong_timestamp: Vec<u8>,
-    }
+    },
 }
 
 impl MessageType {

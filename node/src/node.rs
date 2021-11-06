@@ -1,9 +1,9 @@
 use crate::handler::{CommandHandler, MessageHandler};
 use commands::command::Command;
+use log::info;
 use messages::message::Message;
 use messages::message_types::MessageType;
 use messages::packet::{Packet, Packetize};
-use log::info;
 use network::message;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
@@ -77,27 +77,28 @@ impl Node {
         let id = String::from_utf8_lossy(&packet.clone().id).to_string();
         if let Some(map) = self.packet_storage.get_mut(&id) {
             map.insert(packet_number, packet.clone());
-            if map.len() == total_packets {
-                let message_bytes = Message::assemble(map);
+            if let Ok(message_bytes) = Message::try_assemble(map) {
                 let message = Message::from_bytes(&message_bytes);
                 if let Some(command) =
                     message::process_message(message, self.id.clone().to_string())
                 {
                     self.command_handler.handle_command(command);
                 };
+
+                self.packet_storage.remove(&id.clone());
             }
         } else {
             let mut map = HashMap::new();
             map.insert(packet_number, packet.clone());
-            self.packet_storage.insert(id, map.clone());
-            if map.clone().len() == total_packets {
-                let message_bytes = Message::assemble(&mut map);
+            self.packet_storage.insert(id.clone(), map.clone());
+            if let Ok(message_bytes) = Message::try_assemble(&mut map) {
                 let message = Message::from_bytes(&message_bytes);
                 if let Some(command) =
                     message::process_message(message, self.id.clone().to_string())
                 {
                     self.command_handler.handle_command(command);
                 };
+                self.packet_storage.remove(&id.clone());
             }
         }
     }

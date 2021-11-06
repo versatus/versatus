@@ -1,4 +1,4 @@
-use crate::packet::{Packet, Packetize};
+use crate::packet::{Packet, Packetize, NotCompleteError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 pub const MAX_TRANSMIT_SIZE: usize = 50_000;
@@ -114,5 +114,25 @@ impl Packetize for Message {
         });
 
         assembled
+    }
+
+    fn try_assemble(map: &mut HashMap<u32, Packet>) -> Result<Vec<u8>, NotCompleteError> {
+        if let Some((_, packet)) = map.clone().iter().next() {
+            if map.len() == usize::from_be_bytes(packet.clone().convert_total_packets()) {
+                let mut byte_slices = map
+                    .iter()
+                    .map(|(packet_number, packet)| return (*packet_number, packet.clone()))
+                    .collect::<Vec<(u32, Packet)>>();
+
+                byte_slices.sort_unstable_by_key(|k| k.0);
+                let mut assembled = vec![];
+                byte_slices.iter().for_each(|(_, v)| {
+                    assembled.extend(v.data.clone());
+                });
+
+                return Ok(assembled)
+            }
+        } 
+        return Err(NotCompleteError)
     }
 }

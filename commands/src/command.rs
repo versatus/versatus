@@ -49,6 +49,7 @@ pub enum Command {
     InitHandshake(String),
     ReciprocateHandshake(String, String, String),
     CompleteHandshake(String, String, String),
+    CleanInbox(String),
     CheckAbandoned,
     StartMiner,
     GetHeight,

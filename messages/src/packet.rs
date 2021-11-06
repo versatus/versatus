@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::error::Error;
+
+#[derive(Debug)]
+pub struct NotCompleteError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Packet {
@@ -68,4 +72,13 @@ pub trait Packetize {
     fn into_packets(&self) -> Vec<Packet>;
     fn as_packet_bytes(&self) -> Vec<Vec<u8>>;
     fn assemble(map: &mut HashMap<u32, Packet>) -> Vec<u8>;
+    fn try_assemble(map: &mut HashMap<u32, Packet>) -> Result<Vec<u8>, NotCompleteError>;
+}
+
+impl Error for NotCompleteError {}
+
+impl std::fmt::Display for NotCompleteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "NotCompleteError")
+    }
 }

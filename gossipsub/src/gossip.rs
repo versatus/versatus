@@ -1,10 +1,11 @@
+use commands::command::Command;
+use gd_udp::gd_udp::GDUdp;
+use log::info;
 use messages::{
     message::AsMessage,
     message_types::MessageType,
     packet::{Packet, Packetize},
 };
-use commands::command::Command;
-use log::info;
 use secp256k1::{
     key::{PublicKey, SecretKey},
     Error, Message, Secp256k1, Signature,
@@ -12,6 +13,7 @@ use secp256k1::{
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub const MAX_TRANSMIT_SIZE: usize = 65_535;
@@ -35,11 +37,10 @@ pub struct GossipServiceConfig {
 
 #[derive(Debug)]
 pub struct GossipService {
-    pub sock: UdpSocket,
+    pub sock: GDUdp,
     // TODO, replace T generic with Command enum or create a Command trait
     // that can be applied to MessageTypes, Packets, etc.
     pub receiver: UnboundedReceiver<Command>,
-    pub sender: UnboundedSender<Packet>,
     pub ip: String,
     pub public_addr: String,
     pub port: u32,
@@ -62,7 +63,7 @@ impl GossipService {
     pub fn new(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
-        sender: UnboundedSender<Packet>,
+        sender: UnboundedSender<Vec<u8>>,
     ) -> GossipService {
         GossipService::from_config(config, receiver, sender)
     }
@@ -70,11 +71,18 @@ impl GossipService {
     pub fn from_config(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
-        sender: UnboundedSender<Packet>,
+        sender: UnboundedSender<Vec<u8>>,
     ) -> GossipService {
         let sock =
             UdpSocket::bind(&format!("{}:{}", &config.get_ip(), &config.get_port())).unwrap();
-
+        let gd_udp = GDUdp {
+            sock,
+            buf: Vec::new(),
+            buf_cursor: 0,
+            inbox: HashMap::new(),
+            outbox: HashMap::new(),
+            to_node_sender: sender,
+        };
         let public_addr = {
             if let Some(addr) = config.get_public_addr() {
                 addr
@@ -83,9 +91,8 @@ impl GossipService {
             }
         };
         GossipService {
-            sock,
+            sock: gd_udp,
             receiver,
-            sender,
             ip: config.get_ip(),
             port: config.get_port(),
             public_addr,
@@ -104,53 +111,69 @@ impl GossipService {
         }
     }
 
-    pub fn gossip<T: AsMessage>(&self, message: T) {
-        self.sock.set_ttl(255).expect("Unable to set socket ttl");
+    pub fn gossip<T: AsMessage>(&mut self, message: T) {
+        self.sock
+            .sock
+            .set_ttl(255)
+            .expect("Unable to set socket ttl");
         let every_n = 1.0 / self.gossip_factor;
+        let mut sock = self.sock.clone();
         self.known_peers
             .iter()
             .enumerate()
             .for_each(|(idx, (addr, _))| {
                 if idx % every_n as usize == 0 {
-                    self.send_packets(addr, message.into_message().as_packet_bytes());
+                    let packets = message.into_message().into_packets();
+                    packets.iter().for_each(|packet| {
+                        sock.send_reliable(addr, packet.clone());
+                    });
                 }
             });
     }
 
-    pub fn publish<T: AsMessage>(&self, message: T) {
-        self.sock.set_ttl(255).expect("Unable to set socket ttl");
+    pub fn publish<T: AsMessage>(&mut self, message: T) {
+        self.sock
+            .sock
+            .set_ttl(255)
+            .expect("Unable to set socket ttl");
+        let mut sock = self.sock.clone();
         message
             .into_message()
-            .as_packet_bytes()
+            .into_packets()
             .iter()
             .for_each(|packet| {
-                self.known_peers.iter().for_each(|(addr, _)| {
-                    if let Err(e) = self.sock.send_to(packet, addr) {
-                        info!(
-                            "Error sending packet {:?} to peer {:?}: {:?}",
-                            packet, addr, e
-                        )
-                    }
-                });
+                self.known_peers
+                    .iter()
+                    .for_each(|(addr, _)| sock.send_reliable(addr, packet.clone()));
             })
     }
 
     pub fn hole_punch<T: AsMessage>(
-        &self,
+        &mut self,
+        sock: &mut GDUdp,
         peer: &SocketAddr,
         first_message: T,
         second_message: T,
         final_message: T,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        self.sock.set_ttl(255).expect("Unable to set socket ttl");
-        self.send_packets(peer, first_message.into_message().as_packet_bytes());
-        self.send_packets(peer, second_message.into_message().as_packet_bytes());
-        self.send_packets(peer, final_message.into_message().as_packet_bytes());
+        sock.sock.set_ttl(255).expect("Unable to set socket ttl");
+        let first_message_packets = first_message.into_message().into_packets();
+        first_message_packets.iter().for_each(|packet| {
+            sock.send_reliable(peer, packet.clone());
+        });
+        let second_message_packets = second_message.into_message().into_packets();
+        second_message_packets.iter().for_each(|packet| {
+            sock.send_reliable(peer, packet.clone());
+        });
+        let final_message_packets = final_message.into_message().into_packets();
+        final_message_packets.iter().for_each(|packet| {
+            sock.send_reliable(peer, packet.clone());
+        });
 
         Ok(())
     }
 
-    pub fn init_handshake(&self, peer: &SocketAddr) {
+    pub fn init_handshake(&mut self, peer: &SocketAddr) {
         let result = self.sign(self.public_addr.clone().as_bytes());
         if let Ok(signature) = result {
             let message = MessageType::InitHandshake {
@@ -158,14 +181,17 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(255).expect("Unable to set socket ttl");
-            self.send_packets(peer, message.into_message().as_packet_bytes());
+            self.sock
+                .sock
+                .set_ttl(255)
+                .expect("Unable to set socket ttl");
+            self.send_packets(peer, message.into_message().into_packets());
         } else {
             info!("Error signing data");
         }
     }
 
-    pub fn reciprocate_handshake(&self, peer: &SocketAddr) {
+    pub fn reciprocate_handshake(&mut self, peer: &SocketAddr) {
         let result = self.sign(self.public_addr.clone().as_bytes());
         if let Ok(signature) = result {
             let message = MessageType::ReciprocateHandshake {
@@ -173,14 +199,17 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(255).expect("Unable to set socket ttl");
-            self.send_packets(peer, message.into_message().as_packet_bytes());
+            self.sock
+                .sock
+                .set_ttl(255)
+                .expect("Unable to set socket ttl");
+            self.send_packets(peer, message.into_message().into_packets());
         } else {
             info!("Error signing data");
         }
     }
 
-    pub fn complete_handshake(&self, peer: &SocketAddr) {
+    pub fn complete_handshake(&mut self, peer: &SocketAddr) {
         let result = self.sign(self.public_addr.clone().as_bytes());
         if let Ok(signature) = result {
             let message = MessageType::CompleteHandshake {
@@ -188,19 +217,28 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(128).expect("Unable to set socket ttl");
-            self.send_packets(peer, message.into_message().as_packet_bytes());
+            self.sock
+                .sock
+                .set_ttl(128)
+                .expect("Unable to set socket ttl");
+            self.send_packets(peer, message.into_message().into_packets());
         } else {
             info!("Error signing data");
         }
     }
 
-    pub fn send_ping<T: AsMessage>(&self, peer: &SocketAddr, message: T) {
-        self.send_packets(peer, message.into_message().as_packet_bytes());
+    pub fn send_ping<T: AsMessage>(&mut self, peer: &SocketAddr, message: T) {
+        let packets = message.into_message().into_packets();
+        packets.iter().for_each(|packet| {
+            self.sock.send_reliable(peer, packet.clone());
+        });
     }
 
-    pub fn return_pong<T: AsMessage>(&self, peer: &SocketAddr, message: T) {
-        self.send_packets(peer, message.into_message().as_packet_bytes());
+    pub fn return_pong<T: AsMessage>(&mut self, peer: &SocketAddr, message: T) {
+        let packets = message.into_message().into_packets();
+        packets.iter().for_each(|packet| {
+            self.sock.send_reliable(peer, packet.clone());
+        });
     }
 
     pub fn prune_peers(&mut self, _peer: &SocketAddr) {
@@ -210,11 +248,9 @@ impl GossipService {
         // for additional peers to connect to you if need be.
     }
 
-    pub fn send_packets(&self, peer: &SocketAddr, packets: Vec<Vec<u8>>) {
+    pub fn send_packets(&mut self, peer: &SocketAddr, packets: Vec<Packet>) {
         packets.iter().for_each(|packet| {
-            if let Err(e) = self.sock.send_to(&packet, peer) {
-                info!("Error sending first hole punch message to peer: {:?}", e);
-            };
+            self.sock.send_reliable(peer, packet.clone());
         });
     }
 
@@ -250,7 +286,11 @@ impl GossipService {
                 if let Some(message_type) = message {
                     self.publish(message_type.clone());
                     let packets = message_type.into_message().as_packet_bytes();
-                    info!("Sent {} to all known peers: {:?}", packets.len(), &self.known_peers);
+                    info!(
+                        "Sent {} to all known peers: {:?}",
+                        packets.len(),
+                        &self.known_peers
+                    );
                 }
             }
             Command::AddNewPeer(peer_addr, pubkey) => {
@@ -269,10 +309,14 @@ impl GossipService {
                     data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
-
-                if let Err(e) =
-                    self.hole_punch(&peer_addr, first_message, second_message, final_message)
-                {
+                let mut sock = self.sock.clone();
+                if let Err(e) = self.hole_punch(
+                    &mut sock,
+                    &peer_addr,
+                    first_message,
+                    second_message,
+                    final_message,
+                ) {
                     info!("Error punching hole to peer {:?}", e);
                 };
                 self.known_peers.insert(peer_addr, pubkey);
@@ -296,8 +340,12 @@ impl GossipService {
                     data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
-                self.known_peers.iter().for_each(|(addr, _)| {
+
+                let mut sock = self.sock.clone();
+                let known_peers = self.known_peers.clone();
+                known_peers.iter().for_each(|(addr, _)| {
                     if let Err(e) = self.hole_punch(
+                        &mut sock,
                         addr,
                         first_message.clone(),
                         second_message.clone(),
@@ -322,11 +370,9 @@ impl GossipService {
                         .to_vec(),
                 };
 
-                let packets = known_peers_message.into_message().as_packet_bytes();
+                let packets = known_peers_message.into_message().into_packets();
                 packets.iter().for_each(|packet| {
-                    if let Err(e) = self.sock.send_to(packet, addr) {
-                        info!("Error sending known peers packet to peer: {:?}", e);
-                    }
+                    self.sock.send_reliable(&addr, packet.clone());
                 });
 
                 info!("A new peer {:?} has joined the network, sharing their info with known peers as part of bootstrap process", &addr);
@@ -339,12 +385,16 @@ impl GossipService {
             }
             Command::InitHandshake(data) => {
                 let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
-                info!("Hole punching process was successful, intializing hadnshape with peer {:?}", &peer_addr);
+                info!(
+                    "Hole punching process was successful, intializing hadnshape with peer {:?}",
+                    &peer_addr
+                );
 
                 self.init_handshake(&peer_addr)
             }
             Command::ReciprocateHandshake(data, pubkey, signature) => {
-                let peer_addr: SocketAddr = data.clone().parse().expect("cannot parse socket address");
+                let peer_addr: SocketAddr =
+                    data.clone().parse().expect("cannot parse socket address");
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
                         if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
@@ -361,7 +411,8 @@ impl GossipService {
                 };
             }
             Command::CompleteHandshake(data, pubkey, signature) => {
-                let peer_addr: SocketAddr = data.clone().parse().expect("cannot parse socket address");
+                let peer_addr: SocketAddr =
+                    data.clone().parse().expect("cannot parse socket address");
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
                         if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
@@ -380,17 +431,10 @@ impl GossipService {
     #[allow(unused)]
     pub fn start(&mut self) {
         //TODO: Add timer to periodically send Ping messages
-        let thread_socket = self.sock.try_clone().unwrap();
-        let thread_sender = self.sender.clone();
+        let arc_gd_udp = Arc::new(Mutex::new(self.sock.clone()));
         std::thread::spawn(move || loop {
-            let mut buf = [0; MAX_TRANSMIT_SIZE];
-            let (amt, src) = thread_socket.recv_from(&mut buf).expect("no data received");
-            if amt > 0 {
-                let packet = Packet::from_bytes(&buf[..amt]);
-                if let Err(e) = thread_sender.send(packet) {
-                    info!("Error forwarding packet to packet processor: {:?}", e);
-                }
-            }
+            let thread_arc_gd_udp = Arc::clone(&arc_gd_udp);
+            thread_arc_gd_udp.lock().unwrap().recv_to_inbox();
         });
 
         loop {
