@@ -11,6 +11,7 @@ use secp256k1::{
     Error, Message, Secp256k1, Signature,
 };
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -64,14 +65,16 @@ impl GossipService {
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
         sender: UnboundedSender<Vec<u8>>,
+        log: String,
     ) -> GossipService {
-        GossipService::from_config(config, receiver, sender)
+        GossipService::from_config(config, receiver, sender, log)
     }
 
     pub fn from_config(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
         sender: UnboundedSender<Vec<u8>>,
+        log: String,
     ) -> GossipService {
         let sock =
             UdpSocket::bind(&format!("{}:{}", &config.get_ip(), &config.get_port())).unwrap();
@@ -82,6 +85,7 @@ impl GossipService {
             inbox: HashMap::new(),
             outbox: HashMap::new(),
             to_node_sender: sender,
+            log,
         };
         let public_addr = {
             if let Some(addr) = config.get_public_addr() {
@@ -185,7 +189,10 @@ impl GossipService {
                 .sock
                 .set_ttl(255)
                 .expect("Unable to set socket ttl");
-            self.send_packets(peer, message.into_message().into_packets());
+            let packets = message.into_message().into_packets();
+            packets.iter().for_each(|packet| {
+                self.sock.send_reliable(&peer, packet.clone());
+            });
         } else {
             info!("Error signing data");
         }
@@ -203,7 +210,10 @@ impl GossipService {
                 .sock
                 .set_ttl(255)
                 .expect("Unable to set socket ttl");
-            self.send_packets(peer, message.into_message().into_packets());
+            let packets = message.into_message().into_packets();
+            packets.iter().for_each(|packet| {
+                self.sock.send_reliable(&peer, packet.clone());
+            });
         } else {
             info!("Error signing data");
         }
@@ -221,7 +231,10 @@ impl GossipService {
                 .sock
                 .set_ttl(128)
                 .expect("Unable to set socket ttl");
-            self.send_packets(peer, message.into_message().into_packets());
+            let packets = message.into_message().into_packets();
+            packets.iter().for_each(|packet| {
+                self.sock.send_reliable(&peer, packet.clone());
+            });
         } else {
             info!("Error signing data");
         }

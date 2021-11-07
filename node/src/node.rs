@@ -36,7 +36,7 @@ pub struct Node {
     pub message_cache: HashMap<String, Vec<u8>>,
     pub packet_storage: HashMap<String, HashMap<u32, Packet>>,
     pub command_handler: CommandHandler,
-    pub message_handler: MessageHandler<MessageType, Packet>,
+    pub message_handler: MessageHandler<MessageType, Vec<u8>>,
 }
 
 impl Node {
@@ -51,7 +51,7 @@ impl Node {
     pub fn new(
         node_type: NodeAuth,
         command_handler: CommandHandler,
-        message_handler: MessageHandler<MessageType, Packet>,
+        message_handler: MessageHandler<MessageType, Vec<u8>>,
     ) -> Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
@@ -116,7 +116,7 @@ impl Node {
                     }
                     from_message = self.message_handler.receiver.recv() => {
                         if let Some(message) = from_message {
-                            Some(Command::ProcessPacket(message.as_bytes()))
+                            Some(Command::ProcessPacket(message))
                         } else {
                             None
                         }
