@@ -21,3 +21,4 @@ log = "0.4.14"
 ritelinked = {version = "0.3.2", features = [ 'serde' ]}
 commands = { path = "../commands" }
 messages = { path = "../messages" }
+events = { path = "../events" }

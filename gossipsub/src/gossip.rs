@@ -14,7 +14,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
-use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub const MAX_TRANSMIT_SIZE: usize = 65_535;
@@ -42,6 +41,7 @@ pub struct GossipService {
     // TODO, replace T generic with Command enum or create a Command trait
     // that can be applied to MessageTypes, Packets, etc.
     pub receiver: UnboundedReceiver<Command>,
+    pub to_inbox_sender: UnboundedSender<(Packet, SocketAddr)>,
     pub ip: String,
     pub public_addr: String,
     pub port: u32,
@@ -64,16 +64,27 @@ impl GossipService {
     pub fn new(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
-        sender: UnboundedSender<Vec<u8>>,
+        to_node_sender: UnboundedSender<Vec<u8>>,
+        to_inbox_sender: UnboundedSender<(Packet, SocketAddr)>,
+        to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
         log: String,
     ) -> GossipService {
-        GossipService::from_config(config, receiver, sender, log)
+        GossipService::from_config(
+            config,
+            receiver,
+            to_node_sender,
+            to_inbox_sender,
+            to_inbox_receiver,
+            log,
+        )
     }
 
     pub fn from_config(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
-        sender: UnboundedSender<Vec<u8>>,
+        to_node_sender: UnboundedSender<Vec<u8>>,
+        to_inbox_sender: UnboundedSender<(Packet, SocketAddr)>,
+        to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
         log: String,
     ) -> GossipService {
         let sock =
@@ -84,7 +95,8 @@ impl GossipService {
             buf_cursor: 0,
             inbox: HashMap::new(),
             outbox: HashMap::new(),
-            to_node_sender: sender,
+            to_node_sender,
+            to_inbox_receiver,
             log,
         };
         let public_addr = {
@@ -97,6 +109,7 @@ impl GossipService {
         GossipService {
             sock: gd_udp,
             receiver,
+            to_inbox_sender,
             ip: config.get_ip(),
             port: config.get_port(),
             public_addr,
@@ -121,15 +134,15 @@ impl GossipService {
             .set_ttl(255)
             .expect("Unable to set socket ttl");
         let every_n = 1.0 / self.gossip_factor;
-        let mut sock = self.sock.clone();
         self.known_peers
+            .clone()
             .iter()
             .enumerate()
             .for_each(|(idx, (addr, _))| {
                 if idx % every_n as usize == 0 {
                     let packets = message.into_message().into_packets();
                     packets.iter().for_each(|packet| {
-                        sock.send_reliable(addr, packet.clone());
+                        self.sock.send_reliable(addr, packet.clone());
                     });
                 }
             });
@@ -140,38 +153,41 @@ impl GossipService {
             .sock
             .set_ttl(255)
             .expect("Unable to set socket ttl");
-        let mut sock = self.sock.clone();
+
         message
             .into_message()
             .into_packets()
             .iter()
             .for_each(|packet| {
                 self.known_peers
+                    .clone()
                     .iter()
-                    .for_each(|(addr, _)| sock.send_reliable(addr, packet.clone()));
+                    .for_each(|(addr, _)| self.sock.send_reliable(addr, packet.clone()));
             })
     }
 
     pub fn hole_punch<T: AsMessage>(
         &mut self,
-        sock: &mut GDUdp,
         peer: &SocketAddr,
         first_message: T,
         second_message: T,
         final_message: T,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        sock.sock.set_ttl(255).expect("Unable to set socket ttl");
+        self.sock
+            .sock
+            .set_ttl(255)
+            .expect("Unable to set socket ttl");
         let first_message_packets = first_message.into_message().into_packets();
         first_message_packets.iter().for_each(|packet| {
-            sock.send_reliable(peer, packet.clone());
+            self.sock.send_reliable(peer, packet.clone());
         });
         let second_message_packets = second_message.into_message().into_packets();
         second_message_packets.iter().for_each(|packet| {
-            sock.send_reliable(peer, packet.clone());
+            self.sock.send_reliable(peer, packet.clone());
         });
         let final_message_packets = final_message.into_message().into_packets();
         final_message_packets.iter().for_each(|packet| {
-            sock.send_reliable(peer, packet.clone());
+            self.sock.send_reliable(peer, packet.clone());
         });
 
         Ok(())
@@ -322,14 +338,10 @@ impl GossipService {
                     data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
-                let mut sock = self.sock.clone();
-                if let Err(e) = self.hole_punch(
-                    &mut sock,
-                    &peer_addr,
-                    first_message,
-                    second_message,
-                    final_message,
-                ) {
+
+                if let Err(e) =
+                    self.hole_punch(&peer_addr, first_message, second_message, final_message)
+                {
                     info!("Error punching hole to peer {:?}", e);
                 };
                 self.known_peers.insert(peer_addr, pubkey);
@@ -353,12 +365,9 @@ impl GossipService {
                     data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
                 };
-
-                let mut sock = self.sock.clone();
                 let known_peers = self.known_peers.clone();
                 known_peers.iter().for_each(|(addr, _)| {
                     if let Err(e) = self.hole_punch(
-                        &mut sock,
                         addr,
                         first_message.clone(),
                         second_message.clone(),
@@ -444,15 +453,28 @@ impl GossipService {
     #[allow(unused)]
     pub fn start(&mut self) {
         //TODO: Add timer to periodically send Ping messages
-        let arc_gd_udp = Arc::new(Mutex::new(self.sock.clone()));
+        let thread_sock = self
+            .sock
+            .sock
+            .try_clone()
+            .expect("Unable to clone udp socket in GDUdp");
+        let inbox_sender = self.to_inbox_sender.clone();
         std::thread::spawn(move || loop {
-            let thread_arc_gd_udp = Arc::clone(&arc_gd_udp);
-            thread_arc_gd_udp.lock().unwrap().recv_to_inbox();
+            let mut buf = [0; 50000];
+            let (amt, src) = thread_sock.recv_from(&mut buf).expect("No data received");
+            if amt > 0 {
+                info!("Received a packet");
+                let packet = Packet::from_bytes(&buf[..amt]);
+                if let Err(e) = inbox_sender.send((packet, src)) {
+                    info!("Error sending packet to inbox");
+                }
+            }
         });
 
         loop {
             if let Ok(command) = self.receiver.try_recv() {
                 self.process_gossip_command(command);
+                self.sock.maintain();
             }
         }
     }
