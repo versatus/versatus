@@ -6,21 +6,8 @@ use messages::packet::{Packet, Packetize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
-use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
-
-#[derive(Clone, Debug)]
-pub enum GDUdpEvent {
-    InboxUpdate {
-        inbox: HashMap<String, HashMap<u32, Packet>>,
-    },
-    OutboxUpdate {
-        outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>, Packet)>>,
-    },
-    AckSent {
-        packet: Packet,
-        ack: MessageType,
-    },
-}
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct GDUdp {
@@ -31,10 +18,14 @@ pub struct GDUdp {
     pub outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>, Packet)>>,
     pub to_node_sender: UnboundedSender<Vec<u8>>,
     pub to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
+    pub timer: Instant,
     pub log: String,
 }
 
 impl GDUdp {
+
+    pub const MAINTAINENCE: Duration = Duration::from_millis(100);
+
     pub fn maintain(&mut self) {
         self.outbox.iter_mut().for_each(|(_, map)| {
             map.retain(|_, (sent_set, ack_set, _)| sent_set != ack_set);
@@ -77,6 +68,16 @@ impl GDUdp {
         write_to_json(self.log.clone(), event)
     }
 
+    pub fn check_time_elapsed(&mut self) {
+        let now = Instant::now();
+        let time_elapsed = now.duration_since(self.timer);
+
+        if time_elapsed >= GDUdp::MAINTAINENCE {
+            self.maintain();
+            self.timer = Instant::now();
+        }
+    }
+
     pub fn recv_to_inbox(&mut self) {
         while let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
             let id = String::from_utf8_lossy(&packet.id).to_string();
@@ -95,8 +96,7 @@ impl GDUdp {
 
             self.ack(&src, message.clone());
 
-            self.log_ack(message.clone())
-                .expect("Unable to log ack");
+            self.log_ack(message.clone()).expect("Unable to log ack");
 
             let inbox = serde_json::to_string(&self.inbox)
                 .unwrap()

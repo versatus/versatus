@@ -97,6 +97,7 @@ impl GossipService {
             outbox: HashMap::new(),
             to_node_sender,
             to_inbox_receiver,
+            timer: std::time::Instant::now(),
             log,
         };
         let public_addr = {
@@ -474,8 +475,9 @@ impl GossipService {
         loop {
             if let Ok(command) = self.receiver.try_recv() {
                 self.process_gossip_command(command);
-                self.sock.maintain();
+                self.sock.check_time_elapsed();
             }
+            self.sock.recv_to_inbox();
         }
     }
 }
