@@ -126,8 +126,12 @@ impl Node {
             if let Some(command) = evt {
                 match command {
                     Command::ProcessPacket(packet_bytes) => {
-                        let packet = Packet::from_bytes(&packet_bytes);
-                        self.handle_packet(&packet);
+                        let inbox = serde_json::from_slice::<HashMap<String, HashMap<u32, Packet>>>(&packet_bytes).unwrap();
+                        inbox.iter().for_each(|(_, map)| {
+                            map.iter().for_each(|(_, packet)| {
+                                self.handle_packet(&packet);
+                            });
+                        });
                     }
                     Command::SendMessage(message) => {
                         if let Some(message) = MessageType::from_bytes(&message) {

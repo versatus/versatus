@@ -87,10 +87,11 @@ impl GossipService {
         to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
         log: String,
     ) -> GossipService {
-        let sock =
-            UdpSocket::bind(&format!("{}:{}", &config.get_ip(), &config.get_port())).unwrap();
+        let addr = format!("{}:{}", &config.get_ip(), &config.get_port());
+        let sock = UdpSocket::bind(&addr).unwrap();
         let gd_udp = GDUdp {
             sock,
+            addr,
             buf: Vec::new(),
             buf_cursor: 0,
             inbox: HashMap::new(),
@@ -447,6 +448,9 @@ impl GossipService {
             }
             Command::SendPing(_) => {}
             Command::ReturnPong(_, _) => {}
+            Command::ProcessAck(id, packet_number, src) => {
+                self.sock.process_ack(id, packet_number, src);
+            }
             _ => {}
         }
     }
