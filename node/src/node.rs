@@ -79,6 +79,9 @@ impl Node {
             map.insert(packet_number, packet.clone());
             if let Ok(message_bytes) = Message::try_assemble(map) {
                 let message = Message::from_bytes(&message_bytes);
+                if let Err(e) = self.command_handler.to_swarm_sender.send(Command::CleanInbox(id.clone())) {
+                    info!("Error sending clean inbox command to gossip: {:?}", e);
+                }
                 if let Some(command) =
                     message::process_message(message, self.id.clone().to_string())
                 {

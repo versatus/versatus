@@ -460,6 +460,9 @@ impl GossipService {
             Command::ProcessAck(id, packet_number, src) => {
                 self.sock.process_ack(id, packet_number, src);
             }
+            Command::CleanInbox(id) => {
+                self.sock.inbox.remove(&id);
+            }
             _ => {}
         }
     }
