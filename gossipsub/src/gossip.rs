@@ -87,7 +87,13 @@ impl GossipService {
         to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
         log: String,
     ) -> GossipService {
-        let addr = format!("{}:{}", &config.get_ip(), &config.get_port());
+        let addr = {
+            if let Some(public_addr) = config.get_public_addr() {
+                public_addr
+            } else {
+                format!("{:?}:{:?}", config.get_ip(), config.get_port())
+            }
+        };
         let sock = UdpSocket::bind(&addr).unwrap();
         let gd_udp = GDUdp {
             sock,

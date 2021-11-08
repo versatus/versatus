@@ -25,6 +25,8 @@ pub struct GDUdp {
 
 impl GDUdp {
     pub const MAINTENANCE: Duration = Duration::from_millis(100);
+    pub const RETURN_RECEIPT: u8 = 1u8;
+    pub const NO_RETURN_RECIEPT: u8 = 0u8;
 
     pub fn maintain(&mut self) {
         self.outbox.iter_mut().for_each(|(_, map)| {
@@ -111,7 +113,7 @@ impl GDUdp {
 
                 self.log_ack(message.clone()).expect("Unable to log ack");
             }
-            
+
             let inbox = serde_json::to_string(&self.inbox)
                 .unwrap()
                 .as_bytes()
