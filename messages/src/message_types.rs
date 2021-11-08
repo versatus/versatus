@@ -169,7 +169,7 @@ impl StateBlock {
 }
 
 impl AsMessage for MessageType {
-    fn into_message(&self) -> Message {
+    fn into_message(&self, return_receipt: u8) -> Message {
         Message {
             id: digest_bytes(&self.clone().as_bytes()).as_bytes().to_vec(),
             source: None,
@@ -179,6 +179,7 @@ impl AsMessage for MessageType {
             topics: None,
             key: None,
             validated: 0,
+            return_receipt,
         }
     }
 }

@@ -100,16 +100,18 @@ impl GDUdp {
 
             self.log_inbox().expect("Unable to log inbox");
 
-            let message = MessageType::AckMessage {
-                packet_id: id,
-                packet_number,
-                src: self.addr.clone(),
-            };
+            if packet.return_receipt == 1u8 {
+                let message = MessageType::AckMessage {
+                    packet_id: id,
+                    packet_number,
+                    src: self.addr.clone(),
+                };
 
-            self.ack(&src, message.clone());
+                self.ack(&src, message.clone());
 
-            self.log_ack(message.clone()).expect("Unable to log ack");
-
+                self.log_ack(message.clone()).expect("Unable to log ack");
+            }
+            
             let inbox = serde_json::to_string(&self.inbox)
                 .unwrap()
                 .as_bytes()
@@ -150,7 +152,7 @@ impl GDUdp {
     }
 
     pub fn ack<M: AsMessage>(&mut self, peer: &SocketAddr, message: M) {
-        let packets = message.into_message().as_packet_bytes();
+        let packets = message.into_message(0).as_packet_bytes();
         packets.iter().for_each(|packet| {
             self.sock
                 .send_to(packet, peer)

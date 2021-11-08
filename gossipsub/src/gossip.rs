@@ -142,7 +142,7 @@ impl GossipService {
             .enumerate()
             .for_each(|(idx, (addr, _))| {
                 if idx % every_n as usize == 0 {
-                    let packets = message.into_message().into_packets();
+                    let packets = message.into_message(1).into_packets();
                     packets.iter().for_each(|packet| {
                         self.sock.send_reliable(addr, packet.clone());
                     });
@@ -157,7 +157,7 @@ impl GossipService {
             .expect("Unable to set socket ttl");
 
         message
-            .into_message()
+            .into_message(1)
             .into_packets()
             .iter()
             .for_each(|packet| {
@@ -179,15 +179,15 @@ impl GossipService {
             .sock
             .set_ttl(255)
             .expect("Unable to set socket ttl");
-        let first_message_packets = first_message.into_message().into_packets();
+        let first_message_packets = first_message.into_message(1).into_packets();
         first_message_packets.iter().for_each(|packet| {
             self.sock.send_reliable(peer, packet.clone());
         });
-        let second_message_packets = second_message.into_message().into_packets();
+        let second_message_packets = second_message.into_message(1).into_packets();
         second_message_packets.iter().for_each(|packet| {
             self.sock.send_reliable(peer, packet.clone());
         });
-        let final_message_packets = final_message.into_message().into_packets();
+        let final_message_packets = final_message.into_message(1).into_packets();
         final_message_packets.iter().for_each(|packet| {
             self.sock.send_reliable(peer, packet.clone());
         });
@@ -207,7 +207,7 @@ impl GossipService {
                 .sock
                 .set_ttl(255)
                 .expect("Unable to set socket ttl");
-            let packets = message.into_message().into_packets();
+            let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
                 self.sock.send_reliable(&peer, packet.clone());
             });
@@ -228,7 +228,7 @@ impl GossipService {
                 .sock
                 .set_ttl(255)
                 .expect("Unable to set socket ttl");
-            let packets = message.into_message().into_packets();
+            let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
                 self.sock.send_reliable(&peer, packet.clone());
             });
@@ -249,7 +249,7 @@ impl GossipService {
                 .sock
                 .set_ttl(128)
                 .expect("Unable to set socket ttl");
-            let packets = message.into_message().into_packets();
+            let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
                 self.sock.send_reliable(&peer, packet.clone());
             });
@@ -259,14 +259,14 @@ impl GossipService {
     }
 
     pub fn send_ping<T: AsMessage>(&mut self, peer: &SocketAddr, message: T) {
-        let packets = message.into_message().into_packets();
+        let packets = message.into_message(1).into_packets();
         packets.iter().for_each(|packet| {
             self.sock.send_reliable(peer, packet.clone());
         });
     }
 
     pub fn return_pong<T: AsMessage>(&mut self, peer: &SocketAddr, message: T) {
-        let packets = message.into_message().into_packets();
+        let packets = message.into_message(0).into_packets();
         packets.iter().for_each(|packet| {
             self.sock.send_reliable(peer, packet.clone());
         });
@@ -316,7 +316,7 @@ impl GossipService {
                 let message = MessageType::from_bytes(&message_bytes);
                 if let Some(message_type) = message {
                     self.publish(message_type.clone());
-                    let packets = message_type.into_message().as_packet_bytes();
+                    let packets = message_type.into_message(1).as_packet_bytes();
                     info!(
                         "Sent {} to all known peers: {:?}",
                         packets.len(),
@@ -394,7 +394,7 @@ impl GossipService {
                         .to_vec(),
                 };
 
-                let packets = known_peers_message.into_message().into_packets();
+                let packets = known_peers_message.into_message(1).into_packets();
                 packets.iter().for_each(|packet| {
                     self.sock.send_reliable(&addr, packet.clone());
                 });

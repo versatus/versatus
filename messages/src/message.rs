@@ -13,10 +13,11 @@ pub struct Message {
     pub topics: Option<Vec<u8>>,
     pub key: Option<Vec<u8>>,
     pub validated: u8,
+    pub return_receipt: u8,
 }
 
 pub trait AsMessage {
-    fn into_message(&self) -> Message;
+    fn into_message(&self, return_receipt: u8) -> Message;
 }
 
 impl Message {
@@ -53,6 +54,7 @@ impl Packetize for Message {
                             (n_bytes - end).to_be_bytes().to_vec(),
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
+                            self.return_receipt,                            
                         );
                     } else if *idx == 0 {
                         return Packet::new(
@@ -62,6 +64,7 @@ impl Packetize for Message {
                             MAX_TRANSMIT_SIZE.to_be_bytes().to_vec(),
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
+                            self.return_receipt,
                         );
                     } else {
                         start = end;
@@ -73,6 +76,7 @@ impl Packetize for Message {
                             MAX_TRANSMIT_SIZE.to_be_bytes().to_vec(),
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
+                            self.return_receipt,                            
                         );
                     }
                 })
@@ -88,6 +92,7 @@ impl Packetize for Message {
                 size: n_bytes.to_be_bytes().to_vec(),
                 packet_number: n_packets.to_be_bytes().to_vec(),
                 total_packets: n_packets.to_be_bytes().to_vec(),
+                return_receipt: self.return_receipt,
             }]
         }
     }

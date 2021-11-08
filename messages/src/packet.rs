@@ -14,6 +14,7 @@ pub struct Packet {
     pub size: Vec<u8>,
     pub packet_number: Vec<u8>,
     pub total_packets: Vec<u8>,
+    pub return_receipt: u8,
 }
 
 impl Packet {
@@ -24,6 +25,7 @@ impl Packet {
         size: Vec<u8>,
         packet_number: Vec<u8>,
         total_packets: Vec<u8>,
+        return_receipt: u8,
     ) -> Packet {
         Packet {
             id,
@@ -32,6 +34,7 @@ impl Packet {
             size,
             packet_number,
             total_packets,
+            return_receipt,
         }
     }
 
