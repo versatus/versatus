@@ -80,9 +80,13 @@ impl GDUdp {
 
     pub fn process_ack(&mut self, id: String, packet_number: u32, src: String) {
         let acker_addr: SocketAddr = src.parse().expect("Unable to parse socket address");
+        info!("Received ack messages, processing...");
         if let Some(map) = self.outbox.get_mut(&id) {
+            info!("Found message that was acked in outbox");
             if let Some((_, ack_set, _)) = map.get_mut(&packet_number) {
+                info!("Found packet that was acked in ack_map");
                 ack_set.insert(acker_addr);
+                info!("Inserted the acker's addr into the ack set: {:?}", ack_set);
             }
         }
         self.log_outbox().expect("Unable to log outbox");

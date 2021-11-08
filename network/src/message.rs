@@ -186,6 +186,7 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 packet_number,
                 src,
             } => {
+                info!("Received ack message, sending process ack command");
                 return Some(Command::ProcessAck(packet_id, packet_number, src));
             }
             _ => None,

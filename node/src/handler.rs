@@ -208,6 +208,11 @@ impl CommandHandler {
                     info!("Error sending complete handshake command to swarm: {:?}", e);
                 }
             }
+            Command::ProcessAck(packet_id, packet_number, src) => {
+                if let Err(e) = self.to_swarm_sender.send(Command::ProcessAck(packet_id, packet_number, src)) {
+                    info!("Error sending process ack command to swarm: {:?}", e);
+                }
+            }
             _ => {}
         }
     }
