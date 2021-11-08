@@ -461,7 +461,9 @@ impl GossipService {
                 self.sock.process_ack(id, packet_number, src);
             }
             Command::CleanInbox(id) => {
+                info!("Received clean inbox command, removing id: {} from inbox. Current length: {}", &id, &self.sock.inbox.len());
                 self.sock.inbox.remove(&id);
+                info!("Length after removing id: {:?} -> {}", &id, &self.sock.inbox.len());
             }
             _ => {}
         }
