@@ -444,8 +444,7 @@ impl GossipService {
                 };
             }
             Command::CompleteHandshake(data, pubkey, signature) => {
-                let peer_addr: SocketAddr =
-                    data.clone().parse().expect("cannot parse socket address");
+                let peer_addr: SocketAddr = data.clone().parse().expect("cannot parse socket address");
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
                         if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
@@ -462,7 +461,7 @@ impl GossipService {
             }
             Command::CleanInbox(id) => {
                 info!("Received clean inbox command, removing id: {} from inbox. Current length: {}", &id, &self.sock.inbox.len());
-                self.sock.inbox.remove(&id);
+                self.sock.inbox.retain(|k, _| k.clone() != id.clone());
                 info!("Length after removing id: {:?} -> {}", &id, &self.sock.inbox.len());
             }
             _ => {}

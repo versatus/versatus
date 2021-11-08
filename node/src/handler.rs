@@ -213,6 +213,11 @@ impl CommandHandler {
                     info!("Error sending process ack command to swarm: {:?}", e);
                 }
             }
+            Command::CleanInbox(id) => {
+                if let Err(e) = self.to_swarm_sender.send(Command::CleanInbox(id.clone())) {
+                    info!("Error sending process ack command to swarm: {:?}", e);
+                }
+            }
             _ => {}
         }
     }
