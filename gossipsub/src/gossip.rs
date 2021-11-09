@@ -334,36 +334,33 @@ impl GossipService {
                 }
             }
             Command::AddNewPeer(peer_addr, pubkey) => {
-                let peer_addr: SocketAddr =
-                    peer_addr.parse().expect("Cannot parse peer socket address");
-                info!("Received new peer {:?} initializing hole punch", &peer_addr);
-                let first_message = MessageType::FirstHolePunch {
-                    data: self.public_addr.as_bytes().to_vec(),
-                    pubkey: self.pubkey.to_string().clone(),
-                };
-                let second_message = MessageType::SecondHolePunch {
-                    data: self.public_addr.as_bytes().to_vec(),
-                    pubkey: self.pubkey.to_string().clone(),
-                };
-                let final_message = MessageType::FinalHolePunch {
-                    data: self.public_addr.as_bytes().to_vec(),
-                    pubkey: self.pubkey.to_string().clone(),
-                };
+                if peer_addr != self.public_addr {
+                    let peer_addr: SocketAddr = peer_addr.parse().expect("Cannot parse peer socket address");
+                    info!("Received new peer {:?} initializing hole punch", &peer_addr);
+                    let first_message = MessageType::FirstHolePunch {
+                        data: self.public_addr.as_bytes().to_vec(),
+                        pubkey: self.pubkey.to_string().clone(),
+                    };
+                    let second_message = MessageType::SecondHolePunch {
+                        data: self.public_addr.as_bytes().to_vec(),
+                        pubkey: self.pubkey.to_string().clone(),
+                    };
+                    let final_message = MessageType::FinalHolePunch {
+                        data: self.public_addr.as_bytes().to_vec(),
+                        pubkey: self.pubkey.to_string().clone(),
+                    };
 
-                if let Err(e) =
-                    self.hole_punch(&peer_addr, first_message, second_message, final_message)
-                {
-                    info!("Error punching hole to peer {:?}", e);
-                };
-                self.known_peers.insert(peer_addr, pubkey);
+                    if let Err(e) =
+                        self.hole_punch(&peer_addr, first_message, second_message, final_message)
+                    {
+                        info!("Error punching hole to peer {:?}", e);
+                    };
+                    self.known_peers.insert(peer_addr, pubkey);
+                }
             }
             Command::AddKnownPeers(data) => {
                 let map = serde_json::from_slice::<HashMap<SocketAddr, String>>(&data).unwrap();
                 self.known_peers.extend(map.clone());
-                info!(
-                    "Received {} new known peers initializing hole punch for each",
-                    &map.len()
-                );
                 let first_message = MessageType::FirstHolePunch {
                     data: self.public_addr.as_bytes().to_vec(),
                     pubkey: self.pubkey.to_string().clone(),
@@ -378,14 +375,17 @@ impl GossipService {
                 };
                 let known_peers = self.known_peers.clone();
                 known_peers.iter().for_each(|(addr, _)| {
-                    if let Err(e) = self.hole_punch(
-                        addr,
-                        first_message.clone(),
-                        second_message.clone(),
-                        final_message.clone(),
-                    ) {
-                        info!("Error punching hole to peer {:?}", e);
-                    };
+                    info!("Received {} new known peers initializing hole punch for each", &map.len());
+                    if addr.to_string() != self.public_addr {
+                        if let Err(e) = self.hole_punch(
+                            addr,
+                            first_message.clone(),
+                            second_message.clone(),
+                            final_message.clone(),
+                        ) {
+                            info!("Error punching hole to peer {:?}", e);
+                        };
+                    }
                 });
             }
             Command::AddExplicitPeer(addr, pubkey) => {

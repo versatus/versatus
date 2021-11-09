@@ -24,7 +24,7 @@ pub struct GDUdp {
 }
 
 impl GDUdp {
-    pub const MAINTENANCE: Duration = Duration::from_millis(100);
+    pub const MAINTENANCE: Duration = Duration::from_millis(250);
     pub const RETURN_RECEIPT: u8 = 1u8;
     pub const NO_RETURN_RECIEPT: u8 = 0u8;
 
@@ -90,7 +90,7 @@ impl GDUdp {
             }
         }
         self.log_outbox().expect("Unable to log outbox");
-    } 
+    }
 
     pub fn recv_to_inbox(&mut self) {
         if let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
@@ -126,6 +126,14 @@ impl GDUdp {
             if let Err(e) = self.to_node_sender.send(inbox) {
                 info!("error sending packet to node for processing: {:?}", e);
             }
+
+            self.inbox.retain(|_, packet_map| {
+                packet_map.retain(|_, packet| {
+                    let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
+                    total_packets != 1
+                });
+                !packet_map.is_empty()
+            });
         }
     }
 
