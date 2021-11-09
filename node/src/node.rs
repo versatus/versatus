@@ -144,7 +144,7 @@ impl Node {
                         if let Some(message) = MessageType::from_bytes(&message) {
                             if let Err(e) = self
                                 .command_handler
-                                .to_swarm_sender
+                                .to_gossip_sender
                                 .send(Command::SendMessage(message.as_bytes()))
                             {
                                 println!("Error publishing: {:?}", e);

@@ -15,6 +15,7 @@ pub struct MessageHandler<T, V> {
 pub struct CommandHandler {
     pub to_mining_sender: UnboundedSender<Command>,
     pub to_blockchain_sender: UnboundedSender<Command>,
+    pub to_gossip_sender: UnboundedSender<Command>,
     pub to_swarm_sender: UnboundedSender<Command>,
     pub to_state_sender: UnboundedSender<Command>,
     pub receiver: UnboundedReceiver<Command>,
@@ -30,6 +31,7 @@ impl CommandHandler {
     pub fn new(
         to_mining_sender: UnboundedSender<Command>,
         to_blockchain_sender: UnboundedSender<Command>,
+        to_gossip_sender: UnboundedSender<Command>,
         to_swarm_sender: UnboundedSender<Command>,
         to_state_sender: UnboundedSender<Command>,
         receiver: UnboundedReceiver<Command>,
@@ -37,6 +39,7 @@ impl CommandHandler {
         CommandHandler {
             to_mining_sender,
             to_blockchain_sender,
+            to_gossip_sender,
             to_swarm_sender,
             to_state_sender,
             receiver,
@@ -98,7 +101,7 @@ impl CommandHandler {
                 // TODO: Inform all the threads that you're shutting down.
             }
             Command::SendMessage(message) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::SendMessage(message)) {
+                if let Err(e) = self.to_gossip_sender.send(Command::SendMessage(message)) {
                     println!("Error sending message command to swarm: {:?}", e);
                 }
             }

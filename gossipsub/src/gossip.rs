@@ -41,6 +41,7 @@ pub struct GossipService {
     pub sock: UdpSocket,
     pub receiver: UnboundedReceiver<Command>,
     pub to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
+    pub to_gossip_receiver: UnboundedReceiver<Command>,
     pub ip: String,
     pub public_addr: String,
     pub port: u32,
@@ -64,15 +65,17 @@ impl GossipService {
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
         to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
+        to_gossip_receiver: UnboundedReceiver<Command>,
         log: String,
     ) -> GossipService {
-        GossipService::from_config(config, receiver, to_node_sender, log)
+        GossipService::from_config(config, receiver, to_node_sender,to_gossip_receiver, log)
     }
 
     pub fn from_config(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
         to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
+        to_gossip_receiver: UnboundedReceiver<Command>,
         log: String,
     ) -> GossipService {
         let addr = format!("{}:{}", &config.get_ip(), &config.get_port());
@@ -107,6 +110,7 @@ impl GossipService {
             sock,
             receiver,
             to_node_sender,
+            to_gossip_receiver,
             ip: config.get_ip(),
             port: config.get_port(),
             public_addr,
