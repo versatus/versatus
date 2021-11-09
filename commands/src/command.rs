@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use messages::packet::Packet;
+use std::net::SocketAddr;
 
 pub const SENDTXN: &str = "SENDTXN";
 pub const GETBAL: &str = "GETBAL";
@@ -42,7 +44,7 @@ pub enum Command {
     AddNewPeer(String, String),
     AddKnownPeers(Vec<u8>),
     AddExplicitPeer(String, String),
-    ProcessPacket(Vec<u8>),
+    ProcessPacket((Packet, SocketAddr)),
     Bootstrap(String, String),
     SendPing(Vec<u8>),
     ReturnPong(Vec<u8>, String),

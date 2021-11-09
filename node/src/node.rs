@@ -9,6 +9,7 @@ use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::net::SocketAddr;
 use uuid::Uuid;
 
 #[allow(dead_code)]
@@ -36,7 +37,7 @@ pub struct Node {
     pub message_cache: HashSet<String>,
     pub packet_storage: HashMap<String, HashMap<u32, Packet>>,
     pub command_handler: CommandHandler,
-    pub message_handler: MessageHandler<MessageType, Vec<u8>>,
+    pub message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
 }
 
 impl Node {
@@ -51,7 +52,7 @@ impl Node {
     pub fn new(
         node_type: NodeAuth,
         command_handler: CommandHandler,
-        message_handler: MessageHandler<MessageType, Vec<u8>>,
+        message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
     ) -> Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
@@ -126,8 +127,8 @@ impl Node {
                         }
                     }
                     from_message = self.message_handler.receiver.recv() => {
-                        if let Some(message) = from_message {
-                            Some(Command::ProcessPacket(message))
+                        if let Some((packet, src)) = from_message {
+                            Some(Command::ProcessPacket((packet, src)))
                         } else {
                             None
                         }
@@ -136,17 +137,8 @@ impl Node {
             };
             if let Some(command) = evt {
                 match command {
-                    Command::ProcessPacket(packet_bytes) => {
-                        let inbox =
-                            serde_json::from_slice::<HashMap<String, HashMap<u32, Packet>>>(
-                                &packet_bytes,
-                            )
-                            .unwrap();
-                        inbox.iter().for_each(|(_, map)| {
-                            map.iter().for_each(|(_, packet)| {
-                                self.handle_packet(&packet);
-                            });
-                        });
+                    Command::ProcessPacket((packet, _)) => {
+                        self.handle_packet(&packet);
                     }
                     Command::SendMessage(message) => {
                         if let Some(message) = MessageType::from_bytes(&message) {

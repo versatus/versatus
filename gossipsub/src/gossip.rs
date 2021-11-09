@@ -37,11 +37,10 @@ pub struct GossipServiceConfig {
 
 #[derive(Debug)]
 pub struct GossipService {
-    pub sock: GDUdp,
-    // TODO, replace T generic with Command enum or create a Command trait
-    // that can be applied to MessageTypes, Packets, etc.
+    pub gd_udp: GDUdp,
+    pub sock: UdpSocket,
     pub receiver: UnboundedReceiver<Command>,
-    pub to_inbox_sender: UnboundedSender<(Packet, SocketAddr)>,
+    pub to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
     pub ip: String,
     pub public_addr: String,
     pub port: u32,
@@ -64,27 +63,16 @@ impl GossipService {
     pub fn new(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
-        to_node_sender: UnboundedSender<Vec<u8>>,
-        to_inbox_sender: UnboundedSender<(Packet, SocketAddr)>,
-        to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
+        to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
         log: String,
     ) -> GossipService {
-        GossipService::from_config(
-            config,
-            receiver,
-            to_node_sender,
-            to_inbox_sender,
-            to_inbox_receiver,
-            log,
-        )
+        GossipService::from_config(config, receiver, to_node_sender, log)
     }
 
     pub fn from_config(
         config: GossipServiceConfig,
         receiver: UnboundedReceiver<Command>,
-        to_node_sender: UnboundedSender<Vec<u8>>,
-        to_inbox_sender: UnboundedSender<(Packet, SocketAddr)>,
-        to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
+        to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
         log: String,
     ) -> GossipService {
         let addr = format!("{}:{}", &config.get_ip(), &config.get_port());
@@ -99,15 +87,11 @@ impl GossipService {
             }
         };
         let gd_udp = GDUdp {
-            sock,
             addr: public_addr,
             buf: Vec::new(),
             buf_cursor: 0,
-            inbox: HashMap::new(),
             outbox: HashMap::new(),
             message_cache: HashSet::new(),
-            to_node_sender,
-            to_inbox_receiver,
             timer: std::time::Instant::now(),
             log,
         };
@@ -119,9 +103,10 @@ impl GossipService {
             }
         };
         GossipService {
-            sock: gd_udp,
+            gd_udp,
+            sock,
             receiver,
-            to_inbox_sender,
+            to_node_sender,
             ip: config.get_ip(),
             port: config.get_port(),
             public_addr,
@@ -141,10 +126,7 @@ impl GossipService {
     }
 
     pub fn gossip<T: AsMessage>(&mut self, message: T) {
-        self.sock
-            .sock
-            .set_ttl(255)
-            .expect("Unable to set socket ttl");
+        self.sock.set_ttl(255).expect("Unable to set socket ttl");
         let every_n = 1.0 / self.gossip_factor;
         self.known_peers
             .clone()
@@ -154,27 +136,23 @@ impl GossipService {
                 if idx % every_n as usize == 0 {
                     let packets = message.into_message(1).into_packets();
                     packets.iter().for_each(|packet| {
-                        self.sock.send_reliable(addr, packet.clone());
+                        self.gd_udp.send_reliable(addr, packet.clone(), &self.sock);
                     });
                 }
             });
     }
 
     pub fn publish<T: AsMessage>(&mut self, message: T) {
-        self.sock
-            .sock
-            .set_ttl(255)
-            .expect("Unable to set socket ttl");
+        self.sock.set_ttl(255).expect("Unable to set socket ttl");
 
         message
             .into_message(1)
             .into_packets()
             .iter()
             .for_each(|packet| {
-                self.known_peers
-                    .clone()
-                    .iter()
-                    .for_each(|(addr, _)| self.sock.send_reliable(addr, packet.clone()));
+                self.known_peers.clone().iter().for_each(|(addr, _)| {
+                    self.gd_udp.send_reliable(addr, packet.clone(), &self.sock)
+                });
             })
     }
 
@@ -185,21 +163,18 @@ impl GossipService {
         second_message: T,
         final_message: T,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        self.sock
-            .sock
-            .set_ttl(255)
-            .expect("Unable to set socket ttl");
+        self.sock.set_ttl(255).expect("Unable to set socket ttl");
         let first_message_packets = first_message.into_message(1).into_packets();
         first_message_packets.iter().for_each(|packet| {
-            self.sock.send_reliable(peer, packet.clone());
+            self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
         let second_message_packets = second_message.into_message(1).into_packets();
         second_message_packets.iter().for_each(|packet| {
-            self.sock.send_reliable(peer, packet.clone());
+            self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
         let final_message_packets = final_message.into_message(1).into_packets();
         final_message_packets.iter().for_each(|packet| {
-            self.sock.send_reliable(peer, packet.clone());
+            self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
 
         Ok(())
@@ -213,13 +188,10 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock
-                .sock
-                .set_ttl(255)
-                .expect("Unable to set socket ttl");
+            self.sock.set_ttl(255).expect("Unable to set socket ttl");
             let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
-                self.sock.send_reliable(&peer, packet.clone());
+                self.gd_udp.send_reliable(&peer, packet.clone(), &self.sock);
             });
         } else {
             info!("Error signing data");
@@ -234,13 +206,10 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock
-                .sock
-                .set_ttl(255)
-                .expect("Unable to set socket ttl");
+            self.sock.set_ttl(255).expect("Unable to set socket ttl");
             let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
-                self.sock.send_reliable(&peer, packet.clone());
+                self.gd_udp.send_reliable(&peer, packet.clone(), &self.sock);
             });
         } else {
             info!("Error signing data");
@@ -255,13 +224,10 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock
-                .sock
-                .set_ttl(128)
-                .expect("Unable to set socket ttl");
+            self.sock.set_ttl(128).expect("Unable to set socket ttl");
             let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
-                self.sock.send_reliable(&peer, packet.clone());
+                self.gd_udp.send_reliable(&peer, packet.clone(), &self.sock);
             });
         } else {
             info!("Error signing data");
@@ -271,14 +237,14 @@ impl GossipService {
     pub fn send_ping<T: AsMessage>(&mut self, peer: &SocketAddr, message: T) {
         let packets = message.into_message(1).into_packets();
         packets.iter().for_each(|packet| {
-            self.sock.send_reliable(peer, packet.clone());
+            self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
     }
 
     pub fn return_pong<T: AsMessage>(&mut self, peer: &SocketAddr, message: T) {
         let packets = message.into_message(0).into_packets();
         packets.iter().for_each(|packet| {
-            self.sock.send_reliable(peer, packet.clone());
+            self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
     }
 
@@ -291,7 +257,7 @@ impl GossipService {
 
     pub fn send_packets(&mut self, peer: &SocketAddr, packets: Vec<Packet>) {
         packets.iter().for_each(|packet| {
-            self.sock.send_reliable(peer, packet.clone());
+            self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
     }
 
@@ -412,7 +378,7 @@ impl GossipService {
 
                 let packets = known_peers_message.into_message(1).into_packets();
                 packets.iter().for_each(|packet| {
-                    self.sock.send_reliable(&addr, packet.clone());
+                    self.gd_udp.send_reliable(&addr, packet.clone(), &self.sock);
                 });
 
                 info!("A new peer {:?} has joined the network, sharing their info with known peers as part of bootstrap process", &addr);
@@ -465,21 +431,7 @@ impl GossipService {
             Command::SendPing(_) => {}
             Command::ReturnPong(_, _) => {}
             Command::ProcessAck(id, packet_number, src) => {
-                self.sock.process_ack(id, packet_number, src);
-            }
-            Command::CleanInbox(id) => {
-                info!(
-                    "Received clean inbox command, removing id: {} from inbox. Current length: {}",
-                    &id,
-                    &self.sock.inbox.len()
-                );
-                self.sock.inbox.remove(&id);
-                self.sock.message_cache.insert(id.clone());
-                info!(
-                    "Length after removing id: {:?} -> {}",
-                    &id,
-                    &self.sock.inbox.len()
-                );
+                self.gd_udp.process_ack(id, packet_number, src);
             }
             _ => {}
         }
@@ -487,20 +439,17 @@ impl GossipService {
 
     #[allow(unused)]
     pub fn start(&mut self) {
-        //TODO: Add timer to periodically send Ping messages
         let thread_sock = self
-            .sock
             .sock
             .try_clone()
             .expect("Unable to clone udp socket in GDUdp");
-        let inbox_sender = self.to_inbox_sender.clone();
+        let thread_to_node_sender = self.to_node_sender.clone();
         std::thread::spawn(move || loop {
             let mut buf = [0; 50000];
             let (amt, src) = thread_sock.recv_from(&mut buf).expect("No data received");
             if amt > 0 {
-                info!("Received a packet");
                 let packet = Packet::from_bytes(&buf[..amt]);
-                if let Err(e) = inbox_sender.send((packet, src)) {
+                if let Err(e) = thread_to_node_sender.send((packet, src)) {
                     info!("Error sending packet to inbox");
                 }
             }
@@ -510,8 +459,7 @@ impl GossipService {
             while let Ok(command) = self.receiver.try_recv() {
                 self.process_gossip_command(command);
             }
-            self.sock.check_time_elapsed();
-            self.sock.recv_to_inbox();
+            self.gd_udp.check_time_elapsed(&self.sock);
         }
     }
 }

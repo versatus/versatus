@@ -7,29 +7,24 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[derive(Debug)]
 pub struct GDUdp {
-    pub sock: UdpSocket,
     pub addr: String,
     pub buf: Vec<u8>,
     pub buf_cursor: usize,
-    pub inbox: HashMap<String, HashMap<u32, Packet>>,
     pub message_cache: HashSet<String>,
     pub outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>, Packet)>>,
-    pub to_node_sender: UnboundedSender<Vec<u8>>,
-    pub to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
     pub timer: Instant,
     pub log: String,
 }
 
 impl GDUdp {
-    pub const MAINTENANCE: Duration = Duration::from_millis(1000);
+    pub const MAINTENANCE: Duration = Duration::from_millis(100);
     pub const RETURN_RECEIPT: u8 = 1u8;
     pub const NO_RETURN_RECIEPT: u8 = 0u8;
 
-    pub fn maintain(&mut self) {
+    pub fn maintain(&mut self, sock: &UdpSocket) {
         self.outbox.iter_mut().for_each(|(_, map)| {
             map.retain(|_, (sent_set, ack_set, _)| sent_set != ack_set);
         });
@@ -40,20 +35,12 @@ impl GDUdp {
             map.iter().for_each(|(_, (sent_set, ack_set, packet))| {
                 let resend: HashSet<_> = sent_set.difference(ack_set).collect();
                 resend.iter().for_each(|peer| {
-                    self.sock
-                        .send_to(&packet.as_bytes(), peer)
+                    sock.send_to(&packet.as_bytes(), peer)
                         .expect("Error sending packet to peer");
                 });
             });
         });
         self.log_outbox().expect("Unable to log outbox");
-    }
-
-    pub fn log_inbox(&self) -> Result<(), serde_json::Error> {
-        let event = VrrbNetworkEvent::VrrbInboxUpdate {
-            inbox: self.inbox.clone(),
-        };
-        write_to_json(self.log.clone(), event)
     }
 
     pub fn log_outbox(&self) -> Result<(), serde_json::Error> {
@@ -68,13 +55,13 @@ impl GDUdp {
         write_to_json(self.log.clone(), event)
     }
 
-    pub fn check_time_elapsed(&mut self) {
+    pub fn check_time_elapsed(&mut self, sock: &UdpSocket) {
         let now = Instant::now();
         let time_elapsed = now.duration_since(self.timer);
 
         if time_elapsed >= GDUdp::MAINTENANCE {
             info!("Time to maintain outbox");
-            self.maintain();
+            self.maintain(sock);
             self.timer = Instant::now();
         }
     }
@@ -93,55 +80,8 @@ impl GDUdp {
         self.log_outbox().expect("Unable to log outbox");
     }
 
-    pub fn recv_to_inbox(&mut self) {
-        while let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
-            let id = String::from_utf8_lossy(&packet.id).to_string();
-            if !self.message_cache.contains(&id) {
-                let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
-                if let Some(map) = self.inbox.get_mut(&id) {
-                    map.insert(packet_number, packet.clone());
-                } else {
-                    let mut packets = HashMap::new();
-                    packets.insert(packet_number, packet.clone());
-                    self.inbox.insert(id.clone(), packets);
-                }
-
-                self.log_inbox().expect("Unable to log inbox");
-
-                if packet.return_receipt == GDUdp::RETURN_RECEIPT {
-                    let message = MessageType::AckMessage {
-                        packet_id: id,
-                        packet_number,
-                        src: self.addr.clone(),
-                    };
-
-                    self.ack(&src, message.clone());
-
-                    self.log_ack(message.clone()).expect("Unable to log ack");
-                }
-
-                let inbox = serde_json::to_string(&self.inbox)
-                    .unwrap()
-                    .as_bytes()
-                    .to_vec();
-
-                if let Err(e) = self.to_node_sender.send(inbox) {
-                    info!("error sending packet to node for processing: {:?}", e);
-                }
-
-                self.inbox.retain(|_, packet_map| {
-                    packet_map.retain(|_, packet| {
-                        let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
-                        total_packets != 1
-                    });
-                    !packet_map.is_empty()
-                });
-            }
-        }
-    }
-
-    pub fn send_reliable(&mut self, peer: &SocketAddr, packet: Packet) {
-        self.sock
+    pub fn send_reliable(&mut self, peer: &SocketAddr, packet: Packet, sock: &UdpSocket) {
+        sock
             .send_to(&packet.as_bytes(), peer)
             .expect("Error sending packet to peer");
         info!("Sent packet to peer {:?}", peer);
@@ -168,10 +108,10 @@ impl GDUdp {
         self.log_outbox().expect("Unable to log outbox");
     }
 
-    pub fn ack<M: AsMessage>(&mut self, peer: &SocketAddr, message: M) {
+    pub fn ack<M: AsMessage>(&mut self, sock: &UdpSocket, peer: &SocketAddr, message: M) {
         let packets = message.into_message(0).as_packet_bytes();
         packets.iter().for_each(|packet| {
-            self.sock
+            sock
                 .send_to(packet, peer)
                 .expect("Unable to send message to peer");
         });
