@@ -16,6 +16,7 @@ pub struct GDUdp {
     pub buf: Vec<u8>,
     pub buf_cursor: usize,
     pub inbox: HashMap<String, HashMap<u32, Packet>>,
+    pub message_cache: HashSet<String>,
     pub outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>, Packet)>>,
     pub to_node_sender: UnboundedSender<Vec<u8>>,
     pub to_inbox_receiver: UnboundedReceiver<(Packet, SocketAddr)>,
@@ -24,7 +25,7 @@ pub struct GDUdp {
 }
 
 impl GDUdp {
-    pub const MAINTENANCE: Duration = Duration::from_millis(250);
+    pub const MAINTENANCE: Duration = Duration::from_millis(1000);
     pub const RETURN_RECEIPT: u8 = 1u8;
     pub const NO_RETURN_RECIEPT: u8 = 0u8;
 
@@ -93,47 +94,49 @@ impl GDUdp {
     }
 
     pub fn recv_to_inbox(&mut self) {
-        if let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
+        while let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
             let id = String::from_utf8_lossy(&packet.id).to_string();
-            let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
-            if let Some(map) = self.inbox.get_mut(&id) {
-                map.insert(packet_number, packet.clone());
-            } else {
-                let mut packets = HashMap::new();
-                packets.insert(packet_number, packet.clone());
-                self.inbox.insert(id.clone(), packets);
-            }
+            if !self.message_cache.contains(&id) {
+                let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
+                if let Some(map) = self.inbox.get_mut(&id) {
+                    map.insert(packet_number, packet.clone());
+                } else {
+                    let mut packets = HashMap::new();
+                    packets.insert(packet_number, packet.clone());
+                    self.inbox.insert(id.clone(), packets);
+                }
 
-            self.log_inbox().expect("Unable to log inbox");
+                self.log_inbox().expect("Unable to log inbox");
 
-            if packet.return_receipt == 1u8 {
-                let message = MessageType::AckMessage {
-                    packet_id: id,
-                    packet_number,
-                    src: self.addr.clone(),
-                };
+                if packet.return_receipt == GDUdp::RETURN_RECEIPT {
+                    let message = MessageType::AckMessage {
+                        packet_id: id,
+                        packet_number,
+                        src: self.addr.clone(),
+                    };
 
-                self.ack(&src, message.clone());
+                    self.ack(&src, message.clone());
 
-                self.log_ack(message.clone()).expect("Unable to log ack");
-            }
+                    self.log_ack(message.clone()).expect("Unable to log ack");
+                }
 
-            let inbox = serde_json::to_string(&self.inbox)
-                .unwrap()
-                .as_bytes()
-                .to_vec();
+                let inbox = serde_json::to_string(&self.inbox)
+                    .unwrap()
+                    .as_bytes()
+                    .to_vec();
 
-            if let Err(e) = self.to_node_sender.send(inbox) {
-                info!("error sending packet to node for processing: {:?}", e);
-            }
+                if let Err(e) = self.to_node_sender.send(inbox) {
+                    info!("error sending packet to node for processing: {:?}", e);
+                }
 
-            self.inbox.retain(|_, packet_map| {
-                packet_map.retain(|_, packet| {
-                    let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
-                    total_packets != 1
+                self.inbox.retain(|_, packet_map| {
+                    packet_map.retain(|_, packet| {
+                        let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
+                        total_packets != 1
+                    });
+                    !packet_map.is_empty()
                 });
-                !packet_map.is_empty()
-            });
+            }
         }
     }
 

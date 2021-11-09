@@ -10,7 +10,7 @@ use secp256k1::{
     key::{PublicKey, SecretKey},
     Error, Message, Secp256k1, Signature,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
@@ -105,6 +105,7 @@ impl GossipService {
             buf_cursor: 0,
             inbox: HashMap::new(),
             outbox: HashMap::new(),
+            message_cache: HashSet::new(),
             to_node_sender,
             to_inbox_receiver,
             timer: std::time::Instant::now(),
@@ -335,7 +336,8 @@ impl GossipService {
             }
             Command::AddNewPeer(peer_addr, pubkey) => {
                 if peer_addr != self.public_addr {
-                    let peer_addr: SocketAddr = peer_addr.parse().expect("Cannot parse peer socket address");
+                    let peer_addr: SocketAddr =
+                        peer_addr.parse().expect("Cannot parse peer socket address");
                     info!("Received new peer {:?} initializing hole punch", &peer_addr);
                     let first_message = MessageType::FirstHolePunch {
                         data: self.public_addr.as_bytes().to_vec(),
@@ -375,7 +377,10 @@ impl GossipService {
                 };
                 let known_peers = self.known_peers.clone();
                 known_peers.iter().for_each(|(addr, _)| {
-                    info!("Received {} new known peers initializing hole punch for each", &map.len());
+                    info!(
+                        "Received {} new known peers initializing hole punch for each",
+                        &map.len()
+                    );
                     if addr.to_string() != self.public_addr {
                         if let Err(e) = self.hole_punch(
                             addr,
@@ -469,6 +474,7 @@ impl GossipService {
                     &self.sock.inbox.len()
                 );
                 self.sock.inbox.remove(&id);
+                self.sock.message_cache.insert(id.clone());
                 info!(
                     "Length after removing id: {:?} -> {}",
                     &id,
@@ -501,7 +507,7 @@ impl GossipService {
         });
 
         loop {
-            if let Ok(command) = self.receiver.try_recv() {
+            while let Ok(command) = self.receiver.try_recv() {
                 self.process_gossip_command(command);
             }
             self.sock.check_time_elapsed();

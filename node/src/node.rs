@@ -7,7 +7,7 @@ use messages::packet::{Packet, Packetize};
 use network::message;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use uuid::Uuid;
 
@@ -33,7 +33,7 @@ pub struct Node {
     pub pubkey: String,
     pub id: String,
     pub node_type: NodeAuth,
-    pub message_cache: HashMap<String, Vec<u8>>,
+    pub message_cache: HashSet<String>,
     pub packet_storage: HashMap<String, HashMap<u32, Packet>>,
     pub command_handler: CommandHandler,
     pub message_handler: MessageHandler<MessageType, Vec<u8>>,
@@ -63,7 +63,7 @@ impl Node {
             pubkey: pubkey.to_string(),
             id,
             node_type,
-            message_cache: HashMap::new(),
+            message_cache: HashSet::new(),
             packet_storage: HashMap::new(),
             command_handler,
             message_handler,
@@ -73,39 +73,43 @@ impl Node {
     pub fn handle_packet(&mut self, packet: &Packet) {
         let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
         let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
-        info!("Received packet {} of {}", &packet_number, &total_packets);
         let id = String::from_utf8_lossy(&packet.clone().id).to_string();
-        if let Some(map) = self.packet_storage.get_mut(&id) {
-            map.insert(packet_number, packet.clone());
-            if let Ok(message_bytes) = Message::try_assemble(map) {
-                let message = Message::from_bytes(&message_bytes);
-                info!("Message assembled, clean from inbox");
-                let clean_inbox = Command::CleanInbox(id.clone());
-                self.command_handler.handle_command(clean_inbox);
-                if let Some(command) =
-                    message::process_message(message, self.id.clone().to_string())
-                {
-                    self.command_handler.handle_command(command);
-                };
+        if !self.message_cache.contains(&id) {
+            info!("Received packet {} of {}", &packet_number, &total_packets);
+            if let Some(map) = self.packet_storage.get_mut(&id) {
+                map.insert(packet_number, packet.clone());
+                if let Ok(message_bytes) = Message::try_assemble(map) {
+                    self.message_cache.insert(id.clone());
+                    let message = Message::from_bytes(&message_bytes);
+                    info!("Message assembled, clean from inbox");
+                    let clean_inbox = Command::CleanInbox(id.clone());
+                    self.command_handler.handle_command(clean_inbox);
+                    if let Some(command) =
+                        message::process_message(message, self.id.clone().to_string())
+                    {
+                        self.command_handler.handle_command(command);
+                    };
 
-                self.packet_storage.remove(&id.clone());
-            }
-        } else {
-            let mut map = HashMap::new();
-            map.insert(packet_number, packet.clone());
-            self.packet_storage.insert(id.clone(), map.clone());
-            if let Ok(message_bytes) = Message::try_assemble(&mut map) {
-                let message = Message::from_bytes(&message_bytes);
-                info!("Message assembled, clean from inbox");
-                let clean_inbox = Command::CleanInbox(id.clone());
-                self.command_handler.handle_command(clean_inbox);
+                    self.packet_storage.remove(&id.clone());
+                }
+            } else {
+                let mut map = HashMap::new();
+                map.insert(packet_number, packet.clone());
+                self.packet_storage.insert(id.clone(), map.clone());
+                if let Ok(message_bytes) = Message::try_assemble(&mut map) {
+                    self.message_cache.insert(id.clone());
+                    let message = Message::from_bytes(&message_bytes);
+                    info!("Message assembled, clean from inbox");
+                    let clean_inbox = Command::CleanInbox(id.clone());
+                    self.command_handler.handle_command(clean_inbox);
 
-                if let Some(command) =
-                    message::process_message(message, self.id.clone().to_string())
-                {
-                    self.command_handler.handle_command(command);
-                };
-                self.packet_storage.remove(&id.clone());
+                    if let Some(command) =
+                        message::process_message(message, self.id.clone().to_string())
+                    {
+                        self.command_handler.handle_command(command);
+                    };
+                    self.packet_storage.remove(&id.clone());
+                }
             }
         }
     }
