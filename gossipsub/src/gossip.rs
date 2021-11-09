@@ -396,8 +396,10 @@ impl GossipService {
             Command::Bootstrap(addr, pubkey) => {
                 let addr: SocketAddr = addr.parse().expect("Cannot parse address");
                 info!("A new peer {:?} has joined the network, sharing known peers with them as part of bootstrap process", &addr);
+                let mut other_peers = self.known_peers.clone();
+                other_peers.retain(|peer_addr, _| peer_addr != &addr);
                 let known_peers_message = MessageType::KnownPeers {
-                    data: serde_json::to_string(&self.known_peers.clone())
+                    data: serde_json::to_string(&other_peers.clone())
                         .unwrap()
                         .as_bytes()
                         .to_vec(),
@@ -444,7 +446,8 @@ impl GossipService {
                 };
             }
             Command::CompleteHandshake(data, pubkey, signature) => {
-                let peer_addr: SocketAddr = data.clone().parse().expect("cannot parse socket address");
+                let peer_addr: SocketAddr =
+                    data.clone().parse().expect("cannot parse socket address");
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
                         if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
@@ -460,9 +463,17 @@ impl GossipService {
                 self.sock.process_ack(id, packet_number, src);
             }
             Command::CleanInbox(id) => {
-                info!("Received clean inbox command, removing id: {} from inbox. Current length: {}", &id, &self.sock.inbox.len());
-                self.sock.inbox.retain(|k, _| k.clone() != id.clone());
-                info!("Length after removing id: {:?} -> {}", &id, &self.sock.inbox.len());
+                info!(
+                    "Received clean inbox command, removing id: {} from inbox. Current length: {}",
+                    &id,
+                    &self.sock.inbox.len()
+                );
+                self.sock.inbox.remove(&id);
+                info!(
+                    "Length after removing id: {:?} -> {}",
+                    &id,
+                    &self.sock.inbox.len()
+                );
             }
             _ => {}
         }
@@ -492,8 +503,8 @@ impl GossipService {
         loop {
             if let Ok(command) = self.receiver.try_recv() {
                 self.process_gossip_command(command);
-                self.sock.check_time_elapsed();
             }
+            self.sock.check_time_elapsed();
             self.sock.recv_to_inbox();
         }
     }

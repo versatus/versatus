@@ -80,8 +80,8 @@ impl Node {
             if let Ok(message_bytes) = Message::try_assemble(map) {
                 let message = Message::from_bytes(&message_bytes);
                 info!("Message assembled, clean from inbox");
-                self.command_handler.handle_command(Command::CleanInbox(id.clone()));
-                
+                let clean_inbox = Command::CleanInbox(id.clone());
+                self.command_handler.handle_command(clean_inbox);
                 if let Some(command) =
                     message::process_message(message, self.id.clone().to_string())
                 {
@@ -97,8 +97,8 @@ impl Node {
             if let Ok(message_bytes) = Message::try_assemble(&mut map) {
                 let message = Message::from_bytes(&message_bytes);
                 info!("Message assembled, clean from inbox");
-
-                self.command_handler.handle_command(Command::CleanInbox(id.clone()));
+                let clean_inbox = Command::CleanInbox(id.clone());
+                self.command_handler.handle_command(clean_inbox);
 
                 if let Some(command) =
                     message::process_message(message, self.id.clone().to_string())
@@ -133,7 +133,11 @@ impl Node {
             if let Some(command) = evt {
                 match command {
                     Command::ProcessPacket(packet_bytes) => {
-                        let inbox = serde_json::from_slice::<HashMap<String, HashMap<u32, Packet>>>(&packet_bytes).unwrap();
+                        let inbox =
+                            serde_json::from_slice::<HashMap<String, HashMap<u32, Packet>>>(
+                                &packet_bytes,
+                            )
+                            .unwrap();
                         inbox.iter().for_each(|(_, map)| {
                             map.iter().for_each(|(_, packet)| {
                                 self.handle_packet(&packet);

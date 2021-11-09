@@ -93,7 +93,7 @@ impl GDUdp {
     } 
 
     pub fn recv_to_inbox(&mut self) {
-        while let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
+        if let Ok((packet, src)) = self.to_inbox_receiver.try_recv() {
             let id = String::from_utf8_lossy(&packet.id).to_string();
             let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
             if let Some(map) = self.inbox.get_mut(&id) {
