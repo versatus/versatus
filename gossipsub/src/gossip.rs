@@ -130,7 +130,6 @@ impl GossipService {
     }
 
     pub fn gossip<T: AsMessage>(&mut self, message: T) {
-        self.sock.set_ttl(255).expect("Unable to set socket ttl");
         let every_n = 1.0 / self.gossip_factor;
         self.known_peers
             .clone()
@@ -147,8 +146,6 @@ impl GossipService {
     }
 
     pub fn publish<T: AsMessage>(&mut self, message: T) {
-        self.sock.set_ttl(255).expect("Unable to set socket ttl");
-
         message
             .into_message(1)
             .into_packets()
@@ -181,6 +178,7 @@ impl GossipService {
             self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
 
+        self.sock.set_ttl(16).expect("Unable to set socket ttl");
         Ok(())
     }
 
@@ -192,7 +190,6 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(255).expect("Unable to set socket ttl");
             let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
                 self.gd_udp.send_reliable(&peer, packet.clone(), &self.sock);
@@ -210,7 +207,6 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(255).expect("Unable to set socket ttl");
             let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
                 self.gd_udp.send_reliable(&peer, packet.clone(), &self.sock);
@@ -228,7 +224,6 @@ impl GossipService {
                 pubkey: self.pubkey.to_string(),
                 signature: signature.to_string(),
             };
-            self.sock.set_ttl(128).expect("Unable to set socket ttl");
             let packets = message.into_message(1).into_packets();
             packets.iter().for_each(|packet| {
                 self.gd_udp.send_reliable(&peer, packet.clone(), &self.sock);
@@ -460,7 +455,10 @@ impl GossipService {
         });
 
         loop {
-            while let Ok(command) = self.receiver.try_recv() {
+            while let Ok(command) = self.to_gossip_receiver.try_recv() {
+                self.process_gossip_command(command);
+            }
+            if let Ok(command) = self.receiver.try_recv() {
                 self.process_gossip_command(command);
             }
             self.gd_udp.check_time_elapsed(&self.sock);
