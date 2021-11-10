@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GDUdp {
     pub addr: String,
     pub buf: Vec<u8>,
@@ -25,11 +25,10 @@ impl GDUdp {
     pub const NO_RETURN_RECIEPT: u8 = 0u8;
 
     pub fn maintain(&mut self, sock: &UdpSocket) {
-        self.outbox.iter_mut().for_each(|(_, map)| {
+        self.outbox.retain(|_, map| {
             map.retain(|_, (sent_set, ack_set, _)| sent_set != ack_set);
+            !map.is_empty()
         });
-
-        self.outbox.retain(|_, map| !map.is_empty());
 
         self.outbox.iter().for_each(|(_, map)| {
             map.iter().for_each(|(_, (sent_set, ack_set, packet))| {
@@ -40,7 +39,6 @@ impl GDUdp {
                 });
             });
         });
-        self.log_outbox().expect("Unable to log outbox");
     }
 
     pub fn log_outbox(&self) -> Result<(), serde_json::Error> {
@@ -50,8 +48,13 @@ impl GDUdp {
         write_to_json(self.log.clone(), event)
     }
 
-    pub fn log_ack(&self, message: MessageType) -> Result<(), serde_json::Error> {
+    pub fn log_ack_sent(&self, message: MessageType) -> Result<(), serde_json::Error> {
         let event = VrrbNetworkEvent::VrrbAckSent { message };
+        write_to_json(self.log.clone(), event)
+    }
+
+    pub fn log_ack_received(&self, id: String, src: String)  -> Result<(), serde_json::Error> {
+        let event = VrrbNetworkEvent::VrrbAckReceived { packet: id, src };
         write_to_json(self.log.clone(), event)
     }
 
@@ -60,14 +63,13 @@ impl GDUdp {
         let time_elapsed = now.duration_since(self.timer);
 
         if time_elapsed >= GDUdp::MAINTENANCE {
-            info!("Time to maintain outbox");
             self.maintain(sock);
             self.timer = Instant::now();
         }
     }
 
     pub fn process_ack(&mut self, id: String, packet_number: u32, src: String) {
-        let acker_addr: SocketAddr = src.parse().expect("Unable to parse socket address");
+        let acker_addr: SocketAddr = src.clone().parse().expect("Unable to parse socket address");
         info!("Received ack messages, processing...");
         if let Some(map) = self.outbox.get_mut(&id) {
             info!("Found message that was acked in outbox");
@@ -77,7 +79,7 @@ impl GDUdp {
                 info!("Inserted the acker's addr into the ack set: {:?}", ack_set);
             }
         }
-        self.log_outbox().expect("Unable to log outbox");
+        self.log_ack_received(id, src).expect("Unable to log outbox");
     }
 
     pub fn send_reliable(&mut self, peer: &SocketAddr, packet: Packet, sock: &UdpSocket) {
@@ -104,16 +106,16 @@ impl GDUdp {
             map.insert(packet_number, (sent_set, ack_set, packet.clone()));
             self.outbox.insert(packet_id, map);
         }
-
-        self.log_outbox().expect("Unable to log outbox");
     }
 
-    pub fn ack<M: AsMessage>(&mut self, sock: &UdpSocket, peer: &SocketAddr, message: M) {
+    pub fn ack(&mut self, sock: &UdpSocket, peer: &SocketAddr, message: MessageType) {
         let packets = message.into_message(0).as_packet_bytes();
         packets.iter().for_each(|packet| {
             sock
                 .send_to(packet, peer)
                 .expect("Unable to send message to peer");
         });
+
+        self.log_ack_sent(message).expect("Unable to log ack message");
     }
 }

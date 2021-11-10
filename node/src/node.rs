@@ -135,21 +135,20 @@ impl Node {
                     }
                 }
             };
+            
             if let Some(command) = evt {
                 match command {
                     Command::ProcessPacket((packet, _)) => {
                         self.handle_packet(&packet);
                     }
                     Command::SendMessage(message) => {
-                        if let Some(message) = MessageType::from_bytes(&message) {
-                            if let Err(e) = self
-                                .command_handler
-                                .to_gossip_sender
-                                .send(Command::SendMessage(message.as_bytes()))
+                        if let Err(e) = self
+                            .command_handler
+                            .to_gossip_sender
+                            .send(Command::SendMessage(message))
                             {
                                 println!("Error publishing: {:?}", e);
                             }
-                        }
                     }
                     Command::Quit => {
                         //TODO:

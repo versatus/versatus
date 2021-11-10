@@ -261,7 +261,7 @@ impl Blockchain {
             sender_id,
         };
 
-        if let Err(e) = swarm_sender.send(Command::SendMessage(message.as_bytes())) {
+        if let Err(e) = swarm_sender.send(Command::SendMessage(message)) {
             println!(
                 "Error sending InvalidBlockMessage InvalidBlockHeight to swarm sender: {:?}",
                 e
@@ -283,7 +283,7 @@ impl Blockchain {
             sender_id,
         };
 
-        if let Err(e) = swarm_sender.send(Command::SendMessage(message.as_bytes())) {
+        if let Err(e) = swarm_sender.send(Command::SendMessage(message)) {
             println!("Error sending NeedBlocksMessage to swarm sender: {:?}", e);
         }
     }

@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedSender};
 
 pub const MAX_TRANSMIT_SIZE: usize = 65_535;
 
@@ -39,9 +39,7 @@ pub struct GossipServiceConfig {
 pub struct GossipService {
     pub gd_udp: GDUdp,
     pub sock: UdpSocket,
-    pub receiver: UnboundedReceiver<Command>,
     pub to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
-    pub to_gossip_receiver: UnboundedReceiver<Command>,
     pub ip: String,
     pub public_addr: String,
     pub port: u32,
@@ -63,19 +61,15 @@ pub struct GossipService {
 impl GossipService {
     pub fn new(
         config: GossipServiceConfig,
-        receiver: UnboundedReceiver<Command>,
         to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
-        to_gossip_receiver: UnboundedReceiver<Command>,
         log: String,
     ) -> GossipService {
-        GossipService::from_config(config, receiver, to_node_sender,to_gossip_receiver, log)
+        GossipService::from_config(config, to_node_sender, log)
     }
 
     pub fn from_config(
         config: GossipServiceConfig,
-        receiver: UnboundedReceiver<Command>,
         to_node_sender: UnboundedSender<(Packet, SocketAddr)>,
-        to_gossip_receiver: UnboundedReceiver<Command>,
         log: String,
     ) -> GossipService {
         let addr = format!("{}:{}", &config.get_ip(), &config.get_port());
@@ -108,9 +102,7 @@ impl GossipService {
         GossipService {
             gd_udp,
             sock,
-            receiver,
             to_node_sender,
-            to_gossip_receiver,
             ip: config.get_ip(),
             port: config.get_port(),
             public_addr,
@@ -145,7 +137,7 @@ impl GossipService {
             });
     }
 
-    pub fn publish<T: AsMessage>(&mut self, message: T) {
+    pub fn publish<T: AsMessage>(&mut self, message: T) -> std::io::Result<()> {
         message
             .into_message(1)
             .into_packets()
@@ -154,7 +146,9 @@ impl GossipService {
                 self.known_peers.clone().iter().for_each(|(addr, _)| {
                     self.gd_udp.send_reliable(addr, packet.clone(), &self.sock)
                 });
-            })
+            });
+
+        Ok(())
     }
 
     pub fn hole_punch<T: AsMessage>(
@@ -178,7 +172,7 @@ impl GossipService {
             self.gd_udp.send_reliable(peer, packet.clone(), &self.sock);
         });
 
-        self.sock.set_ttl(16).expect("Unable to set socket ttl");
+        self.sock.set_ttl(64).expect("Unable to set socket ttl");
         Ok(())
     }
 
@@ -287,17 +281,8 @@ impl GossipService {
 
     pub fn process_gossip_command(&mut self, command: Command) {
         match command {
-            Command::SendMessage(message_bytes) => {
-                let message = MessageType::from_bytes(&message_bytes);
-                if let Some(message_type) = message {
-                    self.publish(message_type.clone());
-                    let packets = message_type.into_message(1).as_packet_bytes();
-                    info!(
-                        "Sent {} to all known peers: {:?}",
-                        packets.len(),
-                        &self.known_peers
-                    );
-                }
+            Command::SendMessage(message) => {
+                self.publish(message.clone()).expect("Would block");
             }
             Command::AddNewPeer(peer_addr, pubkey) => {
                 if peer_addr != self.public_addr {
@@ -385,7 +370,7 @@ impl GossipService {
                     data: addr.to_string().as_bytes().to_vec(),
                     pubkey: pubkey.clone(),
                 };
-                self.publish(new_peer_message);
+                self.publish(new_peer_message).expect("Would block");
                 self.known_peers.insert(addr, pubkey.clone());
             }
             Command::InitHandshake(data) => {
@@ -436,34 +421,36 @@ impl GossipService {
         }
     }
 
-    #[allow(unused)]
-    pub fn start(&mut self) {
-        let thread_sock = self
-            .sock
-            .try_clone()
-            .expect("Unable to clone udp socket in GDUdp");
-        let thread_to_node_sender = self.to_node_sender.clone();
-        std::thread::spawn(move || loop {
-            let mut buf = [0; 50000];
-            let (amt, src) = thread_sock.recv_from(&mut buf).expect("No data received");
-            if amt > 0 {
-                let packet = Packet::from_bytes(&buf[..amt]);
-                if let Err(e) = thread_to_node_sender.send((packet, src)) {
-                    info!("Error sending packet to inbox");
-                }
-            }
-        });
+    // #[allow(unused)]
+    // pub fn start(&mut self) {
+    //     let thread_sock = self
+    //         .sock
+    //         .try_clone()
+    //         .expect("Unable to clone udp socket in GDUdp");
+    //     let thread_to_node_sender = self.to_node_sender.clone();
+    //     std::thread::spawn(move || loop {
+    //         let mut buf = [0; 50000];
+    //         let (amt, src) = thread_sock.recv_from(&mut buf).expect("No data received");
+    //         if amt > 0 {
+    //             let packet = Packet::from_bytes(&buf[..amt]);
+    //             if let Err(e) = thread_to_node_sender.send((packet, src)) {
+    //                 info!("Error sending packet to inbox");
+    //             }
+    //         }
+    //     });
 
-        loop {
-            while let Ok(command) = self.to_gossip_receiver.try_recv() {
-                self.process_gossip_command(command);
-            }
-            if let Ok(command) = self.receiver.try_recv() {
-                self.process_gossip_command(command);
-            }
-            self.gd_udp.check_time_elapsed(&self.sock);
-        }
-    }
+    //     loop {
+    //         while let Ok(command) = self.to_gossip_receiver.try_recv() {
+    //             info!("Received message to send");
+    //             self.process_gossip_command(command);
+    //         }
+    //         if let Ok(command) = self.receiver.try_recv() {
+    //             info!("Received Command to process");
+    //             self.process_gossip_command(command);
+    //         }
+    //         self.gd_udp.check_time_elapsed(&self.sock);
+    //     }
+    // }
 }
 
 impl GossipServiceConfig {
