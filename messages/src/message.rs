@@ -1,7 +1,7 @@
 use crate::packet::{Packet, Packetize, NotCompleteError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-pub const MAX_TRANSMIT_SIZE: usize = 50_000;
+pub const MAX_TRANSMIT_SIZE: usize = 2048;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {

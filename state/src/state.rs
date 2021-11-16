@@ -73,6 +73,11 @@ impl<'de> NetworkState {
         self.dump_to_file();
     }
 
+    pub fn set_reward_state(&mut self, reward_state: RewardState) {
+        self.reward_state = Some(reward_state);
+        self.dump_to_file();
+    }
+
     pub fn get_balance(&self, address: &str) -> u128 {
         let credits = self.get_account_credits(address);
         let debits = self.get_account_debits(address);
