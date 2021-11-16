@@ -88,6 +88,18 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 }
                 None
             }
+            MessageType::InvalidBlockMessage {
+                block_height,
+                reason,
+                miner_id,
+                sender_id,
+            } => {
+                if miner_id == node_id {
+                    // Check the reason, adjust accordingly.
+                    return Some(Command::StopMine)
+                }
+                None
+            }
             MessageType::ClaimAbandonedMessage { claim, sender_id } => {
                 return Some(Command::ClaimAbandoned(sender_id, claim))
             }

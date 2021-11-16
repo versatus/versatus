@@ -1,5 +1,12 @@
 [workspace]
 members = [
+    "block",
+    "blockchain",
+    "claim",
+    "miner",
+    "state",
+    "txn",
+    "wallet",
     "events",
     "commands",
     "gossipsub",
@@ -11,4 +18,11 @@ members = [
     "vrrb_gui",
     "network",
     "node",
+    "verifiable",
+    "ledger",
+    "accountable",
+    "ownable",
+    "noncing",
+    "updateable",
+    "vrrb_dht",
 ]
