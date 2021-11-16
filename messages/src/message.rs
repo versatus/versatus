@@ -1,7 +1,8 @@
 use crate::packet::{Packet, Packetize, NotCompleteError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-pub const MAX_TRANSMIT_SIZE: usize = 2048;
+use log::info;
+pub const MAX_TRANSMIT_SIZE: usize = 50_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -35,6 +36,7 @@ impl Packetize for Message {
         let message_string = serde_json::to_string(self).unwrap();
         let message_bytes = message_string.as_bytes();
         let n_bytes = message_bytes.len();
+        info!("n_bytes: {}", n_bytes);
         if n_bytes > MAX_TRANSMIT_SIZE {
             let mut n_packets = n_bytes / MAX_TRANSMIT_SIZE;
             if n_bytes % MAX_TRANSMIT_SIZE != 0 {
