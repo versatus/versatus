@@ -1,5 +1,5 @@
 [package]
-name = "vrrb_lib"
+name = "blockchain"
 version = "0.1.0"
 edition = "2018"
 
@@ -33,14 +33,13 @@ log = "0.4.14"
 ritelinked = {version = "0.3.2", features = [ 'serde' ]}
 strum = "0.21.0"
 strum_macros = "0.21.0"
-index_list = "0.2.7"
+unicode-width = "0.1.9"
 clipboard = "0.5.0"
-node = { path = "../node" }
-network = { path = "../network" }
-gossipsub = { path = "../gossipsub" }
+public-ip = "0.2.1"
+block = { path = "../block" }
+vrrb_lib = { path = "../vrrb_lib" }
 commands = { path = "../commands" }
 messages = { path = "../messages" }
-pool = { path = "../pool" }
 reward = { path = "../reward" }
 state = { path = "../state" }
 verifiable = { path = "../verifiable" }
