@@ -107,7 +107,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 data,
                 pubkey,
             } => {
-                info!("Received new peer identity initializing bootstrap");
                 return Some(Command::Bootstrap(data, pubkey))
             },
             MessageType::NewPeer {
@@ -115,13 +114,11 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 pubkey
             } => {
                 let addr_string = String::from_utf8_lossy(&data).to_string();
-                info!("Received new peer {} initializing hole punch", &addr_string);
                 return Some(Command::AddNewPeer(addr_string, pubkey))
             },
             MessageType::KnownPeers {
                 data,
             } => {
-                info!("Received known peers initializing hole punch for each");
                 return Some(Command::AddKnownPeers(data))
             },
             MessageType::FirstHolePunch {
@@ -129,7 +126,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 pubkey,
             } => {
                 let addr_string = String::from_utf8_lossy(&data).to_string();
-                info!("Received first holepunch from {} initializing handshake", &addr_string);
                 return Some(Command::InitHandshake(addr_string)) 
             },
             MessageType::SecondHolePunch {
@@ -137,7 +133,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 pubkey,
             } => {
                 let addr_string = String::from_utf8_lossy(&data).to_string();
-                info!("Received second holepunch from {} initializing handshake", &addr_string);
                 return Some(Command::InitHandshake(addr_string))
             },
             MessageType::FinalHolePunch {
@@ -145,7 +140,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 pubkey,
             } => {       
                 let addr_string = String::from_utf8_lossy(&data).to_string();
-                info!("Received final holepunch from {} initializing handshake", &addr_string);
                 return Some(Command::InitHandshake(addr_string))
             },
             MessageType::InitHandshake {
@@ -154,7 +148,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 signature,
             } => {
                 let addr_string = String::from_utf8_lossy(&data).to_string();
-                info!("Received init handshake from {} validating and if valid, reciprocating handshake", &addr_string);
                 return Some(Command::ReciprocateHandshake(addr_string, pubkey, signature))
             },
             MessageType::ReciprocateHandshake {
@@ -163,7 +156,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 signature,
             } => { 
                 let addr_string = String::from_utf8_lossy(&data).to_string();
-                info!("Received reciprocal handshake from {} validating and if valid, completing handshake", &addr_string);
                 return Some(Command::CompleteHandshake(addr_string, pubkey, signature))
             },
             MessageType::CompleteHandshake {
@@ -198,7 +190,6 @@ pub fn process_message(message: Message, node_id: String) -> Option<Command> {
                 packet_number,
                 src,
             } => {
-                info!("Received ack message, sending process ack command");
                 return Some(Command::ProcessAck(packet_id, packet_number, src));
             }
             _ => None,

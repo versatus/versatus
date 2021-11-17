@@ -1,6 +1,5 @@
 use crate::handler::{CommandHandler, MessageHandler};
 use commands::command::Command;
-use log::info;
 use messages::message::Message;
 use messages::message_types::MessageType;
 use messages::packet::{Packet, Packetize};
@@ -73,16 +72,13 @@ impl Node {
 
     pub fn handle_packet(&mut self, packet: &Packet) {
         let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
-        let total_packets = usize::from_be_bytes(packet.clone().convert_total_packets());
         let id = String::from_utf8_lossy(&packet.clone().id).to_string();
         if !self.message_cache.contains(&id) {
-            info!("Received packet {} of {}", &packet_number, &total_packets);
             if let Some(map) = self.packet_storage.get_mut(&id) {
                 map.insert(packet_number, packet.clone());
                 if let Ok(message_bytes) = Message::try_assemble(map) {
                     self.message_cache.insert(id.clone());
                     let message = Message::from_bytes(&message_bytes);
-                    info!("Message assembled, clean from inbox");
                     let clean_inbox = Command::CleanInbox(id.clone());
                     self.command_handler.handle_command(clean_inbox);
                     if let Some(command) =
@@ -100,7 +96,6 @@ impl Node {
                 if let Ok(message_bytes) = Message::try_assemble(&mut map) {
                     self.message_cache.insert(id.clone());
                     let message = Message::from_bytes(&message_bytes);
-                    info!("Message assembled, clean from inbox");
                     let clean_inbox = Command::CleanInbox(id.clone());
                     self.command_handler.handle_command(clean_inbox);
 
