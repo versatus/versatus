@@ -198,9 +198,9 @@ impl Verifiable for Block {
             });
         }
 
-        if self.header.block_height < item.header.block_height - 1 {
+        if self.header.block_height < item.header.block_height || self.header.block_height == item.header.block_height {
             return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockHeight,
+                details: InvalidBlockErrorReason::NotTallestChain,
             });
         }
 
