@@ -200,7 +200,7 @@ impl Blockchain {
         } else {
             // check that this is a valid genesis block.
             if block.header.block_height == 0 {
-                if let Ok(true) = block.valid_genesis(network_state, reward_state) {
+                if let Ok(true) = block.valid_genesis(reward_state) {
                     self.genesis = Some(block.clone());
                     self.child = Some(block.clone());
                     self.block_cache.insert(block.hash.clone(), block.clone());

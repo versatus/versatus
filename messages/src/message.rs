@@ -2,7 +2,7 @@ use crate::packet::{Packet, Packetize, NotCompleteError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use log::info;
-pub const MAX_TRANSMIT_SIZE: usize = 50_000;
+pub const MAX_TRANSMIT_SIZE: usize = 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -34,21 +34,27 @@ impl Message {
 impl Packetize for Message {
     fn into_packets(&self) -> Vec<Packet> {
         let message_string = serde_json::to_string(self).unwrap();
+        info!("Message String: {:?}", message_string);
         let message_bytes = message_string.as_bytes();
         let n_bytes = message_bytes.len();
-        info!("n_bytes: {}", n_bytes);
         if n_bytes > MAX_TRANSMIT_SIZE {
+            info!("n_bytes: {}", n_bytes);
             let mut n_packets = n_bytes / MAX_TRANSMIT_SIZE;
+            info!("estimate n_packets: {}", n_packets);
             if n_bytes % MAX_TRANSMIT_SIZE != 0 {
+                info!("n_bytes not perfectly divisible by MAX_TRANSMIT_SIZE, add one packet");
                 n_packets += 1;
             }
-            let mut end = MAX_TRANSMIT_SIZE - 1;
+            info!("n_packets: {}", n_packets);
+            let mut end = MAX_TRANSMIT_SIZE;
             let mut start = 0;
             let range: Vec<_> = (0..n_packets).collect();
             let packets = range
                 .iter()
                 .map(|idx| {
                     if *idx == n_packets - 1 {
+                        start = end;
+                        info!("Final packet idx: {}, Slicing bytes into packet. Start: {} -> End: {}", &idx, &start, &message_bytes.len());
                         return Packet::new(
                             self.id.clone(),
                             self.source.clone(),
@@ -59,6 +65,7 @@ impl Packetize for Message {
                             self.return_receipt,                            
                         );
                     } else if *idx == 0 {
+                        info!("idx: {}, Slicing bytes into packet. Start: {} -> End: {}", &idx, &start, &end);                        
                         return Packet::new(
                             self.id.clone(),
                             self.source.clone(),
@@ -70,7 +77,8 @@ impl Packetize for Message {
                         );
                     } else {
                         start = end;
-                        end = start + (MAX_TRANSMIT_SIZE - 1);
+                        end = start + (MAX_TRANSMIT_SIZE);
+                        info!("idx: {}, Slicing bytes into packet. Start: {} -> End: {}", &idx, &start, &end);                        
                         return Packet::new(
                             self.id.clone(),
                             self.source.clone(),
@@ -133,6 +141,7 @@ impl Packetize for Message {
 
                 byte_slices.sort_unstable_by_key(|k| k.0);
                 let mut assembled = vec![];
+                
                 byte_slices.iter().for_each(|(_, v)| {
                     assembled.extend(v.data.clone());
                 });

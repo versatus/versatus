@@ -1,9 +1,9 @@
+use noncing::nonceable::Nonceable;
+use ownable::ownable::Ownable;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use sha256::digest_bytes;
 use verifiable::verifiable::Verifiable;
-use ownable::ownable::Ownable;
-use noncing::nonceable::Nonceable;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvalidClaimError {
@@ -88,13 +88,22 @@ impl Claim {
 }
 
 impl Verifiable for Claim {
-    type Item = Claim;
-    type DependantOne = Vec<u8>;
-    type DependantTwo = Vec<u8>;
+    type Item = Option<Vec<u8>>;
+    type DependantOne = Option<Vec<u8>>;
+    type DependantTwo = Option<Vec<u8>>;
     type Error = InvalidClaimError;
-    
     fn verifiable(&self) -> bool {
         true
+    }
+
+    #[allow(unused_variables)]
+    fn valid(
+        &self,
+        item: &Self::Item,
+        dependant_one: &Self::DependantOne,
+        dependant_two: &Self::DependantTwo,
+    ) -> Result<bool, InvalidClaimError> {
+        Ok(true)
     }
 }
 
@@ -110,7 +119,7 @@ impl Nonceable for Claim {
     }
 
     fn nonce_up(&mut self) {
-                self.nonce = self.nonce + 1;
+        self.nonce = self.nonce + 1;
         let iters = if let Some(n) = self.nonce.clone().checked_mul(10) {
             n
         } else {
