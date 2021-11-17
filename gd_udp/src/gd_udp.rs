@@ -1,5 +1,4 @@
 use events::events::{write_to_json, VrrbNetworkEvent};
-use log::info;
 use messages::message::AsMessage;
 use messages::message_types::MessageType;
 use messages::packet::{Packet, Packetize};
@@ -70,13 +69,9 @@ impl GDUdp {
 
     pub fn process_ack(&mut self, id: String, packet_number: u32, src: String) {
         let acker_addr: SocketAddr = src.clone().parse().expect("Unable to parse socket address");
-        info!("Received ack messages, processing...");
         if let Some(map) = self.outbox.get_mut(&id) {
-            info!("Found message that was acked in outbox");
             if let Some((_, ack_set, _)) = map.get_mut(&packet_number) {
-                info!("Found packet that was acked in ack_map");
                 ack_set.insert(acker_addr);
-                info!("Inserted the acker's addr into the ack set: {:?}", ack_set);
             }
         }
         self.log_ack_received(id, src).expect("Unable to log outbox");
@@ -86,7 +81,6 @@ impl GDUdp {
         sock
             .send_to(&packet.as_bytes(), peer)
             .expect("Error sending packet to peer");
-        info!("Sent packet to peer {:?}", peer);
         let packet_id = String::from_utf8_lossy(&packet.clone().id).to_string();
         let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
         if let Some(map) = self.outbox.get_mut(&packet_id) {

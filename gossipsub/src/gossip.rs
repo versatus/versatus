@@ -288,7 +288,6 @@ impl GossipService {
                 if peer_addr != self.public_addr {
                     let peer_addr: SocketAddr =
                         peer_addr.parse().expect("Cannot parse peer socket address");
-                    info!("Received new peer {:?} initializing hole punch", &peer_addr);
                     let first_message = MessageType::FirstHolePunch {
                         data: self.public_addr.as_bytes().to_vec(),
                         pubkey: self.pubkey.to_string().clone(),
@@ -327,10 +326,6 @@ impl GossipService {
                 };
                 let known_peers = self.known_peers.clone();
                 known_peers.iter().for_each(|(addr, _)| {
-                    info!(
-                        "Received {} new known peers initializing hole punch for each",
-                        &map.len()
-                    );
                     if addr.to_string() != self.public_addr {
                         if let Err(e) = self.hole_punch(
                             addr,
@@ -350,7 +345,6 @@ impl GossipService {
             }
             Command::Bootstrap(addr, pubkey) => {
                 let addr: SocketAddr = addr.parse().expect("Cannot parse address");
-                info!("A new peer {:?} has joined the network, sharing known peers with them as part of bootstrap process", &addr);
                 let mut other_peers = self.known_peers.clone();
                 other_peers.retain(|peer_addr, _| peer_addr != &addr);
                 let known_peers_message = MessageType::KnownPeers {
@@ -364,8 +358,6 @@ impl GossipService {
                 packets.iter().for_each(|packet| {
                     self.gd_udp.send_reliable(&addr, packet.clone(), &self.sock);
                 });
-
-                info!("A new peer {:?} has joined the network, sharing their info with known peers as part of bootstrap process", &addr);
                 let new_peer_message = MessageType::NewPeer {
                     data: addr.to_string().as_bytes().to_vec(),
                     pubkey: pubkey.clone(),
@@ -375,11 +367,6 @@ impl GossipService {
             }
             Command::InitHandshake(data) => {
                 let peer_addr: SocketAddr = data.parse().expect("cannot parse socket address");
-                info!(
-                    "Hole punching process was successful, intializing hadnshape with peer {:?}",
-                    &peer_addr
-                );
-
                 self.init_handshake(&peer_addr)
             }
             Command::ReciprocateHandshake(data, pubkey, signature) => {
@@ -406,7 +393,6 @@ impl GossipService {
                 if let Ok(signature) = Signature::from_str(&signature) {
                     if let Ok(pubkey) = PublicKey::from_str(&pubkey) {
                         if let Ok(true) = self.verify(data.clone().as_bytes(), signature, pubkey) {
-                            info!("Reciprocal Handshake is valid, completing handshake with peer {:?}", &peer_addr);
                             self.complete_handshake(&peer_addr);
                         }
                     }
@@ -420,37 +406,6 @@ impl GossipService {
             _ => {}
         }
     }
-
-    // #[allow(unused)]
-    // pub fn start(&mut self) {
-    //     let thread_sock = self
-    //         .sock
-    //         .try_clone()
-    //         .expect("Unable to clone udp socket in GDUdp");
-    //     let thread_to_node_sender = self.to_node_sender.clone();
-    //     std::thread::spawn(move || loop {
-    //         let mut buf = [0; 50000];
-    //         let (amt, src) = thread_sock.recv_from(&mut buf).expect("No data received");
-    //         if amt > 0 {
-    //             let packet = Packet::from_bytes(&buf[..amt]);
-    //             if let Err(e) = thread_to_node_sender.send((packet, src)) {
-    //                 info!("Error sending packet to inbox");
-    //             }
-    //         }
-    //     });
-
-    //     loop {
-    //         while let Ok(command) = self.to_gossip_receiver.try_recv() {
-    //             info!("Received message to send");
-    //             self.process_gossip_command(command);
-    //         }
-    //         if let Ok(command) = self.receiver.try_recv() {
-    //             info!("Received Command to process");
-    //             self.process_gossip_command(command);
-    //         }
-    //         self.gd_udp.check_time_elapsed(&self.sock);
-    //     }
-    // }
 }
 
 impl GossipServiceConfig {
