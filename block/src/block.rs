@@ -2,16 +2,18 @@
 #![allow(dead_code)]
 use crate::header::BlockHeader;
 use crate::invalid::{InvalidBlockError, InvalidBlockErrorReason};
-use state::state::NetworkState;
-use verifiable::verifiable::Verifiable;
+use accountable::accountable::Accountable;
 use claim::claim::Claim;
-use reward::reward::RewardState;
-use txn::txn::Txn;
 use log::info;
+use rand::Rng;
+use reward::reward::{Category, RewardState, GENESIS_REWARD};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
+use state::state::NetworkState;
 use std::fmt;
+use txn::txn::Txn;
+use verifiable::verifiable::Verifiable;
 
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -184,226 +186,162 @@ impl Verifiable for Block {
     }
 
     #[allow(unused_variables)]
-    fn valid(&self, item: &Self::Item, dependant_one: &Self::DependantOne, dependant_two: &Self::DependantTwo) -> Result<bool, Self::Error> {
+    fn valid(
+        &self,
+        item: &Self::Item,
+        dependant_one: &Self::DependantOne,
+        dependant_two: &Self::DependantTwo,
+    ) -> Result<bool, Self::Error> {
+        if self.header.block_height > item.header.block_height + 1 {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::BlockOutOfSequence,
+            });
+        }
+
+        if self.header.block_height < item.header.block_height - 1 {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockHeight,
+            });
+        }
+
+        if self.header.block_nonce != item.header.next_block_nonce {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockNonce,
+            });
+        }
+
+        if self.header.block_reward.category != item.header.next_block_reward.category {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
+        }
+
+        if self.header.block_reward.get_amount() != item.header.next_block_reward.get_amount() {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
+        }
+
+        if let Some((hash, pointers)) =
+            dependant_one.get_lowest_pointer(self.header.block_nonce as u128)
+        {
+            if hash == self.header.claim.hash {
+                if let Some(claim_pointer) = self
+                    .header
+                    .claim
+                    .get_pointer(self.header.block_nonce as u128)
+                {
+                    if pointers != claim_pointer {
+                        return Err(Self::Error {
+                            details: InvalidBlockErrorReason::InvalidClaimPointers,
+                        });
+                    }
+                } else {
+                    return Err(Self::Error {
+                        details: InvalidBlockErrorReason::InvalidClaimPointers,
+                    });
+                }
+            } else {
+                return Err(Self::Error {
+                    details: InvalidBlockErrorReason::InvalidClaimPointers,
+                });
+            }
+        }
+
+        if !dependant_two.valid_reward(self.header.block_reward.category) {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
+        }
+
+        if !dependant_two.valid_reward(self.header.next_block_reward.category) {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidNextBlockReward,
+            });
+        }
+
+        if self.header.last_hash != item.hash {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidLastHash,
+            });
+        }
+
+        if let Err(_) = self.header.claim.valid(&None, &None, &None) {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidClaim,
+            });
+        }
+
         Ok(true)
     }
 
-    #[allow(unused_variables)]
-    fn valid_genesis(&self, dependant_one: &Self::DependantOne, dependant_two: &Self::DependantTwo) -> Result<bool, Self::Error> {
+    fn valid_genesis(&self, dependant_two: &Self::DependantTwo) -> Result<bool, Self::Error> {
+        let genesis_last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
+        let genesis_state_hash = digest_bytes(
+            format!(
+                "{},{}",
+                genesis_last_hash,
+                digest_bytes("Genesis_State_Hash".as_bytes())
+            )
+            .as_bytes(),
+        );
+
+        if self.header.block_height != 0 {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockHeight,
+            });
+        }
+
+        if !dependant_two.valid_reward(self.header.block_reward.category) {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
+        }
+
+        if !dependant_two.valid_reward(self.header.next_block_reward.category) {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidNextBlockReward,
+            });
+        }
+
+        if self.header.last_hash != genesis_last_hash {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidLastHash,
+            });
+        }
+
+        if self.hash != genesis_state_hash {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidStateHash,
+            });
+        }
+
+        if let Err(_) = self.header.claim.valid(&None, &None, &None) {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidClaim,
+            });
+        }
+
+        if let Err(_) = self.header.verify() {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockSignature,
+            });
+        }
+
+        let mut valid_data = true;
+        self.txns.iter().for_each(|(_, txn)| {
+            let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
+            if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
+                valid_data = false;
+            }
+        });
+        
+        if !valid_data {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidTxns
+            })
+        }
+
         Ok(true)
     }
 }
-
-// impl Verifiable for Block {
-//     fn verifiable(&self) -> bool {
-//         true
-//     }
-
-//     fn valid_genesis(&self, _network_state: &NetworkState, _reward_state: &RewardState) -> bool {
-//         true
-//     }
-
-//     fn valid_block(
-//         &self,
-//         last_block: &Block,
-//         network_state: &NetworkState,
-//         reward_state: &RewardState,
-//     ) -> Result<(), InvalidBlockError> {
-//         if !self.valid_last_hash(last_block) {
-//             let e = Err(InvalidBlockError { details: InvalidBlockErrorReason::InvalidLastHash });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_block_nonce(last_block) {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidBlockNonce,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_state_hash(network_state) {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidStateHash,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_block_reward(reward_state) {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidBlockReward,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_next_block_reward(reward_state) {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidBlockReward,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_txns() {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidTxns,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_claim_pointer(network_state) {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidClaimPointers,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         if !self.valid_block_claim(network_state) {
-//             let e = Err(InvalidBlockError {
-//                 details: InvalidBlockErrorReason::InvalidClaim,
-//             });
-//             info!("Invalid block: {:?}", e);
-//             info!("Block that's invalid: {:?}", self);
-//             info!("Last Valid Block: {:?}", &last_block);
-//             return e;
-//         }
-
-//         Ok(())
-//     }
-
-//     fn valid_last_hash(&self, last_block: &Block) -> bool {
-//         self.header.last_hash == last_block.hash
-//     }
-
-//     fn valid_state_hash(&self, network_state: &NetworkState) -> bool {
-//         let mut hashable_state = network_state.clone();
-//         let hash = hashable_state.hash(self.clone());
-//         self.hash == hash
-//     }
-
-//     fn valid_block_reward(&self, reward_state: &RewardState) -> bool {
-//         if let Some(true) = reward_state.valid_reward(self.header.block_reward.category) {
-//             return true;
-//         }
-
-//         false
-//     }
-
-//     fn valid_next_block_reward(&self, reward_state: &RewardState) -> bool {
-//         if let Some(true) = reward_state.valid_reward(self.header.next_block_reward.category) {
-//             return true;
-//         }
-
-//         false
-//     }
-
-//     fn valid_txns(&self) -> bool {
-//         let mut valid_data: bool = true;
-
-//         self.txns.iter().for_each(|(_, txn)| {
-//             let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
-//             if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
-//                 valid_data = false
-//             }
-//         });
-
-//         valid_data
-//     }
-
-//     fn valid_block_nonce(&self, last_block: &Block) -> bool {
-//         self.header.block_nonce == last_block.header.next_block_nonce
-//     }
-
-//     fn valid_claim_pointer(&self, network_state: &NetworkState) -> bool {
-//         if let Some((hash, pointers)) =
-//             network_state.get_lowest_pointer(self.header.block_nonce as u128)
-//         {
-//             if hash == self.header.claim.hash {
-//                 if let Some(claim_pointer) = self
-//                     .header
-//                     .claim
-//                     .get_pointer(self.header.block_nonce as u128)
-//                 {
-//                     if pointers == claim_pointer {
-//                         return true;
-//                     } else {
-//                         return false;
-//                     }
-//                 } else {
-//                     return false;
-//                 }
-//             } else {
-//                 return false;
-//             }
-//         } else {
-//             return false;
-//         }
-//     }
-
-//     fn valid_block_signature(&self) -> bool {
-//         if let Ok(true) = self.header.verify() {
-//             return true;
-//         } else {
-//             return false;
-//         }
-//     }
-
-//     fn valid_block_claim(&self, network_state: &NetworkState) -> bool {
-//         let claims = network_state.get_claims();
-//         if let None = claims.get(&self.header.claim.pubkey) {
-//             return false;
-//         }
-//         let recreated_claim = Claim::new(
-//             self.header.claim.pubkey.clone(),
-//             self.header.claim.address.clone(),
-//             self.header.claim.nonce,
-//         );
-
-//         if recreated_claim.hash != self.header.claim.hash {
-//             info!("Claim hash is incorrect, doesn't match recreated claim hash");
-//             return false;
-//         }
-
-//         let network_state_claim = claims.get(&self.header.claim.pubkey).unwrap();
-
-//         if network_state_claim.pubkey != self.header.claim.pubkey {
-//             info!("Claim pubkey doesn't match records");
-//             return false;
-//         }
-//         if network_state_claim.address != self.header.claim.address {
-//             info!("Claim address doesn't match records");
-//             return false;
-//         }
-
-//         if network_state_claim.hash != self.header.claim.hash {
-//             info!("Claim hash doesn't match records");
-//             return false;
-//         }
-
-//         if network_state_claim.nonce != self.header.claim.nonce {
-//             info!("Claim nonce doesn't match records");
-//             return false;
-//         }
-
-//         return true;
-//     }
-// }

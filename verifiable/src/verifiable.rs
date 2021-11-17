@@ -18,7 +18,7 @@ pub trait Verifiable {
     }
     
     #[allow(unused_variables)]
-    fn valid_genesis(&self, dependant_one: &Self::DependantOne, dependant_two: &Self::DependantTwo) -> Result<bool, Self::Error> {
+    fn valid_genesis(&self, dependant_two: &Self::DependantTwo) -> Result<bool, Self::Error> {
         Ok(false)
     }
 }

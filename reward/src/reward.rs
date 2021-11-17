@@ -180,111 +180,111 @@ impl RewardState {
         serde_json::to_string(self).unwrap()
     }
 
-    pub fn valid_reward(&self, category: Category) -> Option<bool> {
+    pub fn valid_reward(&self, category: Category) -> bool {
         match category {
             Category::Flake(amount) => match amount {
                 Some(amt) => {
                     if amt < FLAKE_REWARD_RANGE.0 || amt > FLAKE_REWARD_RANGE.1 {
-                        return Some(false);
+                        return false;
                     }
                     if self.n_flakes_current_epoch == 0 {
-                        return Some(false);
+                        return false;
                     }
                 }
-                None => return Some(false),
+                None => return false,
             },
             Category::Grain(amount) => match amount {
                 Some(amt) => {
                     if amt < GRAIN_REWARD_RANGE.0 || amt > GRAIN_REWARD_RANGE.1 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.n_grains_current_epoch == 0 {
-                        return Some(false);
+                        return false;
                     }
                 }
-                None => return Some(false),
+                None => return false,
             },
             Category::Nugget(amount) => match amount {
                 Some(amt) => {
                     if amt < NUGGET_REWARD_RANGE.0 || amt > NUGGET_REWARD_RANGE.1 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.n_nuggets_current_epoch == 0 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.n_nuggets_remaining == 0 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.epoch > NUGGET_FINAL_EPOCH {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.epoch == NUGGET_FINAL_EPOCH && self.n_nuggets_remaining > 1 {
-                        return Some(false);
+                        return false;
                     }
                 }
-                None => return Some(false),
+                None => return false,
             },
             Category::Vein(amount) => match amount {
                 Some(amt) => {
                     if amt < VEIN_REWARD_RANGE.0 || amt > VEIN_REWARD_RANGE.1 {
-                        return Some(false);
+                        return false;
                     }
                     if self.n_veins_current_epoch == 0 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.n_veins_remaining == 0 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.epoch > VEIN_FINAL_EPOCH {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.epoch == VEIN_FINAL_EPOCH && self.n_veins_remaining > 1 {
-                        return Some(false);
+                        return false;
                     }
                 }
-                None => return Some(false),
+                None => return false,
             },
             Category::Motherlode(amount) => match amount {
                 Some(amt) => {
                     if amt < MOTHERLODE_REWARD_RANGE.0 || amt > MOTHERLODE_REWARD_RANGE.1 {
-                        return Some(false);
+                        return false;
                     }
                     if self.n_motherlodes_current_epoch == 0 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.n_motherlodes_remaining == 0 {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.epoch > MOTHERLODE_FINAL_EPOCH {
-                        return Some(false);
+                        return false;
                     }
 
                     if self.epoch == MOTHERLODE_FINAL_EPOCH && self.n_motherlodes_remaining > 1 {
-                        return Some(false);
+                        return false;
                     }
                 }
-                None => return Some(false),
+                None => return false,
             },
             Category::Genesis(amount) => match amount {
                 Some(amt) => {
                     if amt != GENESIS_REWARD {
-                        return Some(false);
+                        return false;
                     }
                 }
-                None => return Some(false),
+                None => return false,
             },
         }
-        Some(true)
+        true
     }
 }
 

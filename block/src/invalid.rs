@@ -14,6 +14,8 @@ pub enum InvalidBlockErrorReason {
     InvalidBlockReward,
     InvalidTxns,
     InvalidClaimPointers,
+    InvalidNextBlockReward,
+    InvalidBlockSignature,
     General,
 }
 
@@ -33,8 +35,10 @@ impl InvalidBlockErrorReason {
             Self::InvalidStateHash => "invalid state hash",
             Self::InvalidBlockNonce => "invalid block nonce",
             Self::InvalidBlockReward => "invalid block reward",
+            Self::InvalidNextBlockReward => "invalid next block reward",
             Self::InvalidTxns => "invalid txns in block",
             Self::InvalidClaimPointers => "invalid claim pointers",
+            Self::InvalidBlockSignature => "invalid block signature",
             Self::NotTallestChain => "blockchain proposed is shorter than my local chain"
         }
     }
@@ -86,11 +90,17 @@ impl fmt::Display for InvalidBlockErrorReason {
             Self::InvalidBlockReward => {
                 write!(f, "invalid block reward")
             }
+            Self::InvalidNextBlockReward => {
+                write!(f, "invalid next block reward")
+            }
             Self::InvalidTxns => {
                 write!(f, "invalid txns in block")
             }
             Self::InvalidClaimPointers => {
                 write!(f, "invalid claim pointers")
+            }
+            Self::InvalidBlockSignature => {
+                write!(f, "invalid block signature")
             }
             Self::General => {
                 write!(f, "general invalid block error")
