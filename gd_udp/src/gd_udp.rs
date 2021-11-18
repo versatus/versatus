@@ -74,7 +74,6 @@ impl GDUdp {
                 ack_set.insert(acker_addr);
             }
         }
-        self.log_ack_received(id, src).expect("Unable to log outbox");
     }
 
     pub fn send_reliable(&mut self, peer: &SocketAddr, packet: Packet, sock: &UdpSocket) {
@@ -109,7 +108,5 @@ impl GDUdp {
                 .send_to(packet, peer)
                 .expect("Unable to send message to peer");
         });
-
-        self.log_ack_sent(message).expect("Unable to log ack message");
     }
 }

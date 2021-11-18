@@ -281,6 +281,11 @@ impl GossipService {
 
     pub fn process_gossip_command(&mut self, command: Command) {
         match command {
+            Command::SendStateComponents(_, message_bytes) => {
+                if let Some(message) =  MessageType::from_bytes(&message_bytes) {
+                    self.publish(message.clone()).expect("Would block");
+                }
+            }
             Command::SendMessage(message) => {
                 self.publish(message.clone()).expect("Would block");
             }
