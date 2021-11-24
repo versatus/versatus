@@ -26,5 +26,5 @@ members = [
     "updateable",
     "vrrb_dht",
     "claim_concept",
-    "simulation",
+    "streamer",
 ]
