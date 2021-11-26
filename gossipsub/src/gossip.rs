@@ -281,9 +281,12 @@ impl GossipService {
 
     pub fn process_gossip_command(&mut self, command: Command) {
         match command {
-            Command::SendStateComponents(_, message_bytes) => {
+            Command::SendStateComponents(requestor, message_bytes) => {
                 if let Some(message) =  MessageType::from_bytes(&message_bytes) {
-                    self.publish(message.clone()).expect("Would block");
+                    let peer: SocketAddr = requestor.parse().expect("Cannot convert to SocketAddr");
+                    let message = message.into_message(1);
+                    let packets = message.into_packets();
+                    self.send_packets(&peer, packets);
                 }
             }
             Command::SendMessage(message) => {
