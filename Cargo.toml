@@ -25,6 +25,5 @@ members = [
     "noncing",
     "updateable",
     "vrrb_dht",
-    "claim_concept",
     "streamer",
 ]

@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::net::{SocketAddr, UdpSocket};
 use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc::{UnboundedSender};
 
 pub const MAX_TRANSMIT_SIZE: usize = 65_535;
@@ -53,6 +54,7 @@ pub struct GossipService {
     pub gossip_factor: f64,
     /// Socket Addr -> Peer PubKey so that messages can be decrypted with the peer pubkey in constant time
     pub known_peers: HashMap<SocketAddr, String>,
+    pub bootstrap: Option<SocketAddr>,
     pub explicit_peers: HashMap<SocketAddr, String>,
     pub pubkey: PublicKey,
     secretkey: SecretKey,
@@ -115,9 +117,33 @@ impl GossipService {
             cache_duration: config.get_cache_duration(),
             gossip_factor: config.get_gossip_factor(),
             known_peers: HashMap::new(),
+            bootstrap: None,
             explicit_peers: HashMap::new(),
             pubkey: config.get_pubkey(),
             secretkey: config.get_secret_key(),
+        }
+    }
+
+    pub fn set_bootstrap(&mut self, addr: SocketAddr) {
+        self.bootstrap = Some(addr);
+    }
+
+    pub fn ping_bootstrap(&mut self) {
+        if let Some(addr) = self.bootstrap {
+            let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+            let message = MessageType::Ping {
+                data: vec![0,0,0,0],
+                addr: self.public_addr.as_bytes().to_vec(),
+                timestamp: timestamp.to_be_bytes().to_vec(),
+            };
+            message.into_message(0).into_packets().iter().for_each(|packet| {
+                if let Err(e) = self.sock.send_to(&packet.as_bytes(), addr) {
+                    println!("Error sending ping to bootstrap: {:?}", e)
+                };
+            });
         }
     }
 
@@ -283,11 +309,15 @@ impl GossipService {
         match command {
             Command::SendStateComponents(_, message_bytes) => {
                 if let Some(message) =  MessageType::from_bytes(&message_bytes) {
-                    self.publish(message.clone()).expect("Would block");
+                    if let Err(e) = self.publish(message.clone()) {
+                        info!("Error publishing state components: {:?}", e);
+                    }
                 }
             }
             Command::SendMessage(message) => {
-                self.publish(message.clone()).expect("Would block");
+                if let Err(e) = self.publish(message.clone()) {
+                    info!("Error publishing message: {:?}", e);
+                }
             }
             Command::AddNewPeer(peer_addr, pubkey) => {
                 if peer_addr != self.public_addr {
