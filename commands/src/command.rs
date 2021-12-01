@@ -47,7 +47,7 @@ pub enum Command {
     AddExplicitPeer(String, String),
     ProcessPacket((Packet, SocketAddr)),
     Bootstrap(String, String),
-    SendPing(Vec<u8>),
+    SendPing(String),
     ReturnPong(Vec<u8>, String),
     InitHandshake(String),
     ReciprocateHandshake(String, String, String),
