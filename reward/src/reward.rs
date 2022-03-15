@@ -1,9 +1,9 @@
 use crate::decay::decay_calculator;
+use accountable::accountable::Accountable;
 use rand::{
     distributions::{Distribution, WeightedIndex},
     thread_rng, Rng,
 };
-use accountable::accountable::Accountable;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
@@ -17,9 +17,9 @@ pub const PSIGMA: u128 = 1000 * SITARI;
 pub const VRRB: u128 = 1000 * PSIGMA;
 
 // Generate a random variable reward to include in new blocks
-pub const TOTAL_NUGGETS: u128 = 80000000;
-pub const TOTAL_VEINS: u128 = 1400000;
-pub const TOTAL_MOTHERLODES: u128 = 20000;
+pub const TOTAL_NUGGETS: u128 = 80_000_000;
+pub const TOTAL_VEINS: u128 = 1_400_000;
+pub const TOTAL_MOTHERLODES: u128 = 20_000;
 pub const N_BLOCKS_PER_EPOCH: u128 = 16000000;
 pub const NUGGET_FINAL_EPOCH: u128 = 300;
 pub const VEIN_FINAL_EPOCH: u128 = 200;
@@ -91,75 +91,51 @@ impl RewardState {
     }
 
     pub fn update(&mut self, last_reward: Category) {
-        let mut n_nuggets_ce: u128 = self.n_nuggets_current_epoch;
-        let mut n_veins_ce: u128 = self.n_veins_current_epoch;
-        let mut n_motherlodes_ce: u128 = self.n_motherlodes_current_epoch;
-        let mut n_flakes_ce: u128 = self.n_flakes_current_epoch;
-        let mut n_grains_ce: u128 = self.n_grains_current_epoch;
         let remaining_blocks_in_ce: u128 = self.next_epoch_block - (self.current_block + 1);
 
         if remaining_blocks_in_ce != 0 {
-            n_nuggets_ce = match last_reward {
-                Category::Nugget(Some(_)) => n_nuggets_ce - 1,
-                _ => n_nuggets_ce,
-            };
-            n_veins_ce = match last_reward {
-                Category::Vein(Some(_)) => n_veins_ce - 1,
-                _ => n_veins_ce,
-            };
-            n_motherlodes_ce = match last_reward {
-                Category::Motherlode(Some(_)) => n_motherlodes_ce - 1,
-                _ => n_motherlodes_ce,
-            };
-            n_flakes_ce = match last_reward {
-                Category::Flake(Some(_)) => n_flakes_ce - 1,
-                _ => n_flakes_ce,
-            };
-            n_grains_ce = match last_reward {
-                Category::Grain(Some(_)) => n_grains_ce - 1,
-                _ => n_grains_ce,
-            };
+            match last_reward {
+                Category::Nugget(_) => {
+                    self.n_nuggets_current_epoch -= 1;
+                    self.n_nuggets_remaining -= 1;
+                }
+                Category::Vein(_) => {
+                    self.n_veins_current_epoch -= 1;
+                    self.n_veins_remaining -= 1;
+                }
+                Category::Motherlode(_) => {
+                    self.n_motherlodes_current_epoch -= 1;
+                    self.n_motherlodes_remaining -= 1;
+                }
+                Category::Flake(_) => {
+                    self.n_flakes_current_epoch -= 1;
+                }
+                Category::Grain(_) => {
+                    self.n_grains_current_epoch -= 1;
+                }
+                _ => {}
+            }
         } else {
-            n_nuggets_ce = (decay_calculator(TOTAL_NUGGETS, NUGGET_FINAL_EPOCH)
-                * self.n_nuggets_remaining as f64) as u128;
-            n_veins_ce = (decay_calculator(TOTAL_NUGGETS, NUGGET_FINAL_EPOCH)
-                * self.n_veins_remaining as f64) as u128;
-            n_motherlodes_ce = (decay_calculator(TOTAL_NUGGETS, NUGGET_FINAL_EPOCH)
-                * self.n_motherlodes_remaining as f64) as u128;
-            let remaining_blocks =
-                N_BLOCKS_PER_EPOCH - (n_nuggets_ce + n_veins_ce + n_motherlodes_ce);
-            n_flakes_ce = (remaining_blocks as f64 * 0.6f64) as u128;
-            n_grains_ce = (remaining_blocks as f64 * 0.4f64) as u128;
+            self.new_epoch();
         }
+    }
 
-        self.current_block = self.current_block + 1;
-        self.epoch = if self.current_block + 1 != self.next_epoch_block {
-            self.epoch
-        } else {
-            self.epoch + 1
-        };
-        self.next_epoch_block = if self.current_block + 1 != self.next_epoch_block {
-            self.next_epoch_block
-        } else {
-            self.next_epoch_block + N_BLOCKS_PER_EPOCH
-        };
-        self.n_nuggets_remaining = match last_reward {
-            Category::Nugget(Some(_)) => self.n_nuggets_remaining - 1,
-            _ => self.n_nuggets_remaining,
-        };
-        self.n_veins_remaining = match last_reward {
-            Category::Vein(Some(_)) => self.n_veins_remaining - 1,
-            _ => self.n_veins_remaining,
-        };
-        self.n_motherlodes_remaining = match last_reward {
-            Category::Motherlode(Some(_)) => self.n_motherlodes_remaining - 1,
-            _ => self.n_motherlodes_remaining,
-        };
-        self.n_nuggets_current_epoch = n_nuggets_ce;
-        self.n_veins_current_epoch = n_veins_ce;
-        self.n_motherlodes_current_epoch = n_motherlodes_ce;
-        self.n_flakes_current_epoch = n_flakes_ce;
-        self.n_grains_current_epoch = n_grains_ce;
+    pub fn new_epoch(&mut self) {
+        self.n_nuggets_current_epoch = (decay_calculator(TOTAL_NUGGETS, NUGGET_FINAL_EPOCH)
+            * self.n_nuggets_remaining as f64) as u128;
+        self.n_veins_current_epoch = (decay_calculator(TOTAL_NUGGETS, NUGGET_FINAL_EPOCH)
+            * self.n_veins_remaining as f64) as u128;
+        self.n_motherlodes_current_epoch = (decay_calculator(TOTAL_NUGGETS, NUGGET_FINAL_EPOCH)
+            * self.n_motherlodes_remaining as f64)
+            as u128;
+        let remaining_blocks = N_BLOCKS_PER_EPOCH
+            - (self.n_nuggets_current_epoch
+                + self.n_veins_current_epoch
+                + self.n_motherlodes_current_epoch);
+        self.n_flakes_current_epoch = (remaining_blocks as f64 * 0.6f64) as u128;
+        self.n_grains_current_epoch = (remaining_blocks as f64 * 0.4f64) as u128;
+        self.epoch += 1;
+        self.next_epoch_block = self.next_epoch_block + N_BLOCKS_PER_EPOCH;
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
