@@ -9,9 +9,7 @@ members = [
     "wallet",
     "events",
     "commands",
-    "gossipsub",
     "messages",
-    "gd_udp",
     "vrrb_lib",
     "vrrb_tui",
     "vrrb_cli",
@@ -24,6 +22,5 @@ members = [
     "ownable",
     "noncing",
     "updateable",
-    "vrrb_dht",
-    "streamer",
+    "quorum"
 ]

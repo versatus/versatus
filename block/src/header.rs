@@ -22,20 +22,21 @@ pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BlockHeader {
-    pub last_hash: String,
-    pub block_nonce: u64,
-    pub next_block_nonce: u64,
-    pub block_height: u128,
-    pub timestamp: u128,
-    pub txn_hash: String,
-    pub claim: Claim,
-    pub claim_map_hash: Option<String>,
-    pub block_reward: Reward,
-    pub next_block_reward: Reward,
-    pub neighbor_hash: Option<String>,
-    pub signature: String,
-}
+
+    pub struct BlockHeader {
+        pub last_hash: String,
+        pub block_nonce: u64,
+        pub next_block_nonce: u64,
+        pub block_height: u128,
+        pub timestamp: u128,
+        pub txn_hash: String,
+        pub claim: Claim,
+        pub claim_map_hash: Option<String>,
+        pub block_reward: Reward,
+        pub next_block_reward: Reward,
+        pub neighbor_hash: Option<String>,
+        pub signature: String,
+    }
 
 impl BlockHeader {
     pub fn genesis(

@@ -36,6 +36,6 @@ index_list = "0.2.7"
 clipboard = "0.5.0"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 commands = { path = "../commands" }
-gossipsub = { path = "../gossipsub" }
 network = { path = "../network" }
 messages = { path = "../messages" }
+udp2p_protocol = "0.2.0"

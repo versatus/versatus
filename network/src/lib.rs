@@ -1,3 +1,4 @@
+pub mod network;
 pub mod components;
 pub mod config_utils;
 pub mod message;

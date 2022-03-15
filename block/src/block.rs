@@ -24,17 +24,18 @@ const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
-pub struct Block {
-    pub header: BlockHeader,
-    pub neighbors: Option<Vec<BlockHeader>>,
-    pub height: u128,
-    pub txns: LinkedHashMap<String, Txn>,
-    pub claims: LinkedHashMap<String, Claim>,
-    pub hash: String,
-    pub received_at: Option<u128>,
-    pub received_from: Option<String>,
-    pub abandoned_claim: Option<Claim>,
-}
+
+    pub struct Block {
+        pub header: BlockHeader,
+        pub neighbors: Option<Vec<BlockHeader>>,
+        pub height: u128,
+        pub txns: LinkedHashMap<String, Txn>,
+        pub claims: LinkedHashMap<String, Claim>,
+        pub hash: String,
+        pub received_at: Option<u128>,
+        pub received_from: Option<String>,
+        pub abandoned_claim: Option<Claim>,
+    }
 
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the

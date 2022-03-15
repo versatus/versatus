@@ -11,6 +11,7 @@ pub struct InvalidClaimError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+
 pub struct Claim {
     pub pubkey: String,
     pub address: String,

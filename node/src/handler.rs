@@ -176,51 +176,51 @@ impl CommandHandler {
                     println!("Error sending claim abandoned command to miner: {:?}", e)
                 }
             }
-            Command::Bootstrap(new_peer_addr, new_peer_pubkey) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::Bootstrap(new_peer_addr, new_peer_pubkey)) {
-                    info!("Error sending bootstrap command to swarm: {:?}", e);
-                }
-            }
-            Command::AddNewPeer(new_peer_addr, new_peer_pubkey) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::AddNewPeer(new_peer_addr, new_peer_pubkey)) {
-                    info!("Error sending add new peer command to swarm: {:?}", e);
-                }
-            }
-            Command::AddKnownPeers(data) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::AddKnownPeers(data)) {
-                    info!("Error sending add known peers command to swarm: {:?}", e);
-                }
-            }
-            Command::AddExplicitPeer(peer_addr, peer_pubkey) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::AddExplicitPeer(peer_addr, peer_pubkey)) {
-                    info!("Error sending add explicit peer command to swarm: {:?}", e);
-                }
-            }
-            Command::InitHandshake(peer_addr) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::InitHandshake(peer_addr)) {
-                    info!("Error sending initialize handshake command to swarm: {:?}", e);
-                }
-            }
-            Command::ReciprocateHandshake(peer_addr, pubkey, signature) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::ReciprocateHandshake(peer_addr, pubkey, signature)) {
-                    info!("Error sending reciprocate handshake command to swarm: {:?}", e);
-                }
-            }
-            Command::CompleteHandshake(peer_addr, pubkey, signature) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::CompleteHandshake(peer_addr, pubkey, signature)) {
-                    info!("Error sending complete handshake command to swarm: {:?}", e);
-                }
-            }
-            Command::ProcessAck(packet_id, packet_number, src) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::ProcessAck(packet_id, packet_number, src)) {
-                    info!("Error sending process ack command to swarm: {:?}", e);
-                }
-            }
-            Command::CleanInbox(id) => {
-                if let Err(e) = self.to_swarm_sender.send(Command::CleanInbox(id.clone())) {
-                    info!("Error sending process ack command to swarm: {:?}", e);
-                }
-            }
+            // Command::Bootstrap(new_peer_addr, new_peer_pubkey) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::Bootstrap(new_peer_addr, new_peer_pubkey)) {
+            //         info!("Error sending bootstrap command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::AddNewPeer(new_peer_addr, new_peer_pubkey) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::AddNewPeer(new_peer_addr, new_peer_pubkey)) {
+            //         info!("Error sending add new peer command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::AddKnownPeers(data) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::AddKnownPeers(data)) {
+            //         info!("Error sending add known peers command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::AddExplicitPeer(peer_addr, peer_pubkey) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::AddExplicitPeer(peer_addr, peer_pubkey)) {
+            //         info!("Error sending add explicit peer command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::InitHandshake(peer_addr) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::InitHandshake(peer_addr)) {
+            //         info!("Error sending initialize handshake command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::ReciprocateHandshake(peer_addr, pubkey, signature) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::ReciprocateHandshake(peer_addr, pubkey, signature)) {
+            //         info!("Error sending reciprocate handshake command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::CompleteHandshake(peer_addr, pubkey, signature) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::CompleteHandshake(peer_addr, pubkey, signature)) {
+            //         info!("Error sending complete handshake command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::ProcessAck(packet_id, packet_number, src) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::ProcessAck(packet_id, packet_number, src)) {
+            //         info!("Error sending process ack command to swarm: {:?}", e);
+            //     }
+            // }
+            // Command::CleanInbox(id) => {
+            //     if let Err(e) = self.to_swarm_sender.send(Command::CleanInbox(id.clone())) {
+            //         info!("Error sending process ack command to swarm: {:?}", e);
+            //     }
+            // }
             _ => {}
         }
     }
