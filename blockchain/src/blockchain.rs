@@ -10,6 +10,10 @@ use verifiable::verifiable::Verifiable;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
+use udp2p::protocol::protocol::{Message, MessageKey, Header};
+use udp2p::utils::utils::ByteRep;
+use udp2p::gossip::protocol::GossipMessage;
+use std::net::SocketAddr;
 use std::collections::LinkedList;
 use std::error::Error;
 use std::fmt;
@@ -269,7 +273,8 @@ impl Blockchain {
         reason: InvalidBlockErrorReason,
         miner_id: String,
         sender_id: String,
-        swarm_sender: tokio::sync::mpsc::UnboundedSender<Command>,
+        gossip_tx: std::sync::mpsc::Sender<(SocketAddr, Message)>,
+        src: SocketAddr
     ) {
         let message = MessageType::InvalidBlockMessage {
             block_height: block.clone().header.block_height,
@@ -277,8 +282,19 @@ impl Blockchain {
             miner_id,
             sender_id,
         };
+        let msg_id = MessageKey::rand();
+        let gossip_msg = GossipMessage {
+            id: msg_id.inner(),
+            data: message.as_bytes(),
+            sender: src.clone()
+        };
+        let head = Header::Gossip;
+        let msg = Message {
+            head,
+            msg: gossip_msg.as_bytes().unwrap()
+        };
 
-        if let Err(e) = swarm_sender.send(Command::SendMessage(message)) {
+        if let Err(e) = gossip_tx.send((src, msg)) {
             println!(
                 "Error sending InvalidBlockMessage InvalidBlockHeight to swarm sender: {:?}",
                 e
@@ -290,7 +306,8 @@ impl Blockchain {
         &self,
         block: &Block,
         sender_id: String,
-        swarm_sender: tokio::sync::mpsc::UnboundedSender<Command>,
+        gossip_tx: std::sync::mpsc::Sender<(SocketAddr, Message)>,
+        src: SocketAddr,
     ) {
         let missing_blocks: Vec<u128> =
             (self.chain.len() as u128 - 1u128..block.clone().header.block_height).collect();
@@ -300,7 +317,18 @@ impl Blockchain {
             sender_id,
         };
 
-        if let Err(e) = swarm_sender.send(Command::SendMessage(message)) {
+        let msg_id = MessageKey::rand();
+        let gossip_msg = GossipMessage {
+            id: msg_id.inner(),
+            data: message.as_bytes(),
+            sender: src.clone()
+        };
+        let msg = Message {
+            head: Header::Gossip,
+            msg: gossip_msg.as_bytes().unwrap()
+        };
+
+        if let Err(e) = gossip_tx.send((src, msg)) {
             println!("Error sending NeedBlocksMessage to swarm sender: {:?}", e);
         }
     }
