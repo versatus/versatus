@@ -47,24 +47,6 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
                 None
             }
         }
-        MessageType::BlockChunkMessage {
-            requestor,
-            block_height,
-            chunk_number,
-            total_chunks,
-            data,
-            ..
-        } => {
-            if requestor == node_id {
-                return Some(Command::StoreStateDbChunk(
-                    StateBlock(block_height).as_bytes(),
-                    data,
-                    chunk_number as u32,
-                    total_chunks as u32,
-                ));
-            }
-            return None;
-        }
         MessageType::NeedGenesisBlock {
             sender_id,
             requested_from,
@@ -101,95 +83,6 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
         }
         MessageType::ClaimAbandonedMessage { claim, sender_id } => {
             return Some(Command::ClaimAbandoned(sender_id, claim))
-        }
-        MessageType::Identify {
-            data,
-            pubkey,
-        } => {
-            return Some(Command::Bootstrap(data, pubkey))
-        },
-        MessageType::NewPeer {
-            data,
-            pubkey
-        } => {
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            return Some(Command::AddNewPeer(addr_string, pubkey))
-        },
-        MessageType::KnownPeers {
-            data,
-        } => {
-            return Some(Command::AddKnownPeers(data))
-        },
-        MessageType::FirstHolePunch {
-            data,
-            pubkey,
-        } => {
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            return Some(Command::InitHandshake(addr_string)) 
-        },
-        MessageType::SecondHolePunch {
-            data,
-            pubkey,
-        } => {
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            return Some(Command::InitHandshake(addr_string))
-        },
-        MessageType::FinalHolePunch {
-            data,
-            pubkey,
-        } => {       
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            return Some(Command::InitHandshake(addr_string))
-        },
-        MessageType::InitHandshake {
-            data,
-            pubkey,
-            signature,
-        } => {
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            return Some(Command::ReciprocateHandshake(addr_string, pubkey, signature))
-        },
-        MessageType::ReciprocateHandshake {
-            data,
-            pubkey,
-            signature,
-        } => { 
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            return Some(Command::CompleteHandshake(addr_string, pubkey, signature))
-        },
-        MessageType::CompleteHandshake {
-            data,
-            pubkey,
-            signature,
-        } => {
-            let addr_string = String::from_utf8_lossy(&data).to_string();
-            info!("Received complete handshake from {} validating and if valid, adding explicit peer", &addr_string);
-            return Some(Command::AddExplicitPeer(addr_string, pubkey))
-        },
-        MessageType::Ping {
-            data,
-            addr,
-            timestamp,
-        } => {
-            let addr_string = String::from_utf8_lossy(&addr).to_string();
-            return Some(Command::ReturnPong(data, addr_string))
-        },
-        MessageType::Pong {
-            data,
-            addr,
-            ping_timestamp,
-            pong_timestamp,
-        } => { 
-            // process and log the pong event as a VRRB network event along with the
-            // time that it took for the pong to be received back after the ping was sent.
-            return None 
-        },
-        MessageType::AckMessage {
-            packet_id,
-            packet_number,
-            src,
-        } => {
-            return Some(Command::ProcessAck(packet_id, packet_number, src));
         }
         _ => None,
     }
