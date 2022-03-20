@@ -43,4 +43,4 @@ messages = { path = "../messages" }
 reward = { path = "../reward" }
 state = { path = "../state" }
 verifiable = { path = "../verifiable" }
-udp2p = "0.1.2"
+udp2p = "0.1.4"
