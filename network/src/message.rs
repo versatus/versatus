@@ -21,6 +21,7 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
         MessageType::GetNetworkStateMessage {
             sender_id,
             requested_from,
+            requestor_address,
             lowest_block,
             component,
             ..
@@ -28,18 +29,18 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             if requested_from == node_id {
                 match StateComponent::from_bytes(&component) {
                     StateComponent::NetworkState => {
-                        Some(Command::SendStateComponents(sender_id, component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
                     }
                     StateComponent::Blockchain => {
-                        Some(Command::SendStateComponents(sender_id, component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
                     }
                     StateComponent::Ledger => {
-                        Some(Command::SendStateComponents(sender_id, component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
                     }
                     StateComponent::All => {
-                        Some(Command::SendStateComponents(sender_id, component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
                     }
-                    _ => Some(Command::SendState(sender_id, lowest_block)),
+                    _ => Some(Command::SendState(requestor_address.to_string(), lowest_block)),
                 }
             } else {
                 None

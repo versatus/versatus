@@ -1,6 +1,7 @@
 use crate::message::{AsMessage, Message};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
+use std::net::SocketAddr;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StateBlock(pub u128);
@@ -57,6 +58,7 @@ pub enum MessageType {
     GetNetworkStateMessage {
         sender_id: String,
         requested_from: String,
+        requestor_address: SocketAddr,
         requestor_node_type: Vec<u8>,
         lowest_block: u128,
         component: Vec<u8>,
