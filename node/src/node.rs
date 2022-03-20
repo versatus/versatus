@@ -81,11 +81,11 @@ impl Node {
                     let message = Message::from_bytes(&message_bytes);
                     let clean_inbox = Command::CleanInbox(id.clone());
                     self.command_handler.handle_command(clean_inbox);
-                    if let Some(command) =
-                        message::process_message(message, self.id.clone().to_string())
-                    {
-                        self.command_handler.handle_command(command);
-                    };
+                    // if let Some(command) =
+                    //     message::process_message(message, self.id.clone().to_string())
+                    // {
+                    //     self.command_handler.handle_command(command);
+                    // };
 
                     self.packet_storage.remove(&id.clone());
                 }
@@ -99,11 +99,11 @@ impl Node {
                     let clean_inbox = Command::CleanInbox(id.clone());
                     self.command_handler.handle_command(clean_inbox);
 
-                    if let Some(command) =
-                        message::process_message(message, self.id.clone().to_string())
-                    {
-                        self.command_handler.handle_command(command);
-                    };
+                    // if let Some(command) =
+                    //     message::process_message(message, self.id.clone().to_string())
+                    // {
+                    //     self.command_handler.handle_command(command);
+                    // };
                     self.packet_storage.remove(&id.clone());
                 }
             }
@@ -136,11 +136,11 @@ impl Node {
                     Command::ProcessPacket((packet, _)) => {
                         self.handle_packet(&packet);
                     }
-                    Command::SendMessage(message) => {
+                    Command::SendMessage(src, message) => {
                         if let Err(e) = self
                             .command_handler
-                            .to_gossip_sender
-                            .send(Command::SendMessage(message))
+                            .to_gossip_tx
+                            .send((src, message))
                             {
                                 println!("Error publishing: {:?}", e);
                             }

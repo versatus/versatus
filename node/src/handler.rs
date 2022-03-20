@@ -1,5 +1,8 @@
 use commands::command::Command;
 use log::info;
+use std::sync::mpsc::Sender;
+use std::net::SocketAddr;
+use udp2p::protocol::protocol::Message;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub trait Handler<T, V> {
@@ -18,6 +21,7 @@ pub struct CommandHandler {
     pub to_gossip_sender: UnboundedSender<Command>,
     pub to_swarm_sender: UnboundedSender<Command>,
     pub to_state_sender: UnboundedSender<Command>,
+    pub to_gossip_tx: Sender<(SocketAddr, Message)>,
     pub receiver: UnboundedReceiver<Command>,
 }
 
@@ -34,6 +38,7 @@ impl CommandHandler {
         to_gossip_sender: UnboundedSender<Command>,
         to_swarm_sender: UnboundedSender<Command>,
         to_state_sender: UnboundedSender<Command>,
+        to_gossip_tx: Sender<(SocketAddr, Message)>,
         receiver: UnboundedReceiver<Command>,
     ) -> CommandHandler {
         CommandHandler {
@@ -42,6 +47,7 @@ impl CommandHandler {
             to_gossip_sender,
             to_swarm_sender,
             to_state_sender,
+            to_gossip_tx,
             receiver,
         }
     }
@@ -100,8 +106,8 @@ impl CommandHandler {
             Command::Quit => {
                 // TODO: Inform all the threads that you're shutting down.
             }
-            Command::SendMessage(message) => {
-                if let Err(e) = self.to_gossip_sender.send(Command::SendMessage(message)) {
+            Command::SendMessage(src, message) => {
+                if let Err(e) = self.to_gossip_tx.send((src, message)) {
                     println!("Error sending message command to swarm: {:?}", e);
                 }
             }

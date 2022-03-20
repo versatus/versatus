@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use messages::packet::Packet;
 use std::net::SocketAddr;
 use messages::message_types::MessageType;
+use udp2p::protocol::protocol::Message;
 
 pub const SENDTXN: &str = "SENDTXN";
 pub const GETBAL: &str = "GETBAL";
@@ -25,7 +26,7 @@ pub enum Command {
     StateUpdateCompleted(Vec<u8>),
     StoreStateDbChunk(Vec<u8>, Vec<u8>, u32, u32),
     SendState(String, u128),
-    SendMessage(MessageType),
+    SendMessage(SocketAddr, Message),
     GetBalance(u32),
     SendGenesis(String),
     SendStateComponents(String, Vec<u8>),

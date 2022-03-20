@@ -14,15 +14,7 @@ serde_json = "1.0.64"
 serde = { version = "1.0.136", features = ["derive"] }
 log = "0.4.14"
 tokio = {version = "1.12.0", features = ["full"]}
-udp2p_discovery = "0.2.0"
-udp2p_gossip = "0.2.3"
-udp2p_gd_udp = "0.2.0"
-udp2p_node = "0.1.0"
-udp2p_protocol = "0.2.0"
-udp2p_record = "0.2.0"
-udp2p_transport = "0.2.0"
-udp2p_traits = "0.1.0"
-udp2p_utils = "0.2.0"
+udp2p = "0.1.2"
 rand = "0.8.4"
 commands = { path = "../commands" }
 messages = { path = "../messages" }
