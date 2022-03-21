@@ -46,15 +46,6 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
                 None
             }
         }
-        MessageType::NeedGenesisBlock {
-            sender_id,
-            requested_from,
-        } => {
-            if requested_from == node_id {
-                return Some(Command::SendGenesis(sender_id));
-            }
-            return None;
-        }
         MessageType::StateComponentsMessage {
             data,
             requestor,
