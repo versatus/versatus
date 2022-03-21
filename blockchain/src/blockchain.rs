@@ -312,25 +312,25 @@ impl Blockchain {
         let missing_blocks: Vec<u128> =
             (self.chain.len() as u128 - 1u128..block.clone().header.block_height).collect();
 
-        let message = MessageType::NeedBlocksMessage {
-            blocks_needed: missing_blocks,
-            sender_id,
-        };
+        // let message = MessageType::NeedBlocksMessage {
+        //     blocks_needed: missing_blocks,
+        //     sender_id,
+        // };
 
-        let msg_id = MessageKey::rand();
-        let gossip_msg = GossipMessage {
-            id: msg_id.inner(),
-            data: message.as_bytes(),
-            sender: src.clone()
-        };
-        let msg = Message {
-            head: Header::Gossip,
-            msg: gossip_msg.as_bytes().unwrap()
-        };
+        // let msg_id = MessageKey::rand();
+        // let gossip_msg = GossipMessage {
+        //     id: msg_id.inner(),
+        //     data: message.as_bytes(),
+        //     sender: src.clone()
+        // };
+        // let msg = Message {
+        //     head: Header::Gossip,
+        //     msg: gossip_msg.as_bytes().unwrap()
+        // };
 
-        if let Err(e) = gossip_tx.send((src, msg)) {
-            println!("Error sending NeedBlocksMessage to swarm sender: {:?}", e);
-        }
+        // if let Err(e) = gossip_tx.send((src, msg)) {
+        //     println!("Error sending NeedBlocksMessage to swarm sender: {:?}", e);
+        // }
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {

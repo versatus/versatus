@@ -24,20 +24,6 @@ pub enum MessageType {
         claim: Vec<u8>,
         sender_id: String,
     },
-    NeedBlocksMessage {
-        blocks_needed: Vec<u128>,
-        sender_id: String,
-    },
-    NeedBlockMessage {
-        block_last_hash: String,
-        sender_id: String,
-        requested_from: String,
-    },
-    MissingBlock {
-        block: Vec<u8>,
-        requestor: String,
-        sender_id: String,
-    },
     GetNetworkStateMessage {
         sender_id: String,
         requested_from: String,
@@ -56,16 +42,32 @@ pub enum MessageType {
         sender_id: String,
         pubkey: String,
     },
-    NeedGenesisBlock {
-        sender_id: String,
-        requested_from: String,
-    },
-    MissingGenesis {
-        block: Vec<u8>,
+    StateComponentsMessage {
+        data: Vec<u8>,
         requestor: String,
         sender_id: String,
     },
-    StateComponentsMessage {
+    GenesisMessage {
+        data: Vec<u8>,
+        requestor: String,
+        sender_id: String,
+    },
+    ChildMessage {
+        data: Vec<u8>,
+        requestor: String,
+        sender_id: String,
+    },
+    ParentMessage {
+        data: Vec<u8>,
+        requestor: String,
+        sender_id: String,
+    },
+    LedgerMessage {
+        data: Vec<u8>,
+        requestor: String,
+        sender_id: String,
+    },
+    NetworkStateMessage {
         data: Vec<u8>,
         requestor: String,
         sender_id: String,
