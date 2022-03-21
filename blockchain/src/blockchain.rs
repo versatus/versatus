@@ -31,6 +31,7 @@ pub struct Blockchain {
     pub invalid: LinkedHashMap<String, Block>,
     pub components_received: HashSet<ComponentTypes>,
     pub updating_state: bool,
+    pub processing_backlog: bool,
     pub started_updating: Option<u128>,
     pub state_update_cache: LinkedHashMap<u128, LinkedHashMap<u128, Vec<u8>>>,
 }
@@ -48,6 +49,7 @@ impl Blockchain {
             invalid: LinkedHashMap::new(),
             components_received: HashSet::new(),
             updating_state: false,
+            processing_backlog: false,
             started_updating: None,
             state_update_cache: LinkedHashMap::new(),
         }

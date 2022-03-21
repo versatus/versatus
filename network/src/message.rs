@@ -8,7 +8,7 @@ pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
 #[allow(unused_variables)]
-pub fn process_message(message: MessageType, node_id: String) -> Option<Command> {
+pub fn process_message(message: MessageType, node_id: String, addr: String) -> Option<Command> {
     match message.clone() {
         MessageType::TxnMessage { txn, .. } => Some(Command::ProcessTxn(txn)),
         MessageType::BlockMessage {
@@ -66,8 +66,8 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             sender_id,
             requestor_id,
         } => {
-            info!("Received Genesis Block Message");
-            if requestor == node_id {
+            if requestor == addr {
+                info!("Received Genesis Block Message");
                 Some(Command::StoreStateComponents(data, ComponentTypes::Genesis))
             } else {
                 None
@@ -79,8 +79,8 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             requestor_id,
             sender_id,
         } => {
-            info!("Received Child Block Message");
-            if requestor == node_id {
+            if requestor == addr {
+                info!("Received Child Block Message");
                 Some(Command::StoreStateComponents(data, ComponentTypes::Child))
             } else {
                 None
@@ -92,8 +92,8 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             requestor_id,
             sender_id,
         } => {
-            info!("Received Network Parent Block Message");
-            if requestor == node_id {
+            if requestor == addr {
+                info!("Received Network Parent Block Message");
                 Some(Command::StoreStateComponents(data, ComponentTypes::Parent))
             } else {
                 None
@@ -105,8 +105,9 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             requestor_id,
             sender_id,
         } => {
-            info!("Received Ledger Message");
-            if requestor == node_id {
+            if requestor == addr {
+                info!("Received Ledger Message");
+
                 Some(Command::StoreStateComponents(data, ComponentTypes::Ledger))
             } else {
                 None
@@ -118,8 +119,8 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             requestor_id,
             sender_id,
         } => {
-            info!("Received Network State Message");
-            if requestor == node_id {
+            if requestor == addr {
+                info!("Received Network State Message");
                 Some(Command::StoreStateComponents(data, ComponentTypes::NetworkState))
             } else {
                 None
