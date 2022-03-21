@@ -10,6 +10,7 @@ use std::fs;
 use noncing::nonceable::Nonceable;
 use reward::reward::{RewardState, Reward};
 
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Components {
     pub genesis: Option<Vec<u8>>,

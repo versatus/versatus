@@ -123,9 +123,9 @@ impl CommandHandler {
                     );
                 }
             }
-            Command::StoreStateComponents(data) => {
+            Command::StoreStateComponents(data, component_type) => {
                 if let Err(e) = self.to_state_sender.send(Command::StoreStateComponents(
-                    data
+                    data, component_type
                 )) {
                     println!(
                         "Error sending StoreStateComponentChunk to state receiver: {:?}",
