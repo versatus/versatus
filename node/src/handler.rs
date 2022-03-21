@@ -112,10 +112,10 @@ impl CommandHandler {
                 }
             }
             Command::SendState(_requested_from, _lowest_block) => {}
-            Command::SendStateComponents(requested_from, component) => {
+            Command::SendStateComponents(requested_from, component, sender_id) => {
                 if let Err(e) = self
                     .to_state_sender
-                    .send(Command::SendStateComponents(requested_from, component))
+                    .send(Command::SendStateComponents(requested_from, component, sender_id))
                 {
                     println!(
                         "Error sending SendStateComponenets Command to state receiver: {:?}",

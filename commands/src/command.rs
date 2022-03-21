@@ -29,7 +29,7 @@ pub enum Command {
     SendMessage(SocketAddr, Message),
     GetBalance(u32),
     SendGenesis(String),
-    SendStateComponents(String, Vec<u8>),
+    SendStateComponents(String, Vec<u8>, String),
     GetStateComponents(String, Vec<u8>),
     RequestedComponents(String, Vec<u8>),
     StoreStateComponents(Vec<u8>),

@@ -30,16 +30,16 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             if requested_from == node_id {
                 match StateComponent::from_bytes(&component) {
                     StateComponent::NetworkState => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
                     }
                     StateComponent::Blockchain => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
                     }
                     StateComponent::Ledger => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
                     }
                     StateComponent::All => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component))
+                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
                     }
                     _ => Some(Command::SendState(requestor_address.to_string(), lowest_block)),
                 }
