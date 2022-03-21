@@ -64,6 +64,7 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             data,
             requestor,
             sender_id,
+            requestor_id,
         } => {
             info!("Received Genesis Block Message");
             if requestor == node_id {
@@ -75,6 +76,7 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
         MessageType::ChildMessage {
             data,
             requestor,
+            requestor_id,
             sender_id,
         } => {
             info!("Received Child Block Message");
@@ -87,6 +89,7 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
         MessageType::ParentMessage {
             data,
             requestor,
+            requestor_id,
             sender_id,
         } => {
             info!("Received Network Parent Block Message");
@@ -99,6 +102,7 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
         MessageType::LedgerMessage {
             data,
             requestor,
+            requestor_id,
             sender_id,
         } => {
             info!("Received Ledger Message");
@@ -111,6 +115,7 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
         MessageType::NetworkStateMessage {
             data,
             requestor,
+            requestor_id,
             sender_id,
         } => {
             info!("Received Network State Message");

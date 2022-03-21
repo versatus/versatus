@@ -45,31 +45,37 @@ pub enum MessageType {
     StateComponentsMessage {
         data: Vec<u8>,
         requestor: String,
+        requestor_id: String,
         sender_id: String,
     },
     GenesisMessage {
         data: Vec<u8>,
         requestor: String,
+        requestor_id: String,
         sender_id: String,
     },
     ChildMessage {
         data: Vec<u8>,
         requestor: String,
+        requestor_id: String,
         sender_id: String,
     },
     ParentMessage {
         data: Vec<u8>,
         requestor: String,
+        requestor_id: String,
         sender_id: String,
     },
     LedgerMessage {
         data: Vec<u8>,
         requestor: String,
+        requestor_id: String,
         sender_id: String,
     },
     NetworkStateMessage {
         data: Vec<u8>,
         requestor: String,
+        requestor_id: String,
         sender_id: String,
     },
     ClaimAbandonedMessage {
