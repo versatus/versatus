@@ -1,5 +1,5 @@
 use crate::components::StateComponent;
-use commands::command::Command;
+use commands::command::{Command, ComponentTypes};
 use messages::message_types::{MessageType, StateBlock};
 use log::info;
 
@@ -46,20 +46,80 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
                 None
             }
         }
-        MessageType::StateComponentsMessage {
+        // MessageType::StateComponentsMessage {
+        //     data,
+        //     requestor,
+        //     ..
+        // } => {
+        //     info!("Received message to process: {:?} for {:?}", message, requestor);
+        //     if requestor == node_id {
+        //         info!("Received state components");
+        //         return Some(Command::StoreStateComponents(
+        //             data
+        //         ));
+        //     }
+        //     None
+        // }
+        MessageType::GenesisMessage {
             data,
             requestor,
-            ..
+            sender_id,
         } => {
-            info!("Received message to process: {:?} for {:?}", message, requestor);
+            info!("Received Genesis Block Message");
             if requestor == node_id {
-                info!("Received state components");
-                return Some(Command::StoreStateComponents(
-                    data
-                ));
+                Some(Command::StoreStateComponents(data, ComponentTypes::Genesis))
+            } else {
+                None
             }
-            None
         }
+        MessageType::ChildMessage {
+            data,
+            requestor,
+            sender_id,
+        } => {
+            info!("Received Child Block Message");
+            if requestor == node_id {
+                Some(Command::StoreStateComponents(data, ComponentTypes::Child))
+            } else {
+                None
+            }
+        }
+        MessageType::ParentMessage {
+            data,
+            requestor,
+            sender_id,
+        } => {
+            info!("Received Network Parent Block Message");
+            if requestor == node_id {
+                Some(Command::StoreStateComponents(data, ComponentTypes::Parent))
+            } else {
+                None
+            }
+        }
+        MessageType::LedgerMessage {
+            data,
+            requestor,
+            sender_id,
+        } => {
+            info!("Received Ledger Message");
+            if requestor == node_id {
+                Some(Command::StoreStateComponents(data, ComponentTypes::Ledger))
+            } else {
+                None
+            }
+        }
+        MessageType::NetworkStateMessage {
+            data,
+            requestor,
+            sender_id,
+        } => {
+            info!("Received Network State Message");
+            if requestor == node_id {
+                Some(Command::StoreStateComponents(data, ComponentTypes::NetworkState))
+            } else {
+                None
+            }
+        }                        
         MessageType::InvalidBlockMessage {
             block_height,
             reason,

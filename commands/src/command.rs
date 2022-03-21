@@ -13,6 +13,17 @@ pub const STOPMINE: &str = "STOPMINE";
 pub const GETHEIGHT: &str = "GETHEIGHT";
 pub const QUIT: &str = "QUIT";
 
+#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
+pub enum ComponentTypes {
+    Genesis,
+    Child,
+    Parent,
+    Blockchain,
+    Ledger,
+    NetworkState,
+    Archive,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {
     SendTxn(u32, String, u128), // address number, receiver address, amount
@@ -32,13 +43,13 @@ pub enum Command {
     SendStateComponents(String, Vec<u8>, String),
     GetStateComponents(String, Vec<u8>, String),
     RequestedComponents(String, Vec<u8>, String),
-    StoreStateComponents(Vec<u8>),
+    StoreStateComponents(Vec<u8>, ComponentTypes),
     StoreChild(Vec<u8>),
     StoreParent(Vec<u8>),
     StoreGenesis(Vec<u8>),
     StoreLedger(Vec<u8>),
     StoreNetworkState(Vec<u8>),
-    StateUpdateComponents(Vec<u8>),
+    StateUpdateComponents(Vec<u8>, ComponentTypes),
     UpdateLastBlock(Vec<u8>),
     ClaimAbandoned(String, Vec<u8>),
     SlashClaims(Vec<String>),
@@ -132,3 +143,26 @@ impl Command {
         }
     }
 }
+
+
+impl ComponentTypes {
+    pub fn to_int(&self) -> u8 {
+        match *self {
+            ComponentTypes::Genesis => 0,
+            ComponentTypes::Child => 1,
+            ComponentTypes::Parent => 2,
+            ComponentTypes::NetworkState => 3,
+            ComponentTypes::Ledger => 4,
+            ComponentTypes::Blockchain => 5,
+            ComponentTypes::Archive => 6,
+        }
+    }
+}
+
+impl PartialEq for ComponentTypes {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_int() == other.to_int()
+    }
+}
+
+impl Eq for ComponentTypes {}

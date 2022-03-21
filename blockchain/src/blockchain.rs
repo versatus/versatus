@@ -2,7 +2,7 @@ use block::block::Block;
 use vrrb_lib::fields::GettableFields;
 use block::header::BlockHeader;
 use block::invalid::{InvalidBlockErrorReason, InvalidBlockError};
-use commands::command::Command;
+use commands::command::{Command, ComponentTypes};
 use messages::message_types::MessageType;
 use reward::reward::RewardState;
 use state::state::NetworkState;
@@ -14,7 +14,7 @@ use udp2p::protocol::protocol::{Message, MessageKey, Header};
 use udp2p::utils::utils::ByteRep;
 use udp2p::gossip::protocol::GossipMessage;
 use std::net::SocketAddr;
-use std::collections::LinkedList;
+use std::collections::{LinkedList, HashSet};
 use std::error::Error;
 use std::fmt;
 
@@ -28,6 +28,7 @@ pub struct Blockchain {
     pub block_cache: LinkedHashMap<String, Block>,
     pub future_blocks: LinkedHashMap<String, Block>,
     pub invalid: LinkedHashMap<String, Block>,
+    pub components_received: HashSet<ComponentTypes>,
     pub updating_state: bool,
     pub state_update_cache: LinkedHashMap<u128, LinkedHashMap<u128, Vec<u8>>>,
 }
@@ -43,6 +44,7 @@ impl Blockchain {
             block_cache: LinkedHashMap::new(),
             future_blocks: LinkedHashMap::new(),
             invalid: LinkedHashMap::new(),
+            components_received: HashSet::new(),
             updating_state: false,
             state_update_cache: LinkedHashMap::new(),
         }
@@ -331,6 +333,14 @@ impl Blockchain {
         // if let Err(e) = gossip_tx.send((src, msg)) {
         //     println!("Error sending NeedBlocksMessage to swarm sender: {:?}", e);
         // }
+    }
+
+    pub fn received_core_components(&self) -> bool {
+        self.components_received.contains(&ComponentTypes::Genesis) &&
+        self.components_received.contains(&ComponentTypes::Child) &&
+        self.components_received.contains(&ComponentTypes::Parent) &&
+        self.components_received.contains(&ComponentTypes::NetworkState) &&
+        self.components_received.contains(&ComponentTypes::Ledger)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
