@@ -357,7 +357,7 @@ impl Blockchain {
 
     pub fn request_again(&self) -> bool {
         if let Some(nanos) = self.check_time_since_update_request() {
-            nanos > 5000000000
+            nanos > 1000000000
         } else {
             false
         }
