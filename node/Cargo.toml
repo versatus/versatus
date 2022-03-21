@@ -38,4 +38,4 @@ uuid = { version = "0.8", features = ["serde", "v4"] }
 commands = { path = "../commands" }
 network = { path = "../network" }
 messages = { path = "../messages" }
-udp2p = "0.1.6"
+udp2p = { path = "../../udp2p" }
