@@ -42,7 +42,7 @@ pub enum Command {
     SendGenesis(String),
     SendStateComponents(String, Vec<u8>, String),
     GetStateComponents(String, Vec<u8>, String),
-    RequestedComponents(String, Vec<u8>, String),
+    RequestedComponents(String, Vec<u8>, String, String),
     StoreStateComponents(Vec<u8>, ComponentTypes),
     StoreChild(Vec<u8>),
     StoreParent(Vec<u8>),
