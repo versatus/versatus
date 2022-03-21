@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 use std::collections::{LinkedList, HashSet};
 use std::error::Error;
 use std::fmt;
+use udp2p::utils::utils::timestamp_now;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Blockchain {
@@ -30,6 +31,7 @@ pub struct Blockchain {
     pub invalid: LinkedHashMap<String, Block>,
     pub components_received: HashSet<ComponentTypes>,
     pub updating_state: bool,
+    pub started_updating: Option<u128>,
     pub state_update_cache: LinkedHashMap<u128, LinkedHashMap<u128, Vec<u8>>>,
 }
 
@@ -46,6 +48,7 @@ impl Blockchain {
             invalid: LinkedHashMap::new(),
             components_received: HashSet::new(),
             updating_state: false,
+            started_updating: None,
             state_update_cache: LinkedHashMap::new(),
         }
     }
@@ -341,6 +344,21 @@ impl Blockchain {
         self.components_received.contains(&ComponentTypes::Parent) &&
         self.components_received.contains(&ComponentTypes::NetworkState) &&
         self.components_received.contains(&ComponentTypes::Ledger)
+    }
+
+    pub fn check_time_since_update_request(&self) -> Option<u128> {
+        let now = timestamp_now();
+        if let Some(time) = self.started_updating {
+            return time.checked_sub(now)
+        } else { None }
+    }
+
+    pub fn request_again(&self) -> bool {
+        if let Some(nanos) = self.check_time_since_update_request() {
+            nanos > 1000000000000
+        } else {
+            false
+        }
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
