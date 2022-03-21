@@ -9,7 +9,6 @@ pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
 #[allow(unused_variables)]
 pub fn process_message(message: MessageType, node_id: String) -> Option<Command> {
-    info!("Received message to process");
     match message.clone() {
         MessageType::TxnMessage { txn, .. } => Some(Command::ProcessTxn(txn)),
         MessageType::BlockMessage {
@@ -61,10 +60,11 @@ pub fn process_message(message: MessageType, node_id: String) -> Option<Command>
             requestor,
             ..
         } => {
+            info!("Received message to process: {:?} for {:?}", message, requestor);
             if requestor == node_id {
                 info!("Received state components");
                 return Some(Command::StoreStateComponents(
-                    data,
+                    data
                 ));
             }
             None
