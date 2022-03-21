@@ -361,6 +361,72 @@ impl Blockchain {
         }
     }
 
+    pub fn check_missing_genesis(&self) -> Option<ComponentTypes> {
+        if !self.components_received.contains(&ComponentTypes::Genesis) {
+            return Some(ComponentTypes::Genesis)
+        }
+
+        None
+    }
+
+    pub fn check_missing_child(&self) -> Option<ComponentTypes> {
+        if !self.components_received.contains(&ComponentTypes::Child) {
+            return Some(ComponentTypes::Child)
+        }
+
+        None
+    }
+
+    pub fn check_missing_parent(&self) -> Option<ComponentTypes> {
+        if !self.components_received.contains(&ComponentTypes::Parent) {
+            return Some(ComponentTypes::Parent)
+        }
+
+        None
+    }
+
+    pub fn check_missing_ledger(&self) -> Option<ComponentTypes> {
+        if !self.components_received.contains(&ComponentTypes::Ledger) {
+            return Some(ComponentTypes::Ledger)
+        }
+
+        None
+    }
+    
+    pub fn check_missing_state(&self) -> Option<ComponentTypes> {
+        if !self.components_received.contains(&ComponentTypes::NetworkState) {
+            return Some(ComponentTypes::NetworkState)
+        }
+
+        None
+    }    
+
+    pub fn check_missing_components(&self) -> Vec<ComponentTypes> {
+        let mut missing = vec![];
+        
+        if let Some(component) = self.check_missing_genesis() {
+            missing.push(component);
+        }
+
+        if let Some(component) = self.check_missing_child() {
+            missing.push(component);
+        }
+
+        if let Some(component) = self.check_missing_parent() {
+            missing.push(component);
+        }
+
+        if let Some(component) = self.check_missing_ledger() {
+            missing.push(component);
+        }
+
+        if let Some(component) = self.check_missing_state() {
+            missing.push(component);
+        }
+
+        return missing
+    }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         self.to_string().as_bytes().to_vec()
     }
