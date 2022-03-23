@@ -18,6 +18,7 @@ use std::collections::{LinkedList, HashSet};
 use std::error::Error;
 use std::fmt;
 use udp2p::utils::utils::timestamp_now;
+use log::info;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Blockchain {
@@ -351,7 +352,9 @@ impl Blockchain {
     pub fn check_time_since_update_request(&self) -> Option<u128> {
         let now = timestamp_now();
         if let Some(time) = self.started_updating {
-            return time.checked_sub(now)
+            let diff = now.checked_sub(time);
+            info!("Time in nanos since last update: {:?}", diff);
+            return diff
         } else { None }
     }
 
