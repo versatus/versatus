@@ -10,6 +10,8 @@ use std::fs;
 use noncing::nonceable::Nonceable;
 use reward::reward::{RewardState, Reward};
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StateUpdateHead(pub u16);
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Components {
@@ -429,6 +431,28 @@ impl Components {
 
     pub fn from_string(string: &String) -> Components {
         serde_json::from_str::<Components>(&string).unwrap()
+    }
+}
+
+impl StateUpdateHead {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.to_string().as_bytes().to_vec()
+    }
+
+    pub fn from_bytes(data: &[u8]) -> Option<StateUpdateHead> {
+        if let Ok(state_update_head) = serde_json::from_slice::<StateUpdateHead>(data) {
+            Some(state_update_head)
+        } else {
+            None
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
+    pub fn from_string(string: &String) -> StateUpdateHead {
+        serde_json::from_str::<StateUpdateHead>(&string).unwrap()
     }
 }
 
