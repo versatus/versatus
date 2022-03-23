@@ -46,20 +46,21 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
                 None
             }
         }
-        // MessageType::StateComponentsMessage {
-        //     data,
-        //     requestor,
-        //     ..
-        // } => {
-        //     info!("Received message to process: {:?} for {:?}", message, requestor);
-        //     if requestor == node_id {
-        //         info!("Received state components");
-        //         return Some(Command::StoreStateComponents(
-        //             data
-        //         ));
-        //     }
-        //     None
-        // }
+        MessageType::StateComponentsMessage {
+            data,
+            requestor,
+            ..
+        } => {
+            info!("Received message to process: {:?} for {:?}", message, requestor);
+            if requestor == node_id {
+                info!("Received state components");
+                return Some(Command::StoreStateComponents(
+                    data,
+                    ComponentTypes::All
+                ));
+            }
+            None
+        }
         MessageType::GenesisMessage {
             data,
             requestor,

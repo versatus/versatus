@@ -22,6 +22,7 @@ pub enum ComponentTypes {
     Ledger,
     NetworkState,
     Archive,
+    All,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,6 +156,7 @@ impl ComponentTypes {
             ComponentTypes::Ledger => 4,
             ComponentTypes::Blockchain => 5,
             ComponentTypes::Archive => 6,
+            ComponentTypes::All => 7,
         }
     }
 }
