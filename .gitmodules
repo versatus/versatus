@@ -1,0 +1,3 @@
+[submodule "vrrb_tui"]
+	path = vrrb_tui
+	url = git@github.com:vrrb-io/vrrb_tui
