@@ -6,7 +6,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ritelinked = {version = "0.3.2", features = [ 'serde' ]}
+ritelinked = { version = "0.3.2", features = ['serde'] }
 sha256 = "1.0.2"
 log = "0.4.14"
 serde_json = "1.0.64"
@@ -20,3 +20,4 @@ ownable = { path = "../ownable" }
 noncing = { path = "../noncing" }
 updateable = { path = "../updateable" }
 reward = { path = "../reward" }
+# rs_merkle = { git = "https://github.com/vrrb-io/rs-merkle", branch = "master" }
