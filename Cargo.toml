@@ -18,6 +18,7 @@ members = [
     "vrrb_tui",
     "vrrb_cli",
     "vrrb_gui",
+    "vrrb_vrf",
     "network",
     "node",
     "verifiable",
