@@ -8,6 +8,7 @@ pub struct StateTrie<H: Hasher> {
 }
 
 impl<H: Hasher> StateTrie<H> {
+    /// Creates a new empty state trie.
     pub fn new() -> Self {
         Self::default()
     }
@@ -19,7 +20,7 @@ impl<H: Hasher> StateTrie<H> {
         self.mt.insert(hashed).commit();
     }
 
-    /// Extends the StateTrie with the provided iterator over leaf values as bytes.
+    /// Extends the state trie with the provided iterator over leaf values as bytes.
     pub fn extend<'a, T>(&mut self, accounts: T)
     where
         T: Iterator<Item = &'a [u8]>,
@@ -29,12 +30,19 @@ impl<H: Hasher> StateTrie<H> {
         self.mt.append(&mut hashed_values).commit();
     }
 
+    /// Returns the trie's Merkle root.
     pub fn root(&self) -> Option<H::Hash> {
         self.mt.root()
     }
 
-    pub fn nodes_len(&self) -> usize {
+    /// Returns the count of leaves in the state trie.
+    pub fn len(&self) -> usize {
         self.mt.leaves_len()
+    }
+
+    /// Returns true if there are no values in the trie.
+    pub fn is_empty(&self) -> bool {
+        self.mt.leaves_len() == 0
     }
 }
 
@@ -78,7 +86,7 @@ mod tests {
         let state_trie = StateTrie::<Sha256>::new();
 
         assert_eq!(state_trie.root(), None);
-        assert_eq!(state_trie.nodes_len(), 0);
+        assert_eq!(state_trie.len(), 0);
     }
 
     #[test]
@@ -94,7 +102,7 @@ mod tests {
             158, 84, 143, 35, 127, 118, 132, 211, 125, 226, 23, 147,
         ];
 
-        assert_eq!(state_trie.nodes_len(), 3);
+        assert_eq!(state_trie.len(), 3);
         assert_eq!(state_trie.root(), Some(hash_bytes));
     }
 
@@ -103,12 +111,12 @@ mod tests {
         let mut state_trie = StateTrie::<Sha256>::new();
 
         assert_eq!(state_trie.root(), None);
-        assert_eq!(state_trie.nodes_len(), 0);
+        assert_eq!(state_trie.len(), 0);
 
         state_trie.add(String::from("hello world").as_bytes());
 
         assert_ne!(state_trie.root(), None);
-        assert_eq!(state_trie.nodes_len(), 1);
+        assert_eq!(state_trie.len(), 1);
     }
 
     #[test]
@@ -116,7 +124,7 @@ mod tests {
         let mut state_trie = StateTrie::<Sha256>::new();
 
         assert_eq!(state_trie.root(), None);
-        assert_eq!(state_trie.nodes_len(), 0);
+        assert_eq!(state_trie.len(), 0);
 
         state_trie.extend(
             vec![
@@ -128,7 +136,7 @@ mod tests {
         );
 
         assert_ne!(state_trie.root(), None);
-        assert_eq!(state_trie.nodes_len(), 3);
+        assert_eq!(state_trie.len(), 3);
     }
 
     #[test]
