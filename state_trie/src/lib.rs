@@ -1,8 +1,5 @@
 use rs_merkle::{Hasher, MerkleTree};
-use std::{
-    collections::HashMap,
-    fmt::{Debug, Display},
-};
+use std::fmt::{Debug, Display};
 
 // TODO; impl Debug on MerkleTree
 // #[derive(Debug)]
