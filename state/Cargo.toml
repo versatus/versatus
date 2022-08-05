@@ -20,4 +20,3 @@ ownable = { path = "../ownable" }
 noncing = { path = "../noncing" }
 updateable = { path = "../updateable" }
 reward = { path = "../reward" }
-rs_merkle = { git = "https://github.com/vrrb-io/rs-merkle", branch = "master" }
