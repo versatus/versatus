@@ -2,13 +2,13 @@ use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use ledger::ledger::Ledger;
 use log::info;
+use noncing::nonceable::Nonceable;
 use ownable::ownable::Ownable;
+use reward::reward::{Reward, RewardState};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 use std::fs;
-use noncing::nonceable::Nonceable;
-use reward::reward::{RewardState, Reward};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StateUpdateHead(pub u16);
@@ -53,10 +53,10 @@ impl<'de> NetworkState {
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
                 network_state.dump_to_file();
-                return network_state
+                return network_state;
             }
         }
-        
+
         let network_state = NetworkState {
             path: path.to_string(),
             ledger: vec![],
@@ -65,9 +65,9 @@ impl<'de> NetworkState {
             reward_state: None,
             state_hash: None,
         };
-        
+
         network_state.dump_to_file();
-        
+
         network_state
     }
 
@@ -187,16 +187,12 @@ impl<'de> NetworkState {
 
         ledger.claims.insert(miner_claim.get_pubkey(), miner_claim);
 
-        if let Some(entry) = ledger
-            .credits
-            .get_mut(&reward.receivable())
-        {
+        if let Some(entry) = ledger.credits.get_mut(&reward.receivable()) {
             *entry += reward.get_amount();
         } else {
-            ledger.credits.insert(
-                reward.receivable(),
-                reward.get_amount(),
-            );
+            ledger
+                .credits
+                .insert(reward.receivable(), reward.get_amount());
         }
 
         self.update_reward_state(reward.clone());
@@ -240,16 +236,20 @@ impl<'de> NetworkState {
         let bytes = hex::decode(network_state_hex);
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
-                return Ledger::from_bytes(network_state.ledger.clone())
+                return Ledger::from_bytes(network_state.ledger.clone());
             } else {
-                return Ledger::new()
+                return Ledger::new();
             }
         } else {
-            return Ledger::new()
+            return Ledger::new();
         }
     }
 
-    pub fn update_credits_and_debits<A: Accountable>(&mut self, txns: &LinkedHashMap<String, A>, reward: Reward) {
+    pub fn update_credits_and_debits<A: Accountable>(
+        &mut self,
+        txns: &LinkedHashMap<String, A>,
+        reward: Reward,
+    ) {
         let chs = self.clone().credit_hash(txns, reward);
         let dhs = self.clone().debit_hash(txns);
         self.credits = Some(chs);
@@ -270,15 +270,21 @@ impl<'de> NetworkState {
     }
 
     pub fn get_credits(&self) -> LinkedHashMap<String, u128> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone()).credits.clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone())
+            .credits
+            .clone()
     }
 
     pub fn get_debits(&self) -> LinkedHashMap<String, u128> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone()).debits.clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone())
+            .debits
+            .clone()
     }
 
     pub fn get_claims(&self) -> LinkedHashMap<String, Claim> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone()).claims.clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone())
+            .claims
+            .clone()
     }
 
     pub fn get_reward_state(&self) -> Option<RewardState> {
@@ -379,7 +385,9 @@ impl<'de> NetworkState {
         serde_json::to_string(claims).unwrap()
     }
 
-    pub fn claims_from_bytes<C: Ownable + Deserialize<'de>>(data: &'de [u8]) -> LinkedHashMap<u128, C> {
+    pub fn claims_from_bytes<C: Ownable + Deserialize<'de>>(
+        data: &'de [u8],
+    ) -> LinkedHashMap<u128, C> {
         serde_json::from_slice::<LinkedHashMap<u128, C>>(data).unwrap()
     }
 
@@ -466,5 +474,15 @@ impl Clone for NetworkState {
             reward_state: self.reward_state.clone(),
             state_hash: self.state_hash.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_new_network_state() {
+        // TODO: implement
     }
 }
