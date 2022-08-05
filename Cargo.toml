@@ -27,6 +27,7 @@ members = [
     "noncing",
     "updateable",
     "quorum",
+    "state_trie",
 ]
 
 exclude = ["claim_concept"]
