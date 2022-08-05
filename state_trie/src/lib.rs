@@ -12,14 +12,21 @@ impl<H: Hasher> StateTrie<H> {
         Self::default()
     }
 
-    pub fn add_node<'a, A>(&mut self, account: A)
-    where
-        A: Into<&'a [u8]>,
-    {
-        let hashed = H::hash(account.into());
+    /// Adds a single leaf value serialized to bytes
+    pub fn add(&mut self, account: &[u8]) {
+        let hashed = H::hash(account);
 
-        self.mt.insert(hashed);
-        self.mt.commit();
+        self.mt.insert(hashed).commit();
+    }
+
+    /// Extends the StateTrie with the provided iterator over leaf values as bytes.
+    pub fn extend<'a, T>(&mut self, accounts: T)
+    where
+        T: Iterator<Item = &'a [u8]>,
+    {
+        let mut hashed_values = accounts.map(|acc| H::hash(acc)).collect::<Vec<H::Hash>>();
+
+        self.mt.append(&mut hashed_values).commit();
     }
 
     pub fn root(&self) -> Option<H::Hash> {
@@ -92,8 +99,36 @@ mod tests {
     }
 
     #[test]
-    fn should_add_nodes_to_trie() {
+    fn should_add_node_to_trie() {
         let mut state_trie = StateTrie::<Sha256>::new();
+
+        assert_eq!(state_trie.root(), None);
+        assert_eq!(state_trie.nodes_len(), 0);
+
+        state_trie.add(String::from("hello world").as_bytes());
+
+        assert_ne!(state_trie.root(), None);
+        assert_eq!(state_trie.nodes_len(), 1);
+    }
+
+    #[test]
+    fn should_extend_trie_with_nodes() {
+        let mut state_trie = StateTrie::<Sha256>::new();
+
+        assert_eq!(state_trie.root(), None);
+        assert_eq!(state_trie.nodes_len(), 0);
+
+        state_trie.extend(
+            vec![
+                String::from("abcdefg").as_bytes(),
+                String::from("hijkl").as_bytes(),
+                String::from("mnopq").as_bytes(),
+            ]
+            .into_iter(),
+        );
+
+        assert_ne!(state_trie.root(), None);
+        assert_eq!(state_trie.nodes_len(), 3);
     }
 
     #[test]
