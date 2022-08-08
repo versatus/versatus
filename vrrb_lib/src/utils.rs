@@ -1,3 +1,6 @@
+/// Some basic utility functions (a decay calculator for the now deprecated monetary policy and a restore db function that can take in a path
+/// to a db file and restore a PickleDB)
+//TODO: Replace PickleDB with LR DB
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 
 pub fn decay_calculator(initial: u128, epochs: u128) -> f64 {

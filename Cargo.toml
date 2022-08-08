@@ -12,6 +12,7 @@ members = [
     "txn",
     "wallet",
     "events",
+    "ev_mem_pool",
     "commands",
     "messages",
     "vrrb_lib",
@@ -29,5 +30,3 @@ members = [
     "quorum",
     "state_trie",
 ]
-
-exclude = ["claim_concept"]

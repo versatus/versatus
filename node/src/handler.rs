@@ -1,3 +1,5 @@
+/// This module is the primary allocator in the system, it contains the data structures
+/// and the methods required to send commands to different parts of the system.
 use commands::command::Command;
 use log::info;
 use std::sync::mpsc::Sender;
@@ -5,16 +7,22 @@ use std::net::SocketAddr;
 use udp2p::protocol::protocol::Message;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+/// A Basic trait to be implemented on any type of handler so that they can have the basic
+/// allocation function
+//TODO: Discuss if we ant to replace some of this stuff with DAG for more efficient command allocation.
 pub trait Handler<T, V> {
     fn send(&self, message: T) -> Option<T>;
     fn recv(&mut self) -> Option<V>;
 }
 
+/// The basic structure for allocating messages to the transport layer, and receiving messages to be
+/// converted into commands from the transport layer. 
 pub struct MessageHandler<T, V> {
     pub sender: UnboundedSender<T>,
     pub receiver: UnboundedReceiver<V>,
 }
 
+/// The basic structure for allocating commands to different parts of the system. 
 pub struct CommandHandler {
     pub to_mining_sender: UnboundedSender<Command>,
     pub to_blockchain_sender: UnboundedSender<Command>,
@@ -26,12 +34,14 @@ pub struct CommandHandler {
 }
 
 impl<T: Clone, V: Clone> MessageHandler<T, V> {
+    /// Creates and returns a new message handler. 
     pub fn new(sender: UnboundedSender<T>, receiver: UnboundedReceiver<V>) -> MessageHandler<T, V> {
         MessageHandler { sender, receiver }
     }
 }
 
 impl CommandHandler {
+    /// Creates and returns a new command handler. 
     pub fn new(
         to_mining_sender: UnboundedSender<Command>,
         to_blockchain_sender: UnboundedSender<Command>,
@@ -52,6 +62,7 @@ impl CommandHandler {
         }
     }
 
+    /// Handles a command received by the command handler and allocates it to the proper part of the system for processing. 
     pub fn handle_command(&mut self, command: Command) {
         match command {
             Command::StopMine => {
@@ -182,6 +193,9 @@ impl CommandHandler {
                     println!("Error sending claim abandoned command to miner: {:?}", e)
                 }
             }
+            //TODO: Discuss whether we want to keep these, they have largely been outsourced to udp2p and will likely make more sense as part of the
+            // network specific modules. 
+            //
             // Command::Bootstrap(new_peer_addr, new_peer_pubkey) => {
             //     if let Err(e) = self.to_swarm_sender.send(Command::Bootstrap(new_peer_addr, new_peer_pubkey)) {
             //         info!("Error sending bootstrap command to swarm: {:?}", e);

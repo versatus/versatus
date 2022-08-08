@@ -7,6 +7,7 @@ jobs:
         name: Test Suite
         runs-on: ubuntu-latest
         steps:
+            - run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
             - name: Checkout sources
               uses: actions/checkout@v2
               with:

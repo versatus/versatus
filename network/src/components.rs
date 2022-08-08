@@ -1,3 +1,6 @@
+/// Declares the StateComponent type (and some basic serialization/deserialization methods for it)
+/// Which can be used to determine which components are missing and need to be requested if the node
+/// needs to sync. 
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]

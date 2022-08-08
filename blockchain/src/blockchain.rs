@@ -1,24 +1,25 @@
+// Feature Tags: Block Structure, State Syncing, Block Validation, Block Confirmation
 use block::block::Block;
-use vrrb_lib::fields::GettableFields;
 use block::header::BlockHeader;
-use block::invalid::{InvalidBlockErrorReason, InvalidBlockError};
+use block::invalid::{InvalidBlockError, InvalidBlockErrorReason};
 use commands::command::{Command, ComponentTypes};
+use log::info;
 use messages::message_types::MessageType;
-use reward::reward::RewardState;
-use state::state::NetworkState;
-use verifiable::verifiable::Verifiable;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
+use reward::reward::RewardState;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use udp2p::protocol::protocol::{Message, MessageKey, Header};
-use udp2p::utils::utils::ByteRep;
-use udp2p::gossip::protocol::GossipMessage;
-use std::net::SocketAddr;
-use std::collections::{LinkedList, HashSet};
+use state::state::NetworkState;
+use std::collections::{HashSet, LinkedList};
 use std::error::Error;
 use std::fmt;
+use std::net::SocketAddr;
+use udp2p::gossip::protocol::GossipMessage;
+use udp2p::protocol::protocol::{Header, Message, MessageKey};
 use udp2p::utils::utils::timestamp_now;
-use log::info;
+use udp2p::utils::utils::ByteRep;
+use verifiable::verifiable::Verifiable;
+use vrrb_lib::fields::GettableFields;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Blockchain {
@@ -43,7 +44,9 @@ impl Blockchain {
             genesis: None,
             child: None,
             parent: None,
+            // TODO: Debate whether Replace??
             chain: LinkedList::new(),
+            // TODO: Make optional
             chain_db: path.to_string(),
             block_cache: LinkedHashMap::new(),
             future_blocks: LinkedHashMap::new(),
@@ -56,31 +59,38 @@ impl Blockchain {
         }
     }
 
+    /// Checks if the next block eight is valid, i.e. +1 as compared to previous block.
     pub fn check_next_block_height(&self, block: &Block) -> bool {
+        // Check if there is a genesis block
         if let Some(_) = self.genesis.as_ref() {
+            // If so, check if there is a child block
             if let Some(child) = self.child.as_ref() {
+                // If so check if the block height is equal to last block's height + 1
                 if child.header.block_height + 1 != block.header.block_height {
+                    // If not, then return false (invalid height)
                     return false;
-                } else {
-                    return true;
                 }
             } else {
+                // otherwise check if the block height is one
+                // if not, return false (invalid height)
                 if block.header.block_height != 1 {
                     return false;
-                } else {
-                    return true;
                 }
             }
         } else {
+            // If there is no genesis block, then check if the block height is 0
+            // if not, return false
             if block.header.block_height != 0 {
                 return false;
-            } else {
-                return true;
             }
         }
+
+        true
     }
 
+    /// Loads the chain from binary and returns a PickleDB instance
     pub fn get_chain_db(&self) -> PickleDb {
+        // TODO: Need to replace PickleDB with a custom database with more functionality for our protocol purposes
         match PickleDb::load_bin(self.chain_db.clone(), PickleDbDumpPolicy::DumpUponRequest) {
             Ok(nst) => nst,
             Err(_) => PickleDb::new(
@@ -91,6 +101,7 @@ impl Blockchain {
         }
     }
 
+    /// Creates a clone of a PickleDB Instance containing chain data.
     pub fn clone_chain_db(&self) -> PickleDb {
         let db = self.get_chain_db();
         let keys = db.get_all();
@@ -117,6 +128,7 @@ impl Blockchain {
         cloned_db
     }
 
+    /// Serializes the Chain Database into a string
     pub fn chain_db_to_string(&self) -> String {
         let db = self.clone_chain_db();
         let mut db_map = LinkedHashMap::new();
@@ -131,10 +143,12 @@ impl Blockchain {
         serde_json::to_string(&db_map).unwrap()
     }
 
+    /// Serializes the Chain Database into a vector of bytes of any size
     pub fn chain_db_to_bytes(&self) -> Vec<u8> {
         self.chain_db_to_string().as_bytes().to_vec()
     }
 
+    /// Deserializes a slice of bytes into a PickleDB Instance
     pub fn chain_db_from_bytes(&self, data: &[u8]) -> PickleDb {
         let db_map = serde_json::from_slice::<LinkedHashMap<String, Block>>(data).unwrap();
 
@@ -149,6 +163,7 @@ impl Blockchain {
         db
     }
 
+    /// Dumps data to a PickleDB Instance
     pub fn dump(&self, block: &Block) -> Result<(), Box<dyn Error>> {
         let mut db = self.get_chain_db();
         if let Err(e) = db.set(&block.header.last_hash, block) {
@@ -162,11 +177,13 @@ impl Blockchain {
         Ok(())
     }
 
+    /// Retrieves a block based on the `last_hash` field. Returns an option (Some(Block) if the block exists in the db, None if it does not)
     pub fn get_block(&self, last_hash: &str) -> Option<Block> {
         let db = self.get_chain_db();
         db.get::<Block>(last_hash)
     }
 
+    /// Processes a block and returns either a result (Ok(()) if the block is valid, InvalidBlockError if not)
     pub fn process_block(
         &mut self,
         network_state: &NetworkState,
@@ -174,11 +191,11 @@ impl Blockchain {
         block: &Block,
     ) -> Result<(), InvalidBlockError> {
         if let Err(e) = self.check_block_sequence(block) {
-            return Err(e)
+            return Err(e);
         }
         if let Some(genesis_block) = &self.genesis {
             if let Some(last_block) = &self.child {
-                if let Err(e) = block.valid(&last_block, network_state, reward_state) {
+                if let Err(e) = block.valid(&last_block, &(network_state.to_owned(), reward_state.to_owned())) {
                     self.future_blocks
                         .insert(block.clone().header.last_hash, block.clone());
                     return Err(e);
@@ -198,7 +215,7 @@ impl Blockchain {
                     return Ok(());
                 }
             } else {
-                if let Err(e) = block.valid(&genesis_block, network_state, reward_state) {
+                if let Err(e) = block.valid(&genesis_block, &(network_state.to_owned(), reward_state.to_owned())) {
                     return Err(e);
                 } else {
                     self.child = Some(block.clone());
@@ -212,7 +229,7 @@ impl Blockchain {
         } else {
             // check that this is a valid genesis block.
             if block.header.block_height == 0 {
-                if let Ok(true) = block.valid_genesis(reward_state) {
+                if let Ok(true) = block.valid_genesis(&(network_state.to_owned(), reward_state.to_owned())) {
                     self.genesis = Some(block.clone());
                     self.child = Some(block.clone());
                     self.block_cache.insert(block.hash.clone(), block.clone());
@@ -238,43 +255,60 @@ impl Blockchain {
         }
     }
 
+    // TODO: Discuss whether some of, or everything from here down should be moved to a separate module for:
+    // a. readability
+    // b. efficiency
+    // c. to better organize similar functionality
+
+    /// Checks whether the block is in sequence or not.
     pub fn check_block_sequence(&self, block: &Block) -> Result<bool, InvalidBlockError> {
         if let Some(_) = self.genesis.clone() {
             if let Some(child) = self.child.clone() {
                 let next_height = child.header.block_height + 1;
                 if block.header.block_height > next_height {
                     //I'm missing blocks return BlockOutOfSequence error
-                    return Err(InvalidBlockError { details: InvalidBlockErrorReason::BlockOutOfSequence })
+                    return Err(InvalidBlockError {
+                        details: InvalidBlockErrorReason::BlockOutOfSequence,
+                    });
                 } else if block.header.block_height < next_height {
-                    return Err(InvalidBlockError { details: InvalidBlockErrorReason::NotTallestChain })
+                    return Err(InvalidBlockError {
+                        details: InvalidBlockErrorReason::NotTallestChain,
+                    });
                 } else {
-                    return Ok(true)
+                    return Ok(true);
                 }
             } else {
                 if block.header.block_height > 1 {
-                    return Err(InvalidBlockError { details: InvalidBlockErrorReason::BlockOutOfSequence })
+                    return Err(InvalidBlockError {
+                        details: InvalidBlockErrorReason::BlockOutOfSequence,
+                    });
                 } else if block.header.block_height < 1 {
-                    return Err(InvalidBlockError { details: InvalidBlockErrorReason::NotTallestChain })
+                    return Err(InvalidBlockError {
+                        details: InvalidBlockErrorReason::NotTallestChain,
+                    });
                 } else {
-                    return Ok(true)
+                    return Ok(true);
                 }
             }
         } else {
             if block.header.block_height != 0 {
-                return Err(InvalidBlockError { details: InvalidBlockErrorReason::BlockOutOfSequence })
+                return Err(InvalidBlockError {
+                    details: InvalidBlockErrorReason::BlockOutOfSequence,
+                });
             } else {
-                return Ok(true)
+                return Ok(true);
             }
         }
-            
-
     }
 
+    /// Puts blocks into an ordered map to process later in the event that the chain is updating the state.
     pub fn stash_future_blocks(&mut self, block: &Block) {
         self.future_blocks
             .insert(block.clone().header.last_hash, block.clone());
     }
 
+    /// Creates and sends (to transport layer channel for sending to network/miner) a message in the event of an invalid block
+    /// to inform the miner that they proposed an invalid block.
     pub fn send_invalid_block_message(
         &self,
         block: &Block,
@@ -282,7 +316,7 @@ impl Blockchain {
         miner_id: String,
         sender_id: String,
         gossip_tx: std::sync::mpsc::Sender<(SocketAddr, Message)>,
-        src: SocketAddr
+        src: SocketAddr,
     ) {
         let message = MessageType::InvalidBlockMessage {
             block_height: block.clone().header.block_height,
@@ -294,12 +328,12 @@ impl Blockchain {
         let gossip_msg = GossipMessage {
             id: msg_id.inner(),
             data: message.as_bytes(),
-            sender: src.clone()
+            sender: src.clone(),
         };
         let head = Header::Gossip;
         let msg = Message {
             head,
-            msg: gossip_msg.as_bytes().unwrap()
+            msg: gossip_msg.as_bytes().unwrap(),
         };
 
         if let Err(e) = gossip_tx.send((src, msg)) {
@@ -310,54 +344,36 @@ impl Blockchain {
         }
     }
 
-    pub fn send_missing_blocks_message(
-        &self,
-        block: &Block,
-        sender_id: String,
-        gossip_tx: std::sync::mpsc::Sender<(SocketAddr, Message)>,
-        src: SocketAddr,
-    ) {
-        let missing_blocks: Vec<u128> =
-            (self.chain.len() as u128 - 1u128..block.clone().header.block_height).collect();
-
-        // let message = MessageType::NeedBlocksMessage {
-        //     blocks_needed: missing_blocks,
-        //     sender_id,
-        // };
-
-        // let msg_id = MessageKey::rand();
-        // let gossip_msg = GossipMessage {
-        //     id: msg_id.inner(),
-        //     data: message.as_bytes(),
-        //     sender: src.clone()
-        // };
-        // let msg = Message {
-        //     head: Header::Gossip,
-        //     msg: gossip_msg.as_bytes().unwrap()
-        // };
-
-        // if let Err(e) = gossip_tx.send((src, msg)) {
-        //     println!("Error sending NeedBlocksMessage to swarm sender: {:?}", e);
-        // }
-    }
-
+    /// Checks if all state core components have been received
+    /// Core components include:
+    ///     Genesis Block
+    ///     Child (Last) Block
+    ///     Parent (Previous block to child) Block
+    ///     The current state of the network
+    ///     The current network ledger
     pub fn received_core_components(&self) -> bool {
-        self.components_received.contains(&ComponentTypes::Genesis) &&
-        self.components_received.contains(&ComponentTypes::Child) &&
-        self.components_received.contains(&ComponentTypes::Parent) &&
-        self.components_received.contains(&ComponentTypes::NetworkState) &&
-        self.components_received.contains(&ComponentTypes::Ledger)
+        self.components_received.contains(&ComponentTypes::Genesis)
+            && self.components_received.contains(&ComponentTypes::Child)
+            && self.components_received.contains(&ComponentTypes::Parent)
+            && self
+                .components_received
+                .contains(&ComponentTypes::NetworkState)
+            && self.components_received.contains(&ComponentTypes::Ledger)
     }
 
+    /// Checks how long since the request was sent for state update
     pub fn check_time_since_update_request(&self) -> Option<u128> {
         let now = timestamp_now();
         if let Some(time) = self.started_updating {
             let diff = now.checked_sub(time);
             info!("Time in nanos since last update: {:?}", diff);
-            return diff
-        } else { None }
+            return diff;
+        } else {
+            None
+        }
     }
 
+    /// Resends the request to update state if too much time has passed
     pub fn request_again(&self) -> bool {
         if let Some(nanos) = self.check_time_since_update_request() {
             nanos > 1000000000
@@ -366,49 +382,56 @@ impl Blockchain {
         }
     }
 
+    /// Checks if the chain is missing the genesis block
     pub fn check_missing_genesis(&self) -> Option<ComponentTypes> {
         if !self.components_received.contains(&ComponentTypes::Genesis) {
-            return Some(ComponentTypes::Genesis)
+            return Some(ComponentTypes::Genesis);
         }
 
         None
     }
 
+    /// Checks if the chain is missing the Child Block
     pub fn check_missing_child(&self) -> Option<ComponentTypes> {
         if !self.components_received.contains(&ComponentTypes::Child) {
-            return Some(ComponentTypes::Child)
+            return Some(ComponentTypes::Child);
         }
 
         None
     }
 
+    /// Checks if the chain is missing the Parent Block
     pub fn check_missing_parent(&self) -> Option<ComponentTypes> {
         if !self.components_received.contains(&ComponentTypes::Parent) {
-            return Some(ComponentTypes::Parent)
+            return Some(ComponentTypes::Parent);
         }
 
         None
     }
 
+    /// Checks if the chain is missing the current ledger
     pub fn check_missing_ledger(&self) -> Option<ComponentTypes> {
         if !self.components_received.contains(&ComponentTypes::Ledger) {
-            return Some(ComponentTypes::Ledger)
+            return Some(ComponentTypes::Ledger);
         }
 
         None
     }
-    
+    /// Checks if the chain is missing the current network state
     pub fn check_missing_state(&self) -> Option<ComponentTypes> {
-        if !self.components_received.contains(&ComponentTypes::NetworkState) {
-            return Some(ComponentTypes::NetworkState)
+        if !self
+            .components_received
+            .contains(&ComponentTypes::NetworkState)
+        {
+            return Some(ComponentTypes::NetworkState);
         }
 
         None
-    }    
+    }
 
+    /// Creates vector of all components missing from the chain.
     pub fn check_missing_components(&self) -> Vec<ComponentTypes> {
         let mut missing = vec![];
-        
         if let Some(component) = self.check_missing_genesis() {
             missing.push(component);
         }
@@ -429,25 +452,30 @@ impl Blockchain {
             missing.push(component);
         }
 
-        return missing
+        return missing;
     }
 
+    /// Serializes a chain into bytes
     pub fn as_bytes(&self) -> Vec<u8> {
         self.to_string().as_bytes().to_vec()
     }
 
+    /// Deserialize a slice of bytes into a blockchain
     pub fn from_bytes(data: &[u8]) -> Blockchain {
         serde_json::from_slice::<Blockchain>(&data).unwrap()
     }
 
+    /// Serializes a chain into a string
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 
+    /// Deserializes a string slice into a chain
     pub fn from_string(data: &str) -> Blockchain {
         serde_json::from_str(data).unwrap()
     }
 
+    /// Returns a vector of all the field names of a chain.
     pub fn get_field_names(&self) -> Vec<String> {
         return vec![
             "genesis".to_string(),
