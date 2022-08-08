@@ -40,4 +40,3 @@ index_list = "0.2.7"
 clipboard = "0.5.0"
 messages = { path = "../messages" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
-

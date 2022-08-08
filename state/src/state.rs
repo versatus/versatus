@@ -4,13 +4,13 @@ use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use ledger::ledger::Ledger;
 use log::info;
-use noncing::nonceable::Nonceable;
 use ownable::ownable::Ownable;
-use reward::reward::{Reward, RewardState};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 use std::fs;
+use noncing::nonceable::Nonceable;
+use reward::reward::{RewardState, Reward};
 
 type StateGenesisBlock = Option<Vec<u8>>;
 type StateChildBlock = Option<Vec<u8>>;
@@ -75,10 +75,10 @@ impl<'de> NetworkState {
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
                 network_state.dump_to_file();
-                return network_state;
+                return network_state
             }
         }
-
+        
         let network_state = NetworkState {
             path: path.to_string(),
             ledger: vec![],
@@ -87,9 +87,9 @@ impl<'de> NetworkState {
             reward_state: None,
             state_hash: None,
         };
-
+        
         network_state.dump_to_file();
-
+        
         network_state
     }
 
@@ -217,12 +217,17 @@ impl<'de> NetworkState {
 
         ledger.claims.insert(miner_claim.get_pubkey(), miner_claim);
 
-        if let Some(entry) = ledger.credits.get_mut(&reward.receivable()) {
+
+        if let Some(entry) = ledger
+            .credits
+            .get_mut(&reward.receivable())
+        {
             *entry += reward.get_amount();
         } else {
-            ledger
-                .credits
-                .insert(reward.receivable(), reward.get_amount());
+            ledger.credits.insert(
+                reward.receivable(),
+                reward.get_amount(),
+            );
         }
 
         self.update_reward_state(reward.clone());
@@ -269,12 +274,12 @@ impl<'de> NetworkState {
         let bytes = hex::decode(network_state_hex);
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
-                return Ledger::from_bytes(network_state.ledger.clone());
+                return Ledger::from_bytes(network_state.ledger.clone())
             } else {
-                return Ledger::new();
+                return Ledger::new()
             }
         } else {
-            return Ledger::new();
+            return Ledger::new()
         }
     }
 
@@ -303,23 +308,17 @@ impl<'de> NetworkState {
 
     /// Returns the credits from the ledger
     pub fn get_credits(&self) -> LinkedHashMap<String, u128> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone())
-            .credits
-            .clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone()).credits.clone()
     }
 
     /// Returns the debits from the ledger
     pub fn get_debits(&self) -> LinkedHashMap<String, u128> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone())
-            .debits
-            .clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone()).debits.clone()
     }
 
     /// Returns the claims from the ledger
     pub fn get_claims(&self) -> LinkedHashMap<String, Claim> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone())
-            .claims
-            .clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone()).claims.clone()
     }
 
     /// Returns the `RewardState` from the `NewtorkState`
@@ -513,15 +512,5 @@ impl Clone for NetworkState {
             reward_state: self.reward_state.clone(),
             state_hash: self.state_hash.clone(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn create_new_network_state() {
-        // TODO: implement
     }
 }
