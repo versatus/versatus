@@ -1,3 +1,8 @@
+// This is currently deprecated but can be used to create an Account struct that takes one of two generic types, i.e. Wallet or Program
+// And can have different impl blocks for each.
+//
+//
+//
 // use pool::pool::Pool;
 // use block::block::Block;
 // use claim::claim::Claim;

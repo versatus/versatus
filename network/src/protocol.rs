@@ -1,3 +1,5 @@
+/// This module produces event logging and can largely be replaced or eliminated.
+/// A protocol for logging events can be developed elsewhere. 
 use serde::{Deserialize, Serialize};
 use std::fs;
 use log::info;

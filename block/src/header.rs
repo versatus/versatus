@@ -1,3 +1,4 @@
+// FEATURE TAG(S): Block Structure, Rewards
 use crate::block::Block;
 use bytebuffer::ByteBuffer;
 use claim::claim::Claim;
@@ -16,27 +17,31 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::u32::MAX as u32MAX;
 use std::u64::MAX as u64MAX;
 
+// TODO: Helper constants like the ones below should be in their own mod
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
-    pub struct BlockHeader {
-        pub last_hash: String,
-        pub block_nonce: u64,
-        pub next_block_nonce: u64,
-        pub block_height: u128,
-        pub timestamp: u128,
-        pub txn_hash: String,
-        pub claim: Claim,
-        pub claim_map_hash: Option<String>,
-        pub block_reward: Reward,
-        pub next_block_reward: Reward,
-        pub neighbor_hash: Option<String>,
-        pub signature: String,
-    }
+pub struct BlockHeader {
+    // TODO: Rename block_nonce and next_block_nonce to block_seed and next_block_seed respectively
+    // TODO: Replace tx hash with tx trie root
+    // TODO: Replace claim hash with claim trie root
+    // TODO: Add certificate field for validation certification.
+    pub last_hash: String,
+    pub block_nonce: u64,
+    pub next_block_nonce: u64,
+    pub block_height: u128,
+    pub timestamp: u128,
+    pub txn_hash: String,
+    pub claim: Claim,
+    pub claim_map_hash: Option<String>,
+    pub block_reward: Reward,
+    pub next_block_reward: Reward,
+    pub neighbor_hash: Option<String>,
+    pub signature: String,
+}
 
 impl BlockHeader {
     pub fn genesis(
@@ -45,9 +50,13 @@ impl BlockHeader {
         claim: Claim,
         secret_key: String,
     ) -> BlockHeader {
+        //TODO: Replace rand::thread_rng() with VPRNG
+        //TODO: Determine data fields to be used as message in VPRNG, must be known/revealed within block
+        //but cannot be predictable or gameable. Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
         let block_nonce = nonce;
+        // Range should remain the same.
         let next_block_nonce: u64 = rng.gen_range(u32MAX as u64, u64MAX);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -55,6 +64,7 @@ impl BlockHeader {
             .as_nanos();
         let txn_hash = digest_bytes("Genesis_Txn_Hash".as_bytes());
         let block_reward = Reward::genesis(Some(claim.address.clone()));
+        //TODO: Replace reward state 
         let next_block_reward = Reward::new(None, reward_state);
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
@@ -100,6 +110,9 @@ impl BlockHeader {
         neighbor_hash: Option<String>,
         secret_key: String,
     ) -> BlockHeader {
+        //TODO: Replace rand::thread_rng() with VPRNG
+        //TODO: Determine data fields to be used as message in VPRNG, must be known/revealed within block
+        //but cannot be predictable or gameable. Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = last_block.hash;
         let block_nonce = last_block.header.next_block_nonce.clone();
@@ -162,6 +175,7 @@ impl BlockHeader {
         Ok(sig)
     }
 
+    // TODO: Additional Verification requirements
     pub fn verify(&self) -> Result<bool, Error> {
         let message_bytes = self.get_payload().as_bytes().to_vec();
         let signature = {

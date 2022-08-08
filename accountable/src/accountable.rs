@@ -1,3 +1,6 @@
+// FEATURE TAG(S): Tx Validation, Tx Writes to Confirm
+/// A trait that enables the type it is implemented on to provide some basic
+/// accounting functionality.
 pub trait Accountable {
     type Category;
 

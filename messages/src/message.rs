@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 pub const MAX_TRANSMIT_SIZE: usize = 1024;
 
+
+/// The message struct contains the basic data contained in a message
+/// sent across the network. This can be packed into bytes.
+//TODO: Convert the Vec<u8> and u8's into custom types that are more
+// descriptive of their purpose.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub id: Vec<u8>,
@@ -16,21 +21,32 @@ pub struct Message {
     pub return_receipt: u8,
 }
 
+/// AsMessage is a trait that when implemented on a custom type allows
+/// for the easy conversion of the type into a message that can be packed
+/// into a byte array and sent across the network.
 pub trait AsMessage {
     fn into_message(&self, return_receipt: u8) -> Message;
 }
 
 impl Message {
+    /// Serializes a Message struct into a vector of bytes
     pub fn as_bytes(&self) -> Vec<u8> {
         serde_json::to_string(self).unwrap().as_bytes().to_vec()
     }
 
+    /// Deserializes a byte array into a Message struct
     pub fn from_bytes(data: &[u8]) -> Message {
         serde_json::from_slice::<Message>(data).unwrap()
     }
 }
 
+/// Converts a message into a vector of packets to be sent across
+/// the transport layer.
 impl Packetize for Message {
+    type Packets = Vec<Packet>;
+    type PacketBytes = Vec<Vec<u8>>;
+    type FlatPackets = Vec<u8>;
+    type PacketMap = HashMap<u32, Packet>;
     fn into_packets(&self) -> Vec<Packet> {
         let message_string = serde_json::to_string(self).unwrap();
         let message_bytes = message_string.as_bytes();
@@ -98,6 +114,7 @@ impl Packetize for Message {
         }
     }
 
+    /// Serializes a vector of packets into nested vectors of bytes.
     fn as_packet_bytes(&self) -> Vec<Vec<u8>> {
         let packets = self.into_packets();
 
@@ -107,7 +124,9 @@ impl Packetize for Message {
             .collect::<Vec<Vec<u8>>>()
     }
 
-    fn assemble(map: &mut HashMap<u32, Packet>) -> Vec<u8> {
+    /// Reassembles a map of packets into a serialized vector of bytes that can be
+    /// converted back into a Message for processing
+    fn assemble(map: &mut Self::PacketMap) -> Self::FlatPackets {
         let mut byte_slices = map
             .iter()
             .map(|(packet_number, packet)| return (*packet_number, packet.clone()))
@@ -122,7 +141,9 @@ impl Packetize for Message {
         assembled
     }
 
-    fn try_assemble(map: &mut HashMap<u32, Packet>) -> Result<Vec<u8>, NotCompleteError> {
+    /// Does the same thing as assemble but with better error handling in the event packets
+    /// are missing or cannot be assembled.
+    fn try_assemble(map: &mut Self::PacketMap) -> Result<Self::FlatPackets, NotCompleteError> {
         if let Some((_, packet)) = map.clone().iter().next() {
             if map.len() == usize::from_be_bytes(packet.clone().convert_total_packets()) {
                 let mut byte_slices = map

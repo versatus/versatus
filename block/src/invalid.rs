@@ -1,3 +1,4 @@
+// FEATURE TAG(S): Block Structure
 use serde::{Serialize, Deserialize};
 use std::fmt;
 use std::error::Error;

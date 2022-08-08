@@ -1,3 +1,5 @@
+//FEATURE TAG(S): Validator Cores, Tx Validation, Tx Writes to Confirmed, Block Validation & Confirmation
+//TODO: Rebuild this entire module.
 #![allow(unused_imports)]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -22,7 +24,7 @@ impl TxnValidator {
         txn_pool: &Pool<String, Txn>,
     ) -> TxnValidator {
         let vote = {
-            if let Ok(true) = txn.clone().valid(&None, network_state, txn_pool) {
+            if let Ok(true) = txn.clone().valid(&None, &(network_state.to_owned(), txn_pool.to_owned())) {
                 true
             } else {
                 false

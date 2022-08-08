@@ -1,3 +1,6 @@
+//FEATURE TAG(S): Left-Right Mempool, Validator Cores, Tx Validation, Tx Writes to Confirmed, Block Validation & Confirmation, Block Structure
+/// This module declares and implements methods on Pools
+//TODO: Replace this module with the Left-Right Pool(s).
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Eq;

@@ -1,3 +1,4 @@
+/// Move this module elsewhere
 use sha256::digest_bytes;
 
 #[derive(Debug, Clone)]
