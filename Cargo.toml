@@ -13,6 +13,7 @@ members = [
     "wallet",
     "events",
     "commands",
+    "mempool",
     "messages",
     "vrrb_lib",
     "vrrb_tui",
