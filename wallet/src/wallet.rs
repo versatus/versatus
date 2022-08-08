@@ -1,3 +1,7 @@
+//FEATURE TAG(S): Block, Chain & Syncing, Rewards, Develop SDK, Develop API for Distributed Programs, Remote Procedure Calls. 
+/// The wallet module contains very basic Wallet type and methods related to it.
+/// This will largely be replaced under the proposed protocol, however, for the prototype
+/// this version served its purpose
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use state::state::NetworkState;
@@ -251,6 +255,7 @@ impl WalletAccount {
         }
     }
 
+    /// Checks if the local wallet has any transactions in the most recent block
     pub fn txns_in_block(&mut self, txns: &LinkedHashMap<String, Txn>) {
         let _my_txns = {
             let mut some_txn = false;
@@ -267,6 +272,8 @@ impl WalletAccount {
         };
     }
 
+    /// Structures a `Txn` and returns a Result enum with either Ok(Txn) or an Error if the local wallet cannot
+    /// create a Txn for whatever reason
     pub fn send_txn(
         &mut self,
         address_number: u32,
@@ -317,6 +324,7 @@ impl WalletAccount {
         })
     }
 
+    /// Gets the local address of a wallet given an address number (naive HD wallet)
     pub fn get_address(&mut self, address_number: u32) -> String {
         if let Some(address) = self.addresses.get(&address_number) {
             return address.to_string();
@@ -328,6 +336,7 @@ impl WalletAccount {
         }
     }
 
+    /// Generates a new address for the wallet based on the public key and a unique ID
     pub fn generate_new_address(&mut self) {
         let uid = Uuid::new_v4().to_string();
         let address_number: u32 = self.addresses.len() as u32 + 1u32;
@@ -336,11 +345,13 @@ impl WalletAccount {
         self.addresses.insert(address_number, address);
     }
 
+    /// Serializes the wallet into a vector of bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
         as_string.as_bytes().iter().copied().collect()
     }
 
+    /// Deserializes a wallet from a byte array
     pub fn from_bytes(data: &[u8]) -> WalletAccount {
         let mut buffer: Vec<u8> = vec![];
         data.iter().for_each(|x| buffer.push(*x));

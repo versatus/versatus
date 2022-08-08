@@ -1,3 +1,6 @@
+/// a Module for creating, maintaining, and using a claim in the fair,
+/// computationally inexpensive, collission proof, fully decentralized, fully permissionless
+/// Proof of Claim Miner Election algorithm
 use noncing::nonceable::Nonceable;
 use ownable::ownable::Ownable;
 use serde::{Deserialize, Serialize};
@@ -5,13 +8,17 @@ use serde_json;
 use sha256::digest_bytes;
 use verifiable::verifiable::Verifiable;
 
+/// A custom error type for invalid claims that are used/attempted to be used
+/// in the mining of a block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvalidClaimError {
     details: String,
 }
 
+/// The claim object that stores the key information used to mine blocks, calculate
+/// whether or not you are an entitled miner, and to share with network
+// TODO: Add staking to the claim.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-
 pub struct Claim {
     pub pubkey: String,
     pub address: String,
@@ -21,7 +28,10 @@ pub struct Claim {
 }
 
 impl Claim {
+    /// Creates a new claim from a public key, address and nonce.
+    // TODO: Default nonce to 0
     pub fn new(pubkey: String, address: String, claim_nonce: u128) -> Claim {
+        // Calculate the number of times the pubkey should be hashed to generate the claim hash
         let iters = if let Some(n) = claim_nonce.checked_mul(10) {
             n
         } else {
@@ -29,6 +39,8 @@ impl Claim {
         };
 
         let mut hash = pubkey.clone();
+        // sequentially hash the public key the correct number of times
+        // for the given nonce.
         (0..iters).for_each(|_| {
             hash = digest_bytes(hash.as_bytes());
         });
@@ -42,41 +54,72 @@ impl Claim {
         }
     }
 
-    pub fn get_pointer(&self, nonce: u128) -> Option<u128> {
-        let nonce_hex = format!("{:x}", nonce);
-        let nonce_string_len = nonce_hex.chars().count();
+    /// Calculates the claims pointer sum
+    // TODO: Rename to `get_pointer_sum` to better represent the purpose of the function.
+    // This can be made significantly faster (if necessary to scale network) by concurrently
+    // calculating the index position of each matched character, and summing the total
+    // at the end after every match position has been discovered, or returning None if we can't match a character.
+    pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
+        // get the hexadecimal format of the block seed
+        // TODO: Make the block seed hexadecimal to begin with in the `Block` itself
+        // No reason for miners to have to do this conversion.
+        let block_seed_hex = format!("{:x}", block_seed);
+        // Get the length of the hexadecimal representation of the block seed
+        // for later use
+        let block_seed_string_len = block_seed_hex.chars().count();
+        // declare an empty mutable vector to stash pointers into.
         let mut pointers = vec![];
-        nonce_hex.chars().enumerate().for_each(|(idx, c)| {
+        // iterate through (and enumerate for index position) the characters
+        // of the block seed.
+        block_seed_hex.chars().enumerate().for_each(|(idx, c)| {
+            // Check if the character is in the claim hash, and save the index position into
+            // a variable `n`.
             let res = self.hash.find(c);
             if let Some(n) = res {
+                // convert `n` to a u128 and calculate an integer overflow safe
+                // exponential of the `n` to the power of idx
                 let n = n as u128;
                 let n = n.checked_pow(idx as u32);
+                // If there is no integer overflow (which there never should be)
+                // add it to the buffer.
                 if let Some(n) = n {
                     pointers.push(n as u128);
                 }
             }
         });
 
-        if pointers.len() == nonce_string_len {
+        // If the length of the pointer buffer is the same length
+        // as the block seed hex string then calculate the sum as a u128
+        // TODO: use integer overflow safe sum, though there should never be
+        // an integer overflow with the pointer sum being a u128, it is better
+        // to be safe than sorry. 
+        if pointers.len() == block_seed_string_len {
             let pointer: u128 = pointers.iter().sum();
             Some(pointer)
         } else {
+            // If the length of the pointer buffer is not the same length
+            // as the block seed hex string, return None, not every character was
+            // matched.
             None
         }
     }
 
+    /// Converts a string representation of a claim to a `Claim` object
     pub fn from_string(claim_string: String) -> Claim {
         serde_json::from_str::<Claim>(&claim_string).unwrap()
     }
 
+    /// Serializes a `Claim` into a Vector of bytes
     pub fn as_bytes(&self) -> Vec<u8> {
         serde_json::to_string(self).unwrap().as_bytes().to_vec()
     }
 
+    /// Convert a byte representation of a claim to a `Claim` object
     pub fn from_bytes(data: &[u8]) -> Claim {
         serde_json::from_slice::<Claim>(data).unwrap()
     }
 
+    /// get all the field names and stash them into a vector. 
     pub fn get_field_names(&self) -> Vec<String> {
         vec![
             "pubkey".to_string(),
@@ -88,11 +131,13 @@ impl Claim {
     }
 }
 
+/// Implements Verifiable trait on Claim
+// TODO: Need to actually implement the valid method
 impl Verifiable for Claim {
     type Item = Option<Vec<u8>>;
-    type DependantOne = Option<Vec<u8>>;
-    type DependantTwo = Option<Vec<u8>>;
+    type Dependencies = (Option<Vec<u8>>, Option<Vec<u8>>);
     type Error = InvalidClaimError;
+
     fn verifiable(&self) -> bool {
         true
     }
@@ -101,19 +146,21 @@ impl Verifiable for Claim {
     fn valid(
         &self,
         item: &Self::Item,
-        dependant_one: &Self::DependantOne,
-        dependant_two: &Self::DependantTwo,
+        dependancies: &Self::Dependencies,
     ) -> Result<bool, InvalidClaimError> {
         Ok(true)
     }
 }
 
+/// Implements the Ownable trait on a claim
+// TODO: Add more methods that make sense for Ownable to Ownable
 impl Ownable for Claim {
     fn get_pubkey(&self) -> String {
         self.pubkey.clone()
     }
 }
 
+/// Implements the Nonceble train on the `Claim`
 impl Nonceable for Claim {
     fn nonceable(&self) -> bool {
         true

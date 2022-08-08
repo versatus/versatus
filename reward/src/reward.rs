@@ -1,3 +1,8 @@
+//FEATURE TAG(S): Rewards, Block Structure
+/// This module declares the Categories and algorithms for randomly selecting amounts within the categories
+/// of the rewards. 
+//TODO: Replace this entire module with the new monetary policy.
+// https://www.notion.so/vrrb/Token-Emission-Methodology-4b6277403a3f4ad28653a651f0ff2995
 use crate::decay::decay_calculator;
 use accountable::accountable::Accountable;
 use rand::{

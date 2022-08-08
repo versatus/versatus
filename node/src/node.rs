@@ -1,9 +1,9 @@
+/// This is the primary module containing the structure and methods for creating, starting and maintaining a node in the network.
 use crate::handler::{CommandHandler, MessageHandler};
 use commands::command::Command;
 use messages::message::Message;
 use messages::message_types::MessageType;
 use messages::packet::{Packet, Packetize};
-use network::message;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -11,6 +11,9 @@ use std::error::Error;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
+
+//TODO:There needs to be different node types, this is probably not the right variants for
+//the node types we will need in the network, needs to be discussed. 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NodeAuth {
@@ -27,27 +30,49 @@ pub enum NodeAuth {
     Bootstrap,
 }
 
+/// The node contains the data and methods needed to operate a node in the network.
 #[allow(dead_code)]
 pub struct Node {
+    /// Every node needs to have a secret key to sign messages, blocks, tx, etc. for authenticity
+    //TODO: Discuss whether we need this here or whether it's redundant.
     secret_key: String,
+    /// Every node needs to have a public key to have its messages, blocks, tx, etc, signatures validated by other nodes
+    //TODOL: Discuss whether this is needed here.
     pub pubkey: String,
+    /// Every node needs a unique ID to identify it as a member of the network.
     pub id: String,
+    /// The type of the node, used for custom impl's based on the type the capabilities may vary.
+    //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
+    //TODO: Create different custom structs for different kinds of nodes with different authorization
+    // so that we can have custom impl blocks based on the type. 
     pub node_type: NodeAuth,
+    /// A set of message IDs to check new messages against to prevent redundant message processing
+    //TODO: Move this to the udp2p layer to be handled upon the receipt of messages, rather than
+    // by the node itself. 
     pub message_cache: HashSet<String>,
+    /// Stores packets to be reassembled into a message when all packets are received
+    //TODO: Move this to the udp2p layer to be handled upon the receipt of the message. Node should only
+    // receive assembled messages. 
     pub packet_storage: HashMap<String, HashMap<u32, Packet>>,
+    /// The command handler used to allocate commands to different parts of the system
     pub command_handler: CommandHandler,
+    /// The message handler used to convert received messages into a command and to structure and pack outgoing messages
+    /// to be send to the transport layer. 
     pub message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
 }
 
 impl Node {
+    /// Returns a string representation of the node id
     pub fn get_id(&self) -> String {
         self.id.clone()
     }
 
+    /// Returns the type of the node
     pub fn get_node_type(&self) -> NodeAuth {
         self.node_type.clone()
     }
 
+    /// Creates and returns a Node instance
     pub fn new(
         node_type: NodeAuth,
         command_handler: CommandHandler,
@@ -69,7 +94,10 @@ impl Node {
             message_handler,
         }
     }
-
+    
+    /// Handles an incoming packet
+    //TODO: Move this to the transport layer, the Node should only deal with messages and commands
+    #[allow(unused)]
     pub fn handle_packet(&mut self, packet: &Packet) {
         let packet_number = usize::from_be_bytes(packet.clone().convert_packet_number()) as u32;
         let id = String::from_utf8_lossy(&packet.clone().id).to_string();
@@ -110,6 +138,8 @@ impl Node {
         }
     }
 
+    /// Starts the program loop for the Node, checking whether there is a command
+    /// or message received, and allocating the command/message to where it needs to go.
     pub async fn start(&mut self) -> Result<(), Box<dyn Error>> {
         loop {
             let evt = {
@@ -208,6 +238,7 @@ impl Node {
 }
 
 impl NodeAuth {
+    /// Serializes the NodeAuth variant it is called on into a vector of bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
         serde_json::to_string(self).unwrap().as_bytes().to_vec()
     }
