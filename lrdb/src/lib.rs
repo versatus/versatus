@@ -213,7 +213,7 @@ where
 /// ShallowCopy is unsafe. To work properly it requires that type is never modified.
 #[allow(dead_code)]
 /// Type wrapping LeftRightDatabase with non-generic arguments used in this implementation.
-type VrrbDB = LeftRightDatabase<PublicKey, Box<Account>>;
+pub type VrrbDB = LeftRightDatabase<PublicKey, Box<Account>>;
 
 /// Struct representing the desired updates to be applied to account.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -250,15 +250,14 @@ impl PartialOrd for AccountFieldsUpdate {
     }
 }
 
-/// TODO: docs
 impl VrrbDB {
     /// Returns new, empty account.
     ///
     /// Examples:
     /// ```
-    /// use lrdb::VrrDB;
+    /// use lrdb::VrrbDB;
     ///
-    /// let vdb = VrrDB::new();
+    /// let vdb = VrrbDB::new();
     /// ```
     pub fn new() -> Self {
         let (vrrbdb_reader, mut vrrbdb_writer) = evmap::new();
@@ -315,7 +314,7 @@ impl VrrbDB {
         }
     }
 
-    /// Inserts new account into VrrDB.
+    /// Inserts new account into VrrbDB.
     ///
     /// Arguments:
     /// * `pubkey` - A PublicKey of account to be inserted
@@ -327,12 +326,16 @@ impl VrrbDB {
     /// Basic usage:
     ///
     /// ```
-    /// use lrdb::{Account, VrrDB, VrrDBError};
+    /// use lrdb::{Account, VrrbDB, VrrbDBError};
     /// use secp256k1::PublicKey;
+    /// use rand::{rngs::StdRng, SeedableRng};
+    /// use secp256k1::generate_keypair;
+    ///   
+    /// let (_, key) = generate_keypair(&mut StdRng::from_entropy());
     ///
     /// let account = Account::new();
-    /// let mut vdb = VrrDB::new();
-    /// let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
+    /// let mut vdb = VrrbDB::new();
+    ///
     /// let added = vdb.insert(key, account);
     /// assert_eq!(added, Ok(()));
     /// ```
@@ -340,26 +343,28 @@ impl VrrbDB {
     /// Failed inserts:
     ///
     /// ```
-    /// use lrdb::{Account, VrrDB};
-    /// use secp256k1::PublicKey;
-    ///
-    /// let account = Account::new();
+    /// use lrdb::{Account, VrrbDB, VrrbDBError};
+    /// use secp256k1::{PublicKey};
+    /// use rand::{rngs::StdRng, SeedableRng};
+    /// use secp256k1::generate_keypair;
+    ///   
+    /// let (_, key) = generate_keypair(&mut StdRng::from_entropy());
+    /// let mut account = Account::new();
     ///
     /// // That will fail, since nonce should be 0
     /// account.nonce = 10;
-    /// let mut vdb = VrrDB::new();
-    /// let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
-    /// let added = vdb.insert(key, account);
+    /// let mut vdb = VrrbDB::new();
+    /// let mut added = vdb.insert(key, account.clone());
     ///
-    /// assert_eq!(added, Err(VrrDBError::InitWithNonce));
+    /// assert_eq!(added, Err(VrrbDBError::InitWithNonce));
     ///  
     /// account.nonce = 0;
-    /// account.debit = 10;
+    /// account.debits = 10;
     ///
     /// // This will fail since the debit should be 0
     /// added = vdb.insert(key,account);
     ///
-    /// assert_eq!(added, Err(VrrDBError::InitWithDebit));
+    /// assert_eq!(added, Err(VrrbDBError::InitWithDebit));
     /// ```
     pub fn insert(&mut self, pubkey: PublicKey, account: Account) -> Result<(), VrrbDBError> {
         self.insert_uncommited(pubkey, account)?;
@@ -402,12 +407,18 @@ impl VrrbDB {
     ///
     /// Examples:
     /// ```
-    /// use lrdb::{Account, VrrDB};
+    /// use lrdb::{Account, VrrbDB, AccountField};
     /// use secp256k1::PublicKey;
     ///
     /// let mut vrrbdb = VrrbDB::new();
-    ///    
-    /// let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
+    /// use rand::{rngs::StdRng, SeedableRng};
+    /// use secp256k1::generate_keypair;
+    ///
+    /// let mut rng = StdRng::from_entropy();
+    /// let (_, key) = generate_keypair(&mut rng);
+    /// let (_, key1) = generate_keypair(&mut rng);
+    /// let (_, key2) = generate_keypair(&mut rng);
+    ///
     /// let mut account1 = Account::new();
     /// account1.update_field(AccountField::Credits(100));
     ///  
@@ -417,10 +428,11 @@ impl VrrbDB {
     /// let mut account3 = Account::new();
     /// account3.update_field(AccountField::Credits(500));
     ///
-    /// vrrbdb.batch_insert(vec![(keys[0], account1), (keys[1], account2), (keys[2], account3)]);
+    /// vrrbdb.batch_insert(vec![(key, account1), (key1, account2), (key2, account3)]);
     ///
-    /// if let Some(account) = vrrbdb.get(keys[1]) {
-    /// assert_eq!(account.credits, 237);
+    /// if let Some(account) = vrrbdb.get(key1) {
+    ///     assert_eq!(account.credits, 237);
+    /// }
     /// ```
     pub fn batch_insert(
         &mut self,
@@ -431,7 +443,7 @@ impl VrrbDB {
         failed_inserts
     }
 
-    /// Retain returns new VrrDB with witch all Accounts that fulfill `filter` cloned to it.
+    /// Retain returns new VrrbDB with witch all Accounts that fulfill `filter` cloned to it.
     ///
     /// Arguments:
     ///
@@ -440,10 +452,18 @@ impl VrrbDB {
     /// Examples:
     ///    ```
     ///    use lrdb::{VrrbDB, Account, AccountField};
-    ///
+    ///    use secp256k1::PublicKey;
+    ///    use std::str::FromStr;
+    ///    use rand::{rngs::StdRng, SeedableRng};
+    ///    use secp256k1::generate_keypair;
+    ///   
+    ///    let (_, key) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let (_, key1) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let (_, key2) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let (_, key3) = generate_keypair(&mut StdRng::from_entropy());
     ///    let mut vdb = VrrbDB::new();
     ///    
-    ///    let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
+    ///
     ///    let mut account = Account::new();
     ///    account.update_field(AccountField::Credits(123));
     ///
@@ -456,7 +476,7 @@ impl VrrbDB {
     ///    let mut account3 = Account::new();
     ///    account3.update_field(AccountField::Credits(500));
     ///
-    ///    vdb.batch_insert(vec![(keys[0], account), (keys[1], account1), (keys[2], account2.clone()), (keys[3], account3)]);
+    ///    vdb.batch_insert(vec![(key, account), (key1, account1), (key2, account2.clone()), (key3, account3)]);
     ///
     ///    let filtered = vdb.retain(|acc| {acc.credits >= 300 && acc.credits < 500});
     ///     
@@ -494,14 +514,17 @@ impl VrrbDB {
     ///
     /// ```
     ///  use lrdb::{VrrbDB, Account, AccountField};
-    ///
+    ///  use secp256k1::PublicKey;
+    ///  use rand::{rngs::StdRng, SeedableRng};
+    ///  use secp256k1::generate_keypair;
+    ///   
+    ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
     ///  let mut vdb = VrrbDB::new();
     ///    
-    ///  let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
     ///  let mut account = Account::new();
     ///  account.update_field(AccountField::Credits(123));
     ///
-    ///  vdb.insert(key, record);
+    ///  vdb.insert(key, account);
     ///
     ///  if let Some(account) = vdb.get(key) {
     ///     assert_eq!(account.credits, 123);
@@ -523,26 +546,26 @@ impl VrrbDB {
     ///
     /// ```
     ///  use lrdb::{VrrbDB, Account, AccountField};
-    ///
+    ///  use secp256k1::PublicKey;
+    ///  use rand::{rngs::StdRng, SeedableRng};
+    ///  use secp256k1::generate_keypair;
+    ///   
+    ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
+    ///  let (_, key2) = generate_keypair(&mut StdRng::from_entropy());
     ///  let mut vdb = VrrbDB::new();
-    ///    
-    ///  let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
-    ///  let key2 = PublicKey::from_str("d5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
-    ///  
+    ///      
     ///  let mut account = Account::new();
     ///  account.update_field(AccountField::Credits(123));
     ///
     ///  let mut account2 = Account::new();
-    ///  account.update_field(AcccountField::Credits(257));
+    ///  account2.update_field(AccountField::Credits(257));
     ///   
-    ///  vdb.batch_insert(vec![(key, account), (key2,account2)]);
+    ///  vdb.batch_insert(vec![(key, account), (key2,account2.clone())]);
     ///
     ///  let result = vdb.batch_get(vec![key, key2]);
     ///  
-    ///  if let Some(acc) = result[1] {
-    ///     assert_eq!(acc.credits, 257);
-    ///  }
-    ///  
+    ///  assert_eq!(result[&key2].clone().unwrap().credits, 257);
+    ///     
     /// ```
     pub fn batch_get(&self, keys: Vec<PublicKey>) -> HashMap<PublicKey, Option<Account>> {
         let mut accounts = HashMap::<PublicKey, Option<Account>>::new();
@@ -583,20 +606,23 @@ impl VrrbDB {
     ///
     /// ```
     ///    use lrdb::{VrrbDB, Account, AccountField, AccountFieldsUpdate};
-    ///
-    ///    let mut vdb = VrrbDB::new();
+    ///    use secp256k1::PublicKey;
+    ///    use rand::{rngs::StdRng, SeedableRng};
+    ///    use secp256k1::generate_keypair;
     ///    
-    ///    let key = PublicKey::from_str("c5637acae723ed0cd810a28862e8f90562b216794bd72c95ed7807cfb650a48e8b479397fd94ce0f1ca90640820dff3b717b92b7a57477ca2a3d9fec409ac88d".to_string());
+    ///    let (_,key) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let mut vdb = VrrbDB::new();
+    ///      
     ///    let mut account = Account::new();
     ///    account.update_field(AccountField::Credits(123));
     ///     
-    ///    let update = AccountFields {
+    ///    let update = AccountFieldsUpdate {
     ///        nonce: 1,
     ///        credits: Some(100),
     ///        debits: Some(50),
     ///        storage: None,
     ///        code: None,
-    ///    }
+    ///    };
     ///    
     ///    vdb.update(key, update);
     ///
@@ -717,10 +743,12 @@ mod tests {
     use super::*;
     use rand::{rngs::StdRng, SeedableRng};
     use secp256k1::generate_keypair;
+    use secp256k1::PublicKey;
 
     fn new_random_keys() -> Vec<PublicKey> {
         let mut rng = StdRng::from_entropy();
         let mut res: Vec<PublicKey> = vec![];
+
         for _ in 0..10 {
             let (_, pubkey) = generate_keypair(&mut rng);
             res.push(pubkey);
