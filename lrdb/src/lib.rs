@@ -4,11 +4,13 @@ use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+pub type Nonce = u32;
+
 /// Stores information about given account.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Account {
     pub hash: String,
-    pub nonce: u32,
+    pub nonce: Nonce,
     pub credits: u64,
     pub debits: u64,
     pub storage: Option<String>,
@@ -79,21 +81,21 @@ impl Account {
     /// Unsafe to use alone (hash should be recalculated).
     /// Used only in batch updates to improve speed by reducing unnecesary hash calculations.
     /// Returns error if update fails.
-    fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<(), VrrbDBError> {
+    fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<(), VrrbDbError> {
         match value {
             AccountField::Credits(credits) => match self.credits.checked_add(credits) {
                 Some(new_amount) => self.credits = new_amount,
-                None => return Err(VrrbDBError::UpdateFailed(value)),
+                None => return Err(VrrbDbError::UpdateFailed(value)),
             },
             AccountField::Debits(debits) => match self.debits.checked_add(debits) {
                 Some(new_amount) => {
                     if self.credits >= new_amount {
                         self.debits = new_amount
                     } else {
-                        return Err(VrrbDBError::UpdateFailed(value));
+                        return Err(VrrbDbError::UpdateFailed(value));
                     }
                 }
-                None => return Err(VrrbDBError::UpdateFailed(value)),
+                None => return Err(VrrbDbError::UpdateFailed(value)),
             },
 
             // Should the storage be impossible to delete?
@@ -124,7 +126,7 @@ impl Account {
     ///
     /// assert_eq!(account.credits, 300);
     /// ```
-    pub fn update_field(&mut self, update: AccountField) -> Result<(), VrrbDBError> {
+    pub fn update_field(&mut self, update: AccountField) -> Result<(), VrrbDbError> {
         let res = self.update_single_field_no_hash(update);
         self.update_hash();
         res
@@ -157,9 +159,9 @@ impl Account {
     /// assert_eq!(account.credits, 32);
     /// assert_eq!(account.code, Some("Some code".to_string()));
     /// ```
-    pub fn update(&mut self, update: AccountFieldsUpdate) -> Result<(), VrrbDBError> {
+    pub fn update(&mut self, update: AccountFieldsUpdate) -> Result<(), VrrbDbError> {
         if self.nonce + 1 != update.nonce {
-            return Err(VrrbDBError::InvalidUpdateNonce(self.nonce, update.nonce));
+            return Err(VrrbDbError::InvalidUpdateNonce(self.nonce, update.nonce));
         }
         if let Some(credits_update) = update.credits {
             self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
@@ -193,11 +195,12 @@ pub enum AccountField {
     Code(Option<String>),
 }
 
-// VrrbDB struct containing evmap implementation of left-right contained hashmap
 /// Struct representing the LeftRight Database.
-/// ReadHandleFactory provides a way of creating new ReadHandles to the database.
-/// WriteHandles provides a way to gain write access to the database.
-/// Last denotes the lastest `refresh` of the database.
+///
+/// `ReadHandleFactory` provides a way of creating new ReadHandles to the database.
+///
+/// `WriteHandles` provides a way to gain write access to the database.
+/// `last_refresh` denotes the lastest `refresh` of the database.
 #[allow(dead_code)]
 pub struct LeftRightDatabase<K, V>
 where
@@ -206,14 +209,14 @@ where
 {
     r: evmap::ReadHandleFactory<K, V, ()>,
     w: evmap::WriteHandle<K, V, ()>,
-    last: std::time::SystemTime,
+    last_refresh: std::time::SystemTime,
 }
 
 /// NOTE: Boxing the Account so it's `ShallowCopy`
 /// ShallowCopy is unsafe. To work properly it requires that type is never modified.
 #[allow(dead_code)]
 /// Type wrapping LeftRightDatabase with non-generic arguments used in this implementation.
-pub type VrrbDB = LeftRightDatabase<PublicKey, Box<Account>>;
+pub type VrrbDb = LeftRightDatabase<PublicKey, Box<Account>>;
 
 /// Struct representing the desired updates to be applied to account.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -250,14 +253,14 @@ impl PartialOrd for AccountFieldsUpdate {
     }
 }
 
-impl VrrbDB {
+impl VrrbDb {
     /// Returns new, empty account.
     ///
     /// Examples:
     /// ```
-    /// use lrdb::VrrbDB;
+    /// use lrdb::VrrbDb;
     ///
-    /// let vdb = VrrbDB::new();
+    /// let vdb = VrrbDb::new();
     /// ```
     pub fn new() -> Self {
         let (vrrbdb_reader, mut vrrbdb_writer) = evmap::new();
@@ -267,7 +270,7 @@ impl VrrbDB {
         Self {
             r: vrrbdb_reader.factory(),
             w: vrrbdb_writer,
-            last: SystemTime::now(),
+            last_refresh: SystemTime::now(),
         }
     }
 
@@ -276,7 +279,7 @@ impl VrrbDB {
     /// Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
         self.w.refresh();
-        self.last = SystemTime::now();
+        self.last_refresh = SystemTime::now();
     }
 
     // TODO: Maybe initialize is better name for that?
@@ -284,15 +287,15 @@ impl VrrbDB {
         &mut self,
         pubkey: PublicKey,
         account: Account,
-    ) -> Result<(), VrrbDBError> {
+    ) -> Result<(), VrrbDbError> {
         // Cannot insert new account with debit
         if account.debits != 0 {
-            return Err(VrrbDBError::InitWithDebit);
+            return Err(VrrbDbError::InitWithDebit);
         }
 
         // Cannot insert account with nonce bigger than 0
         if account.nonce != 0 {
-            return Err(VrrbDBError::InitWithNonce);
+            return Err(VrrbDbError::InitWithNonce);
         }
 
         // Check oplog for uncommited inserts for given key
@@ -306,7 +309,7 @@ impl VrrbDB {
             }
         });
         match self.r.handle().contains_key(&pubkey) || found {
-            true => return Err(VrrbDBError::RecordExists),
+            true => return Err(VrrbDbError::RecordExists),
             false => {
                 self.w.insert(pubkey, Box::new(account));
                 return Ok(());
@@ -326,7 +329,7 @@ impl VrrbDB {
     /// Basic usage:
     ///
     /// ```
-    /// use lrdb::{Account, VrrbDB, VrrbDBError};
+    /// use lrdb::{Account, VrrbDb, VrrbDbError};
     /// use secp256k1::PublicKey;
     /// use rand::{rngs::StdRng, SeedableRng};
     /// use secp256k1::generate_keypair;
@@ -334,7 +337,7 @@ impl VrrbDB {
     /// let (_, key) = generate_keypair(&mut StdRng::from_entropy());
     ///
     /// let account = Account::new();
-    /// let mut vdb = VrrbDB::new();
+    /// let mut vdb = VrrbDb::new();
     ///
     /// let added = vdb.insert(key, account);
     /// assert_eq!(added, Ok(()));
@@ -343,7 +346,7 @@ impl VrrbDB {
     /// Failed inserts:
     ///
     /// ```
-    /// use lrdb::{Account, VrrbDB, VrrbDBError};
+    /// use lrdb::{Account, VrrbDb, VrrbDbError};
     /// use secp256k1::{PublicKey};
     /// use rand::{rngs::StdRng, SeedableRng};
     /// use secp256k1::generate_keypair;
@@ -353,10 +356,10 @@ impl VrrbDB {
     ///
     /// // That will fail, since nonce should be 0
     /// account.nonce = 10;
-    /// let mut vdb = VrrbDB::new();
+    /// let mut vdb = VrrbDb::new();
     /// let mut added = vdb.insert(key, account.clone());
     ///
-    /// assert_eq!(added, Err(VrrbDBError::InitWithNonce));
+    /// assert_eq!(added, Err(VrrbDbError::InitWithNonce));
     ///  
     /// account.nonce = 0;
     /// account.debits = 10;
@@ -364,9 +367,9 @@ impl VrrbDB {
     /// // This will fail since the debit should be 0
     /// added = vdb.insert(key,account);
     ///
-    /// assert_eq!(added, Err(VrrbDBError::InitWithDebit));
+    /// assert_eq!(added, Err(VrrbDbError::InitWithDebit));
     /// ```
-    pub fn insert(&mut self, pubkey: PublicKey, account: Account) -> Result<(), VrrbDBError> {
+    pub fn insert(&mut self, pubkey: PublicKey, account: Account) -> Result<(), VrrbDbError> {
         self.insert_uncommited(pubkey, account)?;
         self.commit_changes();
         Ok(())
@@ -378,8 +381,8 @@ impl VrrbDB {
     fn batch_insert_uncommited(
         &mut self,
         inserts: Vec<(PublicKey, Account)>,
-    ) -> Option<Vec<(PublicKey, Account, VrrbDBError)>> {
-        let mut failed_inserts: Vec<(PublicKey, Account, VrrbDBError)> = vec![];
+    ) -> Option<Vec<(PublicKey, Account, VrrbDbError)>> {
+        let mut failed_inserts: Vec<(PublicKey, Account, VrrbDbError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
@@ -407,10 +410,10 @@ impl VrrbDB {
     ///
     /// Examples:
     /// ```
-    /// use lrdb::{Account, VrrbDB, AccountField};
+    /// use lrdb::{Account, VrrbDb, AccountField};
     /// use secp256k1::PublicKey;
     ///
-    /// let mut vrrbdb = VrrbDB::new();
+    /// let mut vrrbdb = VrrbDb::new();
     /// use rand::{rngs::StdRng, SeedableRng};
     /// use secp256k1::generate_keypair;
     ///
@@ -437,7 +440,7 @@ impl VrrbDB {
     pub fn batch_insert(
         &mut self,
         inserts: Vec<(PublicKey, Account)>,
-    ) -> Option<Vec<(PublicKey, Account, VrrbDBError)>> {
+    ) -> Option<Vec<(PublicKey, Account, VrrbDbError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit_changes();
         failed_inserts
@@ -451,7 +454,7 @@ impl VrrbDB {
     ///
     /// Examples:
     ///    ```
-    ///    use lrdb::{VrrbDB, Account, AccountField};
+    ///    use lrdb::{VrrbDb, Account, AccountField};
     ///    use secp256k1::PublicKey;
     ///    use std::str::FromStr;
     ///    use rand::{rngs::StdRng, SeedableRng};
@@ -461,7 +464,7 @@ impl VrrbDB {
     ///    let (_, key1) = generate_keypair(&mut StdRng::from_entropy());
     ///    let (_, key2) = generate_keypair(&mut StdRng::from_entropy());
     ///    let (_, key3) = generate_keypair(&mut StdRng::from_entropy());
-    ///    let mut vdb = VrrbDB::new();
+    ///    let mut vdb = VrrbDb::new();
     ///    
     ///
     ///    let mut account = Account::new();
@@ -483,11 +486,11 @@ impl VrrbDB {
     ///    assert_eq!(filtered.len(), 1);
     ///
     /// ```
-    pub fn retain<F>(&self, mut filter: F) -> VrrbDB
+    pub fn retain<F>(&self, mut filter: F) -> VrrbDb
     where
         F: FnMut(&Account) -> bool,
     {
-        let mut subdb = VrrbDB::new();
+        let mut subdb = VrrbDb::new();
         self.r.handle().for_each(|key, val| {
             let account = *val[0].clone();
             if filter(&account) {
@@ -513,13 +516,13 @@ impl VrrbDB {
     /// Examples:
     ///
     /// ```
-    ///  use lrdb::{VrrbDB, Account, AccountField};
+    ///  use lrdb::{VrrbDb, Account, AccountField};
     ///  use secp256k1::PublicKey;
     ///  use rand::{rngs::StdRng, SeedableRng};
     ///  use secp256k1::generate_keypair;
     ///   
     ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
-    ///  let mut vdb = VrrbDB::new();
+    ///  let mut vdb = VrrbDb::new();
     ///    
     ///  let mut account = Account::new();
     ///  account.update_field(AccountField::Credits(123));
@@ -545,14 +548,14 @@ impl VrrbDB {
     /// Example:
     ///
     /// ```
-    ///  use lrdb::{VrrbDB, Account, AccountField};
+    ///  use lrdb::{VrrbDb, Account, AccountField};
     ///  use secp256k1::PublicKey;
     ///  use rand::{rngs::StdRng, SeedableRng};
     ///  use secp256k1::generate_keypair;
     ///   
     ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
     ///  let (_, key2) = generate_keypair(&mut StdRng::from_entropy());
-    ///  let mut vdb = VrrbDB::new();
+    ///  let mut vdb = VrrbDb::new();
     ///      
     ///  let mut account = Account::new();
     ///  account.update_field(AccountField::Credits(123));
@@ -580,7 +583,7 @@ impl VrrbDB {
         &mut self,
         key: PublicKey,
         update: AccountFieldsUpdate,
-    ) -> Result<(), VrrbDBError> {
+    ) -> Result<(), VrrbDbError> {
         match self.get(key) {
             Some(mut account) => {
                 account.update(update)?;
@@ -588,7 +591,7 @@ impl VrrbDB {
 
                 return Ok(());
             }
-            None => return Err(VrrbDBError::AccountDoesntExist(key)),
+            None => return Err(VrrbDbError::AccountDoesntExist(key)),
         }
     }
 
@@ -605,13 +608,13 @@ impl VrrbDB {
     /// Example:
     ///
     /// ```
-    ///    use lrdb::{VrrbDB, Account, AccountField, AccountFieldsUpdate};
+    ///    use lrdb::{VrrbDb, Account, AccountField, AccountFieldsUpdate};
     ///    use secp256k1::PublicKey;
     ///    use rand::{rngs::StdRng, SeedableRng};
     ///    use secp256k1::generate_keypair;
     ///    
     ///    let (_,key) = generate_keypair(&mut StdRng::from_entropy());
-    ///    let mut vdb = VrrbDB::new();
+    ///    let mut vdb = VrrbDb::new();
     ///      
     ///    let mut account = Account::new();
     ///    account.update_field(AccountField::Credits(123));
@@ -636,7 +639,7 @@ impl VrrbDB {
         &mut self,
         key: PublicKey,
         update: AccountFieldsUpdate,
-    ) -> Result<(), VrrbDBError> {
+    ) -> Result<(), VrrbDbError> {
         self.update_uncommited(key, update)?;
         self.commit_changes();
         Ok(())
@@ -665,12 +668,12 @@ impl VrrbDB {
     pub fn batch_update(
         &mut self,
         mut updates: Vec<(PublicKey, AccountFieldsUpdate)>,
-    ) -> Option<Vec<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDBError>)>> {
+    ) -> Option<Vec<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>> {
         // Store and return all failures as (PublicKey, AllPushedUpdates, Error)
         // This way caller is provided with all info -> They know which accounts were not modified, have a list of all updates to try again
         // And an error thrown so that they can fix it
         let mut failed =
-            Vec::<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDBError>)>::new();
+            Vec::<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>::new();
 
         // We sort updates by nonce (that's impl of Ord in AccountField)
         // This way all provided updates are used in order (doesn't matter for different accounts, but important for multiple ops on single PubKey)
@@ -693,7 +696,7 @@ impl VrrbDB {
         // We don't need to commit the changes, since we never go back to that key in this function,
         // saving a lot of time (we don't need to wait for all readers to finish)
         update_batches.drain().for_each(|(k, v)| {
-            let mut fail: (bool, Result<(), VrrbDBError>) = (false, Ok(()));
+            let mut fail: (bool, Result<(), VrrbDbError>) = (false, Ok(()));
             let mut final_account = Account::new();
             match self.get(k) {
                 Some(mut account) => {
@@ -705,7 +708,7 @@ impl VrrbDB {
                     }
                     final_account = account;
                 }
-                None => fail = (true, Err(VrrbDBError::AccountDoesntExist(k))),
+                None => fail = (true, Err(VrrbDbError::AccountDoesntExist(k))),
             }
 
             if fail.0 {
@@ -728,7 +731,7 @@ impl VrrbDB {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum VrrbDBError {
+pub enum VrrbDbError {
     RecordExists,
     InitWithDebit,
     InitWithNonce,
@@ -756,7 +759,7 @@ mod tests {
         res
     }
 
-    fn print_accounts(vdb: &VrrbDB) {
+    fn print_accounts(vdb: &VrrbDb) {
         vdb.r
             .handle()
             .for_each(|_, v| println!("{{ \nnonce: {},\n credits: {},\n debits: {},\n code: {:?},\n storage: {:?},\n hash: {}\n}}", v[0].clone().nonce, v[0].clone().credits, v[0].clone().debits,v[0].clone().code,v[0].clone().storage, v[0].clone().hash));
@@ -764,7 +767,8 @@ mod tests {
 
     #[test]
     fn creates_new_database() {
-        let _vrrb_db = VrrbDB::new();
+        let vdb = VrrbDb::new();
+        assert_eq!(vdb.len(), 0);
     }
 
     #[test]
@@ -774,7 +778,7 @@ mod tests {
         let mut account = Account::new();
         account.update_field(AccountField::Credits(100));
 
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         if let Err(e) = vdb.insert(keys[0], account) {
             panic!("Failed to insert account with commitment: {:?}", e)
@@ -790,19 +794,19 @@ mod tests {
     #[test]
     fn fail_to_insert_with_nonce() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
         let mut record = Account::new();
 
         record.bump_nonce();
 
         let result = vdb.insert(keys[0], record);
-        assert_eq!(result, Err(VrrbDBError::InitWithNonce))
+        assert_eq!(result, Err(VrrbDbError::InitWithNonce))
     }
 
     #[test]
     fn fail_to_insert_with_debit() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
         let mut account = Account {
             nonce: 0,
             code: None,
@@ -814,13 +818,13 @@ mod tests {
         account.update_hash();
 
         let result = vdb.insert(keys[0], account);
-        assert_eq!(result, Err(VrrbDBError::InitWithDebit))
+        assert_eq!(result, Err(VrrbDbError::InitWithDebit))
     }
 
     #[test]
     fn inserts_multiple_valid_k_v_pairs_with_commitment() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let mut record1 = Account::new();
         record1.update_field(AccountField::Credits(100));
@@ -848,7 +852,7 @@ mod tests {
     #[test]
     fn insert_for_same_key_multiple_times_without_commitements_should_be_impossible() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let mut record1 = Account::new();
         record1.update_field(AccountField::Credits(100));
@@ -864,7 +868,7 @@ mod tests {
 
         match vdb.insert_uncommited(keys[0], record2) {
             Err(e) => {
-                assert_eq!(e, VrrbDBError::RecordExists)
+                assert_eq!(e, VrrbDbError::RecordExists)
             }
             Ok(_) => {
                 panic!("Multiple inserts for the same key!");
@@ -875,7 +879,7 @@ mod tests {
     #[test]
     fn inserts_multiple_k_v_pairs_some_invalid_with_commitment() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let mut record1 = Account::new();
         record1.update_field(AccountField::Credits(100));
@@ -899,8 +903,8 @@ mod tests {
             }
             Some(fails) => {
                 let expected = vec![
-                    (keys[0], record2, VrrbDBError::RecordExists),
-                    (keys[2], record3, VrrbDBError::InitWithDebit),
+                    (keys[0], record2, VrrbDbError::RecordExists),
+                    (keys[2], record3, VrrbDbError::InitWithDebit),
                 ];
                 for i in 0..2 {
                     assert_eq!(expected[i].0, fails[i].0);
@@ -914,7 +918,7 @@ mod tests {
     #[test]
     fn retain_properly_filters_the_values() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let mut record = Account::new();
         record.update_field(AccountField::Credits(123));
@@ -946,7 +950,7 @@ mod tests {
     #[test]
     fn retain_with_some_more_filters() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let account = Account::new();
         let updates = vec![
@@ -1032,7 +1036,7 @@ mod tests {
 
     #[test]
     fn get_should_return_account() {
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
         let account = Account::new();
         let keys = new_random_keys();
 
@@ -1042,7 +1046,7 @@ mod tests {
 
     #[test]
     fn get_should_return_none_for_nonexistant_account() {
-        let vdb = VrrbDB::new();
+        let vdb = VrrbDb::new();
         let keys = new_random_keys();
         assert_eq!(vdb.get(keys[0]), None);
     }
@@ -1050,7 +1054,7 @@ mod tests {
     #[test]
     fn update_with_valid_fields_should_work() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let account = Account::new();
         let updates = vec![
@@ -1126,7 +1130,7 @@ mod tests {
     #[test]
     fn update_batch_invalid_data_should_return_error() {
         let keys = new_random_keys();
-        let mut vdb = VrrbDB::new();
+        let mut vdb = VrrbDb::new();
 
         let account = Account::new();
         let updates = vec![
@@ -1205,11 +1209,11 @@ mod tests {
             }
             assert_eq!(
                 fails[debits_error_index].2,
-                Err(VrrbDBError::UpdateFailed(AccountField::Debits(90)))
+                Err(VrrbDbError::UpdateFailed(AccountField::Debits(90)))
             );
             assert_eq!(
                 fails[nonce_error_index].2,
-                Err(VrrbDBError::InvalidUpdateNonce(
+                Err(VrrbDbError::InvalidUpdateNonce(
                     account.nonce + 1,
                     account.nonce + 3
                 ))
