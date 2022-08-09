@@ -7,5 +7,9 @@ edition = "2021"
 
 [dependencies]
 
-secp256k1 = "0.24.0"
+secp256k1 = {version = "0.24.0", features = ["rand"]}
 vrf = "0.2.4"
+rand_chacha = "0.3.1"
+hex = "0.4.3"
+rand = "*"
+
