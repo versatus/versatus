@@ -15,12 +15,7 @@ serde_json = "1.0.64"
 serde = { version = "1.0.101", features = ["derive"] }
 blake3 = "0.3.8"
 bip39 = "1.0.1"
-<<<<<<< HEAD
-pickledb = "0.4.1"
-=======
 pickledb = "0.5.1"
-libp2p = "0.41.1"
->>>>>>> b1bb0da (Fixed most of cargo audit issues.)
 futures = "0.3.1"
 async-std = { version = "1", features = ["attributes", "tokio1"] }
 tokio = { version = "1.12.0", features = ["full"] }
