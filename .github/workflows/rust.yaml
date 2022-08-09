@@ -4,7 +4,7 @@ name: Rust
 
 jobs:
     cargo-test:
-        name: Setup job
+        name: Test
         runs-on: ubuntu-latest
         steps:
             - run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
@@ -25,7 +25,7 @@ jobs:
               with:
                   command: test
     cargo-audit:
-        name: Setup job
+        name: Audit
         runs-on: ubuntu-latest
         steps:
             - run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
