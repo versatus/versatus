@@ -90,8 +90,11 @@ impl Blockchain {
 
     /// Loads the chain from binary and returns a PickleDB instance
     pub fn get_chain_db(&self) -> PickleDb {
-        // TODO: Need to replace PickleDB with a custom database with more functionality for our protocol purposes
-        match PickleDb::load_bin(self.chain_db.clone(), PickleDbDumpPolicy::DumpUponRequest) {
+        match PickleDb::load(
+            self.chain_db.clone(),
+            PickleDbDumpPolicy::DumpUponRequest,
+            SerializationMethod::Bin,
+        ) {
             Ok(nst) => nst,
             Err(_) => PickleDb::new(
                 self.chain_db.clone(),
@@ -152,7 +155,11 @@ impl Blockchain {
     pub fn chain_db_from_bytes(&self, data: &[u8]) -> PickleDb {
         let db_map = serde_json::from_slice::<LinkedHashMap<String, Block>>(data).unwrap();
 
-        let mut db = PickleDb::new_bin(self.clone().chain_db, PickleDbDumpPolicy::DumpUponRequest);
+        let mut db = PickleDb::new(
+            self.clone().chain_db,
+            PickleDbDumpPolicy::DumpUponRequest,
+            SerializationMethod::Bin,
+        );
 
         db_map.iter().for_each(|(k, v)| {
             if let Err(e) = db.set(&k, &v) {
@@ -195,7 +202,10 @@ impl Blockchain {
         }
         if let Some(genesis_block) = &self.genesis {
             if let Some(last_block) = &self.child {
-                if let Err(e) = block.valid(&last_block, &(network_state.to_owned(), reward_state.to_owned())) {
+                if let Err(e) = block.valid(
+                    &last_block,
+                    &(network_state.to_owned(), reward_state.to_owned()),
+                ) {
                     self.future_blocks
                         .insert(block.clone().header.last_hash, block.clone());
                     return Err(e);
@@ -215,7 +225,10 @@ impl Blockchain {
                     return Ok(());
                 }
             } else {
-                if let Err(e) = block.valid(&genesis_block, &(network_state.to_owned(), reward_state.to_owned())) {
+                if let Err(e) = block.valid(
+                    &genesis_block,
+                    &(network_state.to_owned(), reward_state.to_owned()),
+                ) {
                     return Err(e);
                 } else {
                     self.child = Some(block.clone());
@@ -229,7 +242,9 @@ impl Blockchain {
         } else {
             // check that this is a valid genesis block.
             if block.header.block_height == 0 {
-                if let Ok(true) = block.valid_genesis(&(network_state.to_owned(), reward_state.to_owned())) {
+                if let Ok(true) =
+                    block.valid_genesis(&(network_state.to_owned(), reward_state.to_owned()))
+                {
                     self.genesis = Some(block.clone());
                     self.child = Some(block.clone());
                     self.block_cache.insert(block.hash.clone(), block.clone());
