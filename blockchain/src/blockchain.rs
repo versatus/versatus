@@ -90,8 +90,16 @@ impl Blockchain {
 
     /// Loads the chain from binary and returns a PickleDB instance
     pub fn get_chain_db(&self) -> PickleDb {
+<<<<<<< HEAD
         // TODO: Need to replace PickleDB with a custom database with more functionality for our protocol purposes
         match PickleDb::load_bin(self.chain_db.clone(), PickleDbDumpPolicy::DumpUponRequest) {
+=======
+        match PickleDb::load(
+            self.chain_db.clone(),
+            PickleDbDumpPolicy::DumpUponRequest,
+            SerializationMethod::Bin,
+        ) {
+>>>>>>> b1bb0da (Fixed most of cargo audit issues.)
             Ok(nst) => nst,
             Err(_) => PickleDb::new(
                 self.chain_db.clone(),
@@ -152,7 +160,11 @@ impl Blockchain {
     pub fn chain_db_from_bytes(&self, data: &[u8]) -> PickleDb {
         let db_map = serde_json::from_slice::<LinkedHashMap<String, Block>>(data).unwrap();
 
-        let mut db = PickleDb::new_bin(self.clone().chain_db, PickleDbDumpPolicy::DumpUponRequest);
+        let mut db = PickleDb::new(
+            self.clone().chain_db,
+            PickleDbDumpPolicy::DumpUponRequest,
+            SerializationMethod::Bin,
+        );
 
         db_map.iter().for_each(|(k, v)| {
             if let Err(e) = db.set(&k, &v) {
@@ -417,7 +429,11 @@ impl Blockchain {
 
         None
     }
+<<<<<<< HEAD
     /// Checks if the chain is missing the current network state
+=======
+
+>>>>>>> b1bb0da (Fixed most of cargo audit issues.)
     pub fn check_missing_state(&self) -> Option<ComponentTypes> {
         if !self
             .components_received
@@ -432,6 +448,10 @@ impl Blockchain {
     /// Creates vector of all components missing from the chain.
     pub fn check_missing_components(&self) -> Vec<ComponentTypes> {
         let mut missing = vec![];
+<<<<<<< HEAD
+=======
+
+>>>>>>> b1bb0da (Fixed most of cargo audit issues.)
         if let Some(component) = self.check_missing_genesis() {
             missing.push(component);
         }
