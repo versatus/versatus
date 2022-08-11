@@ -1,3 +1,8 @@
+//! vrrb verifiable random function library crate
+//! 
+//! generates a random number 
+//!
+
 mod vrrb_vrf {
     #![allow(unused)]
     use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
