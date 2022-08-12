@@ -83,7 +83,6 @@ impl<'a, H: Hasher> Debug for LeftRightTrie<'a, H> {
     }
 }
 
-// impl<'a, E, H> From<Vec<&'a Bytes>> for LeftRightTrie<'a, H>
 impl<'a, E, H> From<E> for LeftRightTrie<'a, H>
 where
     E: Iterator<Item = &'a Bytes>,

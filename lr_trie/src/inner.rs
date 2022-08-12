@@ -1,5 +1,5 @@
 use crate::{Byte, Bytes, Operation};
-use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
+use left_right::Absorb;
 use rs_merkle::{Hasher, MerkleTree};
 use std::fmt::Debug;
 
@@ -57,11 +57,9 @@ impl<H: Hasher> InnerTrie<H> {
     ///  assert_eq!(inner_trie.len(), 3);
     /// ```
     ///
-    // pub fn extend<'a, T>(&mut self, values: T)
     pub fn extend<'a, T>(&mut self, values: T)
     where
         T: Iterator<Item = &'a Bytes>,
-        // T: Iterator<Item = H::Hash>,
     {
         let mut hashed_values = values.map(|val| H::hash(val)).collect::<Vec<H::Hash>>();
 
@@ -186,8 +184,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::thread::{self, JoinHandle};
-
     use super::*;
     use rs_merkle::algorithms::Sha256;
     use rs_merkle::Hasher;
