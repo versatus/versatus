@@ -30,4 +30,5 @@ members = [
     "quorum",
     "state_trie",
     "lrdb",
+    "lr_trie",
 ]
