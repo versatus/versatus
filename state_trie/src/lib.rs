@@ -1,4 +1,3 @@
-use left_right::Absorb;
 use lr_trie::{Bytes, LeftRightTrie};
 use rs_merkle::Hasher;
 use std::fmt::Debug;
