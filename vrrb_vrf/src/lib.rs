@@ -1,26 +1,25 @@
 //! vrrb verifiable random function library crate
-//! 
+//!
 //! generates a random number or random word/mnemonic phrase
 
-pub mod vvrf;
 pub mod vrng;
+pub mod vvrf;
 
-
-///root module 
+///root module
 mod vrrb_vrf {
     #![allow(unused)]
     use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
-    use secp256k1::{SecretKey, PublicKey};
+    use rand_core::RngCore;
+    use secp256k1::{PublicKey, SecretKey};
     use vrf::openssl::{CipherSuite, ECVRF};
     use vrf::VRF;
-    use rand_core::RngCore;
 
-    use crate::vvrf::{VVRF, InvalidProofError};
     use crate::vrng::VRNG;
+    use crate::vvrf::{InvalidProofError, VVRF};
 
-    ///implement VVRF type by passing a secretKey such that 
+    ///implement VVRF type by passing a secretKey such that
     ///all the VVRF fields can now be calculated thanks to the sk being passed
-    ///and use of fxns defined below and imported 
+    ///and use of fxns defined below and imported
     impl VVRF {
         pub fn new(message: &[u8], sk: SecretKey) -> VVRF {
             let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
@@ -28,8 +27,15 @@ mod vrrb_vrf {
             let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
             ///rng calculated from hash
             let rng = ChaCha20Rng::from_seed(hash);
-            ///populate VVRF fields 
-            VVRF { vrf, pubkey, message: message.to_vec(), proof, hash, rng: rng }
+            ///populate VVRF fields
+            VVRF {
+                vrf,
+                pubkey,
+                message: message.to_vec(),
+                proof,
+                hash,
+                rng: rng,
+            }
         }
 
         ///get a sk using SecretKey struct
@@ -49,14 +55,17 @@ mod vrrb_vrf {
         }
 
         ///generate seed
-        fn generate_seed(vrf: &mut ECVRF, message: &[u8], secret_key: SecretKey) -> Option<([u8; 81], [u8; 32])> {
+        fn generate_seed(
+            vrf: &mut ECVRF,
+            message: &[u8],
+            secret_key: SecretKey,
+        ) -> Option<([u8; 81], [u8; 32])> {
             if let Ok(pi) = vrf.prove(&secret_key.secret_bytes(), message) {
                 if let Ok(hash) = vrf.proof_to_hash(&pi) {
                     let mut proof_buff = [0u8; 81];
                     pi.iter().enumerate().for_each(|(i, v)| {
                         proof_buff[i] = *v;
                     });
-                    
                     let mut hash_buff = [0u8; 32];
                     hash.iter().enumerate().for_each(|(i, v)| {
                         hash_buff[i] = *v;
@@ -74,10 +83,10 @@ mod vrrb_vrf {
         ///check that hash and beta are equal to ensure hash(seed) is valid
         pub fn verify_seed(&mut self) -> Result<(), InvalidProofError> {
             if let Ok(beta) = self.vrf.verify(&self.pubkey, &self.proof, &self.message) {
-                if self.hash.to_vec() != beta{
+                if self.hash.to_vec() != beta {
                     return Err(InvalidProofError);
                 } else {
-                    return Ok(())
+                    return Ok(());
                 }
             } else {
                 return Err(InvalidProofError);
@@ -110,8 +119,10 @@ mod vrrb_vrf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vrng::VRNG;
+    use crate::vvrf::VVRF;
+    use parity_wordlist::WORDS;
     use secp256k1::SecretKey;
-    use vrrb_vrf::{VRNG, VVRF};
     use vrf::openssl::{CipherSuite, ECVRF};
     use vrf::VRF;
 
@@ -159,7 +170,6 @@ mod tests {
         println!("{:?}", rn2);
         assert_eq!(rn1, rn2);
     }
-    
     #[test]
     fn same_seed_equals_same_random_u64() {
         let sk = SecretKey::new(&mut rand::thread_rng());
@@ -192,14 +202,27 @@ mod tests {
         let message = b"test";
         let vvrf: VVRF = VVRF::new(message, sk);
         let mut vrf = ECVRF::from_suite(CipherSuite::SECP256K1_SHA256_TAI).unwrap();
-        let beta = vrf.verify(&vvrf.get_pubkey(), &vvrf.get_proof(), &vvrf.get_message()).unwrap();
+        let beta = vrf
+            .verify(&vvrf.get_pubkey(), &vvrf.get_proof(), &vvrf.get_message())
+            .unwrap();
         let hash = vvrf.get_hash();
         assert_eq!(hash.to_vec(), beta);
     }
 
     #[test]
+    fn generates_word_from_lib() {
+        let sk = SecretKey::new(&mut rand::thread_rng());
+        let message = b"test";
+        let mut vvrf: VVRF = VVRF::new(message, sk);
+        let word = (vvrf.generate_word()).as_str();
+        assert!(WORDS.contains(&word));
+    }
+
+    #[test]
     fn generates_right_num_words() {
-        let vec: Vec<String> = generate_words(7);
-        assert_eq!(vec.len(), 7);
+        let sk = SecretKey::new(&mut rand::thread_rng());
+        let message = b"test";
+        let mut vvrf1: VVRF = VVRF::new(message, sk);
+        assert_eq!((vvrf1.generate_words(7)).len(), 7);
     }
 }
