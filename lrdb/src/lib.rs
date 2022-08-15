@@ -328,6 +328,11 @@ impl VrrbDbReadHandle {
         });
         accounts
     }
+
+    /// Returns a number of initialized accounts in the database
+    pub fn len(&self) -> usize {
+        self.rh.len()
+    }
 }
 
 impl VrrbDb {
@@ -364,7 +369,7 @@ impl VrrbDb {
     /// Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
         self.w.refresh();
-        self.last_refresh = SystemTime::now(); //self.last_refresh.max(SystemTime::now());
+        self.last_refresh = SystemTime::now();
     }
 
     // Maybe initialize is better name for that?
@@ -1368,5 +1373,6 @@ mod tests {
             }
         });
         thread::sleep(Duration::from_millis(1000));
+        assert_eq!(read_handle.len(), 10);
     }
 }
