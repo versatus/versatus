@@ -132,8 +132,6 @@ impl Account {
         res
     }
 
-    // TODO: Verify if
-
     /// Updates all fields of the account struct accoring to supplied AccountFieldsUpdate struct.
     /// Requires provided nonce (update's nonce) to be exactly one number higher than accounts nonce.
     /// Recalculates hash. Might return an error.
@@ -253,6 +251,85 @@ impl PartialOrd for AccountFieldsUpdate {
     }
 }
 
+#[derive(Clone)]
+pub struct VrrbDbReadHandle {
+    rh: evmap::ReadHandle<PublicKey, Box<Account>>,
+}
+
+impl VrrbDbReadHandle {
+    /// Returns `Some(Account)` if an account exist under given PublicKey.
+    /// Otherwise returns `None`.
+    ///
+    /// Arguments:
+    ///
+    /// * `key` - PublicKey indexing the account
+    ///
+    /// Examples:
+    ///
+    /// ```
+    ///  use lrdb::{VrrbDb, Account, AccountField};
+    ///  use secp256k1::PublicKey;
+    ///  use rand::{rngs::StdRng, SeedableRng};
+    ///  use secp256k1::generate_keypair;
+    ///   
+    ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
+    ///  let mut vdb = VrrbDb::new();
+    ///    
+    ///  let mut account = Account::new();
+    ///  account.update_field(AccountField::Credits(123));
+    ///
+    ///  vdb.insert(key, account);
+    ///
+    ///  if let Some(account) = vdb.read_handle().get(key) {
+    ///     assert_eq!(account.credits, 123);
+    ///  }
+    /// ```
+    pub fn get(&self, key: PublicKey) -> Option<Account> {
+        self.rh.get_and(&key, |x| return *x[0].clone())
+    }
+
+    /// Get a batch of accounts by providing Vec of PublicKeys
+    ///
+    /// Returns HashMap indexed by PublicKeys and containing either Some(account) or None if account was not found.
+    ///
+    /// Arguments:
+    ///
+    /// * `keys` - Vector of public keys for accounts to be fetched.
+    ///
+    /// Example:
+    ///
+    /// ```
+    ///  use lrdb::{VrrbDb, Account, AccountField};
+    ///  use secp256k1::PublicKey;
+    ///  use rand::{rngs::StdRng, SeedableRng};
+    ///  use secp256k1::generate_keypair;
+    ///   
+    ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
+    ///  let (_, key2) = generate_keypair(&mut StdRng::from_entropy());
+    ///  let mut vdb = VrrbDb::new();
+    ///      
+    ///  let mut account = Account::new();
+    ///  account.update_field(AccountField::Credits(123));
+    ///
+    ///  let mut account2 = Account::new();
+    ///  account2.update_field(AccountField::Credits(257));
+    ///   
+    ///  vdb.batch_insert(vec![(key, account), (key2,account2.clone())]);
+    ///
+    ///  let result = vdb.read_handle().batch_get(vec![key, key2]);
+    ///  
+    ///  assert_eq!(result[&key2].clone().unwrap().credits, 257);
+    ///     
+    /// ```
+    pub fn batch_get(&self, keys: Vec<PublicKey>) -> HashMap<PublicKey, Option<Account>> {
+        let mut accounts = HashMap::<PublicKey, Option<Account>>::new();
+        keys.iter().for_each(|k| {
+            accounts.insert(k.clone(), self.get(*k));
+        });
+        accounts
+    }
+}
+
 impl VrrbDb {
     /// Returns new, empty account.
     ///
@@ -274,15 +351,23 @@ impl VrrbDb {
         }
     }
 
+    /// Returns new ReadHandle to the VrrDb data. As long as the returned value lives,
+    /// no write to the database will be committed.
+    pub fn read_handle(&self) -> VrrbDbReadHandle {
+        VrrbDbReadHandle {
+            rh: self.r.handle(),
+        }
+    }
+
     // Commits uncommited changes
     /// Commits the pending changes to the underlying evmap by calling `refresh()`
     /// Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
         self.w.refresh();
-        self.last_refresh = SystemTime::now();
+        self.last_refresh = SystemTime::now(); //self.last_refresh.max(SystemTime::now());
     }
 
-    // TODO: Maybe initialize is better name for that?
+    // Maybe initialize is better name for that?
     fn insert_uncommited(
         &mut self,
         pubkey: PublicKey,
@@ -317,7 +402,7 @@ impl VrrbDb {
         }
     }
 
-    /// Inserts new account into VrrbDB.
+    /// Inserts new account into VrrbDb.
     ///
     /// Arguments:
     /// * `pubkey` - A PublicKey of account to be inserted
@@ -433,7 +518,7 @@ impl VrrbDb {
     ///
     /// vrrbdb.batch_insert(vec![(key, account1), (key1, account2), (key2, account3)]);
     ///
-    /// if let Some(account) = vrrbdb.get(key1) {
+    /// if let Some(account) = vrrbdb.read_handle().get(key1) {
     ///     assert_eq!(account.credits, 237);
     /// }
     /// ```
@@ -446,7 +531,7 @@ impl VrrbDb {
         failed_inserts
     }
 
-    /// Retain returns new VrrbDB with witch all Accounts that fulfill `filter` cloned to it.
+    /// Retain returns new VrrbDb with witch all Accounts that fulfill `filter` cloned to it.
     ///
     /// Arguments:
     ///
@@ -506,76 +591,9 @@ impl VrrbDb {
         self.w.len()
     }
 
-    /// Returns `Some(Account)` if an account exist under given PublicKey.
-    /// Otherwise returns `None`.
-    ///
-    /// Arguments:
-    ///
-    /// * `key` - PublicKey indexing the account
-    ///
-    /// Examples:
-    ///
-    /// ```
-    ///  use lrdb::{VrrbDb, Account, AccountField};
-    ///  use secp256k1::PublicKey;
-    ///  use rand::{rngs::StdRng, SeedableRng};
-    ///  use secp256k1::generate_keypair;
-    ///   
-    ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
-    ///  let mut vdb = VrrbDb::new();
-    ///    
-    ///  let mut account = Account::new();
-    ///  account.update_field(AccountField::Credits(123));
-    ///
-    ///  vdb.insert(key, account);
-    ///
-    ///  if let Some(account) = vdb.get(key) {
-    ///     assert_eq!(account.credits, 123);
-    ///  }
-    /// ```
-    pub fn get(&self, key: PublicKey) -> Option<Account> {
-        self.r.handle().get_and(&key, |x| return *x[0].clone())
-    }
-
-    /// Get a batch of accounts by providing Vec of PublicKeys
-    ///
-    /// Returns HashMap indexed by PublicKeys and containing either Some(account) or None if account was not found.
-    ///
-    /// Arguments:
-    ///
-    /// * `keys` - Vector of public keys for accounts to be fetched.
-    ///
-    /// Example:
-    ///
-    /// ```
-    ///  use lrdb::{VrrbDb, Account, AccountField};
-    ///  use secp256k1::PublicKey;
-    ///  use rand::{rngs::StdRng, SeedableRng};
-    ///  use secp256k1::generate_keypair;
-    ///   
-    ///  let (_, key) = generate_keypair(&mut StdRng::from_entropy());
-    ///  let (_, key2) = generate_keypair(&mut StdRng::from_entropy());
-    ///  let mut vdb = VrrbDb::new();
-    ///      
-    ///  let mut account = Account::new();
-    ///  account.update_field(AccountField::Credits(123));
-    ///
-    ///  let mut account2 = Account::new();
-    ///  account2.update_field(AccountField::Credits(257));
-    ///   
-    ///  vdb.batch_insert(vec![(key, account), (key2,account2.clone())]);
-    ///
-    ///  let result = vdb.batch_get(vec![key, key2]);
-    ///  
-    ///  assert_eq!(result[&key2].clone().unwrap().credits, 257);
-    ///     
-    /// ```
-    pub fn batch_get(&self, keys: Vec<PublicKey>) -> HashMap<PublicKey, Option<Account>> {
-        let mut accounts = HashMap::<PublicKey, Option<Account>>::new();
-        keys.iter().for_each(|k| {
-            accounts.insert(k.clone(), self.get(*k));
-        });
-        accounts
+    // Returns the last refresh time
+    pub fn last_refresh(&self) -> SystemTime {
+        self.last_refresh
     }
 
     // If possible, updates the account. Otherwise returns an error
@@ -584,7 +602,7 @@ impl VrrbDb {
         key: PublicKey,
         update: AccountFieldsUpdate,
     ) -> Result<(), VrrbDbError> {
-        match self.get(key) {
+        match self.read_handle().get(key) {
             Some(mut account) => {
                 account.update(update)?;
                 self.w.update(key, Box::new(account));
@@ -629,7 +647,7 @@ impl VrrbDb {
     ///    
     ///    vdb.update(key, update);
     ///
-    ///    if let Some(acc) = vdb.get(key) {
+    ///    if let Some(acc) = vdb.read_handle().get(key) {
     ///       assert_eq!(acc.credits,100);
     ///       assert_eq!(acc.debits, 50);    
     ///    }
@@ -662,8 +680,89 @@ impl VrrbDb {
     /// Examples:
     ///
     /// ```
+    ///    use lrdb::{VrrbDb, Account, AccountField, AccountFieldsUpdate};
+    ///    use secp256k1::PublicKey;
+    ///    use rand::{rngs::StdRng, SeedableRng};
+    ///    use secp256k1::generate_keypair;
     ///
+    ///    let mut vdb = VrrbDb::new();
+
+    ///    let account = Account::new();
+
+    ///    let (_,key) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let (_,key1) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let (_,key2) = generate_keypair(&mut StdRng::from_entropy());
+    ///    let (_,key3) = generate_keypair(&mut StdRng::from_entropy());
     ///
+    ///    let updates = vec![
+    ///        AccountFieldsUpdate {
+    ///            nonce: account.nonce + 1,
+    ///            credits: Some(1230),
+    ///            debits: Some(10),
+    ///            storage: Some(Some("Some storage".to_string())),
+    ///            ..Default::default()
+    ///        },
+    ///        AccountFieldsUpdate {
+    ///            credits: Some(100),
+    ///            debits: Some(300),
+    ///            nonce: account.nonce + 2,
+    ///            ..Default::default()
+    ///        },
+    ///    ];
+
+    ///    let account1 = Account::new();
+    ///    let update1 = AccountFieldsUpdate {
+    ///        nonce: account1.nonce + 1,
+    ///        credits: Some(250),
+    ///        ..Default::default()
+    ///    };
+
+    ///    let account2 = Account::new();
+    ///    let update2 = AccountFieldsUpdate {
+    ///        nonce: account2.nonce + 1,
+    ///        credits: Some(300),
+    ///        debits: Some(250),
+    ///        code: Some(Some("test".to_string())),
+    ///        ..Default::default()
+    ///    };
+
+    ///    let mut account3 = Account::new();
+    ///    let updates3 = vec![
+    ///        AccountFieldsUpdate {
+    ///            nonce: account3.nonce + 1,
+    ///            credits: Some(500),
+    ///            debits: Some(500),
+    ///            ..Default::default()
+    ///        },
+    ///        AccountFieldsUpdate {
+    ///            nonce: account3.nonce + 2,
+    ///            credits: Some(90),
+    ///            ..Default::default()
+    ///        },
+    ///    ];
+
+    ///    if let Some(failed) = vdb.batch_insert(vec![
+    ///        (key, account.clone()),
+    ///        (key1, account1.clone()),
+    ///        (key2, account2.clone()),
+    ///        (key3, account3.clone()),
+    ///    ]) {
+    ///        failed.iter().for_each(|(k, v, e)| {
+    ///            println!("{:?}", e);
+    ///        });
+    ///    };
+
+    ///    if let Some(fails) = vdb.batch_update(vec![
+    ///        (key, updates[0].clone()),
+    ///        (key, updates[1].clone()),
+    ///        (key1, update1),
+    ///        (key2, update2),
+    ///        (key3, updates3[0].clone()),
+    ///        (key3, updates3[1].clone()),
+    ///    ]) {
+    ///        panic!("Some updates failed {:?}", fails);
+    ///    };
+    //////
     /// ```
     pub fn batch_update(
         &mut self,
@@ -690,7 +789,7 @@ impl VrrbDb {
         });
 
         // For each PublicKey we try to apply every AccountFieldsUpdate on a copy of current account
-        // if event one fails, the whole batch is abandoned with no changes on VrrbDB
+        // if event one fails, the whole batch is abandoned with no changes on VrrbDb
         // when that happens, the key, batch of updates and error are pushed into result vec
         // On success we update the account at given index (PublicKey)
         // We don't need to commit the changes, since we never go back to that key in this function,
@@ -698,7 +797,7 @@ impl VrrbDb {
         update_batches.drain().for_each(|(k, v)| {
             let mut fail: (bool, Result<(), VrrbDbError>) = (false, Ok(()));
             let mut final_account = Account::new();
-            match self.get(k) {
+            match self.read_handle().get(k) {
                 Some(mut account) => {
                     for update in v.as_slice() {
                         if let Err(e) = account.update(update.clone()) {
@@ -747,12 +846,15 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use secp256k1::generate_keypair;
     use secp256k1::PublicKey;
+    use std::alloc::System;
+    use std::borrow::BorrowMut;
+    use std::thread;
 
-    fn new_random_keys() -> Vec<PublicKey> {
+    fn new_random_keys(n: usize) -> Vec<PublicKey> {
         let mut rng = StdRng::from_entropy();
         let mut res: Vec<PublicKey> = vec![];
 
-        for _ in 0..10 {
+        for _ in 0..n {
             let (_, pubkey) = generate_keypair(&mut rng);
             res.push(pubkey);
         }
@@ -772,8 +874,18 @@ mod tests {
     }
 
     #[test]
+    fn commiting_change_changes_last_refresh() {
+        let mut vdb = VrrbDb::new();
+        let key = new_random_keys(1);
+        let initial_time = vdb.last_refresh();
+        thread::sleep(Duration::from_secs(1));
+        vdb.insert(key[0], Account::new());
+        assert_ne!(initial_time, vdb.last_refresh());
+    }
+
+    #[test]
     fn insert_single_account_with_commitment() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
 
         let mut account = Account::new();
         account.update_field(AccountField::Credits(100));
@@ -784,7 +896,7 @@ mod tests {
             panic!("Failed to insert account with commitment: {:?}", e)
         }
 
-        if let Some(account) = vdb.get(keys[0]) {
+        if let Some(account) = vdb.read_handle().get(keys[0]) {
             assert_eq!(account.credits, 100);
         } else {
             panic!("Failed to get the account")
@@ -793,7 +905,7 @@ mod tests {
 
     #[test]
     fn fail_to_insert_with_nonce() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
         let mut record = Account::new();
 
@@ -805,7 +917,7 @@ mod tests {
 
     #[test]
     fn fail_to_insert_with_debit() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
         let mut account = Account {
             nonce: 0,
@@ -823,7 +935,7 @@ mod tests {
 
     #[test]
     fn inserts_multiple_valid_k_v_pairs_with_commitment() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let mut record1 = Account::new();
@@ -844,14 +956,14 @@ mod tests {
             (keys[2], record3),
         ]);
 
-        if let Some(account) = vdb.get(keys[1]) {
+        if let Some(account) = vdb.read_handle().get(keys[1]) {
             assert_eq!(account.credits, 237);
         }
     }
 
     #[test]
     fn insert_for_same_key_multiple_times_without_commitements_should_be_impossible() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let mut record1 = Account::new();
@@ -878,7 +990,7 @@ mod tests {
 
     #[test]
     fn inserts_multiple_k_v_pairs_some_invalid_with_commitment() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let mut record1 = Account::new();
@@ -917,7 +1029,7 @@ mod tests {
 
     #[test]
     fn retain_properly_filters_the_values() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let mut record = Account::new();
@@ -949,7 +1061,7 @@ mod tests {
 
     #[test]
     fn retain_with_some_more_filters() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let account = Account::new();
@@ -1038,22 +1150,22 @@ mod tests {
     fn get_should_return_account() {
         let mut vdb = VrrbDb::new();
         let account = Account::new();
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
 
         vdb.insert(keys[0], account.clone());
-        assert_eq!(vdb.get(keys[0]), Some(account));
+        assert_eq!(vdb.read_handle().get(keys[0]), Some(account));
     }
 
     #[test]
     fn get_should_return_none_for_nonexistant_account() {
         let vdb = VrrbDb::new();
-        let keys = new_random_keys();
-        assert_eq!(vdb.get(keys[0]), None);
+        let keys = new_random_keys(10);
+        assert_eq!(vdb.read_handle().get(keys[0]), None);
     }
 
     #[test]
     fn update_with_valid_fields_should_work() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let account = Account::new();
@@ -1129,7 +1241,7 @@ mod tests {
 
     #[test]
     fn update_batch_invalid_data_should_return_error() {
-        let keys = new_random_keys();
+        let keys = new_random_keys(10);
         let mut vdb = VrrbDb::new();
 
         let account = Account::new();
@@ -1219,5 +1331,42 @@ mod tests {
                 ))
             );
         };
+    }
+
+    use std::time::Duration;
+    #[test]
+    fn concurrency_test_with_writes_and_reads() {
+        const WRITES: usize = 50;
+        let mut vdb = VrrbDb::new();
+        let keys = new_random_keys(WRITES);
+        let keys2 = keys.clone();
+        let read_handle = vdb.read_handle();
+        for _ in 0..10 {
+            let rh = read_handle.clone();
+            let keys = keys2.clone();
+            thread::spawn(move || {
+                for _ in 0..1000 {
+                    rh.batch_get(keys[..].to_vec());
+                    thread::sleep(Duration::from_millis(10));
+                    print!(".")
+                }
+            });
+        }
+        thread::spawn(move || {
+            for i in 0..WRITES {
+                if let Err(e) = vdb.insert(keys[i], Account::new()) {
+                    panic!("Eror");
+                };
+                println!("{:?} {}", vdb.read_handle().get(keys[i]), vdb.len());
+                print!(
+                    "\nWrite at: {:?}\n Added account: {:?} \n Accounts in db: {}",
+                    vdb.last_refresh(),
+                    vdb.read_handle().get(keys[i]),
+                    vdb.len()
+                );
+                thread::sleep(Duration::from_millis(100));
+            }
+        });
+        thread::sleep(Duration::from_millis(1000));
     }
 }
