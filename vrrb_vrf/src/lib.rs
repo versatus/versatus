@@ -107,8 +107,7 @@ mod tests {
         let sk = SecretKey::new(&mut rand::thread_rng());
         let message = b"test";
         let mut vvrf: VVRF = VVRF::new(message, sk);
-        let word = (vvrf.generate_word()).as_str();
-        assert!(WORDS.contains(&word));
+        assert!(WORDS.contains(&(vvrf.generate_word()).as_str()));
     }
 
     #[test]

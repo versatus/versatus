@@ -73,7 +73,7 @@ impl VRNG for VVRF {
     }
 
     fn generate_usize(&mut self) -> usize {
-        let mut data = &[0u8; 8];
+        let data = &[0u8; 8];
         let (int_bytes, _) = data.split_at(std::mem::size_of::<usize>());
         usize::from_be_bytes(int_bytes.try_into().unwrap())
     }
@@ -81,35 +81,42 @@ impl VRNG for VVRF {
     fn generate_u8_in_range(&mut self, min: u8, max: u8) -> u8{
         let mut data = [0u8; 1];
         self.rng.fill_bytes(&mut data);
-        let mut num = u8::from_be_bytes(data) % (max-min+1) +min;
+        let num = u8::from_be_bytes(data) % (max-min+1) +min;
         return num % (max - min +1) + min;
     }
-    
+
     fn generate_u16_in_range(&mut self, min: u16, max: u16) -> u16{
         let mut data = [0u8; 2];
         self.rng.fill_bytes(&mut data);
-        let mut num = u16::from_be_bytes(data) % (max-min+1) +min;
+        let num = u16::from_be_bytes(data) % (max-min+1) +min;
         return num % (max - min +1) + min;
     }
 
     fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32{
         let mut data = [0u8; 4];
         self.rng.fill_bytes(&mut data);
-        let mut num = u32::from_be_bytes(data) % (max-min+1) +min;
+        let num = u32::from_be_bytes(data) % (max-min+1) +min;
         return num % (max - min +1) + min;
     }
 
     fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64{
         let mut data = [0u8; 8];
         self.rng.fill_bytes(&mut data);
-        let mut num = u64::from_be_bytes(data) % (max-min+1) +min;
+        let num = u64::from_be_bytes(data) % (max-min+1) +min;
         return num % (max - min +1) + min;
     }
 
     fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128{
         let mut data = [0u8; 16];
         self.rng.fill_bytes(&mut data);
-        let mut num = u128::from_be_bytes(data) % (max-min+1) +min;
+        let num = u128::from_be_bytes(data) % (max-min+1) +min;
+        return num % (max - min +1) + min;
+    }
+
+    fn generate_usize_in_range(&mut self, min: usize, max: usize) -> usize{
+        let data = &[0u8; 8];
+        let (int_bytes, _) = data.split_at(std::mem::size_of::<usize>());
+        let num = usize::from_be_bytes(int_bytes.try_into().unwrap());
         return num % (max - min +1) + min;
     }
 

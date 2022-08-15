@@ -14,6 +14,7 @@ pub trait VRNG {
     fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32;
     fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64;
     fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128;
+    fn generate_usize_in_range(&mut self, min: usize, max: usize) -> usize;
     fn generate_words(&mut self, n: usize) -> Vec<String> {
         let mut vec: Vec<String> = Vec::new();
         let mut i: usize = 0;
