@@ -1,26 +1,33 @@
 use crate::vrng::VRNG;
 use vrf::openssl::{CipherSuite, ECVRF};
-use rand_chacha::{ChaCha20Rng};
+use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_core::RngCore;
 use parity_wordlist::WORDS;
 use std::fmt::{Display};
+use vrf::VRF;
 use std::error::Error;
 use rand::seq::SliceRandom;
+use secp256k1::{SecretKey, PublicKey};
 
 #[derive(Debug)]
-pub struct InvalidProofError;
+pub enum InvalidVVRF{
+    InvalidProofError, 
+    InvalidPubKeyError, 
+    InvalidMessageError,
+}
 
-impl Display for InvalidProofError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Invalid Proof for vrf")
+impl Display for InvalidVVRF {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidVVRF::InvalidProofError => write!(f, "Invalid proof"),
+            InvalidVVRF::InvalidPubKeyError => write!(f, "Invalid public key"),
+            InvalidVVRF::InvalidMessageError => write!(f, "Invalid message"),
+        }
+    
     }
 }
 
-impl Error for InvalidProofError{
-    fn description(&self) -> &str {
-        "Invalid Proof for vrf"
-    }
-}
+impl std::error::Error for InvalidVVRF {}
 
 ///VVRF type contains all params necessary for creating and verifying an rng 
 ///It does not include the secret key 
@@ -69,6 +76,41 @@ impl VRNG for VVRF {
         let mut data = &[0u8; 8];
         let (int_bytes, _) = data.split_at(std::mem::size_of::<usize>());
         usize::from_be_bytes(int_bytes.try_into().unwrap())
+    }
+
+    fn generate_u8_in_range(&mut self, min: u8, max: u8) -> u8{
+        let mut data = [0u8; 1];
+        self.rng.fill_bytes(&mut data);
+        let mut num = u8::from_be_bytes(data) % (max-min+1) +min;
+        return num % (max - min +1) + min;
+    }
+    
+    fn generate_u16_in_range(&mut self, min: u16, max: u16) -> u16{
+        let mut data = [0u8; 2];
+        self.rng.fill_bytes(&mut data);
+        let mut num = u16::from_be_bytes(data) % (max-min+1) +min;
+        return num % (max - min +1) + min;
+    }
+
+    fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32{
+        let mut data = [0u8; 4];
+        self.rng.fill_bytes(&mut data);
+        let mut num = u32::from_be_bytes(data) % (max-min+1) +min;
+        return num % (max - min +1) + min;
+    }
+
+    fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64{
+        let mut data = [0u8; 8];
+        self.rng.fill_bytes(&mut data);
+        let mut num = u64::from_be_bytes(data) % (max-min+1) +min;
+        return num % (max - min +1) + min;
+    }
+
+    fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128{
+        let mut data = [0u8; 16];
+        self.rng.fill_bytes(&mut data);
+        let mut num = u128::from_be_bytes(data) % (max-min+1) +min;
+        return num % (max - min +1) + min;
     }
 
     fn generate_word(&mut self) -> String {
@@ -126,6 +168,7 @@ impl VVRF {
 
     ///get pk from vrf crate
     fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {
+        
         vrf.derive_public_key(&secret_key.secret_bytes()).unwrap()
     }
 
@@ -156,15 +199,15 @@ impl VVRF {
     }
 
     ///check that hash and beta are equal to ensure hash(seed) is valid
-    pub fn verify_seed(&mut self) -> Result<(), InvalidProofError> {
+    pub fn verify_seed(&mut self) -> Result<(), InvalidVVRF> {
         if let Ok(beta) = self.vrf.verify(&self.pubkey, &self.proof, &self.message) {
             if self.hash.to_vec() != beta {
-                return Err(InvalidProofError);
+                return Err(InvalidVVRF::InvalidProofError);
             } else {
                 return Ok(());
             }
         } else {
-            return Err(InvalidProofError);
+            return Err(InvalidVVRF::InvalidProofError);
         }
     }
 

@@ -118,4 +118,13 @@ mod tests {
         let mut vvrf1: VVRF = VVRF::new(message, sk);
         assert_eq!((vvrf1.generate_words(7)).len(), 7);
     }
+
+    #[test]
+    fn generates_rng_in_range(){
+        let sk = SecretKey::new(&mut rand::thread_rng());
+        let message = b"test";
+        let mut vvrf1: VVRF = VVRF::new(message, sk);
+        let rn = vvrf1.generate_u8_in_range(10, 100);
+        assert!(10 <= rn && rn <= 100);
+    }
 }

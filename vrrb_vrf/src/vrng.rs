@@ -9,6 +9,11 @@ pub trait VRNG {
     fn generate_u128(&mut self) -> u128;
     fn generate_usize(&mut self) -> usize;
     fn generate_word(&mut self) -> String;
+    fn generate_u8_in_range(&mut self, min: u8, max: u8) -> u8;
+    fn generate_u16_in_range(&mut self, min: u16, max: u16) -> u16;
+    fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32;
+    fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64;
+    fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128;
     fn generate_words(&mut self, n: usize) -> Vec<String> {
         let mut vec: Vec<String> = Vec::new();
         let mut i: usize = 0;
@@ -23,4 +28,6 @@ pub trait VRNG {
         let mut phrase: String = vec.join ("");
         return phrase.trim_start().to_string();
     }
+
+
 }
