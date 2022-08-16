@@ -22,7 +22,7 @@ impl Account {
     ///
     /// Examples:
     /// ```
-    /// use lrdb::Account;
+    /// use lrdb::lr_db::Account;
     ///
     /// let account = Account::new();
     /// ```
@@ -120,7 +120,7 @@ impl Account {
     ///
     /// # Examples:
     /// ```
-    /// use lrdb::{Account, AccountField};
+    /// use lrdb::lr_db::{Account, AccountField};
     /// let mut account = Account::new();
     /// account.update_field(AccountField::Credits(300));
     /// account.bump_nonce();
@@ -142,7 +142,7 @@ impl Account {
     ///
     /// # Example:
     /// ```
-    /// use lrdb::{Account, AccountFieldsUpdate};
+    /// use lrdb::lr_db::{Account, AccountFieldsUpdate};
     ///
     /// let mut account = Account::new();
     /// let update = AccountFieldsUpdate{
@@ -268,7 +268,7 @@ impl VrrbDbReadHandle {
     /// Examples:
     ///
     /// ```
-    ///  use lrdb::{VrrbDb, Account, AccountField};
+    ///  use lrdb::lr_db::{VrrbDb, Account, AccountField};
     ///  use secp256k1::PublicKey;
     ///  use rand::{rngs::StdRng, SeedableRng};
     ///  use secp256k1::generate_keypair;
@@ -300,7 +300,7 @@ impl VrrbDbReadHandle {
     /// Example:
     ///
     /// ```
-    ///  use lrdb::{VrrbDb, Account, AccountField};
+    ///  use lrdb::lr_db::{VrrbDb, Account, AccountField};
     ///  use secp256k1::PublicKey;
     ///  use rand::{rngs::StdRng, SeedableRng};
     ///  use secp256k1::generate_keypair;
@@ -341,7 +341,7 @@ impl VrrbDb {
     ///
     /// Examples:
     /// ```
-    /// use lrdb::VrrbDb;
+    /// use lrdb::lr_db::VrrbDb;
     ///
     /// let vdb = VrrbDb::new();
     /// ```
@@ -420,7 +420,7 @@ impl VrrbDb {
     /// Basic usage:
     ///
     /// ```
-    /// use lrdb::{Account, VrrbDb, VrrbDbError};
+    /// use lrdb::lr_db::{Account, VrrbDb, VrrbDbError};
     /// use secp256k1::PublicKey;
     /// use rand::{rngs::StdRng, SeedableRng};
     /// use secp256k1::generate_keypair;
@@ -437,7 +437,7 @@ impl VrrbDb {
     /// Failed inserts:
     ///
     /// ```
-    /// use lrdb::{Account, VrrbDb, VrrbDbError};
+    /// use lrdb::lr_db::{Account, VrrbDb, VrrbDbError};
     /// use secp256k1::{PublicKey};
     /// use rand::{rngs::StdRng, SeedableRng};
     /// use secp256k1::generate_keypair;
@@ -501,7 +501,7 @@ impl VrrbDb {
     ///
     /// Examples:
     /// ```
-    /// use lrdb::{Account, VrrbDb, AccountField};
+    /// use lrdb::lr_db::{Account, VrrbDb, AccountField};
     /// use secp256k1::PublicKey;
     ///
     /// let mut vrrbdb = VrrbDb::new();
@@ -545,7 +545,7 @@ impl VrrbDb {
     ///
     /// Examples:
     ///    ```
-    ///    use lrdb::{VrrbDb, Account, AccountField};
+    ///    use lrdb::lr_db::{VrrbDb, Account, AccountField};
     ///    use secp256k1::PublicKey;
     ///    use std::str::FromStr;
     ///    use rand::{rngs::StdRng, SeedableRng};
@@ -632,7 +632,7 @@ impl VrrbDb {
     /// Example:
     ///
     /// ```
-    ///    use lrdb::{VrrbDb, Account, AccountField, AccountFieldsUpdate};
+    ///    use lrdb::lr_db::{VrrbDb, Account, AccountField, AccountFieldsUpdate};
     ///    use secp256k1::PublicKey;
     ///    use rand::{rngs::StdRng, SeedableRng};
     ///    use secp256k1::generate_keypair;
@@ -686,7 +686,7 @@ impl VrrbDb {
     /// Examples:
     ///
     /// ```
-    ///    use lrdb::{VrrbDb, Account, AccountField, AccountFieldsUpdate};
+    ///    use lrdb::lr_db::{VrrbDb, Account, AccountField, AccountFieldsUpdate};
     ///    use secp256k1::PublicKey;
     ///    use rand::{rngs::StdRng, SeedableRng};
     ///    use secp256k1::generate_keypair;
