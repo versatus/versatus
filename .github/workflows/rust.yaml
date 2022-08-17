@@ -1,12 +1,13 @@
 on: [pull_request]
 
-name: Run tests
+name: Rust
 
 jobs:
-    test:
-        name: Test Suite
+    cargo-test:
+        name: cargo test
         runs-on: ubuntu-latest
         steps:
+            - run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
             - name: Checkout sources
               uses: actions/checkout@v2
               with:
@@ -19,12 +20,7 @@ jobs:
                   toolchain: stable
                   override: true
 
-            - name: Run cargo test
+            - name: cargo test
               uses: actions-rs/cargo@v1
               with:
                   command: test
-
-            - name: Run cargo audit
-              uses: actions-rs/cargo@v1
-              with:
-                  command: audit

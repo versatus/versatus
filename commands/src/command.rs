@@ -1,9 +1,13 @@
+// Feature Tag(s): Validator Stake Calculation, Tx Validation, Tx Confirmation, Masternode Signing, Masternode Election
+// Node Reputation Scores, Block Structure, Packet Processing, Message Processing, Message Allocating, Message Caching
 use serde::{Deserialize, Serialize};
 use messages::packet::Packet;
 use std::net::SocketAddr;
 use messages::message_types::MessageType;
 use udp2p::protocol::protocol::Message;
 
+/// Basic Command Constants
+//TODO: Need to add all potential input commands
 pub const SENDTXN: &str = "SENDTXN";
 pub const GETBAL: &str = "GETBAL";
 pub const GETSTATE: &str = "GETSTATE";
@@ -13,6 +17,7 @@ pub const STOPMINE: &str = "STOPMINE";
 pub const GETHEIGHT: &str = "GETHEIGHT";
 pub const QUIT: &str = "QUIT";
 
+/// Component Types of a state update
 #[derive(Debug, Serialize, Deserialize, Clone, Hash)]
 pub enum ComponentTypes {
     Genesis,
@@ -25,8 +30,12 @@ pub enum ComponentTypes {
     All,
 }
 
+/// The command enum is the basic datatype used to send commands around the program
+//TODO: Review all the commands and determine which ones are needed, which can be changed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {
+    //TODO: Replace standard types with custom types for better readability
+    // and to help engineers understand what the hell these items are. 
     SendTxn(u32, String, u128), // address number, receiver address, amount
     ProcessTxn(Vec<u8>),
     ProcessTxnValidator(Vec<u8>),
@@ -85,11 +94,13 @@ pub enum Command {
     Quit,
 }
 
+/// A Trait to convert different types into a command
 pub trait AsCommand {
     fn into_command(&self) -> Command;
 }
 
 impl Command {
+    /// Converts a string (typically a user input in the terminal interface) into a command
     pub fn from_str(command_string: &str) -> Option<Command> {
         let args: Vec<&str> = command_string.split(' ').collect();
         if args.len() == 4 {
@@ -145,8 +156,8 @@ impl Command {
     }
 }
 
-
 impl ComponentTypes {
+    /// Converts a Componenet type into an integer.
     pub fn to_int(&self) -> u8 {
         match *self {
             ComponentTypes::Genesis => 0,

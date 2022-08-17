@@ -1,5 +1,4 @@
 pub mod claim;
-pub mod poc;
 
 #[cfg(test)]
 mod tests {

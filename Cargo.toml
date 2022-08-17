@@ -12,12 +12,14 @@ members = [
     "txn",
     "wallet",
     "events",
+    "ev_mem_pool",
     "commands",
     "messages",
     "vrrb_lib",
     "vrrb_tui",
     "vrrb_cli",
     "vrrb_gui",
+    "vrrb_vrf",
     "network",
     "node",
     "verifiable",
@@ -27,6 +29,7 @@ members = [
     "noncing",
     "updateable",
     "quorum",
+    "state_trie",
+    "lrdb",
+    "lr_trie",
 ]
-
-exclude = ["claim_concept"]

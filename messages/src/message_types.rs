@@ -6,6 +6,10 @@ use std::net::SocketAddr;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StateBlock(pub u128);
 
+/// Message types are the different types of messages that can be
+/// packed and sent across the network.
+//TODO: Convert Vec<u8>, String, u128 and other standard types with custom types
+// that better describe their purpose
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MessageType {
     TxnMessage {
@@ -85,10 +89,12 @@ pub enum MessageType {
 }
 
 impl MessageType {
+    /// Serialize a message to into a vector of bytes
     pub fn as_bytes(self) -> Vec<u8> {
         serde_json::to_string(&self).unwrap().as_bytes().to_vec()
     }
 
+    /// Deserialie a vector of bytes into a MessageType
     pub fn from_bytes(data: &[u8]) -> Option<MessageType> {
         if let Ok(message) = serde_json::from_slice::<MessageType>(data) {
             Some(message)

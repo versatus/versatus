@@ -1,3 +1,4 @@
+// This file contains code for creating blocks to be proposed, including the genesis block and blocks being mined.
 #![allow(unused_imports)]
 #![allow(dead_code)]
 use crate::header::BlockHeader;
@@ -24,24 +25,29 @@ const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
-
-    pub struct Block {
-        pub header: BlockHeader,
-        pub neighbors: Option<Vec<BlockHeader>>,
-        pub height: u128,
-        pub txns: LinkedHashMap<String, Txn>,
-        pub claims: LinkedHashMap<String, Claim>,
-        pub hash: String,
-        pub received_at: Option<u128>,
-        pub received_from: Option<String>,
-        pub abandoned_claim: Option<Claim>,
-    }
+pub struct Block {
+    pub header: BlockHeader,
+    pub neighbors: Option<Vec<BlockHeader>>,
+    pub height: u128,
+    // TODO: replace with Tx Trie Root
+    pub txns: LinkedHashMap<String, Txn>,
+    // TODO: Replace with Claim Trie Root
+    pub claims: LinkedHashMap<String, Claim>,
+    pub hash: String,
+    pub received_at: Option<u128>,
+    pub received_from: Option<String>,
+    // TODO: Replace with map of all abandoned claims in the even more than 1 miner is faulty when they are entitled to mine
+    pub abandoned_claim: Option<Claim>,
+}
 
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
+        // Create the genesis header
         let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
+        // Create the genesis state hash
+        // TODO: Replace with state trie root
         let state_hash = digest_bytes(
             format!(
                 "{},{}",
@@ -50,7 +56,8 @@ impl Block {
             )
             .as_bytes(),
         );
-
+        
+        // Replace with claim trie
         let mut claims = LinkedHashMap::new();
         claims.insert(claim.clone().pubkey.clone(), claim);
 
@@ -66,7 +73,7 @@ impl Block {
             abandoned_claim: None,
         };
 
-        // Update the account state with the miner and new block, this will also set the values to the
+        // Update the State Trie & Tx Trie with the miner and new block, this will also set the values to the
         // network state. Unwrap the result and assign it to the variable updated_account_state to
         // be returned by this method.
 
@@ -87,6 +94,8 @@ impl Block {
         abandoned_claim: Option<Claim>,
         signature: String,
     ) -> Option<Block> {
+
+        // TODO: Replace with Tx Trie Root 
         let txn_hash = {
             let mut txn_vec = vec![];
             txns.iter().for_each(|(_, v)| {
@@ -95,6 +104,7 @@ impl Block {
             digest_bytes(&txn_vec)
         };
 
+        // TODO: Remove there should be no neighbors
         let neighbors_hash = {
             let mut neighbors_vec = vec![];
             if let Some(neighbors) = &neighbors {
@@ -107,6 +117,7 @@ impl Block {
             }
         };
 
+        // TODO: Fix after replacing neighbors and tx hash/claim hash with respective Trie Roots
         let header = BlockHeader::new(
             last_block.clone(),
             reward_state,
@@ -117,6 +128,9 @@ impl Block {
             signature,
         );
 
+        // TODO: Discuss whether local clock works well enough for this purpose of guaranteeing at least 1 second between blocks
+        // or whether some other mechanism may serve the purpose better, or whether simply sequencing proposed blocks and allowing
+        // validator network to determine how much time between blocks has passed.
         if let Some(time) = header.timestamp.checked_sub(last_block.header.timestamp) {
             if (time / SECOND) < 1 {
                 return None;
@@ -139,6 +153,7 @@ impl Block {
             abandoned_claim,
         };
 
+        // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
         let hash = hashable_state.hash(&block.txns.clone(), block.header.block_reward.clone());
@@ -176,10 +191,10 @@ impl fmt::Display for Block {
     }
 }
 
+// TODO: Rewrite Verifiable to comport with Masternode Quorum Validation Protocol
 impl Verifiable for Block {
     type Item = Block;
-    type DependantOne = NetworkState;
-    type DependantTwo = RewardState;
+    type Dependencies = (NetworkState, RewardState);
     type Error = InvalidBlockError;
 
     fn verifiable(&self) -> bool {
@@ -190,8 +205,7 @@ impl Verifiable for Block {
     fn valid(
         &self,
         item: &Self::Item,
-        dependant_one: &Self::DependantOne,
-        dependant_two: &Self::DependantTwo,
+        dependencies: &Self::Dependencies
     ) -> Result<bool, Self::Error> {
         if self.header.block_height > item.header.block_height + 1 {
             return Err(Self::Error {
@@ -224,7 +238,7 @@ impl Verifiable for Block {
         }
 
         if let Some((hash, pointers)) =
-            dependant_one.get_lowest_pointer(self.header.block_nonce as u128)
+            dependencies.0.get_lowest_pointer(self.header.block_nonce as u128)
         {
             if hash == self.header.claim.hash {
                 if let Some(claim_pointer) = self
@@ -249,13 +263,13 @@ impl Verifiable for Block {
             }
         }
 
-        if !dependant_two.valid_reward(self.header.block_reward.category) {
+        if !dependencies.1.valid_reward(self.header.block_reward.category) {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidBlockReward,
             });
         }
 
-        if !dependant_two.valid_reward(self.header.next_block_reward.category) {
+        if !dependencies.1.valid_reward(self.header.next_block_reward.category) {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidNextBlockReward,
             });
@@ -267,7 +281,7 @@ impl Verifiable for Block {
             });
         }
 
-        if let Err(_) = self.header.claim.valid(&None, &None, &None) {
+        if let Err(_) = self.header.claim.valid(&None, &(None, None)) {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidClaim,
             });
@@ -276,7 +290,7 @@ impl Verifiable for Block {
         Ok(true)
     }
 
-    fn valid_genesis(&self, dependant_two: &Self::DependantTwo) -> Result<bool, Self::Error> {
+    fn valid_genesis(&self, dependencies: &Self::Dependencies) -> Result<bool, Self::Error> {
         let genesis_last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
         let genesis_state_hash = digest_bytes(
             format!(
@@ -293,13 +307,13 @@ impl Verifiable for Block {
             });
         }
 
-        if !dependant_two.valid_reward(self.header.block_reward.category) {
+        if !dependencies.1.valid_reward(self.header.block_reward.category) {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidBlockReward,
             });
         }
 
-        if !dependant_two.valid_reward(self.header.next_block_reward.category) {
+        if !dependencies.1.valid_reward(self.header.next_block_reward.category) {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidNextBlockReward,
             });
@@ -317,7 +331,7 @@ impl Verifiable for Block {
             });
         }
 
-        if let Err(_) = self.header.claim.valid(&None, &None, &None) {
+        if let Err(_) = self.header.claim.valid(&None, &(None, None)) {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidClaim,
             });

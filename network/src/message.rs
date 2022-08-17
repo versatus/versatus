@@ -1,12 +1,14 @@
 use crate::components::StateComponent;
 use commands::command::{Command, ComponentTypes};
-use messages::message_types::{MessageType, StateBlock};
+use messages::message_types::{MessageType};
 use log::info;
 
 pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
+/// Processes messages that come across the network and returns an `Option<Command>` to be allocated
+/// to different parts of the system. 
 #[allow(unused_variables)]
 pub fn process_message(message: MessageType, node_id: String, addr: String) -> Option<Command> {
     match message.clone() {
