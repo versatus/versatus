@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
+    collections::{HashSet, HashMap},
     hash::Hash,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-// use verifiable::verifiable::Verifiable;
-use super::error::MempoolError;
+use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
+
 use txn::txn::Txn;
+use super::error::MempoolError;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct TxnRecord {
@@ -31,40 +32,109 @@ impl TxnRecord {
             txn: txn.to_string(),
             txn_timestamp: txn.txn_timestamp,
             txn_added_timestamp: timestamp,
-            txn_validated_timestamp: 0,
-            txn_deleted_timestamp: 0,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_by_id(txn_id: &String) -> TxnRecord {
+
+        TxnRecord {
+            txn_id: txn_id.clone(),
+            ..Default::default()
         }
     }
 }
 
-pub struct Mempool<K, V>
-where
-    K: Clone + Eq + Hash,
-    V: Clone + Eq + Hash + evmap::ShallowCopy,
-{
-    pub txn_store_read: evmap::ReadHandle<K, V>,
-    pub txn_store_write: evmap::WriteHandle<K, V>,
-    pub db_creation: u128,
-    pub last_operation: u128,
+impl Default for TxnRecord {
+    fn default() -> Self {
+        TxnRecord {
+            txn_id: String::from(""),
+            txn: String::from(""),
+            txn_timestamp: 0,
+            txn_added_timestamp: 0,
+            txn_validated_timestamp: 0,
+            txn_deleted_timestamp: 0
+        }
+    }
 }
 
-pub type MempoolDB = Mempool<String, Box<TxnRecord>>;
+pub type MempoolType = HashMap<String, TxnRecord>;
 
-impl MempoolDB {
-    #[allow(unused_mut)]
-    pub fn new() -> MempoolDB {
-        let (txn_buffer_read, mut txn_buffer_write) = evmap::new();
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+#[derive(Clone, PartialEq, Eq)]
+pub struct Mempool {
+    pub store: MempoolType
+}
 
-        MempoolDB {
-            txn_store_read: txn_buffer_read,
-            txn_store_write: txn_buffer_write,
-            db_creation: timestamp,
-            last_operation: timestamp,
+impl Default for Mempool {
+    fn default() -> Self {
+        Mempool { store: MempoolType::new() }
+    }
+}
+
+pub enum MempoolOp {
+    Add(TxnRecord),
+    Remove(TxnRecord)
+}
+
+impl Absorb<MempoolOp> for Mempool
+{
+    fn absorb_first(&mut self, op: &mut MempoolOp, _: &Self) {
+        match op {
+            MempoolOp::Add(recdata) => {
+                self.store.insert(recdata.txn_id.clone(), recdata.clone());
+            },
+            MempoolOp::Remove(recdata) => {
+                self.store.remove(&recdata.txn_id);
+            },
         }
+    }
+
+    fn absorb_second(&mut self, op: MempoolOp, _: &Self) {
+        match op {
+            MempoolOp::Add(recdata) => {
+                self.store.insert(recdata.txn_id.clone(), recdata.clone());
+            },
+            MempoolOp::Remove(recdata) => {
+                self.store.remove(&recdata.txn_id);
+            },
+        }
+    }
+
+    fn drop_first(self: Box<Self>) {
+    }
+
+    fn drop_second(self: Box<Self>) {
+    }
+
+    fn sync_with(&mut self, first: &Self) {
+        *self = first.clone();
+    }
+}
+
+pub struct LeftRightMemPoolDB {
+    pub read: ReadHandle<Mempool>,
+    pub write: WriteHandle<Mempool, MempoolOp>,
+}
+
+impl LeftRightMemPoolDB {
+
+    pub fn new() -> Self {
+        let (write, read)
+            = left_right::new::<Mempool, MempoolOp>();
+        LeftRightMemPoolDB {
+            read: read,
+            write: write
+        }
+    }
+
+    pub fn get(&self) -> Option<Mempool> {
+        self.read
+            .enter()
+            .map(|guard| guard.clone())
+    }
+
+    pub fn factory(&self) -> ReadHandleFactory<Mempool> {
+        self.read.factory()
     }
 
     /// Adds a new transaction, makes sure it is unique in db.
@@ -73,11 +143,11 @@ impl MempoolDB {
     /// # Examples
     ///
     /// ```
-    /// use mempool::mempool::MempoolDB;
+    /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::HashMap;
     /// 
-    /// let mut mempooldb = MempoolDB::new();
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// 
     /// let txn = Txn {
     ///     txn_id: String::from("1"),
@@ -93,7 +163,7 @@ impl MempoolDB {
     ///     nonce: 0,
     /// };
     /// 
-    /// match mempooldb.add_txn(&txn) {
+    /// match lrmempooldb.add_txn(&txn) {
     ///     Ok(_) => {
     ///         
     ///     },
@@ -101,227 +171,14 @@ impl MempoolDB {
     /// 
     ///     }
     /// };
+    /// 
+    /// assert_eq!(1, lrmempooldb.size());
     /// ```
     pub fn add_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
-        if !self.txn_store_write.contains_key(&txn.txn_id) {
-            self.txn_store_write
-                .insert(txn.txn_id.clone(), Box::new(TxnRecord::new(txn)));
-            self.push();
-            Ok(())
-        } else {
-            Err(MempoolError::TransactionExists)
-        }
-    }
 
-    /// Adds a batch of new transaction, makes sure that each is unique in db.
-    /// Pushes to ReadHandle after processing of the entire batch.
-    ///
-    /// # Examples
-    /// ```
-    /// use mempool::mempool::MempoolDB;
-    /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
-    /// 
-    /// let mut mempooldb = MempoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// 
-    /// txns.insert( Txn {
-    ///     txn_id: String::from("1"),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
-    /// 
-    /// match mempooldb.add_txn_batch(&txns) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    /// 
-    ///     }
-    /// };
-    /// ```
-    pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
-        txn_batch.iter().for_each(|t| {
-            if !self.txn_store_write.contains_key(&t.txn_id) {
-                self.txn_store_write
-                    .insert(t.txn_id.clone(), Box::new(TxnRecord::new(t)));
-            }
-        });
-        self.push();
-        Ok(())
-    }
-
-    /// Removes a single transaction identified by id, makes sure it exists in db.
-    /// Pushes to the ReadHandle.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use mempool::mempool::MempoolDB;
-    /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
-    /// 
-    /// let mut mempooldb = MempoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
-    /// 
-    /// txns.insert( Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
-    /// 
-    /// match mempooldb.add_txn_batch(&txns) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    /// 
-    ///     }
-    /// };
-    ///  
-    /// match mempooldb.remove_txn_by_id(txn_id.clone()) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///       Err(_) => {
-    ///  
-    ///      }
-    /// };
-    /// ```
-    pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<(), MempoolError> {
-        if self.txn_store_write.contains_key(&txn_id) {
-            self.txn_store_write.empty(txn_id);
-            self.push();
-            Ok(())
-        } else {
-            Err(MempoolError::TransactionMissing)
-        }
-    }
-
-    /// Removes a single transaction identified by itself, makes sure it exists in db.
-    /// Pushes to the ReadHandle.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use mempool::mempool::MempoolDB;
-    /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
-    /// 
-    /// let mut mempooldb = MempoolDB::new();
-    /// let txn_id = String::from("1");
-    /// 
-    /// let txn = Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// };
-    /// 
-    /// match mempooldb.add_txn(&txn) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    /// 
-    ///     }
-    /// };
-    /// match mempooldb.remove_txn(&txn) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    /// 
-    ///     }
-    /// };
-    /// ```
-    pub fn remove_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
-        if self.txn_store_write.contains_key(&txn.txn_id) {
-            self.txn_store_write.empty(txn.txn_id.clone());
-            self.push();
-            Ok(())
-        } else {
-            Err(MempoolError::TransactionMissing)
-        }
-    }
-
-    /// Removes a batch of transactions, makes sure that each is unique in db.
-    /// Pushes to ReadHandle after processing of the entire batch.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use mempool::mempool::MempoolDB;
-    /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
-    /// 
-    /// let mut mempooldb = MempoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
-    /// 
-    /// txns.insert( Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
-    /// 
-    /// match mempooldb.add_txn_batch(&txns) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    /// 
-    ///     }
-    /// };
-    ///  
-    /// match mempooldb.remove_txn_batch(&txns) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///       Err(_) => {
-    ///  
-    ///      }
-    /// };
-    /// ```
-    pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
-        txn_batch.iter().for_each(|t| {
-            if self.txn_store_write.contains_key(&t.txn_id) {
-                self.txn_store_write.empty(t.txn_id.clone());
-            }
-        });
-        self.push();
+        let op = MempoolOp::Add(TxnRecord::new(txn));
+        self.write.append(op);
+        self.publish();
         Ok(())
     }
 
@@ -331,11 +188,11 @@ impl MempoolDB {
     /// # Examples
     ///
     /// ```
-    /// use mempool::mempool::MempoolDB;
+    /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
     /// 
-    /// let mut mempooldb = MempoolDB::new();
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
     /// 
@@ -353,7 +210,7 @@ impl MempoolDB {
     ///     nonce: 0,
     /// });
     /// 
-    /// match mempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns) {
     ///     Ok(_) => {
     ///         
     ///     },
@@ -362,34 +219,84 @@ impl MempoolDB {
     ///     }
     /// };
     ///
-    /// if let Some(txn) = mempooldb.get_txn(&txn_id) {
-    ///     assert_eq!(1, mempooldb.size());
+    /// if let Some(txn) = lrmempooldb.get_txn(&txn_id) {
+    ///     assert_eq!(1, lrmempooldb.size());
     /// } else {
     ///     panic!("Transaction missing !");
     /// };
     /// ```
     pub fn get_txn(&mut self, txn_id: &String) -> Option<Txn> {
         if !txn_id.is_empty() {
-            self.txn_store_read
-                .factory()
-                .handle()
-                .get_one(txn_id)
-                .map(|t| Txn::from_string(&t.txn))
+            self.get()
+                .and_then(|map| {
+                    map
+                        .store
+                        .get(txn_id)
+                        .and_then(|t| {
+                            Some(Txn::from_string(&t.txn))
+                        })
+                })
         } else {
             None
         }
     }
 
-    /// Retrieves actual size of the mempooldb.
+    /// Adds a batch of new transaction, makes sure that each is unique in db.
+    /// Pushes to ReadHandle after processing of the entire batch.
+    ///
+    /// # Examples
+    /// ```
+    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use txn::txn::Txn;
+    /// use std::collections::{HashSet, HashMap};
+    /// 
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
+    /// let mut txns = HashSet::<Txn>::new();
+    /// 
+    /// txns.insert( Txn {
+    ///     txn_id: String::from("1"),
+    ///     txn_timestamp: 0,
+    ///     sender_address: String::from("aaa1"),
+    ///     sender_public_key: String::from("RSA"),
+    ///     receiver_address: String::from("bbb1"),
+    ///     txn_token: None,
+    ///     txn_amount: 0,
+    ///     txn_payload: String::from("x"),
+    ///     txn_signature: String::from("x"),
+    ///     validators: HashMap::<String, bool>::new(),
+    ///     nonce: 0,
+    /// });
+    /// 
+    /// match lrmempooldb.add_txn_batch(&txns) {
+    ///      Ok(_) => {
+    ///         
+    ///     },
+    ///     Err(_) => {
+    /// 
+    ///     }
+    /// };
+    /// 
+    /// assert_eq!(1, lrmempooldb.size());
+    /// ```
+    pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
+        txn_batch.iter().for_each(|t| {
+            self.write.append(MempoolOp::Add(TxnRecord::new(t)));
+        });
+        self.publish();
+        Ok(())
+    }
+
+    /// Removes a single transaction identified by id, makes sure it exists in db.
+    /// Pushes to the ReadHandle.
     ///
     /// # Examples
     ///
     /// ```
-    /// use mempool::mempool::MempoolDB;
+    /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
     /// 
-    /// let mut mempooldb = MempoolDB::new();
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
     /// 
@@ -407,7 +314,68 @@ impl MempoolDB {
     ///     nonce: 0,
     /// });
     /// 
-    /// match mempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns) {
+    ///      Ok(_) => {
+    ///         
+    ///     },
+    ///     Err(_) => {
+    /// 
+    ///     }
+    /// };
+    ///  
+    /// match lrmempooldb.remove_txn_by_id(txn_id.clone()) {
+    ///     Ok(_) => {
+    ///         
+    ///     },
+    ///       Err(_) => {
+    ///  
+    ///      }
+    /// };
+    /// 
+    /// assert_eq!(0, lrmempooldb.size());
+    /// ```
+    pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<(), MempoolError> {
+        self.write.append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id)));
+        self.publish();
+        Ok(())
+    }
+
+    /// Removes a single transaction identified by itself, makes sure it exists in db.
+    /// Pushes to the ReadHandle.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use txn::txn::Txn;
+    /// use std::collections::{HashSet, HashMap};
+    /// 
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
+    /// let txn_id = String::from("1");
+    /// 
+    /// let txn = Txn {
+    ///     txn_id: txn_id.clone(),
+    ///     txn_timestamp: 0,
+    ///     sender_address: String::from("aaa1"),
+    ///     sender_public_key: String::from("RSA"),
+    ///     receiver_address: String::from("bbb1"),
+    ///     txn_token: None,
+    ///     txn_amount: 0,
+    ///     txn_payload: String::from("x"),
+    ///     txn_signature: String::from("x"),
+    ///     validators: HashMap::<String, bool>::new(),
+    ///     nonce: 0,
+    /// };
+    /// 
+    /// match lrmempooldb.add_txn(&txn) {
+    ///      Ok(_) => {
+    ///         
+    ///     },
+    ///     Err(_) => {
+    /// 
+    ///     }
+    /// };
+    /// match lrmempooldb.remove_txn(&txn) {
     ///     Ok(_) => {
     ///         
     ///     },
@@ -415,11 +383,69 @@ impl MempoolDB {
     /// 
     ///     }
     /// };
-    ///
-    /// assert_eq!(1, mempooldb.size());
+    /// 
+    /// assert_eq!(0, lrmempooldb.size());
     /// ```
-    pub fn size(&self) -> usize {
-        self.txn_store_write.len()
+    pub fn remove_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
+        self.write.append(MempoolOp::Remove(TxnRecord::new(txn)));
+        self.publish();
+        Ok(())
+    }
+
+    /// Removes a batch of transactions, makes sure that each is unique in db.
+    /// Pushes to ReadHandle after processing of the entire batch.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use txn::txn::Txn;
+    /// use std::collections::{HashSet, HashMap};
+    /// 
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
+    /// let mut txns = HashSet::<Txn>::new();
+    /// let txn_id = String::from("1");
+    /// 
+    /// txns.insert( Txn {
+    ///     txn_id: txn_id.clone(),
+    ///     txn_timestamp: 0,
+    ///     sender_address: String::from("aaa1"),
+    ///     sender_public_key: String::from("RSA"),
+    ///     receiver_address: String::from("bbb1"),
+    ///     txn_token: None,
+    ///     txn_amount: 0,
+    ///     txn_payload: String::from("x"),
+    ///     txn_signature: String::from("x"),
+    ///     validators: HashMap::<String, bool>::new(),
+    ///     nonce: 0,
+    /// });
+    /// 
+    /// match lrmempooldb.add_txn_batch(&txns) {
+    ///      Ok(_) => {
+    ///         
+    ///     },
+    ///     Err(_) => {
+    /// 
+    ///     }
+    /// };
+    ///  
+    /// match lrmempooldb.remove_txn_batch(&txns) {
+    ///     Ok(_) => {
+    ///         
+    ///     },
+    ///       Err(_) => {
+    ///  
+    ///      }
+    /// };
+    /// 
+    /// assert_eq!(0, lrmempooldb.size());
+    /// ```
+    pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
+        txn_batch.iter().for_each(|t| {
+            self.write.append(MempoolOp::Remove(TxnRecord::new(t)));
+        });
+        self.publish();
+        Ok(())
     }
 
     pub fn validate(&mut self, _txn: &Txn) -> Result<(), MempoolError> {
@@ -430,11 +456,54 @@ impl MempoolDB {
         Ok(())
     }
 
-    fn push(&mut self) {
-        self.txn_store_write.refresh();
-        self.last_operation = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+    /// Retrieves actual size of the mempooldb.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use txn::txn::Txn;
+    /// use std::collections::{HashSet, HashMap};
+    /// 
+    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
+    /// let mut txns = HashSet::<Txn>::new();
+    /// let txn_id = String::from("1");
+    /// 
+    /// txns.insert( Txn {
+    ///     txn_id: txn_id.clone(),
+    ///     txn_timestamp: 0,
+    ///     sender_address: String::from("aaa1"),
+    ///     sender_public_key: String::from("RSA"),
+    ///     receiver_address: String::from("bbb1"),
+    ///     txn_token: None,
+    ///     txn_amount: 0,
+    ///     txn_payload: String::from("x"),
+    ///     txn_signature: String::from("x"),
+    ///     validators: HashMap::<String, bool>::new(),
+    ///     nonce: 0,
+    /// });
+    /// 
+    /// match lrmempooldb.add_txn_batch(&txns) {
+    ///     Ok(_) => {
+    ///         
+    ///     },
+    ///     Err(_) => {
+    /// 
+    ///     }
+    /// };
+    ///
+    /// assert_eq!(1, lrmempooldb.size());
+    /// ```
+    pub fn size(&self) -> usize {
+        if let Some(map) = self.get() {
+            map.store.len()
+        } else {
+            0
+        }
     }
+
+    fn publish(&mut self) {
+        self.write.publish();
+    }
+
 }
