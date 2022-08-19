@@ -13,4 +13,7 @@ pub enum Operation<'a> {
 
 pub mod inner;
 mod lr_trie;
-pub use crate::lr_trie::*;
+mod trie;
+
+pub use lr_trie::*;
+pub use trie::*;
