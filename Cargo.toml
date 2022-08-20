@@ -14,6 +14,7 @@ members = [
     "events",
     "ev_mem_pool",
     "commands",
+    "mempool",
     "messages",
     "vrrb_lib",
     "vrrb_tui",
