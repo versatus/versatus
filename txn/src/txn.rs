@@ -14,6 +14,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 use verifiable::verifiable::Verifiable;
+use std::{
+    hash::{Hash,Hasher}
+};
 
 /// A simple custom error type
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -152,3 +155,43 @@ impl fmt::Display for Txn {
         )
     }
 }
+
+impl Hash for Txn {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.txn_id.hash(state);
+        self.txn_timestamp.hash(state);
+        self.sender_address.hash(state);
+        self.sender_public_key.hash(state);
+        self.receiver_address.hash(state);
+        self.txn_token.hash(state);
+        self.txn_amount.hash(state);
+        self.txn_payload.hash(state);
+        self.txn_signature.hash(state);
+        self.nonce.hash(state);
+    }
+
+    fn hash_slice<H: Hasher>(data: &[Self], state: &mut H)
+    where
+        Self: Sized,
+    {
+        for piece in data {
+            piece.hash(state);
+        }
+    }
+}
+
+impl PartialEq for Txn {
+    fn eq(&self, other: &Self) -> bool {
+        self.txn_id == other.txn_id &&
+        self.txn_timestamp == other.txn_timestamp &&
+        self.sender_address == other.sender_address &&
+        self.sender_public_key == other.sender_public_key &&
+        self.receiver_address == other.receiver_address &&
+        self.txn_token == other.txn_token &&
+        self.txn_amount == other.txn_amount &&
+        self.txn_signature == other.txn_signature &&
+        self.nonce == other.nonce
+    }
+}
+
+impl Eq for Txn {}
