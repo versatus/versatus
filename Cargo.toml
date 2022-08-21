@@ -32,4 +32,5 @@ members = [
     "state_trie",
     "lrdb",
     "lr_trie",
+    "tx_trie",
 ]
