@@ -163,7 +163,7 @@ impl VVRF {
     }
 
     ///get a sk using SecretKey struct
-    fn generate_secret_key() -> SecretKey {
+    pub fn generate_secret_key() -> SecretKey {
         let secret_key = SecretKey::new(&mut rand::thread_rng());
         secret_key
     }
