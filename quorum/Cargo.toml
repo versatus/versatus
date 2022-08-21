@@ -11,3 +11,7 @@ state = { path = "../state" }
 block = { path = "../block" }
 vrrb_vrf = { path = "../vrrb_vrf" }
 rand_chacha = "0.3.1"
+hex = "0.4.3"
+lr_trie = {path = "../lr_trie"}
+miner = {path = "../miner"}
+claim = {path = "../claim"}
