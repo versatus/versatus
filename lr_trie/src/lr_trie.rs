@@ -102,6 +102,29 @@ where
     }
 }
 
+// impl<'a, H: Hasher> Iterator for LeftRightTrie<'a, H> {
+//     type Item = &'a H::Hash;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         match self.leaves() {
+//             Some(lv) => lv.iter().next(),
+//             None => None,
+//         }
+//     }
+// }
+
+// impl<'a, H: Hasher> IntoIterator for LeftRightTrie<'a, H> {
+//     type Item = H::Hash;
+//
+//     type IntoIter = Self;
+//
+//     fn into_iter(self) -> Self::IntoIter {
+//
+//         self.into_iter
+//         todo!()
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use std::thread;
