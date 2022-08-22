@@ -60,8 +60,8 @@ type Link<K, V> = Box<Node<K, V>>;
 // pub enum Node<'a> {
 pub enum Node<K, V>
 where
-    K: AsRef<[u8]>,
-    V: AsRef<[u8]>,
+    K: AsRef<[u8]> + Clone,
+    V: AsRef<[u8]> + Clone,
 {
     /// Null trie node; could be an empty root or an empty branch entry.
     Empty,
@@ -90,12 +90,12 @@ where
 // ),
 
 #[derive(Debug, Default)]
-struct Trie<K: AsRef<[u8]>> {
+struct Trie<K: AsRef<[u8]> + Clone> {
     root_index: usize,
     db: HashMap<usize, Node<K, K>>,
 }
 
-impl<K: AsRef<[u8]>> Trie<K> {
+impl<K: AsRef<[u8]> + Clone> Trie<K> {
     pub fn new() -> Self {
         Trie {
             root_index: 0,
@@ -105,7 +105,7 @@ impl<K: AsRef<[u8]>> Trie<K> {
 }
 
 // impl<K: AsRef<[u8]>> MerkleTree for Trie<K> {
-impl<K: AsRef<[u8]>> Trie<K> {
+impl<K: AsRef<[u8]> + Clone> Trie<K> {
     // pub fn root(&self) -> String {
     //     // TODO: impl hasher
     //     String::from("")
@@ -118,7 +118,7 @@ impl<K: AsRef<[u8]>> Trie<K> {
 }
 
 // impl<K: AsRef<[u8]>> Tree<K> for Trie<K> {
-impl<K: AsRef<[u8]>> Trie<K> {
+impl<K: AsRef<[u8]> + Clone> Trie<K> {
     // fn get(&self, key: &Nibble) -> Result<T> {
     fn get(&self, key: K) -> Result<Node<K, K>> {
         Ok(Node::Empty)
@@ -143,13 +143,12 @@ impl<K: AsRef<[u8]>> Trie<K> {
                 match node {
                     &mut Node::Empty => {
                         // if EmptyNode, replace it with a new LeafNode with the remaining path.
-
                         *node = Node::Leaf(nibbles, value);
 
-                        break Ok(Node::Empty);
+                        break Ok(node.clone());
                     }
                     Node::Leaf(_, _) => {
-                        //
+                        // if LeafNode, convert it to an ExtensionNode and add a new branch and a new LeafNode.
                         break Ok(Node::Empty);
                     }
                     Node::Branch(_, _) => {
