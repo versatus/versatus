@@ -15,5 +15,5 @@ pub mod inner;
 mod lr_trie;
 mod trie;
 
-pub use lr_trie::*;
-pub use trie::*;
+pub use crate::lr_trie::*;
+pub use crate::trie::*;
