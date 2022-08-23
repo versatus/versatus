@@ -76,7 +76,3 @@ pub struct ExtensionNode {
 pub struct HashNode {
     pub hash: H256,
 }
-
-pub fn empty_children() -> [Node; 16] {
-    Default::default()
-}

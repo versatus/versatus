@@ -1,4 +1,3 @@
-use std::fmt;
 use thiserror::Error;
 
 use keccak_hash::H256;
@@ -23,7 +22,7 @@ pub enum TrieError {
     },
 
     #[error("database error: {0}")]
-    DB(String),
+    Database(String),
 
     #[error("decoder error: {0}")]
     Decoder(#[from] DecoderError),
