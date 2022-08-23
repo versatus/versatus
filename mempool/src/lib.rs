@@ -512,7 +512,7 @@ mod tests {
 
                     match read_hdl.enter().map(|guard| guard.clone()) {
                         Some(m) => {
-                            assert_eq!(m.store.len(), txn_id_max-1);
+                            assert_eq!(m.pending.len(), txn_id_max-1);
                         },
                         None => {
                             panic!("No mempool !");

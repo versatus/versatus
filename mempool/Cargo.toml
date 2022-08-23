@@ -13,3 +13,5 @@ secp256k1 = "0.24.0"
 txn = { path="../txn"}
 left-right = "0.11.5"
 threadpool = "1.8.1"
+indexmap = "1.9.1"
+fxhash = "0.2.1"

@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashSet, HashMap},
+    collections::HashSet,
     hash::Hash,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+use fxhash::FxBuildHasher;
+use indexmap::IndexMap;
 
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 
@@ -17,6 +20,7 @@ pub struct TxnRecord {
     pub txn_timestamp: u128,
     pub txn_added_timestamp: u128,
     pub txn_validated_timestamp: u128,
+    pub txn_rejected_timestamp: u128,
     pub txn_deleted_timestamp: u128,
 }
 
@@ -53,49 +57,89 @@ impl Default for TxnRecord {
             txn_timestamp: 0,
             txn_added_timestamp: 0,
             txn_validated_timestamp: 0,
+            txn_rejected_timestamp: 0,
             txn_deleted_timestamp: 0
         }
     }
 }
 
-pub type MempoolType = HashMap<String, TxnRecord>;
+// pub type MempoolType = HashMap<String, TxnRecord>;
+pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Mempool {
-    pub store: MempoolType
+    pub pending: MempoolType,
+    pub validated: MempoolType,
+    pub rejected: MempoolType
 }
 
 impl Default for Mempool {
     fn default() -> Self {
-        Mempool { store: MempoolType::new() }
+
+        // TODO - to be moved to a common configuration file
+        let initial_mempool_capacity = 100;
+
+        Mempool { 
+            pending: MempoolType::with_capacity_and_hasher(initial_mempool_capacity, <_>::default()),
+            validated: MempoolType::with_capacity_and_hasher(initial_mempool_capacity, <_>::default()),
+            rejected: MempoolType::with_capacity_and_hasher(initial_mempool_capacity, <_>::default())
+        }
     }
 }
 
 pub enum MempoolOp {
-    Add(TxnRecord),
-    Remove(TxnRecord)
+    AddPending(TxnRecord),
+    AddValidated(TxnRecord),
+    AddRejected(TxnRecord),
+    RemovePending(TxnRecord),
+    RemoveValidated(TxnRecord),
+    RemoveRejected(TxnRecord)
 }
 
 impl Absorb<MempoolOp> for Mempool
 {
     fn absorb_first(&mut self, op: &mut MempoolOp, _: &Self) {
         match op {
-            MempoolOp::Add(recdata) => {
-                self.store.insert(recdata.txn_id.clone(), recdata.clone());
+            MempoolOp::AddPending(recdata) => {
+                self.pending.insert(recdata.txn_id.clone(), recdata.clone());
             },
-            MempoolOp::Remove(recdata) => {
-                self.store.remove(&recdata.txn_id);
+            MempoolOp::RemovePending(recdata) => {
+                self.pending.remove(&recdata.txn_id);
+            },
+            MempoolOp::AddValidated(recdata) => {
+                self.validated.insert(recdata.txn_id.clone(), recdata.clone());
+            },
+            MempoolOp::RemoveValidated(recdata) => {
+                self.validated.remove(&recdata.txn_id);
+            },
+            MempoolOp::AddRejected(recdata) => {
+                self.rejected.insert(recdata.txn_id.clone(), recdata.clone());
+            },
+            MempoolOp::RemoveRejected(recdata) => {
+                self.rejected.remove(&recdata.txn_id);
             },
         }
     }
 
     fn absorb_second(&mut self, op: MempoolOp, _: &Self) {
         match op {
-            MempoolOp::Add(recdata) => {
-                self.store.insert(recdata.txn_id.clone(), recdata.clone());
+            MempoolOp::AddPending(recdata) => {
+                self.pending.insert(recdata.txn_id.clone(), recdata.clone());
             },
-            MempoolOp::Remove(recdata) => {
-                self.store.remove(&recdata.txn_id);
+            MempoolOp::RemovePending(recdata) => {
+                self.pending.remove(&recdata.txn_id);
+            },
+            MempoolOp::AddValidated(recdata) => {
+                self.validated.insert(recdata.txn_id.clone(), recdata.clone());
+            },
+            MempoolOp::RemoveValidated(recdata) => {
+                self.validated.remove(&recdata.txn_id);
+            },
+            MempoolOp::AddRejected(recdata) => {
+                self.rejected.insert(recdata.txn_id.clone(), recdata.clone());
+            },
+            MempoolOp::RemoveRejected(recdata) => {
+                self.rejected.remove(&recdata.txn_id);
             },
         }
     }
@@ -121,6 +165,7 @@ impl LeftRightMemPoolDB {
     pub fn new() -> Self {
         let (write, read)
             = left_right::new::<Mempool, MempoolOp>();
+
         LeftRightMemPoolDB {
             read: read,
             write: write
@@ -176,7 +221,7 @@ impl LeftRightMemPoolDB {
     /// ```
     pub fn add_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
 
-        let op = MempoolOp::Add(TxnRecord::new(txn));
+        let op = MempoolOp::AddPending(TxnRecord::new(txn));
         self.write.append(op);
         self.publish();
         Ok(())
@@ -230,11 +275,54 @@ impl LeftRightMemPoolDB {
             self.get()
                 .and_then(|map| {
                     map
-                        .store
+                        .pending
                         .get(txn_id)
                         .and_then(|t| {
                             Some(Txn::from_string(&t.txn))
                         })
+                })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_txn_record(&mut self, txn_id: &String) -> Option<TxnRecord> {
+
+        if !txn_id.is_empty() {
+            self.get()
+                .and_then(|map| {
+                    map
+                        .validated
+                        .get(txn_id)
+                        .cloned()
+                })
+        } else {
+            None
+        }            
+    }
+
+    pub fn get_txn_record_validated(&mut self, txn_id: &String) -> Option<TxnRecord> {
+        if !txn_id.is_empty() {
+            self.get()
+                .and_then(|map| {
+                    map
+                        .validated
+                        .get(txn_id)
+                        .cloned()
+                })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_txn_record_rejected(&mut self, txn_id: &String) -> Option<TxnRecord> {
+        if !txn_id.is_empty() {
+            self.get()
+                .and_then(|map| {
+                    map
+                        .rejected
+                        .get(txn_id)
+                        .cloned()
                 })
         } else {
             None
@@ -280,7 +368,7 @@ impl LeftRightMemPoolDB {
     /// ```
     pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Add(TxnRecord::new(t)));
+            self.write.append(MempoolOp::AddPending(TxnRecord::new(t)));
         });
         self.publish();
         Ok(())
@@ -335,7 +423,7 @@ impl LeftRightMemPoolDB {
     /// assert_eq!(0, lrmempooldb.size());
     /// ```
     pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<(), MempoolError> {
-        self.write.append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id)));
+        self.write.append(MempoolOp::RemovePending(TxnRecord::new_by_id(&txn_id)));
         self.publish();
         Ok(())
     }
@@ -387,7 +475,7 @@ impl LeftRightMemPoolDB {
     /// assert_eq!(0, lrmempooldb.size());
     /// ```
     pub fn remove_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
-        self.write.append(MempoolOp::Remove(TxnRecord::new(txn)));
+        self.write.append(MempoolOp::RemovePending(TxnRecord::new(txn)));
         self.publish();
         Ok(())
     }
@@ -442,8 +530,33 @@ impl LeftRightMemPoolDB {
     /// ```
     pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(TxnRecord::new(t)));
+            self.write.append(MempoolOp::RemovePending(TxnRecord::new(t)));
         });
+        self.publish();
+        Ok(())
+    }
+
+    pub fn validate_all(&mut self) -> Result<(), MempoolError> {
+
+        self.get()
+            .and_then(|map| {
+                map
+                    .pending
+                    .iter().for_each(|rec_entry| {
+                        let txn = Txn::from_string(&rec_entry.1.txn);
+                        match self.validate(&txn) {
+                            Ok(_) => {
+                                self.write.append(MempoolOp::RemovePending(rec_entry.1.clone()));
+                                self.write.append(MempoolOp::AddValidated(rec_entry.1.clone()));
+                            },
+                            Err(_) => {
+                                self.write.append(MempoolOp::RemovePending(rec_entry.1.clone()));
+                                self.write.append(MempoolOp::AddRejected(rec_entry.1.clone()));
+                            }
+                        }
+                    });
+                Some(map)
+            });
         self.publish();
         Ok(())
     }
@@ -452,8 +565,20 @@ impl LeftRightMemPoolDB {
         Ok(())
     }
 
-    pub fn validate_by_id(&mut self, _txn_id: String) -> Result<(), MempoolError> {
-        Ok(())
+    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128, MempoolError> {
+        if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
+            Ok(txn_record_validated.txn_validated_timestamp)
+        } else {
+            Err(MempoolError::TransactionMissing)
+        }
+    }
+
+    pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128, MempoolError> {
+        if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
+            Ok(txn_record_rejected.txn_validated_timestamp)
+        } else {
+            Err(MempoolError::TransactionMissing)
+        }
     }
 
     /// Retrieves actual size of the mempooldb.
@@ -496,7 +621,7 @@ impl LeftRightMemPoolDB {
     /// ```
     pub fn size(&self) -> usize {
         if let Some(map) = self.get() {
-            map.store.len()
+            map.pending.len()
         } else {
             0
         }
