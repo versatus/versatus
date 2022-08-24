@@ -5,9 +5,8 @@ use rand_core::RngCore;
 use parity_wordlist::WORDS;
 use std::fmt::{Display};
 use vrf::VRF;
-use std::error::Error;
 use rand::seq::SliceRandom;
-use secp256k1::{SecretKey, PublicKey};
+use secp256k1::{SecretKey};
 
 #[derive(Debug)]
 pub enum InvalidVVRF{
@@ -145,13 +144,13 @@ impl VRNG for VVRF {
 ///all the VVRF fields can now be calculated thanks to the sk being passed
 ///and use of fxns defined below and imported
 impl VVRF {
+    ///create new VVRF type by populating fields with return types
+    /// of VVRF methods
     pub fn new(message: &[u8], sk: SecretKey) -> VVRF {
         let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
         let pubkey = VVRF::generate_pubkey(&mut vrf, sk);
         let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
-        ///rng calculated from hash
         let rng = ChaCha20Rng::from_seed(hash);
-        ///populate VVRF fields
         VVRF {
             vrf,
             pubkey,
@@ -160,12 +159,6 @@ impl VVRF {
             hash,
             rng: rng,
         }
-    }
-
-    ///get a sk using SecretKey struct
-    fn generate_secret_key() -> SecretKey {
-        let secret_key = SecretKey::new(&mut rand::thread_rng());
-        secret_key
     }
 
     ///get vrf from openssl struct ECVRF (eliptic curve vrf)

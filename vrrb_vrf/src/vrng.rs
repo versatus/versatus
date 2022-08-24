@@ -26,7 +26,7 @@ pub trait VRNG {
     }
     fn generate_phrase(&mut self, n: usize) -> String {
         let vec: Vec<String> = self.generate_words(n);
-        let mut phrase: String = vec.join ("");
+        let phrase: String = vec.join ("");
         return phrase.trim_start().to_string();
     }
 
