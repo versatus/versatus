@@ -1,5 +1,6 @@
 pub mod error;
 pub mod mempool;
+pub mod txn_validator;
 
 #[cfg(test)]
 mod tests {
