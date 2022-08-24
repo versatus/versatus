@@ -1,12 +1,12 @@
-// use crate::{inner::InnerTrie, Bytes, Operation};
 use crate::{
     db::Database,
-    trie::{InnerTrie, Trie},
-    Bytes, Operation,
+    inner::InnerTrie,
+    op::{Bytes, Operation},
+    trie::Trie,
 };
 use keccak_hash::H256;
 use left_right::{ReadHandle, ReadHandleFactory, WriteHandle};
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -16,8 +16,18 @@ pub struct LeftRightTrie<'a, D: Database> {
 }
 
 impl<'a, D: Database> LeftRightTrie<'a, D> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(db: Arc<D>) -> Self {
+        let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+
+        let rh = read_handle
+            .enter()
+            .map(|guard| guard.clone())
+            .unwrap_or_default();
+
+        Self {
+            read_handle,
+            write_handle,
+        }
     }
 
     // TODO: consider renaming to handle, get_handle or get_read_handle
@@ -119,19 +129,21 @@ mod tests {
 
     #[test]
     fn should_be_read_concurrently() {
-        let mut trie = LeftRightTrie::<MemoryDB>::new();
+        let memdb = Arc::new(MemoryDB::new(true));
+        let mut trie = LeftRightTrie::new(memdb);
 
         trie.add(b"abcdefg", b"12345");
         trie.add(b"hijkl", b"678910");
         trie.add(b"mnopq", b"1112131415");
 
-        // Spawn 10 threads and 10 readers that should report the exact same value
+        // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
             .iter()
             .map(|_| {
                 let reader = trie.get();
                 thread::spawn(move || {
-                    assert_eq!(reader.len(), 3);
+                    // NOTE: 3 nodes plus the root add up to 4
+                    assert_eq!(reader.len(), 4);
                 })
             })
             .for_each(|handle| {

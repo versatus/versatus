@@ -5,7 +5,7 @@ use rlp::DecoderError;
 
 use crate::nibbles::Nibbles;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, Eq, PartialEq)]
 pub enum TrieError {
     #[error("invalid data")]
     InvalidData,
