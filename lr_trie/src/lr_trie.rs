@@ -19,11 +19,6 @@ impl<'a, D: Database> LeftRightTrie<'a, D> {
     pub fn new(db: Arc<D>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
 
-        let rh = read_handle
-            .enter()
-            .map(|guard| guard.clone())
-            .unwrap_or_default();
-
         Self {
             read_handle,
             write_handle,
@@ -69,10 +64,9 @@ impl<'a, D: Database> LeftRightTrie<'a, D> {
     }
 
     // TODO: revisit once inner trie is refactored into patriecia
-    pub fn extend(&mut self, _values: Vec<&'a Bytes>) {
-        // self.write_handle.append(Operation::Extend(values));
-        // self.publish();
-        todo!()
+    pub fn extend(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
+        self.write_handle.append(Operation::Extend(values));
+        self.publish();
     }
 
     pub fn add_uncommitted(&mut self, key: &'a Bytes, value: &'a Bytes) {
@@ -100,24 +94,27 @@ impl<'a, D: Database> Default for LeftRightTrie<'a, D> {
     }
 }
 
-impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
-where
-    E: Iterator<Item = &'a Bytes>,
-    D: Database,
-{
-    fn from(values: E) -> Self {
-        let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
-
-        let mut trie = Self {
-            read_handle,
-            write_handle,
-        };
-
-        trie.extend(values.collect());
-
-        trie
-    }
-}
+// TODO: revisit later
+// impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
+// where
+//     E: Iterator<Item = &'a Bytes>,
+//     D: Database,
+// {
+//     fn from(values: E) -> Self {
+//         // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
+//
+//         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+//
+//         let mut trie = Self {
+//             read_handle,
+//             write_handle,
+//         };
+//
+//         trie.extend(values.collect());
+//
+//         trie
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

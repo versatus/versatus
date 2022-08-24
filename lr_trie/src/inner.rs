@@ -929,12 +929,12 @@ where
             Operation::Remove(key) => {
                 self.remove(key).unwrap_or_default();
             }
-            Operation::Extend(_values) => {
-                // let data = data.iter().copied();
-                //
-                // TODO: revist
-                // self.extend(data);
-                todo!()
+            Operation::Extend(values) => {
+                // TODO: temp hack to get this going
+                for (k, v) in values {
+                    self.insert(k, v).unwrap_or_default();
+                }
+                self.commit().unwrap_or_default();
             }
         }
     }
