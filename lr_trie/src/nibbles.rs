@@ -1,4 +1,5 @@
 /// Taken from https://github.com/carver/eth-trie.rs/blob/542cd734de08e55bbabcb009a2c8ab47f6c509e5/src/nibbles.rs
+/// remove need for this mod and reuse a nibble crate instead
 use std::cmp::min;
 
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
