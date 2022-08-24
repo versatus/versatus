@@ -1,13 +1,13 @@
-use lr_trie::{Bytes, LeftRightTrie};
+use lr_trie::{db::Database, Bytes, LeftRightTrie, H256};
 use rs_merkle::Hasher;
 use std::fmt::Debug;
 
 // TODO; impl Debug on MerkleTree
-pub struct TxTrie<'a, H: Hasher> {
-    trie: LeftRightTrie<'a, H>,
+pub struct TxTrie<'a, D: Database> {
+    trie: LeftRightTrie<'a, D>,
 }
 
-impl<'a, H: Hasher> TxTrie<'a, H> {
+impl<'a, D: Database> TxTrie<'a, D> {
     /// Creates a new empty state trie.
     pub fn new() -> Self {
         Self::default()
@@ -27,8 +27,8 @@ impl<'a, H: Hasher> TxTrie<'a, H> {
     ///  assert_eq!(tx_trie.len(), 1);
     /// ```
     ///
-    pub fn add(&mut self, value: &'a Bytes) {
-        self.trie.add(value);
+    pub fn add(&mut self, key: &'a Bytes, value: &'a Bytes) {
+        self.trie.add(key, value);
     }
 
     /// Extends the state trie with the provided iterator over leaf values as bytes.
@@ -77,7 +77,7 @@ impl<'a, H: Hasher> TxTrie<'a, H> {
     ///  assert_eq!(tx_trie_a.root(), tx_trie_b.root());
     /// ```
     ///
-    pub fn root(&self) -> Option<H::Hash> {
+    pub fn root(&self) -> Option<H256> {
         self.trie.root()
     }
 
@@ -240,8 +240,3 @@ mod tests {
         assert_ne!(tx_trie_a, tx_trie_b);
     }
 }
-
-
-
-
-
