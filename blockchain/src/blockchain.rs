@@ -59,6 +59,10 @@ impl Blockchain {
         }
     }
 
+    pub fn get_child_ref(&self) -> &Option<Block> {
+        return &self.child;
+    }
+
     /// Checks if the next block eight is valid, i.e. +1 as compared to previous block.
     pub fn check_next_block_height(&self, block: &Block) -> bool {
         // Check if there is a genesis block
