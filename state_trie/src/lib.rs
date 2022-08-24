@@ -9,21 +9,21 @@ pub struct StateTrie<'a, D: Database> {
 impl<'a, D: Database> StateTrie<'a, D> {
     /// Creates a new empty state trie.
     pub fn new(db: Arc<D>) -> Self {
-        let mut trie = LeftRightTrie::new(db);
-
-        Self { trie }
+        Self {
+            trie: LeftRightTrie::new(db),
+        }
     }
 
     /// Adds a single leaf value serialized to bytes
     /// Example:
     /// ```
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
     ///  use state_trie::StateTrie;
+    ///  use std::sync::Arc;
     ///
-    ///  let mut state_trie = StateTrie::<Sha256>::new();
-    ///
-    ///  state_trie.add("hello world".as_bytes());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut state_trie = StateTrie::new(memdb);
+    ///  
+    ///  state_trie.add(b"greetings", b"hello world");
     ///
     ///  assert_eq!(state_trie.len(), 1);
     /// ```
@@ -35,21 +35,21 @@ impl<'a, D: Database> StateTrie<'a, D> {
     /// Extends the state trie with the provided iterator over leaf values as bytes.
     /// Example:
     /// ```
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
     ///  use state_trie::StateTrie;
+    ///  use std::sync::Arc;
+    ///  use lr_trie::Bytes;
     ///
-    ///  let mut state_trie = StateTrie::<Sha256>::new();
-    ///  
-    ///  state_trie.extend(
-    ///      vec![
-    ///          "abcdefg".as_bytes(),
-    ///          "hijkl".as_bytes(),
-    ///          "mnopq".as_bytes(),
-    ///      ]
-    ///  );
-    ///  
-    ///  assert_eq!(state_trie.len(), 3);
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut state_trie = StateTrie::new(memdb);
+    ///
+    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
+    ///      (b"abcdefg", b"abcdefg"),
+    ///      (b"hijkl", b"hijkl"),
+    ///      (b"mnopq", b"mnopq"),
+    ///  ];
+    ///
+    ///  state_trie.extend(vals);
+    ///  assert_eq!(state_trie.len(), 2);
     /// ```
     ///
     pub fn extend(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
@@ -59,21 +59,24 @@ impl<'a, D: Database> StateTrie<'a, D> {
     /// Returns the trie's Merkle root.
     /// Example:
     /// ```
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
     ///  use state_trie::StateTrie;
+    ///  use std::sync::Arc;
+    ///  use lr_trie::Bytes;
     ///
-    ///  let state_trie_a = StateTrie::<Sha256>::from(vec![
-    ///        "abcdefg".as_bytes(),
-    ///        "hijkl".as_bytes(),
-    ///        "mnopq".as_bytes(),
-    ///  ].into_iter());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut state_trie_a = StateTrie::new(memdb);
     ///
-    ///  let state_trie_b = StateTrie::<Sha256>::from(vec![
-    ///        "abcdefg".as_bytes(),
-    ///        "hijkl".as_bytes(),
-    ///        "mnopq".as_bytes(),
-    ///  ].into_iter());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut state_trie_b = StateTrie::new(memdb);
+    ///
+    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
+    ///      (b"abcdefg", b"abcdefg"),
+    ///      (b"hijkl", b"hijkl"),
+    ///      (b"mnopq", b"mnopq"),
+    ///  ];
+    ///
+    ///  state_trie_a.extend(vals.clone());
+    ///  state_trie_b.extend(vals.clone());
     ///
     ///  assert_eq!(state_trie_a.root(), state_trie_b.root());
     /// ```
@@ -86,16 +89,21 @@ impl<'a, D: Database> StateTrie<'a, D> {
     /// Example:
     /// ```
     ///  use state_trie::StateTrie;
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
+    ///  use std::sync::Arc;
+    ///  use lr_trie::Bytes;
     ///
-    ///  let state_trie = StateTrie::<Sha256>::from(vec![
-    ///        "abcdefg".as_bytes(),
-    ///        "hijkl".as_bytes(),
-    ///        "mnopq".as_bytes(),
-    ///  ].into_iter());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut state_trie = StateTrie::new(memdb);
     ///
-    ///  assert_eq!(state_trie.len(), 3);
+    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
+    ///      (b"abcdefg", b"abcdefg"),
+    ///      (b"hijkl", b"hijkl"),
+    ///      (b"mnopq", b"mnopq"),
+    ///  ];
+    ///
+    ///  state_trie.extend(vals);
+    ///
+    ///  assert_eq!(state_trie.len(), 2);
     /// ```
     ///
     pub fn len(&self) -> usize {
@@ -106,11 +114,12 @@ impl<'a, D: Database> StateTrie<'a, D> {
     /// Example:
     /// ```
     ///  use state_trie::StateTrie;
-    ///  use rs_merkle::algorithms::Sha256;
+    ///  use std::sync::Arc;
     ///
-    ///  let state_trie = StateTrie::<Sha256>::new();
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut state_trie = StateTrie::new(memdb);
     ///
-    ///  assert_eq!(state_trie.is_empty(), true);
+    ///  assert_eq!(state_trie.len(), 0);
     /// ```
     ///
     pub fn is_empty(&self) -> bool {
@@ -120,7 +129,7 @@ impl<'a, D: Database> StateTrie<'a, D> {
 
 impl<'a, D: Database> PartialEq for StateTrie<'a, D> {
     fn eq(&self, other: &Self) -> bool {
-        self.trie == other.trie
+        self.root() == other.root()
     }
 }
 
@@ -154,8 +163,8 @@ mod tests {
         let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
         let state_trie = StateTrie::new(memdb);
 
-        assert_eq!(state_trie.root(), None);
-        assert_eq!(state_trie.len(), 0);
+        assert!(state_trie.root().is_some());
+        assert_eq!(state_trie.len(), 1);
     }
 
     #[test]
@@ -182,13 +191,13 @@ mod tests {
         let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
         let mut state_trie = StateTrie::new(memdb);
 
-        assert_eq!(state_trie.root(), None);
-        assert_eq!(state_trie.len(), 0);
+        assert!(state_trie.root().is_some());
+        assert_eq!(state_trie.len(), 1);
 
         state_trie.add(b"greetings", b"hello world");
 
         assert_ne!(state_trie.root(), None);
-        assert_eq!(state_trie.len(), 1);
+        assert_eq!(state_trie.len(), 2);
     }
 
     #[test]
@@ -196,8 +205,8 @@ mod tests {
         let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
         let mut state_trie = StateTrie::new(memdb);
 
-        assert_eq!(state_trie.root(), None);
-        assert_eq!(state_trie.len(), 0);
+        assert!(state_trie.root().is_some());
+        assert_eq!(state_trie.len(), 1);
 
         let vals: Vec<(&Bytes, &Bytes)> = vec![
             (b"abcdefg", b"abcdefg"),
@@ -208,7 +217,7 @@ mod tests {
         state_trie.extend(vals);
 
         assert_ne!(state_trie.root(), None);
-        assert_eq!(state_trie.len(), 4);
+        assert_eq!(state_trie.len(), 3);
     }
 
     #[test]
@@ -227,8 +236,6 @@ mod tests {
         state_trie_a.extend(vals.clone());
         state_trie_b.extend(vals.clone());
 
-        state_trie_b.add(b"mnopq", b"bananas");
-
         assert_eq!(state_trie_a, state_trie_b);
     }
 
@@ -236,8 +243,18 @@ mod tests {
     fn should_return_false_if_root_is_not_equal_to_other_trie_root() {
         let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
 
-        let state_trie_a = StateTrie::new(memdb.clone());
-        let state_trie_b = StateTrie::new(memdb.clone());
+        let mut state_trie_a = StateTrie::new(memdb.clone());
+        let mut state_trie_b = StateTrie::new(memdb.clone());
+
+        let vals: Vec<(&Bytes, &Bytes)> = vec![
+            (b"abcdefg", b"abcdefg"),
+            (b"hijkl", b"hijkl"),
+            (b"mnopq", b"mnopq"),
+        ];
+
+        state_trie_a.extend(vals.clone());
+        state_trie_b.extend(vals.clone());
+        state_trie_b.add(b"mnopq", b"bananas");
 
         assert_ne!(state_trie_a, state_trie_b);
     }
