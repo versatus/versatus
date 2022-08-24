@@ -60,6 +60,12 @@ impl std::error::Error for InvalidQUORUM {}
          let child_block_height = child_block.unwrap().header.block_height;
       } ;
      
+      //rerun when fails --> what is threshold of failure?
+      //need 60% of quorum to vite, dont wanna wait until only 60% of quorum is live
+      //maybe if 20% of quorum becomes faulty, we do election
+      //for now, add failed field, set false, if command from external network
+      //and counter of ndoe fail, check if counter meets threshold 
+      //the failed to true, rerun
       QUORUM{
          quorum_seed,
          pointer_sums: Vec::new(),
