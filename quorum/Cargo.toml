@@ -15,3 +15,4 @@ hex = "0.4.3"
 lr_trie = {path = "../lr_trie"}
 miner = {path = "../miner"}
 claim = {path = "../claim"}
+indexmap = "1.9.1"

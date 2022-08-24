@@ -11,11 +11,13 @@
  use hex::{encode};
  use miner::miner::Miner;
  use claim::claim::Claim;
+ use indexmap::IndexMap;
 
  #[derive(Debug)]
 pub enum InvalidQUORUM{
     InvalidSeedError, 
     InvalidElectionError,
+    InvalidChildBlockError,
 }
 
 impl Display for InvalidQUORUM {
@@ -23,6 +25,7 @@ impl Display for InvalidQUORUM {
         match self {
             InvalidQUORUM::InvalidSeedError => write!(f, "Invalid seed"),
             InvalidQUORUM::InvalidElectionError => write!(f, "Invalid election"),
+            InvalidQUORUM::InvalidChildBlockError => write!(f, "Invalid child block"),
         }
     
     }
@@ -36,69 +39,47 @@ impl std::error::Error for InvalidQUORUM {}
     pub masternodes: Vec<String>,
     pub quorum_pk: String,
     pub election_block_height: u128,
-    pub election_timestamp: u64,
+    pub election_timestamp: u128,
  }
 
  impl ELECTION for QUORUM{
 
-   fn elect_quorum(&mut self, blockchain: &Blockchain) -> u64 {
-      return 7;
-   }
  }
-
  
  impl QUORUM{
-   pub fn new(components: &Components) -> QUORUM{
-      let quorum_seed = QUORUM::generate_quorum_seed(components);
+   pub fn new(blockchain: &Blockchain) -> QUORUM{
+      let quorum_seed = QUORUM::generate_quorum_seed(blockchain);
 
-      let mut block_bytes = (components.child).unwrap();
-      //need to add if let Some check for child
-      let child_block_height = Block::from_bytes(&mut block_bytes).height;
-      
+      let child_block = Blockchain::get_child_ref(blockchain);
+      let mut child_block_timestamp: u128;
+      let mut child_block_height: u128;
 
-
+      if child_block.is_some() {
+         let child_block_hash = child_block.unwrap().hash;
+         let child_block_timestamp = child_block.unwrap().header.timestamp;
+         let child_block_height = child_block.unwrap().header.block_height;
+      } ;
+     
       QUORUM{
          quorum_seed,
          pointer_sums: Vec::new(),
          masternodes: Vec::new(),
          quorum_pk: String::new(),
-         election_block_height: 0,
-         election_timestamp: 0,
+         election_block_height: child_block_height,
+         election_timestamp: child_block_timestamp,
       }
-         /*
-         et mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
-        let pubkey = VVRF::generate_pubkey(&mut vrf, sk);
-        let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
-        ///rng calculated from hash
-        let rng = ChaCha20Rng::from_seed(hash);
-        ///populate VVRF fields
-        VVRF {
-            vrf,
-            pubkey,
-            message: message.to_vec(),
-            proof,
-            hash,
-            rng: rng,
-        }
-        */
          
       }
-<<<<<<< Updated upstream
-   
-   fn calculate_pointer_sums(&mut self, blockchain: &Blockchain) -> Vec<u64> {
-      let mut pointer_sums: Vec<u64> = Vec::new();
-      let mut sum: u64 = 0;
-      for i in 0..blockchain.len() {
-         let block = blockchain.get_block(i);
-         sum += block.pointer;
-         pointer_sums.push(sum);
-=======
 
-   fn generate_quorum_seed(components: &Components) -> String{
-      let mut block_bytes = (components.child).unwrap();
-      //need to add if let Some check for child
-      let child_block = Block::from_bytes(&mut block_bytes);
-      let child_block_hash = child_block.hash;
+   fn generate_quorum_seed(blockchain: &Blockchain) -> String{
+
+      let child_block = blockchain.get_child_ref();
+      
+      let mut child_block_hash: String;
+      if child_block.is_some() {
+         let child_block_hash = child_block.unwrap().hash;
+      } 
+     
       let sk = VVRF::generate_secret_key();
       let vvrf = VVRF::new(child_block_hash.as_bytes(), sk);
    
@@ -107,16 +88,17 @@ impl std::error::Error for InvalidQUORUM {}
       let rng: u64 = vvrf.generate_u64();
       //is u32::MAX inclusive?
       assert!(rng < u64MAX);
+      assert!(VVRF::verify_seed(&mut vvrf).is_ok());
 
       return encode(rng.to_le_bytes());
-
-
    }
 
    //node_trie: &LeftRightTrie<MINER>
    //let quorum_seed = QUORUM::generate_quorum_seed(components);
-   
-   fn calculate_pointer_sum(quorum_seed: String, miner: &Miner) -> u64 {
+   //waiting on node trie to be implemented so traversal is possible and
+   //Vec of pointer_sums is returned
+   fn calculate_pointer_sum(quorum_seed: String, miner: Miner) -> u64{
+      
       let claim_hash = miner.claim.hash;
       let mut pointer_sum: u64 = 0;      
       //needs to be replaced by getter/iter in LRTrie
@@ -127,10 +109,45 @@ impl std::error::Error for InvalidQUORUM {}
             let claim_index = claim_index.unwrap() as u64; 
             pointer_sum += claim_index.pow(i as u32);
          }         
->>>>>>> Stashed changes
       }
       return pointer_sum;   
    }
 
+   fn get_lowest_pointer_nodes(quorum_seed: String, node_trie: &LeftRightTrie<Miner>) -> Vec<Miner>{
+
+      //calculate each sum and add to vector and index map, pointing to miner
+      let mut sum_to_miner: IndexMap<u64, Vec<Miner>>::new;
+      
+      //noe trie traversal to isolate miners;
+      let mut lowest_pointer_sums = Vec::<u64>::new();
+
+      for miner in node_trie.iter() {
+         let current_pointer_sum = QUORUM::calculate_pointer_sum(quorum_seed, miner);
+         lowest_pointer_sums.push(current_pointer_sum);
+         if sum_to_miner.contains_key(current_pointer_sum){
+            sum_to_miner.get_mut(&current_pointer_sum).unwrap().push(miner);
+         } else {
+            sum_to_miner.insert(current_pointer_sum, vec![miner]);
+         }
+      }
+
+      lowest_pointer_sums.sort(); //
+      let num_nodes = ((sum_to_miner.len())/ 0.51).ceil() as u64;
+      let mut quorum_nodes: Vec<Miner> = Vec::new();
+
+      let mut i = 0;
+      while i < num_nodes + 1 {
+         let miners = sum_to_miner.get(lowest_pointer_sums[i as usize]).unwwrap();
+         let mut n = 0;
+         while n < miners.len() {
+            quorum_nodes.push(miners[n]);
+            n += 1;
+         }
+         i += 1;
+      }
+      //make immutable with binding
+      let quorum_nodes = quorum_nodes;
+      return quorum_nodes;
+   }
  }
  
