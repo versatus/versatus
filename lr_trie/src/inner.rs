@@ -1,5 +1,7 @@
 /// Adapted from https://github.com/carver/eth-trie.rs which is a fork of https://github.com/citahub/cita-trie
 /// This MPT library will eventually be extracted from this repo onto it's own.
+/// Beware there's a significant amount of TODOs scattered around the file, these will be addressed
+/// in due time.
 ///
 use std::borrow::BorrowMut;
 use std::sync::Arc;
@@ -930,7 +932,7 @@ where
                 self.remove(key).unwrap_or_default();
             }
             Operation::Extend(values) => {
-                // TODO: temp hack to get this going
+                // TODO: temp hack to get this going. Refactor ASAP
                 for (k, v) in values {
                     self.insert(k, v).unwrap_or_default();
                 }

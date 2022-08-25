@@ -141,18 +141,6 @@ impl<'a, D: Database> Debug for StateTrie<'a, D> {
     }
 }
 
-// TODO: revisit once patriecia is implemented
-// impl<'a, D, E> From<E> for StateTrie<'a, H>
-// where
-//     D: Database,
-//     E: Iterator<Item = &'a Bytes>,
-// {
-//     fn from(values: E) -> Self {
-//         let trie = LeftRightTrie::from(values);
-//         Self { trie }
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,3 +247,15 @@ mod tests {
         assert_ne!(state_trie_a, state_trie_b);
     }
 }
+
+// TODO: revisit once lrdb is integrated with tries
+// impl<'a, D, E> From<E> for StateTrie<'a, H>
+// where
+//     D: Database,
+//     E: Iterator<Item = &'a Bytes>,
+// {
+//     fn from(values: E) -> Self {
+//         let trie = LeftRightTrie::from(values);
+//         Self { trie }
+//     }
+// }

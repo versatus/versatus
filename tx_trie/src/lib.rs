@@ -147,17 +147,6 @@ impl<'a, D: Database> Debug for TxTrie<'a, D> {
     }
 }
 
-// impl<'a, D, E> From<E> for TxTrie<'a, D>
-// where
-//     D: Database,
-//     E: Iterator<Item = &'a Bytes>,
-// {
-//     fn from(values: E) -> Self {
-//         let trie = LeftRightTrie::from(values);
-//         Self { trie }
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -264,3 +253,15 @@ mod tests {
         assert_ne!(tx_trie_a, tx_trie_b);
     }
 }
+
+// TODO: revisit later once lrdb is integrated with tries
+// impl<'a, D, E> From<E> for TxTrie<'a, D>
+// where
+//     D: Database,
+//     E: Iterator<Item = &'a Bytes>,
+// {
+//     fn from(values: E) -> Self {
+//         let trie = LeftRightTrie::from(values);
+//         Self { trie }
+//     }
+// }
