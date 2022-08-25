@@ -14,3 +14,4 @@ pub mod op;
 
 pub use crate::lr_trie::*;
 pub use crate::op::*;
+pub use keccak_hash::H256;
