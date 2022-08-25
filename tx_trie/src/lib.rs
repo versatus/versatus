@@ -1,83 +1,86 @@
-use lr_trie::{Bytes, LeftRightTrie};
-use rs_merkle::Hasher;
-use std::fmt::Debug;
+use lr_trie::{db::Database, Bytes, LeftRightTrie, H256};
+use std::{fmt::Debug, sync::Arc};
 
-// TODO; impl Debug on MerkleTree
-pub struct TxTrie<'a, H: Hasher> {
-    trie: LeftRightTrie<'a, H>,
+pub struct TxTrie<'a, D: Database> {
+    trie: LeftRightTrie<'a, D>,
 }
 
-impl<'a, H: Hasher> TxTrie<'a, H> {
+impl<'a, D: Database> TxTrie<'a, D> {
     /// Creates a new empty state trie.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(db: Arc<D>) -> Self {
+        Self {
+            trie: LeftRightTrie::new(db),
+        }
     }
 
     /// Adds a single leaf value serialized to bytes
     /// Example:
     /// ```
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
     ///  use tx_trie::TxTrie;
+    ///  use std::sync::Arc;
     ///
-    ///  let mut tx_trie = TxTrie::<Sha256>::new();
-    ///
-    ///  tx_trie.add("hello world".as_bytes());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut tx_trie = TxTrie::new(memdb);
+    ///  
+    ///  tx_trie.add(b"greetings", b"hello world");
     ///
     ///  assert_eq!(tx_trie.len(), 1);
     /// ```
     ///
-    pub fn add(&mut self, value: &'a Bytes) {
-        self.trie.add(value);
+    pub fn add(&mut self, key: &'a Bytes, value: &'a Bytes) {
+        self.trie.add(key, value);
     }
 
     /// Extends the state trie with the provided iterator over leaf values as bytes.
     /// Example:
     /// ```
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
     ///  use tx_trie::TxTrie;
+    ///  use std::sync::Arc;
+    ///  use lr_trie::Bytes;
     ///
-    ///  let mut tx_trie = TxTrie::<Sha256>::new();
-    ///  
-    ///  tx_trie.extend(
-    ///      vec![
-    ///          "abcdefg".as_bytes(),
-    ///          "hijkl".as_bytes(),
-    ///          "mnopq".as_bytes(),
-    ///      ]
-    ///  );
-    ///  
-    ///  assert_eq!(tx_trie.len(), 3);
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut tx_trie = TxTrie::new(memdb);
+    ///
+    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
+    ///      (b"abcdefg", b"abcdefg"),
+    ///      (b"hijkl", b"hijkl"),
+    ///      (b"mnopq", b"mnopq"),
+    ///  ];
+    ///
+    ///  tx_trie.extend(vals);
+    ///  assert_eq!(tx_trie.len(), 2);
     /// ```
     ///
-    pub fn extend(&mut self, values: Vec<&'a Bytes>) {
+    pub fn extend(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
         self.trie.extend(values);
     }
 
     /// Returns the trie's Merkle root.
     /// Example:
     /// ```
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
     ///  use tx_trie::TxTrie;
+    ///  use std::sync::Arc;
+    ///  use lr_trie::Bytes;
     ///
-    ///  let tx_trie_a = TxTrie::<Sha256>::from(vec![
-    ///        "abcdefg".as_bytes(),
-    ///        "hijkl".as_bytes(),
-    ///        "mnopq".as_bytes(),
-    ///  ].into_iter());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut tx_trie_a = TxTrie::new(memdb);
     ///
-    ///  let tx_trie_b = TxTrie::<Sha256>::from(vec![
-    ///        "abcdefg".as_bytes(),
-    ///        "hijkl".as_bytes(),
-    ///        "mnopq".as_bytes(),
-    ///  ].into_iter());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut tx_trie_b = TxTrie::new(memdb);
+    ///
+    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
+    ///      (b"abcdefg", b"abcdefg"),
+    ///      (b"hijkl", b"hijkl"),
+    ///      (b"mnopq", b"mnopq"),
+    ///  ];
+    ///
+    ///  tx_trie_a.extend(vals.clone());
+    ///  tx_trie_b.extend(vals.clone());
     ///
     ///  assert_eq!(tx_trie_a.root(), tx_trie_b.root());
     /// ```
     ///
-    pub fn root(&self) -> Option<H::Hash> {
+    pub fn root(&self) -> Option<H256> {
         self.trie.root()
     }
 
@@ -85,16 +88,21 @@ impl<'a, H: Hasher> TxTrie<'a, H> {
     /// Example:
     /// ```
     ///  use tx_trie::TxTrie;
-    ///  use rs_merkle::algorithms::Sha256;
-    ///  use rs_merkle::Hasher;
+    ///  use std::sync::Arc;
+    ///  use lr_trie::Bytes;
     ///
-    ///  let tx_trie = TxTrie::<Sha256>::from(vec![
-    ///        "abcdefg".as_bytes(),
-    ///        "hijkl".as_bytes(),
-    ///        "mnopq".as_bytes(),
-    ///  ].into_iter());
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut tx_trie = TxTrie::new(memdb);
     ///
-    ///  assert_eq!(tx_trie.len(), 3);
+    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
+    ///      (b"abcdefg", b"abcdefg"),
+    ///      (b"hijkl", b"hijkl"),
+    ///      (b"mnopq", b"mnopq"),
+    ///  ];
+    ///
+    ///  tx_trie.extend(vals);
+    ///
+    ///  assert_eq!(tx_trie.len(), 2);
     /// ```
     ///
     pub fn len(&self) -> usize {
@@ -105,11 +113,12 @@ impl<'a, H: Hasher> TxTrie<'a, H> {
     /// Example:
     /// ```
     ///  use tx_trie::TxTrie;
-    ///  use rs_merkle::algorithms::Sha256;
+    ///  use std::sync::Arc;
     ///
-    ///  let tx_trie = TxTrie::<Sha256>::new();
+    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let mut tx_trie = TxTrie::new(memdb);
     ///
-    ///  assert_eq!(tx_trie.is_empty(), true);
+    ///  assert_eq!(tx_trie.len(), 0);
     /// ```
     ///
     pub fn is_empty(&self) -> bool {
@@ -117,13 +126,13 @@ impl<'a, H: Hasher> TxTrie<'a, H> {
     }
 }
 
-impl<'a, H: Hasher> PartialEq for TxTrie<'a, H> {
+impl<'a, D: Database> PartialEq for TxTrie<'a, D> {
     fn eq(&self, other: &Self) -> bool {
-        self.trie == other.trie
+        self.root() == other.root()
     }
 }
 
-impl<'a, H: Hasher> Default for TxTrie<'a, H> {
+impl<'a, D: Database> Default for TxTrie<'a, D> {
     fn default() -> Self {
         Self {
             trie: Default::default(),
@@ -131,78 +140,75 @@ impl<'a, H: Hasher> Default for TxTrie<'a, H> {
     }
 }
 
-impl<'a, H: Hasher> Debug for TxTrie<'a, H> {
+impl<'a, D: Database> Debug for TxTrie<'a, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: derive once MerkleTree impl Debug
         f.debug_struct("TxTrie").finish()
     }
 }
 
-impl<'a, H, E> From<E> for TxTrie<'a, H>
-where
-    H: Hasher,
-    E: Iterator<Item = &'a Bytes>,
-{
-    fn from(values: E) -> Self {
-        let trie = LeftRightTrie::from(values);
-        Self { trie }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rs_merkle::algorithms::Sha256;
+    use std::sync::Arc;
 
     #[test]
     fn new_creates_default_empty_trie() {
-        let tx_trie = TxTrie::<Sha256>::new();
+        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let tx_trie = TxTrie::new(memdb);
 
-        assert_eq!(tx_trie.root(), None);
-        assert_eq!(tx_trie.len(), 0);
-    }
-
-    #[test]
-    fn new_creates_trie_from_lrdb_values() {
-        let entries = vec!["abcdefg".as_bytes(), "hijkl".as_bytes(), "mnopq".as_bytes()];
-
-        let tx_trie = TxTrie::<Sha256>::from(entries.into_iter());
-
-        let hash_bytes = [
-            91, 42, 162, 88, 248, 119, 77, 41, 94, 6, 35, 62, 123, 36, 207, 69, 207, 94, 77, 139,
-            158, 84, 143, 35, 127, 118, 132, 211, 125, 226, 23, 147,
-        ];
-
-        assert_eq!(tx_trie.len(), 3);
-        assert_eq!(tx_trie.root(), Some(hash_bytes));
-    }
-
-    #[test]
-    fn should_add_node_to_trie() {
-        let mut tx_trie = TxTrie::<Sha256>::new();
-
-        assert_eq!(tx_trie.root(), None);
-        assert_eq!(tx_trie.len(), 0);
-
-        let val = "hello world".as_bytes();
-        tx_trie.add(val);
-
-        assert_ne!(tx_trie.root(), None);
+        assert!(tx_trie.root().is_some());
         assert_eq!(tx_trie.len(), 1);
     }
 
     #[test]
+    fn new_creates_trie_from_lrdb_values() {
+        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let mut tx_trie = TxTrie::new(memdb);
+
+        tx_trie.add(b"abcdefg", b"12345");
+        tx_trie.add(b"hijkl", b"1000");
+        tx_trie.add(b"mnopq", b"askskaskj");
+
+        let root = tx_trie.root().unwrap();
+        let root = format!("0x{}", hex::encode(root));
+
+        let target_root =
+            "0xfcea4ea8a4decaf828666306c81977085ba9488d981c759ac899862fd4e9174e".to_string();
+
+        assert_eq!(tx_trie.len(), 4);
+        assert_eq!(root, target_root);
+    }
+
+    #[test]
+    fn should_add_node_to_trie() {
+        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let mut tx_trie = TxTrie::new(memdb);
+
+        assert!(tx_trie.root().is_some());
+        assert_eq!(tx_trie.len(), 1);
+
+        tx_trie.add(b"greetings", b"hello world");
+
+        assert_ne!(tx_trie.root(), None);
+        assert_eq!(tx_trie.len(), 2);
+    }
+
+    #[test]
     fn should_extend_trie_with_nodes() {
-        let mut tx_trie = TxTrie::<Sha256>::new();
+        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let mut tx_trie = TxTrie::new(memdb);
 
-        assert_eq!(tx_trie.root(), None);
-        assert_eq!(tx_trie.len(), 0);
+        assert!(tx_trie.root().is_some());
+        assert_eq!(tx_trie.len(), 1);
 
-        let val_1 = "abcdefg".as_bytes();
-        let val_2 = "hijkl".as_bytes();
-        let val_3 = "mnopq".as_bytes();
+        let vals: Vec<(&Bytes, &Bytes)> = vec![
+            (b"abcdefg", b"abcdefg"),
+            (b"hijkl", b"hijkl"),
+            (b"mnopq", b"mnopq"),
+        ];
 
-        tx_trie.extend(vec![val_1, val_2, val_3]);
+        tx_trie.extend(vals);
 
         assert_ne!(tx_trie.root(), None);
         assert_eq!(tx_trie.len(), 3);
@@ -210,38 +216,52 @@ mod tests {
 
     #[test]
     fn should_return_true_if_root_is_equal_to_other_trie_root() {
-        let tx_trie_a = TxTrie::<Sha256>::from(
-            vec!["abcdefg".as_bytes(), "hijkl".as_bytes(), "mnopq".as_bytes()].into_iter(),
-        );
+        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
 
-        let tx_trie_b = TxTrie::<Sha256>::from(
-            vec!["abcdefg".as_bytes(), "hijkl".as_bytes(), "mnopq".as_bytes()].into_iter(),
-        );
+        let mut tx_trie_a = TxTrie::new(memdb.clone());
+        let mut tx_trie_b = TxTrie::new(memdb);
+
+        let vals: Vec<(&Bytes, &Bytes)> = vec![
+            (b"abcdefg", b"abcdefg"),
+            (b"hijkl", b"hijkl"),
+            (b"mnopq", b"mnopq"),
+        ];
+
+        tx_trie_a.extend(vals.clone());
+        tx_trie_b.extend(vals.clone());
 
         assert_eq!(tx_trie_a, tx_trie_b);
     }
 
     #[test]
     fn should_return_false_if_root_is_not_equal_to_other_trie_root() {
-        let tx_trie_a = TxTrie::<Sha256>::from(
-            vec!["abcdefg".as_bytes(), "hijkl".as_bytes(), "mnopq".as_bytes()].into_iter(),
-        );
+        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
 
-        let tx_trie_b = TxTrie::<Sha256>::from(
-            vec![
-                "abcdefg".as_bytes(),
-                "hijkl".as_bytes(),
-                "mnopq".as_bytes(),
-                "rstuv".as_bytes(),
-            ]
-            .into_iter(),
-        );
+        let mut tx_trie_a = TxTrie::new(memdb.clone());
+        let mut tx_trie_b = TxTrie::new(memdb.clone());
+
+        let vals: Vec<(&Bytes, &Bytes)> = vec![
+            (b"abcdefg", b"abcdefg"),
+            (b"hijkl", b"hijkl"),
+            (b"mnopq", b"mnopq"),
+        ];
+
+        tx_trie_a.extend(vals.clone());
+        tx_trie_b.extend(vals.clone());
+        tx_trie_b.add(b"mnopq", b"bananas");
 
         assert_ne!(tx_trie_a, tx_trie_b);
     }
 }
 
-
-
-
-
+// TODO: revisit later once lrdb is integrated with tries
+// impl<'a, D, E> From<E> for TxTrie<'a, D>
+// where
+//     D: Database,
+//     E: Iterator<Item = &'a Bytes>,
+// {
+//     fn from(values: E) -> Self {
+//         let trie = LeftRightTrie::from(values);
+//         Self { trie }
+//     }
+// }

@@ -1,20 +1,32 @@
-use crate::{inner::InnerTrie, Bytes, Operation};
+use crate::{
+    db::Database,
+    inner::InnerTrie,
+    op::{Bytes, Operation},
+    trie::Trie,
+};
+use keccak_hash::H256;
 use left_right::{ReadHandle, ReadHandleFactory, WriteHandle};
-use rs_merkle::Hasher;
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 /// Concurrent generic Merkle Patricia Trie
-pub struct LeftRightTrie<'a, H: Hasher> {
-    pub read_handle: ReadHandle<InnerTrie<H>>,
-    pub write_handle: WriteHandle<InnerTrie<H>, Operation<'a>>,
+#[derive(Debug)]
+pub struct LeftRightTrie<'a, D: Database> {
+    pub read_handle: ReadHandle<InnerTrie<D>>,
+    pub write_handle: WriteHandle<InnerTrie<D>, Operation<'a>>,
 }
 
-impl<'a, H: Hasher> LeftRightTrie<'a, H> {
-    pub fn new() -> Self {
-        Self::default()
+impl<'a, D: Database> LeftRightTrie<'a, D> {
+    pub fn new(db: Arc<D>) -> Self {
+        let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+
+        Self {
+            read_handle,
+            write_handle,
+        }
     }
 
-    pub fn get(&self) -> InnerTrie<H> {
+    // TODO: consider renaming to handle, get_handle or get_read_handle
+    pub fn get(&self) -> InnerTrie<D> {
         self.read_handle
             .enter()
             .map(|guard| guard.clone())
@@ -25,15 +37,20 @@ impl<'a, H: Hasher> LeftRightTrie<'a, H> {
         self.get().len()
     }
 
-    pub fn root(&self) -> Option<H::Hash> {
-        self.get().root()
+    pub fn is_empty(&self) -> bool {
+        self.get().len() == 0
     }
 
-    pub fn leaves(&self) -> Option<Vec<H::Hash>> {
-        self.get().leaves()
+    pub fn root(&self) -> Option<H256> {
+        self.get().root_hash().ok()
     }
 
-    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<H>> {
+    // TODO: revisit and consider if it's worth having it vs a simple iter over the inner trie
+    // pub fn leaves(&self) -> Option<Vec<H::Hash>> {
+    //     self.get().leaves()
+    // }
+
+    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
         self.read_handle.factory()
     }
 
@@ -41,34 +58,35 @@ impl<'a, H: Hasher> LeftRightTrie<'a, H> {
         self.write_handle.publish();
     }
 
-    pub fn add(&mut self, value: &'a Bytes) {
-        self.write_handle.append(Operation::Add(value));
+    pub fn add(&mut self, key: &'a Bytes, value: &'a Bytes) {
+        self.write_handle.append(Operation::Add(key, value));
         self.publish();
     }
 
-    pub fn extend(&mut self, values: Vec<&'a Bytes>) {
+    // TODO: revisit once inner trie is refactored into patriecia
+    pub fn extend(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
         self.write_handle.append(Operation::Extend(values));
         self.publish();
     }
 
-    pub fn add_uncommitted(&mut self, value: &'a Bytes) {
-        self.write_handle.append(Operation::Add(value));
+    pub fn add_uncommitted(&mut self, key: &'a Bytes, value: &'a Bytes) {
+        self.write_handle.append(Operation::Add(key, value));
     }
 
-    pub fn extend_uncommitted(&mut self, values: Vec<&'a Bytes>) {
+    pub fn extend_uncommitted(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
         self.write_handle.append(Operation::Extend(values));
     }
 }
 
-impl<'a, H: Hasher> PartialEq for LeftRightTrie<'a, H> {
+impl<'a, D: Database> PartialEq for LeftRightTrie<'a, D> {
     fn eq(&self, other: &Self) -> bool {
-        self.get().root() == other.get().root()
+        self.get().root_hash() == other.get().root_hash()
     }
 }
 
-impl<'a, H: Hasher> Default for LeftRightTrie<'a, H> {
+impl<'a, D: Database> Default for LeftRightTrie<'a, D> {
     fn default() -> Self {
-        let (write_handle, read_handle) = left_right::new::<InnerTrie<H>, Operation>();
+        let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
         Self {
             read_handle,
             write_handle,
@@ -76,53 +94,31 @@ impl<'a, H: Hasher> Default for LeftRightTrie<'a, H> {
     }
 }
 
-impl<'a, H: Hasher> Debug for LeftRightTrie<'a, H> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: derive once MerkleTree impl Debug
-        f.debug_struct("LeftRightTrie").finish()
-    }
-}
-
-impl<'a, E, H> From<E> for LeftRightTrie<'a, H>
-where
-    E: Iterator<Item = &'a Bytes>,
-    H: Hasher,
-{
-    fn from(values: E) -> Self {
-        let (write_handle, read_handle) = left_right::new::<InnerTrie<H>, Operation>();
-
-        let mut trie = Self {
-            read_handle,
-            write_handle,
-        };
-
-        trie.extend(values.collect());
-
-        trie
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::thread;
 
+    use crate::db::MemoryDB;
+
     use super::*;
-    use rs_merkle::algorithms::Sha256;
 
     #[test]
     fn should_be_read_concurrently() {
-        let mut trie = LeftRightTrie::<Sha256>::new();
+        let memdb = Arc::new(MemoryDB::new(true));
+        let mut trie = LeftRightTrie::new(memdb);
 
-        trie.extend(vec!["abcdefg".as_bytes(), "hijkl".as_bytes()]);
-        trie.add("abcdefg".as_bytes());
+        trie.add(b"abcdefg", b"12345");
+        trie.add(b"hijkl", b"678910");
+        trie.add(b"mnopq", b"1112131415");
 
-        // Spawn 10 threads and 10 readers that should report the exact same value
+        // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
             .iter()
             .map(|_| {
                 let reader = trie.get();
                 thread::spawn(move || {
-                    assert_eq!(reader.len(), 3);
+                    // NOTE: 3 nodes plus the root add up to 4
+                    assert_eq!(reader.len(), 4);
                 })
             })
             .for_each(|handle| {
@@ -130,3 +126,25 @@ mod tests {
             });
     }
 }
+
+// TODO: revisit later
+// impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
+// where
+//     E: Iterator<Item = &'a Bytes>,
+//     D: Database,
+// {
+//     fn from(values: E) -> Self {
+//         // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
+//
+//         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+//
+//         let mut trie = Self {
+//             read_handle,
+//             write_handle,
+//         };
+//
+//         trie.extend(values.collect());
+//
+//         trie
+//     }
+// }
