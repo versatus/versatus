@@ -1,3 +1,5 @@
+/// Trait definition and basic db struct taken from https://github.com/carver/eth-trie.rs
+/// Meant to be refactor into its own crate later on
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
@@ -30,7 +32,7 @@ pub trait Database: Send + Sync + Clone + Default + std::fmt::Debug {
         Ok(())
     }
 
-    /// Remove a batch of data into the cache.
+    /// Remove a batch of data from the cache.
     fn remove_batch(&self, keys: &[Vec<u8>]) -> Result<(), Self::Error> {
         for key in keys {
             self.remove(key)?;
