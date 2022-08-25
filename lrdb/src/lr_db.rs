@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap, hash::Hash, time::SystemTime};
 
+use lr_trie::db::Database;
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -843,4 +844,33 @@ pub enum VrrbDbError {
     AccountDoesntExist(PublicKey),
     InvalidUpdateNonce(u32, u32),
     UpdateFailed(AccountField),
+}
+
+impl Database for LeftRightDatabase<K, V> {
+    type Error;
+
+    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
+        todo!()
+    }
+
+    fn insert(&self, key: &[u8], value: Vec<u8>) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn remove(&self, key: &[u8]) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn flush(&self) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn len(&self) -> Result<usize, Self::Error> {
+        todo!()
+    }
+
+    fn is_empty(&self) -> Result<bool, Self::Error> {
+        todo!()
+    }
+    //
 }
