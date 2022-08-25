@@ -4,8 +4,21 @@ use lr_trie::db::Database;
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::result::Result as StdResult;
+use thiserror::Error;
 
 pub type Nonce = u32;
+pub type Result<T> = StdResult<T, LeftRightDbError>;
+
+#[derive(Error, PartialEq, Eq, Debug)]
+pub enum LeftRightDbError {
+    #[error("record already exists")]
+    RecordExists,
+    #[error("entry {0} not found")]
+    NotFound(String),
+    #[error("unknown error occurred")]
+    Unknown,
+}
 
 /// Stores information about given account.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -82,7 +95,7 @@ impl Account {
     /// Unsafe to use alone (hash should be recalculated).
     /// Used only in batch updates to improve speed by reducing unnecesary hash calculations.
     /// Returns error if update fails.
-    fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<(), VrrbDbError> {
+    fn update_single_field_no_hash(&mut self, value: AccountField) -> StdResult<(), VrrbDbError> {
         match value {
             AccountField::Credits(credits) => match self.credits.checked_add(credits) {
                 Some(new_amount) => self.credits = new_amount,
@@ -128,7 +141,7 @@ impl Account {
     ///
     /// assert_eq!(account.credits, 300);
     /// ```
-    pub fn update_field(&mut self, update: AccountField) -> Result<(), VrrbDbError> {
+    pub fn update_field(&mut self, update: AccountField) -> StdResult<(), VrrbDbError> {
         let res = self.update_single_field_no_hash(update);
         self.update_hash();
         res
@@ -159,7 +172,7 @@ impl Account {
     /// assert_eq!(account.credits, 32);
     /// assert_eq!(account.code, Some("Some code".to_string()));
     /// ```
-    pub fn update(&mut self, update: AccountFieldsUpdate) -> Result<(), VrrbDbError> {
+    pub fn update(&mut self, update: AccountFieldsUpdate) -> StdResult<(), VrrbDbError> {
         if self.nonce + 1 != update.nonce {
             return Err(VrrbDbError::InvalidUpdateNonce(self.nonce, update.nonce));
         }
@@ -379,7 +392,7 @@ impl VrrbDb {
         &mut self,
         pubkey: PublicKey,
         account: Account,
-    ) -> Result<(), VrrbDbError> {
+    ) -> StdResult<(), VrrbDbError> {
         // Cannot insert new account with debit
         if account.debits != 0 {
             return Err(VrrbDbError::InitWithDebit);
@@ -461,7 +474,7 @@ impl VrrbDb {
     ///
     /// assert_eq!(added, Err(VrrbDbError::InitWithDebit));
     /// ```
-    pub fn insert(&mut self, pubkey: PublicKey, account: Account) -> Result<(), VrrbDbError> {
+    pub fn insert(&mut self, pubkey: PublicKey, account: Account) -> StdResult<(), VrrbDbError> {
         self.insert_uncommited(pubkey, account)?;
         self.commit_changes();
         Ok(())
@@ -608,7 +621,7 @@ impl VrrbDb {
         &mut self,
         key: PublicKey,
         update: AccountFieldsUpdate,
-    ) -> Result<(), VrrbDbError> {
+    ) -> StdResult<(), VrrbDbError> {
         match self.read_handle().get(key) {
             Some(mut account) => {
                 account.update(update)?;
@@ -664,7 +677,7 @@ impl VrrbDb {
         &mut self,
         key: PublicKey,
         update: AccountFieldsUpdate,
-    ) -> Result<(), VrrbDbError> {
+    ) -> StdResult<(), VrrbDbError> {
         self.update_uncommited(key, update)?;
         self.commit_changes();
         Ok(())
@@ -774,12 +787,21 @@ impl VrrbDb {
     pub fn batch_update(
         &mut self,
         mut updates: Vec<(PublicKey, AccountFieldsUpdate)>,
-    ) -> Option<Vec<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>> {
+    ) -> Option<
+        Vec<(
+            PublicKey,
+            Vec<AccountFieldsUpdate>,
+            StdResult<(), VrrbDbError>,
+        )>,
+    > {
         // Store and return all failures as (PublicKey, AllPushedUpdates, Error)
         // This way caller is provided with all info -> They know which accounts were not modified, have a list of all updates to try again
         // And an error thrown so that they can fix it
-        let mut failed =
-            Vec::<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>::new();
+        let mut failed = Vec::<(
+            PublicKey,
+            Vec<AccountFieldsUpdate>,
+            StdResult<(), VrrbDbError>,
+        )>::new();
 
         // We sort updates by nonce (that's impl of Ord in AccountField)
         // This way all provided updates are used in order (doesn't matter for different accounts, but important for multiple ops on single PubKey)
@@ -802,7 +824,7 @@ impl VrrbDb {
         // We don't need to commit the changes, since we never go back to that key in this function,
         // saving a lot of time (we don't need to wait for all readers to finish)
         update_batches.drain().for_each(|(k, v)| {
-            let mut fail: (bool, Result<(), VrrbDbError>) = (false, Ok(()));
+            let mut fail: (bool, StdResult<(), VrrbDbError>) = (false, Ok(()));
             let mut final_account = Account::new();
             match self.read_handle().get(k) {
                 Some(mut account) => {
@@ -846,30 +868,34 @@ pub enum VrrbDbError {
     UpdateFailed(AccountField),
 }
 
-impl Database for LeftRightDatabase<K, V> {
-    type Error;
+impl<K, V> Database for LeftRightDatabase<K, V>
+where
+    K: Clone + Eq + Hash + Send + Sync,
+    V: Clone + Eq + evmap::ShallowCopy + Send + Sync,
+{
+    type Error = LeftRightDbError;
 
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
+    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         todo!()
     }
 
-    fn insert(&self, key: &[u8], value: Vec<u8>) -> Result<(), Self::Error> {
+    fn insert(&self, key: &[u8], value: Vec<u8>) -> Result<()> {
         todo!()
     }
 
-    fn remove(&self, key: &[u8]) -> Result<(), Self::Error> {
+    fn remove(&self, key: &[u8]) -> Result<()> {
         todo!()
     }
 
-    fn flush(&self) -> Result<(), Self::Error> {
+    fn flush(&self) -> Result<()> {
         todo!()
     }
 
-    fn len(&self) -> Result<usize, Self::Error> {
+    fn len(&self) -> Result<usize> {
         todo!()
     }
 
-    fn is_empty(&self) -> Result<bool, Self::Error> {
+    fn is_empty(&self) -> Result<bool> {
         todo!()
     }
     //
