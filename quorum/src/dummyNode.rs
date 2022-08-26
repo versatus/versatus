@@ -1,23 +1,36 @@
-use vrrb_vrf::vvrf::VVRF;
+use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
+use rand_chacha::{ChaCha20Rng};
+use std::iter::FromIterator;
 
 pub struct DummyNode {
-    pub nodeId: u64,
+    pub nodeId: snowflake::ProcessUniqueId,
     pub pubkey: String, 
-    pub staked: u64,
+    pub staked: u128,
 }
 
-impl DumyyNode {
-    pub fn new(){
-        let nodeId = ProcessUniqueId::new();
+impl DummyNode {
+    pub fn new() -> DummyNode{
+        let nodeId = snowflake::ProcessUniqueId::new();
 
-        let secret_key = SecretKey::new(&mut rand::thread_rng());
-        let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
-        let mut pubkey = VVRF::generate_pubkey(&mut vrf, secret_key);
-        pubkey.unwrap().trim_start().to_string();
-
+        let secret_key = VVRF::generate_secret_key();
+        let vvrf1 = VVRF::new(b"test", secret_key);
+        
+        let mut pk = vvrf1.pubkey;
+        let pk_bytes = &pk[0..32];
+        let pubkey = std::str::from_utf8(pk_bytes).unwrap().to_string();
         
 
+        let sk = VVRF::generate_secret_key();
+        let vvrf2 = VVRF::new(b"test", sk);
+        let min :u128 = 0;
+        let max :u128 = 20000;
+        let staked = vvrf2.generate_u128_in_range(min: u128, max: u128);
 
+        DummyNode{
+            nodeId,
+            pubkey,
+            staked,
+        }
     }
 
 }

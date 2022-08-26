@@ -9,10 +9,10 @@
  use std::u64::MAX as u64MAX;
  use lr_trie::{LeftRightTrie};
  use hex::{encode};
- use miner::miner::Miner;
  use claim::claim::Claim;
  use indexmap::IndexMap;
  use node::node::Node;
+ use crate::dummyNode::DummyNode;
 
  #[derive(Debug)]
 pub enum InvalidQuorum{
@@ -103,12 +103,28 @@ pub struct Quorum{
    //let quorum_seed = QUORUM::generate_quorum_seed(components);
    //waiting on node trie to be implemented so traversal is possible and
    //Vec of pointer_sums is returned
-   fn calculate_pointer_sum(quorum_seed: String, miner: Miner) -> u64{
+   fn get_pointer_sums(quorum_seed: String, claim_trie: &LeftRightTrie<T>) -> Vec<u128>{
       
-      let claim_hash = miner.claim.hash;
+      let mut nodes = Vec::new();
+
+      for i in 0..10{
+         let node = crate::dummyNode::DummyNode::new();
+         nodes.push(node);
+      }
+
+
+
+
+
+      //check if node can be masternode
+      //go through claims and match pubkey
+         //if match, call get_pointer and store in array
+      //return array
+
+
       let mut pointer_sum: u64 = 0;      
       //needs to be replaced by getter/iter in LRTrie
-     
+     /*
       for (i, char) in quorum_seed.chars().enumerate() {
          let mut claim_index = claim_hash.find(char);
          if claim_index.is_some() {
@@ -117,6 +133,7 @@ pub struct Quorum{
          }         
       }
       return pointer_sum;   
+      */
    }
 
    fn get_lowest_pointer_nodes(quorum_seed: String, node_trie: &LeftRightTrie<Node>) -> Vec<Miner>{
