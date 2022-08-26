@@ -1,6 +1,6 @@
 pub  mod election;
 pub mod quorum;
-
+extern crate snowflake;
 
 #[cfg(test)]
 mod tests {

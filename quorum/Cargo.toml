@@ -16,3 +16,6 @@ lr_trie = {path = "../lr_trie"}
 miner = {path = "../miner"}
 claim = {path = "../claim"}
 indexmap = "1.9.1"
+node = {path = "../node"}
+udp2p = {git = "https://github.com/ASmithOWL/udp2p.git", branch = "main"}
+snowflake = { version = "1.3.0", features = ["serde_support"] }

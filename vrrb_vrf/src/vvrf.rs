@@ -40,7 +40,7 @@ pub struct VVRF {
     pub rng: ChaCha20Rng,
 }
 
-///implenent VRNG trait for VVRF s.t. VVRF can accomomdate 
+///implenent VRNG trait for VVRF s.t. VVRF can acommodate all int sizes
 impl VRNG for VVRF {
     fn generate_u8(&mut self) -> u8 {
         let mut data = [0u8; 1];
