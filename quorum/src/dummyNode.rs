@@ -3,17 +3,19 @@ use rand_chacha::{ChaCha20Rng};
 use std::iter::FromIterator;
 
 pub struct DummyNode {
-    pub nodeId: snowflake::ProcessUniqueId,
     pub pubkey: String, 
     pub staked: u128,
 }
 
-impl DummyNode {
-    pub fn new() -> DummyNode{
-        let nodeId = snowflake::ProcessUniqueId::new();
+//fewer than 51% w valid pointer sums!
+    //integer overflow on u128 (pointer sums are over)
+    //get pointer method on claim, if claim hash doesnt match every char in seed, returns none
+    //nonce all claims up by 1 and re-run
 
+impl DummyNode {
+    pub fn new(message: &[u8]) -> DummyNode{
         let secret_key = VVRF::generate_secret_key();
-        let vvrf1 = VVRF::new(b"test", secret_key);
+        let vvrf1 = VVRF::new(message, secret_key);
         
         let mut pk = vvrf1.pubkey;
         let pk_bytes = &pk[0..32];
@@ -21,16 +23,14 @@ impl DummyNode {
         
 
         let sk = VVRF::generate_secret_key();
-        let vvrf2 = VVRF::new(b"test", sk);
+        let vvrf2 = VVRF::new(message, sk);
         let min :u128 = 0;
         let max :u128 = 20000;
         let staked = vvrf2.generate_u128_in_range(min: u128, max: u128);
 
         DummyNode{
-            nodeId,
             pubkey,
             staked,
         }
     }
-
 }

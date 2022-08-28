@@ -13,6 +13,7 @@
  use indexmap::IndexMap;
  use node::node::Node;
  use crate::dummyNode::DummyNode;
+ use rayon::prelude::*;
 
  #[derive(Debug)]
 pub enum InvalidQuorum{
@@ -34,7 +35,7 @@ impl Display for InvalidQuorum {
 impl std::error::Error for InvalidQuorum {}
  
 pub struct Quorum{
-   pub quorum_seed: String,
+   pub quorum_seed: u64,
    pub pointer_sums: Vec<u64>,
    pub masternodes: Vec<String>,
    pub quorum_pk: String,
@@ -75,9 +76,9 @@ pub struct Quorum{
          election_timestamp: child_block_timestamp,
       }
          
-      }
+   }
 
-   fn generate_quorum_seed(blockchain: &Blockchain) -> String{
+   fn generate_quorum_seed(blockchain: &Blockchain) -> u64{
 
       let child_block = blockchain.get_child_ref();
       
@@ -96,81 +97,49 @@ pub struct Quorum{
       assert!(rng < u64MAX);
       assert!(VVRF::verify_seed(&mut vvrf).is_ok());
 
-      return encode(rng.to_le_bytes());
+      return rng;
    }
 
-   //node_trie: &LeftRightTrie<MINER>
-   //let quorum_seed = QUORUM::generate_quorum_seed(components);
-   //waiting on node trie to be implemented so traversal is possible and
-   //Vec of pointer_sums is returned
-   fn get_pointer_sums(quorum_seed: String, claim_trie: &LeftRightTrie<T>) -> Vec<u128>{
-      
-      let mut nodes = Vec::new();
+   fn get_masternodes(mut claims: Vec<Claim>) -> Vec<Claim> {
+      let mut eligible_nodes = Vec::<Claim>::new();
 
-      for i in 0..10{
-         let node = crate::dummyNode::DummyNode::new();
-         nodes.push(node);
-      }
-
-
-
-
-
-      //check if node can be masternode
-      //go through claims and match pubkey
-         //if match, call get_pointer and store in array
-      //return array
-
-
-      let mut pointer_sum: u64 = 0;      
-      //needs to be replaced by getter/iter in LRTrie
-     /*
-      for (i, char) in quorum_seed.chars().enumerate() {
-         let mut claim_index = claim_hash.find(char);
-         if claim_index.is_some() {
-            let claim_index = claim_index.unwrap() as u64; 
-            pointer_sum += claim_index.pow(i as u32);
-         }         
-      }
-      return pointer_sum;   
-      */
+      claims.into_iter().filter(|claim| claim.eligible == true).for_each(
+         |claim| {
+            eligible_nodes.push(claim.clone());
+         }
+      );
+      return eligible_nodes;  
    }
 
-   fn get_lowest_pointer_nodes(quorum_seed: String, node_trie: &LeftRightTrie<Node>) -> Vec<Miner>{
+   fn get_lowest_pointer_nodes(
+      quorum_seed: u64, 
+      claims: Vec<Claim>, 
+      nodes: Vec<DummyNode>) -> Vec<DummyNode> {
 
-      //calculate each sum and add to vector and index map, pointing to miner
-      let mut sum_to_miner: IndexMap<u64, Vec<Miner>>::new;
+      let claim_tuples: Vec<(Option<u64>, String)> = claims.iter().filter(
+         |claim| claim.get_pointer(quorum_seed) != None).map(
+         |claim| (claim.get_pointer(quorum_seed), claim.pubkey)
+      ).collect();
       
-      //noe trie traversal to isolate miners;
-      let mut lowest_pointer_sums = Vec::<u64>::new();
+      claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
-      for miner in node_trie.iter() {
-         let current_pointer_sum = Quorum::calculate_pointer_sum(quorum_seed, miner);
-         lowest_pointer_sums.push(current_pointer_sum);
-         if sum_to_miner.contains_key(current_pointer_sum){
-            sum_to_miner.get_mut(&current_pointer_sum).unwrap().push(miner);
-         } else {
-            sum_to_miner.insert(current_pointer_sum, vec![miner]);
+      let num_nodes =((claim_tuples.len() as f32)/ 0.51).ceil() as u64;
+
+      let mut quorum_nodes: Vec<DummyNode> = Vec::new();
+
+      for node in nodes{
+         if quorum_nodes.len() == num_nodes as usize {
+            break;
          }
+         let node_pubkey = node.pubkey;
+         let node_pointer = claim_tuples.iter().find(
+            |claim_tuple| claim_tuple.1 == node_pubkey
+         ).unwrap().0.unwrap();
+         quorum_nodes.push(node);
       }
-
-      lowest_pointer_sums.sort(); //
-      let num_nodes = ((sum_to_miner.len())/ 0.51).ceil() as u64;
-      let mut quorum_nodes: Vec<Miner> = Vec::new();
-
-      let mut i = 0;
-      while i < num_nodes + 1 {
-         let miners = sum_to_miner.get(lowest_pointer_sums[i as usize]).unwwrap();
-         let mut n = 0;
-         while n < miners.len() {
-            quorum_nodes.push(miners[n]);
-            n += 1;
-         }
-         i += 1;
-      }
-      //make immutable with binding
       let quorum_nodes = quorum_nodes;
       return quorum_nodes;
    }
+
  }
  
