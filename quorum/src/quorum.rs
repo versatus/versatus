@@ -36,8 +36,7 @@ impl std::error::Error for InvalidQuorum {}
  
 pub struct Quorum{
    pub quorum_seed: u64,
-   pub pointer_sums: Vec<u64>,
-   pub masternodes: Vec<String>,
+   pub masternodes: Vec<DummyNode>,
    pub quorum_pk: String,
    pub election_block_height: u128,
    pub election_timestamp: u128,
@@ -59,8 +58,25 @@ pub struct Quorum{
          let child_block_hash = child_block.unwrap().hash;
          let child_block_timestamp = child_block.unwrap().header.timestamp;
          let child_block_height = child_block.unwrap().header.block_height;
-      } ;
-     
+      } 
+
+      let mut dummyNodes: Vec<DummyNode> = Vec::new();
+      let node1: DummyNode = DummyNode::new(b"node1");
+      let node2: DummyNode = DummyNode::new(b"node2");
+      let node3: DummyNode = DummyNode::new(b"node3");
+
+      let mut dummyClaims: Vec<Claim> = Vec::new();
+      let addr: String = "0x0000000000000000000000000000000000000000".to_string();
+      let claim1: Claim = Claim::new(node1.pubkey, addr, 1);
+      let claim2: Claim = Claim::new(node2.pubkey, addr, 2);
+      let claim3: Claim = Claim::new(node3.pubkey, addr, 3);
+
+
+      let masterClaims: Vec<Claim> = Quorum::get_master_claims(dummyClaims);
+      let masternodes: Vec<DummyNode> = Quorum::get_quorum_nodes(
+         quorum_seed, masterClaims, dummyNodes);
+
+
       //rerun when fails --> what is threshold of failure?
       //need 60% of quorum to vite, dont wanna wait until only 60% of quorum is live
       //maybe if 20% of quorum becomes faulty, we do election
@@ -69,8 +85,7 @@ pub struct Quorum{
       //the failed to true, rerun
       Quorum{
          quorum_seed,
-         pointer_sums: Vec::new(),
-         masternodes: Vec::new(),
+         masternodes,
          quorum_pk: String::new(),
          election_block_height: child_block_height,
          election_timestamp: child_block_timestamp,
@@ -100,7 +115,7 @@ pub struct Quorum{
       return rng;
    }
 
-   fn get_masternodes(mut claims: Vec<Claim>) -> Vec<Claim> {
+   fn get_master_claims(mut claims: Vec<Claim>) -> Vec<Claim> {
       let mut eligible_nodes = Vec::<Claim>::new();
 
       claims.into_iter().filter(|claim| claim.eligible == true).for_each(
@@ -111,15 +126,19 @@ pub struct Quorum{
       return eligible_nodes;  
    }
 
-   fn get_lowest_pointer_nodes(
+   fn get_quorum_nodes(
       quorum_seed: u64, 
       claims: Vec<Claim>, 
       nodes: Vec<DummyNode>) -> Vec<DummyNode> {
 
-      let claim_tuples: Vec<(Option<u64>, String)> = claims.iter().filter(
+         
+
+      let claim_tuples: Vec<(Option<u128>, String)> = claims.iter().filter(
          |claim| claim.get_pointer(quorum_seed) != None).map(
          |claim| (claim.get_pointer(quorum_seed), claim.pubkey)
       ).collect();
+
+      claim_tuples.iter().
       
       claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
@@ -142,4 +161,10 @@ pub struct Quorum{
    }
 
  }
+
+//fewer than 51% w valid pointer sums!
+   //integer overflow on u128 (pointer sums are over)
+   //get pointer method on claim, if claim hash doesnt match every char in seed, returns none
+   //nonce all claims up by 1 and re-run
+
  

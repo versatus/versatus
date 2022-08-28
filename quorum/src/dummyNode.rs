@@ -7,11 +7,6 @@ pub struct DummyNode {
     pub staked: u128,
 }
 
-//fewer than 51% w valid pointer sums!
-    //integer overflow on u128 (pointer sums are over)
-    //get pointer method on claim, if claim hash doesnt match every char in seed, returns none
-    //nonce all claims up by 1 and re-run
-
 impl DummyNode {
     pub fn new(message: &[u8]) -> DummyNode{
         let secret_key = VVRF::generate_secret_key();
