@@ -16,7 +16,7 @@ mod tests {
     #[test]
     fn creates_new_lrmempooldb() {
         let lrmpooldb = LeftRightMemPoolDB::new();
-        assert_eq!(0, lrmpooldb.size());
+        assert_eq!(0, lrmpooldb.size().0);
     }
 
     #[test]
@@ -44,14 +44,14 @@ mod tests {
         match mpooldb.add_txn(&txn) {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             }
         };
 
-        assert_eq!(1, mpooldb.size());
+        assert_eq!(1, mpooldb.size().0);
     }
 
     #[test]
@@ -79,7 +79,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -88,15 +88,15 @@ mod tests {
 
         match mpooldb.add_txn(&txn) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
                 // panic!("Adding second identical transaction was succesful !");
             },
             Err(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             }
         };
 
-        assert_eq!(1, mpooldb.size());
+        assert_eq!(1, mpooldb.size().0);
     }
 
     #[test]
@@ -138,7 +138,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn1) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -147,7 +147,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn2) {
             Ok(_) => {
-                assert_eq!(2, mpooldb.size());
+                assert_eq!(2, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -185,7 +185,7 @@ mod tests {
         let mut mpooldb = LeftRightMemPoolDB::new();
         match mpooldb.add_txn(&txn) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
@@ -243,7 +243,7 @@ mod tests {
         let mut mpooldb = LeftRightMemPoolDB::new();
         match mpooldb.add_txn_batch(&txns) {
             Ok(_) => {
-                assert_eq!(100, mpooldb.size());
+                assert_eq!(100, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
@@ -306,7 +306,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn1) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -315,7 +315,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn2) {
             Ok(_) => {
-                assert_eq!(2, mpooldb.size());
+                assert_eq!(2, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -324,7 +324,7 @@ mod tests {
 
         match mpooldb.remove_txn_by_id(txn2_id.clone()) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -373,7 +373,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn1) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -382,7 +382,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn2) {
             Ok(_) => {
-                assert_eq!(2, mpooldb.size());
+                assert_eq!(2, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -391,7 +391,7 @@ mod tests {
 
         match mpooldb.remove_txn(&txn1) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size());
+                assert_eq!(1, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -438,7 +438,7 @@ mod tests {
         let mut mpooldb = LeftRightMemPoolDB::new();
         match mpooldb.add_txn_batch(&txns) {
             Ok(_) => {
-                assert_eq!(100, mpooldb.size());
+                assert_eq!(100, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
@@ -446,7 +446,7 @@ mod tests {
         };
         match mpooldb.remove_txn_batch(&txns) {
             Ok(_) => {
-                assert_eq!(0, mpooldb.size());
+                assert_eq!(0, mpooldb.size().0);
             },
             Err(_) => {
                 panic!("Removing transactions was unsuccesful !");
@@ -495,7 +495,7 @@ mod tests {
 
         match lrmpooldb.add_txn_batch(&txns) {
             Ok(_) => {
-                assert_eq!(txn_id_max-1, lrmpooldb.size());
+                assert_eq!(txn_id_max-1, lrmpooldb.size().0);
             },
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");

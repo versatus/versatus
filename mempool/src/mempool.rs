@@ -11,6 +11,8 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 
 use txn::txn::Txn;
+use state::state::NetworkState;
+
 use super::error::MempoolError;
 use super::txn_validator::TxnValidator;
 
@@ -180,6 +182,7 @@ pub struct LeftRightMemPoolDB {
 
 impl LeftRightMemPoolDB {
 
+    /// Creates new Mempool DB
     pub fn new() -> Self {
         let (write, read)
             = left_right::new::<Mempool, MempoolOp>();
@@ -190,12 +193,14 @@ impl LeftRightMemPoolDB {
         }
     }
 
+    /// Getter for Mempool DB
     pub fn get(&self) -> Option<Mempool> {
         self.read
             .enter()
             .map(|guard| guard.clone())
     }
 
+    /// Returns a new ReadHandleFactory, to simplify multithread access.
     pub fn factory(&self) -> ReadHandleFactory<Mempool> {
         self.read.factory()
     }
@@ -235,7 +240,7 @@ impl LeftRightMemPoolDB {
     ///     }
     /// };
     /// 
-    /// assert_eq!(1, lrmempooldb.size());
+    /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
     pub fn add_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
 
@@ -283,7 +288,7 @@ impl LeftRightMemPoolDB {
     /// };
     ///
     /// if let Some(txn) = lrmempooldb.get_txn(&txn_id) {
-    ///     assert_eq!(1, lrmempooldb.size());
+    ///     assert_eq!(1, lrmempooldb.size().0);
     /// } else {
     ///     panic!("Transaction missing !");
     /// };
@@ -302,6 +307,7 @@ impl LeftRightMemPoolDB {
         }
     }
 
+    /// Getter for an entire pending Txn record
     pub fn get_txn_record(&mut self, txn_id: &String) -> Option<TxnRecord> {
 
         if !txn_id.is_empty() {
@@ -317,6 +323,7 @@ impl LeftRightMemPoolDB {
         }            
     }
 
+    /// Getter for an entire validated Txn record
     pub fn get_txn_record_validated(&mut self, txn_id: &String) -> Option<TxnRecord> {
         if !txn_id.is_empty() {
             self.get()
@@ -331,6 +338,7 @@ impl LeftRightMemPoolDB {
         }
     }
 
+    /// Getter for an entire rejected Txn record
     pub fn get_txn_record_rejected(&mut self, txn_id: &String) -> Option<TxnRecord> {
         if !txn_id.is_empty() {
             self.get()
@@ -380,7 +388,7 @@ impl LeftRightMemPoolDB {
     ///     }
     /// };
     /// 
-    /// assert_eq!(1, lrmempooldb.size());
+    /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
     pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
         txn_batch.iter().for_each(|t| {
@@ -436,7 +444,7 @@ impl LeftRightMemPoolDB {
     ///      }
     /// };
     /// 
-    /// assert_eq!(0, lrmempooldb.size());
+    /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<(), MempoolError> {
         self.write.append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id), TxnStatus::Pending));
@@ -488,7 +496,7 @@ impl LeftRightMemPoolDB {
     ///     }
     /// };
     /// 
-    /// assert_eq!(0, lrmempooldb.size());
+    /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
         self.write.append(MempoolOp::Remove(TxnRecord::new(txn), TxnStatus::Pending));
@@ -542,7 +550,7 @@ impl LeftRightMemPoolDB {
     ///      }
     /// };
     /// 
-    /// assert_eq!(0, lrmempooldb.size());
+    /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
         txn_batch.iter().for_each(|t| {
@@ -552,7 +560,7 @@ impl LeftRightMemPoolDB {
         Ok(())
     }
 
-    pub fn validate_all(&mut self) -> Result<(), MempoolError> {
+    pub fn validate_all(&mut self, state: &NetworkState) -> Result<(), MempoolError> {
 
         self.get()
             .and_then(|map| {
@@ -560,7 +568,7 @@ impl LeftRightMemPoolDB {
                     .pending
                     .iter().for_each(|rec_entry| {
                         let txn = Txn::from_string(&rec_entry.1.txn);
-                        match self.validate(&txn) {
+                        match self.validate(&txn, state) {
                             Ok(_) => {
                                 self.write.append(MempoolOp::Remove(rec_entry.1.clone(), TxnStatus::Pending));
                                 self.write.append(MempoolOp::Add(rec_entry.1.clone(), TxnStatus::Validated));
@@ -571,17 +579,18 @@ impl LeftRightMemPoolDB {
                             }
                         }
                     });
-                Some(map)
+                Some(())
             });
         self.publish();
         Ok(())
     }
 
-    pub fn validate(&mut self, txn: &Txn) -> Result<(), MempoolError> {
+    pub fn validate(&mut self, txn: &Txn, state: &NetworkState) -> Result<(), MempoolError> {
         
-        TxnValidator::new(txn).validate().map_err(|_| MempoolError::TransactionInvalid)
+        TxnValidator::new(txn, state).validate().map_err(|_| MempoolError::TransactionInvalid)
     }
 
+    /// Was the Txn validated ? And when ?
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128, MempoolError> {
         if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
             Ok(txn_record_validated.txn_validated_timestamp)
@@ -590,12 +599,23 @@ impl LeftRightMemPoolDB {
         }
     }
 
+    /// Was the Txn rejected ? And when ?
     pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128, MempoolError> {
         if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
-            Ok(txn_record_rejected.txn_validated_timestamp)
+            Ok(txn_record_rejected.txn_rejected_timestamp)
         } else {
             Err(MempoolError::TransactionMissing)
         }
+    }
+
+    /// Purge rejected transactions.
+    pub fn purge_txn_rejected(&mut self) -> Result<(), MempoolError> {
+        self.get()
+            .and_then(|mut map| {
+                map.rejected.clear();
+                Some(())
+            });
+        Ok(())
     }
 
     /// Retrieves actual size of the mempooldb.
@@ -634,16 +654,17 @@ impl LeftRightMemPoolDB {
     ///     }
     /// };
     ///
-    /// assert_eq!(1, lrmempooldb.size());
+    /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
-    pub fn size(&self) -> usize {
+    pub fn size(&self) -> (usize, usize, usize) {
         if let Some(map) = self.get() {
-            map.pending.len()
+            (map.pending.len(), map.validated.len(), map.rejected.len())
         } else {
-            0
+            (0, 0 ,0)
         }
     }
 
+    /// Pushes changes to Reader.
     fn publish(&mut self) {
         self.write.publish();
     }
