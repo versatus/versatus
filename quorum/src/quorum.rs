@@ -46,11 +46,6 @@ pub struct Quorum{
    fn elect_quorum(&mut self, blockchain: &Blockchain) -> Quorum{
          return Quorum::new(blockchain);
    }
-
-   fn get_current_quorum(&self) -> &Quorum{
-       return self.clone();
-   }
-
  }
  
  impl Quorum{
