@@ -43,6 +43,13 @@ pub struct Quorum{
 }
 
  impl Election for Quorum{
+   fn elect_quorum(&mut self, blockchain: &Blockchain) -> Quorum{
+         return Quorum::new(blockchain);
+   }
+
+   fn get_current_quorum(&self) -> &Quorum{
+       return self.clone();
+   }
 
  }
  
@@ -58,7 +65,9 @@ pub struct Quorum{
          let child_block_hash = child_block.unwrap().hash;
          let child_block_timestamp = child_block.unwrap().header.timestamp;
          let child_block_height = child_block.unwrap().header.block_height;
-      } 
+      } else {
+         return Err(InvalidQuorum::InvalidChildBlockError).unwrap();
+      }
 
       let mut dummyNodes: Vec<DummyNode> = Vec::new();
       let node1: DummyNode = DummyNode::new(b"node1");
@@ -117,7 +126,6 @@ pub struct Quorum{
 
    fn get_master_claims(mut claims: Vec<Claim>) -> Vec<Claim> {
       let mut eligible_nodes = Vec::<Claim>::new();
-
       claims.into_iter().filter(|claim| claim.eligible == true).for_each(
          |claim| {
             eligible_nodes.push(claim.clone());
@@ -131,14 +139,17 @@ pub struct Quorum{
       claims: Vec<Claim>, 
       nodes: Vec<DummyNode>) -> Vec<DummyNode> {
 
-         
-
+      
       let claim_tuples: Vec<(Option<u128>, String)> = claims.iter().filter(
          |claim| claim.get_pointer(quorum_seed) != None).map(
          |claim| (claim.get_pointer(quorum_seed), claim.pubkey)
       ).collect();
+      
 
-      claim_tuples.iter().
+      //make sure no claims didnt match all chars
+      if claims.len() > claim_tuples.len(){
+         return Err(InvalidQuorum::InvalidElectionError).unwrap();
+      }
       
       claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
