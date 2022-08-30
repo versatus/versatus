@@ -1,5 +1,6 @@
 use keccak_hash::H256;
-use lr_trie::{db::Database, Bytes, LeftRightTrie};
+use lr_trie::{op::Bytes, LeftRightTrie};
+use patriecia::db::Database;
 use std::{fmt::Debug, sync::Arc};
 
 pub struct StateTrie<'a, D: Database> {

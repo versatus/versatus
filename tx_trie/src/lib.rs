@@ -1,4 +1,5 @@
-use lr_trie::{db::Database, Bytes, LeftRightTrie, H256};
+use lr_trie::{Bytes, LeftRightTrie};
+use patriecia::{db::Database, H256};
 use std::{fmt::Debug, sync::Arc};
 
 pub struct TxTrie<'a, D: Database> {
