@@ -92,6 +92,10 @@ pub enum Command {
     SendAddress,
     NonceUp,
     Quit,
+    InitDKG,
+    SendPartMessage(Vec<u8>),
+    SendAckMessage(Vec<u8>),
+    PublicKeySetSync
 }
 
 /// A Trait to convert different types into a command

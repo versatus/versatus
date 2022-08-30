@@ -17,12 +17,15 @@ pub trait Handler<T, V> {
 
 /// The basic structure for allocating messages to the transport layer, and receiving messages to be
 /// converted into commands from the transport layer. 
+#[derive(Debug)]
 pub struct MessageHandler<T, V> {
     pub sender: UnboundedSender<T>,
     pub receiver: UnboundedReceiver<V>,
 }
 
+
 /// The basic structure for allocating commands to different parts of the system. 
+#[derive(Debug)]
 pub struct CommandHandler {
     pub to_mining_sender: UnboundedSender<Command>,
     pub to_blockchain_sender: UnboundedSender<Command>,
@@ -65,6 +68,7 @@ impl CommandHandler {
     /// Handles a command received by the command handler and allocates it to the proper part of the system for processing. 
     pub fn handle_command(&mut self, command: Command) {
         match command {
+            
             Command::StopMine => {
                 if let Err(e) = self.to_mining_sender.send(Command::StopMine) {
                     println!("Error sending to mining sender: {:?}", e);
