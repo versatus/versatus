@@ -8,10 +8,13 @@ use parking_lot::RwLock;
 
 use crate::error::MemDBError;
 
+pub type WrappedDatabase = Arc<dyn Database<Error = Box<dyn std::error::Error>>>;
+
 /// "DB" defines the "trait" of trie and database interaction.
 /// You should first write the data to the cache and write the data
 /// to the database in bulk after the end of a set of operations.
-pub trait Database: Send + Sync + Clone + Default + std::fmt::Debug {
+// pub trait Database: Send + Sync + Default + std::fmt::Debug {
+pub trait Database: Send + Sync + std::fmt::Debug {
     type Error: Error;
 
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error>;
@@ -66,7 +69,7 @@ impl MemoryDB {
 }
 
 impl Database for MemoryDB {
-    type Error = MemDBError;
+    type Error = Box<MemDBError>;
 
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
         if let Some(value) = self.storage.read().get(key) {

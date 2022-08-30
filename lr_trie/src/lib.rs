@@ -8,6 +8,7 @@ mod lr_trie;
 pub mod result;
 pub mod trie;
 
+pub mod helpers;
 pub(crate) mod nibbles;
 pub(crate) mod node;
 pub mod op;

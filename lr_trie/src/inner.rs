@@ -4,6 +4,7 @@
 /// in due time.
 ///
 use std::borrow::BorrowMut;
+use std::rc::{self, Rc};
 use std::sync::Arc;
 
 use hashbrown::{HashMap, HashSet};
@@ -11,8 +12,9 @@ use keccak_hash::{keccak, H256};
 use left_right::Absorb;
 use rlp::{Prototype, Rlp, RlpStream};
 
-use crate::db::{Database, MemoryDB};
+use crate::db::{Database as DbTrait, MemoryDB};
 use crate::error::TrieError;
+use crate::helpers::Database;
 use crate::nibbles::Nibbles;
 use crate::node::{BranchNode, Node};
 use crate::op::Operation;
@@ -23,13 +25,22 @@ const HASHED_LENGTH: usize = 32;
 
 #[derive(Debug, Clone, Default)]
 pub struct InnerTrie<D>
+// pub struct InnerTrie
 where
+    // D: AsMut<dyn DbTrait<Error = TrieDbError>>,
     D: Database,
+    // D: Deref<Target = Box<dyn Database>>,
+    // D: Deref<Target = Box<dyn Database<Error = thiserror::Error>>>,
+    // D: ?Sized + Database,
+    // D: BoxedDatabase,
 {
     root: Node,
     root_hash: H256,
 
-    db: Arc<D>,
+    // db: Arc<D>,
+    db: D,
+    // db: Arc<Box<dyn Database<Error = Box<dyn std::error::Error>>>>,
+    // db: WrappedDatabase,
 
     // The batch of pending new nodes to write
     cache: HashMap<Vec<u8>, Vec<u8>>,
@@ -46,7 +57,9 @@ impl<D> InnerTrie<D>
 where
     D: Database,
 {
-    pub fn new(db: Arc<D>) -> Self {
+    // impl InnerTrie {
+    // pub fn new(db: WrappedDatabase) -> Self {
+    pub fn new(db: D) -> Self {
         Self {
             root: Node::Empty,
             root_hash: keccak(&rlp::NULL_RLP.to_vec()),
@@ -73,6 +86,7 @@ where
     }
 
     pub fn iter(&self) -> TrieIterator<D> {
+        // pub fn iter(&self) -> TrieIterator {
         let nodes = vec![(self.root.clone()).into()];
         TrieIterator {
             trie: self,
@@ -96,6 +110,7 @@ impl<D> Trie<D> for InnerTrie<D>
 where
     D: Database,
 {
+    // impl Trie for InnerTrie {
     /// Returns the value for key stored in the trie.
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let path = &Nibbles::from_raw(key, true);
@@ -250,6 +265,7 @@ impl<D> InnerTrie<D>
 where
     D: Database,
 {
+    // impl InnerTrie {
     fn get_at(
         &self,
         source_node: &Node,
@@ -816,14 +832,17 @@ impl TraceNode {
 }
 
 pub struct TrieIterator<'a, D>
+// pub struct TrieIterator<'a>
 where
     D: Database,
 {
     trie: &'a InnerTrie<D>,
+    // trie: &'a InnerTrie,
     nibble: Nibbles,
     nodes: Vec<TraceNode>,
 }
 
+// impl<'a> Iterator for TrieIterator<'a>
 impl<'a, D> Iterator for TrieIterator<'a, D>
 where
     D: Database,
@@ -918,6 +937,7 @@ where
 }
 
 impl<'a, D> Absorb<Operation<'a>> for InnerTrie<D>
+// impl<'a> Absorb<Operation<'a>> for InnerTrie
 where
     D: Database,
 {
@@ -988,7 +1008,8 @@ mod tests {
         assert_eq!(None, v)
     }
 
-    fn corrupt_trie() -> (InnerTrie<MemoryDB>, H256, H256) {
+    fn corrupt_trie() -> (InnerTrie<Arc<MemoryDB>>, H256, H256) {
+        // fn corrupt_trie() -> (InnerTrie, H256, H256) {
         let memdb = Arc::new(MemoryDB::new(true));
         let corruptor_db = memdb.clone();
         let mut trie = InnerTrie::new(memdb);

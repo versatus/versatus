@@ -1,5 +1,6 @@
+use crate::helpers::Database;
 use crate::{
-    db::Database,
+    db::WrappedDatabase,
     inner::InnerTrie,
     op::{Bytes, Operation},
     trie::Trie,
@@ -11,12 +12,17 @@ use std::{fmt::Debug, sync::Arc};
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
 pub struct LeftRightTrie<'a, D: Database> {
+    // pub struct LeftRightTrie<'a> {
     pub read_handle: ReadHandle<InnerTrie<D>>,
+    // pub read_handle: ReadHandle<InnerTrie>,
     pub write_handle: WriteHandle<InnerTrie<D>, Operation<'a>>,
+    // pub write_handle: WriteHandle<InnerTrie, Operation<'a>>,
 }
 
 impl<'a, D: Database> LeftRightTrie<'a, D> {
-    pub fn new(db: Arc<D>) -> Self {
+    // impl<'a> LeftRightTrie<'a> {
+    // pub fn new(db: WrappedDatabase) -> Self {
+    pub fn new(db: D) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
 
         Self {
@@ -27,6 +33,7 @@ impl<'a, D: Database> LeftRightTrie<'a, D> {
 
     // TODO: consider renaming to handle, get_handle or get_read_handle
     pub fn get(&self) -> InnerTrie<D> {
+        // pub fn get(&self) -> InnerTrie {
         self.read_handle
             .enter()
             .map(|guard| guard.clone())
@@ -51,6 +58,7 @@ impl<'a, D: Database> LeftRightTrie<'a, D> {
     // }
 
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
+        // pub fn factory(&self) -> ReadHandleFactory<InnerTrie> {
         self.read_handle.factory()
     }
 
@@ -79,14 +87,17 @@ impl<'a, D: Database> LeftRightTrie<'a, D> {
 }
 
 impl<'a, D: Database> PartialEq for LeftRightTrie<'a, D> {
+    // impl<'a> PartialEq for LeftRightTrie<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.get().root_hash() == other.get().root_hash()
     }
 }
 
 impl<'a, D: Database> Default for LeftRightTrie<'a, D> {
+    // impl<'a> Default for LeftRightTrie<'a> {
     fn default() -> Self {
-        let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
+        // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
+        let (write_handle, read_handle) = left_right::new::<InnerTrie, Operation>();
         Self {
             read_handle,
             write_handle,

@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, hash::Hash, time::SystemTime};
+use std::{cmp::Ordering, collections::HashMap, hash::Hash, sync::Arc, time::SystemTime};
 
 use crate::result::{LeftRightDbError, Result};
 use lr_trie::db::Database;
@@ -23,7 +23,11 @@ where
     last_refresh: std::time::SystemTime,
 }
 
-impl<K, V> Database for LeftRightDatabase<K, V>
+pub struct ArcWrap<T> {
+    inner: Arc<T>,
+}
+
+impl<K, V> Database for ArcWrap<LeftRightDatabase<K, V>>
 where
     K: Clone + Eq + Hash + Send + Sync + std::fmt::Debug,
     V: Clone + Eq + evmap::ShallowCopy + Send + Sync + std::fmt::Debug,

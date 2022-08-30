@@ -1,9 +1,10 @@
 use keccak_hash::H256;
 
-use crate::db::Database;
+use crate::helpers::Database;
 use crate::result::Result;
 
 pub trait Trie<D: Database> {
+    // pub trait Trie {
     /// Returns the value for key stored in the trie.
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>>;
 
