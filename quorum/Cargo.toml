@@ -7,15 +7,12 @@ edition = "2021"
 
 [dependencies]
 blockchain = { path = "../blockchain" }
-state = { path = "../state" }
 block = { path = "../block" }
 vrrb_vrf = { path = "../vrrb_vrf" }
 rand_chacha = "0.3.1"
 hex = "0.4.3"
-lr_trie = {path = "../lr_trie"}
 miner = {path = "../miner"}
 claim = {path = "../claim"}
-indexmap = "1.9.1"
 node = {path = "../node"}
-udp2p = {git = "https://github.com/ASmithOWL/udp2p.git", branch = "main"}
 rayon = "1.5.3"
+thiserror = "1.0.32"

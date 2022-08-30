@@ -1,39 +1,36 @@
  use crate::election:: Election;
  use blockchain::blockchain::Blockchain;
- use state::state::Components;
  use block::block::Block;
  use std::fmt::{Display};
  use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
  use rand_chacha::{ChaCha20Rng};
  use std::u32::MAX;
  use std::u64::MAX as u64MAX;
- use lr_trie::{LeftRightTrie};
- use hex::{encode};
  use claim::claim::Claim;
- use indexmap::IndexMap;
  use node::node::Node;
  use crate::dummyNode::DummyNode;
  use rayon::prelude::*;
+ use thiserror::Error;
 
- #[derive(Debug)]
+
+ #[derive(Error, Debug)]
+ //add value that caused error
 pub enum InvalidQuorum{
-    InvalidSeedError, 
-    InvalidElectionError,
-    InvalidChildBlockError,
+   #[error("inavlid seed generated: {}", u64)]
+    InvalidSeedError(u64), 
+
+   #[error("invalid pointer sum: {}", Vec<Claim>)]
+    InvalidPointerSumError(Vec<Claim>),
+
+   #[error("invalid child block: {}", Block)]
+    InvalidChildBlockError(Block),
 }
 
-impl Display for InvalidQuorum {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InvalidQuorum::InvalidSeedError => write!(f, "Invalid seed"),
-            InvalidQuorum::InvalidElectionError => write!(f, "Invalid election"),
-            InvalidQuorum::InvalidChildBlockError => write!(f, "Invalid child block"),
-         }
-    }
+pub enum Error {
+   #[error("invalid rdo_lookahead_frames {0} (expected < {})", i32::MAX)]
+   InvalidLookahead(u32),
 }
 
-impl std::error::Error for InvalidQuorum {}
- 
 pub struct Quorum{
    pub quorum_seed: u64,
    pub masternodes: Vec<DummyNode>,
@@ -44,67 +41,38 @@ pub struct Quorum{
 
  impl Election for Quorum{
    fn elect_quorum(&mut self, blockchain: &Blockchain) -> Quorum{
+         Quorum{
+
+         }
          return Quorum::new(blockchain);
+         //move heavy lifting from new() here
+         
    }
  }
  
+ //result enum for errors
  impl Quorum{
-   pub fn new(blockchain: &Blockchain) -> Quorum{
-      let quorum_seed = Quorum::generate_quorum_seed(blockchain);
-
-      let child_block = Blockchain::get_child_ref(blockchain);
-      let mut child_block_timestamp: u128;
-      let mut child_block_height: u128;
-
-      if child_block.is_some() {
-         let child_block_hash = child_block.unwrap().hash;
-         let child_block_timestamp = child_block.unwrap().header.timestamp;
-         let child_block_height = child_block.unwrap().header.block_height;
-      } else {
-         return Err(InvalidQuorum::InvalidChildBlockError).unwrap();
-      }
-
-      let mut dummyNodes: Vec<DummyNode> = Vec::new();
-      let node1: DummyNode = DummyNode::new(b"node1");
-      let node2: DummyNode = DummyNode::new(b"node2");
-      let node3: DummyNode = DummyNode::new(b"node3");
-
-      let mut dummyClaims: Vec<Claim> = Vec::new();
-      let addr: String = "0x0000000000000000000000000000000000000000".to_string();
-      let claim1: Claim = Claim::new(node1.pubkey, addr, 1);
-      let claim2: Claim = Claim::new(node2.pubkey, addr, 2);
-      let claim3: Claim = Claim::new(node3.pubkey, addr, 3);
-
-
-      let masterClaims: Vec<Claim> = Quorum::get_master_claims(dummyClaims);
-      let masternodes: Vec<DummyNode> = Quorum::get_quorum_nodes(
-         quorum_seed, masterClaims, dummyNodes);
-
-
-      //rerun when fails --> what is threshold of failure?
-      //need 60% of quorum to vite, dont wanna wait until only 60% of quorum is live
-      //maybe if 20% of quorum becomes faulty, we do election
-      //for now, add failed field, set false, if command from external network
-      //and counter of ndoe fail, check if counter meets threshold 
-      //the failed to true, rerun
-      Quorum{
-         quorum_seed,
-         masternodes,
+   //make new generate a blank/default quorum like a constructor
+   pub fn new(blockchain: &Blockchain) -> Result<Quorum, InvalidQuorum>{
+      return Quorum{
+         quorum_seed: 0,
+         masternodes: Vec::new(),
          quorum_pk: String::new(),
-         election_block_height: child_block_height,
-         election_timestamp: child_block_timestamp,
-      }
-         
+         election_block_height: 0,
+         election_timestamp: 0,
+      } 
    }
 
-   fn generate_quorum_seed(blockchain: &Blockchain) -> u64{
+   pub fn generate_quorum_seed(blockchain: &Blockchain) -> u64{
 
       let child_block = blockchain.get_child_ref();
       
-      let mut child_block_hash: String;
-      if child_block.is_some() {
-         let child_block_hash = child_block.unwrap().hash;
-      } 
+      if let Some(child_block) = child_block {
+         child_block_timestamp = child_block.timestamp;
+         child_block_height = child_block.height;
+      } else {
+         return Err(InvalidQuorum::InvalidChildBlockError(child_block));
+      }
      
       let sk = VVRF::generate_secret_key();
       let vvrf = VVRF::new(child_block_hash.as_bytes(), sk);
@@ -119,31 +87,29 @@ pub struct Quorum{
       return rng;
    }
 
-   fn get_master_claims(mut claims: Vec<Claim>) -> Vec<Claim> {
-      let mut eligible_nodes = Vec::<Claim>::new();
+   pub fn get_eligible_claims(mut claims: Vec<Claim>) -> Vec<Claim> {
+      let mut eligible_claims = Vec::<Claim>::new();
       claims.into_iter().filter(|claim| claim.eligible == true).for_each(
          |claim| {
-            eligible_nodes.push(claim.clone());
+            eligible_claims.push(claim.clone());
          }
       );
-      return eligible_nodes;  
+      return eligible_claims;  
    }
 
-   fn get_quorum_nodes(
+   pub fn get_quorum_nodes(
       quorum_seed: u64, 
       claims: Vec<Claim>, 
       nodes: Vec<DummyNode>) -> Vec<DummyNode> {
 
-      
       let claim_tuples: Vec<(Option<u128>, String)> = claims.iter().filter(
          |claim| claim.get_pointer(quorum_seed) != None).map(
          |claim| (claim.get_pointer(quorum_seed), claim.pubkey)
       ).collect();
       
-
       //make sure no claims didnt match all chars
       if claims.len() > claim_tuples.len(){
-         return Err(InvalidQuorum::InvalidElectionError).unwrap();
+         return Err(InvalidQuorum::InvalidElectionError(claims));
       }
       
       claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
@@ -165,7 +131,6 @@ pub struct Quorum{
       let quorum_nodes = quorum_nodes;
       return quorum_nodes;
    }
-
  }
 
 //fewer than 51% w valid pointer sums!
