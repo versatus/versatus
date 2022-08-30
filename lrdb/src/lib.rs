@@ -1,9 +1,14 @@
-pub mod lr_db;
+mod lr_db;
+pub mod result;
+mod vrrb_db;
+
+pub use lr_db::*;
+pub use vrrb_db::*;
 
 #[cfg(test)]
 mod tests {
 
-    use crate::lr_db::*;
+    use crate::vrrb_db::*;
     use rand::{rngs::StdRng, SeedableRng};
     use secp256k1::generate_keypair;
     use secp256k1::PublicKey;
