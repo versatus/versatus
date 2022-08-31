@@ -1,3 +1,3 @@
 pub mod dkg;
 pub mod types;
-pub mod test_utils;
+pub(crate) mod test_utils;

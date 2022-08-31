@@ -37,7 +37,7 @@ pub enum NodeAuth {
 pub enum NodeType{
     /// This Node will mine the block
     Miner,
-    ///This node will be part of Long Live MasterNode Quorum
+    ///This node will be part of Long Lived MasterNode Quorum
     MasterNode,
     /// This node will inspect signatures
     Regular

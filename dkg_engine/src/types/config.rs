@@ -1,6 +1,8 @@
 use crate::types::DkgError;
 use serde::{Deserialize, Serialize};
 
+use super::NodeID;
+
 /// `ThresholdConfig` is a struct that contains two fields, `upper_bound` and `threshold`, both of which
 /// are unsigned 16-bit integers.
 ///
@@ -42,26 +44,27 @@ impl ThresholdConfig {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     // use super::*;
-    use crate::types::DkgError;
-    use crate::test_utils::{invalid_threshold_config, valid_threshold_config};
     use crate::is_enum_variant;
-    
+    use crate::test_utils::{invalid_threshold_config, valid_threshold_config};
+    use crate::types::DkgError;
+
     #[test]
     fn successful_validate_invalid_threshold_config() {
-        let invalid_config=invalid_threshold_config();
-        let result=invalid_config.validate();
-        assert!(is_enum_variant!(result, Err(DkgError::ConfigInvalidValue {..})));
+        let invalid_config = invalid_threshold_config();
+        let result = invalid_config.validate();
+        assert!(is_enum_variant!(
+            result,
+            Err(DkgError::ConfigInvalidValue { .. })
+        ));
     }
 
     #[test]
     fn successful_validate_valid_threshold_config() {
-        let valid_config=valid_threshold_config();
-        let result=valid_config.validate();
+        let valid_config = valid_threshold_config();
+        let result = valid_config.validate();
         assert!(is_enum_variant!(result, Ok(())));
     }
-
 }

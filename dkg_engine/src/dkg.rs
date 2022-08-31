@@ -4,18 +4,23 @@ use hbbft::sync_key_gen::PartOutcome;
 use hbbft::{crypto::SecretKey, sync_key_gen::SyncKeyGen};
 use node::node::NodeType;
 
+
 /// This is a trait that is implemented by the `DkgEngine` struct. It contains the functions that are
 /// required to run the DKG protocol.
 trait DkgGenerator {
-    fn generate_sync_keygen_instance(&mut self, threshold: usize) -> Result<DkgResult, DkgError>;
+    type DkgStatus;
 
-    fn ack_partial_commitment(&mut self, node_idx: u16) -> Result<DkgResult, DkgError>; //PartOutCome to be sent to channel for broadcasting it to other peers
+    fn generate_sync_keygen_instance(&mut self, threshold: usize) -> Self::DkgStatus;
 
-    fn handle_ack_messages(&mut self) -> Result<DkgResult, DkgError>; //Handle all ACK Messages from all other k-1 MasterNodes
+    fn ack_partial_commitment(&mut self, node_idx: u16) -> Self::DkgStatus; //PartOutCome to be sent to channel for broadcasting it to other peers
 
-    fn generate_key_sets(&mut self) -> Result<(), DkgError>;
+    fn handle_ack_messages(&mut self) -> Self::DkgStatus; //Handle all ACK Messages from all other k-1 MasterNodes
+
+    fn generate_key_sets(&mut self) -> Self::DkgStatus;
 }
 impl DkgGenerator for DkgEngine {
+    type DkgStatus = Result<DkgResult, DkgError>;
+
     /// `generate_sync_keygen_instance` is a function that creates a `SyncKeyGen` instance for the
     /// current node and returns the `Part` message that needs to be multicasted to all LLMQ peers
     ///
@@ -26,7 +31,7 @@ impl DkgGenerator for DkgEngine {
     /// Returns:
     ///
     /// The part_commitment is being returned.
-    fn generate_sync_keygen_instance(&mut self, threshold: usize) -> Result<DkgResult, DkgError> {
+    fn generate_sync_keygen_instance(&mut self, threshold: usize) -> Self::DkgStatus {
         if self.dkg_state.peer_public_keys.len() as u16 != self.threshold_config.upper_bound {
             return Err(DkgError::NotEnoughPeerPublicKeys);
         }
@@ -87,7 +92,7 @@ impl DkgGenerator for DkgEngine {
     /// Returns:
     ///
     /// a `Result` type. The `Result` type is an enum with two variants: `DkgResult` and `Err`.
-    fn ack_partial_commitment(&mut self, sender_node_idx: u16) -> Result<DkgResult, DkgError> {
+    fn ack_partial_commitment(&mut self, sender_node_idx: u16) -> Self::DkgStatus {
         let node = self.dkg_state.sync_key_gen.as_mut();
         if node.is_none() {
             return Err(DkgError::SyncKeyGenInstanceNotCreated);
@@ -132,7 +137,7 @@ impl DkgGenerator for DkgEngine {
     /// Returns:
     ///
     /// a Result type. The Result type is an enum that can be either Ok or Err.
-    fn handle_ack_messages(&mut self) -> Result<DkgResult, DkgError> {
+    fn handle_ack_messages(&mut self) -> Self::DkgStatus {
         /*
         if self.dkg_state.ack_message_store.len() as u16 != self.threshold_config.upper_bound {
             return Err(DkgError::NotEnoughAckMsgsReceived);
@@ -165,7 +170,7 @@ impl DkgGenerator for DkgEngine {
     }
 
     ///  Generate the  distributed public key and secreykeyshare for the node in the Quorum
-    fn generate_key_sets(&mut self) -> Result<(), DkgError> {
+    fn generate_key_sets(&mut self) -> Self::DkgStatus {
         let node_idx = self.node_info.read().unwrap().get_node_idx();
         let synckey_gen = self.dkg_state.sync_key_gen.as_ref();
         if synckey_gen.is_none() {
@@ -186,7 +191,7 @@ impl DkgGenerator for DkgEngine {
         });
         self.dkg_state.public_key_set = Some(pks);
         self.dkg_state.secret_key_share = sks;
-        Ok(())
+        Ok(DkgResult::KeySetsGenerated)
     }
 }
 
@@ -196,7 +201,7 @@ mod tests {
     use node::node::NodeType;
     use std::borrow::BorrowMut;
     use std::collections::HashMap;
-    
+
     // use super::*;
     use super::DkgGenerator;
     use crate::dkg::DkgResult;

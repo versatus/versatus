@@ -34,8 +34,8 @@ pub fn invalid_threshold_config() -> ThresholdConfig {
 /// Arguments:
 ///
 /// * `no_of_nodes`: The number of nodes in the network.
-pub fn generate_key_sets(no_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16, PublicKey>) {
-    let sec_keys: Vec<SecretKey> = (0..no_of_nodes).map(|_| rand::random()).collect();
+pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16, PublicKey>) {
+    let sec_keys: Vec<SecretKey> = (0..number_of_nodes).map(|_| rand::random()).collect();
     let pub_keys = sec_keys
         .iter()
         .map(SecretKey::public_key)
