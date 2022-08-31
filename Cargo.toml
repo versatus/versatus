@@ -4,6 +4,7 @@ lto = "fat"
 
 [workspace]
 members = [
+    "primitives",
     "block",
     "blockchain",
     "claim",
