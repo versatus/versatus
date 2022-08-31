@@ -9,7 +9,7 @@ edition = "2021"
 left-right = "0.11.5"
 nibble_vec = "0.1.0"
 nibbler = "0.2.3"
-rs_merkle = { git = "https://github.com/vrrb-io/rs-merkle", branch = "master" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
 
 hashbrown = "0.12.0"
 keccak-hash = "0.9"

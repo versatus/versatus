@@ -1,4 +1,5 @@
-use lr_trie::{db::Database, Bytes, LeftRightTrie, H256};
+use lr_trie::{Bytes, LeftRightTrie};
+use patriecia::{db::Database, H256};
 use std::{fmt::Debug, sync::Arc};
 
 pub struct TxTrie<'a, D: Database> {
@@ -18,8 +19,9 @@ impl<'a, D: Database> TxTrie<'a, D> {
     /// ```
     ///  use tx_trie::TxTrie;
     ///  use std::sync::Arc;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut tx_trie = TxTrie::new(memdb);
     ///  
     ///  tx_trie.add(b"greetings", b"hello world");
@@ -37,8 +39,9 @@ impl<'a, D: Database> TxTrie<'a, D> {
     ///  use tx_trie::TxTrie;
     ///  use std::sync::Arc;
     ///  use lr_trie::Bytes;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut tx_trie = TxTrie::new(memdb);
     ///
     ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
@@ -61,11 +64,12 @@ impl<'a, D: Database> TxTrie<'a, D> {
     ///  use tx_trie::TxTrie;
     ///  use std::sync::Arc;
     ///  use lr_trie::Bytes;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut tx_trie_a = TxTrie::new(memdb);
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut tx_trie_b = TxTrie::new(memdb);
     ///
     ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
@@ -90,8 +94,9 @@ impl<'a, D: Database> TxTrie<'a, D> {
     ///  use tx_trie::TxTrie;
     ///  use std::sync::Arc;
     ///  use lr_trie::Bytes;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut tx_trie = TxTrie::new(memdb);
     ///
     ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
@@ -114,8 +119,9 @@ impl<'a, D: Database> TxTrie<'a, D> {
     /// ```
     ///  use tx_trie::TxTrie;
     ///  use std::sync::Arc;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut tx_trie = TxTrie::new(memdb);
     ///
     ///  assert_eq!(tx_trie.len(), 0);
@@ -150,11 +156,12 @@ impl<'a, D: Database> Debug for TxTrie<'a, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use patriecia::db::MemoryDB;
     use std::sync::Arc;
 
     #[test]
     fn new_creates_default_empty_trie() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
@@ -163,7 +170,7 @@ mod tests {
 
     #[test]
     fn new_creates_trie_from_lrdb_values() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let mut tx_trie = TxTrie::new(memdb);
 
         tx_trie.add(b"abcdefg", b"12345");
@@ -182,7 +189,7 @@ mod tests {
 
     #[test]
     fn should_add_node_to_trie() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let mut tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
@@ -196,7 +203,7 @@ mod tests {
 
     #[test]
     fn should_extend_trie_with_nodes() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let mut tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
@@ -216,7 +223,7 @@ mod tests {
 
     #[test]
     fn should_return_true_if_root_is_equal_to_other_trie_root() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
 
         let mut tx_trie_a = TxTrie::new(memdb.clone());
         let mut tx_trie_b = TxTrie::new(memdb);
@@ -235,7 +242,7 @@ mod tests {
 
     #[test]
     fn should_return_false_if_root_is_not_equal_to_other_trie_root() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
 
         let mut tx_trie_a = TxTrie::new(memdb.clone());
         let mut tx_trie_b = TxTrie::new(memdb.clone());

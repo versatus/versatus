@@ -1,11 +1,9 @@
-use crate::{
-    db::Database,
-    inner::InnerTrie,
-    op::{Bytes, Operation},
-    trie::Trie,
-};
+use crate::op::Bytes;
+use crate::Operation;
 use keccak_hash::H256;
-use left_right::{ReadHandle, ReadHandleFactory, WriteHandle};
+use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
+use patriecia::trie::Trie;
+use patriecia::{db::Database, inner::InnerTrie};
 use std::{fmt::Debug, sync::Arc};
 
 /// Concurrent generic Merkle Patricia Trie
@@ -94,11 +92,40 @@ impl<'a, D: Database> Default for LeftRightTrie<'a, D> {
     }
 }
 
+impl<'a, D> Absorb<Operation<'a>> for InnerTrie<D>
+where
+    D: Database,
+{
+    fn absorb_first(&mut self, operation: &mut Operation<'a>, _other: &Self) {
+        match operation {
+            // TODO: report errors via instrumentation
+            Operation::Add(key, value) => {
+                self.insert(key, value).unwrap_or_default();
+                self.commit().unwrap_or_default();
+            }
+            Operation::Remove(key) => {
+                self.remove(key).unwrap_or_default();
+            }
+            Operation::Extend(values) => {
+                // TODO: temp hack to get this going. Refactor ASAP
+                for (k, v) in values {
+                    self.insert(k, v).unwrap_or_default();
+                }
+                self.commit().unwrap_or_default();
+            }
+        }
+    }
+
+    fn sync_with(&mut self, first: &Self) {
+        *self = first.clone();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread;
 
-    use crate::db::MemoryDB;
+    use patriecia::db::MemoryDB;
 
     use super::*;
 

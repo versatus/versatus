@@ -1,5 +1,6 @@
 use keccak_hash::H256;
-use lr_trie::{db::Database, Bytes, LeftRightTrie};
+use lr_trie::{op::Bytes, LeftRightTrie};
+use patriecia::db::Database;
 use std::{fmt::Debug, sync::Arc};
 
 pub struct StateTrie<'a, D: Database> {
@@ -19,8 +20,9 @@ impl<'a, D: Database> StateTrie<'a, D> {
     /// ```
     ///  use state_trie::StateTrie;
     ///  use std::sync::Arc;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///  
     ///  state_trie.add(b"greetings", b"hello world");
@@ -38,8 +40,9 @@ impl<'a, D: Database> StateTrie<'a, D> {
     ///  use state_trie::StateTrie;
     ///  use std::sync::Arc;
     ///  use lr_trie::Bytes;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///
     ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
@@ -62,11 +65,12 @@ impl<'a, D: Database> StateTrie<'a, D> {
     ///  use state_trie::StateTrie;
     ///  use std::sync::Arc;
     ///  use lr_trie::Bytes;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie_a = StateTrie::new(memdb);
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie_b = StateTrie::new(memdb);
     ///
     ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
@@ -91,8 +95,9 @@ impl<'a, D: Database> StateTrie<'a, D> {
     ///  use state_trie::StateTrie;
     ///  use std::sync::Arc;
     ///  use lr_trie::Bytes;
+    ///  use patriecia::db::MemoryDB;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///
     ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
@@ -114,9 +119,10 @@ impl<'a, D: Database> StateTrie<'a, D> {
     /// Example:
     /// ```
     ///  use state_trie::StateTrie;
+    ///  use patriecia::db::MemoryDB;
     ///  use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+    ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///
     ///  assert_eq!(state_trie.len(), 0);
@@ -144,11 +150,12 @@ impl<'a, D: Database> Debug for StateTrie<'a, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use patriecia::db::MemoryDB;
     use std::sync::Arc;
 
     #[test]
     fn new_creates_default_empty_trie() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let state_trie = StateTrie::new(memdb);
 
         assert!(state_trie.root().is_some());
@@ -157,7 +164,7 @@ mod tests {
 
     #[test]
     fn new_creates_trie_from_lrdb_values() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let mut state_trie = StateTrie::new(memdb);
 
         state_trie.add(b"abcdefg", b"12345");
@@ -176,7 +183,7 @@ mod tests {
 
     #[test]
     fn should_add_node_to_trie() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let mut state_trie = StateTrie::new(memdb);
 
         assert!(state_trie.root().is_some());
@@ -190,7 +197,7 @@ mod tests {
 
     #[test]
     fn should_extend_trie_with_nodes() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
         let mut state_trie = StateTrie::new(memdb);
 
         assert!(state_trie.root().is_some());
@@ -210,7 +217,7 @@ mod tests {
 
     #[test]
     fn should_return_true_if_root_is_equal_to_other_trie_root() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
 
         let mut state_trie_a = StateTrie::new(memdb.clone());
         let mut state_trie_b = StateTrie::new(memdb.clone());
@@ -229,7 +236,7 @@ mod tests {
 
     #[test]
     fn should_return_false_if_root_is_not_equal_to_other_trie_root() {
-        let memdb = Arc::new(lr_trie::db::MemoryDB::new(true));
+        let memdb = Arc::new(MemoryDB::new(true));
 
         let mut state_trie_a = StateTrie::new(memdb.clone());
         let mut state_trie_b = StateTrie::new(memdb.clone());
