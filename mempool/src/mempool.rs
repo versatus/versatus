@@ -314,7 +314,7 @@ impl LeftRightMemPoolDB {
             self.get()
                 .and_then(|map| {
                     map
-                        .validated
+                        .pending
                         .get(txn_id)
                         .cloned()
                 })
@@ -577,14 +577,19 @@ impl LeftRightMemPoolDB {
                             Ok(_) => {
                                 let mut rec_entry_validated = rec_entry.1.clone();
                                 rec_entry_validated.txn_validated_timestamp = timestamp;
-                                self.write.append(MempoolOp::Remove(rec_entry_validated.clone(), TxnStatus::Pending));
-                                self.write.append(MempoolOp::Add(rec_entry_validated.clone(), TxnStatus::Validated));
+                                self.apply_txn_on_state(&txn, state)
+                                    .and_then(|_| {
+                                        self.write.append(MempoolOp::Add(rec_entry_validated.clone(), TxnStatus::Validated));
+                                        self.write.append(MempoolOp::Remove(rec_entry_validated.clone(), TxnStatus::Pending));
+                                        Ok(())
+                                    })
+                                    .unwrap();
                             },
                             Err(_) => {
                                 let mut rec_entry_rejected = rec_entry.1.clone();
                                 rec_entry_rejected.txn_rejected_timestamp = timestamp;
-                                self.write.append(MempoolOp::Remove(rec_entry_rejected.clone(), TxnStatus::Pending));
                                 self.write.append(MempoolOp::Add(rec_entry_rejected.clone(), TxnStatus::Rejected));
+                                self.write.append(MempoolOp::Remove(rec_entry_rejected.clone(), TxnStatus::Pending));
                             }
                         }
                     });
@@ -612,16 +617,21 @@ impl LeftRightMemPoolDB {
                             Ok(_) => {
                                 let mut rec_entry_validated = rec_entry.clone();
                                 rec_entry_validated.txn_validated_timestamp = timestamp;
-                                self.write.append(MempoolOp::Remove(rec_entry_validated.clone(), TxnStatus::Pending));
-                                self.write.append(MempoolOp::Add(rec_entry_validated.clone(), TxnStatus::Validated));
+                                self.apply_txn_on_state(&txn, state)
+                                    .and_then(|_| {
+                                        self.write.append(MempoolOp::Add(rec_entry_validated.clone(), TxnStatus::Validated));
+                                        self.write.append(MempoolOp::Remove(rec_entry_validated.clone(), TxnStatus::Pending));
+                                        Ok(())
+                                    })
+                                    .unwrap();
                             },
                             Err(_) => {
                                 let mut rec_entry_rejected = rec_entry.clone();
                                 rec_entry_rejected.txn_rejected_timestamp = timestamp;
-                                self.write.append(MempoolOp::Remove(rec_entry_rejected.clone(), TxnStatus::Pending));
                                 self.write.append(MempoolOp::Add(rec_entry_rejected.clone(), TxnStatus::Rejected));
+                                self.write.append(MempoolOp::Remove(rec_entry_rejected.clone(), TxnStatus::Pending));
                             }
-                        };
+                        }
                         Some(())
                     })
                 });
@@ -633,6 +643,13 @@ impl LeftRightMemPoolDB {
     pub fn validate(&mut self, txn: &Txn, state: &NetworkState) -> Result<(), MempoolError> {
         
         TxnValidator::new(txn, state).validate().map_err(|_| MempoolError::TransactionInvalid)
+    }
+
+    /// Apply Txn on debits and credits of currect state
+    // TODO: to be clarified against the new state representation.
+    pub fn apply_txn_on_state(&mut self, _txn: &Txn, _state: &NetworkState) -> Result<(), MempoolError> {
+
+        Ok(())
     }
 
     /// Was the Txn validated ? And when ?

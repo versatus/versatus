@@ -192,6 +192,7 @@ mod tests {
             }
         };
 
+        // Test single Txn retrieval
         if let Some(txn_retrieved) = mpooldb.get_txn(&txn.txn_id.clone()) {
             assert_eq!(txn_retrieved.txn_id, txn_id);
             assert_eq!(txn_retrieved.txn_timestamp, now);
@@ -201,6 +202,19 @@ mod tests {
         } else {
             panic!("No transaction found!");
         }
+
+        // Test TxnRecord retrieval
+        if let Some(txn_rec_retrieved) = mpooldb.get_txn_record(&txn.txn_id.clone()) {
+            let txn_retrieved = Txn::from_string(&txn_rec_retrieved.txn);
+            assert_eq!(txn_retrieved.txn_id, txn_id);
+            assert_eq!(txn_retrieved.txn_timestamp, now);
+            assert_eq!(txn_retrieved.sender_address, sender_address);
+            assert_eq!(txn_retrieved.receiver_address, receiver_address);
+            assert_eq!(txn_retrieved.txn_amount, txn_amount);
+        } else {
+            panic!("No transaction found!");
+        }
+
     }
 
     #[test]
