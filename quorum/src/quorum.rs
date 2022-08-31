@@ -38,9 +38,9 @@ pub struct Quorum{
 }
 
  impl Election for Quorum{
-   fn elect_quorum(quorum: &Quorum, blockchain: &Blockchain, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<Quorum, InvalidQuorum>{
+   fn elect_quorum(&self, blockchain: &Blockchain, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<Quorum, InvalidQuorum>{
          
-         let quorum_seed = match quorum.generate_quorum_seed(blockchain) {
+         let quorum_seed = match self.generate_quorum_seed(blockchain) {
             Ok(quorum_seed) => quorum_seed,
             Err(e) => return Err(e),
          }
@@ -50,14 +50,30 @@ pub struct Quorum{
             Err(e) => return Err(e),
          }
 
-         let eligible_nodes = match quorum.get_eligible_nodes(nodes){
+         let eligible_nodes = match self.get_eligible_nodes(nodes){
             Ok(eligible_nodes) => eligible_nodes,
             Err(e) => return Err(e),
          }
-         return quorum;
+         return self;
    }
 
-   fn nonce_up_claims(claims: Vec<Claim>)
+   fn nonce_up_claims(claims: Vec<Claim>) -> Vec<Claim>{
+      let mut nonce_up_claims = claims.iter().for_each(|claim|{
+         let mut nonce_up_claim = claim.clone();
+         nonce_up_claim.nonce += 1;
+         nonce_up_claims.push(nonce_up_claim);
+      });
+      return nonce_up_claims;
+   }
+
+   fn run_election(blockchain: &Blockchain, claims: Vec<Claim>, nodes: Vec<Quorum>) -> Result<Quorum, InvalidQuorum>{
+      let mut quorum = Quorum::new();
+
+      let quorum: Quorum = match quorum.elect_quorum(blockchain, claims, nodes){
+         Ok(quorum) => return quorum,
+         Err(e) => return Err(e),
+      }
+   }
  }
  
  //result enum for errors
@@ -129,7 +145,7 @@ pub struct Quorum{
       &self,
       quorum_seed: u64, 
       claims: Vec<Claim>, 
-      nodes: Vec<DummyNode>) -> Result<Vec<DummyNode>, InvalidQuorum> {
+      nodes: Vec<DummyNode>) -> Result<Quorum, InvalidQuorum> {
 
       let claim_tuples: Vec<(Option<u128>, String)> = claims.iter().filter(
          |claim| claim.get_pointer(quorum_seed) != None).map(
@@ -161,7 +177,7 @@ pub struct Quorum{
 
       self.masternodes = quorum_nodes;
 
-      return Ok(quorum_nodes);
+      return self;
    }
 
  }

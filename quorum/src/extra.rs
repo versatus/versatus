@@ -15,7 +15,7 @@ let quorum_seed = Quorum::generate_quorum_seed(blockchain);
       } else {
          return Err(InvalidQuorum::InvalidChildBlockError);
       }
-      et mut dummyNodes: Vec<DummyNode> = Vec::new();
+      let mut dummyNodes: Vec<DummyNode> = Vec::new();
       let node1: DummyNode = DummyNode::new(b"node1");
       let node2: DummyNode = DummyNode::new(b"node2");
       let node3: DummyNode = DummyNode::new(b"node3");
