@@ -5,6 +5,9 @@ use crate::quorum::Quorum;
 
 pub trait Election{ 
     fn run_election(){
+        let mut quorum = Quorum::new();
+
+        let quorum
         elect_quorum 
         else{
             //defer re-election to consumer 
@@ -13,9 +16,9 @@ pub trait Election{
 
     }
     //receive claim vec returned by error and return
-    fn nonce_up_claims
+    fn nonce_up_claims() -> Vec<Claim>;
 
-    fn elect_quorum(&mut self, blockchain: &Blockchain) -> Quorum;
+    fn elect_quorum(&self, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<Quorum, InvalidQuorum>;
 }
 
  
