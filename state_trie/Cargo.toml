@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 left-right = "0.11.5"
-rs_merkle = { git = "https://github.com/vrrb-io/rs-merkle", branch = "master" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
 lr_trie = { path = "../lr_trie" }
 keccak-hash = "0.9.0"
