@@ -1,4 +1,9 @@
 use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
+use secp256k1::{
+    key::{PublicKey, SecretKey},
+};
+use secp256k1::{Secp256k1};
+use sha256::digest_bytes;
 
 #[derive(Clone)]
 pub struct DummyNode {
@@ -8,23 +13,22 @@ pub struct DummyNode {
 
 impl DummyNode {
     pub fn new(message: &[u8]) -> DummyNode{
-        let secret_key = VVRF::generate_secret_key();
-        let vvrf1 = VVRF::new(message, secret_key);
 
-        println!("{:?}", vvrf1.pubkey);
-        
-        let pk = vvrf1.pubkey;
+        let secp = Secp256k1::new();
+        let mut rng = rand::thread_rng();
+   
+        let (seckey, pub_key) = secp.generate_keypair(&mut rng);
+        let mut pub_key_bytes = pub_key.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
 
-        let pk_bytes = &pk[0..32];
-        //bytes are probably not valid utf 8
-        let pubkey = String::from_utf8(pk.to_vec()).expect("Found invalid UTF-8");
-        println!("{}", pubkey);
-        
+        let pubkey = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+
+
         let sk = VVRF::generate_secret_key();
-        let mut vvrf2 = VVRF::new(message, sk);
+        let mut vvrf = VVRF::new(message, sk);
         let min :u128 = 0;
         let max :u128 = 20000;
-        let staked = vvrf2.generate_u128_in_range(min, max);
+        let staked = vvrf.generate_u128_in_range(min, max);
 
         return DummyNode{
             pubkey,
