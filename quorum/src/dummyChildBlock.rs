@@ -46,4 +46,12 @@ impl DummyChildBlock {
             height
         }
     }
+
+    pub fn set_block_height(&mut self, height: u128){
+        self.height = height;
+    }
+
+    pub fn set_block_timestamp(&mut self, timestamp: u128){
+        self.timestamp = timestamp;
+    }
 }
