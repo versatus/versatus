@@ -10,11 +10,15 @@ use indexmap::IndexMap;
 
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 
+use std::result::Result as StdResult;
+
 use txn::txn::Txn;
 use state::state::NetworkState;
 
 use super::error::MempoolError;
 use super::txn_validator::TxnValidator;
+
+pub type Result<T> = StdResult<T, MempoolError>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub struct TxnRecord {
@@ -242,7 +246,7 @@ impl LeftRightMemPoolDB {
     /// 
     /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
-    pub fn add_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
+    pub fn add_txn(&mut self, txn: &Txn) -> Result<()> {
 
         self.write
             .append(MempoolOp::Add(TxnRecord::new(txn), TxnStatus::Pending))
@@ -393,7 +397,7 @@ impl LeftRightMemPoolDB {
     /// 
     /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
-    pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
+    pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
             self.write.append(MempoolOp::Add(TxnRecord::new(t), TxnStatus::Pending));
         });
@@ -449,7 +453,7 @@ impl LeftRightMemPoolDB {
     /// 
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<(), MempoolError> {
+    pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<()> {
         self.write
             .append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id), TxnStatus::Pending))
             .publish();
@@ -502,7 +506,7 @@ impl LeftRightMemPoolDB {
     /// 
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
+    pub fn remove_txn(&mut self, txn: &Txn) -> Result<()> {
         self.write
             .append(MempoolOp::Remove(TxnRecord::new(txn), TxnStatus::Pending))
             .publish();
@@ -557,7 +561,7 @@ impl LeftRightMemPoolDB {
     /// 
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<(), MempoolError> {
+    pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
             self.write.append(MempoolOp::Remove(TxnRecord::new(t), TxnStatus::Pending));
         });
@@ -566,7 +570,7 @@ impl LeftRightMemPoolDB {
     }
 
     /// Validate all the pending Txn against state, update Mempool
-    pub fn validate_all(&mut self, state: &NetworkState) -> Result<(), MempoolError> {
+    pub fn validate_all(&mut self, state: &NetworkState) -> Result<()> {
 
         self.get()
             .and_then(|map| {
@@ -605,7 +609,7 @@ impl LeftRightMemPoolDB {
     }
 
     /// Validate a single Txn against state, update Mempool
-    pub fn validate_one(&mut self, txn: &Txn, state: &NetworkState) -> Result<(), MempoolError> {
+    pub fn validate_one(&mut self, txn: &Txn, state: &NetworkState) -> Result<()> {
 
         self.get()
             .and_then(|map| {
@@ -645,20 +649,20 @@ impl LeftRightMemPoolDB {
     }
 
     /// Apply a txn validator on a single Txn against current state
-    pub fn validate(&mut self, txn: &Txn, state: &NetworkState) -> Result<(), MempoolError> {
+    pub fn validate(&mut self, txn: &Txn, state: &NetworkState) -> Result<()> {
         
         TxnValidator::new(txn, state).validate().map_err(|_| MempoolError::TransactionInvalid)
     }
 
     /// Apply Txn on debits and credits of currect state
     // TODO: to be clarified against the new state representation.
-    pub fn apply_txn_on_state(&mut self, _txn: &Txn, _state: &NetworkState) -> Result<(), MempoolError> {
+    pub fn apply_txn_on_state(&mut self, _txn: &Txn, _state: &NetworkState) -> Result<()> {
 
         Ok(())
     }
 
     /// Was the Txn validated ? And when ?
-    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128, MempoolError> {
+    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128> {
         if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
             Ok(txn_record_validated.txn_validated_timestamp)
         } else {
@@ -667,7 +671,7 @@ impl LeftRightMemPoolDB {
     }
 
     /// Was the Txn rejected ? And when ?
-    pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128, MempoolError> {
+    pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128> {
         if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
             Ok(txn_record_rejected.txn_rejected_timestamp)
         } else {
@@ -676,7 +680,7 @@ impl LeftRightMemPoolDB {
     }
 
     /// Purge rejected transactions.
-    pub fn purge_txn_rejected(&mut self) -> Result<(), MempoolError> {
+    pub fn purge_txn_rejected(&mut self) -> Result<()> {
         self.get()
             .and_then(|mut map| {
                 map.rejected.clear();
