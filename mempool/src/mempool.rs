@@ -244,9 +244,9 @@ impl LeftRightMemPoolDB {
     /// ```
     pub fn add_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
 
-        let op = MempoolOp::Add(TxnRecord::new(txn), TxnStatus::Pending);
-        self.write.append(op);
-        self.publish();
+        self.write
+            .append(MempoolOp::Add(TxnRecord::new(txn), TxnStatus::Pending))
+            .publish();
         Ok(())
     }
 
@@ -294,63 +294,66 @@ impl LeftRightMemPoolDB {
     /// };
     /// ```
     pub fn get_txn(&mut self, txn_id: &String) -> Option<Txn> {
-        if !txn_id.is_empty() {
-            self.get()
-                .and_then(|map| {
-                    map
-                        .pending
-                        .get(txn_id)
-                        .and_then(|t| Some(Txn::from_string(&t.txn)))
-                })
-        } else {
-            None
+
+        if txn_id.is_empty() {
+            return None;
         }
+
+        self.get()
+            .and_then(|map| {
+                map
+                    .pending
+                    .get(txn_id)
+                    .and_then(|t| Some(Txn::from_string(&t.txn)))
+            })
     }
 
     /// Getter for an entire pending Txn record
     pub fn get_txn_record(&mut self, txn_id: &String) -> Option<TxnRecord> {
 
-        if !txn_id.is_empty() {
-            self.get()
-                .and_then(|map| {
-                    map
-                        .pending
-                        .get(txn_id)
-                        .cloned()
-                })
-        } else {
-            None
-        }            
+        if txn_id.is_empty() {
+            return None;
+        }
+
+        self.get()
+            .and_then(|map| {
+                map
+                    .pending
+                    .get(txn_id)
+                    .cloned()
+            })
     }
 
     /// Getter for an entire validated Txn record
     pub fn get_txn_record_validated(&mut self, txn_id: &String) -> Option<TxnRecord> {
-        if !txn_id.is_empty() {
-            self.get()
-                .and_then(|map| {
-                    map
-                        .validated
-                        .get(txn_id)
-                        .cloned()
-                })
-        } else {
-            None
+
+        if txn_id.is_empty() {
+            return None;
         }
+
+        self.get()
+            .and_then(|map| {
+                map
+                    .validated
+                    .get(txn_id)
+                    .cloned()
+            })
     }
 
     /// Getter for an entire rejected Txn record
     pub fn get_txn_record_rejected(&mut self, txn_id: &String) -> Option<TxnRecord> {
-        if !txn_id.is_empty() {
-            self.get()
-                .and_then(|map| {
-                    map
-                        .rejected
-                        .get(txn_id)
-                        .cloned()
-                })
-        } else {
-            None
+
+        if txn_id.is_empty() {
+            return None;
         }
+
+        self.get()
+            .and_then(|map| {
+                map
+                    .rejected
+                    .get(txn_id)
+                    .cloned()
+            })
     }
 
     /// Adds a batch of new transaction, makes sure that each is unique in db.
@@ -447,8 +450,9 @@ impl LeftRightMemPoolDB {
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<(), MempoolError> {
-        self.write.append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id), TxnStatus::Pending));
-        self.publish();
+        self.write
+            .append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id), TxnStatus::Pending))
+            .publish();
         Ok(())
     }
 
@@ -499,8 +503,9 @@ impl LeftRightMemPoolDB {
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn(&mut self, txn: &Txn) -> Result<(), MempoolError> {
-        self.write.append(MempoolOp::Remove(TxnRecord::new(txn), TxnStatus::Pending));
-        self.publish();
+        self.write
+            .append(MempoolOp::Remove(TxnRecord::new(txn), TxnStatus::Pending))
+            .publish();
         Ok(())
     }
 
