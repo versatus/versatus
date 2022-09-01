@@ -30,12 +30,27 @@ pub enum NodeAuth {
     Bootstrap,
 }
 
+
+
+/// Creating a new enum type called NodeType with three variants, Miner, MasterNode and Regular.
+#[derive(Debug, Serialize, Deserialize, Clone,PartialEq)]
+pub enum NodeType{
+    /// This Node will mine the block
+    Miner,
+    ///This node will be part of Long Lived MasterNode Quorum
+    MasterNode,
+    /// This node will inspect signatures
+    Regular
+}
+
+
 /// The node contains the data and methods needed to operate a node in the network.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Node {
     /// Every node needs to have a secret key to sign messages, blocks, tx, etc. for authenticity
     //TODO: Discuss whether we need this here or whether it's redundant.
-    secret_key: String,
+    pub secret_key: Vec<u8>,
     /// Every node needs to have a public key to have its messages, blocks, tx, etc, signatures validated by other nodes
     //TODOL: Discuss whether this is needed here.
     pub pubkey: String,
@@ -45,7 +60,7 @@ pub struct Node {
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
     //TODO: Create different custom structs for different kinds of nodes with different authorization
     // so that we can have custom impl blocks based on the type. 
-    pub node_type: NodeAuth,
+    pub node_type: NodeType,
     /// A set of message IDs to check new messages against to prevent redundant message processing
     //TODO: Move this to the udp2p layer to be handled upon the receipt of messages, rather than
     // by the node itself. 
@@ -59,6 +74,10 @@ pub struct Node {
     /// The message handler used to convert received messages into a command and to structure and pack outgoing messages
     /// to be send to the transport layer. 
     pub message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
+
+    //Index num of the node in the network
+    pub idx: u16,
+
 }
 
 impl Node {
@@ -68,23 +87,40 @@ impl Node {
     }
 
     /// Returns the type of the node
-    pub fn get_node_type(&self) -> NodeAuth {
+    pub fn get_node_type(&self) -> NodeType {
         self.node_type.clone()
     }
 
+    /// Returns the idx of the node
+    pub fn get_node_idx(&self) -> u16 {
+        self.idx
+    }
+    
     /// Creates and returns a Node instance
     pub fn new(
-        node_type: NodeAuth,
+        node_type: NodeType,
         command_handler: CommandHandler,
         message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
+        idx:u16
     ) -> Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
         let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
         let id = Uuid::new_v4().to_simple().to_string();
-
+     
+        //TODO: use SecretKey from threshold crypto crate for MasterNode
+        //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be moved to primitive/utils module
+        let mut secret_key_encoded = Vec::new();
+       
+        /* 
+        let new_secret_wrapped =SerdeSecret(secret_key);
+        let mut secret_key_encoded = Vec::new();
+        if node_type==NodeType::MasterNode{
+            secret_key_encoded=bincode::serialize(&new_secret_wrapped).unwrap();
+        }*/
+        
         Node {
-            secret_key: secret_key.to_string(),
+            secret_key: secret_key_encoded,
             pubkey: pubkey.to_string(),
             id,
             node_type,
@@ -92,6 +128,7 @@ impl Node {
             packet_storage: HashMap::new(),
             command_handler,
             message_handler,
+            idx
         }
     }
     

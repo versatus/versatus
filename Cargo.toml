@@ -17,7 +17,6 @@ members = [
     "mempool",
     "messages",
     "vrrb_lib",
-    "vrrb_tui",
     "vrrb_cli",
     "vrrb_gui",
     "vrrb_vrf",
@@ -34,4 +33,5 @@ members = [
     "lrdb",
     "lr_trie",
     "tx_trie",
+ "dkg_engine"
 ]
