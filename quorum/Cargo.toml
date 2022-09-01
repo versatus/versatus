@@ -6,3 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+block = { path = "../block" }
+vrrb_vrf = { path = "../vrrb_vrf" }
+rand_chacha = "0.3.1"
+claim = {path = "../claim"}
+node = {path = "../node"}
+thiserror = "1.0.33"
+

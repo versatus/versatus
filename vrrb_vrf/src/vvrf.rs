@@ -161,15 +161,20 @@ impl VVRF {
         }
     }
 
+    pub fn generate_secret_key() -> SecretKey {
+        return SecretKey::new(&mut rand::thread_rng());
+    }
+
     ///get vrf from openssl struct ECVRF (eliptic curve vrf)
     fn generate_vrf(suite: CipherSuite) -> ECVRF {
         ECVRF::from_suite(suite).unwrap()
     }
 
+
     ///get pk from vrf crate
     fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {
-        
-        vrf.derive_public_key(&secret_key.secret_bytes()).unwrap()
+        let key = vrf.derive_public_key(&secret_key.secret_bytes()).unwrap();
+        key
     }
 
     ///generate seed
