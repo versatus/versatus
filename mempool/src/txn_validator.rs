@@ -36,6 +36,7 @@ pub enum TxnValidatorError {
     TxnAmountIncorrect,
     TxnSignatureIncorrect,
     TxnSignatureTresholdIncorrect,
+    TimestampError
 }
 
 #[derive(Debug, Clone)]
@@ -144,16 +145,19 @@ impl<'m> TxnValidator<'_> {
     /// Txn timestamp validator
     pub fn validate_timestamp(&mut self) -> Result<(), TxnValidatorError> {
 
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        match SystemTime::now()
+                .duration_since(UNIX_EPOCH) {
 
-        if  self.txn.txn_timestamp > 0 &&
-            self.txn.txn_timestamp < timestamp {
-            Ok(())
-        } else {
-            Err(TxnValidatorError::TxnTimestampIncorrect)
+            Ok(duration) => {
+                let timestamp = duration.as_nanos();
+                if  self.txn.txn_timestamp > 0 &&
+                    self.txn.txn_timestamp < timestamp {
+                        Ok(())
+                } else {
+                        Err(TxnValidatorError::TxnTimestampIncorrect)
+                }    
+            }
+            Err(_) => Err(TxnValidatorError::TimestampError)
         }
     }
 
