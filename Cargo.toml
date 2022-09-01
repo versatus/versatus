@@ -34,5 +34,6 @@ members = [
     "lrdb",
     "lr_trie",
     "tx_trie",
- "dkg_engine"
+    "dkg_engine",
+    "telemetry",
 ]
