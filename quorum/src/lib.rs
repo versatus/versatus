@@ -16,6 +16,7 @@ mod tests {
     use claim::claim::Claim;
     use crate::election::Election;
     use crate::quorum::Quorum;
+    use format_bytes::format_bytes;
 
     #[test]
     fn it_works() {
@@ -103,39 +104,33 @@ mod tests {
     #[test]
     fn elect_quorum() {
         let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        //just iterate to make new ones
-        //to get node pubkey index into dummyNodes vector
-        //pass msg w format string (enumerate)
-        let node1: DummyNode = DummyNode::new(b"nodeOne");
-        let node2: DummyNode = DummyNode::new(b"nodeTwo");
-        let node3: DummyNode = DummyNode::new(b"nodeThree");
-        let node4: DummyNode = DummyNode::new(b"nodeFour");
-        let node5: DummyNode = DummyNode::new(b"nodeFive");
-        let node6: DummyNode = DummyNode::new(b"nodeSix");
-        let node7: DummyNode = DummyNode::new(b"nodeSeven");
-        let node8: DummyNode = DummyNode::new(b"nodeEight");
-        let node9: DummyNode = DummyNode::new(b"nodeNine");
-        let node10: DummyNode = DummyNode::new(b"nodeTen");
-        dummyNodes.push(node1.clone());
-        dummyNodes.push(node2.clone());
-        dummyNodes.push(node3.clone());
-        dummyNodes.push(node4.clone());
-        dummyNodes.push(node5.clone());
-        dummyNodes.push(node6.clone());
-        dummyNodes.push(node7.clone());
-        dummyNodes.push(node8.clone());
-        dummyNodes.push(node9.clone());
-        dummyNodes.push(node10.clone());
-
-  
+        (0..20).for_each(
+            |i| {
+                let msg = format_bytes!(b"node{}", &i);
+                let node: DummyNode = DummyNode::new(&msg);
+                dummyNodes.push(node.clone());
+            }
+        );
+        
         let mut dummyClaims: Vec<Claim> = Vec::new();
         let addr: String = "0x0000000000000000000000000000000000000000".to_string();
 
-
-        for i in 0..20 {
-            let claims = 
-        }
-
+        /*
+        let foo = vec![1, 35, 64, 36, 26];
+for (i, item) in foo.iter().enumerate() {
+    println!("The {}th item is {}", i+1, item);
+}
+ */
+        for (i, node) in 
+        
+        dummyNodes.iter().for_each(
+            |node| {
+                let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i);
+                dummyClaims.push(claim);
+            }
+        )
+        
+        //let my_vec: Vec<u64> = (0..10).collect(); 
         //let addr: String = "0x0000000000000000000000000000000000000000".to_string();
         let claim1: Claim = Claim::new(node1.pubkey.clone(), addr.clone(), 1);
         let claim2: Claim = Claim::new(node2.pubkey.clone(), addr.clone(), 2);
