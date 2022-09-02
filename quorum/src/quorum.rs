@@ -88,10 +88,8 @@ impl Quorum{
      let child_block_height: u128 = child_block.height;
 
      if child_block_height == 0{
-        dbg!("test 2 fails here");
         return Err(InvalidQuorum::InvalidChildBlockError());
      } else if child_block_timestamp == 0 {
-        dbg!("test 3 fails here");
         return Err(InvalidQuorum::InvalidChildBlockError());
      } else {
         let sk = VVRF::generate_secret_key();
@@ -121,10 +119,7 @@ impl Quorum{
         }
      );
 
-     //change to 20 in production
-     dbg!("num eligible_claims {}", eligible_claims.len());
-     dbg!("test 1 fails here");
-     if eligible_claims.len() < 5 {
+     if eligible_claims.len() < 20 {
         return Err(InvalidQuorum::InsufficientNodesError());
      }
      let eligible_claims = eligible_claims;
@@ -144,11 +139,8 @@ impl Quorum{
         |claim| (claim.get_pointer(quorum_seed), &claim.pubkey)
      ).collect();
      
-     //make sure no claims didnt match all chars
-     if num_nodes > claim_tuples.len(){
-         dbg!("Get Pointer Sum failed for over 51% of eligible claims");
-         dbg!("num_nodes(): {} and claim_tupleslen(): {}", num_nodes, claim_tuples.len());
-     } else if claim_tuples.len() < 5 {
+     //change to 20 in production
+   if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
      

@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn elect_quorum() {
         let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        (0..20).for_each(
+        (0..25).for_each(
             |i| {
                 let msg = format_bytes!(b"node{}", &i);
                 let node: DummyNode = DummyNode::new(&msg);
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn elect_quorum_nonced_up() {
         let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        (0..20).for_each(
+        (0..25).for_each(
             |i| {
                 let msg = format_bytes!(b"node{}", &i);
                 let node: DummyNode = DummyNode::new(&msg);
