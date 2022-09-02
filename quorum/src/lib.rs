@@ -103,7 +103,36 @@ mod tests {
         
     }
 
+    #[test]
+    fn elect_quorum() {
+        let mut dummyNodes: Vec<DummyNode> = Vec::new();
+        (0..20).for_each(
+            |i| {
+                let msg = format_bytes!(b"node{}", &i);
+                let node: DummyNode = DummyNode::new(&msg);
+                dummyNodes.push(node.clone());
+            }
+        );
+        
+        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let addr: String = "0x0000000000000000000000000000000000000000".to_string();
+
+        for (i, node) in dummyNodes.iter().enumerate(){
+            let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i as u128);
+            dummyClaims.push(claim);
+        }
+        
+        let mut child_block = DummyChildBlock::new(b"one", b"two");
     
+        let mut quorum: Quorum = Quorum::new();
+        
+        quorum.run_election(&child_block, dummyClaims, dummyNodes);
+
+        assert!(quorum.masternodes.len() >= 5);
+        
+    } 
+
+    /* 
     #[test]
     fn elect_quorum_nonced_up() {
         let mut dummyNodes: Vec<DummyNode> = Vec::new();
@@ -135,5 +164,6 @@ mod tests {
         
     } 
 
+    */
 
 }

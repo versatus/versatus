@@ -155,7 +155,6 @@ impl Quorum{
      claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
      let mut quorum_nodes: Vec<DummyNode> = Vec::new();
-     dbg!("here");
      (0..5).for_each(
          |i| {
             nodes.iter().for_each(
