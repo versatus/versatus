@@ -3,12 +3,6 @@ pub mod quorum;
 pub mod dummyNode;
 pub mod dummyChildBlock;
 
-use std::env;
-fn main() {
-  // this method needs to be inside main() method
-  env::set_var("RUST_BACKTRACE", "1");
-}
-
 #[cfg(test)]
 mod tests {
     use crate::dummyChildBlock::DummyChildBlock;
@@ -125,14 +119,15 @@ mod tests {
         let mut child_block = DummyChildBlock::new(b"one", b"two");
     
         let mut quorum: Quorum = Quorum::new();
-        
+        assert!(quorum.masternodes.len() ==0);
+
         quorum.run_election(&child_block, dummyClaims, dummyNodes);
 
         assert!(quorum.masternodes.len() >= 5);
         
     } 
 
-    /* 
+    
     #[test]
     fn elect_quorum_nonced_up() {
         let mut dummyNodes: Vec<DummyNode> = Vec::new();
@@ -155,15 +150,12 @@ mod tests {
         let mut child_block = DummyChildBlock::new(b"one", b"two");
     
         let mut quorum: Quorum = Quorum::new();
-        let newClaims = nonce_up_claims(&mut dummyClaims);
+        let newClaims: Vec<Claim> = Quorum::nonce_up_claims(dummyClaims);
 
 
-        quorum.run_election(&child_block, dummyClaims, dummyNodes);
+        quorum.run_election(&child_block, newClaims, dummyNodes);
 
         assert!(quorum.masternodes.len() >= 5);
         
     } 
-
-    */
-
 }
