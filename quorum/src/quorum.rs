@@ -32,25 +32,21 @@ pub struct Quorum{
 
 impl Election for Quorum{
   fn elect_quorum(&mut self, child_block: &DummyChildBlock, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum>{
-      dbg!("entered elect_quorum");
       let quorum_seed = match self.generate_quorum_seed(child_block) {
          Ok(quorum_seed) => quorum_seed,
          Err(e) => return Err(e),
       };
       self.quorum_seed = quorum_seed;
 
-      dbg!("entering eligible claims");
       let eligible_claims = match Quorum::get_eligible_claims(claims){
          Ok(eligible_claims) => eligible_claims,
          Err(e) => return Err(e),
       };
       
-      dbg!("entering getting final quorum");
       let elected_quorum = match self.get_final_quorum(quorum_seed, eligible_claims, nodes){
          Ok(elected_quorum) => elected_quorum,
          Err(e) => return Err(e),
       };
-
       return Ok(elected_quorum);
   }
 
@@ -66,7 +62,6 @@ impl Election for Quorum{
   }
 
   fn run_election(&mut self, child_block: &DummyChildBlock, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum>{
-     dbg!("entered run_election");
      match self.elect_quorum(child_block, claims, nodes){
         Ok(quorum) => return Ok(quorum),
         Err(e) => return Err(e),
@@ -89,38 +84,31 @@ impl Quorum{
 
   pub fn generate_quorum_seed(&mut self, child_block: &DummyChildBlock) -> Result<u64, InvalidQuorum>{
 
-      dbg!("entered generate_quorum_seed");
      let child_block_timestamp: u128 = child_block.timestamp;
      let child_block_height: u128 = child_block.height;
 
      if child_block_height == 0{
+        dbg!("test 2 fails here");
         return Err(InvalidQuorum::InvalidChildBlockError());
      } else if child_block_timestamp == 0 {
+        dbg!("test 3 fails here");
         return Err(InvalidQuorum::InvalidChildBlockError());
      } else {
-        dbg!("passed if else");
         let sk = VVRF::generate_secret_key();
         let mut vvrf = VVRF::new(child_block.hash.as_bytes(), sk);
      
         assert!(VVRF::verify_seed(&mut vvrf).is_ok());
-        dbg!("passed vvrf verify");
         
         let rng: u64 = vvrf.generate_u64();
 
-        dbg!("rng: {}", &rng);
-        dbg!("max u64: {}", &u64MAX);
-
         if rng > u64MAX {
-            dbg!("in rng if");
            return Err(InvalidQuorum::InvalidSeedError(rng));
         }
-        dbg!("passed rng < max u64");
 
         self.quorum_seed = rng;
         self.election_timestamp = child_block_timestamp;
         self.election_block_height = child_block_height;
 
-        dbg!("generated quorum seed {}", &rng);
         return Ok(rng);
      }
   }
@@ -135,12 +123,11 @@ impl Quorum{
 
      //change to 20 in production
      dbg!("num eligible_claims {}", eligible_claims.len());
+     dbg!("test 1 fails here");
      if eligible_claims.len() < 5 {
         return Err(InvalidQuorum::InsufficientNodesError());
      }
-
      let eligible_claims = eligible_claims;
-
      return Ok(eligible_claims);  
   }
 
@@ -149,8 +136,8 @@ impl Quorum{
      quorum_seed: u64, 
      claims: Vec<Claim>, 
      nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum> {
-      
-      let num_nodes =((claims.len() as f32)/ 0.51).ceil() as u64;
+
+     let num_nodes =((claims.len() as f32)* 0.51).ceil() as usize;
 
      let mut claim_tuples: Vec<(Option<u64>, &String)> = claims.iter().filter(
         |claim| claim.get_pointer(quorum_seed) != None).map(
@@ -158,27 +145,30 @@ impl Quorum{
      ).collect();
      
      //make sure no claims didnt match all chars
-     dbg!("claims.len(): {} and claim_tupleslen(): {}", claims.len(), claim_tuples.len());
-     if claims.len() > claim_tuples.len(){
-        return Err(InvalidQuorum::InvalidPointerSumError(claims));
+     if num_nodes > claim_tuples.len(){
+         dbg!("Get Pointer Sum failed for over 51% of eligible claims");
+         dbg!("num_nodes(): {} and claim_tupleslen(): {}", num_nodes, claim_tuples.len());
+     } else if claim_tuples.len() < 5 {
+      return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
      
      claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
      let mut quorum_nodes: Vec<DummyNode> = Vec::new();
-
-     for node in nodes{
-        if quorum_nodes.len() == num_nodes as usize {
-           break;
-        }
-        let node_pubkey = &node.pubkey;
-        claim_tuples.iter().find(
-           |claim_tuple| claim_tuple.1 == node_pubkey
-        ).unwrap().0.unwrap();
-        quorum_nodes.push(node);
-     }
+     dbg!("here");
+     (0..5).for_each(
+         |i| {
+            nodes.iter().for_each(
+               |node| {
+                  if &node.pubkey == claim_tuples[i].1 {
+                     quorum_nodes.push(node.clone());
+                  }
+               }
+            );
+         }
+       );
+      
      let quorum_nodes = quorum_nodes;
-
      self.masternodes = quorum_nodes;
      
      return Ok(self);
