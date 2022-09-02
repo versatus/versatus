@@ -23,7 +23,7 @@ pub enum InvalidQuorum{
 }
 
 pub struct Quorum{
-  pub quorum_seed: u64,
+  pub quorum_seed: u128,
   pub masternodes: Vec<DummyNode>,
   pub quorum_pk: String,
   pub election_block_height: u128,
@@ -82,7 +82,7 @@ impl Quorum{
      } 
   }
 
-  pub fn generate_quorum_seed(&mut self, child_block: &DummyChildBlock) -> Result<u64, InvalidQuorum>{
+  pub fn generate_quorum_seed(&mut self, child_block: &DummyChildBlock) -> Result<u128, InvalidQuorum>{
 
      let child_block_timestamp: u128 = child_block.timestamp;
      let child_block_height: u128 = child_block.height;
@@ -105,11 +105,11 @@ impl Quorum{
            return Err(InvalidQuorum::InvalidSeedError(rng));
         }
 
-        self.quorum_seed = rng;
+        self.quorum_seed = rng as u128;
         self.election_timestamp = child_block_timestamp;
         self.election_block_height = child_block_height;
 
-        return Ok(rng);
+        return Ok(rng as u128);
      }
   }
 
@@ -133,13 +133,13 @@ impl Quorum{
 
   pub fn get_final_quorum(
      &mut self,
-     quorum_seed: u64, 
+     quorum_seed: u128, 
      claims: Vec<Claim>, 
      nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum> {
 
      let num_nodes =((claims.len() as f32)* 0.51).ceil() as usize;
 
-     let mut claim_tuples: Vec<(Option<u64>, &String)> = claims.iter().filter(
+     let mut claim_tuples: Vec<(Option<u128>, &String)> = claims.iter().filter(
         |claim| claim.get_pointer(quorum_seed) != None).map(
         |claim| (claim.get_pointer(quorum_seed), &claim.pubkey)
      ).collect();

@@ -128,7 +128,7 @@ impl Miner {
     }
 
     /// Calculates the pointer sums and returns the lowest for a given block seed.
-    pub fn get_lowest_pointer(&mut self, block_seed: u64) -> Option<(String, u64)> {
+    pub fn get_lowest_pointer(&mut self, block_seed: u128) -> Option<(String, u128)> {
         // Clones the local claim map for use in the algorithm
         let claim_map = self.claim_map.clone();
 
@@ -164,7 +164,7 @@ impl Miner {
     }
 
     /// Checks if the hash of the claim with the lowest pointer sum is the local claim.
-    pub fn check_my_claim(&mut self, nonce: u64) -> Result<bool, Box<dyn Error>> {
+    pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
         if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
             return Ok(hash == self.clone().claim.hash);
         } else {

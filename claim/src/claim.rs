@@ -59,7 +59,7 @@ impl Claim {
     // This can be made significantly faster (if necessary to scale network) by concurrently
     // calculating the index position of each matched character, and summing the total
     // at the end after every match position has been discovered, or returning None if we can't match a character.
-    pub fn get_pointer(&self, block_seed: u64) -> Option<u64> {
+    pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
         // get the hexadecimal format of the block seed
         // TODO: Make the block seed hexadecimal to begin with in the `Block` itself
         // No reason for miners to have to do this conversion.
@@ -78,12 +78,12 @@ impl Claim {
             if let Some(n) = res {
                 // convert `n` to a u128 and calculate an integer overflow safe
                 // exponential of the `n` to the power of idx
-                let n = n as u64;
+                let n = n as u128;
                 let n = n.checked_pow(idx as u32);
                 // If there is no integer overflow (which there never should be)
                 // add it to the buffer.
                 if let Some(n) = n {
-                    pointers.push(n as u64);
+                    pointers.push(n as u128);
                 }
             }
         });
@@ -94,7 +94,7 @@ impl Claim {
         // an integer overflow with the pointer sum being a u128, it is better
         // to be safe than sorry. 
         if pointers.len() == block_seed_string_len {
-            let pointer: u64 = pointers.iter().sum();
+            let pointer: u128 = pointers.iter().sum();
             Some(pointer)
         } else {
             // If the length of the pointer buffer is not the same length

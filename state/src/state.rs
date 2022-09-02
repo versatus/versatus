@@ -352,7 +352,7 @@ impl<'de> NetworkState {
     }
 
     /// Calculates the lowest pointer sums given the claim map
-    pub fn get_lowest_pointer(&self, block_seed: u64) -> Option<(String, u64)> {
+    pub fn get_lowest_pointer(&self, block_seed: u128) -> Option<(String, u128)> {
         let claim_map = self.get_claims();
         let mut pointers = claim_map
             .iter()

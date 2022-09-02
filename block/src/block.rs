@@ -238,13 +238,13 @@ impl Verifiable for Block {
         }
 
         if let Some((hash, pointers)) =
-            dependencies.0.get_lowest_pointer(self.header.block_nonce as u64)
+            dependencies.0.get_lowest_pointer(self.header.block_nonce as u128)
         {
             if hash == self.header.claim.hash {
                 if let Some(claim_pointer) = self
                     .header
                     .claim
-                    .get_pointer(self.header.block_nonce as u64)
+                    .get_pointer(self.header.block_nonce as u128)
                 {
                     if pointers != claim_pointer {
                         return Err(Self::Error {
