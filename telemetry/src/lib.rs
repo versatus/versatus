@@ -45,8 +45,8 @@ impl TelemetrySubscriber {
             .with_writer(out)
             .with_file(true)
             .with_line_number(true)
-            .with_thread_ids(true)
-            .with_thread_names(true)
+            // .with_thread_ids(true)
+            // .with_thread_names(true)
             .json()
             .finish();
 
@@ -59,18 +59,15 @@ impl TelemetrySubscriber {
 #[cfg(test)]
 mod tests {
 
-    use std::{io::BufWriter, sync::Arc};
+    use tracing_subscriber::fmt::TestWriter;
 
     use super::*;
 
     #[test]
     fn it_works() {
-        let mut out = Vec::new();
+        let tw = TestWriter::new();
 
-        let buf = Arc::new(BufWriter::new(out));
-
-        TelemetrySubscriber::init(buf).unwrap();
-
+        TelemetrySubscriber::init(tw).unwrap();
         tracing::info!("hello world 2");
     }
 }

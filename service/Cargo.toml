@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 clap = "3.2.19"
 telemetry = { path = "../telemetry" }
+thiserror = "1.0.33"
