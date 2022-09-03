@@ -1,16 +1,20 @@
 pub  mod election;
 pub mod quorum;
-pub mod dummyNode;
-pub mod dummyChildBlock;
 
 #[cfg(test)]
 mod tests {
-    use crate::dummyChildBlock::DummyChildBlock;
-    use crate::dummyNode::DummyNode;
     use claim::claim::Claim;
     use crate::election::Election;
     use crate::quorum::Quorum;
     use format_bytes::format_bytes;
+    use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
+    use secp256k1::{
+        key::{PublicKey, SecretKey},
+    };
+    use secp256k1::{Secp256k1};
+    use sha256::digest_bytes;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};  
 
     #[test]
     fn it_works() {
@@ -18,144 +22,160 @@ mod tests {
     }
 
     #[test]
-    fn not_enough_nodes() {
-        let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        (0..3).for_each(
-            |i| {
-                let msg = format_bytes!(b"node{}", &i);
-                let node: DummyNode = DummyNode::new(&msg);
-                dummyNodes.push(node.clone());
-            }
-        );
-        
+    fn not_enough_claims() {
         let mut dummyClaims: Vec<Claim> = Vec::new();
         let addr: String = "0x0000000000000000000000000000000000000000".to_string();
+        (0..3).for_each(
+            |i| {
+                let secp = Secp256k1::new();
 
-        for (i, node) in dummyNodes.iter().enumerate(){
-            let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i as u128);
-            dummyClaims.push(claim);
-        }
+                let mut rng = rand::thread_rng();
         
+                let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+                let claim: Claim = Claim::new(public_key.to_string(), addr.clone(), i as u128);
+            
+                dummyClaims.push(claim);
+            }
+        );
+        let secp = Secp256k1::new();
 
-        let child_block = DummyChildBlock::new(b"one", b"two");
+        let mut rng = rand::thread_rng();
+
+        let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+
+        let mut hasher = DefaultHasher::new();
+        public_key.hash(&mut hasher);
+        let pubkey_hash = hasher.finish();
+
+        let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
+
+        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+
+        let payload = (10, 10, hash);
+        
         let mut quorum: Quorum = Quorum::new();
 
-        assert!(quorum.run_election(&child_block, dummyClaims, dummyNodes).is_err());
+        assert!(quorum.run_election(payload, dummyClaims).is_err());
+
     }
 
     #[test]
     fn invalid_block_height() {
-        let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        (0..10).for_each(
-            |i| {
-                let msg = format_bytes!(b"node{}", &i);
-                let node: DummyNode = DummyNode::new(&msg);
-                dummyNodes.push(node.clone());
-            }
-        );
-        
         let mut dummyClaims: Vec<Claim> = Vec::new();
         let addr: String = "0x0000000000000000000000000000000000000000".to_string();
+        (0..20).for_each(
+            |i| {
+                let secp = Secp256k1::new();
 
-        for (i, node) in dummyNodes.iter().enumerate(){
-            let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i as u128);
-            dummyClaims.push(claim);
-        }
+                let mut rng = rand::thread_rng();
         
+                let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+                let claim: Claim = Claim::new(public_key.to_string(), addr.clone(), i as u128);
+            
+                dummyClaims.push(claim);
+            }
+        );
+        let secp = Secp256k1::new();
 
-        let mut child_block = DummyChildBlock::new(b"one", b"two");
-        child_block.set_block_height(0);
+        let mut rng = rand::thread_rng();
+
+        let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+
+        let mut hasher = DefaultHasher::new();
+        public_key.hash(&mut hasher);
+        let pubkey_hash = hasher.finish();
+
+        let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
+
+        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+
+        let payload = (10, 0, hash);
+        
         let mut quorum: Quorum = Quorum::new();
-        assert!(quorum.run_election(&child_block, dummyClaims, dummyNodes).is_err());
+
+        assert!(quorum.run_election(payload, dummyClaims).is_err());
         
     }
 
     #[test]
     fn invalid_block_timestamp() {
-        let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        (0..10).for_each(
-            |i| {
-                let msg = format_bytes!(b"node{}", &i);
-                let node: DummyNode = DummyNode::new(&msg);
-                dummyNodes.push(node.clone());
-            }
-        );
-        
         let mut dummyClaims: Vec<Claim> = Vec::new();
         let addr: String = "0x0000000000000000000000000000000000000000".to_string();
+        (0..25).for_each(
+            |i| {
+                let secp = Secp256k1::new();
 
-        for (i, node) in dummyNodes.iter().enumerate(){
-            let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i as u128);
-            dummyClaims.push(claim);
-        }
+                let mut rng = rand::thread_rng();
         
+                let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+                let claim: Claim = Claim::new(public_key.to_string(), addr.clone(), i as u128);
+            
+                dummyClaims.push(claim);
+            }
+        );
+        let secp = Secp256k1::new();
 
-        let mut child_block = DummyChildBlock::new(b"one", b"two");
-        child_block.set_block_timestamp(0);
+        let mut rng = rand::thread_rng();
+
+        let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+
+        let mut hasher = DefaultHasher::new();
+        public_key.hash(&mut hasher);
+        let pubkey_hash = hasher.finish();
+
+        let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
+
+        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+
+        let payload = (0, 10, hash);
+        
         let mut quorum: Quorum = Quorum::new();
-        assert!(quorum.run_election(&child_block, dummyClaims, dummyNodes).is_err());
+
+        assert!(quorum.run_election(payload, dummyClaims).is_err());
         
     }
 
     #[test]
     fn elect_quorum() {
-        let mut dummyNodes: Vec<DummyNode> = Vec::new();
-        (0..25).for_each(
-            |i| {
-                let msg = format_bytes!(b"node{}", &i);
-                let node: DummyNode = DummyNode::new(&msg);
-                dummyNodes.push(node.clone());
-            }
-        );
-        
         let mut dummyClaims: Vec<Claim> = Vec::new();
         let addr: String = "0x0000000000000000000000000000000000000000".to_string();
-
-        for (i, node) in dummyNodes.iter().enumerate(){
-            let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i as u128);
-            dummyClaims.push(claim);
-        }
-        
-        let mut child_block = DummyChildBlock::new(b"one", b"two");
-    
-        let mut quorum: Quorum = Quorum::new();
-        assert!(quorum.masternodes.len() ==0);
-
-        quorum.run_election(&child_block, dummyClaims, dummyNodes);
-
-        assert!(quorum.masternodes.len() >= 5);
-        
-    } 
-
-    
-    #[test]
-    fn elect_quorum_nonced_up() {
-        let mut dummyNodes: Vec<DummyNode> = Vec::new();
         (0..25).for_each(
             |i| {
-                let msg = format_bytes!(b"node{}", &i);
-                let node: DummyNode = DummyNode::new(&msg);
-                dummyNodes.push(node.clone());
+                let secp = Secp256k1::new();
+
+                let mut rng = rand::thread_rng();
+        
+                let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+                let claim: Claim = Claim::new(public_key.to_string(), addr.clone(), i as u128);
+            
+                dummyClaims.push(claim);
             }
         );
-        
-        let mut dummyClaims: Vec<Claim> = Vec::new();
-        let addr: String = "0x0000000000000000000000000000000000000000".to_string();
+        let secp = Secp256k1::new();
 
-        for (i, node) in dummyNodes.iter().enumerate(){
-            let claim: Claim = Claim::new(node.pubkey.clone(), addr.clone(), i as u128);
-            dummyClaims.push(claim);
-        }
+        let mut rng = rand::thread_rng();
+
+        let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+
+        let mut hasher = DefaultHasher::new();
+        public_key.hash(&mut hasher);
+        let pubkey_hash = hasher.finish();
+
+        let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
+
+        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+
+        let payload = (10, 10, hash);
         
-        let mut child_block = DummyChildBlock::new(b"one", b"two");
-    
         let mut quorum: Quorum = Quorum::new();
-        let newClaims: Vec<Claim> = Quorum::nonce_up_claims(dummyClaims);
+        quorum.run_election(payload, dummyClaims);
 
-
-        quorum.run_election(&child_block, newClaims, dummyNodes);
-
-        assert!(quorum.masternodes.len() >= 5);
+        assert!(quorum.master_pubkeys.len() == 13);
         
-    } 
+    }  
 }
+

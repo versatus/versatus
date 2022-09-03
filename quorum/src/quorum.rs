@@ -4,7 +4,6 @@ use std::u32::MAX as u32MAX;
 use claim::claim::Claim;
 use thiserror::Error;
 
-
 #[derive(Error, Debug)]
 pub enum InvalidQuorum{
   #[error("inavlid seed generated")]
@@ -62,7 +61,7 @@ impl Election for Quorum{
          Ok(quorum) => return Ok(quorum),
          Err(e) => return Err(e),
       };
-  }
+   }
 }
 
 //result enum for errors
@@ -105,7 +104,7 @@ impl Quorum{
      }
    }
 
-   pub fn get_eligible_claims(mut claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
+   pub fn get_eligible_claims(claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
      let mut eligible_claims = Vec::<Claim>::new();
      claims.into_iter().filter(|claim| claim.eligible == true).for_each(
         |claim| {
@@ -132,7 +131,6 @@ impl Quorum{
         |claim| (claim.get_pointer(quorum_seed), &claim.pubkey)
      ).collect();
      
-     //change to 20 in production
       if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
@@ -143,11 +141,12 @@ impl Quorum{
         |claim_tuple| claim_tuple.1.clone()
      ).take(num_claims).collect();
 
-     let final_pubkeys = Vec::from_iter(pubkeys[1..num_claims].iter().cloned());
+     let final_pubkeys = Vec::from_iter(pubkeys[0..num_claims].iter().cloned());
       self.master_pubkeys = final_pubkeys;
 
      return Ok(self);
    }
 }
+
 
 
