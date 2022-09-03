@@ -1,16 +1,14 @@
 use crate::election:: Election;
 use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
-use std::u64::MAX as u64MAX;
+use std::u32::MAX as u32MAX;
 use claim::claim::Claim;
-use crate::dummyNode::DummyNode;
-use crate::dummyChildBlock::DummyChildBlock;
 use thiserror::Error;
 
 
 #[derive(Error, Debug)]
 pub enum InvalidQuorum{
-  #[error("inavlid seed generated: {0}")]
-   InvalidSeedError(u64), 
+  #[error("inavlid seed generated")]
+   InvalidSeedError(), 
 
   #[error("invalid pointer sum")]
    InvalidPointerSumError(Vec<Claim>),
@@ -24,94 +22,90 @@ pub enum InvalidQuorum{
 
 pub struct Quorum{
   pub quorum_seed: u128,
-  pub masternodes: Vec<DummyNode>,
+  pub master_pubkeys: Vec<String>,
   pub quorum_pk: String,
   pub election_block_height: u128,
   pub election_timestamp: u128,
 }
 
+type Timestamp = u128;
+type Height = u128;
+type BlockHash = String;
+
 impl Election for Quorum{
-  fn elect_quorum(&mut self, child_block: &DummyChildBlock, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum>{
-      let quorum_seed = match self.generate_quorum_seed(child_block) {
+   type Return = Self;
+   type Error = InvalidQuorum;
+   type Ballot = Vec<Claim>;
+   type Payload = (Timestamp, Height, BlockHash);
+
+   fn elect_quorum(&mut self, payload: Self::Payload, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
+      let quorum_seed = match self.generate_quorum_seed(payload.0, payload.1, payload.2) {
          Ok(quorum_seed) => quorum_seed,
          Err(e) => return Err(e),
       };
       self.quorum_seed = quorum_seed;
 
-      let eligible_claims = match Quorum::get_eligible_claims(claims){
+      let eligible_claims = match Quorum::get_eligible_claims(ballot){
          Ok(eligible_claims) => eligible_claims,
          Err(e) => return Err(e),
       };
       
-      let elected_quorum = match self.get_final_quorum(quorum_seed, eligible_claims, nodes){
+      let elected_quorum = match self.get_final_quorum(quorum_seed, eligible_claims){
          Ok(elected_quorum) => elected_quorum,
          Err(e) => return Err(e),
       };
       return Ok(elected_quorum);
   }
 
-
-  fn nonce_up_claims(claims: Vec<Claim>) -> Vec<Claim>{
-      let mut nonce_up_claims = Vec::new();
-      claims.iter().for_each(|claim|{
-         let mut nonce_up_claim = claim.clone();
-         nonce_up_claim.nonce += 1;
-         nonce_up_claims.push(nonce_up_claim);
-      });
-      return nonce_up_claims;
-  }
-
-  fn run_election(&mut self, child_block: &DummyChildBlock, claims: Vec<Claim>, nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum>{
-     match self.elect_quorum(child_block, claims, nodes){
-        Ok(quorum) => return Ok(quorum),
-        Err(e) => return Err(e),
-     };
+  fn run_election(&mut self, payload: Self::Payload, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>{
+      match self.elect_quorum(payload, ballot){
+         Ok(quorum) => return Ok(quorum),
+         Err(e) => return Err(e),
+      };
   }
 }
 
 //result enum for errors
 impl Quorum{
   //make new generate a blank/default quorum like a constructor
-  pub fn new() -> Quorum{
+   pub fn new() -> Quorum{
      return Quorum{
         quorum_seed: 0,
-        masternodes: Vec::new(),
+        master_pubkeys: Vec::new(),
         quorum_pk: String::new(),
         election_block_height: 0,
         election_timestamp: 0,
      } 
-  }
+   }
 
-  pub fn generate_quorum_seed(&mut self, child_block: &DummyChildBlock) -> Result<u128, InvalidQuorum>{
+   pub fn generate_quorum_seed(&mut self, timestamp: Timestamp, height: Height, block_hash: BlockHash) -> Result<u128, InvalidQuorum>{
 
-     let child_block_timestamp: u128 = child_block.timestamp;
-     let child_block_height: u128 = child_block.height;
-
-     if child_block_height == 0{
+     if height == 0{
         return Err(InvalidQuorum::InvalidChildBlockError());
-     } else if child_block_timestamp == 0 {
+     } else if timestamp == 0 {
         return Err(InvalidQuorum::InvalidChildBlockError());
      } else {
         let sk = VVRF::generate_secret_key();
-        let mut vvrf = VVRF::new(child_block.hash.as_bytes(), sk);
+        let mut vvrf = VVRF::new(block_hash.as_bytes(), sk);
      
-        assert!(VVRF::verify_seed(&mut vvrf).is_ok());
+      if VVRF::verify_seed(&mut vvrf).is_err() {
+         return Err(InvalidQuorum::InvalidSeedError());
+      }
         
-        let rng: u64 = vvrf.generate_u64();
+      let mut random_number = vvrf.generate_u64(); 
+      while random_number < u32MAX as u64 { 
+         random_number = vvrf.generate_u64(); 
+      }
 
-        if rng > u64MAX {
-           return Err(InvalidQuorum::InvalidSeedError(rng));
-        }
+      self.quorum_seed = random_number as u128;
+      self.election_timestamp = timestamp;
+      self.election_block_height = height;
 
-        self.quorum_seed = rng as u128;
-        self.election_timestamp = child_block_timestamp;
-        self.election_block_height = child_block_height;
-
-        return Ok(rng as u128);
+      return Ok(random_number as u128);
      }
-  }
+   }
 
-  pub fn get_eligible_claims(mut claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
+   pub fn get_eligible_claims(mut claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
      let mut eligible_claims = Vec::<Claim>::new();
      claims.into_iter().filter(|claim| claim.eligible == true).for_each(
         |claim| {
@@ -124,15 +118,14 @@ impl Quorum{
      }
      let eligible_claims = eligible_claims;
      return Ok(eligible_claims);  
-  }
+   }
 
-  pub fn get_final_quorum(
+   pub fn get_final_quorum(
      &mut self,
      quorum_seed: u128, 
-     claims: Vec<Claim>, 
-     nodes: Vec<DummyNode>) -> Result<&Quorum, InvalidQuorum> {
+     claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
 
-     let num_nodes =((claims.len() as f32)* 0.51).ceil() as usize;
+     let num_claims =((claims.len() as f32)* 0.51).ceil() as usize;
 
      let mut claim_tuples: Vec<(Option<u128>, &String)> = claims.iter().filter(
         |claim| claim.get_pointer(quorum_seed) != None).map(
@@ -140,29 +133,21 @@ impl Quorum{
      ).collect();
      
      //change to 20 in production
-   if claim_tuples.len() < 20 {
+      if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
      
      claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
-     let mut quorum_nodes: Vec<DummyNode> = Vec::new();
-     (0..5).for_each(
-         |i| {
-            nodes.iter().for_each(
-               |node| {
-                  if &node.pubkey == claim_tuples[i].1 {
-                     quorum_nodes.push(node.clone());
-                  }
-               }
-            );
-         }
-       );
-      
-     let quorum_nodes = quorum_nodes;
-     self.masternodes = quorum_nodes;
-     
-     return Ok(self);
-  }
+     let pubkeys: Vec<String> = claim_tuples.into_iter().map(
+        |claim_tuple| claim_tuple.1.clone()
+     ).take(num_claims).collect();
 
+     let final_pubkeys = Vec::from_iter(pubkeys[1..num_claims].iter().cloned());
+      self.master_pubkeys = final_pubkeys;
+
+     return Ok(self);
+   }
 }
+
+
