@@ -126,4 +126,13 @@ mod tests {
         let rn = vvrf1.generate_u8_in_range(10, 100);
         assert!(10 <= rn && rn <= 100);
     }
+
+    #[test]
+    fn same_input_same_secretkey(){
+        let sk1 = SecretKey::from_slice(&[0xcd; 32]);
+        let sk2 = SecretKey::from_slice(&[0xcd; 32]);
+
+        assert!(sk1 == sk2);
+
+    }
 }

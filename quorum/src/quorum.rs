@@ -17,6 +17,9 @@ pub enum InvalidQuorum{
 
    #[error("not enough eligible nodes")]
    InsufficientNodesError(),
+
+   #[error("quorum does not contain a seed")]
+   NoSeedError(),
 }
 
 pub struct Quorum{
@@ -37,27 +40,32 @@ impl Election for Quorum{
    type Ballot = Vec<Claim>;
    type Payload = (Timestamp, Height, BlockHash);
 
-   fn elect_quorum(&mut self, payload: Self::Payload, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
+   //should think of some kind of lock to avoid it being called more than once per block
+   fn generate_seed(&mut self, payload: Self::Payload) -> Result<u128, Self::Error> {
       let quorum_seed = match self.generate_quorum_seed(payload.0, payload.1, payload.2) {
          Ok(quorum_seed) => quorum_seed,
          Err(e) => return Err(e),
       };
       self.quorum_seed = quorum_seed;
+      Ok(quorum_seed)
+   }
 
+   fn elect_quorum(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
+      
       let eligible_claims = match Quorum::get_eligible_claims(ballot){
          Ok(eligible_claims) => eligible_claims,
          Err(e) => return Err(e),
       };
       
-      let elected_quorum = match self.get_final_quorum(quorum_seed, eligible_claims){
+      let elected_quorum = match self.get_final_quorum(eligible_claims){
          Ok(elected_quorum) => elected_quorum,
          Err(e) => return Err(e),
       };
       return Ok(elected_quorum);
   }
 
-  fn run_election(&mut self, payload: Self::Payload, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>{
-      match self.elect_quorum(payload, ballot){
+  fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>{
+      match self.elect_quorum(ballot){
          Ok(quorum) => return Ok(quorum),
          Err(e) => return Err(e),
       };
@@ -78,7 +86,6 @@ impl Quorum{
    }
 
    pub fn generate_quorum_seed(&mut self, timestamp: Timestamp, height: Height, block_hash: BlockHash) -> Result<u128, InvalidQuorum>{
-
      if height == 0{
         return Err(InvalidQuorum::InvalidChildBlockError());
      } else if timestamp == 0 {
@@ -115,34 +122,38 @@ impl Quorum{
      if eligible_claims.len() < 20 {
         return Err(InvalidQuorum::InsufficientNodesError());
      }
+     
      let eligible_claims = eligible_claims;
      return Ok(eligible_claims);  
    }
 
    pub fn get_final_quorum(
-     &mut self,
-     quorum_seed: u128, 
+     &mut self, 
      claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
+   
+      if self.quorum_seed == 0 {
+         return Err(InvalidQuorum::NoSeedError());
+      }
 
      let num_claims =((claims.len() as f32)* 0.51).ceil() as usize;
 
-     let mut claim_tuples: Vec<(Option<u128>, &String)> = claims.iter().filter(
-        |claim| claim.get_pointer(quorum_seed) != None).map(
-        |claim| (claim.get_pointer(quorum_seed), &claim.pubkey)
+     let mut claim_tuples: Vec<(u128, &String)> = claims.iter().filter(
+        |claim| claim.get_pointer(self.quorum_seed) != None).map(
+        |claim| (claim.get_pointer(self.quorum_seed).unwrap(), &claim.pubkey)
      ).collect();
-     
+
       if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
      
-     claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
+     claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0);
 
      let pubkeys: Vec<String> = claim_tuples.into_iter().map(
         |claim_tuple| claim_tuple.1.clone()
      ).take(num_claims).collect();
 
      let final_pubkeys = Vec::from_iter(pubkeys[0..num_claims].iter().cloned());
-      self.master_pubkeys = final_pubkeys;
+   self.master_pubkeys = final_pubkeys;
 
      return Ok(self);
    }
