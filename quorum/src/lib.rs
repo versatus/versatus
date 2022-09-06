@@ -58,13 +58,9 @@ mod tests {
 
         Quorum::new(quorum_seed, 11, 11);
 
-
-        
-
         assert!(quorum.quorum_seed != 0);
         
         assert!(quorum.run_election(dummyClaims).is_err());
-
     }
 
     #[test]
