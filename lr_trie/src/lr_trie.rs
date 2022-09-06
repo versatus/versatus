@@ -3,6 +3,8 @@ use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use patriecia::trie::Trie;
 use patriecia::{db::Database, inner::InnerTrie};
+use serde::de::Error;
+use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
 
 /// Concurrent generic Merkle Patricia Trie
@@ -156,7 +158,7 @@ mod tests {
 // TODO: revisit later
 // impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
 // where
-//     E: Iterator<Item = &'a Bytes>,
+//     E: Iterator<Item = Vec<u8>>,
 //     D: Database,
 // {
 //     fn from(values: E) -> Self {

@@ -11,8 +11,8 @@ pub type Nonce = u32;
 pub struct Account {
     pub hash: String,
     pub nonce: Nonce,
-    pub credits: u64,
-    pub debits: u64,
+    pub credits: u128,
+    pub debits: u128,
     pub storage: Option<String>,
     pub code: Option<String>,
 }
@@ -28,8 +28,8 @@ impl Account {
     /// ```
     pub fn new() -> Account {
         let nonce = 0u32;
-        let credits = 0u64;
-        let debits = 0u64;
+        let credits = 0u128;
+        let debits = 0u128;
         let storage = None;
         let code = None;
 
@@ -188,8 +188,8 @@ impl Account {
 /// Enum containing options for updates - used to update value of single field in account struct.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum AccountField {
-    Credits(u64),
-    Debits(u64),
+    Credits(u128),
+    Debits(u128),
     Storage(Option<String>),
     Code(Option<String>),
 }
@@ -221,8 +221,8 @@ pub type VrrbDb = LeftRightDatabase<PublicKey, Box<Account>>;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct AccountFieldsUpdate {
     pub nonce: u32,
-    pub credits: Option<u64>,
-    pub debits: Option<u64>,
+    pub credits: Option<u128>,
+    pub debits: Option<u128>,
     pub storage: Option<Option<String>>,
     pub code: Option<Option<String>>,
 }

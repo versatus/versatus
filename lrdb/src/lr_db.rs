@@ -1,8 +1,6 @@
-use crate::result::{LeftRightDbError, Result};
-use patriecia::db::Database;
-use std::{hash::Hash, sync::Arc, time::SystemTime};
+use std::{hash::Hash, time::SystemTime};
 
-pub type Nonce = u32;
+// pub type Nonce = u32;
 
 /// Struct representing the LeftRight Database.
 ///

@@ -265,7 +265,7 @@ mod tests {
 // impl<D, E> From<E> for TxTrie<D>
 // where
 //     D: Database,
-//     E: Iterator<Item = &'a Bytes>,
+//     E: Iterator<Item = Vec<u8>>,
 // {
 //     fn from(values: E) -> Self {
 //         let trie = LeftRightTrie::from(values);

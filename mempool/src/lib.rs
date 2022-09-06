@@ -1,6 +1,5 @@
 pub mod error;
 pub mod mempool;
-pub mod txn_validator;
 
 #[cfg(test)]
 mod tests {
@@ -11,7 +10,7 @@ mod tests {
     };
     use txn::txn::Txn;
 
-    use crate::mempool::LeftRightMemPoolDB;
+    use crate::mempool::{LeftRightMemPoolDB, TxnStatus};
 
     #[test]
     fn creates_new_lrmempooldb() {
@@ -45,7 +44,7 @@ mod tests {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             }
@@ -80,7 +79,7 @@ mod tests {
         match mpooldb.add_txn(&txn) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             }
@@ -90,7 +89,7 @@ mod tests {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
                 // panic!("Adding second identical transaction was succesful !");
-            },
+            }
             Err(_) => {
                 assert_eq!(1, mpooldb.size().0);
             }
@@ -139,7 +138,7 @@ mod tests {
         match mpooldb.add_txn(&txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             }
@@ -148,12 +147,11 @@ mod tests {
         match mpooldb.add_txn(&txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
             }
         };
-
     }
 
     #[test]
@@ -186,7 +184,7 @@ mod tests {
         match mpooldb.add_txn(&txn) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
             }
@@ -214,12 +212,10 @@ mod tests {
         } else {
             panic!("No transaction found!");
         }
-
     }
 
     #[test]
     fn add_batch_of_transactions() {
-
         let mut txns = HashSet::<Txn>::new();
 
         let now = SystemTime::now()
@@ -233,50 +229,47 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
-
             let txn = Txn {
-                            txn_id: format!("{n}", n=n),
-                            txn_timestamp: now+n,
-                            sender_address: sender_address.clone(),
-                            sender_public_key: String::from("RSA"),
-                            receiver_address: receiver_address.clone(),
-                            txn_token: None,
-                            txn_amount: txn_amount+n,
-                            txn_payload: String::from("x"),
-                            txn_signature: String::from("x"),
-                            validators: HashMap::<String, bool>::new(),
-                            nonce: 0,
+                txn_id: format!("{n}", n = n),
+                txn_timestamp: now + n,
+                sender_address: sender_address.clone(),
+                sender_public_key: String::from("RSA"),
+                receiver_address: receiver_address.clone(),
+                txn_token: None,
+                txn_amount: txn_amount + n,
+                txn_payload: String::from("x"),
+                txn_signature: String::from("x"),
+                validators: HashMap::<String, bool>::new(),
+                nonce: 0,
             };
 
             let txn_ser = txn.to_string();
 
             txns.insert(Txn::from_string(&txn_ser));
-
-        };
+        }
 
         let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn_batch(&txns) {
+        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
             }
         };
 
         let txn_n = 51;
-        let test_txn_id = format!("{n}", n=txn_n);
+        let test_txn_id = format!("{n}", n = txn_n);
 
         if let Some(txn_retrieved) = mpooldb.get_txn(&test_txn_id.clone()) {
             assert_eq!(txn_retrieved.txn_id, test_txn_id.clone());
-            assert_eq!(txn_retrieved.txn_timestamp, now+txn_n);
+            assert_eq!(txn_retrieved.txn_timestamp, now + txn_n);
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
-            assert_eq!(txn_retrieved.txn_amount, txn_amount+txn_n);
+            assert_eq!(txn_retrieved.txn_amount, txn_amount + txn_n);
         } else {
             panic!("No transaction found!");
         }
-
     }
 
     #[test]
@@ -321,7 +314,7 @@ mod tests {
         match mpooldb.add_txn(&txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             }
@@ -330,7 +323,7 @@ mod tests {
         match mpooldb.add_txn(&txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
             }
@@ -339,7 +332,7 @@ mod tests {
         match mpooldb.remove_txn_by_id(txn2_id.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
             }
@@ -388,7 +381,7 @@ mod tests {
         match mpooldb.add_txn(&txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             }
@@ -397,7 +390,7 @@ mod tests {
         match mpooldb.add_txn(&txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
             }
@@ -406,7 +399,7 @@ mod tests {
         match mpooldb.remove_txn(&txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
             }
@@ -428,50 +421,46 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
-
             let txn = Txn {
-                            txn_id: format!("{n}", n=n),
-                            txn_timestamp: now+n,
-                            sender_address: sender_address.clone(),
-                            sender_public_key: String::from("RSA"),
-                            receiver_address: receiver_address.clone(),
-                            txn_token: None,
-                            txn_amount: txn_amount+n,
-                            txn_payload: String::from("x"),
-                            txn_signature: String::from("x"),
-                            validators: HashMap::<String, bool>::new(),
-                            nonce: 0,
+                txn_id: format!("{n}", n = n),
+                txn_timestamp: now + n,
+                sender_address: sender_address.clone(),
+                sender_public_key: String::from("RSA"),
+                receiver_address: receiver_address.clone(),
+                txn_token: None,
+                txn_amount: txn_amount + n,
+                txn_payload: String::from("x"),
+                txn_signature: String::from("x"),
+                validators: HashMap::<String, bool>::new(),
+                nonce: 0,
             };
 
             let txn_ser = txn.to_string();
 
             txns.insert(Txn::from_string(&txn_ser));
-
-        };
+        }
 
         let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn_batch(&txns) {
+        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
             }
         };
-        match mpooldb.remove_txn_batch(&txns) {
+        match mpooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(0, mpooldb.size().0);
-            },
+            }
             Err(_) => {
                 panic!("Removing transactions was unsuccesful !");
             }
         };
-
     }
 
     #[test]
     fn batch_write_and_parallel_reads() {
-
         let txn_id_max = 11;
 
         let mut lrmpooldb = LeftRightMemPoolDB::new();
@@ -487,30 +476,29 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
-
             let txn = Txn {
-                            txn_id: format!("{n}", n=n),
-                            txn_timestamp: now+n,
-                            sender_address: sender_address.clone(),
-                            sender_public_key: String::from("RSA"),
-                            receiver_address: receiver_address.clone(),
-                            txn_token: None,
-                            txn_amount: txn_amount+n,
-                            txn_payload: String::from("x"),
-                            txn_signature: String::from("x"),
-                            validators: HashMap::<String, bool>::new(),
-                            nonce: 0,
+                txn_id: format!("{n}", n = n),
+                txn_timestamp: now + n,
+                sender_address: sender_address.clone(),
+                sender_public_key: String::from("RSA"),
+                receiver_address: receiver_address.clone(),
+                txn_token: None,
+                txn_amount: txn_amount + n,
+                txn_payload: String::from("x"),
+                txn_signature: String::from("x"),
+                validators: HashMap::<String, bool>::new(),
+                nonce: 0,
             };
 
             let txn_ser = txn.to_string();
 
             txns.insert(Txn::from_string(&txn_ser));
-        };
+        }
 
-        match lrmpooldb.add_txn_batch(&txns) {
+        match lrmpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(txn_id_max-1, lrmpooldb.size().0);
-            },
+                assert_eq!(txn_id_max - 1, lrmpooldb.size().0);
+            }
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
             }
@@ -522,13 +510,12 @@ mod tests {
                 let mpool_hdl = lrmpooldb.factory();
 
                 std::thread::spawn(move || {
-
                     let read_hdl = mpool_hdl.handle();
 
                     match read_hdl.enter().map(|guard| guard.clone()) {
                         Some(m) => {
-                            assert_eq!(m.pending.len(), txn_id_max-1);
-                        },
+                            assert_eq!(m.pending.len(), txn_id_max - 1);
+                        }
                         None => {
                             panic!("No mempool !");
                         }
@@ -538,7 +525,5 @@ mod tests {
             .for_each(|handle| {
                 handle.join().unwrap();
             });
-
     }
-
 }
