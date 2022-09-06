@@ -37,7 +37,7 @@ strum = "0.21.0"
 strum_macros = "0.21.0"
 index_list = "0.2.7"
 clipboard = "0.5.0"
-node = { path = "../node" }
+node = { path = "../node/core" }
 network = { path = "../network" }
 commands = { path = "../commands" }
 messages = { path = "../messages" }

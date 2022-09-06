@@ -18,6 +18,4 @@ ENV RUST_BACKTRACE 1
 
 COPY --from=builder /vrrb/target/release/vrrb ./
 
-USER vrrb
-
-CMD ["/vrrb/vrrb"]
+ENTRYPOINT ["/vrrb/vrrb"]
