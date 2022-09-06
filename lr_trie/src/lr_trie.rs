@@ -8,12 +8,12 @@ use std::{fmt::Debug, sync::Arc};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
-pub struct LeftRightTrie<'a, D: Database> {
+pub struct LeftRightTrie<D: Database> {
     pub read_handle: ReadHandle<InnerTrie<D>>,
-    pub write_handle: WriteHandle<InnerTrie<D>, Operation<'a>>,
+    pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
 }
 
-impl<'a, D: Database> LeftRightTrie<'a, D> {
+impl<D: Database> LeftRightTrie<D> {
     pub fn new(db: Arc<D>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
 
@@ -56,33 +56,33 @@ impl<'a, D: Database> LeftRightTrie<'a, D> {
         self.write_handle.publish();
     }
 
-    pub fn add(&mut self, key: &'a Bytes, value: &'a Bytes) {
+    pub fn add(&mut self, key: Vec<u8>, value: Vec<u8>) {
         self.write_handle.append(Operation::Add(key, value));
         self.publish();
     }
 
     // TODO: revisit once inner trie is refactored into patriecia
-    pub fn extend(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
+    pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.write_handle.append(Operation::Extend(values));
         self.publish();
     }
 
-    pub fn add_uncommitted(&mut self, key: &'a Bytes, value: &'a Bytes) {
+    pub fn add_uncommitted(&mut self, key: Vec<u8>, value: Vec<u8>) {
         self.write_handle.append(Operation::Add(key, value));
     }
 
-    pub fn extend_uncommitted(&mut self, values: Vec<(&'a Bytes, &'a Bytes)>) {
+    pub fn extend_uncommitted(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.write_handle.append(Operation::Extend(values));
     }
 }
 
-impl<'a, D: Database> PartialEq for LeftRightTrie<'a, D> {
+impl<D: Database> PartialEq for LeftRightTrie<D> {
     fn eq(&self, other: &Self) -> bool {
         self.get().root_hash() == other.get().root_hash()
     }
 }
 
-impl<'a, D: Database> Default for LeftRightTrie<'a, D> {
+impl<D: Database> Default for LeftRightTrie<D> {
     fn default() -> Self {
         let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
         Self {
@@ -92,11 +92,11 @@ impl<'a, D: Database> Default for LeftRightTrie<'a, D> {
     }
 }
 
-impl<'a, D> Absorb<Operation<'a>> for InnerTrie<D>
+impl<D> Absorb<Operation> for InnerTrie<D>
 where
     D: Database,
 {
-    fn absorb_first(&mut self, operation: &mut Operation<'a>, _other: &Self) {
+    fn absorb_first(&mut self, operation: &mut Operation, _other: &Self) {
         match operation {
             // TODO: report errors via instrumentation
             Operation::Add(key, value) => {
@@ -134,9 +134,9 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
-        trie.add(b"abcdefg", b"12345");
-        trie.add(b"hijkl", b"678910");
-        trie.add(b"mnopq", b"1112131415");
+        trie.add(b"abcdefg".to_vec(), b"12345".to_vec());
+        trie.add(b"hijkl".to_vec(), b"678910".to_vec());
+        trie.add(b"mnopq".to_vec(), b"1112131415".to_vec());
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
