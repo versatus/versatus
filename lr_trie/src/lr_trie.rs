@@ -156,7 +156,7 @@ mod tests {
 // TODO: revisit later
 // impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
 // where
-//     E: Iterator<Item = &'a Bytes>,
+//     E: Iterator<Item = Vec<u8>>,
 //     D: Database,
 // {
 //     fn from(values: E) -> Self {

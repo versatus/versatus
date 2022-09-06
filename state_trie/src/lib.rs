@@ -15,6 +15,10 @@ impl<D: Database> StateTrie<D> {
         }
     }
 
+    // Returns read handle factory to underlying
+    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
+        self.trie.factory()
+    }
     /// Adds a single leaf value serialized to bytes
     /// Example:
     /// ```
@@ -34,6 +38,9 @@ impl<D: Database> StateTrie<D> {
         self.trie.add(key, value);
     }
 
+    // pub fn get(&self, key: Vec<u8>) {
+    //     self.trie.get()
+    // }
     /// Extends the state trie with the provided iterator over leaf values as bytes.
     /// Example:
     /// ```
@@ -256,10 +263,10 @@ mod tests {
 }
 
 // TODO: revisit once lrdb is integrated with tries
-// impl<'a, D, E> From<E> for StateTrie<'a, H>
+// impl< D, E> From<E> for StateTrie< H>
 // where
 //     D: Database,
-//     E: Iterator<Item = &'a Bytes>,
+//     E: Iterator<Item = Vec<u8>>,
 // {
 //     fn from(values: E) -> Self {
 //         let trie = LeftRightTrie::from(values);

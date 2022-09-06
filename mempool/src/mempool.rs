@@ -1,4 +1,6 @@
+use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
+use std::sync::mpsc::Receiver;
 use std::{
     collections::HashSet,
     hash::Hash,
@@ -8,12 +10,10 @@ use std::{
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 
-use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-
 use std::result::Result as StdResult;
 
-use txn::txn::Txn;
 use state::state::NetworkState;
+use txn::txn::Txn;
 
 use super::error::MempoolError;
 use super::txn_validator::TxnValidator;
@@ -35,7 +35,7 @@ impl TxnRecord {
     pub fn new(txn: &Txn) -> TxnRecord {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("The system time seems to be set to be earlier than 1970-01-01 00:00:00 UTC")
             .as_nanos();
 
         TxnRecord {
@@ -48,7 +48,6 @@ impl TxnRecord {
     }
 
     pub fn new_by_id(txn_id: &String) -> TxnRecord {
-
         TxnRecord {
             txn_id: txn_id.clone(),
             ..Default::default()
@@ -65,36 +64,45 @@ impl Default for TxnRecord {
             txn_added_timestamp: 0,
             txn_validated_timestamp: 0,
             txn_rejected_timestamp: 0,
-            txn_deleted_timestamp: 0
+            txn_deleted_timestamp: 0,
         }
     }
 }
 
 pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TxnStatus {
     Pending,
     Validated,
-    Rejected
+    Rejected,
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Mempool {
     pub pending: MempoolType,
     pub validated: MempoolType,
-    pub rejected: MempoolType
+    pub rejected: MempoolType,
 }
 
 impl Default for Mempool {
     fn default() -> Self {
-
         // TODO - to be moved to a common configuration file
         let initial_mempool_capacity = 100;
 
-        Mempool { 
-            pending: MempoolType::with_capacity_and_hasher(initial_mempool_capacity, <_>::default()),
-            validated: MempoolType::with_capacity_and_hasher(initial_mempool_capacity, <_>::default()),
-            rejected: MempoolType::with_capacity_and_hasher(initial_mempool_capacity, <_>::default())
+        Mempool {
+            pending: MempoolType::with_capacity_and_hasher(
+                initial_mempool_capacity,
+                <_>::default(),
+            ),
+            validated: MempoolType::with_capacity_and_hasher(
+                initial_mempool_capacity,
+                <_>::default(),
+            ),
+            rejected: MempoolType::with_capacity_and_hasher(
+                initial_mempool_capacity,
+                <_>::default(),
+            ),
         }
     }
 }
@@ -104,34 +112,31 @@ pub enum MempoolOp {
     Remove(TxnRecord, TxnStatus),
 }
 
-impl Absorb<MempoolOp> for Mempool
-{
+impl Absorb<MempoolOp> for Mempool {
     fn absorb_first(&mut self, op: &mut MempoolOp, _: &Self) {
         match op {
-            MempoolOp::Add(recdata, status) => {
-                match status {
-                    TxnStatus::Pending => {
-                        self.pending.insert(recdata.txn_id.clone(), recdata.clone());
-                    },
-                    TxnStatus::Validated => {
-                        self.validated.insert(recdata.txn_id.clone(), recdata.clone());
-                    },
-                    TxnStatus::Rejected => {
-                        self.rejected.insert(recdata.txn_id.clone(), recdata.clone());
-                    },
+            MempoolOp::Add(recdata, status) => match status {
+                TxnStatus::Pending => {
+                    self.pending.insert(recdata.txn_id.clone(), recdata.clone());
+                }
+                TxnStatus::Validated => {
+                    self.validated
+                        .insert(recdata.txn_id.clone(), recdata.clone());
+                }
+                TxnStatus::Rejected => {
+                    self.rejected
+                        .insert(recdata.txn_id.clone(), recdata.clone());
                 }
             },
-            MempoolOp::Remove(recdata, status) => {
-                match status {
-                    TxnStatus::Pending => {
-                        self.pending.remove(&recdata.txn_id);
-                    },
-                    TxnStatus::Validated => {
-                        self.validated.remove(&recdata.txn_id);
-                    },
-                    TxnStatus::Rejected => {
-                        self.rejected.remove(&recdata.txn_id);
-                    },
+            MempoolOp::Remove(recdata, status) => match status {
+                TxnStatus::Pending => {
+                    self.pending.remove(&recdata.txn_id);
+                }
+                TxnStatus::Validated => {
+                    self.validated.remove(&recdata.txn_id);
+                }
+                TxnStatus::Rejected => {
+                    self.rejected.remove(&recdata.txn_id);
                 }
             },
         }
@@ -139,43 +144,78 @@ impl Absorb<MempoolOp> for Mempool
 
     fn absorb_second(&mut self, op: MempoolOp, _: &Self) {
         match op {
-            MempoolOp::Add(recdata, status) => {
-                match status {
-                    TxnStatus::Pending => {
-                        self.pending.insert(recdata.txn_id.clone(), recdata.clone());
-                    },
-                    TxnStatus::Validated => {
-                        self.validated.insert(recdata.txn_id.clone(), recdata.clone());
-                    },
-                    TxnStatus::Rejected => {
-                        self.rejected.insert(recdata.txn_id.clone(), recdata.clone());
-                    },
+            MempoolOp::Add(recdata, status) => match status {
+                TxnStatus::Pending => {
+                    self.pending.insert(recdata.txn_id.clone(), recdata.clone());
+                }
+                TxnStatus::Validated => {
+                    self.validated
+                        .insert(recdata.txn_id.clone(), recdata.clone());
+                }
+                TxnStatus::Rejected => {
+                    self.rejected
+                        .insert(recdata.txn_id.clone(), recdata.clone());
                 }
             },
-            MempoolOp::Remove(recdata, status) => {
-                match status {
-                    TxnStatus::Pending => {
-                        self.pending.remove(&recdata.txn_id);
-                    },
-                    TxnStatus::Validated => {
-                        self.validated.remove(&recdata.txn_id);
-                    },
-                    TxnStatus::Rejected => {
-                        self.rejected.remove(&recdata.txn_id);
-                    },
+            MempoolOp::Remove(recdata, status) => match status {
+                TxnStatus::Pending => {
+                    self.pending.remove(&recdata.txn_id);
+                }
+                TxnStatus::Validated => {
+                    self.validated.remove(&recdata.txn_id);
+                }
+                TxnStatus::Rejected => {
+                    self.rejected.remove(&recdata.txn_id);
                 }
             },
         }
     }
 
-    fn drop_first(self: Box<Self>) {
-    }
+    fn drop_first(self: Box<Self>) {}
 
-    fn drop_second(self: Box<Self>) {
-    }
+    fn drop_second(self: Box<Self>) {}
 
     fn sync_with(&mut self, first: &Self) {
         *self = first.clone();
+    }
+}
+
+// pub trait FetchFiltered {
+//     fn fetch_filtered<F>(&self, f: F) -> HashMap<String, TxnRecord>
+//     where
+//         F: FnMut(&String, &mut TxnRecord) -> bool;
+
+//     fn fetch_filtered_wihtout_repetition<F>(
+//         &self,
+//         f: F,
+//         seen: &mut HashSet<Txn>,
+//     ) -> HashMap<String, TxnRecord>
+//     where
+//         F: FnMut(&String, &mut TxnRecord) -> bool;
+// }
+
+pub trait FetchFiltered {
+    fn fetch_pending<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
+    where
+        F: FnMut(&String, &mut TxnRecord) -> bool;
+}
+
+impl FetchFiltered for ReadHandle<Mempool> {
+    fn fetch_pending<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
+    where
+        F: FnMut(&String, &mut TxnRecord) -> bool,
+    {
+        if let Some(map) = self.enter().map(|guard| guard.clone()) {
+            let mut result = map.pending.clone();
+            result.retain(f);
+            let mut returned = Vec::<TxnRecord>::new();
+            for (_, v) in &result {
+                returned.push(v.clone());
+            }
+            // TODO:  Error - length
+            return returned; //[0..amount as usize].to_vec()
+        };
+        return Vec::<TxnRecord>::new();
     }
 }
 
@@ -185,23 +225,19 @@ pub struct LeftRightMemPoolDB {
 }
 
 impl LeftRightMemPoolDB {
-
     /// Creates new Mempool DB
     pub fn new() -> Self {
-        let (write, read)
-            = left_right::new::<Mempool, MempoolOp>();
+        let (write, read) = left_right::new::<Mempool, MempoolOp>();
 
         LeftRightMemPoolDB {
             read: read,
-            write: write
+            write: write,
         }
     }
 
     /// Getter for Mempool DB
     pub fn get(&self) -> Option<Mempool> {
-        self.read
-            .enter()
-            .map(|guard| guard.clone())
+        self.read.enter().map(|guard| guard.clone())
     }
 
     /// Returns a new ReadHandleFactory, to simplify multithread access.
@@ -218,9 +254,9 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::HashMap;
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// 
+    ///
     /// let txn = Txn {
     ///     txn_id: String::from("1"),
     ///     txn_timestamp: 0,
@@ -234,20 +270,19 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// };
-    /// 
+    ///
     /// match lrmempooldb.add_txn(&txn) {
     ///     Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
-    /// 
+    ///
     /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
     pub fn add_txn(&mut self, txn: &Txn) -> Result<()> {
-
         self.write
             .append(MempoolOp::Add(TxnRecord::new(txn), TxnStatus::Pending))
             .publish();
@@ -263,11 +298,11 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
-    /// 
+    ///
     /// txns.insert( Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
@@ -281,13 +316,13 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// });
-    /// 
+    ///
     /// match lrmempooldb.add_txn_batch(&txns) {
     ///     Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
     ///
@@ -298,66 +333,43 @@ impl LeftRightMemPoolDB {
     /// };
     /// ```
     pub fn get_txn(&mut self, txn_id: &String) -> Option<Txn> {
-
         if txn_id.is_empty() {
             return None;
         }
 
-        self.get()
-            .and_then(|map| {
-                map
-                    .pending
-                    .get(txn_id)
-                    .and_then(|t| Some(Txn::from_string(&t.txn)))
-            })
+        self.get().and_then(|map| {
+            map.pending
+                .get(txn_id)
+                .and_then(|t| Some(Txn::from_string(&t.txn)))
+        })
     }
 
     /// Getter for an entire pending Txn record
     pub fn get_txn_record(&mut self, txn_id: &String) -> Option<TxnRecord> {
-
         if txn_id.is_empty() {
             return None;
         }
 
-        self.get()
-            .and_then(|map| {
-                map
-                    .pending
-                    .get(txn_id)
-                    .cloned()
-            })
+        self.get().and_then(|map| map.pending.get(txn_id).cloned())
     }
 
     /// Getter for an entire validated Txn record
     pub fn get_txn_record_validated(&mut self, txn_id: &String) -> Option<TxnRecord> {
-
         if txn_id.is_empty() {
             return None;
         }
 
         self.get()
-            .and_then(|map| {
-                map
-                    .validated
-                    .get(txn_id)
-                    .cloned()
-            })
+            .and_then(|map| map.validated.get(txn_id).cloned())
     }
 
     /// Getter for an entire rejected Txn record
     pub fn get_txn_record_rejected(&mut self, txn_id: &String) -> Option<TxnRecord> {
-
         if txn_id.is_empty() {
             return None;
         }
 
-        self.get()
-            .and_then(|map| {
-                map
-                    .rejected
-                    .get(txn_id)
-                    .cloned()
-            })
+        self.get().and_then(|map| map.rejected.get(txn_id).cloned())
     }
 
     /// Adds a batch of new transaction, makes sure that each is unique in db.
@@ -368,10 +380,10 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
-    /// 
+    ///
     /// txns.insert( Txn {
     ///     txn_id: String::from("1"),
     ///     txn_timestamp: 0,
@@ -385,21 +397,26 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// });
-    /// 
+    ///
     /// match lrmempooldb.add_txn_batch(&txns) {
     ///      Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
-    /// 
+    ///
     /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
-    pub fn add_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<()> {
+    pub fn add_txn_batch(
+        &mut self,
+        txn_batch: &HashSet<Txn>,
+        txns_status: TxnStatus,
+    ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Add(TxnRecord::new(t), TxnStatus::Pending));
+            self.write
+                .append(MempoolOp::Add(TxnRecord::new(t), txns_status.clone()));
         });
         self.publish();
         Ok(())
@@ -414,11 +431,11 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
-    /// 
+    ///
     /// txns.insert( Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
@@ -432,13 +449,13 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// });
-    /// 
+    ///
     /// match lrmempooldb.add_txn_batch(&txns) {
     ///      Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
     ///  
@@ -450,12 +467,15 @@ impl LeftRightMemPoolDB {
     ///  
     ///      }
     /// };
-    /// 
+    ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<()> {
         self.write
-            .append(MempoolOp::Remove(TxnRecord::new_by_id(&txn_id), TxnStatus::Pending))
+            .append(MempoolOp::Remove(
+                TxnRecord::new_by_id(&txn_id),
+                TxnStatus::Pending,
+            ))
             .publish();
         Ok(())
     }
@@ -469,10 +489,10 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let txn_id = String::from("1");
-    /// 
+    ///
     /// let txn = Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
@@ -486,13 +506,13 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// };
-    /// 
+    ///
     /// match lrmempooldb.add_txn(&txn) {
     ///      Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
     /// match lrmempooldb.remove_txn(&txn) {
@@ -500,10 +520,10 @@ impl LeftRightMemPoolDB {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
-    /// 
+    ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn(&mut self, txn: &Txn) -> Result<()> {
@@ -522,11 +542,11 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
-    /// 
+    ///
     /// txns.insert( Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
@@ -540,13 +560,13 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// });
-    /// 
+    ///
     /// match lrmempooldb.add_txn_batch(&txns) {
     ///      Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
     ///  
@@ -558,12 +578,13 @@ impl LeftRightMemPoolDB {
     ///  
     ///      }
     /// };
-    /// 
+    ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
     pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(TxnRecord::new(t), TxnStatus::Pending));
+            self.write
+                .append(MempoolOp::Remove(TxnRecord::new(t), TxnStatus::Pending));
         });
         self.publish();
         Ok(())
@@ -571,93 +592,108 @@ impl LeftRightMemPoolDB {
 
     /// Validate all the pending Txn against state, update Mempool
     pub fn validate_all(&mut self, state: &NetworkState) -> Result<()> {
-
-        self.get()
-            .and_then(|map| {
-                map
-                    .pending
-                    .iter().for_each(|rec_entry| {
-                        let txn = Txn::from_string(&rec_entry.1.txn);
-                        let timestamp = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos();
-                        match self.validate(&txn, state) {
-                            Ok(_) => {
-                                let mut rec_entry_validated = rec_entry.1.clone();
-                                rec_entry_validated.txn_validated_timestamp = timestamp;
-                                self.apply_txn_on_state(&txn, state)
-                                    .and_then(|_| {
-                                        self.write.append(MempoolOp::Add(rec_entry_validated.clone(), TxnStatus::Validated));
-                                        self.write.append(MempoolOp::Remove(rec_entry_validated.clone(), TxnStatus::Pending));
-                                        Ok(())
-                                    })
-                                    .unwrap();
-                            },
-                            Err(_) => {
-                                let mut rec_entry_rejected = rec_entry.1.clone();
-                                rec_entry_rejected.txn_rejected_timestamp = timestamp;
-                                self.write.append(MempoolOp::Add(rec_entry_rejected.clone(), TxnStatus::Rejected));
-                                self.write.append(MempoolOp::Remove(rec_entry_rejected.clone(), TxnStatus::Pending));
-                            }
-                        }
-                    });
-                Some(())
+        self.get().and_then(|map| {
+            map.pending.iter().for_each(|rec_entry| {
+                let txn = Txn::from_string(&rec_entry.1.txn);
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos();
+                match self.validate(&txn, state) {
+                    Ok(_) => {
+                        let mut rec_entry_validated = rec_entry.1.clone();
+                        rec_entry_validated.txn_validated_timestamp = timestamp;
+                        self.apply_txn_on_state(&txn, state)
+                            .and_then(|_| {
+                                self.write.append(MempoolOp::Add(
+                                    rec_entry_validated.clone(),
+                                    TxnStatus::Validated,
+                                ));
+                                self.write.append(MempoolOp::Remove(
+                                    rec_entry_validated.clone(),
+                                    TxnStatus::Pending,
+                                ));
+                                Ok(())
+                            })
+                            .unwrap();
+                    }
+                    Err(_) => {
+                        let mut rec_entry_rejected = rec_entry.1.clone();
+                        rec_entry_rejected.txn_rejected_timestamp = timestamp;
+                        self.write.append(MempoolOp::Add(
+                            rec_entry_rejected.clone(),
+                            TxnStatus::Rejected,
+                        ));
+                        self.write.append(MempoolOp::Remove(
+                            rec_entry_rejected.clone(),
+                            TxnStatus::Pending,
+                        ));
+                    }
+                }
             });
+            Some(())
+        });
         self.publish();
         Ok(())
     }
 
     /// Validate a single Txn against state, update Mempool
     pub fn validate_one(&mut self, txn: &Txn, state: &NetworkState) -> Result<()> {
-
-        self.get()
-            .and_then(|map| {
-                map
-                    .pending
-                    .get(&txn.txn_id)
-                    .and_then(|rec_entry| {
-                        let txn = Txn::from_string(&rec_entry.txn);
-                        let timestamp = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_nanos();
-                        match self.validate(&txn, state) {
-                            Ok(_) => {
-                                let mut rec_entry_validated = rec_entry.clone();
-                                rec_entry_validated.txn_validated_timestamp = timestamp;
-                                self.apply_txn_on_state(&txn, state)
-                                    .and_then(|_| {
-                                        self.write.append(MempoolOp::Add(rec_entry_validated.clone(), TxnStatus::Validated));
-                                        self.write.append(MempoolOp::Remove(rec_entry_validated.clone(), TxnStatus::Pending));
-                                        Ok(())
-                                    })
-                                    .unwrap();
-                            },
-                            Err(_) => {
-                                let mut rec_entry_rejected = rec_entry.clone();
-                                rec_entry_rejected.txn_rejected_timestamp = timestamp;
-                                self.write.append(MempoolOp::Add(rec_entry_rejected.clone(), TxnStatus::Rejected));
-                                self.write.append(MempoolOp::Remove(rec_entry_rejected.clone(), TxnStatus::Pending));
-                            }
-                        }
-                        Some(())
-                    })
-                });
+        self.get().and_then(|map| {
+            map.pending.get(&txn.txn_id).and_then(|rec_entry| {
+                let txn = Txn::from_string(&rec_entry.txn);
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos();
+                match self.validate(&txn, state) {
+                    Ok(_) => {
+                        let mut rec_entry_validated = rec_entry.clone();
+                        rec_entry_validated.txn_validated_timestamp = timestamp;
+                        self.apply_txn_on_state(&txn, state)
+                            .and_then(|_| {
+                                self.write.append(MempoolOp::Add(
+                                    rec_entry_validated.clone(),
+                                    TxnStatus::Validated,
+                                ));
+                                self.write.append(MempoolOp::Remove(
+                                    rec_entry_validated.clone(),
+                                    TxnStatus::Pending,
+                                ));
+                                Ok(())
+                            })
+                            .unwrap();
+                    }
+                    Err(_) => {
+                        let mut rec_entry_rejected = rec_entry.clone();
+                        rec_entry_rejected.txn_rejected_timestamp = timestamp;
+                        self.write.append(MempoolOp::Add(
+                            rec_entry_rejected.clone(),
+                            TxnStatus::Rejected,
+                        ));
+                        self.write.append(MempoolOp::Remove(
+                            rec_entry_rejected.clone(),
+                            TxnStatus::Pending,
+                        ));
+                    }
+                }
+                Some(())
+            })
+        });
         self.publish();
         Ok(())
     }
 
     /// Apply a txn validator on a single Txn against current state
     pub fn validate(&mut self, txn: &Txn, state: &NetworkState) -> Result<()> {
-        
-        TxnValidator::new(txn, state).validate().map_err(|_| MempoolError::TransactionInvalid)
+        TxnValidator::new(txn, state)
+            .validate()
+            .map_err(|_| MempoolError::TransactionInvalid)
     }
 
     /// Apply Txn on debits and credits of currect state
     // TODO: to be clarified against the new state representation.
     pub fn apply_txn_on_state(&mut self, _txn: &Txn, _state: &NetworkState) -> Result<()> {
-
         Ok(())
     }
 
@@ -681,11 +717,10 @@ impl LeftRightMemPoolDB {
 
     /// Purge rejected transactions.
     pub fn purge_txn_rejected(&mut self) -> Result<()> {
-        self.get()
-            .and_then(|mut map| {
-                map.rejected.clear();
-                Some(())
-            });
+        self.get().and_then(|mut map| {
+            map.rejected.clear();
+            Some(())
+        });
         Ok(())
     }
 
@@ -697,11 +732,11 @@ impl LeftRightMemPoolDB {
     /// use mempool::mempool::LeftRightMemPoolDB;
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
-    /// 
+    ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
-    /// 
+    ///
     /// txns.insert( Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
@@ -715,13 +750,13 @@ impl LeftRightMemPoolDB {
     ///     validators: HashMap::<String, bool>::new(),
     ///     nonce: 0,
     /// });
-    /// 
+    ///
     /// match lrmempooldb.add_txn_batch(&txns) {
     ///     Ok(_) => {
     ///         
     ///     },
     ///     Err(_) => {
-    /// 
+    ///
     ///     }
     /// };
     ///
@@ -731,7 +766,7 @@ impl LeftRightMemPoolDB {
         if let Some(map) = self.get() {
             (map.pending.len(), map.validated.len(), map.rejected.len())
         } else {
-            (0, 0 ,0)
+            (0, 0, 0)
         }
     }
 
@@ -739,5 +774,4 @@ impl LeftRightMemPoolDB {
     fn publish(&mut self) {
         self.write.publish();
     }
-
 }
