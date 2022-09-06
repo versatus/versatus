@@ -110,20 +110,20 @@ mod tests {
 
     #[test]
     fn verify_that_txns_are_validated_and_invalid_are_written_to_rejected_pool() {
-        let mempool_pending = LeftRightMemPoolDB::new();
-        let mempool_validated = LeftRightMemPoolDB::new();
-        let mempool_validated_read_handle = mempool_validated.read.clone();
+        let mempool = LeftRightMemPoolDB::new();
+        // let mempool_validated = LeftRightMemPoolDB::new();
+        let mempool_read_handle = mempool.read.factory();
 
         let memdb = Arc::new(MemoryDB::new(true));
         let _state = StateTrie::new(memdb).factory();
 
-        let amount_of_cores = 10;
+        let amount_of_cores = 5;
 
         let (mempool_processor_sender, mempool_processor_receiver) = channel();
 
         let (core_error_s, _) = channel();
         let validator = ValidatorUnit::new(
-            mempool_pending.read.clone(),
+            mempool.read.clone(),
             _state,
             mempool_processor_sender,
             amount_of_cores,
@@ -134,7 +134,7 @@ mod tests {
         let mut mempool_processor = MempoolTxnProcessor::new(
             mempool_processor_receiver,
             validator,
-            mempool_pending,
+            mempool,
             mempool_error_s,
         );
 
@@ -153,22 +153,24 @@ mod tests {
             .unwrap();
 
         thread::sleep(Duration::from_secs(3));
-
-        assert_eq!(
-            mempool_validated_read_handle
-                .enter()
-                .unwrap()
-                .rejected
-                .len(),
-            1000
-        );
+        if let Some(map) = mempool_read_handle
+            .handle()
+            .enter()
+            .map(|guard| guard.clone())
+        {
+            assert_eq!(
+                (0, 1000, 0),
+                (map.pending.len(), map.rejected.len(), map.validated.len())
+            )
+        } else {
+            panic!("Should've been able to acquire guard and check lengths");
+        }
     }
 
     #[test]
     fn verify_that_invalid_control_msg_sequence_generates_error() {
-        let mempool_pending = LeftRightMemPoolDB::new();
-        let mempool_validated = LeftRightMemPoolDB::new();
-        let mempool_validated_read_handle = mempool_validated.read.clone();
+        let mempool = LeftRightMemPoolDB::new();
+        let mempool_read_handle_factory = mempool.read.clone();
 
         let memdb = Arc::new(MemoryDB::new(true));
         let _state = StateTrie::new(memdb).factory();
@@ -179,7 +181,7 @@ mod tests {
 
         let (core_error_s, _) = channel();
         let validator = ValidatorUnit::new(
-            mempool_pending.read.clone(),
+            mempool.read.clone(),
             _state,
             mempool_processor_sender,
             amount_of_cores,
@@ -190,7 +192,7 @@ mod tests {
         let mut mempool_processor = MempoolTxnProcessor::new(
             mempool_processor_receiver,
             validator,
-            mempool_pending,
+            mempool,
             mempool_error_s,
         );
 
@@ -226,14 +228,7 @@ mod tests {
 
         thread::sleep(Duration::from_secs(1));
         let err = mempool_error_r.try_recv();
-        assert_eq!(
-            mempool_validated_read_handle
-                .enter()
-                .unwrap()
-                .validated
-                .len(),
-            1000
-        );
+
         assert_eq!(
             err.unwrap(),
             MempoolTxnProcessorError::InvalidMsgForCurrentState(

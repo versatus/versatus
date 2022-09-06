@@ -1,10 +1,61 @@
+pub mod error;
+
+use error::StateTrieError;
 use keccak_hash::H256;
+use left_right::{ReadHandle, ReadHandleFactory};
 use lr_trie::LeftRightTrie;
-use patriecia::db::Database;
+use lrdb::Account;
+use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+use std::result::Result as StdResult;
 use std::{fmt::Debug, sync::Arc};
+type Result<T> = StdResult<T, StateTrieError>;
 
 pub struct StateTrie<D: Database> {
     trie: LeftRightTrie<D>,
+}
+pub trait GetFromReadHandle {
+    fn get(&self, key: Vec<u8>) -> Result<Account>;
+}
+
+impl<D> GetFromReadHandle for ReadHandle<InnerTrie<D>>
+where
+    D: Database,
+{
+    fn get(&self, key: Vec<u8>) -> Result<Account> {
+        match self
+            .enter()
+            .map(|guard| guard.clone())
+            .unwrap_or_default()
+            .get(&key)
+        {
+            Ok(maybe_bytes) => match maybe_bytes {
+                Some(bytes) => match &bincode::deserialize::<Account>(&bytes) {
+                    Ok(account) => return Ok(account.clone()),
+                    Err(err) => {
+                        return Err(StateTrieError::FailedToDeserializeValue(bytes.clone()))
+                    }
+                },
+                None => Err(StateTrieError::NoValueForKey),
+            },
+            Err(err) => return Err(StateTrieError::FailedToGetValueForKey(key, err)),
+        }
+    }
+    // fn get<'a, T,E>
+    // where
+    //     T: Serialize + Deserialize<'a>,
+    //     E: Error
+    //     (&self, key: Vec<u8>) -> StdResult<T, E> {
+    //     match self.trie.get().get(&key) {
+    //         Ok(maybe_bytes) => match maybe_bytes {
+    //             Some(bytes) => match bincode::deserialize(&bytes) {
+    //                 Ok(account) => return Ok(account),
+    //                 Err(err) => return Err(StateTrieError::FailedToDeserializeValue(bytes, err)),
+    //             },
+    //             None => Err(StateTrieError::NoValueForKey),
+    //         },
+    //         Err(err) => return Err(StateTrieError::FailedToGetValueForKey(key, err)),
+    //     }
+    // }
 }
 
 impl<D: Database> StateTrie<D> {
@@ -15,7 +66,7 @@ impl<D: Database> StateTrie<D> {
         }
     }
 
-    // Returns read handle factory to underlying
+    /// Returns read handle factory to underlying
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
         self.trie.factory()
     }
@@ -29,18 +80,23 @@ impl<D: Database> StateTrie<D> {
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///  
-    ///  state_trie.add(b"greetings.to_vec()".to_vec(), b"hello world".to_vec());
+    ///  state_trie.add(b"greetings.to_vec()".to_vec(), Account::new()).unwrap();
     ///
     ///  assert_eq!(state_trie.len(), 1);
     /// ```
     ///
-    pub fn add(&mut self, key: Vec<u8>, value: Vec<u8>) {
-        self.trie.add(key, value);
+    // TODO: Maybe it would be good idea to have both this and `trie.add` return value
+    // Add tests to err
+    pub fn add(&mut self, key: Vec<u8>, account: Account) -> Result<()> {
+        match bincode::serialize(&account) {
+            Ok(serialized) => {
+                self.trie.add(key, serialized);
+                return Ok(());
+            }
+            Err(_) => return Err(StateTrieError::FailedToSerializeAccount(account)),
+        }
     }
 
-    // pub fn get(&self, key: Vec<u8>) {
-    //     self.trie.get()
-    // }
     /// Extends the state trie with the provided iterator over leaf values as bytes.
     /// Example:
     /// ```
@@ -174,9 +230,9 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut state_trie = StateTrie::new(memdb);
 
-        state_trie.add(b"abcdefg".to_vec(), b"12345".to_vec());
-        state_trie.add(b"hijkl".to_vec(), b"1000".to_vec());
-        state_trie.add(b"mnopq".to_vec(), b"askskaskj".to_vec());
+        state_trie.add(b"abcdefg".to_vec(), Account::new()).unwrap();
+        state_trie.add(b"hijkl".to_vec(), Account::new()).unwrap();
+        state_trie.add(b"mnopq".to_vec(), Account::new()).unwrap();
 
         let root = state_trie.root().unwrap();
         let root = format!("0x{}", hex::encode(root));
@@ -196,7 +252,9 @@ mod tests {
         assert!(state_trie.root().is_some());
         assert_eq!(state_trie.len(), 1);
 
-        state_trie.add(b"greetings".to_vec(), b"hello world".to_vec());
+        state_trie
+            .add(b"greetings".to_vec(), Account::new())
+            .unwrap();
 
         assert_ne!(state_trie.root(), None);
         assert_eq!(state_trie.len(), 2);
@@ -256,7 +314,7 @@ mod tests {
 
         state_trie_a.extend(vals.clone());
         state_trie_b.extend(vals.clone());
-        state_trie_b.add(b"mnopq".to_vec(), b"bananas".to_vec());
+        state_trie_b.add(b"mnopq".to_vec(), Account::new()).unwrap();
 
         assert_ne!(state_trie_a, state_trie_b);
     }

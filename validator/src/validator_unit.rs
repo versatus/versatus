@@ -210,6 +210,7 @@ impl Core {
                             let txn = Txn::from_string(&txn_record.txn);
                             match txn_validator.validate(&txn) {
                                 Ok(_) => {
+                                    println!("Validitto");
                                     validated.insert((txn, true));
                                 }
                                 Err(err) => {

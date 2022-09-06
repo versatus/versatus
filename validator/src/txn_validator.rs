@@ -5,12 +5,13 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
-use patriecia::{db::Database, inner::InnerTrie};
+use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
 #[allow(deprecated)]
 use secp256k1::{
     Signature, {Message, PublicKey, Secp256k1},
 };
 use state::state::NetworkState;
+use state_trie::GetFromReadHandle;
 use txn::txn::Txn;
 
 pub const ADDRESS_PREFIX: &str = "0x192";
@@ -22,6 +23,7 @@ pub enum TxnFees {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum TxnValidatorError {
+    InvalidSender,
     SenderAddressMissing,
     SenderAddressIncorrect,
     SenderPublicKeyIncorrect,
@@ -144,13 +146,21 @@ impl<D: Database> TxnValidator<D> {
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
-        // if (self.state.get_balance(txn.sender_address.as_str()) - txn.txn_amount) > 0 {
+        match self.state.get(txn.sender_address.clone().into_bytes()) {
+            Ok(account) => {
+                if let None = (account.credits - account.debits).checked_sub(txn.txn_amount) {
+                    return Err(TxnValidatorError::TxnAmountIncorrect);
+                };
+                Ok(())
+            }
+            Err(_) => return Err(TxnValidatorError::InvalidSender),
+        }
+        // if (self.state.get(txn.sender_address.as_str()) - txn.txn_amount) > 0 {
         //     Ok(())
         // } else {
         //     Err(TxnValidatorError::TxnAmountIncorrect)
         // }
-        //TODO: Once I have working state
-        Ok(())
+        // Ok(())
     }
 
     /// An entire Txn structure validator

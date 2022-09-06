@@ -3,6 +3,8 @@ use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use patriecia::trie::Trie;
 use patriecia::{db::Database, inner::InnerTrie};
+use serde::de::Error;
+use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, sync::Arc};
 
 /// Concurrent generic Merkle Patricia Trie

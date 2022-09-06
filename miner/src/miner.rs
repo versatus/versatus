@@ -3,23 +3,20 @@
 /// The miner is the primary way that data replication across all nodes occur
 /// The mining of blocks can be thought of as incremental checkpoints in the state.
 use block::block::Block;
-use claim::claim::Claim;
 use block::header::BlockHeader;
+use claim::claim::Claim;
+use noncing::nonceable::Nonceable;
 use pool::pool::{Pool, PoolKind};
 use reward::reward::RewardState;
-use state::state::NetworkState;
-use txn::txn::Txn;
-use validator::validator::TxnValidator;
-use verifiable::verifiable::Verifiable;
-use noncing::nonceable::Nonceable;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
+use state::state::NetworkState;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
-
+use txn::txn::Txn;
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -27,7 +24,7 @@ pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
 /// A basic enum to inform the system whether the current
-/// status of the local mining unit. 
+/// status of the local mining unit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MinerStatus {
     Mining,
@@ -41,7 +38,7 @@ pub enum MinerStatus {
 pub struct NoLowestPointerError(String);
 
 /// The miner struct contains all the data and methods needed to operate a mining unit
-/// and participate in the data replication process. 
+/// and participate in the data replication process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
@@ -62,7 +59,7 @@ pub struct Miner {
     // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
     pub txn_pool: Pool<String, Txn>,
     /// A pool of claims pending approval and acceptance into the network.
-    //TODO: Replace with left-right claim pool for more efficient maintenance, 
+    //TODO: Replace with left-right claim pool for more efficient maintenance,
     // validation and calculation.
     pub claim_pool: Pool<String, Claim>,
     /// The most recent block mined, confirmed and propogated throughout the network
@@ -142,10 +139,10 @@ impl Miner {
         // Retains only the pointers that have Some(value) in the 2nd field of the tuple
         // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None variant
         // in the event that the pointer sum contains integer overflows OR in the event that
-        // not ever 
+        // not ever
         pointers.retain(|(_, v)| !v.is_none());
 
-        // unwraps all the pointer sum values. 
+        // unwraps all the pointer sum values.
         //TODO: make this more efficient, this is a wasted operation
         let mut base_pointers = pointers
             .iter()
@@ -178,7 +175,7 @@ impl Miner {
 
     /// Generates a gensis block
     //TODO: Require a specific key to mine the genesis block so that only one node
-    // controlled by the organization can mine the genesis block. 
+    // controlled by the organization can mine the genesis block.
     pub fn genesis(&mut self) -> Option<Block> {
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
@@ -190,7 +187,7 @@ impl Miner {
     }
 
     /// Attempts to mine a block
-    //TODO: Require more stringent checks to see if the block is able to be mined. 
+    //TODO: Require more stringent checks to see if the block is able to be mined.
     pub fn mine(&mut self) -> Option<Block> {
         let claim_map_hash =
             digest_bytes(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
@@ -226,70 +223,72 @@ impl Miner {
     }
 
     /// Processes a transaction
-    //TODO: This should only be done in the validator unit, 
+    //TODO: This should only be done in the validator unit,
     //this can be eliminated completely under the VRRB Protocol.
-    pub fn process_txn(&mut self, mut txn: Txn) -> TxnValidator {
-        if let Some(_txn) = self.txn_pool.confirmed.get(&txn.txn_id) {
-            // Nothing really to do here
-        } else if let Some(txn) = self.txn_pool.pending.get(&txn.txn_id) {
-            // add validator if you have not validated already
-            if let None = txn.validators.clone().get(&self.claim.pubkey) {
-                let vote = {
-                    if let Ok(true) = txn.valid(&None, &(self.network_state.to_owned(), self.txn_pool.to_owned())) {
-                        true
-                    } else {
-                        false
-                    }
-                };
-                let mut txn = txn.clone();
-                txn.validators.insert(
-                    self.claim.pubkey.clone(), vote);
-                self.txn_pool
-                    .pending
-                    .insert(txn.txn_id.clone(), txn.clone());
-            }
-        } else {
-            // add validator
-            let vote = {
-                if let Ok(true) = txn.valid(&None, &(self.network_state.to_owned(), self.txn_pool.to_owned())) {
-                    true
-                } else {
-                    false
-                }
-            }; 
-            txn.validators.insert(
-                self.claim.pubkey.clone(),
-                vote,
-            );
-            self.txn_pool
-                .pending
-                .insert(txn.txn_id.clone(), txn.clone());
-        }
+    // pub fn process_txn(&mut self, mut txn: Txn) -> TxnValidator {
+    //     if let Some(_txn) = self.txn_pool.confirmed.get(&txn.txn_id) {
+    //         // Nothing really to do here
+    //     } else if let Some(txn) = self.txn_pool.pending.get(&txn.txn_id) {
+    //         // add validator if you have not validated already
+    //         if let None = txn.validators.clone().get(&self.claim.pubkey) {
+    //             let vote = {
+    //                 if let Ok(true) = txn.valid(
+    //                     &None,
+    //                     &(self.network_state.to_owned(), self.txn_pool.to_owned()),
+    //                 ) {
+    //                     true
+    //                 } else {
+    //                     false
+    //                 }
+    //             };
+    //             let mut txn = txn.clone();
+    //             txn.validators.insert(self.claim.pubkey.clone(), vote);
+    //             self.txn_pool
+    //                 .pending
+    //                 .insert(txn.txn_id.clone(), txn.clone());
+    //         }
+    //     } else {
+    //         // add validator
+    //         let vote = {
+    //             if let Ok(true) = txn.valid(
+    //                 &None,
+    //                 &(self.network_state.to_owned(), self.txn_pool.to_owned()),
+    //             ) {
+    //                 true
+    //             } else {
+    //                 false
+    //             }
+    //         };
+    //         txn.validators.insert(self.claim.pubkey.clone(), vote);
+    //         self.txn_pool
+    //             .pending
+    //             .insert(txn.txn_id.clone(), txn.clone());
+    //     }
 
-        return TxnValidator::new(
-            self.claim.pubkey.clone(),
-            txn.clone(),
-            &self.network_state,
-            &self.txn_pool,
-        );
-    }
+    //     return TxnValidator::new(
+    //         self.claim.pubkey.clone(),
+    //         txn.clone(),
+    //         &self.network_state,
+    //         &self.txn_pool,
+    //     );
+    // }
 
     /// Checks in the number of validators meets the threshold
     // This can be completely replaced under the VRRB Protocol, since Txns will retain a certificate
-    // of approval aka the threshold signature. 
-    pub fn process_txn_validator(&mut self, txn_validator: TxnValidator) {
-        if let Some(_txn) = self.txn_pool.confirmed.get(&txn_validator.txn.txn_id) {
-        } else if let Some(txn) = self.txn_pool.pending.get_mut(&txn_validator.txn.txn_id) {
-            txn.validators
-                .entry(txn_validator.pubkey)
-                .or_insert(txn_validator.vote);
-        } else {
-            let mut txn = txn_validator.txn.clone();
-            txn.validators
-                .insert(txn_validator.pubkey, txn_validator.vote);
-            self.txn_pool.pending.insert(txn.txn_id.clone(), txn);
-        }
-    }
+    // of approval aka the threshold signature.
+    // pub fn process_txn_validator<D: Database>(&mut self, txn_validator: TxnValidator<D>) {
+    //     if let Some(_txn) = self.txn_pool.confirmed.get(&txn_validator.txn.txn_id) {
+    //     } else if let Some(txn) = self.txn_pool.pending.get_mut(&txn_validator.txn.txn_id) {
+    //         txn.validators
+    //             .entry(txn_validator.pubkey)
+    //             .or_insert(txn_validator.vote);
+    //     } else {
+    //         let mut txn = txn_validator.txn.clone();
+    //         txn.validators
+    //             .insert(txn_validator.pubkey, txn_validator.vote);
+    //         self.txn_pool.pending.insert(txn.txn_id.clone(), txn);
+    //     }
+    // }
 
     /// Checks if the transaction has been confirmed
     //TODO: Either eliminate and replace, each miner should retain only transactions that have
@@ -340,7 +339,7 @@ impl Miner {
 
     /// Turns a claim into an ineligible claim in the event a miner proposes an invalid block or tries to spam the network.
     //TODO: Need much stricter penalty, as this miner can still send messages. The transport layer should reject further messages
-    // from this node. 
+    // from this node.
     pub fn slash_claim(&mut self, pubkey: String) {
         if let Some(claim) = self.claim_map.get_mut(&pubkey) {
             claim.eligible = false;

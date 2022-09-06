@@ -167,12 +167,14 @@ where
                                 MempoolControlMsg::NewValidated(txns) => {
                                     let mut txns_valid = HashSet::new();
                                     let mut txns_invalid = HashSet::new();
+                                    let mut txns_to_remove = HashSet::new();
                                     txns.iter().for_each(|(txn, valid)| {
                                         if *valid {
                                             txns_valid.insert(txn.clone());
                                         } else {
                                             txns_invalid.insert(txn.clone());
                                         }
+                                        txns_to_remove.insert(txn.clone());
                                     });
 
                                     // self.pending -= txns.len() as u32;
@@ -197,6 +199,15 @@ where
                                             MempoolTxnProcessorError::FailedToWriteToMempool(err),
                                         );
                                     };
+                                    if let Err(err) = self
+                                        .mempool
+                                        .remove_txn_batch(&txns_to_remove, TxnStatus::Pending)
+                                    {
+                                        self.send_err_msg(
+                                            MempoolTxnProcessorError::FailedToWriteToMempool(err),
+                                        );
+                                    };
+                                    println!("Tescior: {:?}", self.mempool.size());
                                 }
                                 _ => self.send_err_msg(
                                     MempoolTxnProcessorError::InvalidMsgForCurrentState(

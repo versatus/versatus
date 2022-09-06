@@ -16,7 +16,6 @@ use state::state::NetworkState;
 use txn::txn::Txn;
 
 use super::error::MempoolError;
-use super::txn_validator::TxnValidator;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
@@ -581,114 +580,18 @@ impl LeftRightMemPoolDB {
     ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn_batch(&mut self, txn_batch: &HashSet<Txn>) -> Result<()> {
+    // TODO: fix docs
+    pub fn remove_txn_batch(
+        &mut self,
+        txn_batch: &HashSet<Txn>,
+        txns_status: TxnStatus,
+    ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
             self.write
-                .append(MempoolOp::Remove(TxnRecord::new(t), TxnStatus::Pending));
+                .append(MempoolOp::Remove(TxnRecord::new(t), txns_status.clone()));
         });
         self.publish();
         Ok(())
-    }
-
-    /// Validate all the pending Txn against state, update Mempool
-    pub fn validate_all(&mut self, state: &NetworkState) -> Result<()> {
-        self.get().and_then(|map| {
-            map.pending.iter().for_each(|rec_entry| {
-                let txn = Txn::from_string(&rec_entry.1.txn);
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos();
-                match self.validate(&txn, state) {
-                    Ok(_) => {
-                        let mut rec_entry_validated = rec_entry.1.clone();
-                        rec_entry_validated.txn_validated_timestamp = timestamp;
-                        self.apply_txn_on_state(&txn, state)
-                            .and_then(|_| {
-                                self.write.append(MempoolOp::Add(
-                                    rec_entry_validated.clone(),
-                                    TxnStatus::Validated,
-                                ));
-                                self.write.append(MempoolOp::Remove(
-                                    rec_entry_validated.clone(),
-                                    TxnStatus::Pending,
-                                ));
-                                Ok(())
-                            })
-                            .unwrap();
-                    }
-                    Err(_) => {
-                        let mut rec_entry_rejected = rec_entry.1.clone();
-                        rec_entry_rejected.txn_rejected_timestamp = timestamp;
-                        self.write.append(MempoolOp::Add(
-                            rec_entry_rejected.clone(),
-                            TxnStatus::Rejected,
-                        ));
-                        self.write.append(MempoolOp::Remove(
-                            rec_entry_rejected.clone(),
-                            TxnStatus::Pending,
-                        ));
-                    }
-                }
-            });
-            Some(())
-        });
-        self.publish();
-        Ok(())
-    }
-
-    /// Validate a single Txn against state, update Mempool
-    pub fn validate_one(&mut self, txn: &Txn, state: &NetworkState) -> Result<()> {
-        self.get().and_then(|map| {
-            map.pending.get(&txn.txn_id).and_then(|rec_entry| {
-                let txn = Txn::from_string(&rec_entry.txn);
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos();
-                match self.validate(&txn, state) {
-                    Ok(_) => {
-                        let mut rec_entry_validated = rec_entry.clone();
-                        rec_entry_validated.txn_validated_timestamp = timestamp;
-                        self.apply_txn_on_state(&txn, state)
-                            .and_then(|_| {
-                                self.write.append(MempoolOp::Add(
-                                    rec_entry_validated.clone(),
-                                    TxnStatus::Validated,
-                                ));
-                                self.write.append(MempoolOp::Remove(
-                                    rec_entry_validated.clone(),
-                                    TxnStatus::Pending,
-                                ));
-                                Ok(())
-                            })
-                            .unwrap();
-                    }
-                    Err(_) => {
-                        let mut rec_entry_rejected = rec_entry.clone();
-                        rec_entry_rejected.txn_rejected_timestamp = timestamp;
-                        self.write.append(MempoolOp::Add(
-                            rec_entry_rejected.clone(),
-                            TxnStatus::Rejected,
-                        ));
-                        self.write.append(MempoolOp::Remove(
-                            rec_entry_rejected.clone(),
-                            TxnStatus::Pending,
-                        ));
-                    }
-                }
-                Some(())
-            })
-        });
-        self.publish();
-        Ok(())
-    }
-
-    /// Apply a txn validator on a single Txn against current state
-    pub fn validate(&mut self, txn: &Txn, state: &NetworkState) -> Result<()> {
-        TxnValidator::new(txn, state)
-            .validate()
-            .map_err(|_| MempoolError::TransactionInvalid)
     }
 
     /// Apply Txn on debits and credits of currect state

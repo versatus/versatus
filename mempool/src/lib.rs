@@ -1,6 +1,5 @@
 pub mod error;
 pub mod mempool;
-pub mod txn_validator;
 
 #[cfg(test)]
 mod tests {
@@ -450,7 +449,7 @@ mod tests {
                 panic!("Adding transactions was unsuccesful !");
             }
         };
-        match mpooldb.remove_txn_batch(&txns) {
+        match mpooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(0, mpooldb.size().0);
             }
