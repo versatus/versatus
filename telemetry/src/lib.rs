@@ -3,4 +3,5 @@
 /// crate
 mod subscriber;
 pub use subscriber::*;
+pub use tracing;
 pub use tracing::*;
