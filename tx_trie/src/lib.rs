@@ -1,4 +1,4 @@
-use lr_trie::{Bytes, LeftRightTrie};
+use lr_trie::LeftRightTrie;
 use patriecia::{db::Database, H256};
 use std::{fmt::Debug, sync::Arc};
 
@@ -7,7 +7,7 @@ pub struct TxTrie<D: Database> {
 }
 
 impl<D: Database> TxTrie<D> {
-    /// Creates a new empty state trie.
+    /// Creates a new empty tx trie.
     pub fn new(db: Arc<D>) -> Self {
         Self {
             trie: LeftRightTrie::new(db),
@@ -33,7 +33,7 @@ impl<D: Database> TxTrie<D> {
         self.trie.add(key, value);
     }
 
-    /// Extends the state trie with the provided iterator over leaf values as bytes.
+    /// Extends the tx trie with the provided iterator over leaf values as bytes.
     /// Example:
     /// ```
     ///  use tx_trie::TxTrie;
@@ -81,14 +81,14 @@ impl<D: Database> TxTrie<D> {
     ///  tx_trie_a.extend(vals.clone());
     ///  tx_trie_b.extend(vals.clone());
     ///
-    ///  assert_eq!(tx_trie_a.root(), state_trie_b.root());
+    ///  assert_eq!(tx_trie_a.root(), tx_trie_b.root());
     /// ```
     ///
     pub fn root(&self) -> Option<H256> {
         self.trie.root()
     }
 
-    /// Returns the count of leaves in the state trie.
+    /// Returns the count of leaves in the tx trie.
     /// Example:
     /// ```
     ///  use tx_trie::TxTrie;
