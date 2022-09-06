@@ -29,19 +29,16 @@ pub enum NodeAuth {
     Bootstrap,
 }
 
-
-
 /// Creating a new enum type called NodeType with three variants, Miner, MasterNode and Regular.
-#[derive(Debug, Serialize, Deserialize, Clone,PartialEq)]
-pub enum NodeType{
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum NodeType {
     /// This Node will mine the block
     Miner,
     ///This node will be part of Long Lived MasterNode Quorum
     MasterNode,
     /// This node will inspect signatures
-    Regular
+    Regular,
 }
-
 
 /// The node contains the data and methods needed to operate a node in the network.
 #[allow(dead_code)]
@@ -59,7 +56,7 @@ pub struct Node {
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
     //TODO: Create different custom structs for different kinds of nodes with different authorization
     // so that we can have custom impl blocks based on the type.
-    pub node_type: NodeAuth,
+    pub node_type: NodeType,
     /// A set of message IDs to check new messages against to prevent redundant message processing
     //TODO: Move this to the udp2p layer to be handled upon the receipt of messages, rather than
     // by the node itself.
@@ -76,7 +73,6 @@ pub struct Node {
 
     //Index num of the node in the network
     pub idx: u16,
-
 }
 
 impl Node {
@@ -94,30 +90,30 @@ impl Node {
     pub fn get_node_idx(&self) -> u16 {
         self.idx
     }
-    
+
     /// Creates and returns a Node instance
     pub fn new(
         node_type: NodeType,
         command_handler: CommandHandler,
         message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
-        idx:u16
+        idx: u16,
     ) -> Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
         let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
         let id = Uuid::new_v4().to_simple().to_string();
-     
+
         //TODO: use SecretKey from threshold crypto crate for MasterNode
         //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
-       
-        /* 
+
+        /*
         let new_secret_wrapped =SerdeSecret(secret_key);
         let mut secret_key_encoded = Vec::new();
         if node_type==NodeType::MasterNode{
             secret_key_encoded=bincode::serialize(&new_secret_wrapped).unwrap();
         }*/
-        
+
         Node {
             secret_key: secret_key_encoded,
             pubkey: pubkey.to_string(),
@@ -127,7 +123,7 @@ impl Node {
             packet_storage: HashMap::new(),
             command_handler,
             message_handler,
-            idx
+            idx,
         }
     }
 
