@@ -281,7 +281,6 @@ impl LeftRightMemPoolDB {
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB,TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -529,7 +528,6 @@ impl LeftRightMemPoolDB {
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();

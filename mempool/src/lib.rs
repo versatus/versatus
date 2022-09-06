@@ -90,6 +90,7 @@ mod tests {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
                 // panic!("Adding second identical transaction was succesful
+                //
                 // !");
             },
             Err(_) => {
