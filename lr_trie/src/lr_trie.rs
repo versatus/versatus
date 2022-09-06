@@ -1,4 +1,3 @@
-use crate::op::Bytes;
 use crate::Operation;
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
