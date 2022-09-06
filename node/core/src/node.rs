@@ -11,9 +11,8 @@ use std::error::Error;
 use std::net::SocketAddr;
 use uuid::Uuid;
 
-
 //TODO:There needs to be different node types, this is probably not the right variants for
-//the node types we will need in the network, needs to be discussed. 
+//the node types we will need in the network, needs to be discussed.
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NodeAuth {
@@ -30,19 +29,16 @@ pub enum NodeAuth {
     Bootstrap,
 }
 
-
-
 /// Creating a new enum type called NodeType with three variants, Miner, MasterNode and Regular.
-#[derive(Debug, Serialize, Deserialize, Clone,PartialEq)]
-pub enum NodeType{
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum NodeType {
     /// This Node will mine the block
     Miner,
     ///This node will be part of Long Lived MasterNode Quorum
     MasterNode,
     /// This node will inspect signatures
-    Regular
+    Regular,
 }
-
 
 /// The node contains the data and methods needed to operate a node in the network.
 #[allow(dead_code)]
@@ -59,25 +55,24 @@ pub struct Node {
     /// The type of the node, used for custom impl's based on the type the capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
     //TODO: Create different custom structs for different kinds of nodes with different authorization
-    // so that we can have custom impl blocks based on the type. 
+    // so that we can have custom impl blocks based on the type.
     pub node_type: NodeType,
     /// A set of message IDs to check new messages against to prevent redundant message processing
     //TODO: Move this to the udp2p layer to be handled upon the receipt of messages, rather than
-    // by the node itself. 
+    // by the node itself.
     pub message_cache: HashSet<String>,
     /// Stores packets to be reassembled into a message when all packets are received
     //TODO: Move this to the udp2p layer to be handled upon the receipt of the message. Node should only
-    // receive assembled messages. 
+    // receive assembled messages.
     pub packet_storage: HashMap<String, HashMap<u32, Packet>>,
     /// The command handler used to allocate commands to different parts of the system
     pub command_handler: CommandHandler,
     /// The message handler used to convert received messages into a command and to structure and pack outgoing messages
-    /// to be send to the transport layer. 
+    /// to be send to the transport layer.
     pub message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
 
     //Index num of the node in the network
     pub idx: u16,
-
 }
 
 impl Node {
@@ -95,30 +90,30 @@ impl Node {
     pub fn get_node_idx(&self) -> u16 {
         self.idx
     }
-    
+
     /// Creates and returns a Node instance
     pub fn new(
         node_type: NodeType,
         command_handler: CommandHandler,
         message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
-        idx:u16
+        idx: u16,
     ) -> Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
         let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
         let id = Uuid::new_v4().to_simple().to_string();
-     
+
         //TODO: use SecretKey from threshold crypto crate for MasterNode
         //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
-       
-        /* 
+
+        /*
         let new_secret_wrapped =SerdeSecret(secret_key);
         let mut secret_key_encoded = Vec::new();
         if node_type==NodeType::MasterNode{
             secret_key_encoded=bincode::serialize(&new_secret_wrapped).unwrap();
         }*/
-        
+
         Node {
             secret_key: secret_key_encoded,
             pubkey: pubkey.to_string(),
@@ -128,10 +123,10 @@ impl Node {
             packet_storage: HashMap::new(),
             command_handler,
             message_handler,
-            idx
+            idx,
         }
     }
-    
+
     /// Handles an incoming packet
     //TODO: Move this to the transport layer, the Node should only deal with messages and commands
     #[allow(unused)]
@@ -197,20 +192,16 @@ impl Node {
                     }
                 }
             };
-            
+
             if let Some(command) = evt {
                 match command {
                     Command::ProcessPacket((packet, _)) => {
                         self.handle_packet(&packet);
                     }
                     Command::SendMessage(src, message) => {
-                        if let Err(e) = self
-                            .command_handler
-                            .to_gossip_tx
-                            .send((src, message))
-                            {
-                                println!("Error publishing: {:?}", e);
-                            }
+                        if let Err(e) = self.command_handler.to_gossip_tx.send((src, message)) {
+                            println!("Error publishing: {:?}", e);
+                        }
                     }
                     Command::Quit => {
                         //TODO:
