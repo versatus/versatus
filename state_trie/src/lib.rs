@@ -1,5 +1,5 @@
 use keccak_hash::H256;
-use lr_trie::{op::Bytes, LeftRightTrie};
+use lr_trie::LeftRightTrie;
 use patriecia::db::Database;
 use std::{fmt::Debug, sync::Arc};
 
@@ -25,7 +25,7 @@ impl<D: Database> StateTrie<D> {
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///  
-    ///  state_trie.add(b"greetings", b"hello world");
+    ///  state_trie.add(b"greetings.to_vec()".to_vec(), b"hello world".to_vec());
     ///
     ///  assert_eq!(state_trie.len(), 1);
     /// ```
@@ -45,10 +45,10 @@ impl<D: Database> StateTrie<D> {
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///
-    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
-    ///      (b"abcdefg", b"abcdefg"),
-    ///      (b"hijkl", b"hijkl"),
-    ///      (b"mnopq", b"mnopq"),
+    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
     ///  ];
     ///
     ///  state_trie.extend(vals);
@@ -73,10 +73,10 @@ impl<D: Database> StateTrie<D> {
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie_b = StateTrie::new(memdb);
     ///
-    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
-    ///      (b"abcdefg", b"abcdefg"),
-    ///      (b"hijkl", b"hijkl"),
-    ///      (b"mnopq", b"mnopq"),
+    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
     ///  ];
     ///
     ///  state_trie_a.extend(vals.clone());
@@ -100,10 +100,10 @@ impl<D: Database> StateTrie<D> {
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///
-    ///  let vals: Vec<(&Bytes, &Bytes)> = vec![
-    ///      (b"abcdefg", b"abcdefg"),
-    ///      (b"hijkl", b"hijkl"),
-    ///      (b"mnopq", b"mnopq"),
+    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
     ///  ];
     ///
     ///  state_trie.extend(vals);
@@ -133,13 +133,13 @@ impl<D: Database> StateTrie<D> {
     }
 }
 
-impl<'a, D: Database> PartialEq for StateTrie<D> {
+impl<D: Database> PartialEq for StateTrie<D> {
     fn eq(&self, other: &Self) -> bool {
         self.root() == other.root()
     }
 }
 
-impl<'a, D: Database> Debug for StateTrie<D> {
+impl<D: Database> Debug for StateTrie<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StateTrie")
             .field("trie", &self.trie)
@@ -203,10 +203,10 @@ mod tests {
         assert!(state_trie.root().is_some());
         assert_eq!(state_trie.len(), 1);
 
-        let vals: Vec<(&Bytes, &Bytes)> = vec![
-            (b"abcdefg", b"abcdefg"),
-            (b"hijkl", b"hijkl"),
-            (b"mnopq", b"mnopq"),
+        let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+            (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+            (b"hijkl".to_vec(), b"hijkl".to_vec()),
+            (b"mnopq".to_vec(), b"mnopq".to_vec()),
         ];
 
         state_trie.extend(vals);
