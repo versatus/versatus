@@ -19,22 +19,9 @@ pub enum TelemetryError {
 
 type Result<T> = std::result::Result<T, TelemetryError>;
 
-// TODO: figure out the proper generic sig
+// TODO: figure out the proper generic sig to export a telemetry builder instead
 #[derive(Debug)]
-pub struct TelemetrySubscriber
-// pub struct TelemetrySubscriber<S>
-where
-// S: Subscriber + SubscriberInitExt + Send + Sync,
-// S: Subscriber + SubscriberInitExt + Send + Sync,
-// S: Subscriber + Send + Sync,
-// W: for<'s> MakeWriter<'s> + 'static,
-// S: Subscriber + SubscriberInitExt + Send + Sync,
-// S: Subscriber + SubscriberInitExt,
-// S: Subscriber,
-// S: Subscriber<JsonFields, Format<Json>, LevelFilter, W>,
-{
-    // sub: S,
-}
+pub struct TelemetrySubscriber {}
 
 impl TelemetrySubscriber {
     pub fn init<W>(out: W) -> Result<()>
