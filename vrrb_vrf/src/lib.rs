@@ -11,7 +11,6 @@ pub mod vvrf;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::vrng::VRNG;
     use crate::vvrf::VVRF;
     use parity_wordlist::WORDS;

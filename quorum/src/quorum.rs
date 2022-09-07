@@ -4,6 +4,7 @@ use std::u32::MAX as u32MAX;
 use claim::claim::Claim;
 use thiserror::Error;
 
+///Error type for Quorum
 #[derive(Error, Debug)]
 pub enum InvalidQuorum{
   #[error("inavlid seed generated")]
@@ -22,19 +23,22 @@ pub enum InvalidQuorum{
    NoSeedError(),
 }
 
+///Quorum struct which is created and modified when an election is run
 pub struct Quorum{
-  pub quorum_seed: u128,
+  pub quorum_seed: u64,
   pub master_pubkeys: Vec<String>,
   pub quorum_pk: String,
   pub election_block_height: u128,
   pub election_timestamp: u128,
 }
 
+///generic types from Election trait defined here for Quorums
 type Timestamp = u128;
 type Height = u128;
 type BlockHash = String;
-type Seed = u128;
+type Seed = u64;
 
+///Payload data comes from current child block
 impl Election for Quorum{
    type Return = Self;
    type Error = InvalidQuorum;
@@ -42,7 +46,7 @@ impl Election for Quorum{
    type Payload = (Timestamp, Height, BlockHash);
    type Seed = Seed;
 
-   //should think of some kind of lock to avoid it being called more than once per block
+   ///a miner calls this fxn to generate a u64 seed for the election using the vrrb_vrf crate
    fn generate_seed(payload: Self::Payload) -> Result<Seed, InvalidQuorum> {
       
       if !Quorum::check_payload_validity(payload.1, payload.0){
@@ -60,19 +64,21 @@ impl Election for Quorum{
       while random_number < u32MAX as u64 { 
          random_number = vvrf.generate_u64(); 
       }
-      return Ok(random_number as u128);
+      return Ok(random_number);
    }
 
+   ///master nodes run elections to determine the next master node quorum
   fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>{
+
       if self.election_block_height == 0 || self.election_timestamp == 0{
          return Err(InvalidQuorum::InvalidChildBlockError());
       }
-
+      
       let eligible_claims = match Quorum::get_eligible_claims(ballot){
          Ok(eligible_claims) => eligible_claims,
          Err(e) => return Err(e),
       };
-      
+
       let elected_quorum = match self.get_final_quorum(eligible_claims){
          Ok(elected_quorum) => elected_quorum,
          Err(e) => return Err(e),
@@ -82,19 +88,25 @@ impl Election for Quorum{
    }
 }
 
-//result enum for errors
+
 impl Quorum{
-  //make new generate a blank/default quorum like a constructor
-   pub fn new(seed: u128, timestamp: u128, height: u128) -> Quorum {
-      return Quorum{
-         quorum_seed: seed,
-         master_pubkeys: Vec::new(),
-         quorum_pk: String::new(),
-         election_block_height: height,
-         election_timestamp: timestamp,
-      };  
+  ///makes a new Quorum and initializes seed, child block height, and child block timestamp
+   pub fn new(seed: u64, timestamp: u128, height: u128) -> Result<Quorum, InvalidQuorum> {
+      if !Quorum::check_payload_validity(height, timestamp){
+         return Err(InvalidQuorum::InvalidChildBlockError());
+      } else {
+         return Ok(Quorum{
+            quorum_seed: seed,
+            master_pubkeys: Vec::new(),
+            quorum_pk: String::new(),
+            election_block_height: height,
+            election_timestamp: timestamp,
+         });
+      }
    }
 
+   ///checks if the child block height and timestamp are valid
+   ///used at seed and quorum creation
    pub fn check_payload_validity(timestamp: Timestamp, height: Height) -> bool {
       if height == 0 || timestamp == 0 {
          return false;
@@ -103,6 +115,8 @@ impl Quorum{
       }
    }
 
+   ///gets all claims that belong to eligible nodes (master nodes)
+   /// needs to be modifed as claim field eligible:  bool needs to become a uX of staked amt
    pub fn get_eligible_claims(claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
      let mut eligible_claims = Vec::<Claim>::new();
      claims.into_iter().filter(|claim| claim.eligible == true).for_each(
@@ -119,25 +133,27 @@ impl Quorum{
      return Ok(eligible_claims);  
    }
 
+   ///gets the final quorum by getting 51% of master nodes with lowest pointer sums
    pub fn get_final_quorum(
      &mut self, 
      claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
-   
+
       if self.quorum_seed == 0 {
          return Err(InvalidQuorum::NoSeedError());
       }
 
      let num_claims =((claims.len() as f32)* 0.51).ceil() as usize;
 
-     let mut claim_tuples: Vec<(u128, &String)> = claims.iter().filter(
-        |claim| claim.get_pointer(self.quorum_seed) != None).map(
-        |claim| (claim.get_pointer(self.quorum_seed).unwrap(), &claim.pubkey)
+     let mut claim_tuples: Vec<(u128, &String)> = claims.iter().filter( //change throughout code
+        |claim| claim.get_pointer(self.quorum_seed as u128) != None).map(
+        |claim| (claim.get_pointer(self.quorum_seed as u128).unwrap(), &claim.pubkey)
      ).collect();
+
 
       if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
-     
+
      claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0);
 
      let pubkeys: Vec<String> = claim_tuples.into_iter().map(
