@@ -3,10 +3,6 @@ name = "service"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "service"
-path = "src/main.rs"
-
 [lib]
 name = "service"
 path = "src/lib.rs"
@@ -24,5 +20,3 @@ tracing-subscriber = { version = "0.3.15", features = [
     "tracing-log",
     "json",
 ] }
-
-node_cli = { path = "../cli" }
