@@ -16,6 +16,7 @@ hex = "0.4.2"
 
 #internal
 node = { path = "../node/core" }
+
 commands={path="../commands"}
 messages={path="../messages"}
 primitives={path="../primitives"}
