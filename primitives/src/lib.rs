@@ -1,5 +1,10 @@
 pub type NodeId = u16;
+pub type NodeIdx = u16;
+pub type NodeIdentifier = String;
 pub type SecretKey = Vec<u8>;
+
+#[derive(Clone, Debug, Default)]
+pub struct StopSignal;
 
 //TXN Hash or Block Hash
 pub type Hash = Vec<u8>;
@@ -23,6 +28,4 @@ macro_rules! is_enum_variant {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-}
+mod tests {}
