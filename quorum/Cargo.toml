@@ -9,6 +9,7 @@ edition = "2021"
 block = { path = "../block" }
 vrrb_vrf = { path = "../vrrb_vrf" }
 rand_chacha = "0.3.1"
+
 claim = { path = "../claim" }
 node = { path = "../node/core" }
 secp256k1 = { version = "0.20.2", features = ["rand"] }
