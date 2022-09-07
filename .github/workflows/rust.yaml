@@ -7,7 +7,8 @@ jobs:
         name: cargo test
         runs-on: ubuntu-latest
         steps:
-            - run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+            - name: Install dev-dependencies 
+              run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
             - name: Checkout sources
               uses: actions/checkout@v2
               with:
@@ -24,3 +25,4 @@ jobs:
               uses: actions-rs/cargo@v1
               with:
                   command: test
+                  args: --all
