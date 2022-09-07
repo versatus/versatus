@@ -12,5 +12,5 @@ thiserror = "1.0.32"
 serde = "1.0.144"
 
 primitives = { path = "../primitives" }
-node = { path = "../node" }
+node = { path = "../node/core" }
 dkg_engine = { path = "../dkg_engine" }
