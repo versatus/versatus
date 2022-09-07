@@ -12,13 +12,13 @@ lto = "fat"
 
 [[bin]]
 name = "vrrb"
-path = "node/service/src/main.rs"
+path = "node/src/main.rs"
 
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
 telemetry = { path = "telemetry" }
-node_cli = { path = "node/cli" }
-service = { path = "node/service" }
+node_cli = { path = "node/cli", features = ["node"] }
+anyhow = "1.0.64"
 
 [workspace]
 members = [
