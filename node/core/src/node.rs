@@ -260,7 +260,6 @@ impl Node {
                 continue;
             }
         }
-
         Ok(())
     }
 }
