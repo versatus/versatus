@@ -1,25 +1,14 @@
 #[cfg(test)]
 mod tests {
-    //extract command handler, hook it up elsewhere and test
-    //test msg handler in isolation
-    use crate::node::Node;
-    use crate::handler::{Handler, CommandHandler, MessageHandler};
+    use crate::msghandler::{Handler, CommandHandler, MessageHandler};
     use commands::command::Command;
+    use tokio::sync::mpsc;
+    use messages::message::Message;
     
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
     }
-
-    //document describing how to build the docker image (not a docker container)
-    //how to use diff command line flags
-
-    //run cargo run
-    //cargo run -- -help
-    //in clie define command line flags
-    //we are using clap framework (a crate) -- declarative macro variant
-    //submit pR modifying readme with tutorial and decription on how to run nodes
-        //can ask for help to see flags
 
     /*
     You might need 2 threads one running a socket on one port and one on another. 
@@ -29,14 +18,34 @@ mod tests {
     #[test]
     fn send_comand() {
 
-        let (mining_sender, mining_receiver) = mpsc::unbounded();
-        let (blockchain_sender, blockchain_receiver) = mpsc::unbounded();
-        let (gossip_sender, gossip_receiver) = mpsc::unbounded();
-        let (swarm_sender, swarm_receiver) = mpsc::unbounded();
-        let (state_sender, state_receiver) = mpsc::unbounded();
-        let (gossip_tx_sender, gossip_tx_receiver) = channel();
-        let (ctrl_sender, ctrl_receiver) = channel();
+        let (m_sender, m_receiver) = 
+        tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (mining_sender, mining_receiver) = MessageHandler::new(m_sender, m_receiver);
+            
+        let (b_sender, b_receiver) = 
+        tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (blockchain_sender, blockchain_receiver) = MessageHandler::new(b_sender, b_receiver);
 
+        let (g_sender, g_receiver) = 
+        tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (gossip_sender, gossip_receiver) = MessageHandler::new(g_sender, g_receiver);
+
+        let (sw_sender, sw_receiver) = 
+        tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (swarm_sender, swarm_receiver) = MessageHandler::new(sw_sender, sw_receiver);
+
+
+        let (s_sender, s_receiver) = 
+        tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (state_sender, state_receiver) = MessageHandler::new(s_sender, s_receiver);
+
+        let (g_tx_sender, g_tx_receiver) = 
+        tokio::sync::mpsc::channel::<Message>(100);
+        let (gossip_tx_sender, gossip_tx_receiver) = MessageHandler::new(g_tx_sender, g_tx_receiver);
+
+        let (c_sender, c_receiver) = 
+        tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (ctrl_sender, ctrl_receiver) = MessageHandler::new(c_sender, c_receiver);
 
 
         let commandHandler = CommandHandler::new(
