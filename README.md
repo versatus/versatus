@@ -11,6 +11,6 @@ Node Requirements
     A minimum of 10,000 staked VRRB coins are required for Masternode eligibility, though this minimum may be higher depending on a node's reputation score.
     
 
-###Starting a Node
+### Starting a Node
     In order to start a node, run <code>cargo run</code>
     Running <code>cargo run -- -help</code> will display available cli flags for node configuration and management.
