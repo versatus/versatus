@@ -16,7 +16,7 @@ hex = "0.4.2"
 
 #internal
 node = { path = "../node/core" }
-commands = { path = "../commands" }
-messages = { path = "../messages" }
+commands={path="../commands"}
+messages={path="../messages"}
 primitives={path="../primitives"}
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
