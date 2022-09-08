@@ -56,4 +56,5 @@ members = [
     "tx_trie",
     "dkg_engine",
     "telemetry",
+    "signer"
 ]
