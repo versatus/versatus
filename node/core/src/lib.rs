@@ -21,16 +21,18 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 
+    /*
     #[test]
     fn it_works2() {
         //hold on as Daniel refactors
 
-        let (tx, mut rx) = mpsc::unbounded_channel();
-        let mut messageHandler = MessageHandler::new(
-            tx, rx);
+        //let (tx, mut rx) = mpsc::unbounded_channel();
+        //let mut messageHandler = MessageHandler::new(
+        //    tx, rx);
         //let mut commandHandler = CommandHandler::new();
         //let mut node = Node::new();
         //node.start();
         
     }
+    */
 }

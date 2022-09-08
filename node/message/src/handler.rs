@@ -20,12 +20,16 @@ pub trait Handler<T, V> {
 #[derive(Debug)]
 pub struct MessageHandler<T, V> {
     pub sender: UnboundedSender<T>,
+    //buffer is not offset (?)
     pub receiver: UnboundedReceiver<V>,
 }
 
 /// The basic structure for allocating commands to different parts of the system. 
 #[derive(Debug)]
 pub struct CommandHandler {
+    //command handlers receives all commands via receiver
+    //will read from receiving channel and forward to relevant sender
+    //command handler will then propagate 
     pub to_mining_sender: UnboundedSender<Command>,
     pub to_blockchain_sender: UnboundedSender<Command>,
     pub to_gossip_sender: UnboundedSender<Command>,
@@ -45,12 +49,15 @@ impl<T: Clone, V: Clone> MessageHandler<T, V> {
 impl CommandHandler {
     /// Creates and returns a new command handler. 
     pub fn new(
+        //create separate channels for each
         to_mining_sender: UnboundedSender<Command>,
         to_blockchain_sender: UnboundedSender<Command>,
         to_gossip_sender: UnboundedSender<Command>,
         to_swarm_sender: UnboundedSender<Command>,
         to_state_sender: UnboundedSender<Command>,
+        //not unbounded sender; data type that channel carries
         to_gossip_tx: Sender<(SocketAddr, Message)>,
+        //invoke to send cmd
         receiver: UnboundedReceiver<Command>,
     ) -> CommandHandler {
         CommandHandler {
