@@ -115,6 +115,8 @@ impl Quorum{
      if eligible_claims.len() < 20 {
         return Err(InvalidQuorum::InsufficientNodesError());
      }
+     dbg!("more than 20 eligible claims");
+     
      let eligible_claims = eligible_claims;
      return Ok(eligible_claims);  
    }
@@ -131,10 +133,11 @@ impl Quorum{
         |claim| (claim.get_pointer(quorum_seed), &claim.pubkey)
      ).collect();
      
+     dbg!("num claim pointers {}", claim_tuples.len());
       if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
-     
+     dbg!("more than 20 claims with pointers");
      claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0.unwrap());
 
      let pubkeys: Vec<String> = claim_tuples.into_iter().map(

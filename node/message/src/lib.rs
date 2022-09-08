@@ -4,6 +4,7 @@ mod tests {
     //test msg handler in isolation
     use crate::node::Node;
     use crate::handler::{Handler, CommandHandler, MessageHandler};
+    use commands::command::Command;
     
     #[test]
     fn it_works() {
@@ -26,31 +27,33 @@ mod tests {
     the receiver can be in the main thread (general test scope) */
 
     #[test]
-    fn it_works2() {
-        
+    fn send_comand() {
 
-        //let (mining_sender: Sender<{unknown}>, mining_receiver: Receiver<{unknown}>) = unbounded();
+        let (mining_sender, mining_receiver) = mpsc::unbounded();
+        let (blockchain_sender, blockchain_receiver) = mpsc::unbounded();
+        let (gossip_sender, gossip_receiver) = mpsc::unbounded();
+        let (swarm_sender, swarm_receiver) = mpsc::unbounded();
+        let (state_sender, state_receiver) = mpsc::unbounded();
+        let (gossip_tx_sender, gossip_tx_receiver) = channel();
+        let (ctrl_sender, ctrl_receiver) = channel();
 
 
-        /* 
-        let (tx, mut rx) = mpsc::unbounded_channel();
-        let messageHandler = MessageHandler::new(tx, rx);
 
-        thread::spawn(move || {
-            let mut messageHandler = MessageHandler::new(
-                tx, rx);
-            let command = Command::new("ls");
-            tx.send(val).unwrap();
-        });
-    
-        let received = rx.recv().unwrap();
-        assert!(received == "hi");
-        */
-        //let mut messageHandler = MessageHandler::new(tx, rx);
+        let commandHandler = CommandHandler::new(
+            mining_sender,
+            blockchain_sender,
+            gossip_sender,
+            swarm_sender,
+            state_sender,
+            gossip_tx_sender,
+            ctrl_receiver 
+        );
 
-        //let mut commandHandler = CommandHandler::new();
+        let getState = Command::GetState;
+        ctrl_sender.send(getState);
 
-        //test with two threads and with one thread
-        
+        commandHandler.handle_command(commandHandler.ctrl_receiver.recv());
+
+        assert!(state_receiver.recv().unwrap() == getState);        
     }
 }

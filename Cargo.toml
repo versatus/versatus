@@ -42,6 +42,7 @@ members = [
     "network",
     "node/cli",
     "node/service",
+    "node/message",
     "node/core",
     "verifiable",
     "ledger",
