@@ -4,10 +4,9 @@ use hbbft::sync_key_gen::PartOutcome;
 use hbbft::{crypto::SecretKey, sync_key_gen::SyncKeyGen};
 use node::node::NodeType;
 
-
 /// This is a trait that is implemented by the `DkgEngine` struct. It contains the functions that are
 /// required to run the DKG protocol.
-trait DkgGenerator {
+pub trait DkgGenerator {
     type DkgStatus;
 
     fn generate_sync_keygen_instance(&mut self, threshold: usize) -> Self::DkgStatus;
@@ -178,7 +177,6 @@ impl DkgGenerator for DkgEngine {
         }
         let synckey_gen = synckey_gen.unwrap();
         // This is a check to see if the threshold+1 part committments are verified and acknowledged for generation of DKG .
-        println!("{:?}", synckey_gen.count_complete());
         if !synckey_gen.is_ready() {
             return Err(DkgError::NotEnoughPartsCompleted);
         }
@@ -201,12 +199,13 @@ mod tests {
     use node::node::NodeType;
     use std::borrow::BorrowMut;
     use std::collections::HashMap;
+    use primitives::is_enum_variant;
 
     // use super::*;
     use super::DkgGenerator;
     use crate::dkg::DkgResult;
     use crate::types::DkgEngine;
-    use crate::{is_enum_variant, test_utils::generate_dkg_engines, types::DkgError};
+    use crate::{test_utils::generate_dkg_engines, types::DkgError};
 
     #[test]
     fn failed_to_generate_part_committment_message_since_only_master_node_allowed() {

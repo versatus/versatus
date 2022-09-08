@@ -6,6 +6,7 @@ use crate::invalid::{InvalidBlockError, InvalidBlockErrorReason};
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
+use primitives::RawSignature;
 use rand::Rng;
 use reward::reward::{Category, RewardState, GENESIS_REWARD};
 use ritelinked::LinkedHashMap;
@@ -38,6 +39,9 @@ pub struct Block {
     pub received_from: Option<String>,
     // TODO: Replace with map of all abandoned claims in the even more than 1 miner is faulty when they are entitled to mine
     pub abandoned_claim: Option<Claim>,
+    // Quorum signature needed for finalizing the block and locking the chain
+    pub threshold_signature: Option<RawSignature>,
+
 }
 
 impl Block {
@@ -71,6 +75,7 @@ impl Block {
             received_at: None,
             received_from: None,
             abandoned_claim: None,
+            threshold_signature:None
         };
 
         // Update the State Trie & Tx Trie with the miner and new block, this will also set the values to the
@@ -151,6 +156,7 @@ impl Block {
             received_at: None,
             received_from: None,
             abandoned_claim,
+            threshold_signature:None
         };
 
         // TODO: Replace with state trie

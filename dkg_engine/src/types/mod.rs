@@ -106,16 +106,7 @@ pub enum DkgResult {
     KeySetsGenerated,
 }
 
-#[macro_export]
-macro_rules! is_enum_variant {
-    ($v:expr, $p:pat) => {
-        if let $p = $v {
-            true
-        } else {
-            false
-        }
-    };
-}
+
 
 impl DkgEngine {
     pub fn new(node_info: Arc<RwLock<Node>>, threshold_config: ThresholdConfig) -> DkgEngine {
