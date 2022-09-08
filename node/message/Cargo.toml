@@ -9,3 +9,6 @@ edition = "2021"
 commands = { path = "../../commands" }
 tokio = { version = "1.12.0", features = ["full"] }
 messages = { path = "../../messages" }
+tokio-test = "0.4.2"
+log = "0.4.14"
+udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
