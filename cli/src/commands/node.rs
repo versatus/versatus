@@ -1,5 +1,6 @@
-use crate::result::{CliError, Result};
 use clap::{Parser, Subcommand};
+
+use crate::result::{CliError, Result};
 
 #[derive(clap::Parser, Debug)]
 pub struct RunOpts {

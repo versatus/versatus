@@ -1,59 +1,59 @@
+use std::{
+    collections::{HashMap, HashSet},
+    env::args,
+    fs,
+    io::{Read, Write},
+    net::{SocketAddr, SocketAddrV4, SocketAddrV6, UdpSocket},
+    sync::mpsc::{channel, Receiver, Sender},
+    time::{Duration, Instant},
+};
+
 use ::block::invalid::InvalidBlockErrorReason;
 use block::block;
 use blockchain::blockchain::Blockchain;
 use claim::claim::Claim;
-use commands::command::Command;
-use commands::command::ComponentTypes;
+use commands::command::{Command, ComponentTypes};
 use events::events::{write_to_json, VrrbNetworkEvent};
 use ledger::ledger::Ledger;
 use messages::message_types::MessageType;
 use miner::miner::Miner;
-use network::components::StateComponent;
-use network::message;
-use node::handler::{CommandHandler, MessageHandler};
-use node::node::{Node, NodeAuth};
+use network::{components::StateComponent, message};
+use node::{
+    handler::{CommandHandler, MessageHandler},
+    node::{Node, NodeAuth},
+};
 use public_ip;
-use rand::thread_rng;
-use rand::Rng;
+use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
 use simplelog::{Config, LevelFilter, WriteLogger};
 use state::state::{Components, NetworkState};
-use std::collections::{HashMap, HashSet};
-use std::env::args;
-use std::fs;
-use std::io::{Read, Write};
-use std::net::{SocketAddr, UdpSocket};
-use std::net::{SocketAddrV4, SocketAddrV6};
-use std::sync::mpsc::channel;
-use std::sync::mpsc::{Receiver, Sender};
-use std::time::{Duration, Instant};
 use strum_macros::EnumIter;
 use telemetry::info;
 use tokio::sync::mpsc;
 use txn::txn::Txn;
-use udp2p::discovery::kad::Kademlia;
-use udp2p::discovery::routing::RoutingTable;
-use udp2p::gossip::gossip::{GossipConfig, GossipService};
-use udp2p::gossip::protocol::GossipMessage;
-use udp2p::node::peer_id::PeerId;
-use udp2p::node::peer_info::PeerInfo;
-use udp2p::node::peer_key::Key;
-use udp2p::protocol::protocol::packetize;
-use udp2p::protocol::protocol::{AckMessage, Header, Message, MessageKey};
-use udp2p::transport::handler::MessageHandler as GossipMessageHandler;
-use udp2p::transport::transport::Transport;
-use udp2p::utils::utils::ByteRep;
+use udp2p::{
+    discovery::{kad::Kademlia, routing::RoutingTable},
+    gossip::{
+        gossip::{GossipConfig, GossipService},
+        protocol::GossipMessage,
+    },
+    node::{peer_id::PeerId, peer_info::PeerInfo, peer_key::Key},
+    protocol::protocol::{packetize, AckMessage, Header, Message, MessageKey},
+    transport::{handler::MessageHandler as GossipMessageHandler, transport::Transport},
+    utils::utils::ByteRep,
+};
 use unicode_width::UnicodeWidthStr;
 use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
-/// Everything on this crate is tentative and meant to be a stepping stone into the finalized
-/// version soon.
-use clap::Parser;
 use std::str::FromStr;
+
+/// Everything on this crate is tentative and meant to be a stepping stone into
+/// the finalized version soon.
+use clap::Parser;
 use thiserror::Error;
 
 #[derive(Debug, thiserror::Error)]
@@ -72,7 +72,8 @@ pub struct RuntimeOpts {
     pub node_type: node::node::NodeType,
 }
 
-/// Runtime is responsible for initializing the node, handling networking and config management
+/// Runtime is responsible for initializing the node, handling networking and
+/// config management
 #[derive(Debug, Default)]
 pub struct Runtime {}
 
@@ -82,7 +83,8 @@ impl Runtime {
     }
 
     #[telemetry::instrument]
-    /// Main node setup and execution entrypoint, called only by applications that intend to run VRRB nodes
+    /// Main node setup and execution entrypoint, called only by applications
+    /// that intend to run VRRB nodes
     // TODO replace anyhow::Result with custom result using RuntimeError instead
     pub async fn start(&self, opts: RuntimeOpts) -> Result<()> {
         //
@@ -110,8 +112,8 @@ impl Runtime {
         //             .unwrap_or_else(|| Duration::from_secs(0));
         //
         //         if event::poll(timeout).expect("poll works") {
-        //             if let CEvent::Key(key) = event::read().expect("can read events") {
-        //                 if let Err(_) = tx.send(Event::Input(key)) {
+        //             if let CEvent::Key(key) = event::read().expect("can read events")
+        // {                 if let Err(_) = tx.send(Event::Input(key)) {
         //                     info!("Can't send events");
         //                 }
         //             }
@@ -169,14 +171,16 @@ impl Runtime {
 
         // //____________________________________________________________________________________________________
         // // ___________________________________________________________________________________________________
-        // // setup message and command sender/receiver channels for communication betwen various threads
-        // let (to_blockchain_sender, mut to_blockchain_receiver) = mpsc::unbounded_channel();
+        // // setup message and command sender/receiver channels for communication
+        // betwen various threads let (to_blockchain_sender, mut
+        // to_blockchain_receiver) = mpsc::unbounded_channel();
         // let (to_miner_sender, mut to_miner_receiver) = mpsc::unbounded_channel();
         // let (to_message_sender, mut to_message_receiver) = mpsc::unbounded_channel();
-        // let (from_message_sender, mut from_message_receiver) = mpsc::unbounded_channel();
-        // let (to_gossip_sender, mut to_gossip_receiver) = mpsc::unbounded_channel();
-        // let (command_sender, command_receiver) = mpsc::unbounded_channel();
-        // let (to_swarm_sender, mut to_swarm_receiver) = mpsc::unbounded_channel();
+        // let (from_message_sender, mut from_message_receiver) =
+        // mpsc::unbounded_channel(); let (to_gossip_sender, mut
+        // to_gossip_receiver) = mpsc::unbounded_channel(); let (command_sender,
+        // command_receiver) = mpsc::unbounded_channel(); let (to_swarm_sender,
+        // mut to_swarm_receiver) = mpsc::unbounded_channel();
         // let (to_state_sender, mut to_state_receiver) = mpsc::unbounded_channel();
         // let (to_app_sender, mut to_app_receiver) = mpsc::unbounded_channel();
         // let (to_transport_tx, to_transport_rx): (
@@ -185,8 +189,9 @@ impl Runtime {
         // ) = channel();
         // let (to_gossip_tx, to_gossip_rx) = channel();
         // let (to_kad_tx, to_kad_rx) = channel();
-        // let (incoming_ack_tx, incoming_ack_rx): (Sender<AckMessage>, Receiver<AckMessage>) = channel();
-        // let (to_app_tx, _to_app_rx) = channel::<GossipMessage>();
+        // let (incoming_ack_tx, incoming_ack_rx): (Sender<AckMessage>,
+        // Receiver<AckMessage>) = channel(); let (to_app_tx, _to_app_rx) =
+        // channel::<GossipMessage>();
         //____________________________________________________________________________________________________
 
         let wallet = if let Some(secret_key) = std::env::args().nth(3) {
@@ -242,7 +247,6 @@ impl Runtime {
         //____________________________________________________________________________________________________
 
         // Blockchain thread setup
-        //____________________________________________________________________________________________________
         //____________________________________________________________________________________________________
         // Mining thread
         //____________________________________________________________________________________________________

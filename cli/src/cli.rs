@@ -1,6 +1,8 @@
-use crate::commands::node::NodeOpts;
-use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
+
+use crate::commands::node::NodeOpts;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

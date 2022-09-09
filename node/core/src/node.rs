@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     error::Error,
     net::SocketAddr,
+    str::FromStr,
 };
 
 use commands::command::Command;
@@ -12,12 +13,10 @@ use messages::{
 };
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::error::Error;
-use std::net::SocketAddr;
-use std::str::FromStr;
 use thiserror::Error;
 use uuid::Uuid;
+
+use crate::handler::{CommandHandler, MessageHandler};
 
 #[derive(Debug, Clone, Error)]
 pub enum NodeError {
@@ -28,8 +27,9 @@ pub enum NodeError {
     Other(String),
 }
 
-//TODO:There needs to be different node types, this is probably not the right variants for
-//the node types we will need in the network, needs to be discussed.
+//TODO:There needs to be different node types, this is probably not the right
+// variants for the node types we will need in the network, needs to be
+// discussed.
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NodeAuth {
