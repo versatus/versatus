@@ -59,6 +59,9 @@ use thiserror::Error;
 #[derive(Debug, thiserror::Error)]
 pub enum RuntimeError {
     #[error("{0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("{0}")]
     Other(String),
 }
 
@@ -81,7 +84,7 @@ impl Runtime {
     #[telemetry::instrument]
     /// Main node setup and execution entrypoint, called only by applications that intend to run VRRB nodes
     // TODO replace anyhow::Result with custom result using RuntimeError instead
-    pub async fn start(&self, opts: RuntimeOpts) -> anyhow::Result<()> {
+    pub async fn start(&self, opts: RuntimeOpts) -> Result<()> {
         //
         // TODO: import and initialize things at node core
         telemetry::debug!("parsing runtime configuration");
