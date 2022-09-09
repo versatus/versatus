@@ -1,7 +1,9 @@
-use crate::message::{AsMessage, Message};
+use std::net::SocketAddr;
+
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
-use std::net::SocketAddr;
+
+use crate::message::{AsMessage, Message};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StateBlock(pub u128);
@@ -85,7 +87,7 @@ pub enum MessageType {
     ClaimAbandonedMessage {
         claim: Vec<u8>,
         sender_id: String,
-    }
+    },
 }
 
 impl MessageType {

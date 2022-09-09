@@ -1,14 +1,15 @@
 //FEATURE TAGS: Packet Structure, P2P Network
+use std::{convert::TryInto, error::Error};
+
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
-use std::error::Error;
 
 /// A Basic error unit struct to return in the event a series of packets cannot
 /// be reassembled into a type
 #[derive(Debug)]
 pub struct NotCompleteError;
 
-/// The basic structure that is converted into bytes to be sent across the network
+/// The basic structure that is converted into bytes to be sent across the
+/// network
 //TODO: Replace standard types with custom types to make it more obvious what their
 // purposes are.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,7 +87,8 @@ impl Packet {
     }
 }
 
-/// A trait to be implemented on anything that can be converted into a Packet or from a Packet
+/// A trait to be implemented on anything that can be converted into a Packet or
+/// from a Packet
 pub trait Packetize {
     type Packets;
     type PacketBytes;

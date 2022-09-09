@@ -1,12 +1,15 @@
-use crate::result::{LeftRightDbError, Result};
-use patriecia::db::Database;
 use std::{hash::Hash, sync::Arc, time::SystemTime};
+
+use patriecia::db::Database;
+
+use crate::result::{LeftRightDbError, Result};
 
 pub type Nonce = u32;
 
 /// Struct representing the LeftRight Database.
 ///
-/// `ReadHandleFactory` provides a way of creating new ReadHandles to the database.
+/// `ReadHandleFactory` provides a way of creating new ReadHandles to the
+/// database.
 ///
 /// `WriteHandles` provides a way to gain write access to the database.
 /// `last_refresh` denotes the lastest `refresh` of the database.
@@ -40,7 +43,8 @@ where
         let (vrrbdb_reader, mut vrrbdb_writer) = evmap::new();
         // TODO: revisit to figure out if this is really necessary
         // This is required to set up oplog
-        // Otherwise there's no way to keep track of already inserted keys (before refresh)
+        // Otherwise there's no way to keep track of already inserted keys (before
+        // refresh)
         vrrbdb_writer.refresh();
         Self {
             r: vrrbdb_reader.factory(),

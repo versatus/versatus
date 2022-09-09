@@ -1,5 +1,6 @@
-// This is currently deprecated but can be used to create an Account struct that takes one of two generic types, i.e. Wallet or Program
-// And can have different impl blocks for each.
+// This is currently deprecated but can be used to create an Account struct that
+// takes one of two generic types, i.e. Wallet or Program And can have different
+// impl blocks for each.
 //
 //
 //
@@ -19,22 +20,22 @@
 // pub struct AccountState {
 //     // Map of account address to public key
 //     pub accounts_pk: LinkedHashMap<String, String>, // K: address, V: pubkey
-//     pub claim_counter: LinkedHashMap<String, u128>, // K: pubkey, V: number of claims currently owned.
-//     pub peer_tracker: LinkedHashMap<String, String>, // K: peer_id, V: pubkey.
-//     pub txn_pool: Pool<String, Txn>,
+//     pub claim_counter: LinkedHashMap<String, u128>, // K: pubkey, V: number
+// of claims currently owned.     pub peer_tracker: LinkedHashMap<String,
+// String>, // K: peer_id, V: pubkey.     pub txn_pool: Pool<String, Txn>,
 //     pub claim_pool: Pool<String, Claim>,
 //     pub last_block: Option<Block>,
 // }
 
-// /// The state of all accounts in the network. This is one of the 3 core state objects
-// /// which ensures that the network maintains consensus amongst nodes. The account state
-// /// records accounts, along with their native token (VRRB) balances and smart contract
-// /// token balances. Also contains all pending and confirmed transactions. Pending
-// /// transactions are set into the pending vector and the confirmed transactions
-// /// are set in the mineable vector.
+// /// The state of all accounts in the network. This is one of the 3 core state
+// objects /// which ensures that the network maintains consensus amongst nodes.
+// The account state /// records accounts, along with their native token (VRRB)
+// balances and smart contract /// token balances. Also contains all pending and
+// confirmed transactions. Pending /// transactions are set into the pending
+// vector and the confirmed transactions /// are set in the mineable vector.
 // impl AccountState {
-//     pub fn start(txn_pool: Pool<String, Txn>, claim_pool: Pool<String, Claim>) -> AccountState {
-//         AccountState {
+//     pub fn start(txn_pool: Pool<String, Txn>, claim_pool: Pool<String,
+// Claim>) -> AccountState {         AccountState {
 //             accounts_pk: LinkedHashMap::new(),
 //             claim_counter: LinkedHashMap::new(),
 //             peer_tracker: LinkedHashMap::new(),
@@ -51,9 +52,9 @@
 //         if receipts.is_empty() {
 //             return None;
 //         } else {
-//             let amounts: Vec<u128> = receipts.iter().map(|(_, v)| return v.txn_amount).collect();
-//             let pending_credits = amounts.iter().sum();
-//             Some(pending_credits)
+//             let amounts: Vec<u128> = receipts.iter().map(|(_, v)| return
+// v.txn_amount).collect();             let pending_credits =
+// amounts.iter().sum();             Some(pending_credits)
 //         }
 //     }
 
@@ -64,21 +65,21 @@
 //         if receipts.is_empty() {
 //             return None;
 //         } else {
-//             let amounts: Vec<u128> = receipts.iter().map(|(_, v)| return v.txn_amount).collect();
-//             let pending_debits = amounts.iter().sum();
-//             Some(pending_debits)
+//             let amounts: Vec<u128> = receipts.iter().map(|(_, v)| return
+// v.txn_amount).collect();             let pending_debits =
+// amounts.iter().sum();             Some(pending_debits)
 //         }
 //     }
 
 //     pub fn pending_balance(&self, address: String) -> Option<(u128, u128)> {
-//         let pending_credits = if let Some(amount) = self.pending_credits(address.clone()) {
-//             amount
+//         let pending_credits = if let Some(amount) =
+// self.pending_credits(address.clone()) {             amount
 //         } else {
 //             0
 //         };
 
-//         let pending_debits = if let Some(amount) = self.pending_debits(address.clone()) {
-//             amount
+//         let pending_debits = if let Some(amount) =
+// self.pending_debits(address.clone()) {             amount
 //         } else {
 //             0
 //         };
@@ -90,8 +91,8 @@
 //         self.claim_counter.entry(pubkey).or_insert(0);
 //     }
 
-//     pub fn add_miner_to_peer_tracker(&mut self, sender_id: String, pubkey: String) {
-//         self.peer_tracker.entry(sender_id).or_insert(pubkey);
+//     pub fn add_miner_to_peer_tracker(&mut self, sender_id: String, pubkey:
+// String) {         self.peer_tracker.entry(sender_id).or_insert(pubkey);
 //     }
 
 //     pub fn remove_miner_from_claim_counter(&mut self, peer_id: String) {
@@ -100,10 +101,11 @@
 //         }
 //     }
 
-//     pub fn prune_miners(&mut self, connected_peers: HashSet<String>, local_pubkey: &String) {
-        
+//     pub fn prune_miners(&mut self, connected_peers: HashSet<String>,
+// local_pubkey: &String) {
+
 //         self.peer_tracker.retain(|k, _| connected_peers.contains(k));
-        
+
 //         let connected_peer_pubkeys = self
 //             .peer_tracker
 //             .iter()

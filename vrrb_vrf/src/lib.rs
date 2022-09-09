@@ -8,16 +8,17 @@ pub mod vvrf;
 
 ///root module
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::vrng::VRNG;
-    use crate::vvrf::VVRF;
     use parity_wordlist::WORDS;
     use secp256k1::SecretKey;
-    use vrf::openssl::{CipherSuite, ECVRF};
-    use vrf::VRF;
+    use vrf::{
+        openssl::{CipherSuite, ECVRF},
+        VRF,
+    };
+
+    use super::*;
+    use crate::{vrng::VRNG, vvrf::VVRF};
 
     #[test]
     fn it_works() {
@@ -119,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn generates_rng_in_range(){
+    fn generates_rng_in_range() {
         let sk = SecretKey::new(&mut rand::thread_rng());
         let message = b"test";
         let mut vvrf1: VVRF = VVRF::new(message, sk);

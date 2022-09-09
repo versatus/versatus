@@ -10,7 +10,8 @@ pub enum Operation {
     /// Remove a value specified by the key from the trie
     Remove(Vec<u8>),
 
-    /// Extend the state trie with the provided iterator over leaf values as byte slices.
+    /// Extend the state trie with the provided iterator over leaf values as
+    /// byte slices.
     // Extend(Vec<(&'a Bytes, &'a Bytes)>),
     Extend(Vec<(Vec<u8>, Vec<u8>)>),
 }

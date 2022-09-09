@@ -1,16 +1,18 @@
 //FEATURE TAG(S): Rewards, Block Structure
-/// This module declares the Categories and algorithms for randomly selecting amounts within the categories
-/// of the rewards. 
-//TODO: Replace this entire module with the new monetary policy.
-// https://www.notion.so/vrrb/Token-Emission-Methodology-4b6277403a3f4ad28653a651f0ff2995
-use crate::decay::decay_calculator;
 use accountable::accountable::Accountable;
 use rand::{
     distributions::{Distribution, WeightedIndex},
-    thread_rng, Rng,
+    thread_rng,
+    Rng,
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
+
+/// This module declares the Categories and algorithms for randomly selecting
+/// amounts within the categories of the rewards.
+//TODO: Replace this entire module with the new monetary policy.
+// https://www.notion.so/vrrb/Token-Emission-Methodology-4b6277403a3f4ad28653a651f0ff2995
+use crate::decay::decay_calculator;
 
 // UNITS
 pub const SPECK: u128 = 1;
@@ -103,22 +105,22 @@ impl RewardState {
                 Category::Nugget(_) => {
                     self.n_nuggets_current_epoch -= 1;
                     self.n_nuggets_remaining -= 1;
-                }
+                },
                 Category::Vein(_) => {
                     self.n_veins_current_epoch -= 1;
                     self.n_veins_remaining -= 1;
-                }
+                },
                 Category::Motherlode(_) => {
                     self.n_motherlodes_current_epoch -= 1;
                     self.n_motherlodes_remaining -= 1;
-                }
+                },
                 Category::Flake(_) => {
                     self.n_flakes_current_epoch -= 1;
-                }
+                },
                 Category::Grain(_) => {
                     self.n_grains_current_epoch -= 1;
-                }
-                _ => {}
+                },
+                _ => {},
             }
         } else {
             self.new_epoch();
@@ -171,7 +173,7 @@ impl RewardState {
                     if self.n_flakes_current_epoch == 0 {
                         return false;
                     }
-                }
+                },
                 None => return false,
             },
             Category::Grain(amount) => match amount {
@@ -183,7 +185,7 @@ impl RewardState {
                     if self.n_grains_current_epoch == 0 {
                         return false;
                     }
-                }
+                },
                 None => return false,
             },
             Category::Nugget(amount) => match amount {
@@ -207,7 +209,7 @@ impl RewardState {
                     if self.epoch == NUGGET_FINAL_EPOCH && self.n_nuggets_remaining > 1 {
                         return false;
                     }
-                }
+                },
                 None => return false,
             },
             Category::Vein(amount) => match amount {
@@ -230,7 +232,7 @@ impl RewardState {
                     if self.epoch == VEIN_FINAL_EPOCH && self.n_veins_remaining > 1 {
                         return false;
                     }
-                }
+                },
                 None => return false,
             },
             Category::Motherlode(amount) => match amount {
@@ -253,7 +255,7 @@ impl RewardState {
                     if self.epoch == MOTHERLODE_FINAL_EPOCH && self.n_motherlodes_remaining > 1 {
                         return false;
                     }
-                }
+                },
                 None => return false,
             },
             Category::Genesis(amount) => match amount {
@@ -261,7 +263,7 @@ impl RewardState {
                     if amt != GENESIS_REWARD {
                         return false;
                     }
-                }
+                },
                 None => return false,
             },
         }
@@ -285,6 +287,7 @@ impl Reward {
             },
         }
     }
+
     pub fn genesis(miner: Option<String>) -> Reward {
         let category = Category::Genesis(Some(GENESIS_REWARD as u128));
         Reward {
@@ -296,6 +299,7 @@ impl Reward {
             },
         }
     }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
 
@@ -364,6 +368,7 @@ impl Category {
             Self::Motherlode(Some(amount)) => Self::Motherlode(Some(*amount)),
         }
     }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
 

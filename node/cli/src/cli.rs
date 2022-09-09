@@ -1,7 +1,8 @@
-/// Everything on this crate is tentative and meant to be a stepping stone into the finalized
-/// version soon.
-use clap::Parser;
 use std::str::FromStr;
+
+/// Everything on this crate is tentative and meant to be a stepping stone into
+/// the finalized version soon.
+use clap::Parser;
 use thiserror::Error;
 
 type Result<T> = std::result::Result<T, CliError>;
