@@ -1,5 +1,7 @@
-use crate::cli::{Args, Commands};
-use crate::result::{CliError, Result};
+use crate::{
+    cli::{Args, Commands},
+    result::{CliError, Result},
+};
 
 pub mod node;
 
