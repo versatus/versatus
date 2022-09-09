@@ -12,15 +12,24 @@ use messages::{
 };
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use thiserror::Error;
 use uuid::Uuid;
 
-/// This is the primary module containing the structure and methods for
-/// creating, starting and maintaining a node in the network.
-use crate::handler::{CommandHandler, MessageHandler};
+#[derive(Debug, Clone, Error)]
+pub enum NodeError {
+    #[error("invalid node type {0} provided")]
+    InvalidNodeType(String),
 
-//TODO:There needs to be different node types, this is probably not the right
-// variants for the node types we will need in the network, needs to be
-// discussed.
+    #[error("{0}")]
+    Other(String),
+}
+
+//TODO:There needs to be different node types, this is probably not the right variants for
+//the node types we will need in the network, needs to be discussed.
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NodeAuth {
@@ -42,12 +51,29 @@ pub enum NodeAuth {
 /// MasterNode and Regular.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum NodeType {
-    /// This Node will mine the block
+    /// A Node that can archive, validate and mine tokens
+    Full,
+    /// Same as `NodeType::Full` but without archiving capabilities
+    Light,
+    /// Archives all transactions processed in the blockchain
+    Archive,
+    /// Mining node
     Miner,
-    ///This node will be part of Long Lived MasterNode Quorum
-    MasterNode,
-    /// This node will inspect signatures
-    Regular,
+    Bootstrap,
+    Validator,
+}
+
+impl FromStr for NodeType {
+    type Err = NodeError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        // TODO: define node types thoroughly
+        match s {
+            "full" => Ok(NodeType::Full),
+            "light" => Ok(NodeType::Light),
+            _ => Err(NodeError::InvalidNodeType(s.into())),
+        }
+    }
 }
 
 /// The node contains the data and methods needed to operate a node in the
