@@ -39,7 +39,6 @@ members = [
     "vrrb_lib",
     "vrrb_cli",
     "vrrb_gui",
-    "vrrb_tui",
     "vrrb_vrf",
     "network",
     "node/runtime",
@@ -58,5 +57,5 @@ members = [
     "tx_trie",
     "dkg_engine",
     "telemetry",
-    "signer"
+    "signer",
 ]
