@@ -1,9 +1,9 @@
-/// This module produces event logging and can largely be replaced or eliminated.
-/// A protocol for logging events can be developed elsewhere. 
-use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fmt::Debug, fs};
+
 use log::info;
-use std::fmt::Debug;
+/// This module produces event logging and can largely be replaced or
+/// eliminated. A protocol for logging events can be developed elsewhere.
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum VrrbNetworkEvent {
@@ -44,5 +44,7 @@ pub fn write_to_json<T: Debug>(path: String, event: &T) -> Result<(), serde_json
 
 pub fn get_event<T: Debug>(event: &T) -> VrrbNetworkEvent {
     let event_string = format!("{:?}", event);
-    VrrbNetworkEvent::VrrbProtocolEvent { event: event_string }
+    VrrbNetworkEvent::VrrbProtocolEvent {
+        event: event_string,
+    }
 }

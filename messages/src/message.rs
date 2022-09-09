@@ -1,6 +1,8 @@
-use crate::packet::{Packet, Packetize, NotCompleteError};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
+use crate::packet::{NotCompleteError, Packet, Packetize};
 pub const MAX_TRANSMIT_SIZE: usize = 1024;
 
 
@@ -43,10 +45,11 @@ impl Message {
 /// Converts a message into a vector of packets to be sent across
 /// the transport layer.
 impl Packetize for Message {
-    type Packets = Vec<Packet>;
-    type PacketBytes = Vec<Vec<u8>>;
     type FlatPackets = Vec<u8>;
+    type PacketBytes = Vec<Vec<u8>>;
     type PacketMap = HashMap<u32, Packet>;
+    type Packets = Vec<Packet>;
+
     fn into_packets(&self) -> Vec<Packet> {
         let message_string = serde_json::to_string(self).unwrap();
         let message_bytes = message_string.as_bytes();
@@ -71,9 +74,9 @@ impl Packetize for Message {
                             (n_bytes - end).to_be_bytes().to_vec(),
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
-                            self.return_receipt,                            
+                            self.return_receipt,
                         );
-                    } else if *idx == 0 {                   
+                    } else if *idx == 0 {
                         return Packet::new(
                             self.id.clone(),
                             self.source.clone(),
@@ -85,7 +88,7 @@ impl Packetize for Message {
                         );
                     } else {
                         start = end;
-                        end = start + (MAX_TRANSMIT_SIZE);                
+                        end = start + (MAX_TRANSMIT_SIZE);
                         return Packet::new(
                             self.id.clone(),
                             self.source.clone(),
@@ -93,7 +96,7 @@ impl Packetize for Message {
                             MAX_TRANSMIT_SIZE.to_be_bytes().to_vec(),
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
-                            self.return_receipt,                            
+                            self.return_receipt,
                         );
                     }
                 })
@@ -124,8 +127,8 @@ impl Packetize for Message {
             .collect::<Vec<Vec<u8>>>()
     }
 
-    /// Reassembles a map of packets into a serialized vector of bytes that can be
-    /// converted back into a Message for processing
+    /// Reassembles a map of packets into a serialized vector of bytes that can
+    /// be converted back into a Message for processing
     fn assemble(map: &mut Self::PacketMap) -> Self::FlatPackets {
         let mut byte_slices = map
             .iter()
@@ -141,8 +144,8 @@ impl Packetize for Message {
         assembled
     }
 
-    /// Does the same thing as assemble but with better error handling in the event packets
-    /// are missing or cannot be assembled.
+    /// Does the same thing as assemble but with better error handling in the
+    /// event packets are missing or cannot be assembled.
     fn try_assemble(map: &mut Self::PacketMap) -> Result<Self::FlatPackets, NotCompleteError> {
         if let Some((_, packet)) = map.clone().iter().next() {
             if map.len() == usize::from_be_bytes(packet.clone().convert_total_packets()) {
@@ -153,14 +156,14 @@ impl Packetize for Message {
 
                 byte_slices.sort_unstable_by_key(|k| k.0);
                 let mut assembled = vec![];
-                
+
                 byte_slices.iter().for_each(|(_, v)| {
                     assembled.extend(v.data.clone());
                 });
 
-                return Ok(assembled)
+                return Ok(assembled);
             }
-        } 
-        return Err(NotCompleteError)
+        }
+        return Err(NotCompleteError);
     }
 }

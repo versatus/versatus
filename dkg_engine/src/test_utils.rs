@@ -1,21 +1,25 @@
-use crate::dkg::DkgGenerator;
-use crate::types::{config::ThresholdConfig, DkgEngine};
-use crate::types::{DkgResult, DkgState};
-use commands::command::Command;
-use hbbft::crypto::serde_impl::SerdeSecret;
-use hbbft::crypto::{PublicKey, SecretKey};
-use hbbft::sync_key_gen::Ack;
-use messages::packet::Packet;
-use node::handler::{CommandHandler, MessageHandler};
-use node::node::NodeType;
-use std::sync::mpsc::channel;
-use std::sync::Arc;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    sync::RwLock,
+    sync::{mpsc::channel, Arc, RwLock},
+};
+
+use commands::command::Command;
+use hbbft::{
+    crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
+    sync_key_gen::Ack,
+};
+use messages::packet::Packet;
+use node::{
+    handler::{CommandHandler, MessageHandler},
+    node::NodeType,
 };
 use tokio::sync::mpsc::unbounded_channel;
 use udp2p::protocol::protocol::Message;
+
+use crate::{
+    dkg::DkgGenerator,
+    types::{config::ThresholdConfig, DkgEngine, DkgResult, DkgState},
+};
 
 pub fn valid_threshold_config() -> ThresholdConfig {
     ThresholdConfig {
@@ -47,13 +51,15 @@ pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16,
     (sec_keys, pub_keys)
 }
 
-/// It generates a DKG engine with a random secret key, a set of public keys, and a command handler
+/// It generates a DKG engine with a random secret key, a set of public keys,
+/// and a command handler
 ///
 /// Arguments:
 ///
 /// * `node_idx`: The index of the node in the network.
 /// * `total_nodes`: The total number of nodes in the network.
-/// * `node_type`: NodeType - This is the type of node that we want to generate. We can choose from the
+/// * `node_type`: NodeType - This is the type of node that we want to generate.
+///   We can choose from the
 /// following:
 ///
 /// Returns:
@@ -88,14 +94,15 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
                 secret_key_share: None,
                 sync_key_gen: None,
                 random_number_gen: None,
-                secret_key: secret_key,
+                secret_key,
             },
         });
     }
     dkg_instances
 }
 
-/// It creates a bunch of channels and returns a `CommandHandler` struct that contains all of them
+/// It creates a bunch of channels and returns a `CommandHandler` struct that
+/// contains all of them
 ///
 /// Returns:
 ///
@@ -110,12 +117,12 @@ fn generate_command_handler() -> CommandHandler {
     let (_sn, rx) = unbounded_channel::<Command>();
 
     CommandHandler {
-        to_mining_sender: to_mining_sender,
-        to_blockchain_sender: to_blockchain_sender,
-        to_gossip_sender: to_gossip_sender,
-        to_swarm_sender: to_swarm_sender,
-        to_state_sender: to_state_sender,
-        to_gossip_tx: to_gossip_tx,
+        to_mining_sender,
+        to_blockchain_sender,
+        to_gossip_sender,
+        to_swarm_sender,
+        to_state_sender,
+        to_gossip_tx,
         receiver: rx,
     }
 }

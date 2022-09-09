@@ -1,17 +1,23 @@
-//! This crate provides functionality for generating/verification of  partial and threshold signatures
-use crate::types::{SignerError, SignerResult};
-use dkg_engine::types::config::ThresholdConfig;
-use dkg_engine::types::DkgState;
+//! This crate provides functionality for generating/verification of  partial
+//! and threshold signatures
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, PoisonError, RwLock, RwLockReadGuard},
+};
+
+use dkg_engine::types::{config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
 use primitives::{Hash, NodeId, RawSignature, SignatureType};
-use std::collections::BTreeMap;
-use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard};
+
+use crate::types::{SignerError, SignerResult};
 
 pub trait Signer {
-    /// A function signature that takes a payload hash and returns a partial signature for the block from one of the node from the Quorum
+    /// A function signature that takes a payload hash and returns a partial
+    /// signature for the block from one of the node from the Quorum
     fn generate_partial_signature(&self, payload_hash: Hash) -> SignerResult<RawSignature>;
 
-    /// This is the function that is used to generate the final signature for the block(t+1 non faulty nodes).
+    /// This is the function that is used to generate the final signature for
+    /// the block(t+1 non faulty nodes).
     fn generate_quorum_signature(
         &self,
         signature_shares: BTreeMap<NodeId, RawSignature>,
@@ -52,23 +58,26 @@ impl Signer for SignatureProvider {
     ///
     /// # Examples
     /// ```
-    ///  use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
-    ///  use signer::signer::{SignatureProvider, Signer};
-    ///   
-    ///  // Construct the instance to DkgEngine
-    ///  let dkg_engine_node = generate_dkg_engine_with_states().pop().unwrap();
-    ///  let message = "This is test message";
-    ///  
-    ///  // Signature Provider struct that necessary to generate partial/threshold signatures
-    ///  let sig_provider = SignatureProvider {
-    ///   dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-    ///    quorum_config: ThresholdConfig {threshold: 1,upper_bound: 4 },
-    ///   };
-    ///  let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
-    ///  match result{
-    ///        Ok(sig_share) =>  assert_eq!(sig_share.len() > 0, true),
-    ///        Err(e) => panic!("{}", format!("Generating partial signature failed {:?}",e)),
-    ///    }    
+    /// use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
+    /// use signer::signer::{SignatureProvider, Signer};
+    ///
+    /// // Construct the instance to DkgEngine
+    /// let dkg_engine_node = generate_dkg_engine_with_states().pop().unwrap();
+    /// let message = "This is test message";
+    ///
+    /// // Signature Provider struct that necessary to generate partial/threshold signatures
+    /// let sig_provider = SignatureProvider {
+    ///     dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
+    ///     quorum_config: ThresholdConfig {
+    ///         threshold: 1,
+    ///         upper_bound: 4,
+    ///     },
+    /// };
+    /// let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
+    /// match result {
+    ///     Ok(sig_share) => assert_eq!(sig_share.len() > 0, true),
+    ///     Err(e) => panic!("{}", format!("Generating partial signature failed {:?}", e)),
+    /// }
     /// ```
     fn generate_partial_signature(&self, payload_hash: Hash) -> SignerResult<RawSignature> {
         let dkg_state = self.dkg_state.read()?;
@@ -82,8 +91,10 @@ impl Signer for SignatureProvider {
         Ok(sig)
     }
 
-    /// > This function takes in a `map of node-ids to signature shares`, and returns a `quorum signature`
-    /// if the number of signature shares is greater than or equal to the threshold
+    /// > This function takes in a `map of node-ids to signature shares`, and
+    /// > returns a `quorum signature`
+    /// if the number of signature shares is greater than or equal to the
+    /// threshold
     ///
     /// Arguments:
     ///
@@ -149,7 +160,8 @@ impl Signer for SignatureProvider {
                 ));
             }
         }
-        // The below code is converting the signature shares from a map of bytes to a map of signature shares.
+        // The below code is converting the signature shares from a map of bytes to a
+        // map of signature shares.
         let sig_shares: BTreeMap<usize, SignatureShare> = signature_shares
             .iter()
             .map(|(x, sig_share_bytes)| {
@@ -173,18 +185,19 @@ impl Signer for SignatureProvider {
                     "Error while constructing threshold signature details: {:?}",
                     e.to_string()
                 )))
-            }
+            },
         };
         Ok(sig.to_bytes().to_vec())
     }
 
-    /// > This function is used to verify either partial or quorum signature for the block
+    /// > This function is used to verify either partial or quorum signature for
+    /// > the block
     ///
     /// Arguments:
     ///
     /// * `node_idx`: Node Index in the chain
     /// * `payload_hash`: payload hash of the block
-    /// * `signature`: signature to be verified  
+    /// * `signature`: signature to be verified
     /// * `signature_type`: Type of Signature (Partial/Threshold/ChainLock)
     ///
     /// Returns:
@@ -192,52 +205,55 @@ impl Signer for SignatureProvider {
     /// * Verification Status (bool)
     /// # Examples
     /// ```
-    ///   // Construct the instance to DkgEngine
-    ///  use dkg_engine::types::DkgEngine;
-    ///  use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
-    ///  use hbbft::crypto::SignatureShare;
-    ///  use signer::signer::SignatureProvider;
-    ///  use crate::signer::signer::Signer;
-    ///  use primitives::SignatureType;
+    /// // Construct the instance to DkgEngine
+    /// use dkg_engine::{
+    ///     test_utils::generate_dkg_engine_with_states,
+    ///     types::{config::ThresholdConfig, DkgEngine},
+    /// };
+    /// use hbbft::crypto::SignatureShare;
+    /// use primitives::SignatureType;
+    /// use signer::signer::SignatureProvider;
     ///
-    ///  let mut dkg_engines = generate_dkg_engine_with_states();
-    ///  let mut sig_shares = std::collections::BTreeMap::new();
-    ///  let message = "This is test message";
-    ///  let mut i: u16 = 3;
-    ///  while !dkg_engines.is_empty() {
-    ///    let dkg_engine_node = dkg_engines.pop().unwrap();
+    /// use crate::signer::signer::Signer;
     ///
-    ///  // Signature Provider struct that necessary to generate partial/threshold signatures
-    ///    let sig_provider_node = SignatureProvider {
-    ///        dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-    ///        quorum_config: ThresholdConfig {
-    ///            threshold: 1,
-    ///            upper_bound: 4,
-    ///        },
-    ///    };
-    ///    //Generate Partial Signature
-    ///    let signature_share_node = sig_provider_node
-    ///        .generate_partial_signature(message.as_bytes().to_vec())
-    ///        .unwrap();
+    /// let mut dkg_engines = generate_dkg_engine_with_states();
+    /// let mut sig_shares = std::collections::BTreeMap::new();
+    /// let message = "This is test message";
+    /// let mut i: u16 = 3;
+    /// while !dkg_engines.is_empty() {
+    ///     let dkg_engine_node = dkg_engines.pop().unwrap();
+    ///
+    ///     // Signature Provider struct that necessary to generate partial/threshold signatures
+    ///     let sig_provider_node = SignatureProvider {
+    ///         dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
+    ///         quorum_config: ThresholdConfig {
+    ///             threshold: 1,
+    ///             upper_bound: 4,
+    ///         },
+    ///     };
+    ///     //Generate Partial Signature
+    ///     let signature_share_node = sig_provider_node
+    ///         .generate_partial_signature(message.as_bytes().to_vec())
+    ///         .unwrap();
     ///     sig_shares.insert(i as u16, signature_share_node);
     ///     if i == 0 {
-    ///   //Populate signature shares from all t+1 nodes in the quorum
-    ///     let threshold_sig_result = sig_provider_node.generate_quorum_signature(sig_shares);
-    ///     let sig = threshold_sig_result.unwrap();
-    ///     let sig_status = sig_provider_node.verify_signature(
-    ///            2,
-    ///            message.as_bytes().to_vec(),
-    ///            sig,
-    ///            SignatureType::ThresholdSignature,
-    ///        );
-    ///        assert_eq!(sig_status.is_err(), false);
-    ///        if !sig_status.is_err() {
-    ///            assert_eq!(sig_status.unwrap(), true);
-    ///        }
-    ///        break;
-    ///    }
-    ///       i = i - 1;
-    ///    }
+    ///         //Populate signature shares from all t+1 nodes in the quorum
+    ///         let threshold_sig_result = sig_provider_node.generate_quorum_signature(sig_shares);
+    ///         let sig = threshold_sig_result.unwrap();
+    ///         let sig_status = sig_provider_node.verify_signature(
+    ///             2,
+    ///             message.as_bytes().to_vec(),
+    ///             sig,
+    ///             SignatureType::ThresholdSignature,
+    ///         );
+    ///         assert_eq!(sig_status.is_err(), false);
+    ///         if !sig_status.is_err() {
+    ///             assert_eq!(sig_status.unwrap(), true);
+    ///         }
+    ///         break;
+    ///     }
+    ///     i = i - 1;
+    /// }
     /// ```
     fn verify_signature(
         &self,
@@ -268,10 +284,10 @@ impl Signer for SignatureProvider {
                             "Error parsing partial signature details : {:?}",
                             e
                         )))
-                    }
+                    },
                 };
                 Ok(public_key_share.verify(&sig_share, payload_hash))
-            }
+            },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
                 let public_key_set_opt = dkg_state.public_key_set.clone();
                 if public_key_set_opt.is_none() {
@@ -290,11 +306,11 @@ impl Signer for SignatureProvider {
                             "Error parsing threshold signature details : {:?}",
                             e
                         )))
-                    }
+                    },
                 };
 
                 Ok(public_key_set.public_key().verify(&signature, payload_hash))
-            }
+            },
         };
     }
 }
@@ -304,12 +320,13 @@ mod tests {
 
     use std::collections::BTreeMap;
 
+    use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
+    use primitives::{is_enum_variant, SignatureType};
+
     use crate::{
         signer::{SignatureProvider, Signer},
         types::SignerError,
     };
-    use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
-    use primitives::{is_enum_variant, SignatureType};
 
     #[test]
     fn successful_test_generation_partial_signature() {

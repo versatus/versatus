@@ -1,12 +1,12 @@
-//FEATURE TAG(S): Validator Cores, Tx Validation, Tx Writes to Confirmed, Block Validation & Confirmation
-//TODO: Rebuild this entire module.
+//FEATURE TAG(S): Validator Cores, Tx Validation, Tx Writes to Confirmed, Block
+// Validation & Confirmation TODO: Rebuild this entire module.
 #![allow(unused_imports)]
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use txn::txn::Txn; 
+use std::collections::{HashMap, VecDeque};
+
 use pool::pool::Pool;
+use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
+use txn::txn::Txn;
 use verifiable::verifiable::Verifiable;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,17 +24,16 @@ impl TxnValidator {
         txn_pool: &Pool<String, Txn>,
     ) -> TxnValidator {
         let vote = {
-            if let Ok(true) = txn.clone().valid(&None, &(network_state.to_owned(), txn_pool.to_owned())) {
+            if let Ok(true) = txn
+                .clone()
+                .valid(&None, &(network_state.to_owned(), txn_pool.to_owned()))
+            {
                 true
             } else {
                 false
             }
         };
-        TxnValidator {
-            pubkey,
-            vote,
-            txn,
-        }
+        TxnValidator { pubkey, vote, txn }
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {

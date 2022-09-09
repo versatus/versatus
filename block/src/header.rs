@@ -1,21 +1,26 @@
 // FEATURE TAG(S): Block Structure, Rewards
-use crate::block::Block;
+use std::{
+    str::FromStr,
+    time::{SystemTime, UNIX_EPOCH},
+    u32::MAX as u32MAX,
+    u64::MAX as u64MAX,
+};
+
 use bytebuffer::ByteBuffer;
 use claim::claim::Claim;
 use rand::Rng;
 use reward::reward::{Reward, RewardState};
-use secp256k1::Error;
 use secp256k1::{
     key::{PublicKey, SecretKey},
+    Error,
+    Message,
+    Secp256k1,
     Signature,
 };
-use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
-use std::str::FromStr;
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::u32::MAX as u32MAX;
-use std::u64::MAX as u64MAX;
+
+use crate::block::Block;
 
 // TODO: Helper constants like the ones below should be in their own mod
 pub const NANO: u128 = 1;
@@ -51,8 +56,9 @@ impl BlockHeader {
         secret_key: String,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
-        //TODO: Determine data fields to be used as message in VPRNG, must be known/revealed within block
-        //but cannot be predictable or gameable. Leading candidates are some combination of last_hash and last_block_seed
+        //TODO: Determine data fields to be used as message in VPRNG, must be
+        // known/revealed within block but cannot be predictable or gameable.
+        // Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
         let block_nonce = nonce;
@@ -64,7 +70,7 @@ impl BlockHeader {
             .as_nanos();
         let txn_hash = digest_bytes("Genesis_Txn_Hash".as_bytes());
         let block_reward = Reward::genesis(Some(claim.address.clone()));
-        //TODO: Replace reward state 
+        //TODO: Replace reward state
         let next_block_reward = Reward::new(None, reward_state);
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
@@ -111,8 +117,9 @@ impl BlockHeader {
         secret_key: String,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
-        //TODO: Determine data fields to be used as message in VPRNG, must be known/revealed within block
-        //but cannot be predictable or gameable. Leading candidates are some combination of last_hash and last_block_seed
+        //TODO: Determine data fields to be used as message in VPRNG, must be
+        // known/revealed within block but cannot be predictable or gameable.
+        // Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = last_block.hash;
         let block_nonce = last_block.header.next_block_nonce.clone();
@@ -239,6 +246,7 @@ impl BlockHeader {
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
+
     pub fn from_str(data: &str) -> BlockHeader {
         serde_json::from_str(data).unwrap()
     }

@@ -1,6 +1,6 @@
-use service::Result;
-use service::Service;
 use std::io;
+
+use service::{Result, Service};
 
 /// Main entrypoint
 #[tokio::main]

@@ -1,5 +1,5 @@
-pub mod message_types;
 pub mod message;
+pub mod message_types;
 pub mod packet;
 
 #[cfg(test)]

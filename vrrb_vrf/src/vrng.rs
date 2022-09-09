@@ -1,5 +1,4 @@
-
-///trait VRNG defines method signatures for generating 
+///trait VRNG defines method signatures for generating
 ///random numbers of all u types
 pub trait VRNG {
     fn generate_u8(&mut self) -> u8;
@@ -26,9 +25,7 @@ pub trait VRNG {
     }
     fn generate_phrase(&mut self, n: usize) -> String {
         let vec: Vec<String> = self.generate_words(n);
-        let phrase: String = vec.join ("");
+        let phrase: String = vec.join("");
         return phrase.trim_start().to_string();
     }
-
-
 }

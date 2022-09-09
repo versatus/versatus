@@ -1,18 +1,18 @@
-use std::{time::{SystemTime, UNIX_EPOCH}, str::FromStr};
-
-#[allow(deprecated)]
-use secp256k1::{
-    Signature,
-    {Message,Secp256k1,PublicKey}
+use std::{
+    str::FromStr,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 // TODO: replace the deprecated secp256k1::Signature
 // use ecdsa::Signature;
-
 use bytebuffer::ByteBuffer;
-
-use txn::txn::Txn;
+#[allow(deprecated)]
+use secp256k1::{
+    Signature,
+    {Message, PublicKey, Secp256k1},
+};
 use state::state::NetworkState;
+use txn::txn::Txn;
 
 pub const ADDRESS_PREFIX: &str = "0x192";
 
@@ -21,7 +21,7 @@ pub const ADDRESS_PREFIX: &str = "0x192";
 pub enum TxnFees {
     Slow,
     Fast,
-    Instant
+    Instant,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -36,7 +36,7 @@ pub enum TxnValidatorError {
     TxnAmountIncorrect,
     TxnSignatureIncorrect,
     TxnSignatureTresholdIncorrect,
-    TimestampError
+    TimestampError,
 }
 
 #[derive(Debug, Clone)]
@@ -46,15 +46,11 @@ pub struct TxnValidator<'m> {
 }
 
 impl<'m> TxnValidator<'_> {
-
     /// Creates a new Txn validator
-    pub fn new(
-        txn: &Txn,
-        network_state: &'m NetworkState) -> TxnValidator<'m> {
-
+    pub fn new(txn: &Txn, network_state: &'m NetworkState) -> TxnValidator<'m> {
         TxnValidator {
             txn: txn.clone(),
-            state: network_state
+            state: network_state,
         }
     }
 
@@ -62,44 +58,36 @@ impl<'m> TxnValidator<'_> {
     // TODO, to be moved to a common utility crate
     #[allow(deprecated)]
     pub fn verify_signature(&mut self) -> Result<(), TxnValidatorError> {
-
         match Signature::from_str(self.txn.txn_signature.as_str()) {
-            Ok(signature) => {
+            Ok(signature) => match PublicKey::from_str(self.txn.sender_public_key.as_str()) {
+                Ok(pk) => {
+                    let payload_bytes = self.txn.txn_payload.as_bytes().to_owned();
 
-                match PublicKey::from_str(self.txn.sender_public_key.as_str()) {
-                    Ok(pk) => {
-
-                        let payload_bytes = self.txn.txn_payload.as_bytes().to_owned();
-                
-                        let mut payload_buffer = ByteBuffer::new();
-                        payload_buffer.write_bytes(&payload_bytes);
-                        while payload_buffer.len() < 32 {
-                            payload_buffer.write_u8(0);
-                        }
-
-                        let new_payload = payload_buffer.to_bytes();
-                        let payload_hash = blake3::hash(&new_payload);
-
-                        match Message::from_slice(payload_hash.as_bytes()) {
-                            Ok(message_hash) => {
-                                
-                                Secp256k1::new()
-                                    .verify(&message_hash, &signature, &pk)
-                                    .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
-                            }
-                            Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect)
-                        }
+                    let mut payload_buffer = ByteBuffer::new();
+                    payload_buffer.write_bytes(&payload_bytes);
+                    while payload_buffer.len() < 32 {
+                        payload_buffer.write_u8(0);
                     }
-                    Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect)
-                }
-            }
-            Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect)
+
+                    let new_payload = payload_buffer.to_bytes();
+                    let payload_hash = blake3::hash(&new_payload);
+
+                    match Message::from_slice(payload_hash.as_bytes()) {
+                        Ok(message_hash) => Secp256k1::new()
+                            .verify(&message_hash, &signature, &pk)
+                            .map_err(|_| TxnValidatorError::TxnSignatureIncorrect),
+                        Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
+                    }
+                },
+                Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
+            },
+            Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
         }
     }
 
     /// Txn signature validator.
     pub fn validate_signature(&mut self) -> Result<(), TxnValidatorError> {
-        if ! self.txn.txn_signature.is_empty() {
+        if !self.txn.txn_signature.is_empty() {
             self.verify_signature()
                 .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
         } else {
@@ -109,11 +97,10 @@ impl<'m> TxnValidator<'_> {
 
     /// Txn public key validator
     pub fn validate_public_key(&mut self) -> Result<(), TxnValidatorError> {
-
-        if ! self.txn.sender_public_key.is_empty() {
+        if !self.txn.sender_public_key.is_empty() {
             match PublicKey::from_str(self.txn.sender_public_key.as_str()) {
                 Ok(_) => Ok(()),
-                Err(_) => Err(TxnValidatorError::SenderPublicKeyIncorrect)
+                Err(_) => Err(TxnValidatorError::SenderPublicKeyIncorrect),
             }
         } else {
             Err(TxnValidatorError::SenderPublicKeyIncorrect)
@@ -123,8 +110,10 @@ impl<'m> TxnValidator<'_> {
     /// Txn sender validator
     // TODO, to be synchronized with Wallet.
     pub fn validate_sender_address(&mut self) -> Result<(), TxnValidatorError> {
-
-        if ! self.txn.sender_address.is_empty() && self.txn.sender_address.starts_with(ADDRESS_PREFIX) && self.txn.sender_address.len() > 10 {
+        if !self.txn.sender_address.is_empty()
+            && self.txn.sender_address.starts_with(ADDRESS_PREFIX)
+            && self.txn.sender_address.len() > 10
+        {
             Ok(())
         } else {
             Err(TxnValidatorError::SenderAddressMissing)
@@ -134,8 +123,10 @@ impl<'m> TxnValidator<'_> {
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
     pub fn validate_receiver_address(&mut self) -> Result<(), TxnValidatorError> {
-
-        if ! self.txn.receiver_address.is_empty() && self.txn.receiver_address.starts_with(ADDRESS_PREFIX) && self.txn.receiver_address.len() > 10 {
+        if !self.txn.receiver_address.is_empty()
+            && self.txn.receiver_address.starts_with(ADDRESS_PREFIX)
+            && self.txn.receiver_address.len() > 10
+        {
             Ok(())
         } else {
             Err(TxnValidatorError::ReceiverAddressMissing)
@@ -144,27 +135,22 @@ impl<'m> TxnValidator<'_> {
 
     /// Txn timestamp validator
     pub fn validate_timestamp(&mut self) -> Result<(), TxnValidatorError> {
-
-        match SystemTime::now()
-                .duration_since(UNIX_EPOCH) {
-
+        match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(duration) => {
                 let timestamp = duration.as_nanos();
-                if  self.txn.txn_timestamp > 0 &&
-                    self.txn.txn_timestamp < timestamp {
-                        Ok(())
+                if self.txn.txn_timestamp > 0 && self.txn.txn_timestamp < timestamp {
+                    Ok(())
                 } else {
-                        Err(TxnValidatorError::TxnTimestampIncorrect)
-                }    
-            }
-            Err(_) => Err(TxnValidatorError::TimestampError)
+                    Err(TxnValidatorError::TxnTimestampIncorrect)
+                }
+            },
+            Err(_) => Err(TxnValidatorError::TimestampError),
         }
     }
 
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(&mut self) -> Result<(), TxnValidatorError> {
-
         if (self.state.get_balance(self.txn.sender_address.as_str()) - self.txn.txn_amount) > 0 {
             Ok(())
         } else {
@@ -174,7 +160,6 @@ impl<'m> TxnValidator<'_> {
 
     /// An entire Txn structure validator
     pub fn validate_structure(&mut self) -> Result<(), TxnValidatorError> {
-
         self.validate_amount()
             .and_then(|_| self.validate_public_key())
             .and_then(|_| self.validate_sender_address())
@@ -187,7 +172,6 @@ impl<'m> TxnValidator<'_> {
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
     pub fn validate(&mut self) -> Result<(), TxnValidatorError> {
-
         self.validate_structure()
     }
 }

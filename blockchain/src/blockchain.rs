@@ -1,7 +1,17 @@
-// Feature Tags: Block Structure, State Syncing, Block Validation, Block Confirmation
-use block::block::Block;
-use block::header::BlockHeader;
-use block::invalid::{InvalidBlockError, InvalidBlockErrorReason};
+// Feature Tags: Block Structure, State Syncing, Block Validation, Block
+// Confirmation
+use std::{
+    collections::{HashSet, LinkedList},
+    error::Error,
+    fmt,
+    net::SocketAddr,
+};
+
+use block::{
+    block::Block,
+    header::BlockHeader,
+    invalid::{InvalidBlockError, InvalidBlockErrorReason},
+};
 use commands::command::{Command, ComponentTypes};
 use log::info;
 use messages::message_types::MessageType;
@@ -10,14 +20,11 @@ use reward::reward::RewardState;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
-use std::collections::{HashSet, LinkedList};
-use std::error::Error;
-use std::fmt;
-use std::net::SocketAddr;
-use udp2p::gossip::protocol::GossipMessage;
-use udp2p::protocol::protocol::{Header, Message, MessageKey};
-use udp2p::utils::utils::timestamp_now;
-use udp2p::utils::utils::ByteRep;
+use udp2p::{
+    gossip::protocol::GossipMessage,
+    protocol::protocol::{Header, Message, MessageKey},
+    utils::utils::{timestamp_now, ByteRep},
+};
 use verifiable::verifiable::Verifiable;
 use vrrb_lib::fields::GettableFields;
 
@@ -59,7 +66,8 @@ impl Blockchain {
         }
     }
 
-    /// Checks if the next block eight is valid, i.e. +1 as compared to previous block.
+    /// Checks if the next block eight is valid, i.e. +1 as compared to previous
+    /// block.
     pub fn check_next_block_height(&self, block: &Block) -> bool {
         // Check if there is a genesis block
         if let Some(_) = self.genesis.as_ref() {
@@ -184,13 +192,15 @@ impl Blockchain {
         Ok(())
     }
 
-    /// Retrieves a block based on the `last_hash` field. Returns an option (Some(Block) if the block exists in the db, None if it does not)
+    /// Retrieves a block based on the `last_hash` field. Returns an option
+    /// (Some(Block) if the block exists in the db, None if it does not)
     pub fn get_block(&self, last_hash: &str) -> Option<Block> {
         let db = self.get_chain_db();
         db.get::<Block>(last_hash)
     }
 
-    /// Processes a block and returns either a result (Ok(()) if the block is valid, InvalidBlockError if not)
+    /// Processes a block and returns either a result (Ok(()) if the block is
+    /// valid, InvalidBlockError if not)
     pub fn process_block(
         &mut self,
         network_state: &NetworkState,
@@ -270,8 +280,8 @@ impl Blockchain {
         }
     }
 
-    // TODO: Discuss whether some of, or everything from here down should be moved to a separate module for:
-    // a. readability
+    // TODO: Discuss whether some of, or everything from here down should be moved
+    // to a separate module for: a. readability
     // b. efficiency
     // c. to better organize similar functionality
 
@@ -316,13 +326,15 @@ impl Blockchain {
         }
     }
 
-    /// Puts blocks into an ordered map to process later in the event that the chain is updating the state.
+    /// Puts blocks into an ordered map to process later in the event that the
+    /// chain is updating the state.
     pub fn stash_future_blocks(&mut self, block: &Block) {
         self.future_blocks
             .insert(block.clone().header.last_hash, block.clone());
     }
 
-    /// Creates and sends (to transport layer channel for sending to network/miner) a message in the event of an invalid block
+    /// Creates and sends (to transport layer channel for sending to
+    /// network/miner) a message in the event of an invalid block
     /// to inform the miner that they proposed an invalid block.
     pub fn send_invalid_block_message(
         &self,
@@ -432,6 +444,7 @@ impl Blockchain {
 
         None
     }
+
     /// Checks if the chain is missing the current network state
     pub fn check_missing_state(&self) -> Option<ComponentTypes> {
         if !self
@@ -523,19 +536,19 @@ impl GettableFields for Blockchain {
                     return Some(genesis.to_string());
                 }
                 return None;
-            }
+            },
             "child" => {
                 if let Some(child) = self.child.clone() {
                     return Some(child.to_string());
                 }
                 return None;
-            }
+            },
             "parent" => {
                 if let Some(parent) = self.parent.clone() {
                     return Some(parent.to_string());
                 }
                 return None;
-            }
+            },
             "chain" => return Some(serde_json::to_string(&self.chain).unwrap()),
             "chain_db" => Some(self.chain_db.clone()),
             "block_cache" => return Some(serde_json::to_string(&self.block_cache).unwrap()),
@@ -544,7 +557,7 @@ impl GettableFields for Blockchain {
             "updating_state" => return Some(format!("{}", self.updating_state)),
             "state_update_cache" => {
                 return Some(serde_json::to_string(&self.state_update_cache).unwrap())
-            }
+            },
             _ => None,
         }
     }

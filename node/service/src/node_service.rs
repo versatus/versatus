@@ -1,6 +1,5 @@
-use telemetry::TelemetryError;
-
 use node_cli::CliError;
+use telemetry::TelemetryError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
@@ -13,7 +12,8 @@ pub enum ServiceError {
 
 pub type Result<T> = std::result::Result<T, ServiceError>;
 
-/// Service is responsible for initializing the node, handling networking and config management
+/// Service is responsible for initializing the node, handling networking and
+/// config management
 #[derive(Debug, Default)]
 pub struct Service {}
 

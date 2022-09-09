@@ -1,11 +1,13 @@
-use crate::types::{DkgEngine, DkgError, DkgResult};
-use hbbft::crypto::serde_impl::SerdeSecret;
-use hbbft::sync_key_gen::PartOutcome;
-use hbbft::{crypto::SecretKey, sync_key_gen::SyncKeyGen};
+use hbbft::{
+    crypto::{serde_impl::SerdeSecret, SecretKey},
+    sync_key_gen::{PartOutcome, SyncKeyGen},
+};
 use node::node::NodeType;
 
-/// This is a trait that is implemented by the `DkgEngine` struct. It contains the functions that are
-/// required to run the DKG protocol.
+use crate::types::{DkgEngine, DkgError, DkgResult};
+
+/// This is a trait that is implemented by the `DkgEngine` struct. It contains
+/// the functions that are required to run the DKG protocol.
 pub trait DkgGenerator {
     type DkgStatus;
 
@@ -20,12 +22,14 @@ pub trait DkgGenerator {
 impl DkgGenerator for DkgEngine {
     type DkgStatus = Result<DkgResult, DkgError>;
 
-    /// `generate_sync_keygen_instance` is a function that creates a `SyncKeyGen` instance for the
-    /// current node and returns the `Part` message that needs to be multicasted to all LLMQ peers
+    /// `generate_sync_keygen_instance` is a function that creates a
+    /// `SyncKeyGen` instance for the current node and returns the `Part`
+    /// message that needs to be multicasted to all LLMQ peers
     ///
     /// Arguments:
     ///
-    /// * `threshold`: The minimum number of nodes that must participate in the DKG process.
+    /// * `threshold`: The minimum number of nodes that must participate in the
+    ///   DKG process.
     ///
     /// Returns:
     ///
@@ -82,7 +86,8 @@ impl DkgGenerator for DkgEngine {
         ))
     }
 
-    /// The function `ack_partial_commitment` is used to acknowledge that current node has verified validator part message
+    /// The function `ack_partial_commitment` is used to acknowledge that
+    /// current node has verified validator part message
     ///
     /// Arguments:
     ///
@@ -90,7 +95,8 @@ impl DkgGenerator for DkgEngine {
     ///
     /// Returns:
     ///
-    /// a `Result` type. The `Result` type is an enum with two variants: `DkgResult` and `Err`.
+    /// a `Result` type. The `Result` type is an enum with two variants:
+    /// `DkgResult` and `Err`.
     fn ack_partial_commitment(&mut self, sender_node_idx: u16) -> Self::DkgStatus {
         let node = self.dkg_state.sync_key_gen.as_mut();
         if node.is_none() {
@@ -118,13 +124,13 @@ impl DkgGenerator for DkgEngine {
                         .ack_message_store
                         .insert((handling_node_idx, sender_node_idx), ack);
                     return Ok(DkgResult::PartMessageAcknowledged);
-                }
+                },
                 PartOutcome::Invalid(fault) => {
                     return Err(DkgError::InvalidPartMessage(fault.to_string()));
-                }
+                },
                 PartOutcome::Valid(None) => {
                     return Err(DkgError::ObserverNotAllowed);
-                }
+                },
             }
         } else {
             return Err(DkgError::PartMsgMissingForNode(sender_node_idx));
@@ -153,7 +159,7 @@ impl DkgGenerator for DkgEngine {
                 return Err(DkgError::InvalidAckMessage(id));
             } else {
                 match result.unwrap() {
-                    hbbft::sync_key_gen::AckOutcome::Valid => {}
+                    hbbft::sync_key_gen::AckOutcome::Valid => {},
                     hbbft::sync_key_gen::AckOutcome::Invalid(fault) => {
                         println!(
                             "Sender ID {:?},Invalid {:?}, Node ID :{:?}",
@@ -161,14 +167,15 @@ impl DkgGenerator for DkgEngine {
                             fault,
                             self.node_info.read().unwrap().get_node_idx()
                         )
-                    }
+                    },
                 }
             }
         }
         Ok(DkgResult::AllAcksHandled)
     }
 
-    ///  Generate the  distributed public key and secreykeyshare for the node in the Quorum
+    ///  Generate the  distributed public key and secreykeyshare for the node in
+    /// the Quorum
     fn generate_key_sets(&mut self) -> Self::DkgStatus {
         let node_idx = self.node_info.read().unwrap().get_node_idx();
         let synckey_gen = self.dkg_state.sync_key_gen.as_ref();
@@ -176,7 +183,8 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::SyncKeyGenInstanceNotCreated);
         }
         let synckey_gen = synckey_gen.unwrap();
-        // This is a check to see if the threshold+1 part committments are verified and acknowledged for generation of DKG .
+        // This is a check to see if the threshold+1 part committments are verified and
+        // acknowledged for generation of DKG .
         if !synckey_gen.is_ready() {
             return Err(DkgError::NotEnoughPartsCompleted);
         }
@@ -195,17 +203,19 @@ impl DkgGenerator for DkgEngine {
 
 #[cfg(test)]
 mod tests {
+    use std::{borrow::BorrowMut, collections::HashMap};
+
     use hbbft::sync_key_gen::Ack;
     use node::node::NodeType;
-    use std::borrow::BorrowMut;
-    use std::collections::HashMap;
     use primitives::is_enum_variant;
 
     // use super::*;
     use super::DkgGenerator;
-    use crate::dkg::DkgResult;
-    use crate::types::DkgEngine;
-    use crate::{test_utils::generate_dkg_engines, types::DkgError};
+    use crate::{
+        dkg::DkgResult,
+        test_utils::generate_dkg_engines,
+        types::{DkgEngine, DkgError},
+    };
 
     #[test]
     fn failed_to_generate_part_committment_message_since_only_master_node_allowed() {
@@ -444,7 +454,7 @@ mod tests {
                     .dkg_state
                     .part_message_store
                     .insert(node_idx, part);
-            }
+            },
 
             _ => panic!("Wrong Status"),
         }

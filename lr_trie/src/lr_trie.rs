@@ -1,9 +1,10 @@
-use crate::Operation;
+use std::{fmt::Debug, sync::Arc};
+
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use patriecia::trie::Trie;
-use patriecia::{db::Database, inner::InnerTrie};
-use std::{fmt::Debug, sync::Arc};
+use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+
+use crate::Operation;
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -42,8 +43,8 @@ impl<D: Database> LeftRightTrie<D> {
         self.get().root_hash().ok()
     }
 
-    // TODO: revisit and consider if it's worth having it vs a simple iter over the inner trie
-    // pub fn leaves(&self) -> Option<Vec<H::Hash>> {
+    // TODO: revisit and consider if it's worth having it vs a simple iter over the
+    // inner trie pub fn leaves(&self) -> Option<Vec<H::Hash>> {
     //     self.get().leaves()
     // }
 
@@ -101,17 +102,17 @@ where
             Operation::Add(key, value) => {
                 self.insert(key, value).unwrap_or_default();
                 self.commit().unwrap_or_default();
-            }
+            },
             Operation::Remove(key) => {
                 self.remove(key).unwrap_or_default();
-            }
+            },
             Operation::Extend(values) => {
                 // TODO: temp hack to get this going. Refactor ASAP
                 for (k, v) in values {
                     self.insert(k, v).unwrap_or_default();
                 }
                 self.commit().unwrap_or_default();
-            }
+            },
         }
     }
 
@@ -160,9 +161,11 @@ mod tests {
 //     D: Database,
 // {
 //     fn from(values: E) -> Self {
-//         // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
+//         // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>,
+// Operation>();
 //
-//         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+//         let (write_handle, read_handle) =
+// left_right::new_from_empty(InnerTrie::new(db));
 //
 //         let mut trie = Self {
 //             read_handle,
