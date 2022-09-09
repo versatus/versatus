@@ -173,8 +173,7 @@ impl VVRF {
 
     ///get pk from vrf crate
     fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {
-        let key = vrf.derive_public_key(&secret_key.secret_bytes()).unwrap();
-        key
+        vrf.derive_public_key(&secret_key.secret_bytes()).unwrap()
     }
 
     ///generate seed
