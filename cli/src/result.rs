@@ -1,5 +1,3 @@
-use runtime::RuntimeError;
-use telemetry::Instrument;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -12,6 +10,9 @@ pub enum CliError {
 
     #[error("node runtime error: {0}")]
     NodeRuntime(#[from] runtime::RuntimeError),
+
+    #[error("node error: {0}")]
+    Node(#[from] node::core::NodeError),
 }
 
 pub type Result<T> = std::result::Result<T, CliError>;

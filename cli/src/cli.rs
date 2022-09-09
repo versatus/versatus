@@ -1,8 +1,6 @@
 use crate::commands::node::NodeOpts;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use telemetry::Instrument;
-use thiserror::Error;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

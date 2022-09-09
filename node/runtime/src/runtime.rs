@@ -67,9 +67,9 @@ pub enum RuntimeError {
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
 pub struct RuntimeOpts {
-    pub node_type: String,
+    pub node_type: node::node::NodeType,
 }
 
 /// Runtime is responsible for initializing the node, handling networking and config management

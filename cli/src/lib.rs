@@ -1,6 +1,4 @@
-use clap::{Parser, Subcommand};
-use std::path::PathBuf;
-use telemetry::Instrument;
+use clap::Parser;
 
 mod cli;
 pub(crate) use cli::*;
