@@ -148,12 +148,16 @@ impl VVRF {
     /// of VVRF methods
     pub fn new(message: &[u8], sk: SecretKey) -> VVRF {
         let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
-        let pubkey = VVRF::generate_pubkey(&mut vrf, sk);
+        let pubkey = match VVRF::generate_pubkey(&mut vrf, sk){
+            Ok(p) => Ok(p),
+            Err(e) => Err(e),
+        };
+    
         let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
         let rng = ChaCha20Rng::from_seed(hash);
         VVRF {
             vrf,
-            pubkey,
+            pubkey: pubkey.unwrap(),
             message: message.to_vec(),
             proof,
             hash,
@@ -172,8 +176,11 @@ impl VVRF {
 
 
     ///get pk from vrf crate
-    fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {
-        vrf.derive_public_key(&secret_key.secret_bytes()).unwrap()
+    fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Result<Vec<u8>, InvalidVVRF> {
+        match vrf.derive_public_key(&secret_key.secret_bytes()) {
+            Ok(pk) => Ok(pk),
+            Err(_) => Err(crate::vvrf::InvalidVVRF::InvalidPubKeyError),
+        }
     }
 
     ///generate seed
@@ -211,8 +218,8 @@ impl VVRF {
                 return Ok(());
             }
         } else {
-            return Err(InvalidVVRF::InvalidProofError);
-        }
+            return Err(InvalidVVRF::InvalidProofError); 
+        };
     }
 
     ///getter functions
