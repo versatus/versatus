@@ -10,8 +10,9 @@ mod tests {
     use secp256k1::{Secp256k1};
     use sha256::digest_bytes;
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};  
-
+    use std::hash::{Hash, Hasher}; 
+    use hbbft::crypto::{PublicKey, SecretKey};
+ 
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);

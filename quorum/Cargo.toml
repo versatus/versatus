@@ -16,4 +16,5 @@ thiserror = "1.0.33"
 rand = {version = "0.6", features = ["std"]}
 sha256 = "1.0.2"
 format-bytes = "0.3.0"
+hbbft = "0.1.1"
 

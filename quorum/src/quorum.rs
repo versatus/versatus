@@ -119,18 +119,17 @@ impl Quorum{
    /// needs to be modifed as claim field eligible:  bool needs to become a uX of staked amt
    pub fn get_eligible_claims(claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
      let mut eligible_claims = Vec::<Claim>::new();
-     claims.into_iter().filter(|claim| claim.eligible == true).for_each(
+     claims.into_iter().filter(|claim| claim.eligible).for_each(
         |claim| {
-           eligible_claims.push(claim.clone());
+           eligible_claims.push(claim);
         }
      );
-
      if eligible_claims.len() < 20 {
         return Err(InvalidQuorum::InsufficientNodesError());
      }
      
      let eligible_claims = eligible_claims;
-     return Ok(eligible_claims);  
+     Ok(eligible_claims) 
    }
 
    ///gets the final quorum by getting 51% of master nodes with lowest pointer sums
@@ -144,7 +143,7 @@ impl Quorum{
 
      let num_claims =((claims.len() as f32)* 0.51).ceil() as usize;
 
-     let mut claim_tuples: Vec<(u128, &String)> = claims.iter().filter( //change throughout code
+     let mut claim_tuples: Vec<(u128, &String)> = claims.iter().filter( 
         |claim| claim.get_pointer(self.quorum_seed as u128) != None).map(
         |claim| (claim.get_pointer(self.quorum_seed as u128).unwrap(), &claim.pubkey)
      ).collect();
@@ -163,7 +162,7 @@ impl Quorum{
      let final_pubkeys = Vec::from_iter(pubkeys[0..num_claims].iter().cloned());
      self.master_pubkeys = final_pubkeys;
 
-     return Ok(self);
+     Ok(self)
    }
 }
 
