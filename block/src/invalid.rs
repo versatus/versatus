@@ -1,7 +1,7 @@
 // FEATURE TAG(S): Block Structure
-use serde::{Serialize, Deserialize};
-use std::fmt;
-use std::error::Error;
+use std::{error::Error, fmt};
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InvalidBlockErrorReason {
@@ -40,7 +40,7 @@ impl InvalidBlockErrorReason {
             Self::InvalidTxns => "invalid txns in block",
             Self::InvalidClaimPointers => "invalid claim pointers",
             Self::InvalidBlockSignature => "invalid block signature",
-            Self::NotTallestChain => "blockchain proposed is shorter than my local chain"
+            Self::NotTallestChain => "blockchain proposed is shorter than my local chain",
         }
     }
 
@@ -72,43 +72,43 @@ impl fmt::Display for InvalidBlockErrorReason {
         match self {
             Self::InvalidBlockHeight => {
                 write!(f, "invalid block height")
-            }
+            },
             Self::InvalidClaim => {
                 write!(f, "invalid claim")
-            }
+            },
             Self::InvalidLastHash => {
                 write!(f, "invalid last hash")
-            }
+            },
             Self::InvalidStateHash => {
                 write!(f, "invalid state hash")
-            }
+            },
             Self::BlockOutOfSequence => {
                 write!(f, "block out of sequence")
-            }
+            },
             Self::InvalidBlockNonce => {
                 write!(f, "invalid block nonce")
-            }
+            },
             Self::InvalidBlockReward => {
                 write!(f, "invalid block reward")
-            }
+            },
             Self::InvalidNextBlockReward => {
                 write!(f, "invalid next block reward")
-            }
+            },
             Self::InvalidTxns => {
                 write!(f, "invalid txns in block")
-            }
+            },
             Self::InvalidClaimPointers => {
                 write!(f, "invalid claim pointers")
-            }
+            },
             Self::InvalidBlockSignature => {
                 write!(f, "invalid block signature")
-            }
+            },
             Self::General => {
                 write!(f, "general invalid block error")
-            }
+            },
             Self::NotTallestChain => {
                 write!(f, "blockchain proposed shorter than local chain")
-            }
+            },
         }
     }
 }

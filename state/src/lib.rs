@@ -1,4 +1,4 @@
-pub mod state; 
+pub mod state;
 
 #[cfg(test)]
 mod tests {

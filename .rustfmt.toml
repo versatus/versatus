@@ -1,0 +1,15 @@
+indent_style = "Block"
+reorder_imports = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+imports_layout = "HorizontalVertical"
+match_block_trailing_comma = true
+imports_granularity = "Crate"
+newline_style = "Unix"
+reorder_impl_items = true
+group_imports = "StdExternalCrate"
+use_field_init_shorthand = true
+blank_lines_upper_bound = 2
+wrap_comments = true
+type_punctuation_density = "Wide"
+

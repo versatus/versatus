@@ -1,11 +1,13 @@
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+    fs,
+    net::SocketAddr,
+};
+
 use log::info;
-use messages::packet::Packet;
+use messages::{message_types::MessageType, packet::Packet};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
-use std::fs;
-use std::net::SocketAddr;
-use messages::message_types::MessageType;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum VrrbNetworkEvent {
@@ -22,13 +24,10 @@ pub enum VrrbNetworkEvent {
     },
     VrrbAckSent {
         message: MessageType,
-    }
+    },
 }
 
-pub fn write_to_json(
-    path: String,
-    event: VrrbNetworkEvent,
-) -> Result<(), serde_json::Error> {
+pub fn write_to_json(path: String, event: VrrbNetworkEvent) -> Result<(), serde_json::Error> {
     let content = fs::read_to_string(path.clone());
     if let Ok(string) = content {
         let result: Result<Vec<VrrbNetworkEvent>, serde_json::Error> =

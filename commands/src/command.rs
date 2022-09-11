@@ -1,9 +1,11 @@
-// Feature Tag(s): Validator Stake Calculation, Tx Validation, Tx Confirmation, Masternode Signing, Masternode Election
-// Node Reputation Scores, Block Structure, Packet Processing, Message Processing, Message Allocating, Message Caching
-use serde::{Deserialize, Serialize};
-use messages::packet::Packet;
+// Feature Tag(s): Validator Stake Calculation, Tx Validation, Tx Confirmation,
+// Masternode Signing, Masternode Election Node Reputation Scores, Block
+// Structure, Packet Processing, Message Processing, Message Allocating, Message
+// Caching
 use std::net::SocketAddr;
-use messages::message_types::MessageType;
+
+use messages::{message_types::MessageType, packet::Packet};
+use serde::{Deserialize, Serialize};
 use udp2p::protocol::protocol::Message;
 
 /// Basic Command Constants
@@ -30,12 +32,13 @@ pub enum ComponentTypes {
     All,
 }
 
-/// The command enum is the basic datatype used to send commands around the program
+/// The command enum is the basic datatype used to send commands around the
+/// program
 //TODO: Review all the commands and determine which ones are needed, which can be changed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {
     //TODO: Replace standard types with custom types for better readability
-    // and to help engineers understand what the hell these items are. 
+    // and to help engineers understand what the hell these items are.
     SendTxn(u32, String, u128), // address number, receiver address, amount
     ProcessTxn(Vec<u8>),
     ProcessTxnValidator(Vec<u8>),
@@ -92,6 +95,10 @@ pub enum Command {
     SendAddress,
     NonceUp,
     Quit,
+    InitDKG,
+    SendPartMessage(Vec<u8>),
+    SendAckMessage(Vec<u8>),
+    PublicKeySetSync,
 }
 
 /// A Trait to convert different types into a command
@@ -100,7 +107,8 @@ pub trait AsCommand {
 }
 
 impl Command {
-    /// Converts a string (typically a user input in the terminal interface) into a command
+    /// Converts a string (typically a user input in the terminal interface)
+    /// into a command
     pub fn from_str(command_string: &str) -> Option<Command> {
         let args: Vec<&str> = command_string.split(' ').collect();
         if args.len() == 4 {
@@ -111,18 +119,18 @@ impl Command {
                         args[2].to_string(),
                         args[3].parse::<u128>().unwrap(),
                     ))
-                }
+                },
                 _ => {
                     println!("Invalid command string!");
                     return None;
-                }
+                },
             }
         } else if args.len() == 3 {
             match args[0] {
                 _ => {
                     println!("Invalid command string!");
                     return None;
-                }
+                },
             }
         } else if args.len() == 2 {
             match args[0] {
@@ -133,11 +141,11 @@ impl Command {
                         println!("Invalid command string");
                         None
                     }
-                }
+                },
                 _ => {
                     println!("Invalid command string");
                     None
-                }
+                },
             }
         } else {
             match command_string.clone() {
@@ -150,7 +158,7 @@ impl Command {
                 _ => {
                     println!("Invalid command string");
                     None
-                }
+                },
             }
         }
     }

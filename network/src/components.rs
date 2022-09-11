@@ -1,7 +1,8 @@
-/// Declares the StateComponent type (and some basic serialization/deserialization methods for it)
-/// Which can be used to determine which components are missing and need to be requested if the node
-/// needs to sync. 
-use serde::{Serialize, Deserialize};
+/// Declares the StateComponent type (and some basic
+/// serialization/deserialization methods for it) Which can be used to determine
+/// which components are missing and need to be requested if the node
+/// needs to sync.
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub enum StateComponent {

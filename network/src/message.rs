@@ -1,14 +1,15 @@
-use crate::components::StateComponent;
 use commands::command::{Command, ComponentTypes};
-use messages::message_types::{MessageType};
 use log::info;
+use messages::message_types::MessageType;
+
+use crate::components::StateComponent;
 
 pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
-/// Processes messages that come across the network and returns an `Option<Command>` to be allocated
-/// to different parts of the system. 
+/// Processes messages that come across the network and returns an
+/// `Option<Command>` to be allocated to different parts of the system.
 #[allow(unused_variables)]
 pub fn process_message(message: MessageType, node_id: String, addr: String) -> Option<Command> {
     match message.clone() {
@@ -18,7 +19,7 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
         } => Some(Command::PendingBlock(block, sender_id)),
         MessageType::TxnValidatorMessage { txn_validator, .. } => {
             Some(Command::ProcessTxnValidator(txn_validator))
-        }
+        },
         MessageType::ClaimMessage { claim, .. } => Some(Command::ProcessClaim(claim)),
         MessageType::GetNetworkStateMessage {
             sender_id,
@@ -30,39 +31,48 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
         } => {
             if requested_from == node_id {
                 match StateComponent::from_bytes(&component) {
-                    StateComponent::NetworkState => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
-                    }
-                    StateComponent::Blockchain => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
-                    }
-                    StateComponent::Ledger => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
-                    }
-                    StateComponent::All => {
-                        Some(Command::SendStateComponents(requestor_address.to_string(), component, sender_id.clone()))
-                    }
-                    _ => Some(Command::SendState(requestor_address.to_string(), lowest_block)),
+                    StateComponent::NetworkState => Some(Command::SendStateComponents(
+                        requestor_address.to_string(),
+                        component,
+                        sender_id.clone(),
+                    )),
+                    StateComponent::Blockchain => Some(Command::SendStateComponents(
+                        requestor_address.to_string(),
+                        component,
+                        sender_id.clone(),
+                    )),
+                    StateComponent::Ledger => Some(Command::SendStateComponents(
+                        requestor_address.to_string(),
+                        component,
+                        sender_id.clone(),
+                    )),
+                    StateComponent::All => Some(Command::SendStateComponents(
+                        requestor_address.to_string(),
+                        component,
+                        sender_id.clone(),
+                    )),
+                    _ => Some(Command::SendState(
+                        requestor_address.to_string(),
+                        lowest_block,
+                    )),
                 }
             } else {
                 None
             }
-        }
+        },
         MessageType::StateComponentsMessage {
-            data,
-            requestor,
-            ..
+            data, requestor, ..
         } => {
-            info!("Received message to process: {:?} for {:?}", message, requestor);
+            info!(
+                "Received message to process: {:?} for {:?}",
+                message, requestor
+            );
             if requestor == node_id {
                 info!("Received state components");
-                return Some(Command::StoreStateComponents(
-                    data,
-                    ComponentTypes::All
-                ));
+                return Some(Command::StoreStateComponents(data, ComponentTypes::All));
             }
             None
-        }
+        },
         MessageType::GenesisMessage {
             data,
             requestor,
@@ -75,7 +85,7 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
             } else {
                 None
             }
-        }
+        },
         MessageType::ChildMessage {
             data,
             requestor,
@@ -88,7 +98,7 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
             } else {
                 None
             }
-        }
+        },
         MessageType::ParentMessage {
             data,
             requestor,
@@ -101,7 +111,7 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
             } else {
                 None
             }
-        }
+        },
         MessageType::LedgerMessage {
             data,
             requestor,
@@ -115,7 +125,7 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
             } else {
                 None
             }
-        }
+        },
         MessageType::NetworkStateMessage {
             data,
             requestor,
@@ -124,11 +134,14 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
         } => {
             if requestor == addr {
                 info!("Received Network State Message");
-                Some(Command::StoreStateComponents(data, ComponentTypes::NetworkState))
+                Some(Command::StoreStateComponents(
+                    data,
+                    ComponentTypes::NetworkState,
+                ))
             } else {
                 None
             }
-        }                        
+        },
         MessageType::InvalidBlockMessage {
             block_height,
             reason,
@@ -137,13 +150,13 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
         } => {
             if miner_id == node_id {
                 // Check the reason, adjust accordingly.
-                return Some(Command::StopMine)
+                return Some(Command::StopMine);
             }
             None
-        }
+        },
         MessageType::ClaimAbandonedMessage { claim, sender_id } => {
             return Some(Command::ClaimAbandoned(sender_id, claim))
-        }
+        },
         _ => None,
     }
 }

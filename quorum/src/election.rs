@@ -11,4 +11,3 @@ pub trait Election {
     ///runs the election
     fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>;
 }
-

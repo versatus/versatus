@@ -1,4 +1,4 @@
-pub mod miner; 
+pub mod miner;
 
 #[cfg(test)]
 mod tests {

@@ -1,3 +1,4 @@
+
 use crate::election:: Election;
 use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
 use std::u32::MAX as u32MAX;
@@ -165,6 +166,3 @@ impl Quorum{
      Ok(self)
    }
 }
-
-
-

@@ -1,35 +1,40 @@
-//FEATURE TAG(S): Block, Chain & Syncing, Rewards, Develop SDK, Develop API for Distributed Programs, Remote Procedure Calls. 
+//FEATURE TAG(S): Block, Chain & Syncing, Rewards, Develop SDK, Develop API for
+// Distributed Programs, Remote Procedure Calls.
+use std::{
+    collections::HashMap,
+    fmt,
+    str::FromStr,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 /// The wallet module contains very basic Wallet type and methods related to it.
-/// This will largely be replaced under the proposed protocol, however, for the prototype
-/// this version served its purpose
+/// This will largely be replaced under the proposed protocol, however, for the
+/// prototype this version served its purpose
 use accountable::accountable::Accountable;
-use claim::claim::Claim;
-use state::state::NetworkState;
-use txn::txn::Txn;
 use bytebuffer::ByteBuffer;
+use claim::claim::Claim;
 use ritelinked::LinkedHashMap;
-use secp256k1::Error;
 use secp256k1::{
     key::{PublicKey, SecretKey},
+    Error,
+    Message,
+    Secp256k1,
     Signature,
 };
-use std::time::{SystemTime, UNIX_EPOCH};
-use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
-use std::fmt;
-use std::str::FromStr;
-use std::collections::HashMap;
+use state::state::NetworkState;
+use txn::txn::Txn;
 use uuid::Uuid;
 
 const STARTING_BALANCE: u128 = 1000;
 
-/// The WalletAccount struct is the user/node wallet in which coins, tokens and contracts
-/// are held. The WalletAccount has a private/public keypair
+/// The WalletAccount struct is the user/node wallet in which coins, tokens and
+/// contracts are held. The WalletAccount has a private/public keypair
 /// phrase are used to restore the Wallet. The private key is
-/// also used to sign transactions, claims and mined blocks for network validation.
-/// Private key signatures can be verified with the wallet's public key, the message that was
-/// signed and the signature.
+/// also used to sign transactions, claims and mined blocks for network
+/// validation. Private key signatures can be verified with the wallet's public
+/// key, the message that was signed and the signature.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WalletAccount {
     secretkey: String,
@@ -53,11 +58,13 @@ impl WalletAccount {
         let mut rng = rand::thread_rng();
         // Generate a new secret/public key pair using the random seed.
         let (secret_key, public_key) = secp.generate_keypair(&mut rng);
-        // Generate 100 addresses by hashing a universally unique IDs + secret_key + public_key
+        // Generate 100 addresses by hashing a universally unique IDs + secret_key +
+        // public_key
         let mut address_bytes = public_key.to_string().as_bytes().to_vec();
         address_bytes.push(1u8);
         let address = digest_bytes(digest_bytes(&address_bytes).as_bytes());
-        // add the testnet prefix to the wallet address (TODO: add handling of testnet/mainnet)
+        // add the testnet prefix to the wallet address (TODO: add handling of
+        // testnet/mainnet)
         let mut address_prefix: String = "0x192".to_string();
         // push the hashed uuid string to the end of the address prefix
         address_prefix.push_str(&address);
@@ -66,10 +73,7 @@ impl WalletAccount {
         // TODO: require a confirmation the private key being saved by the user
         let welcome_message = format!(
             "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
-            "DO NOT SHARE OR LOSE YOUR SECRET KEY:",
-            &secret_key,
-            &public_key,
-            &address_prefix,
+            "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address_prefix,
         );
         let mut addresses = LinkedHashMap::new();
         addresses.insert(1, address_prefix.clone());
@@ -131,8 +135,8 @@ impl WalletAccount {
     }
 
     pub fn get_txn_nonce(&mut self, _network_state: &NetworkState) {
-        // TODO: add a get_account_txn_nonce() function to network state to update
-        // txn nonce in walet when restored.
+        // TODO: add a get_account_txn_nonce() function to network state to
+        // update txn nonce in walet when restored.
     }
 
     pub fn get_new_addresses(&mut self, number_of_addresses: u8) {
@@ -234,7 +238,8 @@ impl WalletAccount {
         Ok(sig)
     }
 
-    /// Verify a signature with the signers public key, the message payload and the signature.
+    /// Verify a signature with the signers public key, the message payload and
+    /// the signature.
     pub fn verify(message: String, signature: Signature, pk: PublicKey) -> Result<bool, Error> {
         let message_bytes = message.as_bytes().to_owned();
 
@@ -272,16 +277,18 @@ impl WalletAccount {
         };
     }
 
-    /// Structures a `Txn` and returns a Result enum with either Ok(Txn) or an Error if the local wallet cannot
-    /// create a Txn for whatever reason
+    /// Structures a `Txn` and returns a Result enum with either Ok(Txn) or an
+    /// Error if the local wallet cannot create a Txn for whatever reason
     pub fn send_txn(
         &mut self,
         address_number: u32,
         receiver: String,
         amount: u128,
     ) -> Result<Txn, Error> {
-
-        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let sender_address = {
             if let Some(addr) = self.addresses.get(&address_number) {
                 addr
@@ -294,12 +301,7 @@ impl WalletAccount {
 
         let payload = format!(
             "{},{},{},{},{},{}",
-            &time,
-            &sender_address,
-            &self.pubkey,
-            &receiver,
-            &amount,
-            &self.nonce
+            &time, &sender_address, &self.pubkey, &receiver, &amount, &self.nonce
         );
         let signature = self.sign(&payload).unwrap();
         let uid_payload = format!(
@@ -324,7 +326,8 @@ impl WalletAccount {
         })
     }
 
-    /// Gets the local address of a wallet given an address number (naive HD wallet)
+    /// Gets the local address of a wallet given an address number (naive HD
+    /// wallet)
     pub fn get_address(&mut self, address_number: u32) -> String {
         if let Some(address) = self.addresses.get(&address_number) {
             return address.to_string();
@@ -336,7 +339,8 @@ impl WalletAccount {
         }
     }
 
-    /// Generates a new address for the wallet based on the public key and a unique ID
+    /// Generates a new address for the wallet based on the public key and a
+    /// unique ID
     pub fn generate_new_address(&mut self) {
         let uid = Uuid::new_v4().to_string();
         let address_number: u32 = self.addresses.len() as u32 + 1u32;
