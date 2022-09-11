@@ -61,6 +61,7 @@ pub enum NodeType {
     Miner,
     Bootstrap,
     Validator,
+    MasterNode,
 }
 
 impl FromStr for NodeType {
