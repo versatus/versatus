@@ -109,11 +109,7 @@ impl Quorum{
    ///checks if the child block height and timestamp are valid
    ///used at seed and quorum creation
    pub fn check_payload_validity(timestamp: Timestamp, height: Height) -> bool {
-      if height == 0 || timestamp == 0 {
-         return false;
-      } else {
-         return true;
-      }
+      return height > 0 && timestamp > 0
    }
 
    ///gets all claims that belong to eligible nodes (master nodes)
@@ -128,7 +124,6 @@ impl Quorum{
      if eligible_claims.len() < 20 {
         return Err(InvalidQuorum::InsufficientNodesError());
      }
-     
      let eligible_claims = eligible_claims;
      Ok(eligible_claims) 
    }
@@ -143,13 +138,12 @@ impl Quorum{
       }
 
      let num_claims =((claims.len() as f32)* 0.51).ceil() as usize;
-
+ 
      let mut claim_tuples: Vec<(u128, &String)> = claims.iter().filter( 
-        |claim| claim.get_pointer(self.quorum_seed as u128) != None).map(
+        |claim| claim.get_pointer(self.quorum_seed as u128).is_some()).map(
         |claim| (claim.get_pointer(self.quorum_seed as u128).unwrap(), &claim.pubkey)
      ).collect();
-
-
+     
       if claim_tuples.len() < 20 {
       return Err(InvalidQuorum::InvalidPointerSumError(claims));
      }
