@@ -12,6 +12,6 @@ Node Requirements
     
 
 ### Starting a Node
-In order to start a node, run  ``` cargo run ```
-Running ``` cargo run -- -help ``` 
+In order to start a node, run  ``` cargo run ```  
+Running ``` cargo run -- -help ```  
 will display available cli flags for node configuration and management.
