@@ -1,3 +1,4 @@
+
 [package]
 name = "vrrb"
 description = "Rust implementation of VRRB"
@@ -12,18 +13,17 @@ lto = "fat"
 
 [[bin]]
 name = "vrrb"
-path = "cli/src/main.rs"
+path = "node/service/src/main.rs"
 
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
 telemetry = { path = "telemetry" }
-cli = { path = "cli" }
-anyhow = "1.0.64"
+node_cli = { path = "node/cli" }
+service = { path = "node/service" }
 
 [workspace]
 members = [
     "primitives",
-    "cli",
     "block",
     "blockchain",
     "claim",
@@ -41,9 +41,9 @@ members = [
     "vrrb_gui",
     "vrrb_vrf",
     "network",
-    "node/runtime",
+    "node/cli",
+    "node/service",
     "node/core",
-    "storage",
     "verifiable",
     "ledger",
     "accountable",
@@ -57,5 +57,5 @@ members = [
     "tx_trie",
     "dkg_engine",
     "telemetry",
-    "signer",
+    "signer"
 ]
