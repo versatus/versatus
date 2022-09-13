@@ -11,3 +11,4 @@ Cargo.lock
 
 .vrrb_data/
 target
+run/
