@@ -22,7 +22,7 @@ mod tests {
 
     #[test]
     fn not_enough_claims() {
-        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let mut dummy_claims: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
             let secp = Secp256k1::new();
@@ -36,7 +36,7 @@ mod tests {
                 i as u128,
             );
 
-            dummyClaims.push(claim);
+            dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
 
@@ -57,14 +57,14 @@ mod tests {
 
         if let Ok(seed) = Quorum::generate_seed(payload1) {
             if let Ok(mut quorum) = Quorum::new(seed, 11, 11) {
-                assert!(quorum.run_election(dummyClaims).is_err());
+                assert!(quorum.run_election(dummy_claims).is_err());
             };
         }
     }
 
     #[test]
     fn invalid_seed_block_height() {
-        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let mut dummy_claims: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
             let secp = Secp256k1::new();
@@ -78,7 +78,7 @@ mod tests {
                 i as u128,
             );
 
-            dummyClaims.push(claim);
+            dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
 
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn invalid_seed_block_timestamp() {
-        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let mut dummy_claims: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
             let secp = Secp256k1::new();
@@ -116,7 +116,7 @@ mod tests {
                 i as u128,
             );
 
-            dummyClaims.push(claim);
+            dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
 
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn invalid_election_block_height() {
-        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..3).for_each(|i| {
             let secp = Secp256k1::new();
 
@@ -153,7 +153,7 @@ mod tests {
                 i as u128,
             );
 
-            dummyClaims.push(claim);
+            dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
 
@@ -174,7 +174,6 @@ mod tests {
 
         let seed = Quorum::generate_seed(payload1);
 
-        let mut quorum: Quorum;
         if let Ok(seed) = seed {
             assert!(Quorum::new(seed, 11, 0).is_err());
         }
@@ -182,7 +181,7 @@ mod tests {
 
     #[test]
     fn invalid_election_block_timestamp() {
-        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..20).for_each(|i| {
             let secp = Secp256k1::new();
 
@@ -195,7 +194,7 @@ mod tests {
                 i as u128,
             );
 
-            dummyClaims.push(claim);
+            dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
 
@@ -221,7 +220,7 @@ mod tests {
 
     #[test]
     fn elect_quorum() {
-        let mut dummyClaims: Vec<Claim> = Vec::new();
+        let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..25).for_each(|i| {
             let secp = Secp256k1::new();
 
@@ -234,7 +233,7 @@ mod tests {
                 i as u128,
             );
 
-            dummyClaims.push(claim);
+            dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
 
@@ -255,7 +254,7 @@ mod tests {
 
         if let Ok(seed) = Quorum::generate_seed(payload1) {
             if let Ok(mut quorum) = Quorum::new(seed, 11, 11) {
-                quorum.run_election(dummyClaims);
+                assert!(quorum.run_election(dummy_claims).is_ok());
                 assert!(quorum.master_pubkeys.len() == 13);
             };
         }
@@ -263,8 +262,8 @@ mod tests {
 
     #[test]
     fn elect_identical_quorums() {
-        let mut dummyClaims1: Vec<Claim> = Vec::new();
-        let mut dummyClaims2: Vec<Claim> = Vec::new();
+        let mut dummy_claims1: Vec<Claim> = Vec::new();
+        let mut dummy_claims2: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
             let secp = Secp256k1::new();
@@ -277,9 +276,8 @@ mod tests {
                 TEST_ADDR.to_string().clone(),
                 i as u128,
             );
-
-            dummyClaims1.push(claim.clone());
-            dummyClaims2.push(claim.clone());
+            dummy_claims1.push(claim.clone());
+            dummy_claims2.push(claim.clone());
         });
 
         let secp = Secp256k1::new();
@@ -303,8 +301,8 @@ mod tests {
             if let Ok(seed2) = Quorum::generate_seed(payload.clone()) {
                 if let Ok(mut quorum1) = Quorum::new(seed1, 11, 11) {
                     if let Ok(mut quorum2) = Quorum::new(seed2, 11, 11) {
-                        if let Ok(q1) = quorum1.run_election(dummyClaims1){
-                            if let Ok(q2) = quorum2.run_election(dummyClaims2){
+                        if let Ok(q1) = quorum1.run_election(dummy_claims1) {
+                            if let Ok(q2) = quorum2.run_election(dummy_claims2) {
                                 assert!(q1.master_pubkeys == q2.master_pubkeys);
                             }
                         }
