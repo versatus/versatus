@@ -5,16 +5,16 @@ static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000")
 
 #[cfg(test)]
 mod tests {
+    use super::TEST_ADDR;
     use crate::election::Election;
     use crate::quorum::Quorum;
-    use super::TEST_ADDR;
     use claim::claim::Claim;
     use secp256k1;
     use secp256k1::Secp256k1;
     use sha256::digest_bytes;
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-     
+
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
@@ -29,8 +29,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims.push(claim);
         });
@@ -38,7 +42,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -67,8 +71,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims.push(claim);
         });
@@ -76,7 +84,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -101,8 +109,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims.push(claim);
         });
@@ -110,7 +122,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -134,8 +146,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims.push(claim);
         });
@@ -143,7 +159,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -172,8 +188,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims.push(claim);
         });
@@ -181,7 +201,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -207,8 +227,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims.push(claim);
         });
@@ -216,7 +240,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -247,8 +271,12 @@ mod tests {
 
             let mut rng = rand::thread_rng();
 
-            let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone(), i as u128);
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
 
             dummyClaims1.push(claim.clone());
             dummyClaims2.push(claim.clone());
@@ -258,7 +286,7 @@ mod tests {
 
         let mut rng = rand::thread_rng();
 
-        let (Xsecret_key, public_key) = secp.generate_keypair(&mut rng);
+        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
