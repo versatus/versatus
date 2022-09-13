@@ -303,9 +303,11 @@ mod tests {
             if let Ok(seed2) = Quorum::generate_seed(payload.clone()) {
                 if let Ok(mut quorum1) = Quorum::new(seed1, 11, 11) {
                     if let Ok(mut quorum2) = Quorum::new(seed2, 11, 11) {
-                        quorum1.run_election(dummyClaims1);
-                        quorum2.run_election(dummyClaims2);
-                        assert!(quorum1.master_pubkeys == quorum2.master_pubkeys);
+                        if let Ok(q1) = quorum1.run_election(dummyClaims1){
+                            if let Ok(q2) = quorum2.run_election(dummyClaims2){
+                                assert!(q1.master_pubkeys == q2.master_pubkeys);
+                            }
+                        }
                     }
                 }
             }
