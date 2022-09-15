@@ -107,7 +107,6 @@ impl WalletAccount {
         let secp = Secp256k1::new();
         let pubkey = PublicKey::from_secret_key(&secp, &secretkey);
 
-
         let mut wallet = WalletAccount {
             secretkey: secretkey.to_string(),
             welcome_message: String::new(),

@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::mpsc::Sender};
+use std::{fmt::write, io::stdout, net::SocketAddr, sync::mpsc::Sender};
 
 /// This module is the primary allocator in the system, it contains the data
 /// structures and the methods required to send commands to different parts of

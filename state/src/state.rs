@@ -221,7 +221,6 @@ impl<'de> NetworkState {
 
         ledger.claims.insert(miner_claim.get_pubkey(), miner_claim);
 
-
         if let Some(entry) = ledger.credits.get_mut(&reward.receivable()) {
             *entry += reward.get_amount();
         } else {
@@ -517,7 +516,6 @@ impl Components {
         serde_json::from_str::<Components>(&string).unwrap()
     }
 }
-
 
 impl Clone for NetworkState {
     fn clone(&self) -> NetworkState {
