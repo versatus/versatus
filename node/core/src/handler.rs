@@ -25,7 +25,6 @@ pub struct MessageHandler<T, V> {
     pub receiver: UnboundedReceiver<V>,
 }
 
-
 /// The basic structure for allocating commands to different parts of the
 /// system.
 #[derive(Debug)]

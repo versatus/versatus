@@ -12,17 +12,18 @@ lto = "fat"
 
 [[bin]]
 name = "vrrb"
-path = "node/service/src/main.rs"
+path = "cli/src/main.rs"
 
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
 telemetry = { path = "telemetry" }
-node_cli = { path = "node/cli" }
-service = { path = "node/service" }
+cli = { path = "cli" }
+anyhow = "1.0.64"
 
 [workspace]
 members = [
     "primitives",
+    "cli",
     "block",
     "blockchain",
     "claim",
@@ -40,9 +41,9 @@ members = [
     "vrrb_gui",
     "vrrb_vrf",
     "network",
-    "node/cli",
-    "node/service",
+    "node/runtime",
     "node/core",
+    "storage",
     "verifiable",
     "ledger",
     "accountable",
@@ -56,5 +57,5 @@ members = [
     "tx_trie",
     "dkg_engine",
     "telemetry",
-    "signer"
+    "signer",
 ]

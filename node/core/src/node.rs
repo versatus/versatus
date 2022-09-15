@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     error::Error,
     net::SocketAddr,
+    str::FromStr,
 };
 
 use commands::command::Command;
@@ -12,11 +13,19 @@ use messages::{
 };
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use uuid::Uuid;
 
-/// This is the primary module containing the structure and methods for
-/// creating, starting and maintaining a node in the network.
 use crate::handler::{CommandHandler, MessageHandler};
+
+#[derive(Debug, Clone, Error)]
+pub enum NodeError {
+    #[error("invalid node type {0} provided")]
+    InvalidNodeType(String),
+
+    #[error("{0}")]
+    Other(String),
+}
 
 //TODO:There needs to be different node types, this is probably not the right
 // variants for the node types we will need in the network, needs to be
@@ -42,12 +51,30 @@ pub enum NodeAuth {
 /// MasterNode and Regular.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum NodeType {
-    /// This Node will mine the block
+    /// A Node that can archive, validate and mine tokens
+    Full,
+    /// Same as `NodeType::Full` but without archiving capabilities
+    Light,
+    /// Archives all transactions processed in the blockchain
+    Archive,
+    /// Mining node
     Miner,
-    ///This node will be part of Long Lived MasterNode Quorum
+    Bootstrap,
+    Validator,
     MasterNode,
-    /// This node will inspect signatures
-    Regular,
+}
+
+impl FromStr for NodeType {
+    type Err = NodeError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        // TODO: define node types thoroughly
+        match s {
+            "full" => Ok(NodeType::Full),
+            "light" => Ok(NodeType::Light),
+            _ => Err(NodeError::InvalidNodeType(s.into())),
+        }
+    }
 }
 
 /// The node contains the data and methods needed to operate a node in the
