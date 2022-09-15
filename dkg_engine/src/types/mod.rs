@@ -121,7 +121,6 @@ pub enum DkgResult {
     KeySetsGenerated,
 }
 
-
 impl DkgEngine {
     pub fn new(node_info: Arc<RwLock<Node>>, threshold_config: ThresholdConfig) -> DkgEngine {
         let secret_key: SecretKey = rand::random();

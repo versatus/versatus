@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use crate::packet::{NotCompleteError, Packet, Packetize};
 pub const MAX_TRANSMIT_SIZE: usize = 1024;
 
-
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.
 //TODO: Convert the Vec<u8> and u8's into custom types that are more

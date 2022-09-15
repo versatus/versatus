@@ -5,15 +5,17 @@ static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000")
 
 #[cfg(test)]
 mod tests {
-    use super::TEST_ADDR;
-    use crate::election::Election;
-    use crate::quorum::Quorum;
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
+
     use claim::claim::Claim;
-    use secp256k1;
-    use secp256k1::Secp256k1;
+    use secp256k1::{self, Secp256k1};
     use sha256::digest_bytes;
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+
+    use super::TEST_ADDR;
+    use crate::{election::Election, quorum::Quorum};
 
     #[test]
     fn it_works() {

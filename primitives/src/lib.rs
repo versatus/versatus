@@ -1,7 +1,6 @@
 pub type NodeId = u16;
 pub type SecretKey = Vec<u8>;
 
-
 //TXN Hash or Block Hash
 pub type Hash = Vec<u8>;
 pub type RawSignature = Vec<u8>;
@@ -22,7 +21,6 @@ macro_rules! is_enum_variant {
         }
     };
 }
-
 
 #[cfg(test)]
 mod tests {

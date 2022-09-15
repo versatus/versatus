@@ -148,7 +148,6 @@ impl VRNG for VVRF {
     }
 }
 
-
 ///implement VVRF type by passing a secretKey such that
 ///all the VVRF fields can now be calculated thanks to the sk being passed
 ///and use of fxns defined below and imported
