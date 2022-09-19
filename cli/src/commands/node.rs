@@ -43,9 +43,17 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
     }
 }
 
+/// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
-    telemetry::debug!("args: {:?}", args);
+    if args.dettached {
+        run_dettached(args).await
+    } else {
+        run_blocking(args).await
+    }
+}
 
+#[telemetry::instrument]
+async fn run_blocking(args: RunOpts) -> Result<()> {
     let node_type = args.node_type.parse()?;
 
     telemetry::info!("creating {:?}", node_type);
@@ -62,5 +70,11 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
     node_runtime.start(rt_opts).await?;
 
+    Ok(())
+}
+
+#[telemetry::instrument]
+async fn run_dettached(args: RunOpts) -> Result<()> {
+    telemetry::info!("running node in dettached mode");
     Ok(())
 }
