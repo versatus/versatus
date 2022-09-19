@@ -74,6 +74,7 @@ pub struct Miner {
     // validation and calculation.
     pub claim_pool: Pool<String, Claim>,
     /// The most recent block mined, confirmed and propogated throughout the
+    ///
     /// network
     pub last_block: Option<Block>,
     /// The reward state (previous monetary policy), to track which reward
@@ -93,12 +94,15 @@ pub struct Miner {
     //TODO: Discuss whether this is needed or not
     pub n_miners: u128,
     /// A simple boolean field to denote whether the miner has been initialized
+    ///
     /// or not
     pub init: bool,
     /// An ordered map containing claims that were entitled to mine but took too
+    ///
     /// long
     pub abandoned_claim_counter: LinkedHashMap<String, Claim>,
     /// The claim of the most recent entitled miner in the event that they took
+    ///
     /// too long to propose a block
     //TODO: Discuss a better way to do this, and need to be able to include more than one claim.
     pub abandoned_claim: Option<Claim>,
@@ -111,6 +115,7 @@ pub struct Miner {
 impl Miner {
     /// Returns a miner that can be initialized later
     //TODO: Replace `start` with `new`, since this method does not actually "start"
+    //
     // the miner
     pub fn start(
         secret_key: String,
@@ -142,6 +147,7 @@ impl Miner {
     }
 
     /// Calculates the pointer sums and returns the lowest for a given block
+    ///
     /// seed.
     pub fn get_lowest_pointer(&mut self, block_seed: u128) -> Option<(String, u128)> {
         // Clones the local claim map for use in the algorithm
@@ -149,6 +155,7 @@ impl Miner {
 
         // Calculates the pointers for every claim, for the given block seed, in the map
         // and collects them into a vector of tuples containing the claim hash and the
+        //
         // pointer sum
         let mut pointers = claim_map
             .iter()
@@ -180,6 +187,7 @@ impl Miner {
     }
 
     /// Checks if the hash of the claim with the lowest pointer sum is the local
+    ///
     /// claim.
     pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
         if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
@@ -301,6 +309,7 @@ impl Miner {
     }
 
     /// Checks how much time has passed since the entitled miner has not
+    ///
     /// proposed a block
     pub fn check_time_elapsed(&self) -> u128 {
         let timestamp = self.get_timestamp();
@@ -320,6 +329,7 @@ impl Miner {
     }
 
     /// Abandons the claim of a miner that fails to proppose a block in the
+    ///
     /// proper amount of time.
     pub fn abandoned_claim(&mut self, hash: String) {
         self.claim_map.retain(|_, v| v.hash != hash);
@@ -373,6 +383,7 @@ impl Miner {
 }
 
 /// Required for `NoLowestPointerError` to be able to be used as an Error type
+///
 /// in the Result enum
 impl fmt::Display for NoLowestPointerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -381,6 +392,7 @@ impl fmt::Display for NoLowestPointerError {
 }
 
 /// Required for `NoLowestPointerError` to be able to be used as an Error type
+///
 /// in the Result enum
 impl Error for NoLowestPointerError {
     fn description(&self) -> &str {

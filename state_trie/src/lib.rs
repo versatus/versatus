@@ -130,6 +130,9 @@ impl<D: Database> StateTrie<D> {
     /// state_trie_a.extend(vals.clone());
     /// state_trie_b.extend(vals.clone());
     ///
+    ///state_trie_a.extend(vals.clone());
+    /// state_trie_b.extend(vals.clone());
+    ///
     /// assert_eq!(state_trie_a.root(), state_trie_b.root());
     /// ```
     pub fn root(&self) -> Option<H256> {
@@ -156,6 +159,8 @@ impl<D: Database> StateTrie<D> {
     ///
     /// state_trie.extend(vals);
     ///
+    ///state_trie.extend(vals);
+    ///
     /// assert_eq!(state_trie.len(), 2);
     /// ```
     pub fn len(&self) -> usize {
@@ -171,6 +176,9 @@ impl<D: Database> StateTrie<D> {
     /// use state_trie::StateTrie;
     ///
     /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie = StateTrie::new(memdb);
+    ///
+    ///let memdb = Arc::new(MemoryDB::new(true));
     /// let mut state_trie = StateTrie::new(memdb);
     ///
     /// assert_eq!(state_trie.len(), 0);
