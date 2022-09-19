@@ -1,4 +1,9 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
+use node::core::NodeType;
+use runtime::RuntimeOpts;
+use tokio::sync::oneshot;
 
 use crate::result::{CliError, Result};
 
@@ -44,11 +49,17 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
     telemetry::info!("creating {:?}", node_type);
 
-    let runtime_opts = runtime::RuntimeOpts { node_type };
+    let (ctrl_tx, ctrl_rx) = oneshot::channel();
 
-    let node_runtime = runtime::Runtime::new();
+    let rt_opts = RuntimeOpts {
+        node_type,
+        data_dir: PathBuf::from("/tmp/vrrb"),
+        node_idx: 100,
+    };
 
-    node_runtime.start(runtime_opts).await?;
+    let mut node_runtime = runtime::Runtime::new(ctrl_rx);
+
+    node_runtime.start(rt_opts).await?;
 
     Ok(())
 }
