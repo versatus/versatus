@@ -231,11 +231,8 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::HashMap;
     ///
-    /// use std::collections::HashMap;
-    ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
     /// use std::collections::HashMap;
     ///
@@ -255,7 +252,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// };
     ///
-    /// match lrmempooldb.add_txn(&txn) {
+    /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
     ///     Ok(_) => {
     ///         
     ///     },
@@ -266,9 +263,9 @@ impl LeftRightMemPoolDB {
     ///
     /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
-    pub fn add_txn(&mut self, txn: &Txn) -> Result<()> {
+    pub fn add_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
         self.write
-            .append(MempoolOp::Add(TxnRecord::new(txn), TxnStatus::Pending))
+            .append(MempoolOp::Add(TxnRecord::new(txn), status))
             .publish();
         Ok(())
     }
@@ -279,13 +276,11 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::{HashMap, HashSet};
     ///
     /// use std::collections::{HashMap, HashSet};
     ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB,TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -305,7 +300,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// });
     ///
-    /// match lrmempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {
     ///         
     ///     },
@@ -365,11 +360,9 @@ impl LeftRightMemPoolDB {
     ///
     /// # Examples
     /// ```
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
     ///
@@ -390,7 +383,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// });
     ///
-    /// match lrmempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///      Ok(_) => {
     ///         
     ///     },
@@ -420,11 +413,9 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB,TxnStatus};
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
     ///
@@ -446,7 +437,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// });
     ///
-    /// match lrmempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///      Ok(_) => {
     ///         
     ///     },
@@ -478,11 +469,8 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use std::collections::{HashMap, HashSet};
-    ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
     ///
@@ -503,7 +491,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// };
     ///
-    /// match lrmempooldb.add_txn(&txn) {
+    /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
     ///      Ok(_) => {
     ///         
     ///     },
@@ -511,7 +499,7 @@ impl LeftRightMemPoolDB {
     ///
     ///     }
     /// };
-    /// match lrmempooldb.remove_txn(&txn) {
+    /// match lrmempooldb.remove_txn(&txn, TxnStatus::Pending) {
     ///     Ok(_) => {
     ///         
     ///     },
@@ -522,9 +510,9 @@ impl LeftRightMemPoolDB {
     ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn(&mut self, txn: &Txn) -> Result<()> {
+    pub fn remove_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
         self.write
-            .append(MempoolOp::Remove(TxnRecord::new(txn), TxnStatus::Pending))
+            .append(MempoolOp::Remove(TxnRecord::new(txn), status))
             .publish();
         Ok(())
     }
@@ -535,13 +523,11 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::{HashMap, HashSet};
     ///
     /// use std::collections::{HashMap, HashSet};
     ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -561,7 +547,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// });
     ///
-    /// match lrmempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///      Ok(_) => {
     ///         
     ///     },
@@ -570,7 +556,7 @@ impl LeftRightMemPoolDB {
     ///     }
     /// };
     ///
-    /// match lrmempooldb.remove_txn_batch(&txns) {
+    /// match lrmempooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {},
     ///     Err(_) => {},
     /// };
@@ -629,11 +615,9 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use std::collections::{HashMap, HashSet};
     ///
-    /// use mempool::mempool::LeftRightMemPoolDB;
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
     /// use std::collections::{HashSet, HashMap};
     ///
@@ -655,7 +639,7 @@ impl LeftRightMemPoolDB {
     ///     nonce: 0,
     /// });
     ///
-    /// match lrmempooldb.add_txn_batch(&txns) {
+    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {
     ///         
     ///     },
