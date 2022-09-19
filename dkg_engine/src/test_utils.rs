@@ -1,19 +1,25 @@
-use crate::types::DkgState;
-use crate::types::{config::ThresholdConfig, DkgEngine};
-use commands::command::Command;
-use hbbft::crypto::serde_impl::SerdeSecret;
-use hbbft::crypto::{PublicKey, SecretKey};
-use messages::packet::Packet;
-use node::handler::{CommandHandler, MessageHandler};
-use node::node::NodeType;
-use std::sync::mpsc::channel;
-use std::sync::Arc;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    sync::RwLock,
+    sync::{mpsc::channel, Arc, RwLock},
+};
+
+use commands::command::Command;
+use hbbft::{
+    crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
+    sync_key_gen::Ack,
+};
+use messages::packet::Packet;
+use node::{
+    handler::{CommandHandler, MessageHandler},
+    node::NodeType,
 };
 use tokio::sync::mpsc::unbounded_channel;
 use udp2p::protocol::protocol::Message;
+
+use crate::{
+    dkg::DkgGenerator,
+    types::{config::ThresholdConfig, DkgEngine, DkgResult, DkgState},
+};
 
 pub fn valid_threshold_config() -> ThresholdConfig {
     ThresholdConfig {
@@ -45,13 +51,15 @@ pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16,
     (sec_keys, pub_keys)
 }
 
-/// It generates a DKG engine with a random secret key, a set of public keys, and a command handler
+/// It generates a DKG engine with a random secret key, a set of public keys,
+/// and a command handler
 ///
 /// Arguments:
 ///
 /// * `node_idx`: The index of the node in the network.
 /// * `total_nodes`: The total number of nodes in the network.
-/// * `node_type`: NodeType - This is the type of node that we want to generate. We can choose from the
+/// * `node_type`: NodeType - This is the type of node that we want to generate.
+///   We can choose from the
 /// following:
 ///
 /// Returns:
@@ -86,14 +94,15 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
                 secret_key_share: None,
                 sync_key_gen: None,
                 random_number_gen: None,
-                secret_key: secret_key,
+                secret_key,
             },
         });
     }
     dkg_instances
 }
 
-/// It creates a bunch of channels and returns a `CommandHandler` struct that contains all of them
+/// It creates a bunch of channels and returns a `CommandHandler` struct that
+/// contains all of them
 ///
 /// Returns:
 ///
@@ -108,12 +117,109 @@ fn generate_command_handler() -> CommandHandler {
     let (_sn, rx) = unbounded_channel::<Command>();
 
     CommandHandler {
-        to_mining_sender: to_mining_sender,
-        to_blockchain_sender: to_blockchain_sender,
-        to_gossip_sender: to_gossip_sender,
-        to_swarm_sender: to_swarm_sender,
-        to_state_sender: to_state_sender,
-        to_gossip_tx: to_gossip_tx,
+        to_mining_sender,
+        to_blockchain_sender,
+        to_gossip_sender,
+        to_swarm_sender,
+        to_state_sender,
+        to_gossip_tx,
         receiver: rx,
     }
+}
+
+pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
+    let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
+    let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
+    let mut dkg_engine_node2 = dkg_engines.pop().unwrap();
+    let mut dkg_engine_node1 = dkg_engines.pop().unwrap();
+
+    let part_committment_node1 = dkg_engine_node1.generate_sync_keygen_instance(1).unwrap();
+    let part_committment_node2 = dkg_engine_node2.generate_sync_keygen_instance(1).unwrap();
+    let part_committment_node3 = dkg_engine_node3.generate_sync_keygen_instance(1).unwrap();
+    let part_committment_node4 = dkg_engine_node4.generate_sync_keygen_instance(1).unwrap();
+
+    let part_committment_tuples = vec![
+        part_committment_node1,
+        part_committment_node2,
+        part_committment_node3,
+        part_committment_node4,
+    ];
+
+    for part_commitment in part_committment_tuples.iter() {
+        if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
+            if *node_idx as u16 != dkg_engine_node1.node_info.read().unwrap().get_node_idx() {
+                dkg_engine_node1
+                    .dkg_state
+                    .part_message_store
+                    .insert(*node_idx as u16, part.clone());
+            }
+            if *node_idx as u16 != dkg_engine_node2.node_info.read().unwrap().get_node_idx() {
+                dkg_engine_node2
+                    .dkg_state
+                    .part_message_store
+                    .insert(*node_idx as u16, part.clone());
+            }
+            if *node_idx as u16 != dkg_engine_node3.node_info.read().unwrap().get_node_idx() {
+                dkg_engine_node3
+                    .dkg_state
+                    .part_message_store
+                    .insert(*node_idx as u16, part.clone());
+            }
+            if *node_idx as u16 != dkg_engine_node4.node_info.read().unwrap().get_node_idx() {
+                dkg_engine_node4
+                    .dkg_state
+                    .part_message_store
+                    .insert(*node_idx as u16, part.clone());
+            }
+        }
+    }
+
+    // let dkg_engine_node1_acks=vec![];
+    for i in 0..4 {
+        let _ = dkg_engine_node1.ack_partial_commitment(i);
+        let _ = dkg_engine_node2.ack_partial_commitment(i);
+        let _ = dkg_engine_node3.ack_partial_commitment(i);
+        let _ = dkg_engine_node4.ack_partial_commitment(i);
+    }
+
+    let mut new_store: HashMap<(u16, u16), Ack> = HashMap::new();
+    new_store = dkg_engine_node1
+        .dkg_state
+        .ack_message_store
+        .clone()
+        .into_iter()
+        .chain(dkg_engine_node2.dkg_state.ack_message_store.clone())
+        .collect();
+    new_store = new_store
+        .into_iter()
+        .chain(dkg_engine_node3.dkg_state.ack_message_store.clone())
+        .collect();
+    new_store = new_store
+        .into_iter()
+        .chain(dkg_engine_node4.dkg_state.ack_message_store.clone())
+        .collect();
+
+    dkg_engine_node1.dkg_state.ack_message_store = new_store.clone();
+    dkg_engine_node2.dkg_state.ack_message_store = new_store.clone();
+    dkg_engine_node3.dkg_state.ack_message_store = new_store.clone();
+    dkg_engine_node4.dkg_state.ack_message_store = new_store;
+
+    for _ in 0..4 {
+        let _ = dkg_engine_node1.handle_ack_messages();
+        let _ = dkg_engine_node2.handle_ack_messages();
+        let _ = dkg_engine_node3.handle_ack_messages();
+        let _ = dkg_engine_node4.handle_ack_messages();
+    }
+    let _ = dkg_engine_node1.generate_key_sets();
+    let _ = dkg_engine_node2.generate_key_sets();
+    let _ = dkg_engine_node3.generate_key_sets();
+    let _ = dkg_engine_node4.generate_key_sets();
+
+    return vec![
+        dkg_engine_node1,
+        dkg_engine_node2,
+        dkg_engine_node3,
+        dkg_engine_node4,
+    ];
 }

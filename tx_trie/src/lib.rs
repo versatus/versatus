@@ -1,6 +1,7 @@
+use std::{fmt::Debug, sync::Arc};
+
 use lr_trie::LeftRightTrie;
 use patriecia::{db::Database, H256};
-use std::{fmt::Debug, sync::Arc};
 
 pub struct TxTrie<D: Database> {
     trie: LeftRightTrie<D>,
@@ -17,43 +18,43 @@ impl<D: Database> TxTrie<D> {
     /// Adds a single leaf value serialized to bytes
     /// Example:
     /// ```
-    ///  use tx_trie::TxTrie;
-    ///  use std::sync::Arc;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut tx_trie = TxTrie::new(memdb);
-    ///  
-    ///  tx_trie.add(b"greetings.to_vec()".to_vec(), b"hello world".to_vec());
+    /// use patriecia::db::MemoryDB;
+    /// use tx_trie::TxTrie;
     ///
-    ///  assert_eq!(tx_trie.len(), 1);
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut tx_trie = TxTrie::new(memdb);
+    ///
+    /// tx_trie.add(b"greetings.to_vec()".to_vec(), b"hello world".to_vec());
+    ///
+    /// assert_eq!(tx_trie.len(), 1);
     /// ```
-    ///
     pub fn add(&mut self, key: Vec<u8>, value: Vec<u8>) {
         self.trie.add(key, value);
     }
 
-    /// Extends the tx trie with the provided iterator over leaf values as bytes.
-    /// Example:
+    /// Extends the tx trie with the provided iterator over leaf values as
+    /// bytes. Example:
     /// ```
-    ///  use tx_trie::TxTrie;
-    ///  use std::sync::Arc;
-    ///  use lr_trie::Bytes;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut tx_trie = TxTrie::new(memdb);
+    /// use lr_trie::Bytes;
+    /// use patriecia::db::MemoryDB;
+    /// use tx_trie::TxTrie;
     ///
-    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
-    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
-    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
-    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
-    ///  ];
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut tx_trie = TxTrie::new(memdb);
     ///
-    ///  tx_trie.extend(vals);
-    ///  assert_eq!(tx_trie.len(), 2);
+    /// let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///     (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///     (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
+    /// ];
+    ///
+    /// tx_trie.extend(vals);
+    /// assert_eq!(tx_trie.len(), 2);
     /// ```
-    ///
     pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.trie.extend(values);
     }
@@ -61,29 +62,29 @@ impl<D: Database> TxTrie<D> {
     /// Returns the trie's Merkle root.
     /// Example:
     /// ```
-    ///  use tx_trie::TxTrie;
-    ///  use std::sync::Arc;
-    ///  use lr_trie::Bytes;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut tx_trie_a = TxTrie::new(memdb);
+    /// use lr_trie::Bytes;
+    /// use patriecia::db::MemoryDB;
+    /// use tx_trie::TxTrie;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut tx_trie_b = TxTrie::new(memdb);
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut tx_trie_a = TxTrie::new(memdb);
     ///
-    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
-    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
-    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
-    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
-    ///  ];
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut tx_trie_b = TxTrie::new(memdb);
     ///
-    ///  tx_trie_a.extend(vals.clone());
-    ///  tx_trie_b.extend(vals.clone());
+    /// let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///     (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///     (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
+    /// ];
     ///
-    ///  assert_eq!(tx_trie_a.root(), tx_trie_b.root());
+    /// tx_trie_a.extend(vals.clone());
+    /// tx_trie_b.extend(vals.clone());
+    ///
+    /// assert_eq!(tx_trie_a.root(), tx_trie_b.root());
     /// ```
-    ///
     pub fn root(&self) -> Option<H256> {
         self.trie.root()
     }
@@ -91,25 +92,25 @@ impl<D: Database> TxTrie<D> {
     /// Returns the count of leaves in the tx trie.
     /// Example:
     /// ```
-    ///  use tx_trie::TxTrie;
-    ///  use std::sync::Arc;
-    ///  use lr_trie::Bytes;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut tx_trie = TxTrie::new(memdb);
+    /// use lr_trie::Bytes;
+    /// use patriecia::db::MemoryDB;
+    /// use tx_trie::TxTrie;
     ///
-    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
-    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
-    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
-    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
-    ///  ];
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut tx_trie = TxTrie::new(memdb);
     ///
-    ///  tx_trie.extend(vals);
+    /// let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///     (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///     (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
+    /// ];
     ///
-    ///  assert_eq!(tx_trie.len(), 2);
+    /// tx_trie.extend(vals);
+    ///
+    /// assert_eq!(tx_trie.len(), 2);
     /// ```
-    ///
     pub fn len(&self) -> usize {
         self.trie.len()
     }
@@ -117,16 +118,16 @@ impl<D: Database> TxTrie<D> {
     /// Returns true if there are no values in the trie.
     /// Example:
     /// ```
-    ///  use tx_trie::TxTrie;
-    ///  use patriecia::db::MemoryDB;
-    ///  use std::sync::Arc;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut tx_trie = TxTrie::new(memdb);
+    /// use patriecia::db::MemoryDB;
+    /// use tx_trie::TxTrie;
     ///
-    ///  assert_eq!(tx_trie.len(), 0);
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut tx_trie = TxTrie::new(memdb);
+    ///
+    /// assert_eq!(tx_trie.len(), 0);
     /// ```
-    ///
     pub fn is_empty(&self) -> bool {
         self.trie.len() == 0
     }
@@ -155,9 +156,11 @@ impl<D: Database> Debug for TxTrie<D> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use patriecia::db::MemoryDB;
     use std::sync::Arc;
+
+    use patriecia::db::MemoryDB;
+
+    use super::*;
 
     #[test]
     fn new_creates_default_empty_trie() {

@@ -1,10 +1,29 @@
+[package]
+name = "vrrb"
+description = "Rust implementation of VRRB"
+version = "0.1.0"
+authors = ["VRRB Labs <info@vrrb.io>"]
+edition = "2021"
+readme = "README.md"
+
 [profile.release]
 opt-level = 3
 lto = "fat"
 
+[[bin]]
+name = "vrrb"
+path = "cli/src/main.rs"
+
+[dependencies]
+tokio = { version = "1.21.0", features = ["full"] }
+telemetry = { path = "telemetry" }
+cli = { path = "cli" }
+anyhow = "1.0.64"
+
 [workspace]
 members = [
     "primitives",
+    "cli",
     "block",
     "blockchain",
     "claim",
@@ -22,7 +41,9 @@ members = [
     "vrrb_gui",
     "vrrb_vrf",
     "network",
-    "node",
+    "node/runtime",
+    "node/core",
+    "storage",
     "verifiable",
     "ledger",
     "accountable",
@@ -34,5 +55,7 @@ members = [
     "lrdb",
     "lr_trie",
     "tx_trie",
- "dkg_engine"
+    "dkg_engine",
+    "telemetry",
+    "signer",
 ]

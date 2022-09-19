@@ -1,4 +1,5 @@
-/// Some basic utility functions (a decay calculator for the now deprecated monetary policy and a restore db function that can take in a path
+/// Some basic utility functions (a decay calculator for the now deprecated
+/// monetary policy and a restore db function that can take in a path
 /// to a db file and restore a PickleDB)
 //TODO: Replace PickleDB with LR DB
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};

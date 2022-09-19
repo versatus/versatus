@@ -1,4 +1,13 @@
 #![allow(unused_imports, dead_code)]
+use std::{
+    collections::HashMap,
+    fmt,
+    hash::{Hash, Hasher},
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 /// This module contains the basic structure of simple transaction
 use accountable::accountable::Accountable;
 use bytebuffer::ByteBuffer;
@@ -7,16 +16,8 @@ use secp256k1::{Message, PublicKey, Secp256k1, Signature};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 use state::state::NetworkState;
-use std::collections::HashMap;
-use std::fmt;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 use verifiable::verifiable::Verifiable;
-use std::{
-    hash::{Hash,Hasher}
-};
 
 /// A simple custom error type
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,9 +27,9 @@ pub struct InvalidTxnError {
 
 /// The basic transation structure.
 //TODO: Discuss the pieces of the Transaction structure that should stay and go
-//TODO: Discuss how to best package this to minimize the size of it/compress it 
+//TODO: Discuss how to best package this to minimize the size of it/compress it
 //TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
-//signature of validators in. 
+//signature of validators in.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Txn {
     pub txn_id: String,
@@ -92,18 +93,20 @@ impl Accountable for Txn {
     fn payable(&self) -> Option<String> {
         Some(self.sender_address.clone())
     }
+
     fn get_amount(&self) -> u128 {
         self.txn_amount
     }
+
     fn get_category(&self) -> Option<Self::Category> {
         None
     }
 }
 
 impl Verifiable for Txn {
-    type Item = Option<String>;
     type Dependencies = (NetworkState, Pool<String, Txn>);
     type Error = InvalidTxnError;
+    type Item = Option<String>;
 
     fn verifiable(&self) -> bool {
         true
@@ -182,15 +185,15 @@ impl Hash for Txn {
 
 impl PartialEq for Txn {
     fn eq(&self, other: &Self) -> bool {
-        self.txn_id == other.txn_id &&
-        self.txn_timestamp == other.txn_timestamp &&
-        self.sender_address == other.sender_address &&
-        self.sender_public_key == other.sender_public_key &&
-        self.receiver_address == other.receiver_address &&
-        self.txn_token == other.txn_token &&
-        self.txn_amount == other.txn_amount &&
-        self.txn_signature == other.txn_signature &&
-        self.nonce == other.nonce
+        self.txn_id == other.txn_id
+            && self.txn_timestamp == other.txn_timestamp
+            && self.sender_address == other.sender_address
+            && self.sender_public_key == other.sender_public_key
+            && self.receiver_address == other.receiver_address
+            && self.txn_token == other.txn_token
+            && self.txn_amount == other.txn_amount
+            && self.txn_signature == other.txn_signature
+            && self.nonce == other.nonce
     }
 }
 

@@ -1,13 +1,14 @@
 pub mod error;
 
 use error::StateTrieError;
+use std::{fmt::Debug, sync::Arc};
+
 use keccak_hash::H256;
 use left_right::{ReadHandle, ReadHandleFactory};
 use lr_trie::LeftRightTrie;
 use lrdb::Account;
 use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
 use std::result::Result as StdResult;
-use std::{fmt::Debug, sync::Arc};
 type Result<T> = StdResult<T, StateTrieError>;
 
 pub struct StateTrie<D: Database> {
@@ -33,14 +34,13 @@ where
                     Ok(account) => return Ok(account.clone()),
                     Err(err) => {
                         return Err(StateTrieError::FailedToDeserializeValue(bytes.clone()))
-                    }
+                    },
                 },
                 None => Err(StateTrieError::NoValueForKey),
             },
             Err(err) => return Err(StateTrieError::FailedToGetValueForKey(key, err)),
         }
     }
-
 }
 
 impl<D: Database> StateTrie<D> {
@@ -58,18 +58,17 @@ impl<D: Database> StateTrie<D> {
     /// Adds a single leaf value serialized to bytes
     /// Example:
     /// ```
-    ///  use state_trie::StateTrie;
-    ///  use std::sync::Arc;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///  
     ///  state_trie.add(b"greetings.to_vec()".to_vec(), Account::new()).unwrap();
     ///
-    ///  assert_eq!(state_trie.len(), 1);
-    /// ```
+    /// state_trie.add(b"greetings.to_vec()".to_vec(), b"hello world".to_vec());
     ///
+    /// assert_eq!(state_trie.len(), 1);
+    /// ```
     // TODO: Maybe it would be good idea to have both this and `trie.add` return value
     // Add tests to err
     pub fn add(&mut self, key: Vec<u8>, account: Account) -> Result<()> {
@@ -77,32 +76,32 @@ impl<D: Database> StateTrie<D> {
             Ok(serialized) => {
                 self.trie.add(key, serialized);
                 return Ok(());
-            }
+            },
             Err(_) => return Err(StateTrieError::FailedToSerializeAccount(account)),
         }
     }
 
-    /// Extends the state trie with the provided iterator over leaf values as bytes.
-    /// Example:
+    /// Extends the state trie with the provided iterator over leaf values as
+    /// bytes. Example:
     /// ```
-    ///  use state_trie::StateTrie;
-    ///  use std::sync::Arc;
-    ///  use lr_trie::Bytes;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut state_trie = StateTrie::new(memdb);
+    /// use lr_trie::Bytes;
+    /// use patriecia::db::MemoryDB;
+    /// use state_trie::StateTrie;
     ///
-    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
-    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
-    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
-    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
-    ///  ];
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie = StateTrie::new(memdb);
     ///
-    ///  state_trie.extend(vals);
-    ///  assert_eq!(state_trie.len(), 2);
+    /// let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///     (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///     (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
+    /// ];
+    ///
+    /// state_trie.extend(vals);
+    /// assert_eq!(state_trie.len(), 2);
     /// ```
-    ///
     pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.trie.extend(values);
     }
@@ -110,29 +109,29 @@ impl<D: Database> StateTrie<D> {
     /// Returns the trie's Merkle root.
     /// Example:
     /// ```
-    ///  use state_trie::StateTrie;
-    ///  use std::sync::Arc;
-    ///  use lr_trie::Bytes;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut state_trie_a = StateTrie::new(memdb);
+    /// use lr_trie::Bytes;
+    /// use patriecia::db::MemoryDB;
+    /// use state_trie::StateTrie;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut state_trie_b = StateTrie::new(memdb);
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie_a = StateTrie::new(memdb);
     ///
-    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
-    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
-    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
-    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
-    ///  ];
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie_b = StateTrie::new(memdb);
     ///
-    ///  state_trie_a.extend(vals.clone());
-    ///  state_trie_b.extend(vals.clone());
+    /// let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///     (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///     (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
+    /// ];
     ///
-    ///  assert_eq!(state_trie_a.root(), state_trie_b.root());
+    /// state_trie_a.extend(vals.clone());
+    /// state_trie_b.extend(vals.clone());
+    ///
+    /// assert_eq!(state_trie_a.root(), state_trie_b.root());
     /// ```
-    ///
     pub fn root(&self) -> Option<H256> {
         self.trie.root()
     }
@@ -140,25 +139,25 @@ impl<D: Database> StateTrie<D> {
     /// Returns the count of leaves in the state trie.
     /// Example:
     /// ```
-    ///  use state_trie::StateTrie;
-    ///  use std::sync::Arc;
-    ///  use lr_trie::Bytes;
-    ///  use patriecia::db::MemoryDB;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut state_trie = StateTrie::new(memdb);
+    /// use lr_trie::Bytes;
+    /// use patriecia::db::MemoryDB;
+    /// use state_trie::StateTrie;
     ///
-    ///  let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
-    ///      (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
-    ///      (b"hijkl".to_vec(), b"hijkl".to_vec()),
-    ///      (b"mnopq".to_vec(), b"mnopq".to_vec()),
-    ///  ];
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie = StateTrie::new(memdb);
     ///
-    ///  state_trie.extend(vals);
+    /// let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
+    ///     (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
+    ///     (b"hijkl".to_vec(), b"hijkl".to_vec()),
+    ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
+    /// ];
     ///
-    ///  assert_eq!(state_trie.len(), 2);
+    /// state_trie.extend(vals);
+    ///
+    /// assert_eq!(state_trie.len(), 2);
     /// ```
-    ///
     pub fn len(&self) -> usize {
         self.trie.len()
     }
@@ -166,16 +165,16 @@ impl<D: Database> StateTrie<D> {
     /// Returns true if there are no values in the trie.
     /// Example:
     /// ```
-    ///  use state_trie::StateTrie;
-    ///  use patriecia::db::MemoryDB;
-    ///  use std::sync::Arc;
+    /// use std::sync::Arc;
     ///
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut state_trie = StateTrie::new(memdb);
+    /// use patriecia::db::MemoryDB;
+    /// use state_trie::StateTrie;
     ///
-    ///  assert_eq!(state_trie.len(), 0);
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie = StateTrie::new(memdb);
+    ///
+    /// assert_eq!(state_trie.len(), 0);
     /// ```
-    ///
     pub fn is_empty(&self) -> bool {
         self.trie.len() == 0
     }
@@ -197,9 +196,11 @@ impl<D: Database> Debug for StateTrie<D> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use patriecia::db::MemoryDB;
     use std::sync::Arc;
+
+    use patriecia::db::MemoryDB;
+
+    use super::*;
 
     #[test]
     fn new_creates_default_empty_trie() {

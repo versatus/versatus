@@ -1,10 +1,20 @@
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
-/// This module is for the creation and operation of a mining unit within a node in the network
-/// The miner is the primary way that data replication across all nodes occur
-/// The mining of blocks can be thought of as incremental checkpoints in the state.
+use std::{
+    collections::HashMap,
+    error::Error,
+    fmt,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+/// This module is for the creation and operation of a mining unit within a node
+/// in the network The miner is the primary way that data replication across all
+/// nodes occur The mining of blocks can be thought of as incremental
+/// checkpoints in the state.
 use block::block::Block;
 use block::header::BlockHeader;
 use claim::claim::Claim;
+use claim::claim::Claim;
+use noncing::nonceable::Nonceable;
 use noncing::nonceable::Nonceable;
 use pool::pool::{Pool, PoolKind};
 use reward::reward::RewardState;
@@ -45,9 +55,10 @@ pub struct Miner {
     /// as a potential miner, and be elected as a miner in the event their
     /// claim returns the lowest pointer sum for a given block seed.
     pub claim: Claim,
-    /// A simple status boolean to inform the local system whether the local mining unit
-    /// is mining or dealing with a state update or some other blocking operation that would
-    /// prevent them from being able to mine a block
+    /// A simple status boolean to inform the local system whether the local
+    /// mining unit is mining or dealing with a state update or some other
+    /// blocking operation that would prevent them from being able to mine a
+    /// block
     //TODO: Replace with `MinerStatus` to allow for custom `impl` for different states
     pub mining: bool,
     /// A map of all the claims in the network
@@ -62,10 +73,11 @@ pub struct Miner {
     //TODO: Replace with left-right claim pool for more efficient maintenance,
     // validation and calculation.
     pub claim_pool: Pool<String, Claim>,
-    /// The most recent block mined, confirmed and propogated throughout the network
+    /// The most recent block mined, confirmed and propogated throughout the
+    /// network
     pub last_block: Option<Block>,
-    /// The reward state (previous monetary policy), to track which reward categories are
-    /// still available for production
+    /// The reward state (previous monetary policy), to track which reward
+    /// categories are still available for production
     //TODO: Eliminate and replace with provable current reward amount data
     pub reward_state: RewardState,
     /// The current state of the network
@@ -80,21 +92,26 @@ pub struct Miner {
     /// The total number of miners in the network
     //TODO: Discuss whether this is needed or not
     pub n_miners: u128,
-    /// A simple boolean field to denote whether the miner has been initialized or not
+    /// A simple boolean field to denote whether the miner has been initialized
+    /// or not
     pub init: bool,
-    /// An ordered map containing claims that were entitled to mine but took too long
+    /// An ordered map containing claims that were entitled to mine but took too
+    /// long
     pub abandoned_claim_counter: LinkedHashMap<String, Claim>,
-    /// The claim of the most recent entitled miner in the event that they took too long to propose a block
+    /// The claim of the most recent entitled miner in the event that they took
+    /// too long to propose a block
     //TODO: Discuss a better way to do this, and need to be able to include more than one claim.
     pub abandoned_claim: Option<Claim>,
-    /// The secret key of the miner, used to sign blocks they propose to prove that the block was indeed proposed
-    /// by the miner with the claim entitled to mine the given block at the given block height
+    /// The secret key of the miner, used to sign blocks they propose to prove
+    /// that the block was indeed proposed by the miner with the claim
+    /// entitled to mine the given block at the given block height
     secret_key: String,
 }
 
 impl Miner {
     /// Returns a miner that can be initialized later
-    //TODO: Replace `start` with `new`, since this method does not actually "start" the miner
+    //TODO: Replace `start` with `new`, since this method does not actually "start"
+    // the miner
     pub fn start(
         secret_key: String,
         pubkey: String,
@@ -124,13 +141,15 @@ impl Miner {
         miner
     }
 
-    /// Calculates the pointer sums and returns the lowest for a given block seed.
+    /// Calculates the pointer sums and returns the lowest for a given block
+    /// seed.
     pub fn get_lowest_pointer(&mut self, block_seed: u128) -> Option<(String, u128)> {
         // Clones the local claim map for use in the algorithm
         let claim_map = self.claim_map.clone();
 
         // Calculates the pointers for every claim, for the given block seed, in the map
-        // and collects them into a vector of tuples containing the claim hash and the pointer sum
+        // and collects them into a vector of tuples containing the claim hash and the
+        // pointer sum
         let mut pointers = claim_map
             .iter()
             .map(|(_, claim)| return (claim.clone().hash, claim.clone().get_pointer(block_seed)))
@@ -160,7 +179,8 @@ impl Miner {
         }
     }
 
-    /// Checks if the hash of the claim with the lowest pointer sum is the local claim.
+    /// Checks if the hash of the claim with the lowest pointer sum is the local
+    /// claim.
     pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
         if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
             return Ok(hash == self.clone().claim.hash);
@@ -222,10 +242,10 @@ impl Miner {
         self.claim_map = new_claim_map;
     }
 
-
     /// Checks if the transaction has been confirmed
-    //TODO: Either eliminate and replace, each miner should retain only transactions that have
-    // be pre-validated i.e. they should only have the "confirmed side" of the Mempool.
+    //TODO: Either eliminate and replace, each miner should retain only
+    // transactions that have be pre-validated i.e. they should only have the
+    // "confirmed side" of the Mempool.
     pub fn check_confirmed(&mut self, txn_id: String) {
         let mut validators = {
             if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
@@ -244,8 +264,9 @@ impl Miner {
     }
 
     /// Checks if the transaction has been rejected
-    //TODO: Either eliminate and replace. Each miner should retain only transactions that have bee
-    // pre-validated, i.e. they should only have the "confirmed side" of the Mempool
+    //TODO: Either eliminate and replace. Each miner should retain only
+    // transactions that have bee pre-validated, i.e. they should only have the
+    // "confirmed side" of the Mempool
     pub fn check_rejected(&self, txn_id: String) -> Option<Vec<String>> {
         let mut validators = {
             if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
@@ -279,7 +300,8 @@ impl Miner {
         }
     }
 
-    /// Checks how much time has passed since the entitled miner has not proposed a block
+    /// Checks how much time has passed since the entitled miner has not
+    /// proposed a block
     pub fn check_time_elapsed(&self) -> u128 {
         let timestamp = self.get_timestamp();
         if let Some(time) = timestamp.checked_sub(self.current_nonce_timer) {
@@ -297,7 +319,8 @@ impl Miner {
             .as_nanos()
     }
 
-    /// Abandons the claim of a miner that fails to proppose a block in the proper amount of time.
+    /// Abandons the claim of a miner that fails to proppose a block in the
+    /// proper amount of time.
     pub fn abandoned_claim(&mut self, hash: String) {
         self.claim_map.retain(|_, v| v.hash != hash);
         let timestamp = SystemTime::now()
@@ -349,14 +372,16 @@ impl Miner {
     }
 }
 
-/// Required for `NoLowestPointerError` to be able to be used as an Error type in the Result enum
+/// Required for `NoLowestPointerError` to be able to be used as an Error type
+/// in the Result enum
 impl fmt::Display for NoLowestPointerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-/// Required for `NoLowestPointerError` to be able to be used as an Error type in the Result enum
+/// Required for `NoLowestPointerError` to be able to be used as an Error type
+/// in the Result enum
 impl Error for NoLowestPointerError {
     fn description(&self) -> &str {
         &self.0

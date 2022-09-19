@@ -1,6 +1,5 @@
 pub mod ev_mem_pool;
 
-
 #[cfg(test)]
 mod tests {
     #[test]

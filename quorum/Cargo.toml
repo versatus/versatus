@@ -9,11 +9,12 @@ edition = "2021"
 block = { path = "../block" }
 vrrb_vrf = { path = "../vrrb_vrf" }
 rand_chacha = "0.3.1"
-claim = {path = "../claim"}
-node = {path = "../node"}
-secp256k1 = {version = "0.20.2", features = ["rand"]}
+
+claim = { path = "../claim" }
+node = { path = "../node/core" }
+secp256k1 = { version = "0.20.2", features = ["rand"] }
 thiserror = "1.0.33"
-rand = {version = "0.6", features = ["std"]}
+rand = { version = "0.6", features = ["std"] }
 sha256 = "1.0.2"
 format-bytes = "0.3.0"
-
+thread_local = "1.1.4"

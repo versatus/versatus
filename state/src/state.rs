@@ -1,16 +1,18 @@
 //FEATURE TAG(S): Left-Right Database, Left-Right State Trie
-/// This module contains the Network State struct (which will be replaced with the Left-Right State Trie)
+use std::fs;
+
+/// This module contains the Network State struct (which will be replaced with
+/// the Left-Right State Trie)
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use ledger::ledger::Ledger;
 use log::info;
+use noncing::nonceable::Nonceable;
 use ownable::ownable::Ownable;
+use reward::reward::{Reward, RewardState};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
-use std::fs;
-use noncing::nonceable::Nonceable;
-use reward::reward::{RewardState, Reward};
 
 type StateGenesisBlock = Option<Vec<u8>>;
 type StateChildBlock = Option<Vec<u8>>;
@@ -41,8 +43,8 @@ pub struct Components {
     pub archive: StateArchive,
 }
 
-/// The Network State struct, contains basic information required to determine the
-/// current state of the network. 
+/// The Network State struct, contains basic information required to determine
+/// the current state of the network.
 //TODO: Replace `ledger`, `credits`, `debits`, with LR State Trie
 //TODO: Replace `state_hash` with LR State Trie Root.
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,7 +64,8 @@ pub struct NetworkState {
 }
 
 impl<'de> NetworkState {
-    /// Restores the network state from a serialized hex string representation and returns a proper struct
+    /// Restores the network state from a serialized hex string representation
+    /// and returns a proper struct
     pub fn restore(path: &str) -> NetworkState {
         let hex_string = {
             if let Ok(string) = fs::read_to_string(path) {
@@ -75,10 +78,10 @@ impl<'de> NetworkState {
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
                 network_state.dump_to_file();
-                return network_state
+                return network_state;
             }
         }
-        
+
         let network_state = NetworkState {
             path: path.to_string(),
             ledger: vec![],
@@ -87,20 +90,20 @@ impl<'de> NetworkState {
             reward_state: None,
             state_hash: None,
         };
-        
+
         network_state.dump_to_file();
-        
+
         network_state
     }
 
-    /// Dumps a new ledger (serialized in a vector of bytes) to a file. 
+    /// Dumps a new ledger (serialized in a vector of bytes) to a file.
     pub fn set_ledger(&mut self, ledger_bytes: LedgerBytes) {
         self.ledger = ledger_bytes;
         self.dump_to_file();
     }
 
-    /// Sets a new `RewardState` to the `reward_state` filed in the `NetworkState` and dumps
-    /// the resulting new state to the file
+    /// Sets a new `RewardState` to the `reward_state` filed in the
+    /// `NetworkState` and dumps the resulting new state to the file
     pub fn set_reward_state(&mut self, reward_state: RewardState) {
         self.reward_state = Some(reward_state);
         self.dump_to_file();
@@ -167,7 +170,8 @@ impl<'de> NetworkState {
         }
     }
 
-    /// Hashes the current credits, debits and reward state and returns a new `StateHash`
+    /// Hashes the current credits, debits and reward state and returns a new
+    /// `StateHash`
     pub fn hash<A: Accountable, R: Accountable>(
         &mut self,
         txns: &LinkedHashMap<String, A>,
@@ -217,17 +221,12 @@ impl<'de> NetworkState {
 
         ledger.claims.insert(miner_claim.get_pubkey(), miner_claim);
 
-
-        if let Some(entry) = ledger
-            .credits
-            .get_mut(&reward.receivable())
-        {
+        if let Some(entry) = ledger.credits.get_mut(&reward.receivable()) {
             *entry += reward.get_amount();
         } else {
-            ledger.credits.insert(
-                reward.receivable(),
-                reward.get_amount(),
-            );
+            ledger
+                .credits
+                .insert(reward.receivable(), reward.get_amount());
         }
 
         self.update_reward_state(reward.clone());
@@ -245,7 +244,7 @@ impl<'de> NetworkState {
     // TODO: refactor to handle NetworkState nonce_up() a different way, since
     // closure requires explicit types and explicit type specification would
     // lead to cyclical dependencies.
-    /// nonces all claims in the ledger up one. 
+    /// nonces all claims in the ledger up one.
     pub fn nonce_up(&mut self) {
         let mut new_claim_map: LinkedHashMap<String, Claim> = LinkedHashMap::new();
         let claims: LinkedHashMap<String, Claim> = self.get_claims().clone();
@@ -268,23 +267,28 @@ impl<'de> NetworkState {
         self.dump_to_file();
     }
 
-    /// Restors the ledger from a hex string representation stored in a file to a proper ledger
+    /// Restors the ledger from a hex string representation stored in a file to
+    /// a proper ledger
     pub fn restore_ledger(&self) -> Ledger<Claim> {
         let network_state_hex = fs::read_to_string(self.path.clone()).unwrap();
         let bytes = hex::decode(network_state_hex);
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
-                return Ledger::from_bytes(network_state.ledger.clone())
+                return Ledger::from_bytes(network_state.ledger.clone());
             } else {
-                return Ledger::new()
+                return Ledger::new();
             }
         } else {
-            return Ledger::new()
+            return Ledger::new();
         }
     }
 
-    /// Updates the credit and debit hashes in the network state. 
-    pub fn update_credits_and_debits<A: Accountable>(&mut self, txns: &LinkedHashMap<String, A>, reward: Reward) {
+    /// Updates the credit and debit hashes in the network state.
+    pub fn update_credits_and_debits<A: Accountable>(
+        &mut self,
+        txns: &LinkedHashMap<String, A>,
+        reward: Reward,
+    ) {
         let chs = self.clone().credit_hash(txns, reward);
         let dhs = self.clone().debit_hash(txns);
         self.credits = Some(chs);
@@ -301,24 +305,30 @@ impl<'de> NetworkState {
         }
     }
 
-    /// Updates the state hash 
+    /// Updates the state hash
     pub fn update_state_hash(&mut self, hash: &StateHash) {
         self.state_hash = Some(hash.clone());
     }
 
     /// Returns the credits from the ledger
     pub fn get_credits(&self) -> LinkedHashMap<String, u128> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone()).credits.clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone())
+            .credits
+            .clone()
     }
 
     /// Returns the debits from the ledger
     pub fn get_debits(&self) -> LinkedHashMap<String, u128> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone()).debits.clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone())
+            .debits
+            .clone()
     }
 
     /// Returns the claims from the ledger
     pub fn get_claims(&self) -> LinkedHashMap<String, Claim> {
-        Ledger::<Claim>::from_bytes(self.ledger.clone()).claims.clone()
+        Ledger::<Claim>::from_bytes(self.ledger.clone())
+            .claims
+            .clone()
     }
 
     /// Returns the `RewardState` from the `NewtorkState`
@@ -376,7 +386,8 @@ impl<'de> NetworkState {
         }
     }
 
-    /// Slashes a claim of a miner that proposes an invalid block or spams the network 
+    /// Slashes a claim of a miner that proposes an invalid block or spams the
+    /// network
     pub fn slash_claims(&mut self, bad_validators: Vec<String>) {
         let mut ledger: Ledger<Claim> = Ledger::from_bytes(self.ledger.clone());
         bad_validators.iter().for_each(|k| {
@@ -388,24 +399,25 @@ impl<'de> NetworkState {
         self.dump_to_file()
     }
 
-    /// Dumps a hex string representation of the `NetworkState` to file. 
+    /// Dumps a hex string representation of the `NetworkState` to file.
     pub fn dump_to_file(&self) {
         if let Err(_) = fs::write(self.path.clone(), hex::encode(self.as_bytes())) {
             info!("Error dumping ledger to file");
         };
     }
 
-    /// Returns a serialized representation of the credits map as a vector of bytes 
+    /// Returns a serialized representation of the credits map as a vector of
+    /// bytes
     pub fn credits_as_bytes(credits: &LinkedHashMap<String, u128>) -> Vec<u8> {
         NetworkState::credits_to_string(credits).as_bytes().to_vec()
-    } 
-    
+    }
+
     /// Returns a serialized representation of the credits map as a string
     pub fn credits_to_string(credits: &LinkedHashMap<String, u128>) -> String {
         serde_json::to_string(credits).unwrap()
     }
 
-    /// Returns a credits map from a byte array 
+    /// Returns a credits map from a byte array
     pub fn credits_from_bytes(data: &[u8]) -> LinkedHashMap<String, u128> {
         serde_json::from_slice::<LinkedHashMap<String, u128>>(data).unwrap()
     }
@@ -420,7 +432,8 @@ impl<'de> NetworkState {
         serde_json::to_string(debits).unwrap()
     }
 
-    /// Converts a byte array representing the debits map back into the debits map
+    /// Converts a byte array representing the debits map back into the debits
+    /// map
     pub fn debits_from_bytes(data: &[u8]) -> LinkedHashMap<String, u128> {
         serde_json::from_slice::<LinkedHashMap<String, u128>>(data).unwrap()
     }
@@ -436,7 +449,9 @@ impl<'de> NetworkState {
     }
 
     /// Returns a claim map from an array of bytes
-    pub fn claims_from_bytes<C: Ownable + Deserialize<'de>>(data: &'de [u8]) -> LinkedHashMap<u128, C> {
+    pub fn claims_from_bytes<C: Ownable + Deserialize<'de>>(
+        data: &'de [u8],
+    ) -> LinkedHashMap<u128, C> {
         serde_json::from_slice::<LinkedHashMap<u128, C>>(data).unwrap()
     }
 
@@ -450,12 +465,13 @@ impl<'de> NetworkState {
         self.to_string().as_bytes().to_vec()
     }
 
-    /// Converts a vector of bytes into a Network State or returns an error if it's unable to
+    /// Converts a vector of bytes into a Network State or returns an error if
+    /// it's unable to
     pub fn from_bytes(data: Vec<u8>) -> Result<NetworkState, serde_json::error::Error> {
         serde_json::from_slice::<NetworkState>(&data.clone())
     }
 
-    /// Serializes the network state into a string 
+    /// Serializes the network state into a string
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
@@ -464,7 +480,7 @@ impl<'de> NetworkState {
     pub fn from_string(string: String) -> NetworkState {
         serde_json::from_str::<NetworkState>(&string).unwrap()
     }
-    
+
     /// creates a Ledger from the network state
     pub fn db_to_ledger(&self) -> Ledger<Claim> {
         let credits = self.get_credits();
@@ -495,12 +511,11 @@ impl Components {
         serde_json::to_string(self).unwrap()
     }
 
-    /// Deserializes the Components struct from a string. 
+    /// Deserializes the Components struct from a string.
     pub fn from_string(string: &String) -> Components {
         serde_json::from_str::<Components>(&string).unwrap()
     }
 }
-
 
 impl Clone for NetworkState {
     fn clone(&self) -> NetworkState {
