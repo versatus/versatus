@@ -45,3 +45,7 @@ network = { path = "../../network" }
 messages = { path = "../../messages" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
 tracing = "0.1.36"
+
+
+[features]
+node = []
