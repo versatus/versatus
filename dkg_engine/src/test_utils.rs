@@ -9,10 +9,7 @@ use hbbft::{
     sync_key_gen::Ack,
 };
 use messages::packet::Packet;
-use node::{
-    handler::{CommandHandler, MessageHandler},
-    node::NodeType,
-};
+use node::{command_handler::CommandHandler, message_handler::MessageHandler, node::NodeType};
 use tokio::sync::mpsc::unbounded_channel;
 use udp2p::protocol::protocol::Message;
 
