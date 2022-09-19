@@ -43,10 +43,8 @@ use storage::FileSystemStorage;
 use strum_macros::EnumIter;
 use telemetry::info;
 use thiserror::Error;
-use tokio::sync::{
-    mpsc::{self, UnboundedReceiver, UnboundedSender},
-    oneshot::{self, error::TryRecvError},
-};
+use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use txn::txn::Txn;
 use udp2p::{
     discovery::{kad::Kademlia, routing::RoutingTable},
@@ -67,8 +65,7 @@ use super::{blockchain::BlockchainModule, swarm::SwarmConfig};
 use crate::{
     result::{Result, RuntimeError},
     runtime::{miner::MiningModule, state::StateModule, swarm::SwarmModule},
-    RuntimeModule,
-    RuntimeModuleState,
+    RuntimeModule, RuntimeModuleState,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -84,12 +81,16 @@ pub struct RuntimeOpts {
 /// config management
 #[derive(Debug)]
 pub struct Runtime {
-    control_rx: oneshot::Receiver<primitives::StopSignal>,
+    // let (mining_sender, mining_receiver) =
+    // tokio::sync::mpsc::unbounded_channel::<Command>();
+    // control_rx: oneshot::Receiver<primitives::StopSignal>,
+    // control_rx: tokio::sync::mpsc::unbounded_channel::<Command>(),
+    control_rx: UnboundedReceiver<Command>,
     running_status: RuntimeModuleState,
 }
 
 impl Runtime {
-    pub fn new(ctrl_rx: oneshot::Receiver<StopSignal>) -> Self {
+    pub fn new(ctrl_rx: UnboundedReceiver<Command>) -> Self {
         Self {
             control_rx: ctrl_rx,
             running_status: RuntimeModuleState::Stopped,
@@ -258,6 +259,7 @@ impl Runtime {
 
         loop {
             // TODO: rethink this loop
+            //
 
             match self.control_rx.try_recv() {
                 Ok(sig) => {
@@ -265,7 +267,7 @@ impl Runtime {
                     self.teardown();
                     break;
                 },
-                Err(err) if err == TryRecvError::Closed => {
+                Err(err) if err == TryRecvError::Disconnected => {
                     telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
                     telemetry::warn!("Shutting down");
                     break;
@@ -390,38 +392,3 @@ impl Runtime {
 //     }
 // });
 //
-
-#[cfg(test)]
-mod tests {
-    use std::{path::PathBuf, rc::Rc, sync::Arc};
-
-    use node::core::NodeType;
-    use telemetry::TelemetrySubscriber;
-    use tokio::sync::oneshot;
-
-    use super::Runtime;
-    use crate::{RuntimeModuleState, RuntimeOpts};
-
-    #[tokio::test]
-    async fn node_runtime_starts_and_stops() {
-        let (ctrl_tx, ctrl_rx) = oneshot::channel();
-
-        let rt_opts = RuntimeOpts {
-            node_type: NodeType::Full,
-            data_dir: PathBuf::from("/tmp/vrrb"),
-            node_idx: 100,
-        };
-
-        let mut node_rt = Runtime::new(ctrl_rx);
-        assert_eq!(node_rt.status(), RuntimeModuleState::Stopped);
-
-        let handle = tokio::spawn(async move {
-            node_rt.start(rt_opts).await.unwrap();
-            assert_eq!(node_rt.status(), RuntimeModuleState::Stopped);
-        });
-
-        ctrl_tx.send(primitives::StopSignal).unwrap();
-
-        handle.await.unwrap();
-    }
-}

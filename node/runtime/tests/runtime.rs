@@ -1,13 +1,13 @@
 use std::{path::PathBuf, rc::Rc, sync::Arc};
 
+use commands::command::Command;
 use node::core::NodeType;
 use runtime::{Runtime, RuntimeModuleState, RuntimeOpts};
 use telemetry::TelemetrySubscriber;
-use tokio::sync::oneshot;
 
 #[tokio::test]
 async fn node_runtime_starts_and_stops() {
-    let (ctrl_tx, ctrl_rx) = oneshot::channel();
+    let (ctrl_tx, ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Command>();
 
     let rt_opts = RuntimeOpts {
         node_type: NodeType::Full,
@@ -23,7 +23,7 @@ async fn node_runtime_starts_and_stops() {
         assert_eq!(node_rt.status(), RuntimeModuleState::Stopped);
     });
 
-    ctrl_tx.send(primitives::StopSignal).unwrap();
+    ctrl_tx.send(Command::Stop).unwrap();
 
     handle.await.unwrap();
 }
