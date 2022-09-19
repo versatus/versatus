@@ -43,8 +43,7 @@ use storage::FileSystemStorage;
 use strum_macros::EnumIter;
 use telemetry::info;
 use thiserror::Error;
-use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
 use txn::txn::Txn;
 use udp2p::{
     discovery::{kad::Kademlia, routing::RoutingTable},
@@ -65,7 +64,8 @@ use super::{blockchain::BlockchainModule, swarm::SwarmConfig};
 use crate::{
     result::{Result, RuntimeError},
     runtime::{miner::MiningModule, state::StateModule, swarm::SwarmModule},
-    RuntimeModule, RuntimeModuleState,
+    RuntimeModule,
+    RuntimeModuleState,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;

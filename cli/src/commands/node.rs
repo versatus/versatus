@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use commands::command::Command;
 use node::core::NodeType;
 use runtime::RuntimeOpts;
 use tokio::sync::oneshot;
@@ -49,7 +50,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
     telemetry::info!("creating {:?}", node_type);
 
-    let (ctrl_tx, ctrl_rx) = oneshot::channel();
+    let (ctrl_tx, ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Command>();
 
     let rt_opts = RuntimeOpts {
         node_type,
