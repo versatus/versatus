@@ -4,7 +4,6 @@ use std::{
     collections::HashSet,
     hash::Hash,
     result::Result as StdResult,
-    result::Result as StdResult,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -62,7 +61,7 @@ impl Default for TxnRecord {
             txn_added_timestamp: 0,
             txn_validated_timestamp: 0,
             txn_rejected_timestamp: 0,
-            txn_deleted_timestamp: 0,,
+            txn_deleted_timestamp: 0,
         }
     }
 }
@@ -73,14 +72,14 @@ pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 pub enum TxnStatus {
     Pending,
     Validated,
-    Rejected,,
+    Rejected,
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Mempool {
     pub pending: MempoolType,
     pub validated: MempoolType,
-    pub rejected: MempoolType,,
+    pub rejected: MempoolType,
 }
 
 impl Default for Mempool {
@@ -466,11 +465,8 @@ impl LeftRightMemPoolDB {
     pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<()> {
         self.write
             .append(MempoolOp::Remove(
-                
                 TxnRecord::new_by_id(&txn_id),
-               
                 TxnStatus::Pending,
-            ,
             ))
             .publish();
         Ok(())
