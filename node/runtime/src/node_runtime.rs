@@ -44,7 +44,6 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use unicode_width::UnicodeWidthStr;
-use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
