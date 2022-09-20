@@ -1,6 +1,5 @@
 use std::{
-    env,
-    fs,
+    env, fs,
     io::{self, BufWriter},
     os,
     path::PathBuf,
@@ -52,7 +51,6 @@ pub fn get_vrrb_data_dir() -> Result<PathBuf> {
 
 // Node specific helpers
 // ============================================================================
-
 pub fn create_node_data_dir() -> io::Result<()> {
     // see if node data dir exists within vrrb data dir
     // if so, read it and return its path
@@ -62,13 +60,17 @@ pub fn create_node_data_dir() -> io::Result<()> {
     todo!();
 }
 
-pub fn get_node_data_dir() -> io::Result<()> {
+pub fn get_node_data_dir() -> Result<PathBuf> {
     // see if node data dir exists within vrrb data dir
     // if so, read it and return its path
     // else create it within vrrb's data dir
     // and populate it with the node's config and data outs
     //
-    todo!();
+    let mut vrrb_data_dir = get_vrrb_data_dir()?;
+
+    vrrb_data_dir.push("node");
+
+    Ok(vrrb_data_dir)
 }
 
 pub struct FileSystemStorage {
@@ -112,9 +114,8 @@ impl Storage for FileSystemStorage {
 
 #[cfg(test)]
 mod tests {
-    use serial_test::serial;
-
     use super::*;
+    use serial_test::serial;
 
     #[test]
     #[serial]
@@ -140,6 +141,24 @@ mod tests {
         env::set_var("VRRB_DATA_DIR_PATH", &temp_dir_path);
 
         let dir = create_vrrb_data_dir().unwrap();
+        assert_eq!(dir, temp_dir_path);
+    }
+
+    #[test]
+    #[serial]
+    fn get_node_data_dir_returns_correct_directory() {
+        env::remove_var("VRRB_DATA_DIR_PATH");
+        let dir = get_node_data_dir().unwrap();
+
+        let mut default_vrrb_data_dir = PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH);
+        default_vrrb_data_dir.push("node");
+        assert_eq!(dir, default_vrrb_data_dir);
+
+        let mut temp_dir_path = env::temp_dir();
+        env::set_var("VRRB_DATA_DIR_PATH", &temp_dir_path);
+        temp_dir_path.push("node");
+
+        let dir = get_node_data_dir().unwrap();
         assert_eq!(dir, temp_dir_path);
     }
 }
