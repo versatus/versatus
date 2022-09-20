@@ -1,15 +1,22 @@
 use std::{
+    env, fs,
     io::{self, BufWriter},
+    os,
     path::PathBuf,
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("{0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("{0}")]
     Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, StorageError>;
+
+const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";
 
 /// KV-like entity that takes care of managing vrrb's filesystem I/O
 /// creates folders and manages the file size of the files created inside
@@ -23,21 +30,36 @@ pub trait Storage {
     fn remove();
 }
 
-pub fn create_vrrb_data_dir() -> PathBuf {
-    // creates a vrrb data dir if it doesnt already exist
-    // else simply return its location
-    todo!();
+/// Creates a data dir if it doesn't exists already, otherwise it simply returns its path
+pub fn create_vrrb_data_dir() -> Result<PathBuf> {
+    let path = get_vrrb_data_dir()?;
+
+    fs::create_dir_all(&path)?;
+
+    Ok(path)
 }
 
-pub fn get_vrrb_data_dir() -> PathBuf {
-    // get vrrb data dir from:
-    // current working directory
-    // environment variables
-    // if not present return error
-    todo!();
+/// Gets the data directory path from environment variables or the default location.
+pub fn get_vrrb_data_dir() -> Result<PathBuf> {
+    let vrrb_data_dir =
+        env::var("VRRB_DATA_DIR_PATH").unwrap_or_else(|_| DEFAULT_VRRB_DATA_DIR_PATH.into());
+
+    Ok(vrrb_data_dir.into())
 }
+
+// Node specific helpers
+// ============================================================================
 
 pub fn create_node_data_dir() -> io::Result<()> {
+    // see if node data dir exists within vrrb data dir
+    // if so, read it and return its path
+    // else create it within vrrb's data dir
+    // and populate it with the node's config and data outs
+    //
+    todo!();
+}
+
+pub fn get_node_data_dir() -> io::Result<()> {
     // see if node data dir exists within vrrb data dir
     // if so, read it and return its path
     // else create it within vrrb's data dir
@@ -56,28 +78,7 @@ impl FileSystemStorage {
         Self { data_dir }
     }
 
-    pub fn init() {
-        //
-        // let directory = {
-        //     if let Some(dir) = std::env::args().nth(2) {
-        //         std::fs::create_dir_all(dir.clone())?;
-        //         dir.clone()
-        //     } else {
-        //         std::fs::create_dir_all("./.vrrb_data".to_string())?;
-        //         "./.vrrb_data".to_string()
-        //     }
-        // };
-        //
-        // let events_path = format!("{}/events_{}.json", directory.clone(),
-        // event_file_suffix); fs::File::create(events_path.clone()).
-        // unwrap(); if let Err(err) =
-        // write_to_json(events_path.clone(), VrrbNetworkEvent::VrrbStarted) {
-        //     info!("Error writting to json in main.rs 164");
-        //     telemetry::error!("{:?}", err.to_string());
-        // }
-        //
-        //
-    }
+    fn init() {}
 }
 
 impl Default for FileSystemStorage {
@@ -106,13 +107,35 @@ impl Storage for FileSystemStorage {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
-    fn get_data_dir_returns_right_dir() {
-        //
+    #[serial]
+    fn get_vrrb_data_dir_returns_correct_directory() {
+        env::remove_var("VRRB_DATA_DIR_PATH");
+        let dir = get_vrrb_data_dir().unwrap();
+        assert_eq!(dir, PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH));
+
+        let temp_dir_path = env::temp_dir();
+        env::set_var("VRRB_DATA_DIR_PATH", &temp_dir_path);
+
+        let dir = get_vrrb_data_dir().unwrap();
+        assert_eq!(dir, temp_dir_path);
+    }
+
+    #[test]
+    #[serial]
+    fn create_vrrb_data_dir_creates_dir_in_path() {
+        env::remove_var("VRRB_DATA_DIR_PATH");
+
+        let temp_dir_path = env::temp_dir();
+
+        env::set_var("VRRB_DATA_DIR_PATH", &temp_dir_path);
+
+        let dir = create_vrrb_data_dir().unwrap();
+        assert_eq!(dir, temp_dir_path);
     }
 }
