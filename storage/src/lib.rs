@@ -51,13 +51,17 @@ pub fn get_vrrb_data_dir() -> Result<PathBuf> {
 
 // Node specific helpers
 // ============================================================================
-pub fn create_node_data_dir() -> io::Result<()> {
+pub fn create_node_data_dir() -> Result<PathBuf> {
     // see if node data dir exists within vrrb data dir
     // if so, read it and return its path
     // else create it within vrrb's data dir
     // and populate it with the node's config and data outs
-    //
-    todo!();
+
+    let path = get_node_data_dir()?;
+
+    fs::create_dir_all(&path)?;
+
+    Ok(path)
 }
 
 pub fn get_node_data_dir() -> Result<PathBuf> {
@@ -159,6 +163,21 @@ mod tests {
         temp_dir_path.push("node");
 
         let dir = get_node_data_dir().unwrap();
+        assert_eq!(dir, temp_dir_path);
+    }
+
+    #[test]
+    #[serial]
+    fn create_node_data_dir_creates_dir_in_path() {
+        env::remove_var("VRRB_DATA_DIR_PATH");
+
+        let mut temp_dir_path = env::temp_dir();
+        env::set_var("VRRB_DATA_DIR_PATH", &temp_dir_path);
+
+        let dir = create_node_data_dir().unwrap();
+
+        // modify the data dir so it matches the default node path
+        temp_dir_path.push("node");
         assert_eq!(dir, temp_dir_path);
     }
 }
