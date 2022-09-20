@@ -51,6 +51,7 @@ pub fn get_vrrb_data_dir() -> Result<PathBuf> {
 
 // Node specific helpers
 // ============================================================================
+/// Initializes the node specific data directory.
 pub fn create_node_data_dir() -> Result<PathBuf> {
     // see if node data dir exists within vrrb data dir
     // if so, read it and return its path
@@ -64,6 +65,7 @@ pub fn create_node_data_dir() -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Retrieves the node's data directory path.
 pub fn get_node_data_dir() -> Result<PathBuf> {
     // see if node data dir exists within vrrb data dir
     // if so, read it and return its path
