@@ -1,5 +1,6 @@
 use std::{
-    env, fs,
+    env,
+    fs,
     io::{self, BufWriter},
     os,
     path::PathBuf,
@@ -30,7 +31,8 @@ pub trait Storage {
     fn remove();
 }
 
-/// Creates a data dir if it doesn't exists already, otherwise it simply returns its path
+/// Creates a data dir if it doesn't exists already, otherwise it simply returns
+/// its path
 pub fn create_vrrb_data_dir() -> Result<PathBuf> {
     let path = get_vrrb_data_dir()?;
 
@@ -39,7 +41,8 @@ pub fn create_vrrb_data_dir() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Gets the data directory path from environment variables or the default location.
+/// Gets the data directory path from environment variables or the default
+/// location.
 pub fn get_vrrb_data_dir() -> Result<PathBuf> {
     let vrrb_data_dir =
         env::var("VRRB_DATA_DIR_PATH").unwrap_or_else(|_| DEFAULT_VRRB_DATA_DIR_PATH.into());
@@ -109,8 +112,9 @@ impl Storage for FileSystemStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serial_test::serial;
+
+    use super::*;
 
     #[test]
     #[serial]
