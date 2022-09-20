@@ -1,5 +1,6 @@
 use std::{
-    env, fs,
+    env,
+    fs,
     io::{self, BufWriter},
     os,
     path::PathBuf,
@@ -110,8 +111,9 @@ impl Storage for FileSystemStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serial_test::serial;
+
+    use super::*;
 
     #[test]
     #[serial]

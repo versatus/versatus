@@ -45,28 +45,29 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
 
 /// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
+    let node_type = args.node_type.parse()?;
+    let data_dir = storage::get_node_data_dir()?;
+
+    let rt_opts = RuntimeOpts {
+        node_type,
+        data_dir,
+        node_idx: 100,
+    };
+
     if args.dettached {
-        run_dettached(args).await
+        run_dettached(rt_opts).await
     } else {
-        run_blocking(args).await
+        run_blocking(rt_opts).await
     }
 }
 
 #[telemetry::instrument]
-async fn run_blocking(args: RunOpts) -> Result<()> {
-    let node_type = args.node_type.parse()?;
-
-    telemetry::info!("creating {:?}", node_type);
-
+async fn run_blocking(rt_opts: RuntimeOpts) -> Result<()> {
     let (ctrl_tx, ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Command>();
 
-    let rt_opts = RuntimeOpts {
-        node_type,
-        data_dir: PathBuf::from("/tmp/vrrb"),
-        node_idx: 100,
-    };
-
     let mut node_runtime = runtime::Runtime::new(ctrl_rx);
+
+    telemetry::info!("running node in blocking mode");
 
     node_runtime.start(rt_opts).await?;
 
@@ -74,7 +75,8 @@ async fn run_blocking(args: RunOpts) -> Result<()> {
 }
 
 #[telemetry::instrument]
-async fn run_dettached(args: RunOpts) -> Result<()> {
+async fn run_dettached(rt_opts: RuntimeOpts) -> Result<()> {
     telemetry::info!("running node in dettached mode");
+    // start child process, run node within it
     Ok(())
 }

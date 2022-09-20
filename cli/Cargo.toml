@@ -16,6 +16,7 @@ runtime = { path = "../node/runtime" }
 node = { path = "../node/core" }
 telemetry = { path = "../telemetry" }
 commands = { path = "../commands" }
+storage = { path = "../storage" }
 anyhow = "1.0.64"
 tracing = "0.1.36"
 thiserror = "1.0.34"

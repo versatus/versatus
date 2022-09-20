@@ -13,6 +13,9 @@ pub enum CliError {
 
     #[error("node error: {0}")]
     Node(#[from] node::result::NodeError),
+
+    #[error("storage error: {0}")]
+    Storage(#[from] storage::StorageError),
 }
 
 pub type Result<T> = std::result::Result<T, CliError>;
