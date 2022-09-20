@@ -53,11 +53,6 @@ pub fn get_vrrb_data_dir() -> Result<PathBuf> {
 // ============================================================================
 /// Initializes the node specific data directory.
 pub fn create_node_data_dir() -> Result<PathBuf> {
-    // see if node data dir exists within vrrb data dir
-    // if so, read it and return its path
-    // else create it within vrrb's data dir
-    // and populate it with the node's config and data outs
-
     let path = get_node_data_dir()?;
 
     fs::create_dir_all(&path)?;
@@ -67,11 +62,6 @@ pub fn create_node_data_dir() -> Result<PathBuf> {
 
 /// Retrieves the node's data directory path.
 pub fn get_node_data_dir() -> Result<PathBuf> {
-    // see if node data dir exists within vrrb data dir
-    // if so, read it and return its path
-    // else create it within vrrb's data dir
-    // and populate it with the node's config and data outs
-    //
     let mut vrrb_data_dir = get_vrrb_data_dir()?;
 
     vrrb_data_dir.push("node");
