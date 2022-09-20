@@ -40,7 +40,11 @@ pub enum NodeAuth {
 
 impl NodeAuth {
     /// Serializes the NodeAuth variant it is called on into a vector of bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
-        serde_json::to_string(self).unwrap().as_bytes().to_vec()
+    pub fn as_bytes(&self) -> Result<Vec<u8>> {
+        // serde_json::to_string(self).unwrap().as_bytes().to_vec()
+        Ok(serde_json::to_string(self)
+            .map_err(|err| NodeError::Other(err.to_string()))?
+            .as_bytes()
+            .to_vec())
     }
 }
