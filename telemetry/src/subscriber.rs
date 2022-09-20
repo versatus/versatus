@@ -1,5 +1,4 @@
 use thiserror::Error;
-
 use tracing_subscriber::{
     fmt::MakeWriter,
     util::{SubscriberInitExt, TryInitError},

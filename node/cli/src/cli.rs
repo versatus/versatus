@@ -1,7 +1,8 @@
-/// Everything on this crate is tentative and meant to be a stepping stone into the finalized
-/// version soon.
-use clap::Parser;
 use std::str::FromStr;
+
+/// Everything on this crate is tentative and meant to be a stepping stone into
+/// the finalized version soon.
+use clap::Parser;
 use thiserror::Error;
 
 type Result<T> = std::result::Result<T, CliError>;
@@ -10,6 +11,12 @@ type Result<T> = std::result::Result<T, CliError>;
 pub enum CliError {
     #[error("invalid node type {0} provided")]
     InvalidNodeType(String),
+
+    #[error("unable to setup telemetry subscriber: {0}")]
+    Telemetry(#[from] telemetry::TelemetryError),
+
+    #[error("service error: {0}")]
+    Service(#[from] service::ServiceError),
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +54,20 @@ pub struct Cli {
     pub node_type: String,
 }
 
-pub fn parse() -> Result<Cli> {
-    Ok(Cli::parse())
+#[telemetry::instrument]
+#[cfg(feature = "node")]
+/// Main setup and execution entrypoint, called only by applications that intend
+/// to run VRRB nodes
+pub async fn run() -> Result<()> {
+    // TODO: import service and initialize things at node core
+    telemetry::debug!("parsing configuration");
+
+    let args = Cli::parse();
+
+    let node_service = Service::new();
+
+    node_service.start().await?;
+
+    telemetry::info!("node shutting down");
+    Ok(())
 }

@@ -1,8 +1,8 @@
+use claim::claim::Claim;
+use noncing::nonceable::Nonceable;
+use ownable::ownable::Ownable;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use ownable::ownable::Ownable;
-use noncing::nonceable::Nonceable;
-use claim::claim::Claim;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Ledger<C: Clone + Ownable + Nonceable + Serialize> {
@@ -19,6 +19,7 @@ impl Ledger<Claim> {
             claims: LinkedHashMap::new(),
         }
     }
+
     pub fn as_bytes(&self) -> Vec<u8> {
         self.to_string().as_bytes().to_vec()
     }

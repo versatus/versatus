@@ -1,5 +1,5 @@
-pub mod reward;
 pub mod decay;
+pub mod reward;
 
 #[cfg(test)]
 mod tests {

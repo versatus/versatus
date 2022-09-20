@@ -1,8 +1,11 @@
 // import evmap
+use std::{
+    cmp::{Eq, PartialEq},
+    collections::{HashMap, HashSet},
+};
+
 use evmap;
 use txn::txn::Txn;
-use std::collections::{HashSet, HashMap};
-use std::cmp::{PartialEq, Eq};
 
 #[derive(Hash)]
 pub struct Validated(pub String, pub u128);
@@ -27,7 +30,7 @@ impl EvMemPool {
         EvMemPool {
             tx_reader: r,
             tx_writer: w,
-            cache
+            cache,
         }
     }
 
@@ -47,7 +50,7 @@ impl EvMemPool {
         self.tx_writer.refresh();
     }
 
-    pub fn add_to_cache(&mut self, tx_id: String, timestamp: u128) {   
+    pub fn add_to_cache(&mut self, tx_id: String, timestamp: u128) {
         self.cache.insert(Validated::new(tx_id, timestamp));
     }
 
@@ -70,7 +73,6 @@ impl EvMemPool {
         });
         self.publish();
     }
-
 }
 
 impl PartialEq for Validated {

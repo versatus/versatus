@@ -1,10 +1,13 @@
 pub trait Election {
+    ///generic types for running an election
     type Return;
     type Error;
     type Ballot;
     type Payload;
- 
-    fn elect_quorum(&mut self, payload: Self::Payload, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>;
-    fn run_election(&mut self, payload: Self::Payload, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>;
-}
+    type Seed;
 
+    ///generates a seed for the election
+    fn generate_seed(payload: Self::Payload) -> Result<Self::Seed, Self::Error>;
+    ///runs the election
+    fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>;
+}

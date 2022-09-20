@@ -8,11 +8,12 @@ pub use vrrb_db::*;
 #[cfg(test)]
 mod tests {
 
-    use crate::vrrb_db::*;
-    use rand::{rngs::StdRng, SeedableRng};
-    use secp256k1::generate_keypair;
-    use secp256k1::PublicKey;
     use std::thread;
+
+    use rand::{rngs::StdRng, SeedableRng};
+    use secp256k1::{generate_keypair, PublicKey};
+
+    use crate::vrrb_db::*;
 
     fn new_random_keys(n: usize) -> Vec<PublicKey> {
         let mut rng = StdRng::from_entropy();
@@ -134,10 +135,10 @@ mod tests {
         match vdb.insert(keys[0], record2) {
             Err(e) => {
                 assert_eq!(e, VrrbDbError::RecordExists)
-            }
+            },
             Ok(_) => {
                 panic!("Multiple inserts for the same key!");
-            }
+            },
         }
     }
 
@@ -165,7 +166,7 @@ mod tests {
         ]) {
             None => {
                 panic!("Should fail.")
-            }
+            },
             Some(fails) => {
                 let expected = vec![
                     (keys[0], record2, VrrbDbError::RecordExists),
@@ -176,7 +177,7 @@ mod tests {
                     assert_eq!(expected[i].1, fails[i].1);
                     assert_eq!(expected[i].2, fails[i].2);
                 }
-            }
+            },
         }
     }
 

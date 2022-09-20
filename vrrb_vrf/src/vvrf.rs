@@ -1,17 +1,21 @@
-use crate::vrng::VRNG;
-use vrf::openssl::{CipherSuite, ECVRF};
+use std::fmt::Display;
+
+use parity_wordlist::WORDS;
+use rand::seq::SliceRandom;
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_core::RngCore;
-use parity_wordlist::WORDS;
-use std::fmt::{Display};
-use vrf::VRF;
-use rand::seq::SliceRandom;
-use secp256k1::{SecretKey};
+use secp256k1::SecretKey;
+use vrf::{
+    openssl::{CipherSuite, ECVRF},
+    VRF,
+};
+
+use crate::vrng::VRNG;
 
 #[derive(Debug)]
-pub enum InvalidVVRF{
-    InvalidProofError, 
-    InvalidPubKeyError, 
+pub enum InvalidVVRF {
+    InvalidProofError,
+    InvalidPubKeyError,
     InvalidMessageError,
 }
 
@@ -22,14 +26,13 @@ impl Display for InvalidVVRF {
             InvalidVVRF::InvalidPubKeyError => write!(f, "Invalid public key"),
             InvalidVVRF::InvalidMessageError => write!(f, "Invalid message"),
         }
-    
     }
 }
 
 impl std::error::Error for InvalidVVRF {}
 
-///VVRF type contains all params necessary for creating and verifying an rng 
-///It does not include the secret key 
+///VVRF type contains all params necessary for creating and verifying an rng
+///It does not include the secret key
 pub struct VVRF {
     pub vrf: ECVRF,
     pub pubkey: Vec<u8>,
@@ -39,7 +42,7 @@ pub struct VVRF {
     pub rng: ChaCha20Rng,
 }
 
-///implenent VRNG trait for VVRF s.t. VVRF can accomomdate 
+///implenent VRNG trait for VVRF s.t. VVRF can accomomdate
 impl VRNG for VVRF {
     fn generate_u8(&mut self) -> u8 {
         let mut data = [0u8; 1];
@@ -77,46 +80,46 @@ impl VRNG for VVRF {
         usize::from_be_bytes(int_bytes.try_into().unwrap())
     }
 
-    fn generate_u8_in_range(&mut self, min: u8, max: u8) -> u8{
+    fn generate_u8_in_range(&mut self, min: u8, max: u8) -> u8 {
         let mut data = [0u8; 1];
         self.rng.fill_bytes(&mut data);
-        let num = u8::from_be_bytes(data) % (max-min+1) +min;
-        return num % (max - min +1) + min;
+        let num = u8::from_be_bytes(data) % (max - min + 1) + min;
+        return num % (max - min + 1) + min;
     }
 
-    fn generate_u16_in_range(&mut self, min: u16, max: u16) -> u16{
+    fn generate_u16_in_range(&mut self, min: u16, max: u16) -> u16 {
         let mut data = [0u8; 2];
         self.rng.fill_bytes(&mut data);
-        let num = u16::from_be_bytes(data) % (max-min+1) +min;
-        return num % (max - min +1) + min;
+        let num = u16::from_be_bytes(data) % (max - min + 1) + min;
+        return num % (max - min + 1) + min;
     }
 
-    fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32{
+    fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32 {
         let mut data = [0u8; 4];
         self.rng.fill_bytes(&mut data);
-        let num = u32::from_be_bytes(data) % (max-min+1) +min;
-        return num % (max - min +1) + min;
+        let num = u32::from_be_bytes(data) % (max - min + 1) + min;
+        return num % (max - min + 1) + min;
     }
 
-    fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64{
+    fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64 {
         let mut data = [0u8; 8];
         self.rng.fill_bytes(&mut data);
-        let num = u64::from_be_bytes(data) % (max-min+1) +min;
-        return num % (max - min +1) + min;
+        let num = u64::from_be_bytes(data) % (max - min + 1) + min;
+        return num % (max - min + 1) + min;
     }
 
-    fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128{
+    fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128 {
         let mut data = [0u8; 16];
         self.rng.fill_bytes(&mut data);
-        let num = u128::from_be_bytes(data) % (max-min+1) +min;
-        return num % (max - min +1) + min;
+        let num = u128::from_be_bytes(data) % (max - min + 1) + min;
+        return num % (max - min + 1) + min;
     }
 
-    fn generate_usize_in_range(&mut self, min: usize, max: usize) -> usize{
+    fn generate_usize_in_range(&mut self, min: usize, max: usize) -> usize {
         let data = &[0u8; 8];
         let (int_bytes, _) = data.split_at(std::mem::size_of::<usize>());
         let num = usize::from_be_bytes(int_bytes.try_into().unwrap());
-        return num % (max - min +1) + min;
+        return num % (max - min + 1) + min;
     }
 
     fn generate_word(&mut self) -> String {
@@ -126,19 +129,24 @@ impl VRNG for VVRF {
 
     fn generate_words(&mut self, n: usize) -> Vec<String> {
         let mut rng = self.rng.clone();
-        (0..n).map(|_| WORDS.choose(&mut rng).unwrap().to_string()).collect::<Vec<_>>()
+        (0..n)
+            .map(|_| WORDS.choose(&mut rng).unwrap().to_string())
+            .collect::<Vec<_>>()
     }
 
     fn generate_phrase(&mut self, n: usize) -> String {
         let mut rng = self.rng.clone();
-        (0..n).map(|_| WORDS.choose(&mut rng).unwrap()).fold(String::new(), |mut acc, word| {
-            acc.push_str(" ");
-            acc.push_str(word);
-            acc
-        }).trim_start().to_string()
+        (0..n)
+            .map(|_| WORDS.choose(&mut rng).unwrap())
+            .fold(String::new(), |mut acc, word| {
+                acc.push_str(" ");
+                acc.push_str(word);
+                acc
+            })
+            .trim_start()
+            .to_string()
     }
 }
-
 
 ///implement VVRF type by passing a secretKey such that
 ///all the VVRF fields can now be calculated thanks to the sk being passed
@@ -157,7 +165,7 @@ impl VVRF {
             message: message.to_vec(),
             proof,
             hash,
-            rng: rng,
+            rng,
         }
     }
 
@@ -169,7 +177,6 @@ impl VVRF {
     fn generate_vrf(suite: CipherSuite) -> ECVRF {
         ECVRF::from_suite(suite).unwrap()
     }
-
 
     ///get pk from vrf crate
     fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {

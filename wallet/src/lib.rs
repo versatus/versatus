@@ -1,4 +1,4 @@
-pub mod wallet; 
+pub mod wallet;
 
 #[cfg(test)]
 mod tests {

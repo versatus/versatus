@@ -3,6 +3,6 @@
 mod lr_trie;
 pub mod op;
 
-pub use crate::lr_trie::*;
-pub use crate::op::*;
 pub use keccak_hash::H256;
+
+pub use crate::{lr_trie::*, op::*};
