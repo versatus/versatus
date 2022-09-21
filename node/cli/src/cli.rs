@@ -17,6 +17,9 @@ pub enum CliError {
 
     #[error("service error: {0}")]
     Service(#[from] service::ServiceError),
+
+    #[error("storage error: {0}")]
+    Storage(#[from] storage::StorageError),
 }
 
 #[derive(Debug, Clone)]
