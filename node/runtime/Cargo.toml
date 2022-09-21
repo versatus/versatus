@@ -10,6 +10,8 @@ path = "src/lib.rs"
 [dependencies]
 clap = { version = "3.2.19", features = ["derive"] }
 telemetry = { path = "../../telemetry" }
+primitives = { path = "../../primitives" }
+storage = { path = "../../storage" }
 thiserror = "1.0.33"
 tokio = { version = "1.21.0", features = ["full"] }
 tracing = "0.1.36"
@@ -20,7 +22,6 @@ tracing-subscriber = { version = "0.3.15", features = [
     "tracing-log",
     "json",
 ] }
-
 secp256k1 = { version = "0.20.2", features = ["rand"] }
 sha256 = "1.0.2"
 rand = "0.8.4"
@@ -69,6 +70,6 @@ miner = { path = "../../miner" }
 blockchain = { path = "../../blockchain" }
 validator = { path = "../../validator" }
 anyhow = "1.0.64"
-
+tokio-test = "0.4.2"
 [features]
 node = []

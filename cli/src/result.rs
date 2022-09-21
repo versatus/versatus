@@ -9,10 +9,13 @@ pub enum CliError {
     Telemetry(#[from] telemetry::TelemetryError),
 
     #[error("node runtime error: {0}")]
-    NodeRuntime(#[from] runtime::RuntimeError),
+    NodeRuntime(#[from] runtime::result::RuntimeError),
 
     #[error("node error: {0}")]
-    Node(#[from] node::core::NodeError),
+    Node(#[from] node::result::NodeError),
+
+    #[error("storage error: {0}")]
+    Storage(#[from] storage::StorageError),
 }
 
 pub type Result<T> = std::result::Result<T, CliError>;

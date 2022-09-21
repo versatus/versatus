@@ -17,6 +17,7 @@ path = "cli/src/main.rs"
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
 telemetry = { path = "telemetry" }
+commands = { path = "commands" }
 cli = { path = "cli" }
 anyhow = "1.0.64"
 

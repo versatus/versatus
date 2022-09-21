@@ -94,11 +94,13 @@ pub enum Command {
     ProcessBacklog,
     SendAddress,
     NonceUp,
+    #[deprecated(note = "Command::Stop should be used instead")]
     Quit,
     InitDKG,
     SendPartMessage(Vec<u8>),
     SendAckMessage(Vec<u8>),
     PublicKeySetSync,
+    Stop,
 }
 
 /// A Trait to convert different types into a command
