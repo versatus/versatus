@@ -521,7 +521,7 @@ mod tests {
                         None => {
                             panic!("No mempool !");
                         },
-                    }
+                    };
                 })
             })
             .for_each(|handle| {

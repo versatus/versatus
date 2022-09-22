@@ -3,6 +3,7 @@ pub mod error;
 use error::StateTrieError;
 use std::{fmt::Debug, sync::Arc};
 
+use error::StateTrieError;
 use keccak_hash::H256;
 use left_right::{ReadHandle, ReadHandleFactory};
 use lr_trie::LeftRightTrie;

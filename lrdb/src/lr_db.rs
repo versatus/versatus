@@ -1,4 +1,4 @@
-use std::{hash::Hash, sync::Arc, time::SystemTime};
+use std::{hash::Hash, time::SystemTime};
 
 use patriecia::db::Database;
 
