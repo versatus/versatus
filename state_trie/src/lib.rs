@@ -57,13 +57,15 @@ impl<D: Database> StateTrie<D> {
     /// Example:
     /// ```
     /// use std::sync::Arc;
-    ///
+    ///  use lrdb::Account;
+    ///  use state_trie::StateTrie;
+    ///  use patriecia::db::MemoryDB;
     ///  let memdb = Arc::new(MemoryDB::new(true));
     ///  let mut state_trie = StateTrie::new(memdb);
     ///  
     ///  state_trie.add(b"greetings.to_vec()".to_vec(), Account::new()).unwrap();
     ///
-    /// state_trie.add(b"greetings.to_vec()".to_vec(), b"hello world".to_vec());
+    /// state_trie.add(b"greetings.to_vec()".to_vec(), Account::new()).unwrap();
     ///
     /// assert_eq!(state_trie.len(), 1);
     /// ```
@@ -155,9 +157,9 @@ impl<D: Database> StateTrie<D> {
     ///     (b"mnopq".to_vec(), b"mnopq".to_vec()),
     /// ];
     ///
-    /// state_trie.extend(vals);
+    /// state_trie.extend(vals.clone());
     ///
-    ///state_trie.extend(vals);
+    /// state_trie.extend(vals.clone());
     ///
     /// assert_eq!(state_trie.len(), 2);
     /// ```
@@ -204,9 +206,9 @@ impl<D: Database> Debug for StateTrie<D> {
 mod tests {
     use std::sync::Arc;
 
-    use patriecia::db::MemoryDB;
-
     use super::*;
+    use lrdb::Account;
+    use patriecia::db::MemoryDB;
 
     #[test]
     fn new_creates_default_empty_trie() {
