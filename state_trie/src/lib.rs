@@ -32,9 +32,7 @@ where
             Ok(maybe_bytes) => match maybe_bytes {
                 Some(bytes) => match &bincode::deserialize::<Account>(&bytes) {
                     Ok(account) => return Ok(account.clone()),
-                    Err(err) => {
-                        return Err(StateTrieError::FailedToDeserializeValue(bytes.clone()))
-                    },
+                    Err(_) => return Err(StateTrieError::FailedToDeserializeValue(bytes.clone())),
                 },
                 None => Err(StateTrieError::NoValueForKey),
             },
@@ -232,9 +230,21 @@ mod tests {
         let root = format!("0x{}", hex::encode(root));
 
         let target_root =
-            "0xfcea4ea8a4decaf828666306c81977085ba9488d981c759ac899862fd4e9174e".to_string();
+            "0x48571fa653822d99317c1742ef9670767182813b5d73c74bdf44790c54586ab5".to_string();
 
-        assert_eq!(state_trie.len(), 4);
+        let default_account = bincode::serialize(&Account::new()).unwrap();
+        assert_eq!(
+            state_trie.trie.get().get(b"abcdefg").unwrap().unwrap(),
+            default_account
+        );
+        assert_eq!(
+            state_trie.trie.get().get(b"hijkl").unwrap().unwrap(),
+            default_account
+        );
+        assert_eq!(
+            state_trie.trie.get().get(b"mnopq").unwrap().unwrap(),
+            default_account
+        );
         assert_eq!(root, target_root);
     }
 
