@@ -25,6 +25,7 @@ anyhow = "1.0.64"
 members = [
     "primitives",
     "cli",
+    "vrrb-config",
     "block",
     "blockchain",
     "claim",
@@ -42,8 +43,7 @@ members = [
     "vrrb_gui",
     "vrrb_vrf",
     "network",
-    "node/runtime",
-    "node/core",
+    "node",
     "storage",
     "verifiable",
     "ledger",

@@ -20,7 +20,7 @@ pub const GETHEIGHT: &str = "GETHEIGHT";
 pub const QUIT: &str = "QUIT";
 
 /// Component Types of a state update
-#[derive(Debug, Serialize, Deserialize, Clone, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ComponentTypes {
     Genesis,
     Child,
@@ -32,8 +32,15 @@ pub enum ComponentTypes {
     All,
 }
 
-/// The command enum is the basic datatype used to send commands around the
-/// program
+impl std::hash::Hash for ComponentTypes {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+    }
+}
+
+/// Command represents the vocabulary of available RPC-style interactions with
+/// VRRB node internal components. Commands are meant to be issued by a command
+/// router that controls node runtime modules.
 //TODO: Review all the commands and determine which ones are needed, which can be changed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {
@@ -101,6 +108,7 @@ pub enum Command {
     SendAckMessage(Vec<u8>),
     PublicKeySetSync,
     Stop,
+    NoOp,
 }
 
 /// A Trait to convert different types into a command

@@ -12,11 +12,16 @@ path = "src/lib.rs"
 [dependencies]
 clap = { version = "3.2.20", features = ["derive"] }
 tokio = { version = "1.21.0", features = ["full"] }
-runtime = { path = "../node/runtime" }
-node = { path = "../node/core" }
+node = { path = "../node" }
+vrrb-config = { path = "../vrrb-config" }
+primitives = { path = "../primitives" }
 telemetry = { path = "../telemetry" }
 commands = { path = "../commands" }
 storage = { path = "../storage" }
 anyhow = "1.0.64"
 tracing = "0.1.36"
 thiserror = "1.0.34"
+uuid = { version = "0.8.0", features = ["serde", "v4"] }
+
+[dev-dependencies]
+assert_cmd = "2.0.4"

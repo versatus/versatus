@@ -9,7 +9,6 @@ use std::{
 };
 
 use block::invalid::InvalidBlockErrorReason;
-use blockchain::blockchain::Blockchain;
 use claim::claim::Claim;
 use commands::command::{Command, ComponentTypes};
 use events::events::{write_to_json, VrrbNetworkEvent};
@@ -17,17 +16,14 @@ use ledger::ledger::Ledger;
 use messages::message_types::MessageType;
 use miner::miner::Miner;
 use network::{components::StateComponent, message};
-use node::node::{Node, NodeAuth};
 use public_ip;
 use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
-use simplelog::{Config, LevelFilter, WriteLogger};
 use state::state::{Components, NetworkState};
 use storage::FileSystemStorage;
-use strum_macros::EnumIter;
 use telemetry::info;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, error::TryRecvError};
 use txn::txn::Txn;
 use udp2p::{
     discovery::{kad::Kademlia, routing::RoutingTable},
@@ -41,9 +37,10 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use unicode_width::UnicodeWidthStr;
+use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
-use crate::{result::Result, RuntimeModule, RuntimeModuleState};
+use crate::{node_auth::NodeAuth, result::Result, RuntimeModule, RuntimeModuleState};
 
 type Port = usize;
 
@@ -64,23 +61,31 @@ pub struct SwarmModule {
 
 impl RuntimeModule for SwarmModule {
     fn name(&self) -> String {
-        todo!()
+        String::from("Swarm module")
     }
 
     fn status(&self) -> RuntimeModuleState {
         todo!()
     }
 
-    fn start(&self) -> Result<()> {
-        todo!()
-    }
+    fn start(&mut self, control_rx: &mut mpsc::UnboundedReceiver<Command>) -> Result<()> {
+        // TODO: rethink this loop
+        loop {
+            match control_rx.try_recv() {
+                Ok(sig) => {
+                    telemetry::info!("Received stop signal");
+                    break;
+                },
+                Err(err) if err == TryRecvError::Disconnected => {
+                    telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
+                    telemetry::warn!("{} shutting down", self.name());
+                    break;
+                },
+                _ => {},
+            }
+        }
 
-    fn stop(&self) -> Result<()> {
-        todo!()
-    }
-
-    fn force_stop(&self) {
-        todo!()
+        Ok(())
     }
 }
 
@@ -209,11 +214,6 @@ impl SwarmModule {
         */
 
         Self {}
-    }
-
-    #[telemetry::instrument]
-    pub fn start(&self) {
-        //
     }
 }
 
