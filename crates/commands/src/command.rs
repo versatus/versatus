@@ -42,7 +42,7 @@ impl std::hash::Hash for ComponentTypes {
 /// VRRB node internal components. Commands are meant to be issued by a command
 /// router that controls node runtime modules.
 //TODO: Review all the commands and determine which ones are needed, which can be changed
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Command {
     //TODO: Replace standard types with custom types for better readability
     // and to help engineers understand what the hell these items are.
@@ -57,7 +57,7 @@ pub enum Command {
     StateUpdateCompleted(Vec<u8>),
     StoreStateDbChunk(Vec<u8>, Vec<u8>, u32, u32),
     SendState(String, u128),
-    SendMessage(SocketAddr, Message),
+    // SendMessage(SocketAddr, Message),
     GetBalance(u32),
     SendGenesis(String),
     SendStateComponents(String, Vec<u8>, String),
@@ -82,7 +82,7 @@ pub enum Command {
     AddNewPeer(String, String),
     AddKnownPeers(Vec<u8>),
     AddExplicitPeer(String, String),
-    ProcessPacket((Packet, SocketAddr)),
+    // ProcessPacket((Packet, SocketAddr)),
     Bootstrap(String, String),
     SendPing(String),
     ReturnPong(Vec<u8>, String),
