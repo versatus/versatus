@@ -10,7 +10,7 @@ left-right = "0.11.5"
 nibble_vec = "0.1.0"
 nibbler = "0.2.3"
 patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
-
+serde = { version = "1.0.101", features = ["derive"] }
 hashbrown = "0.12.0"
 keccak-hash = "0.9"
 log = "0.4.16"

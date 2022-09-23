@@ -291,13 +291,13 @@ mod tests {
         };
 
         // Only the first account passes that
-        // print_accounts(&vdb); - uncomment to view accounts in db
         let filtered = vdb.retain(|acc| {
-            (acc.hash.starts_with("9bde") || acc.hash.starts_with("a036"))
+            (acc.hash.starts_with("a13c") || acc.hash.starts_with("a036"))
                 && acc.credits - acc.debits > 50
                 && (acc.storage.is_some() || acc.code.is_some())
         });
-        // print_accounts(&filtered);
+
+        println!("{:?}", filtered.read_handle().get(keys[0]).unwrap().hash);
 
         assert_eq!(filtered.len(), 1);
     }

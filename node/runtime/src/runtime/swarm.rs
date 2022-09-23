@@ -41,7 +41,6 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use unicode_width::UnicodeWidthStr;
-use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
 use crate::{result::Result, RuntimeModule, RuntimeModuleState};

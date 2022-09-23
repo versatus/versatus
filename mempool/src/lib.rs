@@ -1,6 +1,5 @@
 pub mod error;
 pub mod mempool;
-pub mod txn_validator;
 
 #[cfg(test)]
 mod tests {
@@ -12,7 +11,7 @@ mod tests {
 
     use txn::txn::Txn;
 
-    use crate::mempool::LeftRightMemPoolDB;
+    use crate::mempool::{LeftRightMemPoolDB, TxnStatus};
 
     #[test]
     fn creates_new_lrmempooldb() {
@@ -42,7 +41,7 @@ mod tests {
         };
 
         let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn(&txn) {
+        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 assert_eq!(1, mpooldb.size().0);
@@ -78,7 +77,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMemPoolDB::new();
 
-        match mpooldb.add_txn(&txn) {
+        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },
@@ -87,10 +86,11 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn) {
+        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
                 // panic!("Adding second identical transaction was succesful
+                //
                 // !");
             },
             Err(_) => {
@@ -138,7 +138,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMemPoolDB::new();
 
-        match mpooldb.add_txn(&txn1) {
+        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },
@@ -147,7 +147,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2) {
+        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size().0);
             },
@@ -184,7 +184,7 @@ mod tests {
         };
 
         let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn(&txn) {
+        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },
@@ -252,7 +252,7 @@ mod tests {
         }
 
         let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn_batch(&txns) {
+        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size().0);
             },
@@ -314,7 +314,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMemPoolDB::new();
 
-        match mpooldb.add_txn(&txn1) {
+        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },
@@ -323,7 +323,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2) {
+        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size().0);
             },
@@ -381,7 +381,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMemPoolDB::new();
 
-        match mpooldb.add_txn(&txn1) {
+        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },
@@ -390,7 +390,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2) {
+        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size().0);
             },
@@ -399,7 +399,7 @@ mod tests {
             },
         };
 
-        match mpooldb.remove_txn(&txn1) {
+        match mpooldb.remove_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },
@@ -444,7 +444,7 @@ mod tests {
         }
 
         let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn_batch(&txns) {
+        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size().0);
             },
@@ -452,7 +452,7 @@ mod tests {
                 panic!("Adding transactions was unsuccesful !");
             },
         };
-        match mpooldb.remove_txn_batch(&txns) {
+        match mpooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(0, mpooldb.size().0);
             },
@@ -498,7 +498,7 @@ mod tests {
             txns.insert(Txn::from_string(&txn_ser));
         }
 
-        match lrmpooldb.add_txn_batch(&txns) {
+        match lrmpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(txn_id_max - 1, lrmpooldb.size().0);
             },
@@ -522,7 +522,7 @@ mod tests {
                         None => {
                             panic!("No mempool !");
                         },
-                    }
+                    };
                 })
             })
             .for_each(|handle| {

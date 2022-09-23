@@ -21,9 +21,6 @@ use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 use state::state::NetworkState;
 use txn::txn::Txn;
-use validator::validator::TxnValidator;
-use verifiable::verifiable::Verifiable;
-
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -44,8 +41,8 @@ pub enum MinerStatus {
 #[derive(Debug)]
 pub struct NoLowestPointerError(String);
 
-/// The miner struct contains all the data and methods needed to operate a
-/// mining unit and participate in the data replication process.
+/// The miner struct contains all the data and methods needed to operate a mining unit
+/// and participate in the data replication process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
@@ -71,6 +68,7 @@ pub struct Miner {
     // validation and calculation.
     pub claim_pool: Pool<String, Claim>,
     /// The most recent block mined, confirmed and propogated throughout the
+    ///
     /// network
     pub last_block: Option<Block>,
     /// The reward state (previous monetary policy), to track which reward
@@ -90,12 +88,15 @@ pub struct Miner {
     //TODO: Discuss whether this is needed or not
     pub n_miners: u128,
     /// A simple boolean field to denote whether the miner has been initialized
+    ///
     /// or not
     pub init: bool,
     /// An ordered map containing claims that were entitled to mine but took too
+    ///
     /// long
     pub abandoned_claim_counter: LinkedHashMap<String, Claim>,
     /// The claim of the most recent entitled miner in the event that they took
+    ///
     /// too long to propose a block
     //TODO: Discuss a better way to do this, and need to be able to include more than one claim.
     pub abandoned_claim: Option<Claim>,
@@ -108,6 +109,7 @@ pub struct Miner {
 impl Miner {
     /// Returns a miner that can be initialized later
     //TODO: Replace `start` with `new`, since this method does not actually "start"
+    //
     // the miner
     pub fn start(
         secret_key: String,
@@ -139,6 +141,7 @@ impl Miner {
     }
 
     /// Calculates the pointer sums and returns the lowest for a given block
+    ///
     /// seed.
     pub fn get_lowest_pointer(&mut self, block_seed: u128) -> Option<(String, u128)> {
         // Clones the local claim map for use in the algorithm
@@ -146,6 +149,7 @@ impl Miner {
 
         // Calculates the pointers for every claim, for the given block seed, in the map
         // and collects them into a vector of tuples containing the claim hash and the
+        //
         // pointer sum
         let mut pointers = claim_map
             .iter()
@@ -153,9 +157,9 @@ impl Miner {
             .collect::<Vec<_>>();
 
         // Retains only the pointers that have Some(value) in the 2nd field of the tuple
-        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None
-        // variant in the event that the pointer sum contains integer overflows
-        // OR in the event that not ever
+        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None variant
+        // in the event that the pointer sum contains integer overflows OR in the event that
+        // not ever
         pointers.retain(|(_, v)| !v.is_none());
 
         // unwraps all the pointer sum values.
@@ -177,6 +181,7 @@ impl Miner {
     }
 
     /// Checks if the hash of the claim with the lowest pointer sum is the local
+    ///
     /// claim.
     pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
         if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
@@ -239,74 +244,6 @@ impl Miner {
         self.claim_map = new_claim_map;
     }
 
-    /// Processes a transaction
-    //TODO: This should only be done in the validator unit,
-    //this can be eliminated completely under the VRRB Protocol.
-    pub fn process_txn(&mut self, mut txn: Txn) -> TxnValidator {
-        if let Some(_txn) = self.txn_pool.confirmed.get(&txn.txn_id) {
-            // Nothing really to do here
-        } else if let Some(txn) = self.txn_pool.pending.get(&txn.txn_id) {
-            // add validator if you have not validated already
-            if let None = txn.validators.clone().get(&self.claim.pubkey) {
-                let vote = {
-                    if let Ok(true) = txn.valid(
-                        &None,
-                        &(self.network_state.to_owned(), self.txn_pool.to_owned()),
-                    ) {
-                        true
-                    } else {
-                        false
-                    }
-                };
-                let mut txn = txn.clone();
-                txn.validators.insert(self.claim.pubkey.clone(), vote);
-                self.txn_pool
-                    .pending
-                    .insert(txn.txn_id.clone(), txn.clone());
-            }
-        } else {
-            // add validator
-            let vote = {
-                if let Ok(true) = txn.valid(
-                    &None,
-                    &(self.network_state.to_owned(), self.txn_pool.to_owned()),
-                ) {
-                    true
-                } else {
-                    false
-                }
-            };
-            txn.validators.insert(self.claim.pubkey.clone(), vote);
-            self.txn_pool
-                .pending
-                .insert(txn.txn_id.clone(), txn.clone());
-        }
-
-        return TxnValidator::new(
-            self.claim.pubkey.clone(),
-            txn.clone(),
-            &self.network_state,
-            &self.txn_pool,
-        );
-    }
-
-    /// Checks in the number of validators meets the threshold
-    // This can be completely replaced under the VRRB Protocol, since Txns will
-    // retain a certificate of approval aka the threshold signature.
-    pub fn process_txn_validator(&mut self, txn_validator: TxnValidator) {
-        if let Some(_txn) = self.txn_pool.confirmed.get(&txn_validator.txn.txn_id) {
-        } else if let Some(txn) = self.txn_pool.pending.get_mut(&txn_validator.txn.txn_id) {
-            txn.validators
-                .entry(txn_validator.pubkey)
-                .or_insert(txn_validator.vote);
-        } else {
-            let mut txn = txn_validator.txn.clone();
-            txn.validators
-                .insert(txn_validator.pubkey, txn_validator.vote);
-            self.txn_pool.pending.insert(txn.txn_id.clone(), txn);
-        }
-    }
-
     /// Checks if the transaction has been confirmed
     //TODO: Either eliminate and replace, each miner should retain only
     // transactions that have be pre-validated i.e. they should only have the
@@ -356,10 +293,9 @@ impl Miner {
         }
     }
 
-    /// Turns a claim into an ineligible claim in the event a miner proposes an
-    /// invalid block or tries to spam the network.
-    //TODO: Need much stricter penalty, as this miner can still send messages. The
-    // transport layer should reject further messages from this node.
+    /// Turns a claim into an ineligible claim in the event a miner proposes an invalid block or tries to spam the network.
+    //TODO: Need much stricter penalty, as this miner can still send messages. The transport layer should reject further messages
+    // from this node.
     pub fn slash_claim(&mut self, pubkey: String) {
         if let Some(claim) = self.claim_map.get_mut(&pubkey) {
             claim.eligible = false;
@@ -367,6 +303,7 @@ impl Miner {
     }
 
     /// Checks how much time has passed since the entitled miner has not
+    ///
     /// proposed a block
     pub fn check_time_elapsed(&self) -> u128 {
         let timestamp = self.get_timestamp();
@@ -386,6 +323,7 @@ impl Miner {
     }
 
     /// Abandons the claim of a miner that fails to proppose a block in the
+    ///
     /// proper amount of time.
     pub fn abandoned_claim(&mut self, hash: String) {
         self.claim_map.retain(|_, v| v.hash != hash);
@@ -439,6 +377,7 @@ impl Miner {
 }
 
 /// Required for `NoLowestPointerError` to be able to be used as an Error type
+///
 /// in the Result enum
 impl fmt::Display for NoLowestPointerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -447,6 +386,7 @@ impl fmt::Display for NoLowestPointerError {
 }
 
 /// Required for `NoLowestPointerError` to be able to be used as an Error type
+///
 /// in the Result enum
 impl Error for NoLowestPointerError {
     fn description(&self) -> &str {

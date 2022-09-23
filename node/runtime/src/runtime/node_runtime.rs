@@ -57,15 +57,13 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use unicode_width::UnicodeWidthStr;
-use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
 use super::{blockchain::BlockchainModule, swarm::SwarmConfig};
 use crate::{
     result::{Result, RuntimeError},
     runtime::{miner::MiningModule, state::StateModule, swarm::SwarmModule},
-    RuntimeModule,
-    RuntimeModuleState,
+    RuntimeModule, RuntimeModuleState,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
