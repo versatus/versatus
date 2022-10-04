@@ -36,8 +36,6 @@ use udp2p::{
     transport::{handler::MessageHandler as GossipMessageHandler, transport::Transport},
     utils::utils::ByteRep,
 };
-use unicode_width::UnicodeWidthStr;
-use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
 use crate::{node_auth::NodeAuth, result::Result, RuntimeModule, RuntimeModuleState};

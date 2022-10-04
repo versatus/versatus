@@ -55,7 +55,6 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use uuid::Uuid;
-use validator::validator::TxnValidator;
 use wallet::wallet::WalletAccount;
 
 use crate::{
