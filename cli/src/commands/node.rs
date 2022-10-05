@@ -18,33 +18,33 @@ pub struct RunOpts {
     #[clap(short, long, action)]
     pub dettached: bool,
 
+    #[clap(short, long, value_parser)]
+    pub id: primitives::NodeId,
+
+    #[clap(long, value_parser)]
+    pub idx: primitives::NodeIdx,
+
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]
     pub node_type: String,
 
-    #[clap(short, long, value_parser)]
-    pub id: primitives::NodeId,
-
-    #[clap(short = 'x', long, value_parser)]
-    pub idx: primitives::NodeIdx,
-
-    #[clap(short = 'p', long, value_parser)]
+    #[clap(long, value_parser)]
     pub data_dir: PathBuf,
 
-    #[clap(short = 'c', long, value_parser)]
+    #[clap(long, value_parser)]
     pub db_path: PathBuf,
 
-    #[clap(short, long, value_parser)]
+    #[clap(long, value_parser)]
     // TODO: consider this
     pub node_idx: primitives::NodeIdx,
 
-    #[clap(short, long, value_parser)]
+    #[clap(long, value_parser)]
     pub address: SocketAddr,
 
-    #[clap(short = 'b', long)]
+    #[clap(long)]
     pub bootstrap: bool,
 
-    #[clap(short = 'o', long, value_parser)]
+    #[clap(long, value_parser)]
     pub bootstrap_node_addr: SocketAddr,
 }
 
