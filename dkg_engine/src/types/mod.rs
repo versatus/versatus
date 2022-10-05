@@ -8,7 +8,7 @@ use hbbft::{
     crypto::{PublicKey, PublicKeySet, SecretKey, SecretKeyShare},
     sync_key_gen::{Ack, Part, SyncKeyGen},
 };
-use node::node::Node;
+use node::Node;
 use rand::rngs::OsRng;
 use thiserror::Error;
 

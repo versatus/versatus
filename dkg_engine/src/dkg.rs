@@ -2,7 +2,7 @@ use hbbft::{
     crypto::{serde_impl::SerdeSecret, SecretKey},
     sync_key_gen::{PartOutcome, SyncKeyGen},
 };
-use node::node::NodeType;
+use primitives::NodeType;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
@@ -206,10 +206,9 @@ mod tests {
     use std::{borrow::BorrowMut, collections::HashMap};
 
     use hbbft::sync_key_gen::Ack;
-    use node::node::NodeType;
+    use node::NodeType;
     use primitives::is_enum_variant;
 
-    // use super::*;
     use super::DkgGenerator;
     use crate::{
         dkg::DkgResult,
@@ -424,16 +423,10 @@ mod tests {
         dkg_engine_node4.dkg_state.ack_message_store = new_store;
 
         for _ in 0..4 {
-            let _ = dkg_engine_node1.handle_ack_messages();
-            // println!("Status {:?}", s);
-            let _ = dkg_engine_node2.handle_ack_messages();
-            // println!("Status {:?}", s);
-
-            let _ = dkg_engine_node3.handle_ack_messages();
-            //            println!("Status {:?}", s);
-
-            let _ = dkg_engine_node4.handle_ack_messages();
-            //println!("Status {:?}", s);
+            dkg_engine_node1.handle_ack_messages();
+            dkg_engine_node2.handle_ack_messages();
+            dkg_engine_node3.handle_ack_messages();
+            dkg_engine_node4.handle_ack_messages();
         }
 
         let result = dkg_engine_node1.generate_key_sets();

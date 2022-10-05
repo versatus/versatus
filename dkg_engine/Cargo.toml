@@ -19,4 +19,5 @@ node = { path = "../node" }
 commands = { path = "../commands" }
 messages = { path = "../messages" }
 primitives = { path = "../primitives" }
+vrrb-config = { path = "../vrrb-config" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
