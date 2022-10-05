@@ -1,5 +1,5 @@
 [package]
-name = "vrrb-config"
+name = "vrrb_config"
 version = "0.0.0"
 edition = "2021"
 

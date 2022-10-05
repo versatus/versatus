@@ -13,7 +13,7 @@ path = "src/lib.rs"
 clap = { version = "3.2.20", features = ["derive"] }
 tokio = { version = "1.21.0", features = ["full"] }
 node = { path = "../node" }
-vrrb-config = { path = "../vrrb-config" }
+vrrb_config = { path = "../vrrb_config" }
 primitives = { path = "../primitives" }
 telemetry = { path = "../telemetry" }
 commands = { path = "../commands" }
