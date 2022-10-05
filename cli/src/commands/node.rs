@@ -22,7 +22,8 @@ pub struct RunOpts {
     pub id: primitives::NodeId,
 
     #[clap(long, value_parser)]
-    pub idx: primitives::NodeIdx,
+    // TODO: reconsider this id
+    pub node_idx: primitives::NodeIdx,
 
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]
@@ -33,10 +34,6 @@ pub struct RunOpts {
 
     #[clap(long, value_parser)]
     pub db_path: PathBuf,
-
-    #[clap(long, value_parser)]
-    // TODO: consider this
-    pub node_idx: primitives::NodeIdx,
 
     #[clap(long, value_parser)]
     pub address: SocketAddr,
