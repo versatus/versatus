@@ -66,8 +66,8 @@ impl Blockchain {
         }
     }
 
-    /// Checks if the next block eight is valid, i.e. +1 as compared to previous
-    /// block.
+    /// Checks if the next block height is valid, i.e. +1 as compared to
+    /// previous block.
     pub fn check_next_block_height(&self, block: &Block) -> bool {
         // Check if there is a genesis block
         if let Some(_) = self.genesis.as_ref() {

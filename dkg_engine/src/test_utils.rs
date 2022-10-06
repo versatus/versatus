@@ -1,5 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
     sync::{mpsc::channel, Arc, RwLock},
 };
 
@@ -9,9 +11,11 @@ use hbbft::{
     sync_key_gen::Ack,
 };
 use messages::packet::Packet;
-use node::{command_handler::CommandHandler, message_handler::MessageHandler, node::NodeType};
+use node::{command_handler::CommandHandler, message_handler::MessageHandler};
+use primitives::NodeType;
 use tokio::sync::mpsc::unbounded_channel;
 use udp2p::protocol::protocol::Message;
+use vrrb_config::NodeConfig;
 
 use crate::{
     dkg::DkgGenerator,
@@ -68,20 +72,31 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
     for i in 0..total_nodes {
         let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
         let secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
-        let (_, msg_receiver) = unbounded_channel::<(Packet, std::net::SocketAddr)>();
-        let (msg_sender, _) = unbounded_channel();
+
+        // let (_, msg_receiver) = unbounded_channel::<(Packet, std::net::SocketAddr)>();
+        // let (msg_sender, _) = unbounded_channel();
+
         dkg_instances.push(DkgEngine {
-            node_info: Arc::new(RwLock::new(node::node::Node {
-                secret_key: secret_key_encoded,
-                pubkey: hex::encode(secret_key.public_key().to_bytes().as_slice()),
+            node_info: Arc::new(RwLock::new(node::Node::new(NodeConfig {
                 id: i.to_string(),
-                node_type: node_type.clone(),
-                message_cache: HashSet::default(),
-                packet_storage: HashMap::default(),
-                command_handler: generate_command_handler(),
-                message_handler: MessageHandler::new(msg_sender, msg_receiver),
                 idx: i,
-            })),
+                //
+                // secret_key: secret_key_encoded,
+                // pubkey: hex::encode(secret_key.public_key().to_bytes().as_slice()),
+                //
+                // TODO: re-enable once those fields are finalized
+                // message_cache: HashSet::default(),
+                // packet_storage: HashMap::default(),
+                // command_handler: generate_command_handler(),
+                // message_handler: MessageHandler::new(msg_sender, msg_receiver),
+                data_dir: PathBuf::from("bananas"),
+                db_path: PathBuf::from("bananas"),
+                node_idx: i,
+                address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                bootstrap: false,
+                bootstrap_node_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                node_type: node_type.clone(),
+            }))),
             threshold_config: valid_threshold_config(),
             dkg_state: DkgState {
                 part_message_store: HashMap::new(),

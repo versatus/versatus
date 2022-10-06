@@ -1,3 +1,6 @@
+use commands::command::Command;
+use tokio::sync::mpsc::UnboundedReceiver;
+
 use crate::result::Result;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -13,7 +16,5 @@ pub enum RuntimeModuleState {
 pub trait RuntimeModule {
     fn name(&self) -> String;
     fn status(&self) -> RuntimeModuleState;
-    fn start(&self) -> Result<()>;
-    fn stop(&self) -> Result<()>;
-    fn force_stop(&self);
+    fn start(&mut self, control_rx: &mut UnboundedReceiver<Command>) -> Result<()>;
 }

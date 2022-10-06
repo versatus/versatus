@@ -8,14 +8,14 @@ pub enum CliError {
     #[error("unable to setup telemetry subscriber: {0}")]
     Telemetry(#[from] telemetry::TelemetryError),
 
-    #[error("node runtime error: {0}")]
-    NodeRuntime(#[from] runtime::result::RuntimeError),
-
     #[error("node error: {0}")]
     Node(#[from] node::result::NodeError),
 
     #[error("storage error: {0}")]
     Storage(#[from] storage::StorageError),
+
+    #[error("primitive error: {0}")]
+    Primitive(#[from] primitives::Error),
 }
 
 pub type Result<T> = std::result::Result<T, CliError>;

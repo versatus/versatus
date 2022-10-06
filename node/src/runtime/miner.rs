@@ -1,3 +1,5 @@
+use tokio::sync::mpsc::error::TryRecvError;
+
 use crate::{result::Result, RuntimeModule, RuntimeModuleState};
 
 pub struct MiningModule {
@@ -12,23 +14,34 @@ impl MiningModule {
 
 impl RuntimeModule for MiningModule {
     fn name(&self) -> String {
-        todo!()
+        String::from("State module")
     }
 
     fn status(&self) -> RuntimeModuleState {
         todo!()
     }
 
-    fn start(&self) -> Result<()> {
-        todo!()
-    }
+    fn start(
+        &mut self,
+        control_rx: &mut tokio::sync::mpsc::UnboundedReceiver<commands::command::Command>,
+    ) -> Result<()> {
+        // TODO: rethink this loop
+        loop {
+            match control_rx.try_recv() {
+                Ok(sig) => {
+                    telemetry::info!("Received stop signal");
+                    break;
+                },
+                Err(err) if err == TryRecvError::Disconnected => {
+                    telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
+                    telemetry::warn!("{} shutting down", self.name());
+                    break;
+                },
+                _ => {},
+            }
+        }
 
-    fn stop(&self) -> Result<()> {
-        todo!()
-    }
-
-    fn force_stop(&self) {
-        todo!()
+        Ok(())
     }
 }
 

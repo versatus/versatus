@@ -1,11 +1,10 @@
 [package]
-name = "primitives"
-version = "0.1.0"
+name = "vrrb_config"
+version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = "1.0.145"
-serde_json = "1.0.85"
-thiserror = "1.0.37"
+primitives = { path = "../primitives" }
+secp256k1 = { version = "0.20.2", features = ["rand"] }

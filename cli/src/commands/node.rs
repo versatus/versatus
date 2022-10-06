@@ -1,22 +1,48 @@
-use std::path::PathBuf;
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
+};
 
 use clap::{Parser, Subcommand};
 use commands::command::Command;
-use node::core::NodeType;
-use runtime::RuntimeOpts;
+use node::{Node, NodeType};
 use tokio::sync::oneshot;
+use uuid::Uuid;
+use vrrb_config::NodeConfig;
 
 use crate::result::{CliError, Result};
 
 #[derive(clap::Parser, Debug)]
 pub struct RunOpts {
-    /// Defines the type of node created by this program
-    #[clap(short, long, value_parser, default_value = "full")]
-    pub node_type: String,
-
     /// Start node as a background process
     #[clap(short, long, action)]
     pub dettached: bool,
+
+    #[clap(short, long, value_parser)]
+    pub id: primitives::NodeId,
+
+    #[clap(long, value_parser)]
+    // TODO: reconsider this id
+    pub node_idx: primitives::NodeIdx,
+
+    /// Defines the type of node created by this program
+    #[clap(short = 't', long, value_parser, default_value = "full")]
+    pub node_type: String,
+
+    #[clap(long, value_parser)]
+    pub data_dir: PathBuf,
+
+    #[clap(long, value_parser)]
+    pub db_path: PathBuf,
+
+    #[clap(long, value_parser)]
+    pub address: SocketAddr,
+
+    #[clap(long)]
+    pub bootstrap: bool,
+
+    #[clap(long, value_parser)]
+    pub bootstrap_node_addr: SocketAddr,
 }
 
 #[derive(Debug, Subcommand)]
@@ -47,35 +73,50 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
 pub async fn run(args: RunOpts) -> Result<()> {
     let node_type = args.node_type.parse()?;
     let data_dir = storage::get_node_data_dir()?;
+    let node_idx = args.node_idx;
+    let db_path = args.db_path;
+    let bootstrap = args.bootstrap;
+    let bootstrap_node_addr = args.bootstrap_node_addr;
 
-    let rt_opts = RuntimeOpts {
-        node_type,
+    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+
+    let id = Uuid::new_v4().to_simple().to_string();
+    let idx = 100;
+
+    let node_config = NodeConfig {
+        id,
+        idx,
         data_dir,
-        node_idx: 100,
+        node_type,
+        db_path,
+        node_idx,
+        bootstrap,
+        address,
+        bootstrap_node_addr: address,
     };
 
     if args.dettached {
-        run_dettached(rt_opts).await
+        run_dettached(node_config).await
     } else {
-        run_blocking(rt_opts).await
+        run_blocking(node_config).await
     }
 }
 
 #[telemetry::instrument]
-async fn run_blocking(rt_opts: RuntimeOpts) -> Result<()> {
-    let (ctrl_tx, ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Command>();
+async fn run_blocking(node_config: NodeConfig) -> Result<()> {
+    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Command>();
 
-    let mut node_runtime = runtime::Runtime::new(ctrl_rx);
+    let mut vrrb_node = Node::new(node_config);
 
     telemetry::info!("running node in blocking mode");
 
-    node_runtime.start(rt_opts).await?;
+    vrrb_node.start(&mut ctrl_rx).await?;
 
     Ok(())
 }
 
 #[telemetry::instrument]
-async fn run_dettached(rt_opts: RuntimeOpts) -> Result<()> {
+async fn run_dettached(node_config: NodeConfig) -> Result<()> {
     telemetry::info!("running node in dettached mode");
     // start child process, run node within it
     Ok(())

@@ -15,9 +15,9 @@ tokio = "1.20.1"
 hex = "0.4.2"
 
 #internal
-node = { path = "../node/core" }
-
-commands={path="../commands"}
-messages={path="../messages"}
-primitives={path="../primitives"}
+node = { path = "../node" }
+commands = { path = "../commands" }
+messages = { path = "../messages" }
+primitives = { path = "../primitives" }
+vrrb_config = { path = "../vrrb_config" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
