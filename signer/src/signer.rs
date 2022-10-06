@@ -7,7 +7,7 @@ use std::{
 
 use dkg_engine::types::{config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
-use primitives::{Hash, NodeId, RawSignature, SignatureType};
+use primitives::{Hash, NodeId, NodeIdx, RawSignature, SignatureType};
 
 use crate::types::{SignerError, SignerResult};
 
@@ -20,13 +20,13 @@ pub trait Signer {
     /// the block(t+1 non faulty nodes).
     fn generate_quorum_signature(
         &self,
-        signature_shares: BTreeMap<NodeId, RawSignature>,
+        signature_shares: BTreeMap<NodeIdx, RawSignature>,
     ) -> SignerResult<RawSignature>;
 
     /// This function is used to verify the signature of the block.
     fn verify_signature(
         &self,
-        node_idx: NodeId,
+        node_idx: NodeIdx,
         payload_hash: Hash,
         signature: RawSignature,
         signature_type: SignatureType,
@@ -145,7 +145,7 @@ impl Signer for SignatureProvider {
     /// ```
     fn generate_quorum_signature(
         &self,
-        signature_shares: BTreeMap<NodeId, RawSignature>,
+        signature_shares: BTreeMap<NodeIdx, RawSignature>,
     ) -> SignerResult<RawSignature> {
         if (signature_shares.len() as u16) < self.quorum_config.threshold {
             return Err(SignerError::ThresholdSignatureError(
@@ -257,7 +257,7 @@ impl Signer for SignatureProvider {
     /// ```
     fn verify_signature(
         &self,
-        node_idx: NodeId,
+        node_idx: NodeIdx,
         payload_hash: Hash,
         signature: RawSignature,
         signature_type: SignatureType,
