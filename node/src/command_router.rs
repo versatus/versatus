@@ -22,17 +22,14 @@ pub type Subscriber = UnboundedSender<Command>;
 pub struct CommandRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<CommandRoute, Subscriber>,
-    // command_rx: UnboundedReceiver<DirectedCommand>,
 }
 
 pub type DirectedCommand = (CommandRoute, Command);
 
 impl CommandRouter {
-    // pub fn new(command_rx: UnboundedReceiver<DirectedCommand>) -> Self {
     pub fn new() -> Self {
         Self {
             subscribers: HashMap::new(),
-            // command_rx,
         }
     }
 
@@ -43,7 +40,6 @@ impl CommandRouter {
         Ok(())
     }
 
-    // pub fn start(&mut self) -> Result<()> {
     pub async fn start(
         &mut self,
         command_rx: &mut UnboundedReceiver<DirectedCommand>,
@@ -51,7 +47,6 @@ impl CommandRouter {
         return Ok(());
 
         loop {
-            // let cmd = match self.command_rx.try_recv() {
             let cmd = match command_rx.try_recv() {
                 Ok(cmd) => cmd,
                 Err(err) if err == TryRecvError::Disconnected => {
@@ -86,7 +81,6 @@ mod tests {
     #[test]
     fn should_register_susbcribers() {
         let (_, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
-        // let mut router = CommandRouter::new(command_rx);
         let mut router = CommandRouter::new();
 
         let (miner_command_tx, mut miner_command_rx) =
@@ -104,7 +98,6 @@ mod tests {
         let mut router = CommandRouter::new();
 
         let handle = tokio::spawn(async move {
-            // router.start(&mut command_rx).await.unwrap();
             router.start(&mut command_rx).await.unwrap();
         });
 
@@ -129,7 +122,6 @@ mod tests {
             .unwrap();
 
         let handle = tokio::spawn(async move {
-            // router.start(&mut command_rx).await.unwrap();
             router.start(&mut command_rx).await.unwrap();
         });
 
