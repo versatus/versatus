@@ -12,51 +12,51 @@ lto = "fat"
 
 [[bin]]
 name = "vrrb"
-path = "cli/src/main.rs"
+path = "crates/cli/src/main.rs"
 
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
-telemetry = { path = "telemetry" }
-commands = { path = "commands" }
-cli = { path = "cli" }
+telemetry = { path = "crates/telemetry" }
+commands = { path = "crates/commands" }
+cli = { path = "crates/cli" }
 anyhow = "1.0.64"
 
 [workspace]
 members = [
-    "primitives",
-    "cli",
-    "vrrb_config",
-    "block",
-    "blockchain",
-    "claim",
-    "miner",
-    "state",
-    "txn",
-    "wallet",
-    "events",
-    "ev_mem_pool",
-    "commands",
-    "mempool",
-    "messages",
-    "vrrb_lib",
-    "vrrb_cli",
-    "vrrb_gui",
-    "vrrb_vrf",
-    "network",
-    "node",
-    "storage",
-    "verifiable",
-    "ledger",
-    "accountable",
-    "ownable",
-    "noncing",
-    "updateable",
-    "quorum",
-    "state_trie",
-    "lrdb",
-    "lr_trie",
-    "tx_trie",
-    "dkg_engine",
-    "telemetry",
-    "signer",
+    "crates/primitives",
+    "crates/cli",
+    "crates/vrrb_config",
+    "crates/block",
+    "crates/blockchain",
+    "crates/claim",
+    "crates/miner",
+    "crates/state",
+    "crates/txn",
+    "crates/wallet",
+    "crates/events",
+    "crates/ev_mem_pool",
+    "crates/commands",
+    "crates/mempool",
+    "crates/messages",
+    "crates/vrrb_lib",
+    "crates/vrrb_cli",
+    "crates/vrrb_gui",
+    "crates/vrrb_vrf",
+    "crates/network",
+    "crates/node",
+    "crates/storage",
+    "crates/verifiable",
+    "crates/ledger",
+    "crates/accountable",
+    "crates/ownable",
+    "crates/noncing",
+    "crates/updateable",
+    "crates/quorum",
+    "crates/state_trie",
+    "crates/lrdb",
+    "crates/lr_trie",
+    "crates/tx_trie",
+    "crates/dkg_engine",
+    "crates/telemetry",
+    "crates/signer",
 ]
