@@ -1,7 +1,10 @@
 use assert_cmd::Command;
 
 #[tokio::test]
+<<<<<<< HEAD
 #[ignore = "temporarily broken because of GH actions issue"]
+=======
+>>>>>>> d66cfff (reorganize crates)
 pub async fn cli_should_show_help_text() {
     let mut cmd = Command::cargo_bin("vrrb").unwrap();
     let help_text = r#"cli 0.0.0
