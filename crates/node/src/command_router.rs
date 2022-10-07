@@ -1,13 +1,7 @@
-use std::collections::HashMap;
-
-use commands::command::Command;
-use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
-
-<<<<<<< HEAD
-use crate::Result;
-=======
 use crate::{NodeError, Result};
->>>>>>> 67c70bb (reorganize crates)
+use commands::command::Command;
+use std::collections::HashMap;
+use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 /// Contains all the potential destinations a command can be issued to
@@ -20,20 +14,13 @@ pub enum CommandRoute {
 }
 
 pub type Subscriber = UnboundedSender<Command>;
-<<<<<<< HEAD
-=======
 pub type CommandPublisher = UnboundedSender<DirectedCommand>;
->>>>>>> 67c70bb (reorganize crates)
 
 /// CommandRouter is an internal message bus that coordinates interaction
 /// between runtime modules
 pub struct CommandRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<CommandRoute, Subscriber>,
-<<<<<<< HEAD
-=======
-    // command_rx: UnboundedReceiver<DirectedCommand>,
->>>>>>> 67c70bb (reorganize crates)
 }
 
 pub type DirectedCommand = (CommandRoute, Command);
@@ -52,10 +39,6 @@ impl CommandRouter {
         Ok(())
     }
 
-<<<<<<< HEAD
-=======
-    // pub fn start(&mut self) -> Result<()> {
->>>>>>> 67c70bb (reorganize crates)
     pub async fn start(
         &mut self,
         command_rx: &mut UnboundedReceiver<DirectedCommand>,
@@ -63,10 +46,6 @@ impl CommandRouter {
         return Ok(());
 
         loop {
-<<<<<<< HEAD
-=======
-            // let cmd = match self.command_rx.try_recv() {
->>>>>>> 67c70bb (reorganize crates)
             let cmd = match command_rx.try_recv() {
                 Ok(cmd) => cmd,
                 Err(err) if err == TryRecvError::Disconnected => {
@@ -81,8 +60,6 @@ impl CommandRouter {
             match cmd {
                 (_, Command::Stop) => {
                     //TODO: forward stop command to all subscribers
-<<<<<<< HEAD
-=======
                     for (_, sub) in self.subscribers {
                         if let Err(err) = sub.send(Command::Stop) {
                             return Err(NodeError::Other(err.to_string()));
@@ -90,7 +67,6 @@ impl CommandRouter {
                         // TODO: trace log success
                     }
 
->>>>>>> 67c70bb (reorganize crates)
                     break;
                 },
                 (_, cmd) => {
@@ -111,10 +87,6 @@ mod tests {
     #[test]
     fn should_register_susbcribers() {
         let (_, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
-<<<<<<< HEAD
-=======
-        // let mut router = CommandRouter::new(command_rx);
->>>>>>> 67c70bb (reorganize crates)
         let mut router = CommandRouter::new();
 
         let (miner_command_tx, mut miner_command_rx) =
@@ -132,10 +104,6 @@ mod tests {
         let mut router = CommandRouter::new();
 
         let handle = tokio::spawn(async move {
-<<<<<<< HEAD
-=======
-            // router.start(&mut command_rx).await.unwrap();
->>>>>>> 67c70bb (reorganize crates)
             router.start(&mut command_rx).await.unwrap();
         });
 
@@ -160,10 +128,6 @@ mod tests {
             .unwrap();
 
         let handle = tokio::spawn(async move {
-<<<<<<< HEAD
-=======
-            // router.start(&mut command_rx).await.unwrap();
->>>>>>> 67c70bb (reorganize crates)
             router.start(&mut command_rx).await.unwrap();
         });
 

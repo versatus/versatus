@@ -207,14 +207,11 @@ impl Node {
     pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Command>) -> Result<()> {
         telemetry::debug!("parsing runtime configuration");
 
-<<<<<<< HEAD
-=======
         let (router_control_tx, mut router_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
 
         let mut cmd_router = command_router::CommandRouter::new();
 
->>>>>>> 67c70bb (reorganize crates)
         self.running_status = RuntimeModuleState::Running;
         // TODO: publish that node is running
 
@@ -270,11 +267,7 @@ impl Node {
         let (blockchain_control_tx, mut blockchain_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Command>();
 
-<<<<<<< HEAD
-        let mut blockchain_module = BlockchainModule::new();
-=======
         let mut blockchain_module = BlockchainModule::new(router_control_tx.clone());
->>>>>>> 67c70bb (reorganize crates)
 
         let blockchain_handle = tokio::spawn(async move {
             blockchain_module.start(&mut blockchain_control_rx);
@@ -304,14 +297,8 @@ impl Node {
             state_module.start(&mut state_control_rx);
         });
 
-<<<<<<< HEAD
-        let (router_control_tx, mut router_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
-
         let mut cmd_router = command_router::CommandRouter::new();
 
-=======
->>>>>>> 67c70bb (reorganize crates)
         // NOTE: setup the command subscribers
         cmd_router.add_subscriber(CommandRoute::Blockchain, blockchain_control_tx.clone())?;
         cmd_router.add_subscriber(CommandRoute::Miner, mining_control_tx.clone())?;
@@ -465,13 +452,10 @@ mod tests {
         vrrb_node.teardown();
         assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     }
-<<<<<<< HEAD
-=======
 
     #[test]
     #[ignore = "not implemented yet"]
     fn should_create_node_from_valid_config() {
         todo!();
     }
->>>>>>> 67c70bb (reorganize crates)
 }
