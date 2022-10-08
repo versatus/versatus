@@ -38,6 +38,7 @@ impl DkgGenerator for DkgEngine {
         if self.dkg_state.peer_public_keys.len() as u16 != self.threshold_config.upper_bound {
             return Err(DkgError::NotEnoughPeerPublicKeys);
         }
+
         let node_info = self.node_info.read().unwrap();
         if node_info.get_node_type() != NodeType::MasterNode {
             return Err(DkgError::InvalidNode);
@@ -45,7 +46,7 @@ impl DkgGenerator for DkgEngine {
         // TODO code to import secret key from node info to be added
         let secret_key_encoded = self.node_info.read().unwrap().secret_key.clone();
 
-        //This need to be moved to either primitive(Generics) module or Node module
+        // This need to be moved to either primitive(Generics) module or Node module
 
         let secret_key =
             bincode::deserialize::<SerdeSecret<SecretKey>>(secret_key_encoded.as_slice());

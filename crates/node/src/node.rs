@@ -19,6 +19,7 @@ use block::Block;
 use claim::claim::Claim;
 use commands::command::{Command, ComponentTypes};
 use events::events::{write_to_json, VrrbNetworkEvent};
+use hbbft::crypto::serde_impl::SerdeSecret;
 use ledger::ledger::Ledger;
 use lr_trie::LeftRightTrie;
 use messages::{
@@ -132,13 +133,11 @@ impl Node {
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
 
-        /*
-        let new_secret_wrapped =SerdeSecret(secret_key);
+        let new_secret_wrapped = SerdeSecret(secret_key);
         let mut secret_key_encoded = Vec::new();
-        if node_type==NodeType::MasterNode{
-            secret_key_encoded=bincode::serialize(&new_secret_wrapped).unwrap();
-        }
-        */
+        // if config.node_type == NodeType::MasterNode {
+        //     secret_key_encoded = bincode::serialize(&new_secret_wrapped).unwrap();
+        // }
 
         Self {
             id: config.id.clone(),

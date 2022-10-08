@@ -472,7 +472,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
     fn failed_verification_threshold_signature() {
         let message = "This is test message";
 
