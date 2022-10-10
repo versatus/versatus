@@ -1,4 +1,3 @@
-#[deprecated(note = "moved to crates/core and will be removed from this crate soon")]
 use std::collections::HashMap;
 
 use commands::command::Command;
