@@ -1,0 +1,12 @@
+[package]
+name = "core"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.21.2", features = ["full"] }
+commands = { path = "../commands" }
+telemetry = { path = "../telemetry" }
+anyhow = "1.0.65"
