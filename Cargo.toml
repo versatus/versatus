@@ -24,6 +24,7 @@ anyhow = "1.0.64"
 [workspace]
 members = [
     "crates/primitives",
+    "crates/core",
     "crates/cli",
     "crates/vrrb_config",
     "crates/block",
