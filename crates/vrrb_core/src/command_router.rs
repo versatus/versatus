@@ -63,6 +63,7 @@ impl CommandRouter {
                     //TODO: forward stop command to all subscribers
                     break;
                 },
+                (_, Command::NoOp) => {},
                 (_, cmd) => {
                     telemetry::warn!("Unrecognized command received: {:?}", cmd);
                 },
