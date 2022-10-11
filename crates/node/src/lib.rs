@@ -2,7 +2,6 @@
 #![allow(warnings, unused)]
 
 pub mod command_handler;
-pub mod command_router;
 pub mod handler;
 pub mod message_handler;
 mod node;
