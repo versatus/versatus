@@ -17,6 +17,8 @@ pub enum CommandRoute {
 
 pub type Subscriber = UnboundedSender<Command>;
 
+// TODO: refactor command router into an event routing abstraction instead.
+
 /// CommandRouter is an internal message bus that coordinates interaction
 /// between runtime modules. It's a generic version of CommandHandler
 pub struct CommandRouter {

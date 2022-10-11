@@ -21,7 +21,7 @@ pub enum NodeError {
     TryRecv(#[from] TryRecvError),
 
     #[error("{0}")]
-    Anyhow(#[from] anyhow::Error),
+    Core(#[from] vrrb_core::Error),
 
     #[error("{0}")]
     Other(String),
