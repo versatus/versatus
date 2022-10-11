@@ -39,7 +39,6 @@ use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use state::state::{Components, NetworkState};
-use storage::FileSystemStorage;
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
@@ -110,7 +109,9 @@ pub struct Node {
     is_bootsrap: bool,
     bootsrap_addr: SocketAddr,
     // db_path: PathBuf,
+    /// VRRB world state. it contains the accounts tree
     // state: LeftRightTrie<MemoryDB>,
+    /// Confirmed transactions
     // txns: LeftRightTrie<MemoryDB>,
     // mempool: HashMap<String, String>,
     // validator_unit: Option<i32>,
@@ -130,6 +131,11 @@ impl Node {
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
 
+        // TODO: replace memorydb with real backing db later
+        let mem_db = MemoryDB::new(true);
+        let backing_db = Arc::new(mem_db);
+        let lr_trie = LeftRightTrie::new(backing_db);
+
         /*
         let new_secret_wrapped =SerdeSecret(secret_key);
         let mut secret_key_encoded = Vec::new();
@@ -146,9 +152,9 @@ impl Node {
             pubkey: pubkey.to_string(),
             public_key: pubkey.to_string().into_bytes(),
             // db_path: todo!(),
-            // state: todo!(),
+            // state,
             // txns: todo!(),
-            // mempool: todo!(),
+            // mempool,
             // validator_unit: todo!(),
             is_bootsrap: config.bootstrap,
             bootsrap_addr: config.bootstrap_node_addr,
@@ -217,6 +223,8 @@ impl Node {
         // TODO: setup storage facade crate
         // ___________________________________________________________________________________________________
 
+        // let db = pickledb::PickleDb::new();
+
         // self.setup_data_dir(self.data_dir.clone());
         // self.setup_log_and_db_file(self.data_dir.clone());
         // self.setup_wallet(self.data_dir.clone());
@@ -268,7 +276,6 @@ impl Node {
 
         //____________________________________________________________________________________________________
         // Mining module
-
         let (mining_control_tx, mut mining_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Command>();
 
@@ -280,7 +287,6 @@ impl Node {
 
         //____________________________________________________________________________________________________
         // State module
-
         let (state_control_tx, mut state_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Command>();
 
@@ -310,37 +316,38 @@ impl Node {
         //     // }
         // });
 
-        if let Err(err) = cmd_router.start(&mut router_control_rx).await {
-            telemetry::error!("error while listening for commands: {0}", err);
-        }
+        // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
+        //     telemetry::error!("error while listening for commands: {0}", err);
+        // }
 
         // Runtime module teardown
         //____________________________________________________________________________________________________
         // TODO: start node API here
+        //
         // TODO: rethink this loop
-        // loop {
-        //     match control_rx.try_recv() {
-        //         Ok(sig) => {
-        //             telemetry::info!("Received stop signal");
-        //
-        //             // TODO: send signal to stop all task handlers here
-        //             router_control_tx
-        //                 .send((CommandRoute::Router, Command::Stop))
-        //                 .unwrap();
-        //
-        //             self.teardown();
-        //
-        //             break;
-        //         },
-        //         Err(err) if err == TryRecvError::Disconnected => {
-        //             telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
-        //             telemetry::warn!("Shutting down");
-        //             break;
-        //         },
-        //         _ => {},
-        //     }
-        // }
+        loop {
+            match control_rx.try_recv() {
+                Ok(sig) => {
+                    telemetry::info!("Received stop signal");
 
+                    // TODO: send signal to stop all task handlers here
+                    router_control_tx
+                        .send((CommandRoute::Router, Command::Stop))
+                        .unwrap();
+
+                    self.teardown();
+
+                    break;
+                },
+                Err(err) if err == TryRecvError::Disconnected => {
+                    telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
+                    telemetry::warn!("Shutting down");
+                    break;
+                },
+                _ => {},
+            }
+        }
+        //
         // TODO: await on all task handles here
 
         telemetry::info!("Node shutdown complete");
