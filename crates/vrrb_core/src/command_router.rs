@@ -1,4 +1,3 @@
-#[deprecated(note = "moved to crates/core and will be removed from this crate soon")]
 use std::collections::HashMap;
 
 use commands::command::Command;
@@ -18,8 +17,10 @@ pub enum CommandRoute {
 
 pub type Subscriber = UnboundedSender<Command>;
 
+// TODO: refactor command router into an event routing abstraction instead.
+
 /// CommandRouter is an internal message bus that coordinates interaction
-/// between runtime modules
+/// between runtime modules. It's a generic version of CommandHandler
 pub struct CommandRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<CommandRoute, Subscriber>,
@@ -45,8 +46,6 @@ impl CommandRouter {
         &mut self,
         command_rx: &mut UnboundedReceiver<DirectedCommand>,
     ) -> Result<()> {
-        return Ok(());
-
         loop {
             let cmd = match command_rx.try_recv() {
                 Ok(cmd) => cmd,
@@ -64,6 +63,7 @@ impl CommandRouter {
                     //TODO: forward stop command to all subscribers
                     break;
                 },
+                (_, Command::NoOp) => {},
                 (_, cmd) => {
                     telemetry::warn!("Unrecognized command received: {:?}", cmd);
                 },
@@ -76,7 +76,6 @@ impl CommandRouter {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]

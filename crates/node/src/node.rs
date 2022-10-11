@@ -14,6 +14,7 @@ use std::{
     },
     time::{Duration, Instant},
 };
+use vrrb_core::command_router::{CommandRoute, CommandRouter, DirectedCommand};
 
 use block::Block;
 use claim::claim::Claim;
@@ -38,7 +39,6 @@ use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use state::state::{Components, NetworkState};
-use storage::FileSystemStorage;
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
@@ -58,9 +58,6 @@ use uuid::Uuid;
 use wallet::wallet::WalletAccount;
 
 use crate::{
-    command_handler::CommandHandler,
-    command_router::{self, CommandRoute, DirectedCommand},
-    message_handler::MessageHandler,
     miner::MiningModule,
     result::*,
     runtime::blockchain::BlockchainModule,
@@ -112,7 +109,9 @@ pub struct Node {
     is_bootsrap: bool,
     bootsrap_addr: SocketAddr,
     // db_path: PathBuf,
+    /// VRRB world state. it contains the accounts tree
     // state: LeftRightTrie<MemoryDB>,
+    /// Confirmed transactions
     // txns: LeftRightTrie<MemoryDB>,
     // mempool: HashMap<String, String>,
     // validator_unit: Option<i32>,
@@ -132,6 +131,11 @@ impl Node {
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
 
+        // TODO: replace memorydb with real backing db later
+        let mem_db = MemoryDB::new(true);
+        let backing_db = Arc::new(mem_db);
+        let lr_trie = LeftRightTrie::new(backing_db);
+
         /*
         let new_secret_wrapped =SerdeSecret(secret_key);
         let mut secret_key_encoded = Vec::new();
@@ -148,9 +152,9 @@ impl Node {
             pubkey: pubkey.to_string(),
             public_key: pubkey.to_string().into_bytes(),
             // db_path: todo!(),
-            // state: todo!(),
+            // state,
             // txns: todo!(),
-            // mempool: todo!(),
+            // mempool,
             // validator_unit: todo!(),
             is_bootsrap: config.bootstrap,
             bootsrap_addr: config.bootstrap_node_addr,
@@ -219,9 +223,11 @@ impl Node {
         // TODO: setup storage facade crate
         // ___________________________________________________________________________________________________
 
-        self.setup_data_dir(self.data_dir.clone());
-        self.setup_log_and_db_file(self.data_dir.clone());
-        self.setup_wallet(self.data_dir.clone());
+        // let db = pickledb::PickleDb::new();
+
+        // self.setup_data_dir(self.data_dir.clone());
+        // self.setup_log_and_db_file(self.data_dir.clone());
+        // self.setup_wallet(self.data_dir.clone());
 
         //____________________________________________________________________________________________________
         // Swarm module
@@ -270,7 +276,6 @@ impl Node {
 
         //____________________________________________________________________________________________________
         // Mining module
-
         let (mining_control_tx, mut mining_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Command>();
 
@@ -282,7 +287,6 @@ impl Node {
 
         //____________________________________________________________________________________________________
         // State module
-
         let (state_control_tx, mut state_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Command>();
 
@@ -295,7 +299,7 @@ impl Node {
         let (router_control_tx, mut router_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
 
-        let mut cmd_router = command_router::CommandRouter::new();
+        let mut cmd_router = CommandRouter::new();
 
         // NOTE: setup the command subscribers
         cmd_router.add_subscriber(CommandRoute::Blockchain, blockchain_control_tx.clone())?;
@@ -305,16 +309,21 @@ impl Node {
 
         // TODO: feed command handler to transport layer
         // TODO: report error from handle
-        let router_handle = tokio::spawn(async move {
-            // TODO: fix blocking loop on router
-            // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
-            //     telemetry::error!("error while listening for commands: {0}", err);
-            // }
-        });
+        // let router_handle = tokio::spawn(async move {
+        //     // TODO: fix blocking loop on router
+        //     // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
+        //     //     telemetry::error!("error while listening for commands: {0}", err);
+        //     // }
+        // });
+
+        // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
+        //     telemetry::error!("error while listening for commands: {0}", err);
+        // }
 
         // Runtime module teardown
         //____________________________________________________________________________________________________
         // TODO: start node API here
+        //
         // TODO: rethink this loop
         loop {
             match control_rx.try_recv() {
@@ -338,88 +347,10 @@ impl Node {
                 _ => {},
             }
         }
-
+        //
         // TODO: await on all task handles here
 
         telemetry::info!("Node shutdown complete");
-
-        Ok(())
-    }
-
-    fn setup_data_dir(&self, data_dir: PathBuf) -> Result<()> {
-        // TODO: decide who to feed this data dir
-        let data_dir = storage::create_node_data_dir()?;
-
-        /*
-        let data_dir = String::from(".vrrb").into();
-        let fs_storage = FileSystemStorage::new(data_dir);
-
-        let directory = {
-            if let Some(dir) = std::env::args().nth(2) {
-                std::fs::create_dir_all(dir.clone())?;
-                dir.clone()
-            } else {
-                std::fs::create_dir_all("./.vrrb_data".to_string())?;
-                "./.vrrb_data".to_string()
-            }
-        };
-
-        let events_path = format!("{}/events_{}.json", directory.clone(), event_file_suffix);
-        fs::File::create(events_path.clone()).unwrap();
-        if let Err(err) = write_to_json(events_path.clone(), VrrbNetworkEvent::VrrbStarted) {
-            info!("Error writting to json in main.rs 164");
-            error!("{:?}", err.to_string());
-        }
-        */
-
-        Ok(())
-    }
-
-    fn setup_log_and_db_file(&self, data_dir: PathBuf) -> Result<()> {
-        /*
-        let node_type = NodeAuth::Full;
-        let log_file_suffix: u8 = rng.gen();
-        let log_file_path = if let Some(path) = std::env::args().nth(4) {
-            path
-        } else {
-            format!(
-                "{}/vrrb_log_file_{}.log",
-                directory.clone(),
-                log_file_suffix
-            )
-        };
-        let _ = WriteLogger::init(
-            LevelFilter::Info,
-            Config::default(),
-            fs::File::create(log_file_path).unwrap(),
-        );
-
-        */
-        Ok(())
-    }
-
-    fn setup_wallet(&self, data_dir: PathBuf) -> Result<()> {
-        /*
-        let wallet = if let Some(secret_key) = std::env::args().nth(3) {
-            WalletAccount::restore_from_private_key(secret_key)
-        } else {
-            WalletAccount::new()
-        };
-
-        let mut rng = rand::thread_rng();
-        let file_suffix: u32 = rng.gen();
-        let path = if let Some(path) = std::env::args().nth(5) {
-            path
-        } else {
-            format!("{}/test_{}.json", directory.clone(), file_suffix)
-        };
-
-        let mut network_state = NetworkState::restore(&path);
-        let ledger = Ledger::new();
-        network_state.set_ledger(ledger.as_bytes());
-        let reward_state = RewardState::start();
-        network_state.set_reward_state(reward_state);
-        */
 
         Ok(())
     }
@@ -451,3 +382,81 @@ mod tests {
         assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     }
 }
+
+// fn setup_data_dir(&self, data_dir: PathBuf) -> Result<()> {
+//     // TODO: decide who to feed this data dir
+//     let data_dir = storage::create_node_data_dir()?;
+//
+//     /*
+//     let data_dir = String::from(".vrrb").into();
+//     let fs_storage = FileSystemStorage::new(data_dir);
+//
+//     let directory = {
+//         if let Some(dir) = std::env::args().nth(2) {
+//             std::fs::create_dir_all(dir.clone())?;
+//             dir.clone()
+//         } else {
+//             std::fs::create_dir_all("./.vrrb_data".to_string())?;
+//             "./.vrrb_data".to_string()
+//         }
+//     };
+//
+//     let events_path = format!("{}/events_{}.json", directory.clone(), event_file_suffix);
+//     fs::File::create(events_path.clone()).unwrap();
+//     if let Err(err) = write_to_json(events_path.clone(), VrrbNetworkEvent::VrrbStarted) {
+//         info!("Error writting to json in main.rs 164");
+//         error!("{:?}", err.to_string());
+//     }
+//     */
+//
+//     Ok(())
+// }
+//
+// fn setup_log_and_db_file(&self, data_dir: PathBuf) -> Result<()> {
+//     /*
+//     let node_type = NodeAuth::Full;
+//     let log_file_suffix: u8 = rng.gen();
+//     let log_file_path = if let Some(path) = std::env::args().nth(4) {
+//         path
+//     } else {
+//         format!(
+//             "{}/vrrb_log_file_{}.log",
+//             directory.clone(),
+//             log_file_suffix
+//         )
+//     };
+//     let _ = WriteLogger::init(
+//         LevelFilter::Info,
+//         Config::default(),
+//         fs::File::create(log_file_path).unwrap(),
+//     );
+//
+//     */
+//     Ok(())
+// }
+//
+// fn setup_wallet(&self, data_dir: PathBuf) -> Result<()> {
+//     /*
+//     let wallet = if let Some(secret_key) = std::env::args().nth(3) {
+//         WalletAccount::restore_from_private_key(secret_key)
+//     } else {
+//         WalletAccount::new()
+//     };
+//
+//     let mut rng = rand::thread_rng();
+//     let file_suffix: u32 = rng.gen();
+//     let path = if let Some(path) = std::env::args().nth(5) {
+//         path
+//     } else {
+//         format!("{}/test_{}.json", directory.clone(), file_suffix)
+//     };
+//
+//     let mut network_state = NetworkState::restore(&path);
+//     let ledger = Ledger::new();
+//     network_state.set_ledger(ledger.as_bytes());
+//     let reward_state = RewardState::start();
+//     network_state.set_reward_state(reward_state);
+//     */
+//
+//     Ok(())
+// }
