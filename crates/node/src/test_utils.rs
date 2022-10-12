@@ -3,7 +3,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
-use primitives::NodeType;
+use primitives::types::NodeType;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
 
