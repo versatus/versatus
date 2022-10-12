@@ -17,3 +17,4 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
 rand = "0.8.4"
 commands = { path = "../commands" }
 messages = { path = "../messages" }
+thiserror = "1.0.33"

@@ -96,7 +96,7 @@ impl MessageType {
         serde_json::to_string(&self).unwrap().as_bytes().to_vec()
     }
 
-    /// Deserialie a vector of bytes into a MessageType
+    /// Deserialize a vector of bytes into a MessageType
     pub fn from_bytes(data: &[u8]) -> Option<MessageType> {
         if let Ok(message) = serde_json::from_slice::<MessageType>(data) {
             Some(message)

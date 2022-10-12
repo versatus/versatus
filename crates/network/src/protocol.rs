@@ -42,6 +42,7 @@ pub fn write_to_json<T: Debug>(path: String, event: &T) -> Result<(), serde_json
     Ok(())
 }
 
+
 pub fn get_event<T: Debug>(event: &T) -> VrrbNetworkEvent {
     let event_string = format!("{:?}", event);
     VrrbNetworkEvent::VrrbProtocolEvent {
