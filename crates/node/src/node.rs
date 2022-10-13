@@ -39,7 +39,7 @@ use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-use state::state::{Components, NetworkState};
+use state::{Components, NetworkState};
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
@@ -62,9 +62,8 @@ use crate::{
     miner::MiningModule,
     result::*,
     runtime::blockchain::BlockchainModule,
-    state::StateModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState,
+    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;

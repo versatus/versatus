@@ -1,48 +1,86 @@
-//FEATURE TAG(S): Left-Right Database, Left-Right State Trie
 use std::{fs, sync::Arc};
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use accountable::accountable::Accountable;
-use claim::claim::Claim;
-use ledger::ledger::Ledger;
-use log::info;
-use noncing::nonceable::Nonceable;
-use ownable::ownable::Ownable;
-use reward::reward::{Reward, RewardState};
-use ritelinked::LinkedHashMap;
+use lr_trie::LeftRightTrie;
+use patriecia::db::MemoryDB;
+use telemetry::info;
+// use reward::reward::{Reward, RewardState};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 
+use crate::result::Result;
 use crate::types::{
     CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
     StateRewardState, StateRoot,
 };
 
-/// The Network State struct, contains basic information required to determine
+/// The Node State struct, contains basic information required to determine
 /// the current state of the network.
 //TODO: Replace `ledger`, `credits`, `debits`, with LR State Trie
 //TODO: Replace `state_hash` with LR State Trie Root.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NetworkState {
-    // Path to database
+// #[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+pub struct NodeState {
+    /// Path to database
     pub path: StatePath,
-    // ledger.as_bytes()
-    pub ledger: LedgerBytes,
-    // hash of the state of credits in the network
-    pub credits: CreditsRoot,
-    // hash of the state of debits in the network
-    pub debits: DebitsRoot,
-    //reward state of the network
-    pub reward_state: StateRewardState,
-    // the last state hash -> sha256 hash of credits, debits & reward state.
-    pub state_hash: StateRoot,
+    // /// Reward state of the network
+    // pub reward_state: StateRewardState,
+    // // the last state hash -> sha256 hash of credits, debits & reward state.
+    // pub state_hash: StateRoot,
+    // _mempool:
+    state_trie: LeftRightTrie<MemoryDB>,
+    tx_trie: LeftRightTrie<MemoryDB>,
 }
 
-impl<'de> NetworkState {
+impl Clone for NodeState {
+    /// Warning: do not use yet as lr_trie doesn't fully implement clone yet.
+    fn clone(&self) -> NodeState {
+        NodeState {
+            path: self.path.clone(),
+            state_trie: self.state_trie.clone(),
+            tx_trie: self.tx_trie.clone(),
+        }
+    }
+}
+
+// #[derive(Debug, Serialize, Deserialize)]
+struct NodeStateValues {
+    //
+}
+
+impl NodeStateValues {
+    /// Converts a vector of bytes into a Network State or returns an error if
+    /// it's unable to
+    pub fn from_bytes(data: Vec<u8>) -> Result<NodeStateValues, serde_json::error::Error> {
+        serde_json::from_slice::<NodeStateValues>(&data.clone())
+    }
+}
+
+impl NodeState {
+    pub fn new(path: std::path::PathBuf) -> Self {
+        // TODO: replace memorydb with real backing db later
+        let mem_db = MemoryDB::new(true);
+        let backing_db = Arc::new(mem_db);
+        let state_trie = LeftRightTrie::new(backing_db.clone());
+        let tx_trie = LeftRightTrie::new(backing_db);
+
+        Self {
+            path,
+            state_trie,
+            tx_trie,
+            // path: todo!(),
+            // ledger: todo!(),
+            // credits: todo!(),
+            // debits: todo!(),
+            // reward_state: todo!(),
+            // state_hash: todo!(),
+        }
+    }
+
     /// Restores the network state from a serialized hex string representation
     /// and returns a proper struct
-    pub fn restore(path: &str) -> NetworkState {
+    pub fn restore(path: &str) -> NodeState {
         let hex_string = {
             if let Ok(string) = fs::read_to_string(path) {
                 string
@@ -53,27 +91,46 @@ impl<'de> NetworkState {
 
         let bytes = hex::decode(hex_string.clone());
         if let Ok(state_bytes) = bytes {
-            if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
+            if let Ok(network_state) = NodeStateValues::from_bytes(state_bytes) {
                 network_state.dump_to_file();
                 return network_state;
             }
         }
 
         // TODO: decode db from bytes and feed it to network_state
-
-        let network_state = NetworkState {
-            path: path.into(),
-            ledger: vec![],
-            credits: None,
-            debits: None,
-            reward_state: None,
-            state_hash: None,
+        let network_state = NodeState {
+            path: todo!(),
+            state_trie: todo!(),
+            tx_trie: todo!(),
         };
 
-        network_state.dump_to_file();
+        // let network_state = NetworkState {
+        //     path: path.to_string(),
+        //     ledger: vec![],
+        //     credits: None,
+        //     debits: None,
+        //     reward_state: None,
+        //     state_hash: None,
+        //     _state_trie: todo!(),
+        //     _tx_trie: todo!(),
+        // };
+
+        // network_state.dump_to_file();
 
         network_state
     }
+
+    /// Dumps a hex string representation of the `NetworkState` to file.
+    pub fn dump_to_file(&self) -> Result<()> {
+        todo!();
+        // if let Err(_) = fs::write(self.path.clone(), hex::encode(self.as_bytes())) {
+        info!("Error dumping ledger to file");
+        // };
+    }
+}
+
+/*
+impl<'de> NetworkState {
 
     /// Dumps a new ledger (serialized in a vector of bytes) to a file.
     pub fn set_ledger(&mut self, ledger_bytes: LedgerBytes) {
@@ -378,12 +435,6 @@ impl<'de> NetworkState {
         self.dump_to_file()
     }
 
-    /// Dumps a hex string representation of the `NetworkState` to file.
-    pub fn dump_to_file(&self) {
-        if let Err(_) = fs::write(self.path.clone(), hex::encode(self.as_bytes())) {
-            info!("Error dumping ledger to file");
-        };
-    }
 
     /// Returns a serialized representation of the credits map as a vector of
     /// bytes
@@ -473,16 +524,4 @@ impl<'de> NetworkState {
         }
     }
 }
-
-impl Clone for NetworkState {
-    fn clone(&self) -> Self {
-        Self {
-            path: self.path.clone(),
-            ledger: self.ledger.clone(),
-            credits: self.credits.clone(),
-            debits: self.debits.clone(),
-            reward_state: self.reward_state.clone(),
-            state_hash: self.state_hash.clone(),
-        }
-    }
-}
+*/

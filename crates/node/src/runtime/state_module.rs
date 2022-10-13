@@ -1,3 +1,4 @@
+use state::state::NetworkState;
 use tokio::sync::mpsc::error::TryRecvError;
 use vrrb_core::event_router::Event;
 
@@ -8,6 +9,8 @@ pub struct StateModule {
     //
 }
 
+/// StateModule manages all state persistence and updates within VrrbNodes
+/// it runs as an indepdendant module such that it can be enabled and disabled as necessary.
 impl StateModule {
     pub fn new() -> Self {
         Self {}

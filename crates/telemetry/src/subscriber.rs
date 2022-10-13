@@ -50,7 +50,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
+    fn logs_to_stdout() {
         let tw = TestWriter::new();
 
         TelemetrySubscriber::init(tw).unwrap();

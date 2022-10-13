@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{borrow::Borrow, fmt::Debug, sync::Arc};
 
 use crate::{Key, Operation, TrieValue};
 use keccak_hash::H256;
@@ -163,6 +163,38 @@ where
 
     fn sync_with(&mut self, first: &Self) {
         *self = first.clone();
+    }
+}
+
+impl<D: Database> From<D> for LeftRightTrie<D> {
+    fn from(db: D) -> Self {
+        let db = Arc::new(db);
+        let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+
+        Self {
+            read_handle,
+            write_handle,
+        }
+    }
+}
+
+impl<D: Database> Clone for LeftRightTrie<D> {
+    fn clone(&self) -> Self {
+        Self {
+            read_handle: todo!(),
+            write_handle: todo!(),
+        }
+        // let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(self.db));
+        //
+        // Self {
+        //     read_handle,
+        //     write_handle,
+        // }
+
+        // Self {
+        //     read_handle: self.read_handle.clone(),
+        //     write_handle: self.write_handle.clone(),
+        // }
     }
 }
 
