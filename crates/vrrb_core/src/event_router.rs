@@ -6,25 +6,28 @@ use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender}
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 
+// NOTE: naming convention for events goes as follows:
+// <Subject><Verb, in past tense>, e.g. ObjectCreated
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Event {
-    Stop,
-    Start,
-    NewTxn(Vec<u8>),            // New txn came from network, requires validation
-    ValidatedTxnBatch(Vec<u8>), // Batch of validated txns
-    NewConfirmedBlock(Vec<u8>),
     NoOp,
+    Stop,
+    /// New txn came from network, requires validation
+    TxnCreated(Vec<u8>),
+    /// Batch of validated txns
+    TxnBatchValidated(Vec<u8>),
+    BlockConfirmed(Vec<u8>),
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-/// Contains all the potential topics a Event may be tied to
+/// Contains all the potential topics.
 pub enum Topic {
     Control,
     Transactions,
 }
 
-/// CommandRouter is an internal message bus that coordinates interaction
-/// between runtime modules. It's a generic version of CommandHandler
+/// EventRouter is an internal message bus that coordinates interaction
+/// between runtime modules.
 pub struct EventRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<Topic, Vec<Subscriber>>,
@@ -44,7 +47,7 @@ impl EventRouter {
             Entry::Occupied(mut subscribers) => subscribers.get_mut().push(subscriber),
             Entry::Vacant(empty) => {
                 empty.insert(vec![subscriber]);
-            }
+            },
         }
     }
 
@@ -52,31 +55,40 @@ impl EventRouter {
     /// specified routes
     pub async fn start(&mut self, command_rx: &mut UnboundedReceiver<DirectedEvent>) {
         loop {
-            let cmd = match command_rx.try_recv() {
+            let (topic, event) = match command_rx.try_recv() {
                 Ok(cmd) => cmd,
                 Err(err) if err == TryRecvError::Disconnected => {
-                    telemetry::error!("The command channel for command router has been closed. ");
+                    telemetry::error!("The command channel for event router has been closed.");
                     (Topic::Control, Event::Stop)
                     //TODO: refactor this error handling
-                }
+                },
                 // TODO: log all other errors
                 _ => (Topic::Control, Event::NoOp),
             };
 
-            if let Some(subscriber_list) = self.subscribers.get_mut(&cmd.0) {
-                for subscriber in subscriber_list.clone() {
-                    if let Err(err) = subscriber.send(cmd.1.clone()) {
-                        // TODO: Think about if we should drop the subscriber only from that topic,
-                        // or from all Remove subscriber from that topic,
-                        // since their channel is closed
-                        subscriber_list.retain(|sub| !sub.same_channel(&subscriber));
-                        telemetry::error!("{:?}", err);
-                    }
-                }
-            };
+            if event == Event::Stop {
+                telemetry::info!("event router received stop signal");
+                self.fan_out_event(Event::Stop, &topic);
 
-            if cmd.1 == Event::Stop {
                 break;
+            }
+
+            self.fan_out_event(event, &topic);
+        }
+    }
+
+    fn fan_out_event(&mut self, event: Event, topic: &Topic) {
+        if let Some(subscriber_list) = self.subscribers.get_mut(topic) {
+            for subscriber in subscriber_list {
+                //TODO: report errors
+                if let Err(err) = subscriber.send(event.clone()) {
+                    telemetry::error!(
+                        "failed to send event {:?} to topic {:?}. reason: {:?}",
+                        event,
+                        topic,
+                        err
+                    );
+                }
             }
         }
     }
@@ -101,7 +113,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_stop_when_issued_stop_command() {
+    async fn should_stop_when_issued_stop_event() {
         let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
         let (subscriber_tx, mut subscriber_rx) = unbounded_channel::<Event>();
 
@@ -121,7 +133,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_route_commands() {
+    async fn should_route_events() {
         let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
         let mut router = EventRouter::new();
 
@@ -136,22 +148,20 @@ mod tests {
             router.start(&mut event_rx).await;
         });
 
-        event_tx.send((Topic::Control, Event::Start)).unwrap();
         event_tx
-            .send((Topic::Transactions, Event::NewTxn(Vec::new())))
+            .send((Topic::Transactions, Event::TxnCreated(Vec::new())))
             .unwrap();
+
         event_tx.send((Topic::Control, Event::Stop)).unwrap();
 
         handle.await.unwrap();
 
-        assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Start);
         assert_eq!(
             validator_event_rx.recv().await.unwrap(),
-            Event::NewTxn(Vec::new())
+            Event::TxnCreated(Vec::new())
         );
-        assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Stop);
 
-        assert_eq!(miner_event_rx.recv().await.unwrap(), Event::Start);
+        assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Stop);
         assert_eq!(miner_event_rx.recv().await.unwrap(), Event::Stop);
     }
 }
