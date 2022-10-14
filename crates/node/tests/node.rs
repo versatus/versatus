@@ -7,6 +7,7 @@ use std::{
 };
 
 use commands::command::Command;
+use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
 use node::{Node, NodeType, RuntimeModuleState};
 use telemetry::TelemetrySubscriber;
 use uuid::Uuid;

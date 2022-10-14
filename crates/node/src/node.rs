@@ -14,7 +14,8 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use vrrb_core::command_router::{CommandRoute, CommandRouter, DirectedCommand};
+
+use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
 
 use block::Block;
 use claim::claim::Claim;
@@ -208,7 +209,7 @@ impl Node {
     /// Main node setup and execution entrypoint, called only by applications
     /// that intend to run VRRB nodes
     #[telemetry::instrument]
-    pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Command>) -> Result<()> {
+    pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()> {
         telemetry::debug!("parsing runtime configuration");
 
         self.running_status = RuntimeModuleState::Running;
@@ -257,7 +258,7 @@ impl Node {
         };
 
         let (swarm_control_tx, mut swarm_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Command>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let mut swarm = SwarmModule::new(swarm_config);
 
@@ -266,7 +267,7 @@ impl Node {
         });
 
         let (blockchain_control_tx, mut blockchain_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Command>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let mut blockchain_module = BlockchainModule::new();
 
@@ -277,7 +278,7 @@ impl Node {
         //____________________________________________________________________________________________________
         // Mining module
         let (mining_control_tx, mut mining_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Command>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let mut minig_module = MiningModule::new();
 
@@ -288,7 +289,7 @@ impl Node {
         //____________________________________________________________________________________________________
         // State module
         let (state_control_tx, mut state_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Command>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let mut state_module = StateModule::new();
 
@@ -297,15 +298,17 @@ impl Node {
         });
 
         let (router_control_tx, mut router_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
+            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let mut cmd_router = CommandRouter::new();
+        let mut event_router = EventRouter::new();
 
-        // NOTE: setup the command subscribers
-        cmd_router.add_subscriber(CommandRoute::Blockchain, blockchain_control_tx.clone())?;
-        cmd_router.add_subscriber(CommandRoute::Miner, mining_control_tx.clone())?;
-        cmd_router.add_subscriber(CommandRoute::Swarm, swarm_control_tx.clone())?;
-        cmd_router.add_subscriber(CommandRoute::State, state_control_tx.clone())?;
+    
+        event_router.add_subscriber(Topic::Control, swarm_control_tx);
+        event_router.add_subscriber(Topic::Control, blockchain_control_tx.clone());
+        event_router.add_subscriber(Topic::Control, mining_control_tx);
+        event_router.add_subscriber(Topic::Control, state_control_tx.clone());
+
+
 
         // TODO: feed command handler to transport layer
         // TODO: report error from handle
@@ -332,7 +335,7 @@ impl Node {
 
                     // TODO: send signal to stop all task handlers here
                     router_control_tx
-                        .send((CommandRoute::Router, Command::Stop))
+                        .send((Topic::Control, sig))
                         .unwrap();
 
                     self.teardown();

@@ -8,9 +8,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+use vrrb_core::event_router::Event;
 use block::invalid::InvalidBlockErrorReason;
 use claim::claim::Claim;
-use commands::command::{Command, ComponentTypes};
+use commands::command::ComponentTypes;
 use events::events::{write_to_json, VrrbNetworkEvent};
 use ledger::ledger::Ledger;
 use messages::message_types::MessageType;
@@ -65,7 +66,7 @@ impl RuntimeModule for SwarmModule {
         todo!()
     }
 
-    fn start(&mut self, control_rx: &mut mpsc::UnboundedReceiver<Command>) -> Result<()> {
+    fn start(&mut self, control_rx: &mut mpsc::UnboundedReceiver<Event>) -> Result<()> {
         // TODO: rethink this loop
         loop {
             match control_rx.try_recv() {

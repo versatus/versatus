@@ -1,5 +1,6 @@
 use blockchain::blockchain::Blockchain;
 use tokio::sync::mpsc::error::TryRecvError;
+use vrrb_core::event_router::Event;
 
 use crate::{result::Result, RuntimeModule};
 
@@ -27,7 +28,7 @@ impl RuntimeModule for BlockchainModule {
 
     fn start(
         &mut self,
-        control_rx: &mut tokio::sync::mpsc::UnboundedReceiver<commands::command::Command>,
+        control_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {
         // TODO: rethink this loop
         loop {
