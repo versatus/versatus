@@ -1,4 +1,3 @@
-
 mod tests {
     use std::{
         env,
@@ -8,13 +7,12 @@ mod tests {
         sync::Arc,
     };
 
-    use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
     use commands::command::Command;
-    use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
     use node::{Node, NodeType, RuntimeModuleState};
     use telemetry::TelemetrySubscriber;
     use uuid::Uuid;
     use vrrb_config::NodeConfig;
+    use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 
     #[tokio::test]
     async fn node_runtime_starts_and_stops() {
@@ -55,3 +53,4 @@ mod tests {
         handle.await.unwrap();
     }
 }
+
