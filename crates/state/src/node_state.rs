@@ -1,10 +1,13 @@
+use std::path::PathBuf;
 use std::{fs, sync::Arc};
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
 use lr_trie::LeftRightTrie;
+use lrdb::Account;
 use patriecia::db::MemoryDB;
-use telemetry::info;
+use ritelinked::LinkedHashMap;
+use telemetry::{error, info};
 // use reward::reward::{Reward, RewardState};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
@@ -14,6 +17,7 @@ use crate::types::{
     CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
     StateRewardState, StateRoot,
 };
+use crate::StateError;
 
 /// The Node State struct, contains basic information required to determine
 /// the current state of the network.
@@ -44,15 +48,28 @@ impl Clone for NodeState {
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct NodeStateValues {
-    //
+    pub txns: LinkedHashMap<String, Account>,
+    pub state: LinkedHashMap<String, Account>,
+}
+
+impl From<&NodeState> for NodeStateValues {
+    fn from(node_state: &NodeState) -> Self {
+        Self {
+            txns: LinkedHashMap::new(),
+            state: LinkedHashMap::new(),
+        }
+    }
 }
 
 impl NodeStateValues {
     /// Converts a vector of bytes into a Network State or returns an error if
     /// it's unable to
-    pub fn from_bytes(data: Vec<u8>) -> Result<NodeStateValues, serde_json::error::Error> {
+    pub fn from_bytes(
+        data: Vec<u8>,
+    ) -> std::result::Result<NodeStateValues, serde_json::error::Error> {
+        // pub fn from_bytes(data: Vec<u8>) -> Result<NodeStateValues> {
         serde_json::from_slice::<NodeStateValues>(&data.clone())
     }
 }
@@ -69,65 +86,77 @@ impl NodeState {
             path,
             state_trie,
             tx_trie,
-            // path: todo!(),
-            // ledger: todo!(),
-            // credits: todo!(),
-            // debits: todo!(),
-            // reward_state: todo!(),
-            // state_hash: todo!(),
         }
     }
 
     /// Restores the network state from a serialized hex string representation
     /// and returns a proper struct
-    pub fn restore(path: &str) -> NodeState {
-        let hex_string = {
-            if let Ok(string) = fs::read_to_string(path) {
-                string
-            } else {
-                String::new()
-            }
-        };
+    // pub fn restore(path: &str) -> NodeState {
+    //     let hex_string = {
+    //         if let Ok(string) = fs::read_to_string(path) {
+    //             string
+    //         } else {
+    //             String::new()
+    //         }
+    //     };
+    //
+    //     let bytes = hex::decode(hex_string.clone());
+    //     if let Ok(state_bytes) = bytes {
+    //         if let Ok(node_state) = NodeStateValues::from_bytes(state_bytes) {
+    //             node_state.dump_to_file();
+    //             return node_state;
+    //         }
+    //     }
+    //
+    //     // TODO: decode db from bytes and feed it to network_state
+    //     let node_state = NodeState {
+    //         path: todo!(),
+    //         state_trie: todo!(),
+    //         tx_trie: todo!(),
+    //     };
+    //
+    //     // let network_state = NetworkState {
+    //     //     path: path.to_string(),
+    //     //     ledger: vec![],
+    //     //     credits: None,
+    //     //     debits: None,
+    //     //     reward_state: None,
+    //     //     state_hash: None,
+    //     //     _state_trie: todo!(),
+    //     //     _tx_trie: todo!(),
+    //     // };
+    //
+    //     // network_state.dump_to_file();
+    //
+    //     node_state
+    // }
 
-        let bytes = hex::decode(hex_string.clone());
-        if let Ok(state_bytes) = bytes {
-            if let Ok(network_state) = NodeStateValues::from_bytes(state_bytes) {
-                network_state.dump_to_file();
-                return network_state;
-            }
-        }
-
-        // TODO: decode db from bytes and feed it to network_state
-        let network_state = NodeState {
-            path: todo!(),
-            state_trie: todo!(),
-            tx_trie: todo!(),
-        };
-
-        // let network_state = NetworkState {
-        //     path: path.to_string(),
-        //     ledger: vec![],
-        //     credits: None,
-        //     debits: None,
-        //     reward_state: None,
-        //     state_hash: None,
-        //     _state_trie: todo!(),
-        //     _tx_trie: todo!(),
-        // };
-
-        // network_state.dump_to_file();
-
-        network_state
+    /// Dumps a hex string representation of `NodeStateValues` to file.
+    pub fn dump_to_file(&self) -> Result<()> {
+        //TODO: discuss if hex::encode is worth implementing
+        todo!()
     }
 
-    /// Dumps a hex string representation of the `NetworkState` to file.
-    pub fn dump_to_file(&self) -> Result<()> {
-        todo!();
-        // if let Err(_) = fs::write(self.path.clone(), hex::encode(self.as_bytes())) {
-        info!("Error dumping ledger to file");
-        // };
+    /// Generates a backup of NodeState serialized into JSON at the specified path.
+    pub fn serialize_to_json(&self) -> Result<()> {
+        let node_state_values = NodeStateValues::from(self);
+
+        let serialized = serde_json::to_vec(&node_state_values)
+            .map_err(|err| StateError::Other(err.to_string()))?;
+
+        fs::write(&self.path, serialized).map_err(|err| StateError::Other(err.to_string()))?;
+
+        Ok(())
     }
 }
+
+// if let Err(err) = fs::write(path, serialized) {
+//     error!("Unable to write state to file. Reason: {0}", err);
+// }
+
+// if let Err(_) = fs::write(self.path.clone(), hex::encode(self.as_bytes())) {
+//     info!("Error dumping ledger to file");
+// };
 
 /*
 impl<'de> NetworkState {

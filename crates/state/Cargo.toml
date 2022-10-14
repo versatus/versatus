@@ -16,6 +16,7 @@ claim = { path = "../claim" }
 verifiable = { path = "../verifiable" }
 ledger = { path = "../ledger" }
 accountable = { path = "../accountable" }
+lrdb = { path = "../lrdb" }
 ownable = { path = "../ownable" }
 noncing = { path = "../noncing" }
 updateable = { path = "../updateable" }
