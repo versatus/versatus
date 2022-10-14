@@ -8,6 +8,8 @@ pub type Publisher = UnboundedSender<(Topic, Event)>;
 
 // NOTE: naming convention for events goes as follows:
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
+// TODO: Replace Vec<u8>'s with proper data structs in enum wariants
+// once definitions of those are moved into primitives.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Event {
     NoOp,
@@ -97,8 +99,9 @@ impl EventRouter {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
     use tokio::sync::mpsc::unbounded_channel;
+
+    use super::*;
 
     #[test]
     fn should_register_susbcribers() {
