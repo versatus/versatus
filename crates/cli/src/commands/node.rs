@@ -5,6 +5,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use commands::command::Command;
+use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
 use node::{Node, NodeType};
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -104,7 +105,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Command>();
+    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let mut vrrb_node = Node::new(node_config);
 
