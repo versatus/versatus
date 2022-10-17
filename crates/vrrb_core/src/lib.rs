@@ -1,5 +1,6 @@
 pub mod command_router;
 pub mod result;
+pub mod cache;
 pub use result::*;
 
 pub fn add(left: usize, right: usize) -> usize {
