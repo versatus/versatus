@@ -3,12 +3,15 @@ use std::os;
 use std::path::PathBuf;
 use std::{fs, sync::Arc};
 
+use accountable::accountable::Accountable;
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use lr_trie::LeftRightTrie;
+use lr_trie::{LeftRightTrie, H256};
 use lrdb::Account;
 use patriecia::db::MemoryDB;
+use primitives::PublicKey;
 use ritelinked::LinkedHashMap;
+use state_trie::StateTrie;
 use telemetry::{error, info};
 // use reward::reward::{Reward, RewardState};
 use serde::{Deserialize, Serialize};
@@ -54,18 +57,36 @@ impl Clone for NodeState {
 
 impl From<NodeStateValues> for NodeState {
     fn from(node_state_values: NodeStateValues) -> Self {
+        let mut state_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
+
+        // let mut tx_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
+        // let mut state_trie = StateTrie::new(Arc::new(MemoryDB::new(true)));
+
+        // let mapped_state = node_state_values
+        //     .state
+        //     .into_iter()
+        //     .map(|(key, acc)| {
+        //         //
+        //         (key, acc.into())
+        //     })
+        //     // .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+        //     .collect();
+
+        // state_trie.extend(mapped_state);
+
         Self {
             path: PathBuf::new(),
-            state_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+            state_trie,
             tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+            // state_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct NodeStateValues {
-    pub txns: LinkedHashMap<String, Account>,
-    pub state: LinkedHashMap<String, Account>,
+    pub txns: LinkedHashMap<PublicKey, Account>,
+    pub state: LinkedHashMap<PublicKey, Account>,
 }
 
 impl From<&NodeState> for NodeStateValues {
@@ -80,11 +101,9 @@ impl From<&NodeState> for NodeStateValues {
 impl NodeStateValues {
     /// Converts a vector of bytes into a Network State or returns an error if
     /// it's unable to
-    pub fn from_bytes(
-        data: Vec<u8>,
-    ) -> std::result::Result<NodeStateValues, serde_json::error::Error> {
-        // pub fn from_bytes(data: Vec<u8>) -> Result<NodeStateValues> {
-        serde_json::from_slice::<NodeStateValues>(&data.clone())
+    pub fn from_bytes(data: &[u8]) -> Result<NodeStateValues> {
+        serde_json::from_slice::<NodeStateValues>(data)
+            .map_err(|err| StateError::Other(err.to_string()))
     }
 }
 
@@ -102,48 +121,6 @@ impl NodeState {
             tx_trie,
         }
     }
-
-    /// Restores the network state from a serialized hex string representation
-    /// and returns a proper struct
-    // pub fn restore(path: &str) -> NodeState {
-    //     let hex_string = {
-    //         if let Ok(string) = fs::read_to_string(path) {
-    //             string
-    //         } else {
-    //             String::new()
-    //         }
-    //     };
-    //
-    //     let bytes = hex::decode(hex_string.clone());
-    //     if let Ok(state_bytes) = bytes {
-    //         if let Ok(node_state) = NodeStateValues::from_bytes(state_bytes) {
-    //             node_state.dump_to_file();
-    //             return node_state;
-    //         }
-    //     }
-    //
-    //     // TODO: decode db from bytes and feed it to network_state
-    //     let node_state = NodeState {
-    //         path: todo!(),
-    //         state_trie: todo!(),
-    //         tx_trie: todo!(),
-    //     };
-    //
-    //     // let network_state = NetworkState {
-    //     //     path: path.to_string(),
-    //     //     ledger: vec![],
-    //     //     credits: None,
-    //     //     debits: None,
-    //     //     reward_state: None,
-    //     //     state_hash: None,
-    //     //     _state_trie: todo!(),
-    //     //     _tx_trie: todo!(),
-    //     // };
-    //
-    //     // network_state.dump_to_file();
-    //
-    //     node_state
-    // }
 
     /// Dumps a hex string representation of `NodeStateValues` to file.
     pub fn dump_to_file(&self) -> Result<()> {
@@ -196,6 +173,19 @@ impl NodeState {
         node_state.path = path.to_owned();
 
         Ok(node_state)
+    }
+
+    /// Returns the current state trie's root hash.
+    pub fn root_hash(&self) -> Option<H256> {
+        self.state_trie.root()
+    }
+
+    pub fn add_account(&self) {
+        todo!()
+    }
+
+    pub fn get_account(&self) {
+        todo!()
     }
 }
 
