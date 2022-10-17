@@ -27,3 +27,4 @@ tx_trie = { path = "../tx_trie" }
 telemetry = { path = "../telemetry" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
 thiserror = "1.0.37"
+rand = "0.8.5"

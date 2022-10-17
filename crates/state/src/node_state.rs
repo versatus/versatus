@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+use std::os;
 use std::path::PathBuf;
 use std::{fs, sync::Arc};
 
@@ -18,6 +20,8 @@ use crate::types::{
     StateRewardState, StateRoot,
 };
 use crate::StateError;
+
+// let ftjson = OsStr::new("json");
 
 /// The Node State struct, contains basic information required to determine
 /// the current state of the network.
@@ -44,6 +48,16 @@ impl Clone for NodeState {
             path: self.path.clone(),
             state_trie: self.state_trie.clone(),
             tx_trie: self.tx_trie.clone(),
+        }
+    }
+}
+
+impl From<NodeStateValues> for NodeState {
+    fn from(node_state_values: NodeStateValues) -> Self {
+        Self {
+            path: PathBuf::new(),
+            state_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+            tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
         }
     }
 }
@@ -147,6 +161,41 @@ impl NodeState {
         fs::write(&self.path, serialized).map_err(|err| StateError::Other(err.to_string()))?;
 
         Ok(())
+    }
+
+    /// Restores the network state from a serialized file stored on disk.
+    pub fn restore(path: &PathBuf) -> Result<NodeState> {
+        //NOTE: refactor this naive impl later
+        let ext = path
+            .extension()
+            .ok_or_else(|| {
+                StateError::Other(format!("file extension not found on file {:?}", path))
+            })?
+            .to_str()
+            .ok_or_else(|| {
+                StateError::Other("file extension is not a valid UTF-8 string".to_string())
+            })?;
+
+        match ext {
+            // TODO: add more match arms to support more backup filetypes
+            "json" => NodeState::restore_from_json_file(path),
+            _ => Err(StateError::Other(format!(
+                "file extension not found on file {:?}",
+                &path
+            ))),
+        }
+    }
+
+    fn restore_from_json_file(path: &PathBuf) -> Result<NodeState> {
+        let read = fs::read(path).map_err(|err| StateError::Other(err.to_string()))?;
+
+        let deserialized: NodeStateValues =
+            serde_json::from_slice(&read).map_err(|err| StateError::Other(err.to_string()))?;
+
+        let mut node_state = NodeState::from(deserialized);
+        node_state.path = path.to_owned();
+
+        Ok(node_state)
     }
 }
 
