@@ -26,11 +26,12 @@ const PACKET_SNO: usize = 4;
 
 const FLAGS: usize = 1;
 
-//How many packets to recieve from socket in single system call
+///How many packets to recieve from socket in single system call
 pub(crate) const NUM_RCVMMSGS: usize = 32;
 
 ///   40 bytes is the size of the IPv6 header
 ///   8 bytes is the size of the fragment header
+///   True payload size ,or the size of single packet that will be written to or read from socket
 const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 - 8;
 
 /// It takes a batch id, a sequence number, and a payload, and returns a packet
@@ -83,7 +84,7 @@ pub fn split_into_packets(
     for (_, ep) in packet_holder.into_iter().enumerate() {
         headered_packets.push(create_packet(batch_id, ep))
     }
-    println!("Packets len {:?}", headered_packets.len());
+    telemetry::debug!("Packets len {:?}", headered_packets.len());
     headered_packets
 }
 
@@ -188,7 +189,6 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
                 fs::write(batch_fname, &contents).unwrap();
             },
             Err(e) => {
-                println!("{}", e);
                 continue;
             },
         };
@@ -221,7 +221,6 @@ pub fn reassemble_packets(
         let mut received_packet = match receiver.recv() {
             Ok(pr) => pr,
             Err(e) => {
-                println!("{}", e);
                 continue;
             },
         };
@@ -352,7 +351,7 @@ pub async fn packet_forwarder(
                 let _ = try_join_all(broadcast_futures).await;
             },
             Err(e) => {
-                println!("Error occurred while receiving packet: {:?}", e)
+                telemetry::error!("Error occurred while receiving packet: {:?}", e)
             },
         }
     }

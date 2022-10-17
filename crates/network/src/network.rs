@@ -40,17 +40,19 @@ pub struct BroadcastEngine {
     pub raptor_num_packet_blast: usize,
 }
 
+const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
+
+pub type EndPointResult = Result<
+    (
+        Endpoint,
+        IncomingConnections,
+        Option<(Connection, ConnectionIncoming)>,
+    ),
+    EndpointError,
+>;
+
 impl BroadcastEngine {
-    pub(crate) async fn new_endpoint(
-        port: u16,
-    ) -> Result<
-        (
-            Endpoint,
-            IncomingConnections,
-            Option<(Connection, ConnectionIncoming)>,
-        ),
-        EndpointError,
-    > {
+    pub async fn new_endpoint(port: u16) -> EndPointResult {
         Ok(Endpoint::new_peer(
             (Ipv6Addr::LOCALHOST, port),
             &[],
@@ -72,8 +74,11 @@ impl BroadcastEngine {
         raptor_num_packet_blast: usize,
     ) -> BroadcastEngine {
         // create an endpoint for us to listen on and send from.
-        let (node, incoming_conns, _contact) =
-            BroadcastEngine::new_endpoint(udp_port).await.unwrap();
+
+        let (node, incoming_conns, _contact) = BroadcastEngine::new_endpoint(udp_port)
+            .await
+            .expect(format!("Error occured while binding udp to port {:?}", udp_port).as_str());
+
         return BroadcastEngine {
             peer_connection_list: Arc::new(Mutex::new(Vec::new())),
             endpoint: (node, incoming_conns),
@@ -89,19 +94,22 @@ impl BroadcastEngine {
     ///
     /// * `address`: A vector of SocketAddr, which is the address of the peer you want to connect to.
     pub async fn add_peer_connection(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
-        let mut instance = self.peer_connection_list.lock().unwrap();
-        for addr in address.iter() {
-            let result = self.endpoint.0.connect_to(addr).await;
-            match result {
-                Ok((connection, _)) => {
-                    instance.push((*addr, connection));
-                },
-                Err(e) => {
-                    return Err(BroadCastError::ConnectionError(e));
-                },
+        if let Ok(mut peers) = self.peer_connection_list.lock() {
+            for addr in address.iter() {
+                let result = self.endpoint.0.connect_to(addr).await;
+                match result {
+                    Ok((connection, _)) => {
+                        peers.push((*addr, connection));
+                    },
+                    Err(e) => {
+                        return Err(BroadCastError::ConnectionError(e));
+                    },
+                }
             }
+            std::mem::drop(peers);
+        } else {
+            telemetry::error!("Error acquiring lock on peer connection list");
         }
-        std::mem::drop(instance);
         Ok(BroadCastResult::ConnectionEstablished)
     }
 
@@ -115,17 +123,21 @@ impl BroadcastEngine {
     ///
     /// A boolean value.
     pub fn remove_peer_connection(&mut self, address: Vec<SocketAddr>) -> bool {
-        let mut instance = self.peer_connection_list.lock().unwrap();
-        for addr in address.iter() {
-            instance.retain(|address| {
-                address.1.close(Some(
-                    "The connection was closed intentionally by qp2p.".to_string(),
-                ));
-                address.0 != *addr
-            });
-        }
-        std::mem::drop(instance);
-        return true;
+        if let Ok(mut peers) = self.peer_connection_list.lock() {
+            for addr in address.iter() {
+                peers.retain(|address| {
+                    address.1.close(Some(String::from(CONNECTION_CLOSED)));
+                    address.0 != *addr
+                });
+            }
+            std::mem::drop(peers);
+
+            return true;
+        } else {
+            telemetry::error!("Error acquiring lock on peer connection list");
+        };
+
+        return false;
     }
 
     /// > This function takes a message and sends it to all the peers in the peer list
@@ -139,22 +151,25 @@ impl BroadcastEngine {
     /// A future that resolves to a BroadCastStatus
     pub async fn quic_broadcast(&self, message: Message) -> BroadCastStatus {
         let mut futs = FuturesUnordered::new();
-        let peers = self.peer_connection_list.lock().unwrap();
-        for connection in peers.clone().into_iter() {
-            let new_data = message.as_bytes().clone();
-            futs.push(tokio::spawn(async move {
-                let msg = Bytes::from(new_data);
-                let status = connection
-                    .1
-                    .send((Bytes::new(), Bytes::new(), msg.clone()))
-                    .await;
-                if status.is_err() {
-                    return Err(BroadCastError::BroadcastingDataError(status.unwrap_err()));
-                }
-                Ok(())
-            }))
+        if let Ok(mut peers) = self.peer_connection_list.lock() {
+            for connection in peers.clone().into_iter() {
+                let new_data = message.as_bytes().clone();
+                futs.push(tokio::spawn(async move {
+                    let msg = Bytes::from(new_data);
+                    let status = connection
+                        .1
+                        .send((Bytes::new(), Bytes::new(), msg.clone()))
+                        .await;
+                    if status.is_err() {
+                        return Err(BroadCastError::BroadcastingDataError(status.unwrap_err()));
+                    }
+                    Ok(())
+                }))
+            }
+            while futs.next().await.is_some() {}
+        } else {
+            telemetry::error!("Error acquiring lock on peer connection list");
         }
-        while futs.next().await.is_some() {}
         Ok(BroadCastResult::Success)
     }
 
@@ -200,37 +215,48 @@ impl BroadcastEngine {
         let data = message.as_bytes();
         let batch_id = generate_batch_id();
         let chunks = split_into_packets(&data, batch_id, erasure_count);
-        let udp_socket = Arc::new(
-            UdpSocket::bind(SocketAddr::new(
-                std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-                self.raptor_udp_port,
-            ))
-            .await
-            .unwrap(),
-        );
-        let mut futs = FuturesUnordered::new();
-        let peers = self.peer_connection_list.lock().unwrap();
-        for (packet_index, packet) in chunks.iter().enumerate() {
-            // Sharding/Distribution of packets as per no of nodes
-            let address: (SocketAddr, Connection) =
-                peers.get(packet_index % peers.len()).unwrap().clone();
+        if let Ok(udp_socket) = UdpSocket::bind(SocketAddr::new(
+            std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+            self.raptor_udp_port,
+        ))
+        .await
+        {
+            let udp_socket = Arc::new(udp_socket);
+            let mut futs = FuturesUnordered::new();
+            if let Ok(mut peers) = self.peer_connection_list.lock() {
+                for (packet_index, packet) in chunks.iter().enumerate() {
+                    // Sharding/Distribution of packets as per no of nodes
+                    let address: (SocketAddr, Connection) =
+                        peers.get(packet_index % peers.len()).unwrap().clone();
+                    let packet = packet.clone();
+                    let sock = udp_socket.clone();
 
-            let packet = packet.clone();
-            let sock = udp_socket.clone();
+                    // Sending a packet to a given address.
+                    let raptor_port = self.raptor_udp_port;
+                    futs.push(tokio::spawn(async move {
+                        let addr = address.0.to_string();
+                        let _ = sock.send_to(&packet, (&addr[..], raptor_port)).await;
+                    }));
 
-            // Sending a packet to a given address.
-            let raptor_port = self.raptor_udp_port;
-            futs.push(tokio::spawn(async move {
-                let addr = address.0.to_string();
-                let _ = sock.send_to(&packet, (&addr[..], raptor_port)).await;
-            }));
+                    if futs.len() >= self.raptor_num_packet_blast {
+                        match futs.next().await {
+                            Some(fut) => {
+                                if fut.is_err() {
+                                    telemetry::error!("Sending future is not ready yet")
+                                }
+                            },
+                            None => telemetry::error!("Sending future is not ready yet"),
+                        }
+                    }
+                }
 
-            if futs.len() >= self.raptor_num_packet_blast {
-                let _ = futs.next().await.unwrap();
+                while (futs.next().await).is_some() {}
+            } else {
+                telemetry::error!("Error acquiring lock on peer connection list");
             }
+        } else {
+            telemetry::error!("Error occured while binding socket to a port.");
         }
-
-        while (futs.next().await).is_some() {}
 
         Ok(BroadCastResult::Success)
     }
@@ -245,13 +271,17 @@ impl BroadcastEngine {
     ///
     /// a future that resolves to a result. The result is either an error or a unit.
     pub async fn process_received_packets(&self, port: u16) -> Result<(), std::io::Error> {
-        let sock_recv = UdpSocket::bind(SocketAddr::new(
+        let sock_recv = match UdpSocket::bind(SocketAddr::new(
             std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
             self.raptor_udp_port,
         ))
         .await
-        .unwrap();
-        println!("Listening on {}", port);
+        {
+            Ok(sock) => sock,
+            Err(e) => panic!("{}", format!("Udp port {} already in use", port)),
+        };
+
+        telemetry::info!("Listening on {}", port);
 
         let buf = [0; MTU_SIZE];
 
@@ -280,13 +310,15 @@ impl BroadcastEngine {
                 drop(batch_send);
             }
         });
-        let nodes_ips_except_self: Vec<Vec<u8>> = self
-            .peer_connection_list
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(addr, _)| addr.to_string().as_bytes().to_vec())
-            .collect();
+
+        let mut nodes_ips_except_self = vec![];
+        if let Ok(mut peers) = self.peer_connection_list.lock() {
+            peers.iter().for_each(|(addr, _)| {
+                nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec())
+            });
+        } else {
+            telemetry::error!("Error acquiring lock on peer connection list");
+        }
 
         let port = self.raptor_udp_port;
         thread::spawn(move || packet_forwarder(forwarder_receive, nodes_ips_except_self, port));
@@ -294,16 +326,15 @@ impl BroadcastEngine {
         loop {
             let mut receive_buffers = [buf; NUM_RCVMMSGS];
             // Receiving a batch of packets from the socket.
-            let res = recv_mmsg(&sock_recv, receive_buffers.borrow_mut())
-                .await
-                .unwrap();
-
-            if res.len() > 0 {
-                let mut i = 0;
-                for buf in &receive_buffers {
-                    let packets_info = res.get(i).unwrap();
-                    let _ = reassembler_channel_send.send((buf.clone(), packets_info.1));
-                    i = i + 1;
+            if let Ok(res) = recv_mmsg(&sock_recv, receive_buffers.borrow_mut()).await {
+                if res.len() > 0 {
+                    let mut i = 0;
+                    for buf in &receive_buffers {
+                        if let Some(packets_info) = res.get(i) {
+                            let _ = reassembler_channel_send.send((buf.clone(), packets_info.1));
+                            i = i + 1;
+                        }
+                    }
                 }
             }
         }
@@ -315,9 +346,9 @@ impl BroadcastEngine {
 }
 
 mod tests {
+    use crate::network::BroadcastEngine;
     use bytes::Bytes;
     use messages::message::Message;
-    use crate::network::BroadcastEngine;
 
     use std::{
         net::{Ipv6Addr, SocketAddr},
@@ -325,7 +356,7 @@ mod tests {
         time::Duration,
     };
 
-    #[tokio::test()]
+    #[tokio::test]
     async fn test_successful_connection() {
         let mut b1 = BroadcastEngine::new(1234, 1145, 10).await;
         let mut b2 = BroadcastEngine::new(1235, 1145, 10).await;
@@ -360,7 +391,7 @@ mod tests {
         )]);
     }
 
-    #[tokio::test()]
+    #[tokio::test]
     async fn test_broadcast_message_to_peers() {
         let mut b1 = BroadcastEngine::new(1236, 1145, 10).await;
         let mut b2 = BroadcastEngine::new(1237, 1145, 10).await;
@@ -415,7 +446,6 @@ mod tests {
             );
         }
     }
-
 
     pub fn test_message() -> Message {
         let msg = Message {
