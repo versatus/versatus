@@ -19,22 +19,22 @@ where
         }
     }
 
-    pub fn get_entry(&mut self, key: &K) -> Option<&V> {
+    pub fn get(&mut self, key: &K) -> Option<&V> {
         self.cache.get(key)
     }
 
-    pub fn push_to_cache(&mut self, key: K, value: V) {
+    pub fn push(&mut self, key: K, value: V) {
         self.cache.insert(key, value);
     }
 
-    pub fn check_entry_exist(&self, key: &K) -> bool {
+    pub fn contains(&self, key: &K) -> bool {
         self.cache.contains_key(key)
     }
-    pub fn is_cache_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.cache.is_empty()
     }
 
-    pub fn clear_cache(&mut self) {
+    pub fn clear(&mut self) {
         self.cache.clear();
     }
 
@@ -42,7 +42,7 @@ where
         self.cache.len()
     }
 
-    pub fn remove_from_cache(&mut self,key: &K){
+    pub fn remove(&mut self,key: &K){
         self.cache.remove(key);
     }
 }
@@ -56,21 +56,21 @@ mod tests {
     #[test]
     fn test_insert_cache() {
         let mut cache = Cache::new(10, 1000);
-        cache.push_to_cache(1, 1);
+        cache.push(1, 1);
         assert!(cache.len() > 0);
     }
 
     #[test]
     fn test_entry_exist() {
         let mut cache = Cache::new(10, 1000);
-        cache.push_to_cache(1, 1);
-        assert!(cache.check_entry_exist(&1) == true);
+        cache.push(1, 1);
+        assert!(cache.contains(&1) == true);
     }
 
     #[test]
     fn test_evict_entries() {
         let mut cache = Cache::new(10, 100);
-        cache.push_to_cache(1, 1);
+        cache.push(1, 1);
         assert!(cache.len() > 0);
         sleep(std::time::Duration::from_millis(105));
         assert!(cache.len() == 0);
@@ -82,9 +82,9 @@ mod tests {
         struct Abc {
             _a: i16,
         }
-        cache.push_to_cache("Hello_str", Abc { _a: 1i16 });
+        cache.push("Hello_str", Abc { _a: 1i16 });
         assert!(cache.len() > 0);
-        cache.clear_cache();
+        cache.clear();
         assert!(cache.len() == 0);
     }
 
@@ -95,9 +95,10 @@ mod tests {
         struct Abc {
             _a: i16,
         }
-        cache.push_to_cache("Hello_str", Abc { _a: 1i16 });
-        assert!(cache.check_entry_exist(&"Hello_str"));
-        cache.remove_from_cache(&"Hello_str"); 
-        assert!(!cache.check_entry_exist(&"Hello_str"));
+        cache.push("Hello_str", Abc { _a: 1i16 });
+        assert!(cache.contains(&"Hello_str"));
+        cache.remove(&"Hello_str"); 
+        assert!(!cache.contains(&"Hello_str"));
     }
 }
+
