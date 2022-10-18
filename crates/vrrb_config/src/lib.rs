@@ -3,15 +3,15 @@ use std::{net::SocketAddr, path::PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
-    pub id: primitives::NodeId,
-    pub idx: primitives::NodeIdx,
+    pub id: primitives::types::NodeId,
+    pub idx: primitives::types::NodeIdx,
     pub data_dir: PathBuf,
     pub db_path: PathBuf,
-    pub node_idx: primitives::NodeIdx,
+    pub node_idx: primitives::types::NodeIdx,
     pub address: SocketAddr,
     pub bootstrap: bool,
     pub bootstrap_node_addr: SocketAddr,
-    pub node_type: primitives::NodeType,
+    pub node_type: primitives::types::NodeType,
     // pub public_key: primitives::PublicKey,
     // pub secret_key: primitives::SecretKey,
 }

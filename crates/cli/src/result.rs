@@ -15,7 +15,7 @@ pub enum CliError {
     Storage(#[from] storage::StorageError),
 
     #[error("primitive error: {0}")]
-    Primitive(#[from] primitives::Error),
+    Primitive(#[from] primitives::types::Error),
 }
 
 pub type Result<T> = std::result::Result<T, CliError>;

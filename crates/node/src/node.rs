@@ -32,7 +32,7 @@ use network::{components::StateComponent, message};
 use patriecia::db::MemoryDB;
 use pickledb::PickleDb;
 use poem::listener::Listener;
-use primitives::{NodeId, NodeIdx, StopSignal};
+use primitives::types::{NodeId, NodeIdx, StopSignal};
 use public_ip;
 use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
@@ -74,7 +74,7 @@ pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 #[derive(Debug)]
 pub struct Node {
     /// Every node needs a unique ID to identify it as a member of the network.
-    pub id: primitives::NodeIdentifier,
+    pub id: primitives::types::NodeIdentifier,
 
     /// Index of the node in the network
     pub idx: NodeIdx,
@@ -82,20 +82,20 @@ pub struct Node {
     /// Every node needs to have a secret key to sign messages, blocks, tx, etc.
     /// for authenticity
     //TODO: Discuss whether we need this here or whether it's redundant.
-    pub secret_key: primitives::SecretKey,
+    pub secret_key: primitives::types::SecretKey,
 
     /// Every node needs to have a public key to have its messages, blocks, tx,
     /// etc, signatures validated by other nodes
     //TODOL: Discuss whether this is needed here.
     pub pubkey: String,
-    pub public_key: primitives::PublicKey,
+    pub public_key: primitives::types::PublicKey,
 
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
     //TODO: Create different custom structs for different kinds of nodes with different
     // authorization so that we can have custom impl blocks based on the type.
-    pub node_type: primitives::NodeType,
+    pub node_type: primitives::types::NodeType,
 
     /// The command handler used to allocate commands to different parts of the
     /// system

@@ -20,11 +20,11 @@ pub struct RunOpts {
     pub dettached: bool,
 
     #[clap(short, long, value_parser)]
-    pub id: primitives::NodeId,
+    pub id: primitives::types::NodeId,
 
     #[clap(long, value_parser)]
     // TODO: reconsider this id
-    pub node_idx: primitives::NodeIdx,
+    pub node_idx: primitives::types::NodeIdx,
 
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]

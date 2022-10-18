@@ -7,7 +7,7 @@ use std::fmt;
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
-use primitives::RawSignature;
+use primitives::types::RawSignature;
 use rand::Rng;
 use reward::reward::{Category, RewardState, GENESIS_REWARD};
 use ritelinked::LinkedHashMap;
