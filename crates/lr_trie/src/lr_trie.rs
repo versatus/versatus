@@ -1,19 +1,25 @@
 use std::{fmt::Debug, sync::Arc};
 
+use crate::{Key, Operation};
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
-
-use crate::Operation;
+use serde::{Deserialize, Serialize, Serializer};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
-pub struct LeftRightTrie<D: Database> {
+pub struct LeftRightTrie<D>
+where
+    D: Database,
+{
     pub read_handle: ReadHandle<InnerTrie<D>>,
     pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
 }
 
-impl<D: Database> LeftRightTrie<D> {
+impl<D: Database> LeftRightTrie<D>
+where
+    D: Database,
+{
     pub fn new(db: Arc<D>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
 
@@ -56,33 +62,64 @@ impl<D: Database> LeftRightTrie<D> {
         self.write_handle.publish();
     }
 
-    pub fn add(&mut self, key: Vec<u8>, value: Vec<u8>) {
-        self.write_handle.append(Operation::Add(key, value));
+    pub fn add<'a, T>(&mut self, key: Key, value: T)
+    where
+        T: Serialize + Deserialize<'a>,
+    {
+        self.add_uncommitted(key, value);
         self.publish();
     }
 
     // TODO: revisit once inner trie is refactored into patriecia
-    pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
-        self.write_handle.append(Operation::Extend(values));
+    pub fn extend<'a, T>(&mut self, values: Vec<(Key, T)>)
+    where
+        T: Serialize + Deserialize<'a>,
+    {
+        self.extend_uncommitted(values);
         self.publish();
     }
 
-    pub fn add_uncommitted(&mut self, key: Vec<u8>, value: Vec<u8>) {
+    pub fn add_uncommitted<'a, T>(&mut self, key: Key, value: T)
+    where
+        T: Serialize + Deserialize<'a>,
+    {
+        //TODO: revisit the serializer used to store things on the trie
+        let value = serde_json::to_vec(&value).unwrap_or_default();
         self.write_handle.append(Operation::Add(key, value));
     }
 
-    pub fn extend_uncommitted(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
-        self.write_handle.append(Operation::Extend(values));
+    pub fn extend_uncommitted<'a, T>(&mut self, values: Vec<(Key, T)>)
+    where
+        T: Serialize + Deserialize<'a>,
+    {
+        let mapped = values
+            .into_iter()
+            .map(|(key, value)| {
+                //
+                //TODO: revisit the serializer used to store things on the trie
+                //
+                let value = serde_json::to_vec(&value).unwrap_or_default();
+                (key, value)
+            })
+            .collect();
+
+        self.write_handle.append(Operation::Extend(mapped));
     }
 }
 
-impl<D: Database> PartialEq for LeftRightTrie<D> {
+impl<D> PartialEq for LeftRightTrie<D>
+where
+    D: Database,
+{
     fn eq(&self, other: &Self) -> bool {
         self.get().root_hash() == other.get().root_hash()
     }
 }
 
-impl<D: Database> Default for LeftRightTrie<D> {
+impl<D> Default for LeftRightTrie<D>
+where
+    D: Database,
+{
     fn default() -> Self {
         let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
         Self {
@@ -107,7 +144,9 @@ where
                 self.remove(key).unwrap_or_default();
             },
             Operation::Extend(values) => {
+                //
                 // TODO: temp hack to get this going. Refactor ASAP
+                //
                 for (k, v) in values {
                     self.insert(k, v).unwrap_or_default();
                 }
