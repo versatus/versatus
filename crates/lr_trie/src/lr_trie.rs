@@ -1,10 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
-use crate::{Key, Operation};
+use crate::{Key, Operation, TrieValue};
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -30,29 +30,37 @@ where
     }
 
     // TODO: consider renaming to handle, get_handle or get_read_handle
+    #[deprecated(note = "Renamed to handle. This will be removed in later releases")]
     pub fn get(&self) -> InnerTrie<D> {
+        self.handle()
+    }
+
+    pub fn handle(&self) -> InnerTrie<D> {
         self.read_handle
             .enter()
             .map(|guard| guard.clone())
             .unwrap_or_default()
     }
 
+    /// Returns a vector of all entries within the trie
+    pub fn entries<'a, T>(&self) -> Vec<(Key, T)>
+    where
+        T: Deserialize<'a> + Default,
+    {
+        todo!()
+    }
+
     pub fn len(&self) -> usize {
-        self.get().len()
+        self.handle().iter().count()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.get().len() == 0
+        self.handle().len() == 0
     }
 
     pub fn root(&self) -> Option<H256> {
-        self.get().root_hash().ok()
+        self.handle().root_hash().ok()
     }
-
-    // TODO: revisit and consider if it's worth having it vs a simple iter over the
-    // inner trie pub fn leaves(&self) -> Option<Vec<H::Hash>> {
-    //     self.get().leaves()
-    // }
 
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
         self.read_handle.factory()
@@ -164,9 +172,27 @@ where
 mod tests {
     use std::thread;
 
-    use patriecia::db::MemoryDB;
+    use hashbrown::HashMap;
+    use patriecia::{db::MemoryDB, inner::TrieIterator};
 
     use super::*;
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+    struct CustomValue {
+        pub data: usize,
+    }
+
+    #[test]
+    fn should_store_arbitrary_values() {
+        let memdb = Arc::new(MemoryDB::new(true));
+        let mut trie = LeftRightTrie::new(memdb);
+
+        trie.add(b"abcdefg".to_vec(), CustomValue { data: 100 });
+        let value = trie.handle().get(b"abcdefg").unwrap().unwrap();
+        let deserialized: CustomValue = serde_json::from_slice(&value).unwrap();
+
+        assert_eq!(deserialized, CustomValue { data: 100 });
+    }
 
     #[test]
     fn should_be_read_concurrently() {
@@ -181,7 +207,7 @@ mod tests {
         [0..10]
             .iter()
             .map(|_| {
-                let reader = trie.get();
+                let reader = trie.handle();
                 thread::spawn(move || {
                     assert_eq!(reader.len(), 3);
                 })
