@@ -42,6 +42,14 @@ where
             .unwrap_or_default()
     }
 
+    /// Returns a vector of all entries within the trie
+    pub fn entries<'a, T>(&self) -> Vec<(Key, T)>
+    where
+        T: Deserialize<'a> + Default,
+    {
+        todo!()
+    }
+
     pub fn len(&self) -> usize {
         self.handle().iter().count()
     }
@@ -162,7 +170,8 @@ where
 mod tests {
     use std::thread;
 
-    use patriecia::db::MemoryDB;
+    use hashbrown::HashMap;
+    use patriecia::{db::MemoryDB, inner::TrieIterator};
 
     use super::*;
 
