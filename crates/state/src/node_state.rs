@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::os;
 use std::path::PathBuf;
@@ -11,7 +12,7 @@ use lrdb::Account;
 use patriecia::db::MemoryDB;
 use primitives::PublicKey;
 use ritelinked::LinkedHashMap;
-use state_trie::StateTrie;
+// use state_trie::StateTrie;
 use telemetry::{error, info};
 // use reward::reward::{Reward, RewardState};
 use serde::{Deserialize, Serialize};
@@ -62,17 +63,14 @@ impl From<NodeStateValues> for NodeState {
         // let mut tx_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
         // let mut state_trie = StateTrie::new(Arc::new(MemoryDB::new(true)));
 
-        // let mapped_state = node_state_values
-        //     .state
-        //     .into_iter()
-        //     .map(|(key, acc)| {
-        //         //
-        //         (key, acc.into())
-        //     })
-        //     // .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
-        //     .collect();
+        let mapped_state = node_state_values
+            .state
+            .into_iter()
+            .map(|(key, acc)| (key, acc))
+            // .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+            .collect();
 
-        // state_trie.extend(mapped_state);
+        state_trie.extend(mapped_state);
 
         Self {
             path: PathBuf::new(),
@@ -178,6 +176,18 @@ impl NodeState {
     /// Returns the current state trie's root hash.
     pub fn root_hash(&self) -> Option<H256> {
         self.state_trie.root()
+    }
+
+    // MOCK TEST  FUNCTION
+    pub fn values(&self) {
+        let mut accounts = HashMap::new();
+        let iter = self.state_trie.handle().iter();
+        for (k, account_bytes) in iter {
+            let account: Account = serde_json::from_slice(&account_bytes).unwrap();
+            accounts.insert(k, account);
+        }
+
+        dbg!(&accounts);
     }
 
     pub fn add_account(&self) {

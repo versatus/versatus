@@ -40,7 +40,8 @@ fn can_be_restored_from_json_file() {
 
     // let restored_node_state = NodeState::restore(&state_backup_path).unwrap();
     // assert!(!restored_node_state.is_empty());
-    NodeState::restore(&state_backup_path).unwrap();
+    let node_state = NodeState::restore(&state_backup_path).unwrap();
+    node_state.values();
 }
 
 #[test]

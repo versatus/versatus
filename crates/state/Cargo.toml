@@ -22,10 +22,10 @@ noncing = { path = "../noncing" }
 updateable = { path = "../updateable" }
 reward = { path = "../reward" }
 lr_trie = { path = "../lr_trie" }
-state_trie = { path = "../state_trie" }
-tx_trie = { path = "../tx_trie" }
+# state_trie = { path = "../state_trie" }
+# tx_trie = { path = "../tx_trie" }
 telemetry = { path = "../telemetry" }
 primitives = { path = "../primitives" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 thiserror = "1.0.37"
 rand = "0.8.5"
