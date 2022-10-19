@@ -7,7 +7,7 @@ use std::{fs, sync::Arc};
 use accountable::accountable::Accountable;
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use lr_trie::{LeftRightTrie, H256};
+use lr_trie::{Key, LeftRightTrie, H256};
 use lrdb::Account;
 use patriecia::db::MemoryDB;
 use primitives::PublicKey;
@@ -66,8 +66,7 @@ impl From<NodeStateValues> for NodeState {
         let mapped_state = node_state_values
             .state
             .into_iter()
-            .map(|(key, acc)| (key, acc))
-            // .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+            .map(|(key, acc)| (key.into_bytes(), acc))
             .collect();
 
         state_trie.extend(mapped_state);
@@ -83,15 +82,22 @@ impl From<NodeStateValues> for NodeState {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct NodeStateValues {
-    pub txns: LinkedHashMap<PublicKey, Account>,
-    pub state: LinkedHashMap<PublicKey, Account>,
+    pub txns: HashMap<PublicKey, Account>,
+    // pub state: HashMap<PublicKey, Account>,
+    pub state: HashMap<String, Account>,
 }
 
 impl From<&NodeState> for NodeStateValues {
     fn from(node_state: &NodeState) -> Self {
+        let state = node_state
+            .entries()
+            .into_iter()
+            .map(|(k, v)| (format!("{:?}", k), v))
+            .collect();
+
         Self {
-            txns: LinkedHashMap::new(),
-            state: LinkedHashMap::new(),
+            txns: HashMap::new(),
+            state,
         }
     }
 }
@@ -129,7 +135,6 @@ impl NodeState {
     /// Generates a backup of NodeState serialized into JSON at the specified path.
     pub fn serialize_to_json(&self) -> Result<()> {
         let node_state_values = NodeStateValues::from(self);
-
         let serialized = serde_json::to_vec(&node_state_values)
             .map_err(|err| StateError::Other(err.to_string()))?;
 
@@ -178,25 +183,25 @@ impl NodeState {
         self.state_trie.root()
     }
 
-    // MOCK TEST  FUNCTION
-    pub fn values(&self) {
-        let mut accounts = HashMap::new();
-        let iter = self.state_trie.handle().iter();
-        for (k, account_bytes) in iter {
-            let account: Account = serde_json::from_slice(&account_bytes).unwrap();
-            accounts.insert(k, account);
-        }
-
-        dbg!(&accounts);
+    /// Returns a mappig of public keys and accounts.
+    pub fn entries(&self) -> HashMap<PublicKey, Account> {
+        self.state_trie
+            .handle()
+            .iter()
+            .map(|(k, v)| {
+                let account: Account = serde_json::from_slice(&v).unwrap_or_default();
+                (k, account)
+            })
+            .collect::<HashMap<Key, Account>>()
     }
 
-    pub fn add_account(&self) {
-        todo!()
+    pub fn add_account(&mut self, key: PublicKey, account: Account) {
+        self.state_trie.add(key, account);
     }
 
-    pub fn get_account(&self) {
-        todo!()
-    }
+    // pub fn add_account(&self, key: PublicKey, account: Account) {
+    //     self.state_trie.add(key, account);
+    // }
 }
 
 // if let Err(err) = fs::write(path, serialized) {
