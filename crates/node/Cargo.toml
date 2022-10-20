@@ -28,7 +28,7 @@ validator = { path = "../validator" }
 events = { path = "../events" }
 reward = { path = "../reward" }
 blockchain = { path = "../blockchain" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho", branch = "main" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
 secp256k1 = { version = "0.20.2", features = ["rand"] }

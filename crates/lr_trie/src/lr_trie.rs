@@ -42,14 +42,6 @@ where
             .unwrap_or_default()
     }
 
-    /// Returns a vector of all entries within the trie
-    pub fn entries<'a, T>(&self) -> Vec<(Key, T)>
-    where
-        T: Deserialize<'a> + Default,
-    {
-        todo!()
-    }
-
     pub fn len(&self) -> usize {
         self.handle().iter().count()
     }
@@ -78,7 +70,6 @@ where
         self.publish();
     }
 
-    // TODO: revisit once inner trie is refactored into patriecia
     pub fn extend<'a, T>(&mut self, values: Vec<(Key, T)>)
     where
         T: Serialize + Deserialize<'a>,
@@ -120,7 +111,7 @@ where
     D: Database,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.get().root_hash() == other.get().root_hash()
+        self.handle().root_hash() == other.handle().root_hash()
     }
 }
 
@@ -172,8 +163,7 @@ where
 mod tests {
     use std::thread;
 
-    use hashbrown::HashMap;
-    use patriecia::{db::MemoryDB, inner::TrieIterator};
+    use patriecia::db::MemoryDB;
 
     use super::*;
 
