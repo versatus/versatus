@@ -62,12 +62,86 @@ fn accounts_can_be_added() {
 
     node_state.serialize_to_json().unwrap();
 
-    // let restored_node_state = NodeState::restore(&state_backup_path).unwrap();
-    // assert!(!restored_node_state.is_empty());
-    let node_state = NodeState::restore(&state_backup_path).unwrap();
     let entries = node_state.entries();
 
     assert_eq!(entries.len(), 2);
+
+    node_state.extend_accounts(vec![
+        (
+            b"my_mock_pkey_3".to_vec(),
+            lrdb::Account {
+                hash: String::from(""),
+                nonce: 1234456,
+                credits: 0,
+                debits: 0,
+                storage: None,
+                code: None,
+            },
+        ),
+        (
+            b"my_mock_pkey_4".to_vec(),
+            lrdb::Account {
+                hash: String::from(""),
+                nonce: 1234456,
+                credits: 0,
+                debits: 0,
+                storage: None,
+                code: None,
+            },
+        ),
+        (
+            b"my_mock_pkey_5".to_vec(),
+            lrdb::Account {
+                hash: String::from(""),
+                nonce: 1234456,
+                credits: 0,
+                debits: 0,
+                storage: None,
+                code: None,
+            },
+        ),
+    ]);
+
+    let entries = node_state.entries();
+
+    assert_eq!(entries.len(), 5);
+}
+
+#[test]
+fn accounts_can_be_retrieved() {
+    let temp_dir_path = env::temp_dir();
+    let state_backup_path = temp_dir_path.join(format!("{}.json", generate_random_string()));
+
+    let mut node_state = NodeState::new(state_backup_path.clone());
+
+    node_state.add_account(
+        b"my_mock_pkey".to_vec(),
+        lrdb::Account {
+            hash: String::from(""),
+            nonce: 1234456,
+            credits: 0,
+            debits: 0,
+            storage: None,
+            code: None,
+        },
+    );
+
+    node_state.add_account(
+        b"my_mock_pkey_2".to_vec(),
+        lrdb::Account {
+            hash: String::from(""),
+            nonce: 1234456,
+            credits: 0,
+            debits: 0,
+            storage: None,
+            code: None,
+        },
+    );
+
+    node_state.serialize_to_json().unwrap();
+
+    node_state.get_account(&b"my_mock_pkey".to_vec()).unwrap();
+    node_state.get_account(&b"my_mock_pkey_2".to_vec()).unwrap();
 }
 
 #[test]
