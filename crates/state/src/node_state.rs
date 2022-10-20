@@ -7,16 +7,16 @@ use std::{fs, sync::Arc};
 use accountable::accountable::Accountable;
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use lr_trie::{Key, LeftRightTrie, H256};
+use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::Account;
 use patriecia::db::MemoryDB;
+use patriecia::inner::InnerTrie;
+use patriecia::trie::Trie;
 use primitives::PublicKey;
 use ritelinked::LinkedHashMap;
-// use state_trie::StateTrie;
-use telemetry::{error, info};
-// use reward::reward::{Reward, RewardState};
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
+use telemetry::{error, info};
 
 use crate::result::Result;
 use crate::types::{
@@ -25,22 +25,12 @@ use crate::types::{
 };
 use crate::StateError;
 
-// let ftjson = OsStr::new("json");
-
 /// The Node State struct, contains basic information required to determine
 /// the current state of the network.
-//TODO: Replace `ledger`, `credits`, `debits`, with LR State Trie
-//TODO: Replace `state_hash` with LR State Trie Root.
-// #[derive(Debug, Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct NodeState {
     /// Path to database
     pub path: StatePath,
-    // /// Reward state of the network
-    // pub reward_state: StateRewardState,
-    // // the last state hash -> sha256 hash of credits, debits & reward state.
-    // pub state_hash: StateRoot,
-    // _mempool:
     state_trie: LeftRightTrie<MemoryDB>,
     tx_trie: LeftRightTrie<MemoryDB>,
 }
@@ -60,9 +50,6 @@ impl From<NodeStateValues> for NodeState {
     fn from(node_state_values: NodeStateValues) -> Self {
         let mut state_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
 
-        // let mut tx_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
-        // let mut state_trie = StateTrie::new(Arc::new(MemoryDB::new(true)));
-
         let mapped_state = node_state_values
             .state
             .into_iter()
@@ -75,7 +62,6 @@ impl From<NodeStateValues> for NodeState {
             path: PathBuf::new(),
             state_trie,
             tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
-            // state_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
         }
     }
 }
@@ -83,7 +69,6 @@ impl From<NodeStateValues> for NodeState {
 #[derive(Debug, Serialize, Deserialize)]
 struct NodeStateValues {
     pub txns: HashMap<PublicKey, Account>,
-    // pub state: HashMap<PublicKey, Account>,
     pub state: HashMap<String, Account>,
 }
 
@@ -129,7 +114,7 @@ impl NodeState {
     /// Dumps a hex string representation of `NodeStateValues` to file.
     pub fn dump_to_file(&self) -> Result<()> {
         //TODO: discuss if hex::encode is worth implementing
-        todo!()
+        unimplemented!()
     }
 
     /// Generates a backup of NodeState serialized into JSON at the specified path.
@@ -183,6 +168,11 @@ impl NodeState {
         self.state_trie.root()
     }
 
+    /// Produces a reader factory that can be used to generate read handles into the state tree.
+    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
+        self.state_trie.factory()
+    }
+
     /// Returns a mappig of public keys and accounts.
     pub fn entries(&self) -> HashMap<PublicKey, Account> {
         self.state_trie
@@ -195,22 +185,40 @@ impl NodeState {
             .collect::<HashMap<Key, Account>>()
     }
 
+    /// Retrieves an account entry from the current state tree.
+    pub fn get_account(&mut self, key: &PublicKey) -> Result<Account> {
+        let raw_account_bytes = self
+            .state_trie
+            .handle()
+            .get(key)
+            .unwrap_or_default()
+            .unwrap_or_default(); //TODO: Refactor patriecia to only return results, not options
+
+        let account = serde_json::from_slice(&raw_account_bytes).unwrap_or_default();
+
+        Ok(account)
+    }
+
+    /// Adds an account to current state tree.
     pub fn add_account(&mut self, key: PublicKey, account: Account) {
         self.state_trie.add(key, account);
     }
 
-    // pub fn add_account(&self, key: PublicKey, account: Account) {
-    //     self.state_trie.add(key, account);
-    // }
+    /// Adds multiplpe accounts to current state tree.
+    pub fn extend_accounts(&mut self, accounts: Vec<(PublicKey, Account)>) {
+        self.state_trie.extend(accounts);
+    }
+
+    /// Removes an account from the current state tree.
+    pub fn update_account(&mut self, key: PublicKey, account: Account) {
+        todo!()
+    }
+
+    /// Removes an account from the current state tree.
+    pub fn remove_account(&mut self, key: PublicKey) {
+        todo!()
+    }
 }
-
-// if let Err(err) = fs::write(path, serialized) {
-//     error!("Unable to write state to file. Reason: {0}", err);
-// }
-
-// if let Err(_) = fs::write(self.path.clone(), hex::encode(self.as_bytes())) {
-//     info!("Error dumping ledger to file");
-// };
 
 /*
 impl<'de> NetworkState {

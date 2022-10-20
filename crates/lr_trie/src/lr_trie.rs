@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, fmt::Debug, sync::Arc};
 
-use crate::{Key, Operation, TrieValue};
+use crate::{Key, Operation};
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
