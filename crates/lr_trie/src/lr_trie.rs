@@ -3,7 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use crate::{Key, Operation, TrieValue};
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 use serde::{Deserialize, Serialize};
 
 /// Concurrent generic Merkle Patricia Trie
@@ -16,7 +16,7 @@ where
     pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
 }
 
-impl<D: Database> LeftRightTrie<D>
+impl<'a, D> LeftRightTrie<D>
 where
     D: Database,
 {
@@ -62,42 +62,41 @@ where
         self.write_handle.publish();
     }
 
-    pub fn add<'a, T>(&mut self, key: Key, value: T)
+    pub fn add<T>(&mut self, key: Key, value: T)
     where
-        T: Serialize + Deserialize<'a>,
+        T: Serialize,
     {
         self.add_uncommitted(key, value);
         self.publish();
     }
 
-    pub fn extend<'a, T>(&mut self, values: Vec<(Key, T)>)
+    pub fn extend<T>(&mut self, values: Vec<(Key, T)>)
     where
-        T: Serialize + Deserialize<'a>,
+        T: Serialize,
     {
         self.extend_uncommitted(values);
         self.publish();
     }
 
-    pub fn add_uncommitted<'a, T>(&mut self, key: Key, value: T)
+    pub fn add_uncommitted<T>(&mut self, key: Key, value: T)
     where
-        T: Serialize + Deserialize<'a>,
+        T: Serialize,
     {
         //TODO: revisit the serializer used to store things on the trie
-        let value = serde_json::to_vec(&value).unwrap_or_default();
+        let value = bincode::serialize(&value).unwrap_or_default();
         self.write_handle.append(Operation::Add(key, value));
     }
 
-    pub fn extend_uncommitted<'a, T>(&mut self, values: Vec<(Key, T)>)
+    pub fn extend_uncommitted<T>(&mut self, values: Vec<(Key, T)>)
     where
-        T: Serialize + Deserialize<'a>,
+        T: Serialize,
     {
         let mapped = values
             .into_iter()
             .map(|(key, value)| {
-                //
                 //TODO: revisit the serializer used to store things on the trie
-                //
-                let value = serde_json::to_vec(&value).unwrap_or_default();
+                let value = bincode::serialize(&value).unwrap_or_default();
+
                 (key, value)
             })
             .collect();
@@ -179,7 +178,7 @@ mod tests {
 
         trie.add(b"abcdefg".to_vec(), CustomValue { data: 100 });
         let value = trie.handle().get(b"abcdefg").unwrap().unwrap();
-        let deserialized: CustomValue = serde_json::from_slice(&value).unwrap();
+        let deserialized = bincode::deserialize::<CustomValue>(&value).unwrap();
 
         assert_eq!(deserialized, CustomValue { data: 100 });
     }
