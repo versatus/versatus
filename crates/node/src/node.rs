@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 
 use block::Block;
 use claim::claim::Claim;
@@ -290,7 +290,7 @@ impl Node {
         let (state_control_tx, mut state_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let mut state_module = StateModule::new();
+        let mut state_module = StateModule::new("".into());
 
         let state_handle = tokio::spawn(async move {
             state_module.start(&mut state_control_rx);
@@ -301,19 +301,19 @@ impl Node {
 
         let mut event_router = EventRouter::new();
 
-    
         event_router.add_subscriber(Topic::Control, swarm_control_tx);
         event_router.add_subscriber(Topic::Control, blockchain_control_tx.clone());
         event_router.add_subscriber(Topic::Control, mining_control_tx);
         event_router.add_subscriber(Topic::Control, state_control_tx.clone());
 
-
-
         // TODO: feed command handler to transport layer
         // TODO: report error from handle
         // let router_handle = tokio::spawn(async move {
         //     // TODO: fix blocking loop on router
-        //     // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
+        //     //
+        //     event_router.start(&mut router_control_rx).await
+        //     //
+        //     // if let Err(err) = event_router.start(&mut router_control_rx).await {
         //     //     telemetry::error!("error while listening for commands: {0}", err);
         //     // }
         // });
@@ -333,9 +333,7 @@ impl Node {
                     telemetry::info!("Received stop signal");
 
                     // TODO: send signal to stop all task handlers here
-                    router_control_tx
-                        .send((Topic::Control, sig))
-                        .unwrap();
+                    router_control_tx.send((Topic::Control, sig)).unwrap();
 
                     self.teardown();
 
