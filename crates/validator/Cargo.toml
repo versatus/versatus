@@ -15,8 +15,7 @@ verifiable = { path = "../verifiable" }
 mempool = { path = "../mempool" }
 left-right = "0.11.5"
 lr_trie = { path = "../lr_trie" }
-rs_merkle = { git = "https://github.com/vrrb-io/rs-merkle", branch = "master" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 secp256k1 = { version = "0.24.0", features = ["rand"] }
 sha256 = "1.0.2"
 bytebuffer = "0.2.1"
