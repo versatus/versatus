@@ -12,7 +12,6 @@ mod tests {
         time::Duration,
     };
 
-    // use state_trie::StateTrie;
     use lr_trie::LeftRightTrie;
     use mempool::mempool::LeftRightMemPoolDB;
     use patriecia::db::MemoryDB;

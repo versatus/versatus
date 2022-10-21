@@ -25,6 +25,5 @@ lrdb = { path = "../lrdb" }
 
 [dev-dependencies]
 validator = { path = "../validator" }
-state_trie = { path = "../state_trie" }
 rand = "0.8.5"
 mempool = { path = "../mempool" }
