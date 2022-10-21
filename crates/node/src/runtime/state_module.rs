@@ -124,8 +124,6 @@ mod tests {
 
     #[tokio::test]
     async fn state_runtime_receives_new_txn_event() {
-        TelemetrySubscriber::init(io::stdout).unwrap();
-
         let temp_dir_path = env::temp_dir();
         let mut state_path = temp_dir_path.clone().join("state.json");
 
