@@ -79,7 +79,7 @@ impl<D: Database> StateTrie<D> {
     /// ];
     ///
     /// state_trie.extend(vals);
-    /// assert_eq!(state_trie.len(), 2);
+    /// assert_eq!(state_trie.len(), 3);
     /// ```
     pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.trie.extend(values);
@@ -140,7 +140,7 @@ impl<D: Database> StateTrie<D> {
     ///
     /// state_trie.extend(vals.clone());
     ///
-    /// assert_eq!(state_trie.len(), 2);
+    /// assert_eq!(state_trie.len(), 3);
     /// ```
     pub fn len(&self) -> usize {
         self.trie.len()
