@@ -7,6 +7,7 @@ pub struct TxTrie<D: Database> {
     trie: LeftRightTrie<D>,
 }
 
+#[deprecated(note = "Use lr_trie directly instead")]
 impl<D: Database> TxTrie<D> {
     /// Creates a new empty tx trie.
     pub fn new(db: Arc<D>) -> Self {
