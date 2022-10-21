@@ -53,7 +53,7 @@ impl<D: Database> TxTrie<D> {
     /// ];
     ///
     /// tx_trie.extend(vals);
-    /// assert_eq!(tx_trie.len(), 2);
+    /// assert_eq!(tx_trie.len(), 3);
     /// ```
     pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.trie.extend(values);
@@ -109,7 +109,7 @@ impl<D: Database> TxTrie<D> {
     ///
     /// tx_trie.extend(vals);
     ///
-    /// assert_eq!(tx_trie.len(), 2);
+    /// assert_eq!(tx_trie.len(), 3);
     /// ```
     pub fn len(&self) -> usize {
         self.trie.len()
@@ -168,7 +168,7 @@ mod tests {
         let tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
-        assert_eq!(tx_trie.len(), 1);
+        assert_eq!(tx_trie.len(), 0);
     }
 
     #[test]
@@ -186,7 +186,7 @@ mod tests {
         let target_root =
             "0xfcea4ea8a4decaf828666306c81977085ba9488d981c759ac899862fd4e9174e".to_string();
 
-        assert_eq!(tx_trie.len(), 4);
+        assert_eq!(tx_trie.len(), 3);
         assert_eq!(root, target_root);
     }
 
@@ -196,12 +196,12 @@ mod tests {
         let mut tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
-        assert_eq!(tx_trie.len(), 1);
+        assert_eq!(tx_trie.len(), 0);
 
         tx_trie.add(b"greetings".to_vec(), b"hello world".to_vec());
 
         assert_ne!(tx_trie.root(), None);
-        assert_eq!(tx_trie.len(), 2);
+        assert_eq!(tx_trie.len(), 1);
     }
 
     #[test]
@@ -210,7 +210,7 @@ mod tests {
         let mut tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
-        assert_eq!(tx_trie.len(), 1);
+        assert_eq!(tx_trie.len(), 0);
 
         let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
             (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
