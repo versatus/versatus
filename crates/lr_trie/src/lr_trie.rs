@@ -1,10 +1,12 @@
-use std::{borrow::Borrow, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{Key, Operation};
 use keccak_hash::H256;
-use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
+use left_right::{Absorb, ReadHandle, WriteHandle};
+use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
 use serde::{Deserialize, Serialize};
+
+pub use left_right::ReadHandleFactory;
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -16,7 +18,7 @@ where
     pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
 }
 
-impl<'a, D> LeftRightTrie<D>
+impl<D> LeftRightTrie<D>
 where
     D: Database,
 {
@@ -202,7 +204,6 @@ impl<D: Database> Clone for LeftRightTrie<D> {
 mod tests {
     use std::thread;
 
-    use hashbrown::HashMap;
     use patriecia::{db::MemoryDB, inner::TrieIterator};
 
     use super::*;

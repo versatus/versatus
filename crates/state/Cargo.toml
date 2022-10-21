@@ -22,8 +22,6 @@ noncing = { path = "../noncing" }
 updateable = { path = "../updateable" }
 reward = { path = "../reward" }
 lr_trie = { path = "../lr_trie" }
-# state_trie = { path = "../state_trie" }
-# tx_trie = { path = "../tx_trie" }
 telemetry = { path = "../telemetry" }
 primitives = { path = "../primitives" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }

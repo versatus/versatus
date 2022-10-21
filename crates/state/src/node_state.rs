@@ -12,7 +12,7 @@ use lrdb::Account;
 use patriecia::db::MemoryDB;
 use patriecia::inner::InnerTrie;
 use patriecia::trie::Trie;
-use primitives::PublicKey;
+use primitives::types::PublicKey;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
