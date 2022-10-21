@@ -6,26 +6,27 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
+use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 #[allow(deprecated)]
 use secp256k1::{
-    Signature, {Message, PublicKey, Secp256k1},
+    Signature,
+    {Message, PublicKey, Secp256k1},
 };
-
-use lrdb::Account;
+use serde::{Deserialize, Serialize};
 use txn::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
 
-pub trait GetFromReadHandle {
-    fn get(&self, key: Vec<u8>) -> Result<Account>;
+pub trait GetDeserialized<T: Serialize + for<'a> Deserialize<'a>> {
+    fn get_deserialized(&self, key: Vec<u8>) -> Result<T>;
 }
 
-impl<D> GetFromReadHandle for ReadHandle<InnerTrie<D>>
+impl<D> GetDeserialized<Account> for ReadHandle<InnerTrie<D>>
 where
     D: Database,
 {
-    fn get(&self, key: Vec<u8>) -> Result<Account> {
+    fn get_deserialized(&self, key: Vec<u8>) -> Result<Account> {
         match self
             .enter()
             .map(|guard| guard.clone())
@@ -37,7 +38,7 @@ where
                     Ok(account) => return Ok(account.clone()),
                     Err(_) => {
                         return Err(TxnValidatorError::FailedToDeserializeValue(bytes.clone()))
-                    }
+                    },
                 },
                 None => Err(TxnValidatorError::NoValueForKey),
             },
@@ -182,7 +183,10 @@ impl<D: Database> TxnValidator<D> {
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
-        match self.state.get(txn.sender_address.clone().into_bytes()) {
+        match self
+            .state
+            .get_deserialized(txn.sender_address.clone().into_bytes())
+        {
             Ok(account) => {
                 if let None = (account.credits - account.debits).checked_sub(txn.txn_amount) {
                     return Err(TxnValidatorError::TxnAmountIncorrect);
