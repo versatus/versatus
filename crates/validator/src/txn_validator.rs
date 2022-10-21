@@ -109,7 +109,7 @@ impl<D: Database> TxnValidator<D> {
                             .map_err(|_| TxnValidatorError::TxnSignatureIncorrect),
                         Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
                     }
-                }
+                },
                 Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
             },
             Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
@@ -174,7 +174,7 @@ impl<D: Database> TxnValidator<D> {
                 } else {
                     Err(TxnValidatorError::TxnTimestampIncorrect)
                 }
-            }
+            },
             Err(_) => Err(TxnValidatorError::TimestampError),
         }
     }
@@ -188,7 +188,7 @@ impl<D: Database> TxnValidator<D> {
                     return Err(TxnValidatorError::TxnAmountIncorrect);
                 };
                 Ok(())
-            }
+            },
             Err(_) => return Err(TxnValidatorError::InvalidSender),
         }
     }

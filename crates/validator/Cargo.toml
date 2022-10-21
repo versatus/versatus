@@ -12,20 +12,19 @@ txn = { path = "../txn" }
 pool = { path = "../pool" }
 state = { path = "../state" }
 verifiable = { path = "../verifiable" }
-mempool = {path = "../mempool"}
+mempool = { path = "../mempool" }
 left-right = "0.11.5"
-lr_trie = {path= "../lr_trie"}
-rs_merkle = { git = "https://github.com/vrrb-io/rs-merkle", branch = "master" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
-secp256k1 = {version = "0.24.0", features = ["rand"]}
+lr_trie = { path = "../lr_trie" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
+secp256k1 = { version = "0.24.0", features = ["rand"] }
 sha256 = "1.0.2"
 bytebuffer = "0.2.1"
 blake3 = "0.3.8"
 bincode = "1.3.3"
-lrdb = { path = "../lrdb"}
+lrdb = { path = "../lrdb" }
 
 [dev-dependencies]
-validator = {path = "../validator"}
-state_trie = {path = "../state_trie"}
+validator = { path = "../validator" }
+state_trie = { path = "../state_trie" }
 rand = "0.8.5"
-mempool = {path = "../mempool"}
+mempool = { path = "../mempool" }
