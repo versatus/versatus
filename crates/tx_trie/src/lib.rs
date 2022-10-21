@@ -185,7 +185,7 @@ mod tests {
         let root = format!("0x{}", hex::encode(root));
 
         let target_root =
-            "0xfcea4ea8a4decaf828666306c81977085ba9488d981c759ac899862fd4e9174e".to_string();
+            "0x54c5fa36d7c6a9e38e5f96f4cf49f3f018301e1cb60746e165415c27eba89db1".to_string();
 
         assert_eq!(tx_trie.len(), 3);
         assert_eq!(root, target_root);
@@ -264,15 +264,3 @@ mod tests {
         assert_ne!(tx_trie_a, tx_trie_b);
     }
 }
-
-// TODO: revisit later once lrdb is integrated with tries
-// impl<D, E> From<E> for TxTrie<D>
-// where
-//     D: Database,
-//     E: Iterator<Item = Vec<u8>>,
-// {
-//     fn from(values: E) -> Self {
-//         let trie = LeftRightTrie::from(values);
-//         Self { trie }
-//     }
-// }
