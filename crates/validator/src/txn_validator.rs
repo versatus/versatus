@@ -1,17 +1,50 @@
 use std::{
+    result::Result as StdResult,
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
-use patriecia::{db::Database, inner::InnerTrie};
+use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 #[allow(deprecated)]
 use secp256k1::{
     Signature, {Message, PublicKey, Secp256k1},
 };
-use state_trie::GetFromReadHandle;
+
+use lrdb::Account;
 use txn::txn::Txn;
+
+type Result<T> = StdResult<T, TxnValidatorError>;
+
+pub trait GetFromReadHandle {
+    fn get(&self, key: Vec<u8>) -> Result<Account>;
+}
+
+impl<D> GetFromReadHandle for ReadHandle<InnerTrie<D>>
+where
+    D: Database,
+{
+    fn get(&self, key: Vec<u8>) -> Result<Account> {
+        match self
+            .enter()
+            .map(|guard| guard.clone())
+            .unwrap_or_default()
+            .get(&key)
+        {
+            Ok(maybe_bytes) => match maybe_bytes {
+                Some(bytes) => match &bincode::deserialize::<Account>(&bytes) {
+                    Ok(account) => return Ok(account.clone()),
+                    Err(_) => {
+                        return Err(TxnValidatorError::FailedToDeserializeValue(bytes.clone()))
+                    }
+                },
+                None => Err(TxnValidatorError::NoValueForKey),
+            },
+            Err(err) => return Err(TxnValidatorError::FailedToGetValueForKey(key, err)),
+        }
+    }
+}
 
 pub const ADDRESS_PREFIX: &str = "0x192";
 pub enum TxnFees {
@@ -34,6 +67,10 @@ pub enum TxnValidatorError {
     TxnSignatureIncorrect,
     TxnSignatureTresholdIncorrect,
     TimestampError,
+    FailedToGetValueForKey(Vec<u8>, TrieError),
+    FailedToDeserializeValue(Vec<u8>),
+    FailedToSerializeAccount(Account),
+    NoValueForKey,
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +88,7 @@ impl<D: Database> TxnValidator<D> {
     /// Verifies Txn signature.
     // TODO, to be moved to a common utility crate
     #[allow(deprecated)]
-    pub fn verify_signature(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn verify_signature(&self, txn: &Txn) -> Result<()> {
         match Signature::from_str(txn.txn_signature.as_str()) {
             Ok(signature) => match PublicKey::from_str(txn.sender_public_key.as_str()) {
                 Ok(pk) => {
@@ -80,7 +117,7 @@ impl<D: Database> TxnValidator<D> {
     }
 
     /// Txn signature validator.
-    pub fn validate_signature(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
         if !txn.txn_signature.is_empty() {
             self.verify_signature(txn)
                 .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
@@ -90,7 +127,7 @@ impl<D: Database> TxnValidator<D> {
     }
 
     /// Txn public key validator
-    pub fn validate_public_key(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_public_key(&self, txn: &Txn) -> Result<()> {
         if !txn.sender_public_key.is_empty() {
             match PublicKey::from_str(txn.sender_public_key.as_str()) {
                 Ok(_) => Ok(()),
@@ -103,7 +140,7 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn sender validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_sender_address(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_sender_address(&self, txn: &Txn) -> Result<()> {
         if !txn.sender_address.is_empty()
             && txn.sender_address.starts_with(ADDRESS_PREFIX)
             && txn.sender_address.len() > 10
@@ -116,7 +153,7 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_receiver_address(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_receiver_address(&self, txn: &Txn) -> Result<()> {
         if !txn.receiver_address.is_empty()
             && txn.receiver_address.starts_with(ADDRESS_PREFIX)
             && txn.receiver_address.len() > 10
@@ -128,7 +165,7 @@ impl<D: Database> TxnValidator<D> {
     }
 
     /// Txn timestamp validator
-    pub fn validate_timestamp(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_timestamp(&self, txn: &Txn) -> Result<()> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(duration) => {
                 let timestamp = duration.as_nanos();
@@ -144,7 +181,7 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
-    pub fn validate_amount(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
         match self.state.get(txn.sender_address.clone().into_bytes()) {
             Ok(account) => {
                 if let None = (account.credits - account.debits).checked_sub(txn.txn_amount) {
@@ -157,7 +194,7 @@ impl<D: Database> TxnValidator<D> {
     }
 
     /// An entire Txn structure validator
-    pub fn validate_structure(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate_structure(&self, txn: &Txn) -> Result<()> {
         self.validate_amount(&txn)
             .and_then(|_| self.validate_public_key(&txn))
             .and_then(|_| self.validate_sender_address(&txn))
@@ -169,7 +206,7 @@ impl<D: Database> TxnValidator<D> {
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
-    pub fn validate(&self, txn: &Txn) -> Result<(), TxnValidatorError> {
+    pub fn validate(&self, txn: &Txn) -> Result<()> {
         self.validate_structure(txn)
     }
 }

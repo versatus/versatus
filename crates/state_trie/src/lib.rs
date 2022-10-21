@@ -1,44 +1,17 @@
 pub mod error;
 
-use error::StateTrieError;
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, result::Result as StdResult, sync::Arc};
 
+use error::StateTrieError;
 use keccak_hash::H256;
-use left_right::{ReadHandle, ReadHandleFactory};
+use left_right::ReadHandleFactory;
 use lr_trie::LeftRightTrie;
 use lrdb::Account;
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
-use std::result::Result as StdResult;
+use patriecia::{db::Database, inner::InnerTrie};
 type Result<T> = StdResult<T, StateTrieError>;
 
 pub struct StateTrie<D: Database> {
     trie: LeftRightTrie<D>,
-}
-pub trait GetFromReadHandle {
-    fn get(&self, key: Vec<u8>) -> Result<Account>;
-}
-
-impl<D> GetFromReadHandle for ReadHandle<InnerTrie<D>>
-where
-    D: Database,
-{
-    fn get(&self, key: Vec<u8>) -> Result<Account> {
-        match self
-            .enter()
-            .map(|guard| guard.clone())
-            .unwrap_or_default()
-            .get(&key)
-        {
-            Ok(maybe_bytes) => match maybe_bytes {
-                Some(bytes) => match &bincode::deserialize::<Account>(&bytes) {
-                    Ok(account) => return Ok(account.clone()),
-                    Err(_) => return Err(StateTrieError::FailedToDeserializeValue(bytes.clone())),
-                },
-                None => Err(StateTrieError::NoValueForKey),
-            },
-            Err(err) => return Err(StateTrieError::FailedToGetValueForKey(key, err)),
-        }
-    }
 }
 
 impl<D: Database> StateTrie<D> {
@@ -53,30 +26,36 @@ impl<D: Database> StateTrie<D> {
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
         self.trie.factory()
     }
+
     /// Adds a single leaf value serialized to bytes
     /// Example:
     /// ```
     /// use std::sync::Arc;
-    ///  use lrdb::Account;
-    ///  use state_trie::StateTrie;
-    ///  use patriecia::db::MemoryDB;
-    ///  let memdb = Arc::new(MemoryDB::new(true));
-    ///  let mut state_trie = StateTrie::new(memdb);
-    ///  
-    ///  state_trie.add(b"greetings.to_vec()".to_vec(), Account::new()).unwrap();
     ///
-    /// state_trie.add(b"greetings.to_vec()".to_vec(), Account::new()).unwrap();
+    /// use lrdb::Account;
+    /// use patriecia::db::MemoryDB;
+    /// use state_trie::StateTrie;
+    /// let memdb = Arc::new(MemoryDB::new(true));
+    /// let mut state_trie = StateTrie::new(memdb);
+    ///
+    /// state_trie
+    ///     .add(b"greetings.to_vec()".to_vec(), Account::new())
+    ///     .unwrap();
+    ///
+    /// state_trie
+    ///     .add(b"greetings.to_vec()".to_vec(), Account::new())
+    ///     .unwrap();
     ///
     /// assert_eq!(state_trie.len(), 1);
     /// ```
-    // TODO: Maybe it would be good idea to have both this and `trie.add` return value
-    // Add tests to err
+    // TODO: Maybe it would be good idea to have both this and `trie.add` return
+    // value Add tests to err
     pub fn add(&mut self, key: Vec<u8>, account: Account) -> Result<()> {
         match bincode::serialize(&account) {
             Ok(serialized) => {
                 self.trie.add(key, serialized);
                 return Ok(());
-            },
+            }
             Err(_) => return Err(StateTrieError::FailedToSerializeAccount(account)),
         }
     }
@@ -130,7 +109,7 @@ impl<D: Database> StateTrie<D> {
     /// state_trie_a.extend(vals.clone());
     /// state_trie_b.extend(vals.clone());
     ///
-    ///state_trie_a.extend(vals.clone());
+    /// state_trie_a.extend(vals.clone());
     /// state_trie_b.extend(vals.clone());
     ///
     /// assert_eq!(state_trie_a.root(), state_trie_b.root());
@@ -178,7 +157,7 @@ impl<D: Database> StateTrie<D> {
     /// let memdb = Arc::new(MemoryDB::new(true));
     /// let mut state_trie = StateTrie::new(memdb);
     ///
-    ///let memdb = Arc::new(MemoryDB::new(true));
+    /// let memdb = Arc::new(MemoryDB::new(true));
     /// let mut state_trie = StateTrie::new(memdb);
     ///
     /// assert_eq!(state_trie.len(), 0);
@@ -206,9 +185,10 @@ impl<D: Database> Debug for StateTrie<D> {
 mod tests {
     use std::sync::Arc;
 
-    use super::*;
     use lrdb::Account;
-    use patriecia::db::MemoryDB;
+    use patriecia::{db::MemoryDB, trie::Trie};
+
+    use super::*;
 
     #[test]
     fn new_creates_default_empty_trie() {
