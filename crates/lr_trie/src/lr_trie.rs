@@ -144,8 +144,7 @@ mod tests {
             .map(|_| {
                 let reader = trie.get();
                 thread::spawn(move || {
-                    // NOTE: 3 nodes plus the root add up to 4
-                    assert_eq!(reader.len(), 4);
+                    assert_eq!(reader.len(), 3);
                 })
             })
             .for_each(|handle| {

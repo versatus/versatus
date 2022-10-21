@@ -55,7 +55,7 @@ impl<D: Database> StateTrie<D> {
             Ok(serialized) => {
                 self.trie.add(key, serialized);
                 return Ok(());
-            }
+            },
             Err(_) => return Err(StateTrieError::FailedToSerializeAccount(account)),
         }
     }
@@ -196,7 +196,7 @@ mod tests {
         let state_trie = StateTrie::new(memdb);
 
         assert!(state_trie.root().is_some());
-        assert_eq!(state_trie.len(), 1);
+        assert_eq!(state_trie.len(), 0);
     }
 
     #[test]
@@ -236,14 +236,14 @@ mod tests {
         let mut state_trie = StateTrie::new(memdb);
 
         assert!(state_trie.root().is_some());
-        assert_eq!(state_trie.len(), 1);
+        assert_eq!(state_trie.len(), 0);
 
         state_trie
             .add(b"greetings".to_vec(), Account::new())
             .unwrap();
 
         assert_ne!(state_trie.root(), None);
-        assert_eq!(state_trie.len(), 2);
+        assert_eq!(state_trie.len(), 1);
     }
 
     #[test]
@@ -252,7 +252,7 @@ mod tests {
         let mut state_trie = StateTrie::new(memdb);
 
         assert!(state_trie.root().is_some());
-        assert_eq!(state_trie.len(), 1);
+        assert_eq!(state_trie.len(), 0);
 
         let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
             (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
