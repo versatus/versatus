@@ -131,11 +131,6 @@ impl Node {
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
 
-        // TODO: replace memorydb with real backing db later
-        let mem_db = MemoryDB::new(true);
-        let backing_db = Arc::new(mem_db);
-        let lr_trie = LeftRightTrie::new(backing_db);
-
         /*
         let new_secret_wrapped =SerdeSecret(secret_key);
         let mut secret_key_encoded = Vec::new();

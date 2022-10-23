@@ -248,27 +248,3 @@ mod tests {
             });
     }
 }
-
-// TODO: revisit later
-// impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
-// where
-//     E: Iterator<Item = Vec<u8>>,
-//     D: Database,
-// {
-//     fn from(values: E) -> Self {
-//         // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>,
-// Operation>();
-//
-//         let (write_handle, read_handle) =
-// left_right::new_from_empty(InnerTrie::new(db));
-//
-//         let mut trie = Self {
-//             read_handle,
-//             write_handle,
-//         };
-//
-//         trie.extend(values.collect());
-//
-//         trie
-//     }
-// }
