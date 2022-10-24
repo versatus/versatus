@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
+use udp2p::node::peer_id::PeerId;
 
 use crate::message::{AsMessage, Message};
 
@@ -87,6 +88,33 @@ pub enum MessageType {
     ClaimAbandonedMessage {
         claim: Vec<u8>,
         sender_id: String,
+    },
+    DKGPartCommitmentMessage{
+        dkg_part_commitment: Vec<u8>,
+        sender_id: String,
+    },
+    DKGACKCommitmentMessage{
+        dkg_ack_commitment: Vec<u8>,
+        sender_id: String,
+    },
+    SendPeerIDMessage{
+        pub_key: String, 
+        peer_id: PeerId,
+    }, 
+    ResetPeerConnectionMessage{
+        peer_id: PeerId,
+    },
+    RemovePeerMessage{
+        peer_id: PeerId,
+        socket_addr: SocketAddr,
+    },
+    AddPeerMessage{
+        peer_id: PeerId,
+        socket_addr: SocketAddr,
+    },
+    SendChainLockSignatureMessage{
+        chain_lock_signature: Vec<u8>,
+
     },
 }
 
