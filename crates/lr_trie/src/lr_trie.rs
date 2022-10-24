@@ -182,21 +182,9 @@ impl<D: Database> From<D> for LeftRightTrie<D> {
 
 impl<D: Database> Clone for LeftRightTrie<D> {
     fn clone(&self) -> Self {
-        Self {
-            read_handle: todo!(),
-            write_handle: todo!(),
-        }
-        // let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(self.db));
-        //
-        // Self {
-        //     read_handle,
-        //     write_handle,
-        // }
+        let db = self.handle().db();
 
-        // Self {
-        //     read_handle: self.read_handle.clone(),
-        //     write_handle: self.write_handle.clone(),
-        // }
+        LeftRightTrie::new(db)
     }
 }
 
