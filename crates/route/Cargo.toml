@@ -1,0 +1,16 @@
+[package]
+name = "routerswarmcast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["io-util", "io-std", "macros", "rt", "rt-multi-thread", "sync", "fs", "net", "time"] }
+serde = {version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+left-right = "0.11.5"
+async-std = "1.0.1"
+futures = {version="0.3.1", features= ["thread-pool"]}
+futures-timer = "0.4.0"
+err-derive = "0.3.0"
+uuid = {version = "1.2.1", features = ["v4"]}
