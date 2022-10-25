@@ -7,6 +7,7 @@ pub struct TxTrie<D: Database> {
     trie: LeftRightTrie<D>,
 }
 
+#[deprecated(note = "Use lr_trie directly instead")]
 impl<D: Database> TxTrie<D> {
     /// Creates a new empty tx trie.
     pub fn new(db: Arc<D>) -> Self {
@@ -53,7 +54,7 @@ impl<D: Database> TxTrie<D> {
     /// ];
     ///
     /// tx_trie.extend(vals);
-    /// assert_eq!(tx_trie.len(), 2);
+    /// assert_eq!(tx_trie.len(), 3);
     /// ```
     pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
         self.trie.extend(values);
@@ -109,7 +110,7 @@ impl<D: Database> TxTrie<D> {
     ///
     /// tx_trie.extend(vals);
     ///
-    /// assert_eq!(tx_trie.len(), 2);
+    /// assert_eq!(tx_trie.len(), 3);
     /// ```
     pub fn len(&self) -> usize {
         self.trie.len()
@@ -168,7 +169,7 @@ mod tests {
         let tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
-        assert_eq!(tx_trie.len(), 1);
+        assert_eq!(tx_trie.len(), 0);
     }
 
     #[test]
@@ -184,9 +185,9 @@ mod tests {
         let root = format!("0x{}", hex::encode(root));
 
         let target_root =
-            "0xfcea4ea8a4decaf828666306c81977085ba9488d981c759ac899862fd4e9174e".to_string();
+            "0x54c5fa36d7c6a9e38e5f96f4cf49f3f018301e1cb60746e165415c27eba89db1".to_string();
 
-        assert_eq!(tx_trie.len(), 4);
+        assert_eq!(tx_trie.len(), 3);
         assert_eq!(root, target_root);
     }
 
@@ -196,12 +197,12 @@ mod tests {
         let mut tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
-        assert_eq!(tx_trie.len(), 1);
+        assert_eq!(tx_trie.len(), 0);
 
         tx_trie.add(b"greetings".to_vec(), b"hello world".to_vec());
 
         assert_ne!(tx_trie.root(), None);
-        assert_eq!(tx_trie.len(), 2);
+        assert_eq!(tx_trie.len(), 1);
     }
 
     #[test]
@@ -210,7 +211,7 @@ mod tests {
         let mut tx_trie = TxTrie::new(memdb);
 
         assert!(tx_trie.root().is_some());
-        assert_eq!(tx_trie.len(), 1);
+        assert_eq!(tx_trie.len(), 0);
 
         let vals: Vec<(Vec<u8>, Vec<u8>)> = vec![
             (b"abcdefg".to_vec(), b"abcdefg".to_vec()),
@@ -263,15 +264,3 @@ mod tests {
         assert_ne!(tx_trie_a, tx_trie_b);
     }
 }
-
-// TODO: revisit later once lrdb is integrated with tries
-// impl<D, E> From<E> for TxTrie<D>
-// where
-//     D: Database,
-//     E: Iterator<Item = Vec<u8>>,
-// {
-//     fn from(values: E) -> Self {
-//         let trie = LeftRightTrie::from(values);
-//         Self { trie }
-//     }
-// }

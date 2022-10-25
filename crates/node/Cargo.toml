@@ -15,8 +15,6 @@ commands = { path = "../commands" }
 network = { path = "../network" }
 messages = { path = "../messages" }
 lr_trie = { path = "../lr_trie" }
-state_trie = { path = "../state_trie" }
-tx_trie = { path = "../tx_trie" }
 storage = { path = "../storage" }
 miner = { path = "../miner" }
 claim = { path = "../claim" }
@@ -28,7 +26,7 @@ validator = { path = "../validator" }
 events = { path = "../events" }
 reward = { path = "../reward" }
 blockchain = { path = "../blockchain" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho", branch = "main" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
 secp256k1 = { version = "0.20.2", features = ["rand"] }

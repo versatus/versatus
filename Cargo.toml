@@ -53,11 +53,10 @@ members = [
     "crates/noncing",
     "crates/updateable",
     "crates/quorum",
-    "crates/state_trie",
     "crates/lrdb",
     "crates/lr_trie",
-    "crates/tx_trie",
     "crates/dkg_engine",
     "crates/telemetry",
     "crates/signer",
+
 ]

@@ -165,14 +165,30 @@ pub fn generate_batch_id() -> [u8; BATCH_ID_SIZE] {
 /// Arguments:
 ///
 /// * `file_path`: The path to the file you want to read.
-pub fn read_file(file_path: PathBuf) -> Vec<u8> {
-    let metadata = fs::metadata(&file_path).expect("unable to read metadata");
-    let mut buffer = vec![0; metadata.len() as usize];
-    File::open(file_path)
-        .unwrap()
-        .read_exact(&mut buffer)
-        .expect("buffer overflow");
-    buffer
+pub fn read_file(file_path: PathBuf) -> Result<Vec<u8>> {
+    let mut buffer = Vec::new();
+    match fs::metadata(&file_path) {
+        Ok(metadata) => {
+            buffer = vec![0; metadata.len() as usize];
+            if let Ok(mut file) = File::open(file_path) {
+                match file.read_exact(&mut buffer) {
+                    Ok(()) => {},
+                    Err(e) => {
+                        telemetry::error!("Error occured while reading a file, details {}", e);
+                        return Err(e);
+                    },
+                }
+            }
+        },
+        Err(e) => {
+            telemetry::error!(
+                "Error occured while reading metadata of file, details {}",
+                e
+            );
+            return Err(e);
+        },
+    }
+    Ok(buffer)
 }
 
 /// It receives a tuple of a string and a vector of bytes from a channel, and writes the vector of bytes
@@ -186,9 +202,14 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
         match batch_recv.recv() {
             Ok((batch_id, contents)) => {
                 let batch_fname = format!("{}.BATCH", batch_id);
-                fs::write(batch_fname, &contents).unwrap();
+                match fs::write(batch_fname, &contents) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        telemetry::error!("Error occured while write data to file, details {}", e)
+                    },
+                }
             },
-            Err(e) => {
+            Err(_e) => {
                 continue;
             },
         };
@@ -220,7 +241,7 @@ pub fn reassemble_packets(
     loop {
         let mut received_packet = match receiver.recv() {
             Ok(pr) => pr,
-            Err(e) => {
+            Err(_e) => {
                 continue;
             },
         };
@@ -232,10 +253,11 @@ pub fn reassemble_packets(
         let payload_length = get_payload_length(&received_packet.0);
         // This is to check if the packet is a forwarder packet. If it is, it forwards the packet to the `forwarder` channel.
         // Since packet is shared across nodes with forward flag as 1
-        let forward_flag = received_packet.0.get_mut(1).unwrap();
-        if *forward_flag == 1 {
-            *forward_flag = 0;
-            let _ = forwarder.try_send(received_packet.0[0..received_packet.1].to_vec());
+        if let Some(forward_flag) = received_packet.0.get_mut(1) {
+            if *forward_flag == 1 {
+                *forward_flag = 0;
+                let _ = forwarder.try_send(received_packet.0[0..received_packet.1].to_vec());
+            }
         }
 
         match decoder_hash.get_mut(&batch_id) {
@@ -245,15 +267,15 @@ pub fn reassemble_packets(
                 let result = decoder.decode(EncodingPacket::deserialize(
                     &received_packet.0[38_usize..received_packet.1].to_vec(),
                 ));
-                if !result.is_none() {
+                if result.is_some() {}
+                if let Some(result_bytes) = result {
                     batch_id_hashset.insert(batch_id);
-
-                    // This is the part of the code that is sending the reassembled file to the `file_send` channel.
-                    let result_bytes = result.unwrap();
-                    let batch_id_str = String::from(str::from_utf8(&batch_id).unwrap());
-                    let msg = (batch_id_str, result_bytes);
-                    let _ = batch_send.send(msg);
-                    decoder_hash.remove(&batch_id);
+                    if let Ok(batch_id_str) = str::from_utf8(&batch_id) {
+                        let batch_id_str = String::from(batch_id_str);
+                        let msg = (batch_id_str, result_bytes);
+                        let _ = batch_send.send(msg);
+                        decoder_hash.remove(&batch_id);
+                    }
                 }
             },
             None => {
@@ -287,7 +309,7 @@ pub fn reassemble_packets(
 /// * `packets`: a mutable array of byte arrays, each of which is the size of the largest packet you
 /// want to receive.
 ///
-#[cfg(not(target_os = "linux"))]
+//#[cfg(not(target_os = "linux"))]
 pub async fn recv_mmsg(
     socket: &UdpSocket,
     packets: &mut [[u8; 1280]; NUM_RCVMMSGS],
@@ -327,32 +349,36 @@ pub async fn packet_forwarder(
     nodes_ips_except_self: Vec<Vec<u8>>,
     port: u16,
 ) -> Result<()> {
-    let udp_socket = Arc::new(
-        UdpSocket::bind(SocketAddr::new(
-            std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-            port,
-        ))
-        .await
-        .unwrap(),
-    );
-    loop {
-        let nodes = nodes_ips_except_self.clone();
-        match forwarder_channel_receive.recv() {
-            Ok(packet) => {
-                let mut broadcast_futures: Vec<_> = vec![];
-                for addr in nodes {
-                    let pack = packet.clone();
-                    let sock = udp_socket.clone();
-                    broadcast_futures.push(tokio::task::spawn(async move {
-                        sock.send_to(&pack, (&String::from_utf8_lossy(&addr)[..], port))
-                            .await
-                    }))
-                }
-                let _ = try_join_all(broadcast_futures).await;
-            },
-            Err(e) => {
-                telemetry::error!("Error occurred while receiving packet: {:?}", e)
-            },
+    if let Ok(sock) = UdpSocket::bind(SocketAddr::new(
+        std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
+        port,
+    ))
+    .await
+    {
+        let udp_socket = Arc::new(sock);
+
+        loop {
+            let nodes = nodes_ips_except_self.clone();
+            match forwarder_channel_receive.recv() {
+                Ok(packet) => {
+                    let mut broadcast_futures: Vec<_> = vec![];
+                    for addr in nodes {
+                        let pack = packet.clone();
+                        let sock = udp_socket.clone();
+                        broadcast_futures.push(tokio::task::spawn(async move {
+                            sock.send_to(&pack, (&String::from_utf8_lossy(&addr)[..], port))
+                                .await
+                        }))
+                    }
+                    let _ = try_join_all(broadcast_futures).await;
+                },
+                Err(e) => {
+                    telemetry::error!("Error occurred while receiving packet: {:?}", e)
+                },
+            }
         }
+    } else {
+        telemetry::error!("Error occured for binding port {} for udp socket", port);
+        Ok(())
     }
 }

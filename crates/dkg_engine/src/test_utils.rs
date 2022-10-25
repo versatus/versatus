@@ -12,7 +12,7 @@ use hbbft::{
 };
 use messages::packet::Packet;
 use node::{command_handler::CommandHandler, message_handler::MessageHandler};
-use primitives::NodeType;
+use primitives::types::NodeType;
 use tokio::sync::mpsc::unbounded_channel;
 use udp2p::protocol::protocol::Message;
 use vrrb_config::NodeConfig;

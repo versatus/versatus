@@ -7,7 +7,7 @@ use std::{
 
 use dkg_engine::types::{config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
-use primitives::{Hash, NodeId, NodeIdx, RawSignature, SignatureType};
+use primitives::types::{Hash, NodeId, NodeIdx, RawSignature, SignatureType};
 
 use crate::types::{SignerError, SignerResult};
 
@@ -321,7 +321,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
-    use primitives::{is_enum_variant, SignatureType};
+    use primitives::{is_enum_variant, types::SignatureType};
 
     use crate::{
         signer::{SignatureProvider, Signer},

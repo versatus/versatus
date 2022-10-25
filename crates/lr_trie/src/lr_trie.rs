@@ -1,19 +1,25 @@
 use std::{fmt::Debug, sync::Arc};
 
+use crate::{Key, Operation, TrieValue};
 use keccak_hash::H256;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
-
-use crate::Operation;
+use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
+use serde::{Deserialize, Serialize};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
-pub struct LeftRightTrie<D: Database> {
+pub struct LeftRightTrie<D>
+where
+    D: Database,
+{
     pub read_handle: ReadHandle<InnerTrie<D>>,
     pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
 }
 
-impl<D: Database> LeftRightTrie<D> {
+impl<'a, D> LeftRightTrie<D>
+where
+    D: Database,
+{
     pub fn new(db: Arc<D>) -> Self {
         let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
 
@@ -24,7 +30,12 @@ impl<D: Database> LeftRightTrie<D> {
     }
 
     // TODO: consider renaming to handle, get_handle or get_read_handle
+    #[deprecated(note = "Renamed to handle. This will be removed in later releases")]
     pub fn get(&self) -> InnerTrie<D> {
+        self.handle()
+    }
+
+    pub fn handle(&self) -> InnerTrie<D> {
         self.read_handle
             .enter()
             .map(|guard| guard.clone())
@@ -32,21 +43,16 @@ impl<D: Database> LeftRightTrie<D> {
     }
 
     pub fn len(&self) -> usize {
-        self.get().len()
+        self.handle().iter().count()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.get().len() == 0
+        self.handle().len() == 0
     }
 
     pub fn root(&self) -> Option<H256> {
-        self.get().root_hash().ok()
+        self.handle().root_hash().ok()
     }
-
-    // TODO: revisit and consider if it's worth having it vs a simple iter over the
-    // inner trie pub fn leaves(&self) -> Option<Vec<H::Hash>> {
-    //     self.get().leaves()
-    // }
 
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
         self.read_handle.factory()
@@ -56,33 +62,62 @@ impl<D: Database> LeftRightTrie<D> {
         self.write_handle.publish();
     }
 
-    pub fn add(&mut self, key: Vec<u8>, value: Vec<u8>) {
-        self.write_handle.append(Operation::Add(key, value));
+    pub fn add<T>(&mut self, key: Key, value: T)
+    where
+        T: Serialize,
+    {
+        self.add_uncommitted(key, value);
         self.publish();
     }
 
-    // TODO: revisit once inner trie is refactored into patriecia
-    pub fn extend(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
-        self.write_handle.append(Operation::Extend(values));
+    pub fn extend<T>(&mut self, values: Vec<(Key, T)>)
+    where
+        T: Serialize,
+    {
+        self.extend_uncommitted(values);
         self.publish();
     }
 
-    pub fn add_uncommitted(&mut self, key: Vec<u8>, value: Vec<u8>) {
+    pub fn add_uncommitted<T>(&mut self, key: Key, value: T)
+    where
+        T: Serialize,
+    {
+        //TODO: revisit the serializer used to store things on the trie
+        let value = bincode::serialize(&value).unwrap_or_default();
         self.write_handle.append(Operation::Add(key, value));
     }
 
-    pub fn extend_uncommitted(&mut self, values: Vec<(Vec<u8>, Vec<u8>)>) {
-        self.write_handle.append(Operation::Extend(values));
+    pub fn extend_uncommitted<T>(&mut self, values: Vec<(Key, T)>)
+    where
+        T: Serialize,
+    {
+        let mapped = values
+            .into_iter()
+            .map(|(key, value)| {
+                //TODO: revisit the serializer used to store things on the trie
+                let value = bincode::serialize(&value).unwrap_or_default();
+
+                (key, value)
+            })
+            .collect();
+
+        self.write_handle.append(Operation::Extend(mapped));
     }
 }
 
-impl<D: Database> PartialEq for LeftRightTrie<D> {
+impl<D> PartialEq for LeftRightTrie<D>
+where
+    D: Database,
+{
     fn eq(&self, other: &Self) -> bool {
-        self.get().root_hash() == other.get().root_hash()
+        self.handle().root_hash() == other.handle().root_hash()
     }
 }
 
-impl<D: Database> Default for LeftRightTrie<D> {
+impl<D> Default for LeftRightTrie<D>
+where
+    D: Database,
+{
     fn default() -> Self {
         let (write_handle, read_handle) = left_right::new::<InnerTrie<D>, Operation>();
         Self {
@@ -107,7 +142,9 @@ where
                 self.remove(key).unwrap_or_default();
             },
             Operation::Extend(values) => {
+                //
                 // TODO: temp hack to get this going. Refactor ASAP
+                //
                 for (k, v) in values {
                     self.insert(k, v).unwrap_or_default();
                 }
@@ -129,6 +166,23 @@ mod tests {
 
     use super::*;
 
+    #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+    struct CustomValue {
+        pub data: usize,
+    }
+
+    #[test]
+    fn should_store_arbitrary_values() {
+        let memdb = Arc::new(MemoryDB::new(true));
+        let mut trie = LeftRightTrie::new(memdb);
+
+        trie.add(b"abcdefg".to_vec(), CustomValue { data: 100 });
+        let value = trie.handle().get(b"abcdefg").unwrap().unwrap();
+        let deserialized = bincode::deserialize::<CustomValue>(&value).unwrap();
+
+        assert_eq!(deserialized, CustomValue { data: 100 });
+    }
+
     #[test]
     fn should_be_read_concurrently() {
         let memdb = Arc::new(MemoryDB::new(true));
@@ -142,10 +196,9 @@ mod tests {
         [0..10]
             .iter()
             .map(|_| {
-                let reader = trie.get();
+                let reader = trie.handle();
                 thread::spawn(move || {
-                    // NOTE: 3 nodes plus the root add up to 4
-                    assert_eq!(reader.len(), 4);
+                    assert_eq!(reader.len(), 3);
                 })
             })
             .for_each(|handle| {

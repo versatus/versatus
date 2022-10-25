@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 left-right = "0.11.5"
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 lr_trie = { path = "../lr_trie" }
 hex = "0.4.3"

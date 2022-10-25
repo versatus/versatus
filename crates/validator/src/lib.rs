@@ -12,22 +12,24 @@ mod tests {
         time::Duration,
     };
 
+    use lr_trie::LeftRightTrie;
     use mempool::mempool::LeftRightMemPoolDB;
     use patriecia::db::MemoryDB;
     use rand::{rngs::StdRng, Rng, SeedableRng};
-    use state_trie::StateTrie;
-
     use txn::txn::*;
 
     use crate::{
         mempool_processor::{
-            MempoolControlMsg, MempoolTxnProcessor, MempoolTxnProcessorError,
+            MempoolControlMsg,
+            MempoolTxnProcessor,
+            MempoolTxnProcessorError,
             MempoolTxnProcessorState,
         },
         validator_unit::ValidatorUnit,
     };
 
-    //     // TODO: Use proper txns when there will be proper txn validation implemented
+    //     // TODO: Use proper txns when there will be proper txn validation
+    // implemented
     fn random_string(rng: &mut StdRng) -> String {
         format!("{}", rng.gen::<u32>())
     }
@@ -53,7 +55,7 @@ mod tests {
         let mempool_pending = LeftRightMemPoolDB::new();
 
         let memdb = Arc::new(MemoryDB::new(true));
-        let _state = StateTrie::new(memdb).factory();
+        let state_rh_factory = LeftRightTrie::new(memdb).factory();
 
         let (mempool_processor_sender, _) = channel();
         let (cores_error_channel_s, _) = channel();
@@ -61,7 +63,7 @@ mod tests {
         let amount_of_cores = 10;
         let validator = ValidatorUnit::new(
             mempool_pending.read,
-            _state,
+            state_rh_factory,
             mempool_processor_sender,
             amount_of_cores,
             cores_error_channel_s,
@@ -73,7 +75,7 @@ mod tests {
     fn new_mempool_processor_creates_properly() {
         let mempool = LeftRightMemPoolDB::new();
         let memdb = Arc::new(MemoryDB::new(true));
-        let _state = StateTrie::new(memdb).factory();
+        let state_rh_factory = LeftRightTrie::new(memdb).factory();
 
         let amount_of_cores = 10;
 
@@ -82,7 +84,7 @@ mod tests {
         let (cores_error_channel_s, _) = channel();
         let validator = ValidatorUnit::new(
             mempool.read.clone(),
-            _state,
+            state_rh_factory,
             mempool_processor_sender,
             amount_of_cores,
             cores_error_channel_s,
@@ -106,7 +108,7 @@ mod tests {
         let mempool_read_handle = mempool.read.factory();
 
         let memdb = Arc::new(MemoryDB::new(true));
-        let _state = StateTrie::new(memdb).factory();
+        let state_rh_factory = LeftRightTrie::new(memdb).factory();
 
         let amount_of_cores = 5;
 
@@ -115,7 +117,7 @@ mod tests {
         let (core_error_s, _) = channel();
         let validator = ValidatorUnit::new(
             mempool.read.clone(),
-            _state,
+            state_rh_factory,
             mempool_processor_sender,
             amount_of_cores,
             core_error_s,
@@ -163,7 +165,7 @@ mod tests {
         let mempool = LeftRightMemPoolDB::new();
 
         let memdb = Arc::new(MemoryDB::new(true));
-        let _state = StateTrie::new(memdb).factory();
+        let state_rh_factory = LeftRightTrie::new(memdb).factory();
 
         let amount_of_cores = 10;
 
@@ -172,7 +174,7 @@ mod tests {
         let (core_error_s, _) = channel();
         let validator = ValidatorUnit::new(
             mempool.read.clone(),
-            _state,
+            state_rh_factory,
             mempool_processor_sender,
             amount_of_cores,
             core_error_s,
