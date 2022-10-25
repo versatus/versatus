@@ -19,3 +19,4 @@ serde = { version = "1.0.101", features = ["derive"] }
 secp256k1 = {version = "0.20.2", features = ["rand"]}
 log = "0.4.14"
 ritelinked = {version = "0.3.2", features = [ 'serde' ]}
+udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
