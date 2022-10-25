@@ -24,6 +24,9 @@ pub enum Commands {
     /// Node management subcommands
     Node(NodeOpts),
 
+    /// Wallet management subcommands
+    Wallet(NodeOpts),
+
     /// Placeholder sub-command to demonstrate how to configure them
     #[default]
     Placeholder,

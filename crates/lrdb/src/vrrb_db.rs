@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 pub type Nonce = u32;
 
 /// Stores information about given account.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Account {
     pub hash: String,
     pub nonce: Nonce,

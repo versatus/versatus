@@ -21,7 +21,7 @@ use public_ip;
 use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
-use state::state::{Components, NetworkState};
+use state::{Components, NetworkState};
 use telemetry::info;
 use tokio::sync::mpsc::{self, error::TryRecvError};
 use txn::txn::Txn;

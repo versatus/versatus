@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ritelinked = {version = "0.3.2", features = [ 'serde' ]}
+ritelinked = { version = "0.3.2", features = ['serde'] }
 sha256 = "1.0.2"
 log = "0.4.14"
 serde_json = "1.0.64"
@@ -16,7 +16,14 @@ claim = { path = "../claim" }
 verifiable = { path = "../verifiable" }
 ledger = { path = "../ledger" }
 accountable = { path = "../accountable" }
+lrdb = { path = "../lrdb" }
 ownable = { path = "../ownable" }
 noncing = { path = "../noncing" }
 updateable = { path = "../updateable" }
 reward = { path = "../reward" }
+lr_trie = { path = "../lr_trie" }
+telemetry = { path = "../telemetry" }
+primitives = { path = "../primitives" }
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
+thiserror = "1.0.37"
+rand = "0.8.5"

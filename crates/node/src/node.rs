@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 
 use block::Block;
 use claim::claim::Claim;
@@ -39,7 +39,7 @@ use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-use state::state::{Components, NetworkState};
+use state::{Components, NetworkState};
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
@@ -62,9 +62,8 @@ use crate::{
     miner::MiningModule,
     result::*,
     runtime::blockchain::BlockchainModule,
-    state::StateModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState,
+    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -131,11 +130,6 @@ impl Node {
         //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
-
-        // TODO: replace memorydb with real backing db later
-        let mem_db = MemoryDB::new(true);
-        let backing_db = Arc::new(mem_db);
-        let lr_trie = LeftRightTrie::new(backing_db);
 
         /*
         let new_secret_wrapped =SerdeSecret(secret_key);
@@ -291,7 +285,7 @@ impl Node {
         let (state_control_tx, mut state_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let mut state_module = StateModule::new();
+        let mut state_module = StateModule::new("".into());
 
         let state_handle = tokio::spawn(async move {
             state_module.start(&mut state_control_rx);
@@ -302,19 +296,19 @@ impl Node {
 
         let mut event_router = EventRouter::new();
 
-    
         event_router.add_subscriber(Topic::Control, swarm_control_tx);
         event_router.add_subscriber(Topic::Control, blockchain_control_tx.clone());
         event_router.add_subscriber(Topic::Control, mining_control_tx);
         event_router.add_subscriber(Topic::Control, state_control_tx.clone());
 
-
-
         // TODO: feed command handler to transport layer
         // TODO: report error from handle
         // let router_handle = tokio::spawn(async move {
         //     // TODO: fix blocking loop on router
-        //     // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
+        //     //
+        //     event_router.start(&mut router_control_rx).await
+        //     //
+        //     // if let Err(err) = event_router.start(&mut router_control_rx).await {
         //     //     telemetry::error!("error while listening for commands: {0}", err);
         //     // }
         // });
@@ -334,9 +328,7 @@ impl Node {
                     telemetry::info!("Received stop signal");
 
                     // TODO: send signal to stop all task handlers here
-                    router_control_tx
-                        .send((Topic::Control, sig))
-                        .unwrap();
+                    router_control_tx.send((Topic::Control, sig)).unwrap();
 
                     self.teardown();
 

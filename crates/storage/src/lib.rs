@@ -69,12 +69,12 @@ pub fn get_node_data_dir() -> Result<PathBuf> {
     Ok(vrrb_data_dir)
 }
 
-pub struct FileSystemStorage {
+pub struct FileSystemStorageDriver {
     // buf: BufWriter<std::fs::File>,
     data_dir: PathBuf,
 }
 
-impl FileSystemStorage {
+impl FileSystemStorageDriver {
     pub fn new(data_dir: PathBuf) -> Self {
         Self { data_dir }
     }
@@ -82,7 +82,7 @@ impl FileSystemStorage {
     fn init() {}
 }
 
-impl Default for FileSystemStorage {
+impl Default for FileSystemStorageDriver {
     fn default() -> Self {
         Self {
             data_dir: String::from(".vrrb").into(),
@@ -90,7 +90,7 @@ impl Default for FileSystemStorage {
     }
 }
 
-impl Storage for FileSystemStorage {
+impl Storage for FileSystemStorageDriver {
     fn get() -> Result<Vec<u8>> {
         todo!()
     }

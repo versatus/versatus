@@ -1,10 +1,12 @@
 use std::{fmt::Debug, sync::Arc};
 
-use crate::{Key, Operation, TrieValue};
+use crate::{Key, Operation};
 use keccak_hash::H256;
-use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
+use left_right::{Absorb, ReadHandle, WriteHandle};
+use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
 use serde::{Deserialize, Serialize};
+
+pub use left_right::ReadHandleFactory;
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -16,7 +18,7 @@ where
     pub write_handle: WriteHandle<InnerTrie<D>, Operation>,
 }
 
-impl<'a, D> LeftRightTrie<D>
+impl<D> LeftRightTrie<D>
 where
     D: Database,
 {
@@ -40,6 +42,14 @@ where
             .enter()
             .map(|guard| guard.clone())
             .unwrap_or_default()
+    }
+
+    /// Returns a vector of all entries within the trie
+    pub fn entries<'a, T>(&self) -> Vec<(Key, T)>
+    where
+        T: Deserialize<'a> + Default,
+    {
+        todo!()
     }
 
     pub fn len(&self) -> usize {
@@ -158,11 +168,31 @@ where
     }
 }
 
+impl<D: Database> From<D> for LeftRightTrie<D> {
+    fn from(db: D) -> Self {
+        let db = Arc::new(db);
+        let (write_handle, read_handle) = left_right::new_from_empty(InnerTrie::new(db));
+
+        Self {
+            read_handle,
+            write_handle,
+        }
+    }
+}
+
+impl<D: Database> Clone for LeftRightTrie<D> {
+    fn clone(&self) -> Self {
+        let db = self.handle().db();
+
+        LeftRightTrie::new(db)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread;
 
-    use patriecia::db::MemoryDB;
+    use patriecia::{db::MemoryDB, inner::TrieIterator};
 
     use super::*;
 
@@ -206,27 +236,3 @@ mod tests {
             });
     }
 }
-
-// TODO: revisit later
-// impl<'a, E, D> From<E> for LeftRightTrie<'a, D>
-// where
-//     E: Iterator<Item = Vec<u8>>,
-//     D: Database,
-// {
-//     fn from(values: E) -> Self {
-//         // let (write_handle, read_handle) = left_right::new::<InnerTrie<D>,
-// Operation>();
-//
-//         let (write_handle, read_handle) =
-// left_right::new_from_empty(InnerTrie::new(db));
-//
-//         let mut trie = Self {
-//             read_handle,
-//             write_handle,
-//         };
-//
-//         trie.extend(values.collect());
-//
-//         trie
-//     }
-// }

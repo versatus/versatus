@@ -1,5 +1,5 @@
 //FEATURE TAG(S): Left-Right Database, Left-Right State Trie
-use std::fs;
+use std::{fs, sync::Arc};
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
@@ -14,34 +14,10 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 
-type StateGenesisBlock = Option<Vec<u8>>;
-type StateChildBlock = Option<Vec<u8>>;
-type StateParentBlock = Option<Vec<u8>>;
-type StateBlockchain = Option<Vec<u8>>;
-type StateLedger = Option<Vec<u8>>;
-type StateNetworkState = Option<Vec<u8>>;
-type StateArchive = Option<Vec<u8>>;
-type StatePath = String;
-type LedgerBytes = Vec<u8>;
-type CreditsRoot = Option<String>;
-type DebitsRoot = Option<String>;
-type StateRewardState = Option<RewardState>;
-type StateRoot = Option<String>;
-type CreditsHash = String;
-type DebitsHash = String;
-type StateHash = String;
-
-/// The components required for a node to sync with the network state
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Components {
-    pub genesis: StateGenesisBlock,
-    pub child: StateChildBlock,
-    pub parent: StateParentBlock,
-    pub blockchain: StateBlockchain,
-    pub ledger: StateLedger,
-    pub network_state: StateNetworkState,
-    pub archive: StateArchive,
-}
+use crate::types::{
+    CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
+    StateRewardState, StateRoot,
+};
 
 /// The Network State struct, contains basic information required to determine
 /// the current state of the network.
@@ -74,6 +50,7 @@ impl<'de> NetworkState {
                 String::new()
             }
         };
+
         let bytes = hex::decode(hex_string.clone());
         if let Ok(state_bytes) = bytes {
             if let Ok(network_state) = NetworkState::from_bytes(state_bytes) {
@@ -82,8 +59,10 @@ impl<'de> NetworkState {
             }
         }
 
+        // TODO: decode db from bytes and feed it to network_state
+
         let network_state = NetworkState {
-            path: path.to_string(),
+            path: path.into(),
             ledger: vec![],
             credits: None,
             debits: None,
@@ -495,31 +474,9 @@ impl<'de> NetworkState {
     }
 }
 
-impl Components {
-    /// Serializes the Components struct into a vector of bytes
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.to_string().as_bytes().to_vec()
-    }
-
-    /// Deserializes the Components struct from a byte array
-    pub fn from_bytes(data: &[u8]) -> Components {
-        serde_json::from_slice::<Components>(data).unwrap()
-    }
-
-    /// Serializes the Components struct into a string
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
-    /// Deserializes the Components struct from a string.
-    pub fn from_string(string: &String) -> Components {
-        serde_json::from_str::<Components>(&string).unwrap()
-    }
-}
-
 impl Clone for NetworkState {
-    fn clone(&self) -> NetworkState {
-        NetworkState {
+    fn clone(&self) -> Self {
+        Self {
             path: self.path.clone(),
             ledger: self.ledger.clone(),
             credits: self.credits.clone(),
