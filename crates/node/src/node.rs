@@ -303,15 +303,13 @@ impl Node {
 
         // TODO: feed command handler to transport layer
         // TODO: report error from handle
-        // let router_handle = tokio::spawn(async move {
-        //     // TODO: fix blocking loop on router
-        //     //
-        //     event_router.start(&mut router_control_rx).await
-        //     //
-        //     // if let Err(err) = event_router.start(&mut router_control_rx).await {
-        //     //     telemetry::error!("error while listening for commands: {0}", err);
-        //     // }
-        // });
+        let router_handle = tokio::spawn(async move {
+            // TODO: fix blocking loop on router
+            // event_router.start(&mut router_control_rx).await;
+            // if let Err(err) = event_router.start(&mut router_control_rx).await {
+            //     telemetry::error!("error while listening for commands: {0}", err);
+            // }
+        });
 
         // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
         //     telemetry::error!("error while listening for commands: {0}", err);
