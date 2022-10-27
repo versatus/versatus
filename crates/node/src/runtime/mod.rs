@@ -1,4 +1,4 @@
-pub mod blockchain;
+pub mod blockchain_module;
 pub mod miner;
 pub mod state_module;
 pub mod swarm;
