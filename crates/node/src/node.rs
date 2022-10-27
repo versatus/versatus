@@ -15,6 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use trecho::vm::Cpu;
 use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 
 use block::Block;
@@ -116,6 +117,8 @@ pub struct Node {
 
     // validator_unit: Option<i32>,
     running_status: RuntimeModuleState,
+
+    vm: Cpu,
 }
 
 impl Node {
@@ -124,7 +127,7 @@ impl Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
         let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
-        let id = Uuid::new_v4().to_simple().to_string();
+        let vm = trecho::vm::Cpu::new();
 
         //TODO: use SecretKey from threshold crypto crate for MasterNode
         //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be
@@ -142,6 +145,7 @@ impl Node {
             bootsrap_addr: config.bootstrap_node_addr,
             running_status: RuntimeModuleState::Stopped,
             data_dir: config.data_dir().clone(),
+            vm,
         }
     }
 
