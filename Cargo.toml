@@ -27,6 +27,7 @@ members = [
     "crates/vrrb_core",
     "crates/cli",
     "crates/vrrb_config",
+    "crates/vrrb_rpc",
     "crates/block",
     "crates/blockchain",
     "crates/claim",
