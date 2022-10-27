@@ -19,7 +19,7 @@ impl BlockchainModule {
 
 impl RuntimeModule for BlockchainModule {
     fn name(&self) -> String {
-        String::from("Blockcchain module")
+        String::from("Blockchain module")
     }
 
     fn status(&self) -> crate::RuntimeModuleState {
