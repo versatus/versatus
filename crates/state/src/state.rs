@@ -23,7 +23,7 @@ use crate::types::{
 /// the current state of the network.
 //TODO: Replace `ledger`, `credits`, `debits`, with LR State Trie
 //TODO: Replace `state_hash` with LR State Trie Root.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct NetworkState {
     // Path to database
     pub path: StatePath,

@@ -7,7 +7,7 @@ use std::fmt;
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
-use primitives::types::RawSignature;
+use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH};
 use rand::Rng;
 use reward::reward::{Category, RewardState, GENESIS_REWARD};
 use ritelinked::LinkedHashMap;
@@ -26,8 +26,8 @@ pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
-
 const VALIDATOR_THRESHOLD: f64 = 0.60;
+pub type CurrentUtility = u128;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -47,6 +47,12 @@ pub struct Block {
     pub abandoned_claim: Option<Claim>,
     // Quorum signature needed for finalizing the block and locking the chain
     pub threshold_signature: Option<RawSignature>,
+
+    //Epoch for which block was created
+    pub epoch: Epoch,
+
+    //Current Utility
+    pub utility: u128,
 }
 
 impl Block {
@@ -81,6 +87,8 @@ impl Block {
             received_from: None,
             abandoned_claim: None,
             threshold_signature: None,
+            utility: 0,
+            epoch: GENESIS_EPOCH,
         };
 
         // Update the State Trie & Tx Trie with the miner and new block, this will also
@@ -104,7 +112,8 @@ impl Block {
         neighbors: Option<Vec<BlockHeader>>,
         abandoned_claim: Option<Claim>,
         signature: String,
-    ) -> Option<Block> {
+        epoch: Epoch,
+    ) -> (Option<Block>, CurrentUtility) {
         // TODO: Replace with Tx Trie Root
         let txn_hash = {
             let mut txn_vec = vec![];
@@ -146,14 +155,15 @@ impl Block {
         // between blocks has passed.
         if let Some(time) = header.timestamp.checked_sub(last_block.header.timestamp) {
             if (time / SECOND) < 1 {
-                return None;
+                return (None, 0u128);
             }
         } else {
-            return None;
+            return (None, 0u128);
         }
 
         let height = last_block.height.clone() + 1;
 
+        let utility_amount: u128 = txns.iter().map(|x| x.1.get_amount()).sum();
         let mut block = Block {
             header: header.clone(),
             neighbors,
@@ -165,14 +175,27 @@ impl Block {
             received_from: None,
             abandoned_claim,
             threshold_signature: None,
+            utility: 0,
+            epoch,
         };
+        let mut adjustment_next_epoch = 0;
+        if block.epoch != last_block.epoch {
+            block.utility = utility_amount;
+            adjustment_next_epoch = if block.utility > last_block.utility {
+                (block.utility as f64 * 0.01) as u128
+            } else {
+                (block.utility as f64 * -0.01) as u128
+            };
+        } else {
+            block.utility = utility_amount + last_block.utility;
+        }
 
         // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
         let hash = hashable_state.hash(&block.txns.clone(), block.header.block_reward.clone());
         block.hash = hash;
-        Some(block)
+        (Some(block), adjustment_next_epoch)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -242,12 +265,6 @@ impl Verifiable for Block {
             });
         }
 
-        if self.header.block_reward.category != item.header.next_block_reward.category {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
-        }
-
         if self.header.block_reward.get_amount() != item.header.next_block_reward.get_amount() {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidBlockReward,
@@ -281,24 +298,6 @@ impl Verifiable for Block {
             }
         }
 
-        if !dependencies
-            .1
-            .valid_reward(self.header.block_reward.category)
-        {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
-        }
-
-        if !dependencies
-            .1
-            .valid_reward(self.header.next_block_reward.category)
-        {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidNextBlockReward,
-            });
-        }
-
         if self.header.last_hash != item.hash {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidLastHash,
@@ -328,24 +327,6 @@ impl Verifiable for Block {
         if self.header.block_height != 0 {
             return Err(Self::Error {
                 details: InvalidBlockErrorReason::InvalidBlockHeight,
-            });
-        }
-
-        if !dependencies
-            .1
-            .valid_reward(self.header.block_reward.category)
-        {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
-        }
-
-        if !dependencies
-            .1
-            .valid_reward(self.header.next_block_reward.category)
-        {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidNextBlockReward,
             });
         }
 

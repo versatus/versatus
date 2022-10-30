@@ -15,6 +15,7 @@ use block::header::BlockHeader;
 use claim::claim::Claim;
 use noncing::nonceable::Nonceable;
 use pool::pool::{Pool, PoolKind};
+use primitives::types::Epoch;
 use reward::reward::RewardState;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
@@ -104,6 +105,8 @@ pub struct Miner {
     /// that the block was indeed proposed by the miner with the claim
     /// entitled to mine the given block at the given block height
     secret_key: String,
+
+    epoch: Epoch,
 }
 
 impl Miner {
@@ -118,6 +121,7 @@ impl Miner {
         reward_state: RewardState,
         network_state: NetworkState,
         n_miners: u128,
+        epoch: Epoch,
     ) -> Miner {
         let miner = Miner {
             claim: Claim::new(pubkey.clone(), address, 1),
@@ -135,6 +139,7 @@ impl Miner {
             abandoned_claim_counter: LinkedHashMap::new(),
             abandoned_claim: None,
             secret_key,
+            epoch,
         };
 
         miner
@@ -210,7 +215,7 @@ impl Miner {
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> Option<Block> {
+    pub fn mine(&mut self) -> (Option<Block>, u128) {
         let claim_map_hash =
             digest_bytes(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
         if let Some(last_block) = self.last_block.clone() {
@@ -225,10 +230,11 @@ impl Miner {
                 self.clone().neighbors.clone(),
                 self.abandoned_claim.clone(),
                 self.secret_key.clone(),
+                self.epoch,
             );
         }
 
-        None
+        (None, 0)
     }
 
     /// Increases the nonce and calculates the new hash for all claims

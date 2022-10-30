@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 pub type NodeId = String;
 pub type NodeIdx = u16;
@@ -65,6 +65,8 @@ macro_rules! is_enum_variant {
     };
 }
 
+/// The unit of time within VRRB.
+/// It lasts for some number
+pub type Epoch = u128;
 
-
-
+pub const GENESIS_EPOCH: Epoch = 0;
