@@ -21,6 +21,9 @@ commands = { path = "crates/commands" }
 cli = { path = "crates/cli" }
 anyhow = "1.0.64"
 
+[dev-dependencies]
+cargo-husky = "1.5.0"
+
 [workspace]
 members = [
     "crates/primitives",
