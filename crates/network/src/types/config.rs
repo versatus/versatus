@@ -49,4 +49,6 @@ pub enum BroadCastError {
     BroadcastingDataError(#[from] SendError),
     #[error("Udp Port already in use")]
     EaddrInUse,
+    #[error("Current Node doesn't have any peers")]
+    NoPeers,
 }

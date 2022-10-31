@@ -149,6 +149,9 @@ impl BroadcastEngine {
     pub async fn quic_broadcast(&self, message: Message) -> BroadCastStatus {
         let mut futs = FuturesUnordered::new();
         if let Ok(peers) = self.peer_connection_list.lock() {
+            if peers.len() == 0 {
+                return Err(BroadCastError::NoPeers);
+            }
             for connection in peers.clone().into_iter() {
                 let new_data = message.as_bytes().clone();
                 futs.push(tokio::spawn(async move {
@@ -221,6 +224,9 @@ impl BroadcastEngine {
             let udp_socket = Arc::new(udp_socket);
             let mut futs = FuturesUnordered::new();
             if let Ok(peers) = self.peer_connection_list.lock() {
+                if peers.len() == 0 {
+                    return Err(BroadCastError::NoPeers);
+                }
                 for (packet_index, packet) in chunks.iter().enumerate() {
                     // Sharding/Distribution of packets as per no of nodes
                     let address: (SocketAddr, Connection) =
@@ -306,6 +312,9 @@ impl BroadcastEngine {
 
             let mut nodes_ips_except_self = vec![];
             if let Ok(peers) = self.peer_connection_list.lock() {
+                if peers.len() == 0 {
+                    return Err(BroadCastError::NoPeers);
+                }
                 peers.iter().for_each(|(addr, _)| {
                     nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec())
                 });
