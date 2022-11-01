@@ -1,6 +1,7 @@
 use std::{
     env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
 };
 
 use primitives::types::NodeType;
@@ -21,11 +22,15 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         id,
         idx,
         data_dir: temp_dir_path,
-        node_type: NodeType::Full,
         db_path,
         node_idx: 1,
-        bootstrap: false,
         address,
+        bootstrap: false,
         bootstrap_node_addr: address,
+        node_type: NodeType::Full,
+        http_api_address: "127.0.0.1:0".into(),
+        http_api_title: "Node HTTP API".into(),
+        http_api_version: "1.0".into(),
+        http_api_shutdown_timeout: Some(Duration::from_secs(5)),
     }
 }

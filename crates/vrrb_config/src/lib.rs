@@ -1,5 +1,5 @@
 // use secp256k1::{PublicKey, Secp256k1, SecretKey};
-use std::{net::SocketAddr, path::PathBuf};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
@@ -14,6 +14,10 @@ pub struct NodeConfig {
     pub node_type: primitives::types::NodeType,
     // pub public_key: primitives::PublicKey,
     // pub secret_key: primitives::SecretKey,
+    pub http_api_address: String,
+    pub http_api_title: String,
+    pub http_api_version: String,
+    pub http_api_shutdown_timeout: Option<Duration>,
 }
 
 impl NodeConfig {

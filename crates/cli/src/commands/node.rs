@@ -1,6 +1,7 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
+    time::Duration,
 };
 
 use clap::{Parser, Subcommand};
@@ -77,7 +78,13 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let bootstrap = args.bootstrap;
     let _bootstrap_node_addr = args.bootstrap_node_addr;
 
+    // TODO: get proper config
     let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+    let http_api_address = String::from("127.0.0.1:9000");
+
+    let http_api_title = String::from("Node HTTP API");
+    let http_api_version = String::from("1.0.0");
+    let http_api_shutdown_timeout = Some(Duration::from_secs(5));
 
     let id = Uuid::new_v4().to_simple().to_string();
     let idx = 100;
@@ -92,6 +99,10 @@ pub async fn run(args: RunOpts) -> Result<()> {
         bootstrap,
         address,
         bootstrap_node_addr: address,
+        http_api_address,
+        http_api_title,
+        http_api_version,
+        http_api_shutdown_timeout,
     };
 
     if args.dettached {

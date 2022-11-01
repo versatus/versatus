@@ -1,7 +1,6 @@
 // TODO: remove once refactor is complete
 #![allow(warnings, unused)]
 
-pub mod command_handler;
 pub mod handler;
 pub mod message_handler;
 mod node;

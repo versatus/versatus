@@ -29,6 +29,10 @@ async fn node_runtime_starts_and_stops() {
         bootstrap: false,
         address,
         bootstrap_node_addr: address,
+        http_api_address: "127.0.0.1:0".into(),
+        http_api_title: "Node HTTP API".into(),
+        http_api_version: "1.0".into(),
+        http_api_shutdown_timeout: None,
     };
 
     let mut vrrb_node = Node::new(node_config);
