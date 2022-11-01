@@ -2,7 +2,10 @@ use std::{convert::Infallible, io, net::SocketAddr, time::Duration};
 
 use poem::{
     handler,
-    listener::{Acceptor, TcpAcceptor, TcpListener},
+    listener::{
+        Acceptor, AcceptorExt, RustlsAcceptor, RustlsCertificate, RustlsConfig, RustlsListener,
+        TcpAcceptor, TcpListener,
+    },
     web::{Json, LocalAddr},
     Endpoint, Route, Server,
 };
@@ -10,6 +13,7 @@ use poem_openapi::{payload::PlainText, OpenApi, OpenApiService};
 use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
 use vrrb_core::event_router::Event;
 
+#[derive(Debug)]
 struct HttpApi;
 
 #[OpenApi]
@@ -21,19 +25,29 @@ impl HttpApi {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TlsConfig<T: Into<Vec<u8>>> {
+    pub cert: T,
+    pub key: T,
+}
+
 /// Configuration store for an HttpApiServer
 // TODO: implement a builder over this config.
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
-pub struct HttpApiServerConfig {
+#[derive(Debug, Clone)]
+pub struct HttpApiServerConfig<T: Into<Vec<u8>>> {
     pub address: String,
     pub api_title: String,
     pub api_version: String,
     pub server_timeout: Option<Duration>,
+    // pub tls_config: Option<TlsConfig>,
+    pub tls_config: TlsConfig<T>,
 }
 
 /// Configuration store for an HttpApiRouter
 // TODO: implement a builder over this config.
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
+#[derive(Debug, Clone)]
 pub struct HttpApiRouterConfig {
     pub address: SocketAddr,
     pub api_title: String,
@@ -42,20 +56,59 @@ pub struct HttpApiRouterConfig {
 }
 
 /// A JSON-RPC API layer for VRRB nodes.
+// pub struct HttpApiServer<A: Acceptor> {
 pub struct HttpApiServer {
+    // server: Server<Infallible, RustlsAcceptor<TcpAcceptor, ()>>,
     server: Server<Infallible, TcpAcceptor>,
     server_timeout: Option<Duration>,
     app: Route,
 }
 
+// impl<A: Acceptor> HttpApiServer<A> {
 impl HttpApiServer {
     // TODO: refactor return type into a proper crate specific result
-    pub fn new(config: HttpApiServerConfig) -> Result<Self, String> {
+    pub fn new<T: Into<Vec<u8>>>(config: HttpApiServerConfig<T>) -> Result<Self, String> {
         let listener = std::net::TcpListener::bind(config.address.clone())
             .map_err(|err| format!("unable to bind to address: {}", config.address))?;
 
-        let acceptor = TcpAcceptor::from_std(listener)
+        let mut acceptor = TcpAcceptor::from_std(listener)
             .map_err(|err| format!("unable to bind to listener on address: {}", config.address))?;
+
+        let tls_config = RustlsConfig::new().fallback(
+            RustlsCertificate::new()
+                .key(config.tls_config.key)
+                .cert(config.tls_config.cert),
+        );
+
+        let poem_listener = TcpListener::bind("127.0.0.1:3000");
+        poem_listener.rustls();
+
+        // let poem_listener = poem::listener::TcpListener::bind("127.0.0.1:3000").rustls(
+        //     RustlsConfig::new().fallback(
+        //         RustlsCertificate::new()
+        //             .key(tls_config.key)
+        //             .cert(tls_config.cert),
+        //     ),
+        // );
+
+        // // if let Some(tls_config) = config.tls_config {
+        // let tls_config = RustlsConfig::new().fallback(
+        //     RustlsCertificate::new()
+        //         .key(tls_config.key)
+        //         .cert(tls_config.cert),
+        // );
+        //
+        // // acceptor = acceptor.rustls(tls_config);
+        // // let acceptor =
+        // let b = acceptor.rustls(async_stream::stream! {
+        //     loop {
+        //         if let Ok(tls_config) = load_tls_config() {
+        //             yield tls_config;
+        //         }
+        //         tokio::time::sleep(Duration::from_secs(60)).await;
+        //     }
+        // });
+        // // }
 
         let address = acceptor.local_addr();
         let address = address
