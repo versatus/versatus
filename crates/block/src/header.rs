@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
-    u64::MAX as u64MAX,
+    u64::MAX as u64MAX, fmt::Display,
 };
 
 use bytebuffer::ByteBuffer;
@@ -18,12 +18,32 @@ use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 
 use crate::block::Block;
+use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 // TODO: Helper constants like the ones below should be in their own mod
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
+
+#[derive(Debug)]
+pub enum InvalidBlockHeader {
+    InvalidSeedError,
+    InvalidPubKeyError,
+    InvalidMessageError,
+}
+
+impl Display for InvalidBlockHeader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvalidBlockHeader::InvalidSeedError => write!(f, "Invalid block seed generated"),
+            InvalidBlockHeader::InvalidPubKeyError => write!(f, "Invalid public key"),
+            InvalidBlockHeader::InvalidMessageError => write!(f, "Invalid message"),
+        }
+    }
+}
+
+impl std::error::Error for InvalidBlockHeader {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
@@ -32,8 +52,8 @@ pub struct BlockHeader {
     // TODO: Replace claim hash with claim trie root
     // TODO: Add certificate field for validation certification.
     pub last_hash: String,
-    pub block_nonce: u64,
-    pub next_block_nonce: u64,
+    pub block_seed: u64,
+    pub next_block_seed: u64,
     pub block_height: u128,
     pub timestamp: u128,
     pub txn_hash: String,
@@ -51,16 +71,43 @@ impl BlockHeader {
         reward_state: &RewardState,
         claim: Claim,
         secret_key: String,
-    ) -> BlockHeader {
+    ) -> Result<BlockHeader, InvalidBlockHeader> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
-        let block_nonce = nonce;
+        let block_seed = nonce;
         // Range should remain the same.
-        let next_block_nonce: u64 = rng.gen_range(u32MAX as u64, u64MAX);
+        let next_block_seed: u64 = rng.gen_range(u32MAX as u64, u64MAX);
+
+        //- previous block’s hash
+        //- the previous block’s certification/validation signature (threshold)
+        //- Current block miner signature
+        
+
+        let sk = VVRF::generate_secret_key();
+        let mut vvrf = VVRF::new((last_hash).as_bytes(), sk);
+
+        if VVRF::verify_seed(&mut vvrf).is_err() {
+            return Err(InvalidBlockHeader::InvalidSeedError);
+        }
+
+        let mut random_number = vvrf.generate_u64();
+        while random_number < u32MAX as u64 {
+            random_number = vvrf.generate_u64();
+        }
+
+        if let Some()
+        return Ok(random_number);
+
+
+
+
+
+
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -74,8 +121,8 @@ impl BlockHeader {
         let payload = format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
             last_hash,
-            block_nonce,
-            next_block_nonce,
+            block_seed,
+            next_block_seed,
             0,
             timestamp,
             txn_hash,
@@ -90,8 +137,8 @@ impl BlockHeader {
 
         BlockHeader {
             last_hash,
-            block_nonce,
-            next_block_nonce,
+            block_seed,
+            next_block_seed,
             block_height: 0,
             timestamp,
             txn_hash,
@@ -119,8 +166,8 @@ impl BlockHeader {
         // Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = last_block.hash;
-        let block_nonce = last_block.header.next_block_nonce.clone();
-        let next_block_nonce: u64 = rng.gen_range(0, u64MAX);
+        let block_seed = last_block.header.next_block_seed.clone();
+        let next_block_seed: u64 = rng.gen_range(0, u64MAX);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -132,8 +179,8 @@ impl BlockHeader {
         let payload = format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
             last_hash,
-            block_nonce,
-            next_block_nonce,
+            block_seed,
+            next_block_seed,
             block_height,
             timestamp,
             txn_hash,
@@ -148,8 +195,8 @@ impl BlockHeader {
 
         BlockHeader {
             last_hash,
-            block_nonce,
-            next_block_nonce,
+            block_seed,
+            next_block_seed,
             block_height: last_block.header.block_height + 1,
             timestamp,
             txn_hash,
@@ -219,8 +266,8 @@ impl BlockHeader {
         format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
             self.last_hash,
-            self.block_nonce,
-            self.next_block_nonce,
+            self.block_seed,
+            self.next_block_seed,
             self.block_height,
             self.timestamp,
             self.txn_hash,

@@ -236,9 +236,9 @@ impl Verifiable for Block {
             });
         }
 
-        if self.header.block_nonce != item.header.next_block_nonce {
+        if self.header.block_seed != item.header.next_block_seed {
             return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockNonce,
+                details: InvalidBlockErrorReason::InvalidBlockSeed,
             });
         }
 
@@ -256,13 +256,13 @@ impl Verifiable for Block {
 
         if let Some((hash, pointers)) = dependencies
             .0
-            .get_lowest_pointer(self.header.block_nonce as u128)
+            .get_lowest_pointer(self.header.block_seed as u128)
         {
             if hash == self.header.claim.hash {
                 if let Some(claim_pointer) = self
                     .header
                     .claim
-                    .get_pointer(self.header.block_nonce as u128)
+                    .get_pointer(self.header.block_seed as u128)
                 {
                     if pointers != claim_pointer {
                         return Err(Self::Error {
