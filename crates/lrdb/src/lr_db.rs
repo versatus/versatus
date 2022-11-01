@@ -1,6 +1,5 @@
 use std::{hash::Hash, time::SystemTime};
 
-
 /// Struct representing the LeftRight Database.
 ///
 /// `ReadHandleFactory` provides a way of creating new ReadHandles to the
@@ -17,7 +16,6 @@ where
     pub w: evmap::WriteHandle<K, V, ()>,
     pub last_refresh: std::time::SystemTime,
 }
-
 
 impl<K, V> Default for LeftRightDatabase<K, V>
 where
