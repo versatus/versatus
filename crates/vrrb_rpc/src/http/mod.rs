@@ -1,4 +1,4 @@
-use std::{convert::Infallible, io, time::Duration};
+use std::{convert::Infallible, io, net::SocketAddr, time::Duration};
 
 use poem::{
     handler,
@@ -25,7 +25,17 @@ impl HttpApi {
 // TODO: implement a builder over this config.
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
 pub struct HttpApiServerConfig {
-    pub acceptor: TcpAcceptor,
+    pub address: String,
+    pub api_title: String,
+    pub api_version: String,
+    pub server_timeout: Option<Duration>,
+}
+
+/// Configuration store for an HttpApiRouter
+// TODO: implement a builder over this config.
+// Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
+pub struct HttpApiRouterConfig {
+    pub address: SocketAddr,
     pub api_title: String,
     pub api_version: String,
     pub server_timeout: Option<Duration>,
@@ -41,8 +51,30 @@ pub struct HttpApiServer {
 impl HttpApiServer {
     // TODO: refactor return type into a proper crate specific result
     pub fn new(config: HttpApiServerConfig) -> Result<Self, String> {
-        let app = Self::create_router(&config)?;
-        let server = Server::new_with_acceptor(config.acceptor);
+        let listener = std::net::TcpListener::bind(config.address.clone())
+            .map_err(|err| format!("unable to bind to address: {}", config.address))?;
+
+        let acceptor = TcpAcceptor::from_std(listener)
+            .map_err(|err| format!("unable to bind to listener on address: {}", config.address))?;
+
+        let address = acceptor.local_addr();
+        let address = address
+            .get(0)
+            .ok_or_else(|| String::from("unable to retrieve the address the server is bound to"))?;
+
+        let address = address
+            .as_socket_addr()
+            .ok_or_else(|| String::from("unable to retrieve the address the server is bound to"))?;
+
+        let router_config = HttpApiRouterConfig {
+            address: address.clone(),
+            api_title: config.api_title.clone(),
+            api_version: config.api_version.clone(),
+            server_timeout: config.server_timeout.clone(),
+        };
+
+        let app = Self::create_router(&router_config)?;
+        let server = Server::new_with_acceptor(acceptor);
         let server_timeout = config.server_timeout;
 
         Ok(Self {
@@ -70,19 +102,13 @@ impl HttpApiServer {
             .await
     }
 
-    fn create_router(config: &HttpApiServerConfig) -> Result<Route, String> {
-        let address = config.acceptor.local_addr();
-
-        let address = address
-            .get(0)
-            .ok_or_else(|| String::from("Unable to bind to provided address"))?;
-
+    fn create_router(config: &HttpApiRouterConfig) -> Result<Route, String> {
         let openapi_service = OpenApiService::new(
             HttpApi,
             config.api_title.clone(),
             config.api_version.clone(),
         )
-        .server(address.to_string());
+        .server(config.address.to_string());
 
         let ui = openapi_service.swagger_ui();
 
@@ -115,8 +141,8 @@ mod tests {
         let api_title = "Node HTTP API".to_string();
         let api_version = "1.0".to_string();
 
-        let config = HttpApiServerConfig {
-            acceptor,
+        let config = HttpApiRouterConfig {
+            address: addr.as_socket_addr().unwrap().clone(),
             api_title: "Node HTTP API".into(),
             api_version: "1.0".into(),
             server_timeout: None,
