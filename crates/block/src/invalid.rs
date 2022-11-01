@@ -11,7 +11,7 @@ pub enum InvalidBlockErrorReason {
     InvalidLastHash,
     InvalidStateHash,
     InvalidBlockHeight,
-    InvalidBlockNonce,
+    InvalidBlockSeed,
     InvalidBlockReward,
     InvalidTxns,
     InvalidClaimPointers,
@@ -34,7 +34,7 @@ impl InvalidBlockErrorReason {
             Self::InvalidClaim => "invalid claim",
             Self::InvalidLastHash => "invalid last hash",
             Self::InvalidStateHash => "invalid state hash",
-            Self::InvalidBlockNonce => "invalid block nonce",
+            Self::InvalidBlockSeed => "invalid block seed",
             Self::InvalidBlockReward => "invalid block reward",
             Self::InvalidNextBlockReward => "invalid next block reward",
             Self::InvalidTxns => "invalid txns in block",
@@ -85,8 +85,8 @@ impl fmt::Display for InvalidBlockErrorReason {
             Self::BlockOutOfSequence => {
                 write!(f, "block out of sequence")
             },
-            Self::InvalidBlockNonce => {
-                write!(f, "invalid block nonce")
+            Self::InvalidBlockSeed => {
+                write!(f, "invalid block seed")
             },
             Self::InvalidBlockReward => {
                 write!(f, "invalid block reward")

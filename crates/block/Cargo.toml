@@ -26,3 +26,4 @@ noncing = { path = "../noncing" }
 state = { path = "../state" }
 accountable = { path = "../accountable" }
 primitives = { path = "../primitives" }
+vrrb_vrf = { path = "../vrrb_vrf" }

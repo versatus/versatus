@@ -165,8 +165,8 @@ mod tests {
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
         BlockHeader {
             last_hash: "".to_string(),
-            block_nonce: 0,
-            next_block_nonce: 0,
+            block_seed: 0,
+            next_block_seed: 0,
             block_height: 0,
             timestamp,
             txn_hash: "".to_string(),

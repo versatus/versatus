@@ -1,8 +1,7 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
-#![allow(unused_imports)]
-#![allow(dead_code)]
-use std::fmt;
+
+use std::{fmt, f32::consts::E};
 
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
@@ -22,6 +21,8 @@ use crate::{
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
+
+use thiserror::Error;
 
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -62,7 +63,9 @@ impl Block {
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
         // Create the genesis header
-        let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
+        let header = (BlockHeader::genesis(0, reward_state, claim.clone(), secret_key)).unwrap();
+
+       // let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
         // Create the genesis state hash
         // TODO: Replace with state trie root
         let state_hash = digest(
@@ -150,7 +153,7 @@ impl Block {
 
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
-        let header = BlockHeader::new(
+        let header = (BlockHeader::new(
             last_block.clone(),
             reward_state,
             claim,
@@ -158,7 +161,7 @@ impl Block {
             claim_map_hash,
             neighbors_hash,
             signature,
-        );
+        )).unwrap();
 
         // TODO: Discuss whether local clock works well enough for this purpose of
         // guaranteeing at least 1 second between blocks or whether some other
@@ -271,9 +274,9 @@ impl Verifiable for Block {
             });
         }
 
-        if self.header.block_nonce != item.header.next_block_nonce {
+        if self.header.block_seed != item.header.next_block_seed {
             return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockNonce,
+                details: InvalidBlockErrorReason::InvalidBlockSeed,
             });
         }
 
@@ -285,13 +288,13 @@ impl Verifiable for Block {
 
         if let Some((hash, pointers)) = dependencies
             .0
-            .get_lowest_pointer(self.header.block_nonce as u128)
+            .get_lowest_pointer(self.header.block_seed as u128)
         {
             if hash == self.header.claim.hash {
                 if let Some(claim_pointer) = self
                     .header
                     .claim
-                    .get_pointer(self.header.block_nonce as u128)
+                    .get_pointer(self.header.block_seed as u128)
                 {
                     if pointers != claim_pointer {
                         return Err(Self::Error {
