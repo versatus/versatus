@@ -6,11 +6,8 @@ use vrrb_rpc::http::*;
 
 #[tokio::test]
 async fn server_starts_and_stops() {
-    let listener = std::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
-    let acceptor = TcpAcceptor::from_std(listener).unwrap();
-
     let config = HttpApiServerConfig {
-        acceptor,
+        address: "127.0.0.1:0".into(),
         api_title: "Node HTTP API".into(),
         api_version: "1.0".into(),
         server_timeout: None,
