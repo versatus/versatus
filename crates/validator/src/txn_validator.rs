@@ -6,6 +6,7 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
+use lr_trie::{GetDeserialized, LeftRightTrieError};
 use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 #[allow(deprecated)]
@@ -18,34 +19,6 @@ use txn::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
 
-pub trait GetDeserialized<T: Serialize + for<'a> Deserialize<'a>> {
-    fn get_deserialized(&self, key: Vec<u8>) -> Result<T>;
-}
-
-impl<D> GetDeserialized<Account> for ReadHandle<InnerTrie<D>>
-where
-    D: Database,
-{
-    fn get_deserialized(&self, key: Vec<u8>) -> Result<Account> {
-        match self
-            .enter()
-            .map(|guard| guard.clone())
-            .unwrap_or_default()
-            .get(&key)
-        {
-            Ok(maybe_bytes) => match maybe_bytes {
-                Some(bytes) => match &bincode::deserialize::<Account>(&bytes) {
-                    Ok(account) => return Ok(account.clone()),
-                    Err(_) => {
-                        return Err(TxnValidatorError::FailedToDeserializeValue(bytes.clone()))
-                    },
-                },
-                None => Err(TxnValidatorError::NoValueForKey),
-            },
-            Err(err) => return Err(TxnValidatorError::FailedToGetValueForKey(key, err)),
-        }
-    }
-}
 
 pub const ADDRESS_PREFIX: &str = "0x192";
 pub enum TxnFees {
@@ -183,10 +156,10 @@ impl<D: Database> TxnValidator<D> {
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
-        match self
+        let data: StdResult<Account, LeftRightTrieError> = self
             .state
-            .get_deserialized(txn.sender_address.clone().into_bytes())
-        {
+            .get_deserialized_data(txn.sender_address.clone().into_bytes());
+        match data {
             Ok(account) => {
                 if let None = (account.credits - account.debits).checked_sub(txn.txn_amount) {
                     return Err(TxnValidatorError::TxnAmountIncorrect);
