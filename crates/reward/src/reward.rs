@@ -283,6 +283,7 @@ impl Reward {
             miner,
             amount: match category {
                 Category::Genesis(Some(amount)) => amount,
+                 // TODO: set amount to base line reward by default
                 _ => 0,
             },
         }
