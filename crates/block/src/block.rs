@@ -2,7 +2,7 @@
 // genesis block and blocks being mined.
 #![allow(unused_imports)]
 #![allow(dead_code)]
-use std::fmt;
+use std::{fmt, f32::consts::E};
 
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
@@ -54,7 +54,13 @@ impl Block {
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
         // Create the genesis header
-        let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
+        let header = (BlockHeader::genesis(0, reward_state, claim.clone(), secret_key)).unwrap();
+
+       // let header = match BlockHeader::genesis(0, reward_state, claim.clone(), secret_key){
+       //     Ok(header) => header,
+       //     Err(e) => Err(e),
+       // };
+       // let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
         // Create the genesis state hash
         // TODO: Replace with state trie root
         let state_hash = digest_bytes(
@@ -129,7 +135,7 @@ impl Block {
 
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
-        let header = BlockHeader::new(
+        let header = (BlockHeader::new(
             last_block.clone(),
             reward_state,
             claim,
@@ -137,7 +143,7 @@ impl Block {
             claim_map_hash,
             neighbors_hash,
             signature,
-        );
+        )).unwrap();
 
         // TODO: Discuss whether local clock works well enough for this purpose of
         // guaranteeing at least 1 second between blocks or whether some other
