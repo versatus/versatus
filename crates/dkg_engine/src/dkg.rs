@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use hbbft::{
     crypto::{serde_impl::SerdeSecret, SecretKey},
     sync_key_gen::{PartOutcome, SyncKeyGen},
@@ -59,7 +61,7 @@ impl DkgGenerator for DkgEngine {
         let (sync_key_gen, opt_part) = SyncKeyGen::new(
             node_info.get_node_idx(),
             secret_key.unwrap().inner().clone(),
-            self.dkg_state.peer_public_keys.clone(),
+            Arc::new(self.dkg_state.peer_public_keys.clone()),
             threshold,
             &mut rng,
         )

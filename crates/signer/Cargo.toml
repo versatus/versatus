@@ -8,7 +8,7 @@ edition = "2021"
 doctest = false
 
 [dependencies]
-hbbft = "0.1.1"
+hbbft = {git = "https://github.com/vrrb-io/hbbft", branch = "master"} 
 thiserror = "1.0.32"
 serde = "1.0.144"
 primitives = { path = "../primitives" }
