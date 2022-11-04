@@ -2,8 +2,7 @@
 use accountable::accountable::Accountable;
 use rand::{
     distributions::{Distribution, WeightedIndex},
-    thread_rng,
-    Rng,
+    thread_rng, Rng,
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -66,7 +65,6 @@ pub struct RewardState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Reward {
     pub miner: Option<String>,
-    pub category: Category,
     pub amount: u128,
 }
 
@@ -273,18 +271,9 @@ impl RewardState {
 
 impl Reward {
     pub fn new(miner: Option<String>, reward_state: &RewardState) -> Reward {
-        let category: Category = Category::new(&reward_state);
         Reward {
             miner,
-            category,
-            amount: match category {
-                Category::Flake(Some(amount)) => amount,
-                Category::Grain(Some(amount)) => amount,
-                Category::Nugget(Some(amount)) => amount,
-                Category::Vein(Some(amount)) => amount,
-                Category::Motherlode(Some(amount)) => amount,
-                _ => 0, // Add error handling, as this should NEVER happen.
-            },
+            amount: 0, // Add error handling, as this should NEVER happen.
         }
     }
 
@@ -292,9 +281,9 @@ impl Reward {
         let category = Category::Genesis(Some(GENESIS_REWARD as u128));
         Reward {
             miner,
-            category,
             amount: match category {
                 Category::Genesis(Some(amount)) => amount,
+                 // TODO: set amount to base line reward by default
                 _ => 0,
             },
         }
@@ -402,7 +391,7 @@ impl Accountable for Reward {
     }
 
     fn get_category(&self) -> Option<Category> {
-        Some(self.category.clone())
+        None
     }
 }
 
