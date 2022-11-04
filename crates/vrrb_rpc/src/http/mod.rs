@@ -4,7 +4,9 @@ use poem::{
     handler,
     listener::{Acceptor, TcpAcceptor, TcpListener},
     web::{Json, LocalAddr},
-    Endpoint, Route, Server,
+    Endpoint,
+    Route,
+    Server,
 };
 use poem_openapi::{payload::PlainText, OpenApi, OpenApiService};
 use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
@@ -118,18 +120,18 @@ impl HttpApiServer {
 
 #[cfg(test)]
 mod tests {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
     use poem::{
         get,
         listener::{Acceptor, TcpAcceptor},
+        test::TestClient,
         Endpoint,
+        Route,
     };
-
     use tokio::{signal::unix::SignalKind, sync::mpsc::channel};
 
     use super::*;
-    use poem::test::TestClient;
-    use poem::Route;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[tokio::test]
     async fn index_returns_openapi_docs() {

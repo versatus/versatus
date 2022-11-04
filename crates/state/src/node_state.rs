@@ -1,29 +1,32 @@
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::os;
-use std::path::PathBuf;
-use std::{fs, sync::Arc};
+use std::{collections::HashMap, ffi::OsStr, fs, os, path::PathBuf, sync::Arc};
 
 use accountable::accountable::Accountable;
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::Account;
-use patriecia::db::MemoryDB;
-use patriecia::inner::InnerTrie;
-use patriecia::trie::Trie;
+use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::types::PublicKey;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 use telemetry::{error, info};
 
-use crate::result::Result;
-use crate::types::{
-    CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
-    StateRewardState, StateRoot,
+use crate::{
+    result::Result,
+    types::{
+        CreditsHash,
+        CreditsRoot,
+        DebitsHash,
+        DebitsRoot,
+        LedgerBytes,
+        StateHash,
+        StatePath,
+        StateRewardState,
+        StateRoot,
+    },
+    StateError,
 };
-use crate::StateError;
 
 /// The Node State struct, contains basic information required to determine
 /// the current state of the network.
@@ -117,7 +120,8 @@ impl NodeState {
         unimplemented!()
     }
 
-    /// Generates a backup of NodeState serialized into JSON at the specified path.
+    /// Generates a backup of NodeState serialized into JSON at the specified
+    /// path.
     pub fn serialize_to_json(&self) -> Result<()> {
         let node_state_values = NodeStateValues::from(self);
         let serialized = serde_json::to_vec(&node_state_values)
@@ -168,7 +172,8 @@ impl NodeState {
         self.state_trie.root()
     }
 
-    /// Produces a reader factory that can be used to generate read handles into the state tree.
+    /// Produces a reader factory that can be used to generate read handles into
+    /// the state tree.
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
         self.state_trie.factory()
     }

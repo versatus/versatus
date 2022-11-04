@@ -1,7 +1,7 @@
+use std::net::SocketAddr;
+
 use poem::listener::TcpAcceptor;
 use tokio::sync::mpsc::channel;
-
-use std::net::SocketAddr;
 use vrrb_rpc::http::*;
 
 #[tokio::test]

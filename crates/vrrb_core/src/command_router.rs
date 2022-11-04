@@ -65,7 +65,8 @@ impl CommandRouter {
                 },
                 (_, Command::NoOp) => {},
                 (_, cmd) => {
-                    //telemetry::warn!("Unrecognized command received: {:?}", cmd);
+                    //telemetry::warn!("Unrecognized command received: {:?}",
+                    // cmd);
                 },
             }
         }

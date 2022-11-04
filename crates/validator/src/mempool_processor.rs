@@ -7,10 +7,10 @@ use mempool::{
     error::MempoolError,
     mempool::{LeftRightMemPoolDB, TxnStatus},
 };
+use patriecia::db::Database;
 use txn::txn::Txn;
 
 use crate::validator_unit::{Core, CoreControlMsg, CoreId, ValidatorUnit};
-use patriecia::db::Database;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum MempoolTxnProcessorError {
@@ -55,8 +55,8 @@ where
 
     fn send_err_msg(&self, err: MempoolTxnProcessorError) {
         if let Err(err) = self.error_sender.send(err) {
-            // The only reason this would happen is that user intentionally dropped error channel.
-            // Meaning that they don't care about the error.
+            // The only reason this would happen is that user intentionally dropped error
+            // channel. Meaning that they don't care about the error.
             // TODO: Maybe there's better way to do that
             _ = err;
         };
@@ -68,12 +68,12 @@ where
                 if let Err(err) = sender.send(msg) {
                     self.send_err_msg(MempoolTxnProcessorError::ControlSendError(core.id, err))
                 }
-            }
+            },
             None => {
                 self.send_err_msg(MempoolTxnProcessorError::FailedToObtainControlChannel(
                     core.id,
                 ));
-            }
+            },
         }
     }
 
@@ -91,13 +91,14 @@ where
                     match self.control_receiver.recv() {
                         Ok(msg) => {
                             match msg {
-                                // if mempool processor is to be stopped, all cores should be stopped too
+                                // if mempool processor is to be stopped, all cores should be
+                                // stopped too
                                 MempoolControlMsg::Stop => {
                                     for core in &self.validator.cores {
                                         self.send_core_msg(core, CoreControlMsg::Stop);
                                     }
                                     state = MempoolTxnProcessorState::Inactive;
-                                }
+                                },
                                 // Upon receiving new txns from the network over the control channel
                                 // Those should be added to pending mempool
                                 MempoolControlMsg::NewFromNetwork(txns) => {
@@ -113,29 +114,34 @@ where
                                     }
 
                                     // This mempool function always return OK
-                                    // Implemented error handling just in case it's changed in the future
+                                    // Implemented error handling just in case it's changed in the
+                                    // future
                                     if let Err(err) =
                                         self.mempool.add_txn_batch(&txns, TxnStatus::Pending)
                                     {
                                         if let Err(err) = self.error_sender.send(
                                             MempoolTxnProcessorError::FailedToWriteToMempool(err),
                                         ) {
-                                            // This can happen only if user decides to drop error channel receiver, meaning that they want the errors supressed
+                                            // This can happen only if user decides to drop error
+                                            // channel receiver, meaning that they want the errors
+                                            // supressed
                                             _ = err;
                                         }
                                     }
 
-                                    // Send messages to all cores, with amount of transactions that are theirs to validate
+                                    // Send messages to all cores, with amount of transactions that
+                                    // are theirs to validate
                                     for core in &self.validator.cores {
                                         self.send_core_msg(
                                             core,
                                             CoreControlMsg::NewToProcess(
-                                                // This index is always in range, as core_id ∈ [0, amount_of_cores)
+                                                // This index is always in range, as core_id ∈ [0,
+                                                // amount_of_cores)
                                                 amount_of_txns[core.id as usize],
                                             ),
                                         );
                                     }
-                                }
+                                },
 
                                 // When validated txns come, add them to validated mempool
                                 MempoolControlMsg::NewValidated(txns) => {
@@ -152,7 +158,8 @@ where
                                     });
 
                                     // Write valid txns to proper place in mempool
-                                    // Again, for now this function does not throw any errors, always returning Ok(())
+                                    // Again, for now this function does not throw any errors,
+                                    // always returning Ok(())
                                     if let Err(err) = self
                                         .mempool
                                         .add_txn_batch(&txns_valid, TxnStatus::Validated)
@@ -179,7 +186,7 @@ where
                                             MempoolTxnProcessorError::FailedToWriteToMempool(err),
                                         );
                                     };
-                                }
+                                },
                                 _ => self.send_err_msg(
                                     MempoolTxnProcessorError::InvalidMsgForCurrentState(
                                         msg,
@@ -187,12 +194,12 @@ where
                                     ),
                                 ),
                             }
-                        }
+                        },
                         Err(err) => self.send_err_msg(
                             MempoolTxnProcessorError::FailedToReadFromControlChannel(err),
                         ),
                     }
-                }
+                },
 
                 // When inactive, wait for activation
                 MempoolTxnProcessorState::Inactive => match self.control_receiver.recv() {
@@ -203,7 +210,7 @@ where
                                 self.send_core_msg(core, CoreControlMsg::Start);
                             }
                             state = MempoolTxnProcessorState::Active;
-                        }
+                        },
                         _ => self.send_err_msg(
                             MempoolTxnProcessorError::InvalidMsgForCurrentState(msg, state.clone()),
                         ),

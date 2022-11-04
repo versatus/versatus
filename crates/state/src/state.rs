@@ -15,8 +15,15 @@ use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 
 use crate::types::{
-    CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
-    StateRewardState, StateRoot,
+    CreditsHash,
+    CreditsRoot,
+    DebitsHash,
+    DebitsRoot,
+    LedgerBytes,
+    StateHash,
+    StatePath,
+    StateRewardState,
+    StateRoot,
 };
 
 /// The Network State struct, contains basic information required to determine

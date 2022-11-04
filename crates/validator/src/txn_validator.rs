@@ -6,13 +6,13 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
+use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 #[allow(deprecated)]
 use secp256k1::{
-    Signature, {Message, PublicKey, Secp256k1},
+    Signature,
+    {Message, PublicKey, Secp256k1},
 };
-
-use lrdb::Account;
 use txn::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
@@ -37,7 +37,7 @@ where
                     Ok(account) => return Ok(account.clone()),
                     Err(_) => {
                         return Err(TxnValidatorError::FailedToDeserializeValue(bytes.clone()))
-                    }
+                    },
                 },
                 None => Err(TxnValidatorError::NoValueForKey),
             },

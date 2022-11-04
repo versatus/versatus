@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use udp2p::node::peer_id::PeerId;
 
-/// `Topology` is a struct that contains the number of master nodes, the number of quorum nodes, and the
-/// miner network id.
+/// `Topology` is a struct that contains the number of master nodes, the number
+/// of quorum nodes, and the miner network id.
 ///
 /// Properties:
 ///

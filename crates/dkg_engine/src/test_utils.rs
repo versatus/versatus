@@ -73,8 +73,8 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
         let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
         let secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
 
-        // let (_, msg_receiver) = unbounded_channel::<(Packet, std::net::SocketAddr)>();
-        // let (msg_sender, _) = unbounded_channel();
+        // let (_, msg_receiver) = unbounded_channel::<(Packet,
+        // std::net::SocketAddr)>(); let (msg_sender, _) = unbounded_channel();
 
         dkg_instances.push(DkgEngine {
             node_info: Arc::new(RwLock::new(node::Node::new(NodeConfig {

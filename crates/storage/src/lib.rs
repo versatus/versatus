@@ -70,7 +70,7 @@ pub fn get_node_data_dir() -> Result<PathBuf> {
 }
 
 pub struct FileSystemStorageDriver {
-    // buf: BufWriter<std::fs::File>,
+    #[allow(dead_code)]
     data_dir: PathBuf,
 }
 
@@ -78,8 +78,6 @@ impl FileSystemStorageDriver {
     pub fn new(data_dir: PathBuf) -> Self {
         Self { data_dir }
     }
-
-    fn init() {}
 }
 
 impl Default for FileSystemStorageDriver {
@@ -99,7 +97,7 @@ impl Storage for FileSystemStorageDriver {
         todo!()
     }
 
-    fn append(key: String, value: Vec<u8>) -> Result<Vec<u8>> {
+    fn append(_key: String, _value: Vec<u8>) -> Result<Vec<u8>> {
         todo!()
     }
 

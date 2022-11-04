@@ -12,7 +12,8 @@ pub struct StateModule {
 }
 
 /// StateModule manages all state persistence and updates within VrrbNodes
-/// it runs as an indepdendant module such that it can be enabled and disabled as necessary.
+/// it runs as an indepdendant module such that it can be enabled and disabled
+/// as necessary.
 impl StateModule {
     pub fn new(path: PathBuf) -> Self {
         Self {
@@ -85,7 +86,8 @@ impl RuntimeModule for StateModule {
 #[cfg(test)]
 mod tests {
     use std::{
-        env, io,
+        env,
+        io,
         net::{IpAddr, Ipv4Addr, SocketAddr},
         os,
         path::PathBuf,
@@ -93,13 +95,14 @@ mod tests {
         sync::Arc,
     };
 
-    use super::*;
     use commands::command::Command;
     use state::node_state;
     use telemetry::TelemetrySubscriber;
     use uuid::Uuid;
     use vrrb_config::NodeConfig;
     use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+
+    use super::*;
 
     #[tokio::test]
     async fn state_runtime_module_starts_and_stops() {

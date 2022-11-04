@@ -45,7 +45,7 @@ pub struct Block {
     // TODO: Replace with map of all abandoned claims in the even more than 1 miner is faulty when
     // they are entitled to mine
     pub abandoned_claim: Option<Claim>,
-    
+
     /// Quorum signature needed for finalizing the block and locking the chain
     pub threshold_signature: Option<RawSignature>,
 

@@ -1,30 +1,47 @@
-use crate::packet::{
-    generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
-    BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
+use std::{
+    borrow::BorrowMut,
+    collections::{HashMap, HashSet},
+    net::{Ipv6Addr, SocketAddr},
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
 };
-use crate::types::config::{BroadCastError, BroadCastResult};
+
 use bytes::Bytes;
 use crossbeam_channel::unbounded;
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
+use futures::{stream::FuturesUnordered, StreamExt};
 use messages::message::Message;
 use qp2p::{
-    Config, Connection, ConnectionIncoming, Endpoint, EndpointError, IncomingConnections,
+    Config,
+    Connection,
+    ConnectionIncoming,
+    Endpoint,
+    EndpointError,
+    IncomingConnections,
     RetryConfig,
 };
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
-use std::collections::{HashMap, HashSet};
-use std::net::{Ipv6Addr, SocketAddr};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 use tokio::net::UdpSocket;
+
+use crate::{
+    packet::{
+        generate_batch_id,
+        packet_forwarder,
+        reassemble_packets,
+        recv_mmsg,
+        split_into_packets,
+        BATCH_ID_SIZE,
+        MTU_SIZE,
+        NUM_RCVMMSGS,
+    },
+    types::config::{BroadCastError, BroadCastResult},
+};
 
 type BroadCastStatus = Result<BroadCastResult, BroadCastError>;
 
-/// This is an enum that is used to determine the type of broadcast that is being used.
+/// This is an enum that is used to determine the type of broadcast that is
+/// being used.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum BroadcastType {
     Quic,
@@ -67,6 +84,7 @@ impl BroadcastEngine {
         )
         .await?)
     }
+
     //create a new broadcast engine for each node
     pub async fn new(
         udp_port: u16,
@@ -86,12 +104,15 @@ impl BroadcastEngine {
         }
     }
 
-    /// > This function takes a vector of socket addresses and attempts to connect to each one. If the
-    /// connection is successful, it adds the connection to the peer connection list
+    /// > This function takes a vector of socket addresses and attempts to
+    /// > connect to each one. If the
+    /// connection is successful, it adds the connection to the peer connection
+    /// list
     ///
     /// Arguments:
     ///
-    /// * `address`: A vector of SocketAddr, which is the address of the peer you want to connect to.
+    /// * `address`: A vector of SocketAddr, which is the address of the peer
+    ///   you want to connect to.
     pub async fn add_peer_connection(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
         if let Ok(mut peers) = self.peer_connection_list.lock() {
             for addr in address.iter() {
@@ -137,7 +158,8 @@ impl BroadcastEngine {
         return Ok(BroadCastResult::Success);
     }
 
-    /// > This function takes a message and sends it to all the peers in the peer list
+    /// > This function takes a message and sends it to all the peers in the
+    /// > peer list
     ///
     /// Arguments:
     ///
@@ -173,7 +195,8 @@ impl BroadcastEngine {
         Ok(BroadCastResult::Success)
     }
 
-    /// > This function takes a message and an address, and sends the message to the address via QUIC
+    /// > This function takes a message and an address, and sends the message to
+    /// > the address via QUIC
     ///
     /// Arguments:
     ///
@@ -195,13 +218,15 @@ impl BroadcastEngine {
         Ok(BroadCastResult::Success)
     }
 
-    /// > The function takes a message and an erasure count as input and splits the message into packets
+    /// > The function takes a message and an erasure count as input and splits
+    /// > the message into packets
     /// and sends them to the peers
     ///
     /// Arguments:
     ///
     /// * `message`: The message to be broadcasted.
-    /// * `erasure_count`: The number of packets that can be lost and still be able to reconstruct the
+    /// * `erasure_count`: The number of packets that can be lost and still be
+    ///   able to reconstruct the
     /// original message.
     ///
     /// Returns:
@@ -264,7 +289,8 @@ impl BroadcastEngine {
         Ok(BroadCastResult::Success)
     }
 
-    /// It receives packets from the socket, and sends them to the reassembler thread
+    /// It receives packets from the socket, and sends them to the reassembler
+    /// thread
     ///
     /// Arguments:
     ///
@@ -272,7 +298,8 @@ impl BroadcastEngine {
     ///
     /// Returns:
     ///
-    /// a future that resolves to a result. The result is either an error or a unit.
+    /// a future that resolves to a result. The result is either an error or a
+    /// unit.
     pub async fn process_received_packets(&self, port: u16) -> Result<(), BroadCastError> {
         if let Ok(sock_recv) = UdpSocket::bind(SocketAddr::new(
             std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
@@ -354,14 +381,15 @@ impl BroadcastEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::network::BroadcastEngine;
-    use bytes::Bytes;
-    use messages::message::Message;
-
     use std::{
         net::{Ipv6Addr, SocketAddr},
         time::Duration,
     };
+
+    use bytes::Bytes;
+    use messages::message::Message;
+
+    use crate::network::BroadcastEngine;
 
     #[tokio::test]
     async fn test_successful_connection() {

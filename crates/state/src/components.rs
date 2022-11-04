@@ -15,8 +15,13 @@ use serde::{Deserialize, Serialize};
 use sha256::digest_bytes;
 
 use crate::types::{
-    StateArchive, StateBlockchain, StateChildBlock, StateGenesisBlock, StateLedger,
-    StateNetworkState, StateParentBlock,
+    StateArchive,
+    StateBlockchain,
+    StateChildBlock,
+    StateGenesisBlock,
+    StateLedger,
+    StateNetworkState,
+    StateParentBlock,
 };
 
 /// The components required for a node to sync with the network state

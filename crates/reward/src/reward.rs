@@ -2,7 +2,8 @@
 use accountable::accountable::Accountable;
 use rand::{
     distributions::{Distribution, WeightedIndex},
-    thread_rng, Rng,
+    thread_rng,
+    Rng,
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -283,7 +284,7 @@ impl Reward {
             miner,
             amount: match category {
                 Category::Genesis(Some(amount)) => amount,
-                 // TODO: set amount to base line reward by default
+                // TODO: set amount to base line reward by default
                 _ => 0,
             },
         }

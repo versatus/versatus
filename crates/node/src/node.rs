@@ -15,9 +15,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use trecho::vm::Cpu;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
-
 use block::Block;
 use claim::claim::Claim;
 use commands::command::{Command, ComponentTypes};
@@ -44,6 +41,7 @@ use state::{Components, NetworkState};
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
+use trecho::vm::Cpu;
 use txn::txn::Txn;
 use udp2p::{
     discovery::{kad::Kademlia, routing::RoutingTable},
@@ -57,6 +55,7 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use uuid::Uuid;
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use wallet::wallet::WalletAccount;
 
 use crate::{
@@ -64,7 +63,11 @@ use crate::{
     result::*,
     runtime::blockchain_module::BlockchainModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -103,7 +106,8 @@ pub struct Node {
     /// Whether the current node is a bootstrap node or not
     is_bootsrap: bool,
 
-    /// The address of the bootstrap node, used for peer discovery and initial state sync
+    /// The address of the bootstrap node, used for peer discovery and initial
+    /// state sync
     bootsrap_addr: SocketAddr,
 
     /// VRRB world state. it contains the accounts tree
@@ -262,9 +266,10 @@ mod tests {
         net::{IpAddr, Ipv4Addr},
     };
 
+    use vrrb_config::NodeConfig;
+
     use super::*;
     use crate::test_utils::create_mock_full_node_config;
-    use vrrb_config::NodeConfig;
 
     #[test]
     fn node_teardown_updates_node_status() {

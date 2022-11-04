@@ -89,32 +89,31 @@ pub enum MessageType {
         claim: Vec<u8>,
         sender_id: String,
     },
-    DKGPartCommitmentMessage{
+    DKGPartCommitmentMessage {
         dkg_part_commitment: Vec<u8>,
         sender_id: String,
     },
-    DKGACKCommitmentMessage{
+    DKGACKCommitmentMessage {
         dkg_ack_commitment: Vec<u8>,
         sender_id: String,
     },
-    SendPeerIDMessage{
-        pub_key: String, 
-        peer_id: PeerId,
-    }, 
-    ResetPeerConnectionMessage{
+    SendPeerIDMessage {
+        pub_key: String,
         peer_id: PeerId,
     },
-    RemovePeerMessage{
+    ResetPeerConnectionMessage {
+        peer_id: PeerId,
+    },
+    RemovePeerMessage {
         peer_id: PeerId,
         socket_addr: SocketAddr,
     },
-    AddPeerMessage{
+    AddPeerMessage {
         peer_id: PeerId,
         socket_addr: SocketAddr,
     },
-    SendChainLockSignatureMessage{
+    SendChainLockSignatureMessage {
         chain_lock_signature: Vec<u8>,
-
     },
 }
 

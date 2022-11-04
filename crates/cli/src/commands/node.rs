@@ -5,11 +5,11 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use commands::command::Command;
-use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
 use node::{Node, NodeType};
 use tokio::sync::oneshot;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 
 use crate::result::{CliError, Result};
 
