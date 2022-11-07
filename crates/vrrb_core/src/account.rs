@@ -162,18 +162,18 @@ pub type Nonce = u32;
 //             return Err(VrrbDbError::InvalidUpdateNonce(self.nonce,
 // update.nonce));         }
 //         if let Some(credits_update) = update.credits {
-//             
+//
 // self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
 //         }
 //         if let Some(debits_update) = update.debits {
-//             
+//
 // self.update_single_field_no_hash(AccountField::Debits(debits_update))?;
 //         }
 //         if let Some(code_update) = update.code {
-//             
+//
 // self.update_single_field_no_hash(AccountField::Code(code_update))?;         }
 //         if let Some(storage_update) = update.storage {
-//             
+//
 // self.update_single_field_no_hash(AccountField::Storage(storage_update))?;
 //         }
 //
