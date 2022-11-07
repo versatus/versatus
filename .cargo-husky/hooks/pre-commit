@@ -7,9 +7,12 @@
 
 set -e
 
-echo '+cargo test --all'
-cargo test --all
+# Stricly verifies the code's correctness and idiomatics of the code
 echo '+cargo clippy --all -- -D warnings'
 cargo clippy --all -- -D warnings
-echo '+cargo +nightly fmt --all -- --check'
-cargo +nightly fmt --all -- --check
+
+# Formats the code for consistency
+echo '+cargo +nightly fmt --all'
+cargo +nightly fmt --all 
+
+
