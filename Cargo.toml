@@ -24,10 +24,7 @@ anyhow = "1.0.64"
 [dev-dependencies.cargo-husky]
 version = "1"
 features = [
-    "precommit-hook",
-    "run-cargo-test",
-    "run-cargo-clippy",
-    "run-cargo-fmt",
+   "user-hooks" 
 ]
 
 [workspace]
