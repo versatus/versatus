@@ -27,6 +27,12 @@ pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
+// TODO: Consider moving that to genesis_config.yaml
+const GENESIS_ALLOWED_MINERS: [&str; 2] = [
+    "82104DeE06aa223eC9574a8b2De4fB440630c300",
+    "F4ccb23f9A2b10b165965e2a4555EC25615c29BE",
+];
+
 /// A basic enum to inform the system whether the current
 /// status of the local mining unit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,8 +47,8 @@ pub enum MinerStatus {
 #[derive(Debug)]
 pub struct NoLowestPointerError(String);
 
-/// The miner struct contains all the data and methods needed to operate a mining unit
-/// and participate in the data replication process.
+/// The miner struct contains all the data and methods needed to operate a
+/// mining unit and participate in the data replication process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
@@ -157,9 +163,9 @@ impl Miner {
             .collect::<Vec<_>>();
 
         // Retains only the pointers that have Some(value) in the 2nd field of the tuple
-        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None variant
-        // in the event that the pointer sum contains integer overflows OR in the event that
-        // not ever
+        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None
+        // variant in the event that the pointer sum contains integer overflows
+        // OR in the event that not ever
         pointers.retain(|(_, v)| !v.is_none());
 
         // unwraps all the pointer sum values.
@@ -197,8 +203,11 @@ impl Miner {
 
     /// Generates a gensis block
     //TODO: Require a specific key to mine the genesis block so that only one node
-    // controlled by the organization can mine the genesis block.
+    // controlled by the organization can mine it.
     pub fn genesis(&mut self) -> Option<Block> {
+        if !GENESIS_ALLOWED_MINERS.contains(self.claim.pubkey) {
+            return None;
+        }
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
         Block::genesis(
@@ -293,9 +302,10 @@ impl Miner {
         }
     }
 
-    /// Turns a claim into an ineligible claim in the event a miner proposes an invalid block or tries to spam the network.
-    //TODO: Need much stricter penalty, as this miner can still send messages. The transport layer should reject further messages
-    // from this node.
+    /// Turns a claim into an ineligible claim in the event a miner proposes an
+    /// invalid block or tries to spam the network.
+    //TODO: Need much stricter penalty, as this miner can still send messages. The
+    // transport layer should reject further messages from this node.
     pub fn slash_claim(&mut self, pubkey: String) {
         if let Some(claim) = self.claim_map.get_mut(&pubkey) {
             claim.eligible = false;
