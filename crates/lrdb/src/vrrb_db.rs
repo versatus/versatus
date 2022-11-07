@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub type Nonce = u32;
+pub type AccountFieldsUpdates = Vec<(PublicKey, AccountFieldsUpdate)>;
+pub type AccountUpdateFails = Vec<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>;
 
 /// Stores information about given account.
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -227,7 +229,7 @@ where
 pub type VrrbDb = LeftRightDatabase<PublicKey, Box<Account>>;
 
 /// Struct representing the desired updates to be applied to account.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct AccountFieldsUpdate {
     pub nonce: u32,
     pub credits: Option<u128>,
@@ -236,17 +238,6 @@ pub struct AccountFieldsUpdate {
     pub code: Option<Option<String>>,
 }
 
-impl Default for AccountFieldsUpdate {
-    fn default() -> Self {
-        AccountFieldsUpdate {
-            nonce: 0,
-            credits: None,
-            debits: None,
-            storage: None,
-            code: None,
-        }
-    }
-}
 
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
 // be properly scheduled.
@@ -295,7 +286,7 @@ impl VrrbDbReadHandle {
     /// }
     /// ```
     pub fn get(&self, key: PublicKey) -> Option<Account> {
-        self.rh.get_and(&key, |x| return *x[0].clone())
+        self.rh.get_and(&key, |x| *x[0].clone())
     }
 
     /// Get a batch of accounts by providing Vec of PublicKeys
@@ -333,7 +324,7 @@ impl VrrbDbReadHandle {
     pub fn batch_get(&self, keys: Vec<PublicKey>) -> HashMap<PublicKey, Option<Account>> {
         let mut accounts = HashMap::<PublicKey, Option<Account>>::new();
         keys.iter().for_each(|k| {
-            accounts.insert(k.clone(), self.get(*k));
+            accounts.insert(*k, self.get(*k));
         });
         accounts
     }
@@ -342,7 +333,28 @@ impl VrrbDbReadHandle {
     pub fn len(&self) -> usize {
         self.rh.len()
     }
+
+    /// Returns the information about the VrrbDb being empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
+
+impl Default for VrrbDb {
+    fn default() -> Self {
+        let (vrrbdb_reader, mut vrrbdb_writer) = evmap::new();
+        // This is required to set up oplog
+        // Otherwise there's no way to keep track of already inserted keys (before
+        // refresh)
+        vrrbdb_writer.refresh();
+        Self {
+            r: vrrbdb_reader.factory(),
+            w: vrrbdb_writer,
+            last_refresh: SystemTime::now(),
+        }
+    }
+}
+
 
 impl VrrbDb {
     /// Returns new, empty account.
@@ -354,16 +366,7 @@ impl VrrbDb {
     /// let vdb = VrrbDb::new();
     /// ```
     pub fn new() -> Self {
-        let (vrrbdb_reader, mut vrrbdb_writer) = evmap::new();
-        // This is required to set up oplog
-        // Otherwise there's no way to keep track of already inserted keys (before
-        // refresh)
-        vrrbdb_writer.refresh();
-        Self {
-            r: vrrbdb_reader.factory(),
-            w: vrrbdb_writer,
-            last_refresh: SystemTime::now(),
-        }
+        Self::default()
     }
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
@@ -409,10 +412,10 @@ impl VrrbDb {
             }
         });
         match self.r.handle().contains_key(&pubkey) || found {
-            true => return Err(VrrbDbError::RecordExists),
+            true => Err(VrrbDbError::RecordExists),
             false => {
                 self.w.insert(pubkey, Box::new(account));
-                return Ok(());
+                Ok(())
             },
         }
     }
@@ -486,15 +489,15 @@ impl VrrbDb {
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
-            if let Err(e) = self.insert_uncommited(k.clone(), v.clone()) {
-                failed_inserts.push((k.clone(), v.clone(), e));
+            if let Err(e) = self.insert_uncommited(*k, v.clone()) {
+                failed_inserts.push((*k, v.clone(), e));
             }
         });
 
         if failed_inserts.is_empty() {
-            return None;
+            None
         } else {
-            return Some(failed_inserts);
+            Some(failed_inserts)
         }
     }
 
@@ -625,9 +628,9 @@ impl VrrbDb {
                 account.update(update)?;
                 self.w.update(key, Box::new(account));
 
-                return Ok(());
+                Ok(())
             },
-            None => return Err(VrrbDbError::AccountDoesntExist(key)),
+            None => Err(VrrbDbError::AccountDoesntExist(key)),
         }
     }
 
@@ -788,14 +791,13 @@ impl VrrbDb {
     /// ```
     pub fn batch_update(
         &mut self,
-        mut updates: Vec<(PublicKey, AccountFieldsUpdate)>,
-    ) -> Option<Vec<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>> {
+        mut updates: AccountFieldsUpdates,
+    ) -> Option<AccountUpdateFails> {
         // Store and return all failures as (PublicKey, AllPushedUpdates, Error)
         // This way caller is provided with all info -> They know which accounts were
         // not modified, have a list of all updates to try again And an error
         // thrown so that they can fix it
-        let mut failed =
-            Vec::<(PublicKey, Vec<AccountFieldsUpdate>, Result<(), VrrbDbError>)>::new();
+        let mut failed = AccountUpdateFails::new();
 
         // We sort updates by nonce (that's impl of Ord in AccountField)
         // This way all provided updates are used in order (doesn't matter for different
@@ -847,7 +849,7 @@ impl VrrbDb {
             self.commit_changes();
         };
 
-        if failed.len() == 0 {
+        if failed.is_empty() {
             return None;
         }
 

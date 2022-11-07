@@ -1,23 +1,18 @@
 use std::{
     env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-    rc::Rc,
-    sync::Arc,
 };
 
-use commands::command::Command;
 use node::{Node, NodeType, RuntimeModuleState};
-use telemetry::TelemetrySubscriber;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+use vrrb_core::event_router::Event;
 
 #[tokio::test]
 async fn node_runtime_starts_and_stops() {
     let temp_dir_path = env::temp_dir();
-    let mut db_path = temp_dir_path.clone();
-    db_path.join("node.db");
+    let db_path = temp_dir_path.clone();
+    _ = db_path.join("node.db");
 
     let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
 

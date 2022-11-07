@@ -28,6 +28,12 @@ pub struct CommandRouter {
 
 pub type DirectedCommand = (CommandRoute, Command);
 
+impl Default for CommandRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommandRouter {
     pub fn new() -> Self {
         Self {
@@ -64,8 +70,9 @@ impl CommandRouter {
                     break;
                 },
                 (_, Command::NoOp) => {},
-                (_, cmd) => {
-                    //telemetry::warn!("Unrecognized command received: {:?}", cmd);
+                (_, _cmd) => {
+                    //telemetry::warn!("Unrecognized command received: {:?}",
+                    // cmd);
                 },
             }
         }
@@ -80,11 +87,9 @@ mod tests {
 
     #[test]
     fn should_register_susbcribers() {
-        let (_, mut command_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
         let mut router = CommandRouter::new();
 
-        let (miner_command_tx, mut miner_command_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (miner_command_tx, _) = tokio::sync::mpsc::unbounded_channel::<Command>();
 
         router
             .add_subscriber(CommandRoute::Miner, miner_command_tx)
@@ -114,8 +119,7 @@ mod tests {
             tokio::sync::mpsc::unbounded_channel::<DirectedCommand>();
         let mut router = CommandRouter::new();
 
-        let (miner_command_tx, mut miner_command_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Command>();
+        let (miner_command_tx, _) = tokio::sync::mpsc::unbounded_channel::<Command>();
 
         router
             .add_subscriber(CommandRoute::Miner, miner_command_tx)

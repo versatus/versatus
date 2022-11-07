@@ -1,16 +1,18 @@
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    fs::File,
+    io::{Read, Result},
+    net::{Ipv6Addr, SocketAddr},
+    path::PathBuf,
+    str,
+    sync::Arc,
+};
+
 use crossbeam_channel::{Receiver, Sender};
 use futures::future::try_join_all;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng, RngCore};
+use rand::{distributions::Alphanumeric, thread_rng, Rng, RngCore};
 use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::Read;
-use std::io::Result;
-use std::net::{Ipv6Addr, SocketAddr};
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::{fs, str};
 use tokio::net::UdpSocket;
 
 /// Maximum over-the-wire size of a Transaction
@@ -31,7 +33,8 @@ pub(crate) const NUM_RCVMMSGS: usize = 32;
 
 ///   40 bytes is the size of the IPv6 header
 ///   8 bytes is the size of the fragment header
-///   True payload size ,or the size of single packet that will be written to or read from socket
+///   True payload size ,or the size of single packet that will be written to or
+/// read from socket
 const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 - 8;
 
 /// It takes a batch id, a sequence number, and a payload, and returns a packet
@@ -57,22 +60,23 @@ pub fn create_packet(batch_id: [u8; BATCH_ID_SIZE], payload: Vec<u8>) -> Vec<u8>
     //Size of Payload
     mtu.extend(payload.len().to_ne_bytes());
 
-    for i in 0..BATCH_ID_SIZE {
-        mtu.push(batch_id[i]);
+    for id in batch_id {
+        mtu.push(id);
     }
     mtu.extend_from_slice(&payload);
 
     mtu
 }
 
-/// `split_into_packets` takes a `full_list` of bytes, a `batch_id` and an `erasure_count` and returns a
-/// `Vec<Vec<u8>>` of packets
+/// `split_into_packets` takes a `full_list` of bytes, a `batch_id` and an
+/// `erasure_count` and returns a `Vec<Vec<u8>>` of packets
 ///
 /// Arguments:
 ///
 /// * `full_list`: The list of bytes to be split into packets
 /// * `batch_id`: This is a unique identifier for the batch of packets.
-/// * `erasure_count`: The number of packets that can be lost and still be able to recover the original data.
+/// * `erasure_count`: The number of packets that can be lost and still be able
+///   to recover the original data.
 pub fn split_into_packets(
     full_list: &[u8],
     batch_id: [u8; BATCH_ID_SIZE],
@@ -92,8 +96,10 @@ pub fn split_into_packets(
 ///
 /// Arguments:
 ///
-/// * `unencoded_packet_list`: This is the list of packets that we want to encode.
-/// * `erasure_count`: The number of packets that can be lost and still be able to recover the original
+/// * `unencoded_packet_list`: This is the list of packets that we want to
+///   encode.
+/// * `erasure_count`: The number of packets that can be lost and still be able
+///   to recover the original
 /// data.
 ///
 /// Returns:
@@ -118,6 +124,10 @@ pub fn encode_into_packets(unencoded_packet_list: &[u8], erasure_count: u32) -> 
 /// Returns:
 ///
 /// The batch_id is being returned.
+// TODO: Make sure this is correct
+// Seems like batch_id is of length = BATCH_ID_SIZE but is only overwritten at
+// batch_id[0..BATCH_ID_SIZE - 3]. Last 3 elements will always be 0 here
+#[allow(clippy::manual_memcpy)]
 pub fn get_batch_id(packet: &[u8; 1280]) -> [u8; BATCH_ID_SIZE] {
     let mut batch_id: [u8; BATCH_ID_SIZE] = [0; BATCH_ID_SIZE];
     let mut chunk_no: usize = 0;
@@ -125,10 +135,14 @@ pub fn get_batch_id(packet: &[u8; 1280]) -> [u8; BATCH_ID_SIZE] {
         batch_id[chunk_no] = packet[i];
         chunk_no += 1;
     }
+    // The above equals to
+    // batch_id[..(BATCH_ID_SIZE - 3)].copy_from_slice(&packet[6..(BATCH_ID_SIZE +
+    // 3)]);
     batch_id
 }
 
-/// It takes a packet as an argument, and returns the length of the payload as an integer
+/// It takes a packet as an argument, and returns the length of the payload as
+/// an integer
 ///
 /// Arguments:
 ///
@@ -139,11 +153,8 @@ pub fn get_batch_id(packet: &[u8; 1280]) -> [u8; BATCH_ID_SIZE] {
 /// The length of the payload in bytes.
 pub fn get_payload_length(packet: &[u8; 1280]) -> i32 {
     let mut payload_len_bytes: [u8; 4] = [0; 4];
-    let mut chunk_no: usize = 0;
-    for i in 2..6 {
-        payload_len_bytes[chunk_no] = packet[i];
-        chunk_no += 1;
-    }
+
+    payload_len_bytes[..4].copy_from_slice(&packet[2..6]);
     i32::from_ne_bytes(payload_len_bytes)
 }
 
@@ -166,7 +177,7 @@ pub fn generate_batch_id() -> [u8; BATCH_ID_SIZE] {
 ///
 /// * `file_path`: The path to the file you want to read.
 pub fn read_file(file_path: PathBuf) -> Result<Vec<u8>> {
-    let mut buffer = Vec::new();
+    let mut buffer;
     match fs::metadata(&file_path) {
         Ok(metadata) => {
             buffer = vec![0; metadata.len() as usize];
@@ -191,8 +202,8 @@ pub fn read_file(file_path: PathBuf) -> Result<Vec<u8>> {
     Ok(buffer)
 }
 
-/// It receives a tuple of a string and a vector of bytes from a channel, and writes the vector of bytes
-/// to a file whose name is the string
+/// It receives a tuple of a string and a vector of bytes from a channel, and
+/// writes the vector of bytes to a file whose name is the string
 ///
 /// Arguments:
 ///
@@ -216,18 +227,21 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
     }
 }
 
-/// It receives packets from the `receiver` channel, checks if the packet is a duplicate, and if not, it
-/// checks if the packet is a forwarder packet. If it is, it forwards the packet to the `forwarder`
-/// channel. If it is not, it checks if the packet is a new batch. If it is, it creates a new decoder
-/// for the batch. If it is not, it adds the packet to the decoder. If the decoder is complete, it sends
-/// the decoded file to the `file_send` channel
+/// It receives packets from the `receiver` channel, checks if the packet is a
+/// duplicate, and if not, it checks if the packet is a forwarder packet. If it
+/// is, it forwards the packet to the `forwarder` channel. If it is not, it
+/// checks if the packet is a new batch. If it is, it creates a new decoder
+/// for the batch. If it is not, it adds the packet to the decoder. If the
+/// decoder is complete, it sends the decoded file to the `file_send` channel
 ///
 /// Arguments:
 ///
 /// * `receiver`: Receiver<([u8; 1280], usize)>
-/// * `batch_id_hashset`: A hashset that contains the batch_ids of all the batches that have been
+/// * `batch_id_hashset`: A hashset that contains the batch_ids of all the
+///   batches that have been
 /// reassembled.
-/// * `decoder_hash`: A hashmap that stores the batch_id as the key and a tuple of the number of packets
+/// * `decoder_hash`: A hashmap that stores the batch_id as the key and a tuple
+///   of the number of packets
 /// received and the decoder as the value.
 /// * `forwarder`: Sender<Vec<u8>>
 /// * `file_send`: Sender<(String, Vec<u8>)>
@@ -251,8 +265,9 @@ pub fn reassemble_packets(
             continue;
         }
         let payload_length = get_payload_length(&received_packet.0);
-        // This is to check if the packet is a forwarder packet. If it is, it forwards the packet to the `forwarder` channel.
-        // Since packet is shared across nodes with forward flag as 1
+        // This is to check if the packet is a forwarder packet. If it is, it forwards
+        // the packet to the `forwarder` channel. Since packet is shared across
+        // nodes with forward flag as 1
         if let Some(forward_flag) = received_packet.0.get_mut(1) {
             if *forward_flag == 1 {
                 *forward_flag = 0;
@@ -265,7 +280,7 @@ pub fn reassemble_packets(
                 *num_packets += 1;
                 // Decoding the packet.
                 let result = decoder.decode(EncodingPacket::deserialize(
-                    &received_packet.0[38_usize..received_packet.1].to_vec(),
+                    &received_packet.0[38_usize..received_packet.1],
                 ));
                 if result.is_some() {}
                 if let Some(result_bytes) = result {
@@ -300,15 +315,15 @@ pub fn reassemble_packets(
 
 //For Linux we can use system call from libc::recv_mmsg
 /// It receives a UDP packet from a socket, and
-/// returns the index of the packet in the array, the number of bytes received, and the address of the
-/// sender
+/// returns the index of the packet in the array, the number of bytes received,
+/// and the address of the sender
 ///
 /// Arguments:
 ///
 /// * `socket`: The UDP socket to receive from.
-/// * `packets`: a mutable array of byte arrays, each of which is the size of the largest packet you
+/// * `packets`: a mutable array of byte arrays, each of which is the size of
+///   the largest packet you
 /// want to receive.
-///
 //#[cfg(not(target_os = "linux"))]
 pub async fn recv_mmsg(
     socket: &UdpSocket,
@@ -316,8 +331,7 @@ pub async fn recv_mmsg(
 ) -> Result<Vec<(usize, usize, SocketAddr)>> {
     let mut received = Vec::new();
     let count = std::cmp::min(NUM_RCVMMSGS, packets.len());
-    let mut i = 0;
-    for packt in packets.iter_mut().take(count) {
+    for (i, packt) in packets.iter_mut().take(count).enumerate() {
         match socket.recv_from(packt).await {
             Err(e) => {
                 return Err(e);
@@ -326,18 +340,18 @@ pub async fn recv_mmsg(
                 received.push((i, nrecv, from));
             },
         }
-        i += 1;
     }
     Ok(received)
 }
 
-/// It receives a packet from the `forwarder_channel_receive` channel, clones it, and sends it to all
-/// the nodes in the network except itself
+/// It receives a packet from the `forwarder_channel_receive` channel, clones
+/// it, and sends it to all the nodes in the network except itself
 ///
 /// Arguments:
 ///
 /// * `forwarder_channel_receive`: Receiver<Vec<u8>>
-/// * `nodes_ips_except_self`: This is a vector of IP addresses of all the nodes in the network except
+/// * `nodes_ips_except_self`: This is a vector of IP addresses of all the nodes
+///   in the network except
 /// the current node.
 /// * `port`: The port to bind the socket to.
 ///

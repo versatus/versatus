@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+
+use serde::{Deserialize, Serialize};
 pub type NodeId = String;
 pub type NodeIdx = u16;
 pub type NodeIdentifier = String;
@@ -12,7 +13,7 @@ pub enum Error {
     Other(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum NodeType {
     /// A Node that can archive, validate and mine tokens
     Full,
@@ -47,7 +48,7 @@ pub struct StopSignal;
 pub type Hash = Vec<u8>;
 pub type RawSignature = Vec<u8>;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SignatureType {
     PartialSignature,
     ThresholdSignature,

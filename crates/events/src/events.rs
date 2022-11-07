@@ -16,6 +16,8 @@ pub enum VrrbNetworkEvent {
         inbox: HashMap<String, HashMap<u32, Packet>>,
     },
     VrrbOutboxUpdate {
+        // TODO: it'd be better to split that into custom types
+        #[allow(clippy::type_complexity)]
         outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>, Packet)>>,
     },
     VrrbAckReceived {
@@ -39,7 +41,7 @@ pub fn write_to_json(path: String, event: VrrbNetworkEvent) -> Result<(), serde_
             }
             let json_vec = serde_json::to_vec(&events);
             if let Ok(json) = json_vec {
-                if let Err(e) = fs::write(path.clone(), json) {
+                if let Err(e) = fs::write(path, json) {
                     info!("Error writing event to events.json: {:?}", e);
                 }
             }
@@ -47,7 +49,7 @@ pub fn write_to_json(path: String, event: VrrbNetworkEvent) -> Result<(), serde_
             let events = vec![event];
             let json_vec = serde_json::to_vec(&events);
             if let Ok(json) = json_vec {
-                if let Err(e) = fs::write(path.clone(), json) {
+                if let Err(e) = fs::write(path, json) {
                     info!("Error writing event to events.json: {:?}", e);
                 }
             }

@@ -37,6 +37,12 @@ pub struct EventRouter {
 
 pub type DirectedEvent = (Topic, Event);
 
+impl Default for EventRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventRouter {
     pub fn new() -> Self {
         Self {

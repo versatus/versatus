@@ -57,13 +57,13 @@ impl fmt::Display for InvalidBlockError {
 
 impl Error for InvalidBlockError {
     fn description(&self) -> &str {
-        &self.details.to_str()
+        self.details.to_str()
     }
 }
 
 impl Error for InvalidBlockErrorReason {
     fn description(&self) -> &str {
-        &self.to_str()
+        self.to_str()
     }
 }
 

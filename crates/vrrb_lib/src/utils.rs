@@ -11,7 +11,7 @@ pub fn decay_calculator(initial: u128, epochs: u128) -> f64 {
 }
 
 pub fn restore_db(path: &str) -> PickleDb {
-    let db = match PickleDb::load(
+    match PickleDb::load(
         path,
         PickleDbDumpPolicy::DumpUponRequest,
         SerializationMethod::Bin,
@@ -22,6 +22,5 @@ pub fn restore_db(path: &str) -> PickleDb {
             PickleDbDumpPolicy::DumpUponRequest,
             SerializationMethod::Bin,
         ),
-    };
-    db
+    }
 }

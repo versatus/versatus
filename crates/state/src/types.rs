@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use reward::reward::{Reward, RewardState};
+use reward::reward::RewardState;
 
 pub type StateGenesisBlock = Option<Vec<u8>>;
 pub type StateChildBlock = Option<Vec<u8>>;

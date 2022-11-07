@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize, Eq)]
 pub enum SignerError {
     #[error("SignerError: Dkg state for node cannot be read")]
     DkgStateCannotBeRead,
