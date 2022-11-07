@@ -68,22 +68,22 @@ pub type Nonce = u32;
 //     //
 //     // This way overall balance stays the same
 //     // But the numbers are fine
-//     // This may be a problem since even though u64 (or whatever we end up using) are
-//     // big Imagining some trading account, at one point it could fill up (with
-//     // thousands of transactions per day)
+//     // This may be a problem since even though u64 (or whatever we end up
+// using) are     // big Imagining some trading account, at one point it could
+// fill up (with     // thousands of transactions per day)
 //
 //     /// Updates single field in account struct without updating it's hash.
 //     /// Unsafe to use alone (hash should be recalculated).
-//     /// Used only in batch updates to improve speed by reducing unnecesary hash
-//     /// calculations. Returns error if update fails.
-//     fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<(), VrrbDbError> {
-//         match value {
-//             AccountField::Credits(credits) => match self.credits.checked_add(credits) {
-//                 Some(new_amount) => self.credits = new_amount,
-//                 None => return Err(VrrbDbError::UpdateFailed(value)),
-//             },
-//             AccountField::Debits(debits) => match self.debits.checked_add(debits) {
-//                 Some(new_amount) => {
+//     /// Used only in batch updates to improve speed by reducing unnecesary
+// hash     /// calculations. Returns error if update fails.
+//     fn update_single_field_no_hash(&mut self, value: AccountField) ->
+// Result<(), VrrbDbError> {         match value {
+//             AccountField::Credits(credits) => match
+// self.credits.checked_add(credits) {                 Some(new_amount) =>
+// self.credits = new_amount,                 None => return
+// Err(VrrbDbError::UpdateFailed(value)),             },
+//             AccountField::Debits(debits) => match
+// self.debits.checked_add(debits) {                 Some(new_amount) => {
 //                     if self.credits >= new_amount {
 //                         self.debits = new_amount
 //                     } else {
@@ -124,8 +124,8 @@ pub type Nonce = u32;
 //     ///
 //     /// assert_eq!(account.credits, 300);
 //     /// ```
-//     pub fn update_field(&mut self, update: AccountField) -> Result<(), VrrbDbError> {
-//         let res = self.update_single_field_no_hash(update);
+//     pub fn update_field(&mut self, update: AccountField) -> Result<(),
+// VrrbDbError> {         let res = self.update_single_field_no_hash(update);
 //         self.update_hash();
 //         res
 //     }
@@ -157,21 +157,24 @@ pub type Nonce = u32;
 //     /// assert_eq!(account.credits, 32);
 //     /// assert_eq!(account.code, Some("Some code".to_string()));
 //     /// ```
-//     pub fn update(&mut self, update: AccountFieldsUpdate) -> Result<(), VrrbDbError> {
-//         if self.nonce + 1 != update.nonce {
-//             return Err(VrrbDbError::InvalidUpdateNonce(self.nonce, update.nonce));
-//         }
+//     pub fn update(&mut self, update: AccountFieldsUpdate) -> Result<(),
+// VrrbDbError> {         if self.nonce + 1 != update.nonce {
+//             return Err(VrrbDbError::InvalidUpdateNonce(self.nonce,
+// update.nonce));         }
 //         if let Some(credits_update) = update.credits {
-//             self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
+//
+// self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
 //         }
 //         if let Some(debits_update) = update.debits {
-//             self.update_single_field_no_hash(AccountField::Debits(debits_update))?;
+//
+// self.update_single_field_no_hash(AccountField::Debits(debits_update))?;
 //         }
 //         if let Some(code_update) = update.code {
-//             self.update_single_field_no_hash(AccountField::Code(code_update))?;
-//         }
+//
+// self.update_single_field_no_hash(AccountField::Code(code_update))?;         }
 //         if let Some(storage_update) = update.storage {
-//             self.update_single_field_no_hash(AccountField::Storage(storage_update))?;
+//
+// self.update_single_field_no_hash(AccountField::Storage(storage_update))?;
 //         }
 //
 //         self.bump_nonce();

@@ -1,8 +1,9 @@
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use std::{env, fs};
 
-// NOTE: this is used to generate random filenames so files created by tests don't get overwritten
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
+
+// NOTE: this is used to generate random filenames so files created by tests
+// don't get overwritten
 fn generate_random_string() -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)

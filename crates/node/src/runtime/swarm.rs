@@ -8,7 +8,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use vrrb_core::event_router::Event;
 use block::invalid::InvalidBlockErrorReason;
 use claim::claim::Claim;
 use commands::command::ComponentTypes;
@@ -36,6 +35,7 @@ use udp2p::{
     transport::{handler::MessageHandler as GossipMessageHandler, transport::Transport},
     utils::utils::ByteRep,
 };
+use vrrb_core::event_router::Event;
 use wallet::wallet::WalletAccount;
 
 use crate::{node_auth::NodeAuth, result::Result, RuntimeModule, RuntimeModuleState};

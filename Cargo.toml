@@ -5,6 +5,7 @@ version = "0.1.0"
 authors = ["VRRB Labs <info@vrrb.io>"]
 edition = "2021"
 readme = "README.md"
+[metadata.cargo-udeps.ignore]
 
 [profile.release]
 opt-level = 3
@@ -23,9 +24,11 @@ anyhow = "1.0.64"
 
 [dev-dependencies.cargo-husky]
 version = "1"
-features = [
-   "user-hooks" 
-]
+features = ["user-hooks"]
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["cargo-husky"]
+development = ["cargo-husky"]
 
 [workspace]
 members = [
