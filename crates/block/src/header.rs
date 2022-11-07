@@ -20,6 +20,8 @@ use sha256::digest_bytes;
 use crate::block::Block;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
+use thiserror::Error;
+
 // TODO: Helper constants like the ones below should be in their own mod
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;

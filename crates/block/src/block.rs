@@ -1,7 +1,6 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
-#![allow(unused_imports)]
-#![allow(dead_code)]
+
 use std::{fmt, f32::consts::E};
 
 use accountable::accountable::Accountable;
@@ -21,6 +20,8 @@ use crate::{
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
+
+use thiserror::Error;
 
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -56,10 +57,6 @@ impl Block {
         // Create the genesis header
         let header = (BlockHeader::genesis(0, reward_state, claim.clone(), secret_key)).unwrap();
 
-       // let header = match BlockHeader::genesis(0, reward_state, claim.clone(), secret_key){
-       //     Ok(header) => header,
-       //     Err(e) => Err(e),
-       // };
        // let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
         // Create the genesis state hash
         // TODO: Replace with state trie root
