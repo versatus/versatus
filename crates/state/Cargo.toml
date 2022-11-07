@@ -19,10 +19,8 @@ accountable = { path = "../accountable" }
 lrdb = { path = "../lrdb" }
 ownable = { path = "../ownable" }
 noncing = { path = "../noncing" }
-updateable = { path = "../updateable" }
 reward = { path = "../reward" }
 lr_trie = { path = "../lr_trie" }
-telemetry = { path = "../telemetry" }
 primitives = { path = "../primitives" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 thiserror = "1.0.37"

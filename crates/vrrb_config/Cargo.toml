@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 primitives = { path = "../primitives" }
-secp256k1 = { version = "0.20.2", features = ["rand"] }
