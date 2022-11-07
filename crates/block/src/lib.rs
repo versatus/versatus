@@ -5,7 +5,7 @@ pub use crate::block::*;
 
 #[cfg(test)]
 mod tests {
-    use std::time::UNIX_EPOCH;
+    use std::{collections::HashMap, time::UNIX_EPOCH};
 
     use claim::claim::Claim;
     use rand::{thread_rng, Rng};
@@ -13,11 +13,9 @@ mod tests {
     use ritelinked::LinkedHashMap;
     use secp256k1::Secp256k1;
     use state::NetworkState;
-    use std::collections::HashMap;
     use txn::txn::Txn;
 
-    use crate::header::BlockHeader;
-    use crate::Block;
+    use crate::{header::BlockHeader, Block};
 
     #[test]
     fn test_genesis_block_utility() {
