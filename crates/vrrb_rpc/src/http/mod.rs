@@ -1,14 +1,12 @@
 use std::{convert::Infallible, io, net::SocketAddr, time::Duration};
 
 use poem::{
-    handler,
-    listener::{Acceptor, TcpAcceptor, TcpListener},
-    web::{Json, LocalAddr},
-    Endpoint, Route, Server,
+    listener::{Acceptor, TcpAcceptor},
+    Route,
+    Server,
 };
 use poem_openapi::{payload::PlainText, OpenApi, OpenApiService};
-use tokio::sync::mpsc::{Receiver, UnboundedReceiver};
-use vrrb_core::event_router::Event;
+use tokio::sync::mpsc::Receiver;
 
 struct HttpApi;
 
@@ -52,10 +50,10 @@ impl HttpApiServer {
     // TODO: refactor return type into a proper crate specific result
     pub fn new(config: HttpApiServerConfig) -> Result<Self, String> {
         let listener = std::net::TcpListener::bind(config.address.clone())
-            .map_err(|err| format!("unable to bind to address: {}", config.address))?;
+            .map_err(|_err| format!("unable to bind to address: {}", config.address))?;
 
         let acceptor = TcpAcceptor::from_std(listener)
-            .map_err(|err| format!("unable to bind to listener on address: {}", config.address))?;
+            .map_err(|_err| format!("unable to bind to listener on address: {}", config.address))?;
 
         let address = acceptor.local_addr();
         let address = address
@@ -67,10 +65,10 @@ impl HttpApiServer {
             .ok_or_else(|| String::from("unable to retrieve the address the server is bound to"))?;
 
         let router_config = HttpApiRouterConfig {
-            address: address.clone(),
+            address: *address,
             api_title: config.api_title.clone(),
             api_version: config.api_version.clone(),
-            server_timeout: config.server_timeout.clone(),
+            server_timeout: config.server_timeout,
         };
 
         let app = Self::create_router(&router_config)?;
@@ -118,18 +116,14 @@ impl HttpApiServer {
 
 #[cfg(test)]
 mod tests {
+    use std::net::SocketAddr;
+
     use poem::{
-        get,
         listener::{Acceptor, TcpAcceptor},
-        Endpoint,
+        test::TestClient,
     };
 
-    use tokio::{signal::unix::SignalKind, sync::mpsc::channel};
-
     use super::*;
-    use poem::test::TestClient;
-    use poem::Route;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     #[tokio::test]
     async fn index_returns_openapi_docs() {
@@ -138,8 +132,8 @@ mod tests {
         let addr = acceptor.local_addr();
         let addr = addr.get(0).unwrap();
 
-        let api_title = "Node HTTP API".to_string();
-        let api_version = "1.0".to_string();
+        let _api_title = "Node HTTP API".to_string();
+        let _api_version = "1.0".to_string();
 
         let config = HttpApiRouterConfig {
             address: addr.as_socket_addr().unwrap().clone(),

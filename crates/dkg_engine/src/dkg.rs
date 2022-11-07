@@ -114,8 +114,7 @@ impl DkgGenerator for DkgEngine {
         }
         let node = node.unwrap();
         let part_committment = self.dkg_state.part_message_store.get(&sender_node_idx);
-        if part_committment.is_some() {
-            let part_committment = part_committment.unwrap();
+        if let Some(part_committment) = part_committment {
             let rng = self.dkg_state.random_number_gen.as_mut().unwrap();
             match node
                 .handle_part(&sender_node_idx, part_committment.clone(), rng)
@@ -125,17 +124,13 @@ impl DkgGenerator for DkgEngine {
                     self.dkg_state
                         .ack_message_store
                         .insert((handling_node_idx, sender_node_idx), ack);
-                    return Ok(DkgResult::PartMessageAcknowledged);
+                    Ok(DkgResult::PartMessageAcknowledged)
                 },
-                PartOutcome::Invalid(fault) => {
-                    return Err(DkgError::InvalidPartMessage(fault.to_string()));
-                },
-                PartOutcome::Valid(None) => {
-                    return Err(DkgError::ObserverNotAllowed);
-                },
+                PartOutcome::Invalid(fault) => Err(DkgError::InvalidPartMessage(fault.to_string())),
+                PartOutcome::Valid(None) => Err(DkgError::ObserverNotAllowed),
             }
         } else {
-            return Err(DkgError::PartMsgMissingForNode(sender_node_idx));
+            Err(DkgError::PartMsgMissingForNode(sender_node_idx))
         }
     }
 
@@ -154,13 +149,8 @@ impl DkgGenerator for DkgEngine {
         //    let node_id=self.node_info.read().unwrap().get_node_idx();
         for (sender_id, ack) in &self.dkg_state.ack_message_store {
             let result = node.handle_ack(&sender_id.0, ack.clone());
-            if result.is_err() {
-                let mut id = sender_id.0.to_string();
-                id.push_str(&" ".to_string());
-                id.push_str(&sender_id.1.to_string());
-                return Err(DkgError::InvalidAckMessage(id));
-            } else {
-                match result.unwrap() {
+            match result {
+                Ok(result) => match result {
                     hbbft::sync_key_gen::AckOutcome::Valid => {},
                     hbbft::sync_key_gen::AckOutcome::Invalid(fault) => {
                         println!(
@@ -170,7 +160,14 @@ impl DkgGenerator for DkgEngine {
                             self.node_info.read().unwrap().get_node_idx()
                         )
                     },
-                }
+                },
+                Err(_) => {
+                    let mut id = sender_id.0.to_string();
+                    #[allow(clippy::single_char_add_str)]
+                    id.push_str(" ");
+                    id.push_str(&sender_id.1.to_string());
+                    return Err(DkgError::InvalidAckMessage(id));
+                },
             }
         }
         Ok(DkgResult::AllAcksHandled)
@@ -409,7 +406,7 @@ mod tests {
 
         println!("Node 4{:?}", dkg_engine_node4.dkg_state.ack_message_store);
 
-        let mut new_store: HashMap<(u16, u16), Ack> = HashMap::new();
+        let mut new_store: HashMap<(u16, u16), Ack>;
         new_store = dkg_engine_node1
             .dkg_state
             .ack_message_store
@@ -432,10 +429,10 @@ mod tests {
         dkg_engine_node4.dkg_state.ack_message_store = new_store;
 
         for _ in 0..4 {
-            dkg_engine_node1.handle_ack_messages();
-            dkg_engine_node2.handle_ack_messages();
-            dkg_engine_node3.handle_ack_messages();
-            dkg_engine_node4.handle_ack_messages();
+            dkg_engine_node1.handle_ack_messages().unwrap();
+            dkg_engine_node2.handle_ack_messages().unwrap();
+            dkg_engine_node3.handle_ack_messages().unwrap();
+            dkg_engine_node4.handle_ack_messages().unwrap();
         }
 
         let result = dkg_engine_node1.generate_key_sets();

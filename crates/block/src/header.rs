@@ -12,10 +12,13 @@ use rand::Rng;
 use reward::reward::{Reward, RewardState};
 use secp256k1::{
     key::{PublicKey, SecretKey},
-    Error, Message, Secp256k1, Signature,
+    Error,
+    Message,
+    Secp256k1,
+    Signature,
 };
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::digest;
 
 use crate::block::Block;
 
@@ -57,7 +60,7 @@ impl BlockHeader {
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
-        let last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
+        let last_hash = digest("Genesis_Last_Hash".as_bytes());
         let block_nonce = nonce;
         // Range should remain the same.
         let next_block_nonce: u64 = rng.gen_range(u32MAX as u64, u64MAX);
@@ -65,7 +68,7 @@ impl BlockHeader {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let txn_hash = digest_bytes("Genesis_Txn_Hash".as_bytes());
+        let txn_hash = digest("Genesis_Txn_Hash".as_bytes());
         let block_reward = Reward::genesis(Some(claim.address.clone()));
         //TODO: Replace reward state
         let next_block_reward = Reward::new(None, reward_state);
@@ -119,7 +122,7 @@ impl BlockHeader {
         // Leading candidates are some combination of last_hash and last_block_seed
         let mut rng = rand::thread_rng();
         let last_hash = last_block.hash;
-        let block_nonce = last_block.header.next_block_nonce.clone();
+        let block_nonce = last_block.header.next_block_nonce;
         let next_block_nonce: u64 = rng.gen_range(0, u64MAX);
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -240,10 +243,14 @@ impl BlockHeader {
         serde_json::from_slice(data).unwrap()
     }
 
+    // TODO: Consider renaming to `serialize_to_str`
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 
+    //TODO: consider renaming to sth like `deserialize_from_str`
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(data: &str) -> BlockHeader {
         serde_json::from_str(data).unwrap()
     }

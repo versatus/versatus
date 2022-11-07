@@ -14,7 +14,7 @@ use bytebuffer::ByteBuffer;
 use pool::pool::Pool;
 use secp256k1::{Message, PublicKey, Secp256k1, Signature};
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::digest;
 use state::state::NetworkState;
 use uuid::Uuid;
 use verifiable::verifiable::Verifiable;
@@ -48,20 +48,22 @@ pub struct Txn {
 impl Txn {
     // TODO: convert to_message into a function of the verifiable trait,
     // all verifiable objects need to be able to be converted to a message.
+
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(&self).unwrap()
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
-        as_string.as_bytes().iter().copied().collect()
+        as_string.as_bytes().to_vec()
     }
 
     pub fn from_bytes(data: &[u8]) -> Txn {
         serde_json::from_slice::<Txn>(data).unwrap()
     }
 
-    pub fn from_string(string: &String) -> Txn {
+    pub fn from_string(string: &str) -> Txn {
         serde_json::from_str::<Txn>(string).unwrap()
     }
 
@@ -148,7 +150,7 @@ impl fmt::Display for Txn {
             txn_amount: {},\n \
             txn_signature: {}",
             self.txn_id,
-            self.txn_timestamp.to_string(),
+            self.txn_timestamp,
             self.sender_address,
             self.sender_public_key,
             self.receiver_address,

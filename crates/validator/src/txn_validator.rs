@@ -6,13 +6,13 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
+use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 #[allow(deprecated)]
 use secp256k1::{
-    Signature, {Message, PublicKey, Secp256k1},
+    Signature,
+    {Message, PublicKey, Secp256k1},
 };
-
-use lrdb::Account;
 use txn::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
@@ -34,14 +34,12 @@ where
         {
             Ok(maybe_bytes) => match maybe_bytes {
                 Some(bytes) => match &bincode::deserialize::<Account>(&bytes) {
-                    Ok(account) => return Ok(account.clone()),
-                    Err(_) => {
-                        return Err(TxnValidatorError::FailedToDeserializeValue(bytes.clone()))
-                    }
+                    Ok(account) => Ok(account.clone()),
+                    Err(_) => Err(TxnValidatorError::FailedToDeserializeValue(bytes.clone())),
                 },
                 None => Err(TxnValidatorError::NoValueForKey),
             },
-            Err(err) => return Err(TxnValidatorError::FailedToGetValueForKey(key, err)),
+            Err(err) => Err(TxnValidatorError::FailedToGetValueForKey(key, err)),
         }
     }
 }
@@ -184,24 +182,27 @@ impl<D: Database> TxnValidator<D> {
     pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
         match self.state.get(txn.sender_address.clone().into_bytes()) {
             Ok(account) => {
-                if let None = (account.credits - account.debits).checked_sub(txn.txn_amount) {
+                if (account.credits - account.debits)
+                    .checked_sub(txn.txn_amount)
+                    .is_none()
+                {
                     return Err(TxnValidatorError::TxnAmountIncorrect);
                 };
                 Ok(())
             },
-            Err(_) => return Err(TxnValidatorError::InvalidSender),
+            Err(_) => Err(TxnValidatorError::InvalidSender),
         }
     }
 
     /// An entire Txn structure validator
     pub fn validate_structure(&self, txn: &Txn) -> Result<()> {
-        self.validate_amount(&txn)
-            .and_then(|_| self.validate_public_key(&txn))
-            .and_then(|_| self.validate_sender_address(&txn))
-            .and_then(|_| self.validate_receiver_address(&txn))
-            .and_then(|_| self.validate_signature(&txn))
-            .and_then(|_| self.validate_amount(&txn))
-            .and_then(|_| self.validate_timestamp(&txn))
+        self.validate_amount(txn)
+            .and_then(|_| self.validate_public_key(txn))
+            .and_then(|_| self.validate_sender_address(txn))
+            .and_then(|_| self.validate_receiver_address(txn))
+            .and_then(|_| self.validate_signature(txn))
+            .and_then(|_| self.validate_amount(txn))
+            .and_then(|_| self.validate_timestamp(txn))
     }
 
     /// An entire Txn validator

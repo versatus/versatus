@@ -34,22 +34,22 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
                     StateComponent::NetworkState => Some(Command::SendStateComponents(
                         requestor_address.to_string(),
                         component,
-                        sender_id.clone(),
+                        sender_id,
                     )),
                     StateComponent::Blockchain => Some(Command::SendStateComponents(
                         requestor_address.to_string(),
                         component,
-                        sender_id.clone(),
+                        sender_id,
                     )),
                     StateComponent::Ledger => Some(Command::SendStateComponents(
                         requestor_address.to_string(),
                         component,
-                        sender_id.clone(),
+                        sender_id,
                     )),
                     StateComponent::All => Some(Command::SendStateComponents(
                         requestor_address.to_string(),
                         component,
-                        sender_id.clone(),
+                        sender_id,
                     )),
                     _ => Some(Command::SendState(
                         requestor_address.to_string(),
@@ -155,7 +155,7 @@ pub fn process_message(message: MessageType, node_id: String, addr: String) -> O
             None
         },
         MessageType::ClaimAbandonedMessage { claim, sender_id } => {
-            return Some(Command::ClaimAbandoned(sender_id, claim))
+            Some(Command::ClaimAbandoned(sender_id, claim))
         },
         _ => None,
     }

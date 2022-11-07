@@ -4,7 +4,7 @@
 // Caching
 use std::net::SocketAddr;
 
-use messages::{message_types::MessageType, packet::Packet};
+use messages::packet::Packet;
 use serde::{Deserialize, Serialize};
 use udp2p::protocol::protocol::Message;
 
@@ -17,7 +17,7 @@ pub const MINEBLOCK: &str = "MINEBLK";
 pub const SENDADDRESS: &str = "SENDADR";
 pub const STOPMINE: &str = "STOPMINE";
 pub const GETHEIGHT: &str = "GETHEIGHT";
-pub const QUIT: &str = "QUIT";
+pub const STOP: &str = "STOP";
 
 /// Component Types of a state update
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -101,8 +101,6 @@ pub enum Command {
     ProcessBacklog,
     SendAddress,
     NonceUp,
-    #[deprecated(note = "Command::Stop should be used instead")]
-    Quit,
     InitDKG,
     SendPartMessage(Vec<u8>),
     SendAckMessage(Vec<u8>),
@@ -113,40 +111,43 @@ pub enum Command {
 
 /// A Trait to convert different types into a command
 pub trait AsCommand {
-    fn into_command(&self) -> Command;
+    fn into_command(self) -> Command;
 }
 
 impl Command {
     /// Converts a string (typically a user input in the terminal interface)
     /// into a command
+    // TODO: Reconsider the naming (or move that to trait impl)
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(command_string: &str) -> Option<Command> {
         let args: Vec<&str> = command_string.split(' ').collect();
         if args.len() == 4 {
             match args[0] {
-                SENDTXN => {
-                    return Some(Command::SendTxn(
-                        args[1].parse::<u32>().unwrap(),
-                        args[2].to_string(),
-                        args[3].parse::<u128>().unwrap(),
-                    ))
-                },
+                SENDTXN => Some(Command::SendTxn(
+                    args[1].parse::<u32>().unwrap(),
+                    args[2].to_string(),
+                    args[3].parse::<u128>().unwrap(),
+                )),
                 _ => {
                     println!("Invalid command string!");
-                    return None;
+                    None
                 },
             }
         } else if args.len() == 3 {
-            match args[0] {
-                _ => {
-                    println!("Invalid command string!");
-                    return None;
-                },
-            }
+            // TODO: why was this like that:
+            // match args[0] {
+            //     _ => {
+            //         println!("Invalid command string!");
+            //         None
+            //     },
+            // }
+            println!("Invalid command string!");
+            None
         } else if args.len() == 2 {
             match args[0] {
                 GETBAL => {
                     if let Ok(num) = args[1].parse::<u32>() {
-                        return Some(Command::GetBalance(num));
+                        Some(Command::GetBalance(num))
                     } else {
                         println!("Invalid command string");
                         None
@@ -158,13 +159,13 @@ impl Command {
                 },
             }
         } else {
-            match command_string.clone() {
-                GETSTATE => return Some(Command::GetState),
-                MINEBLOCK => return Some(Command::MineBlock),
-                STOPMINE => return Some(Command::StopMine),
-                SENDADDRESS => return Some(Command::SendAddress),
-                GETHEIGHT => return Some(Command::GetHeight),
-                QUIT => return Some(Command::Quit),
+            match command_string {
+                GETSTATE => Some(Command::GetState),
+                MINEBLOCK => Some(Command::MineBlock),
+                STOPMINE => Some(Command::StopMine),
+                SENDADDRESS => Some(Command::SendAddress),
+                GETHEIGHT => Some(Command::GetHeight),
+                STOP => Some(Command::Stop),
                 _ => {
                     println!("Invalid command string");
                     None

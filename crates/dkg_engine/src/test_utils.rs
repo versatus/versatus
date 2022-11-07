@@ -1,20 +1,15 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    sync::{mpsc::channel, Arc, RwLock},
+    sync::{Arc, RwLock},
 };
 
-use commands::command::Command;
 use hbbft::{
     crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
     sync_key_gen::Ack,
 };
-use messages::packet::Packet;
-use node::{command_handler::CommandHandler, message_handler::MessageHandler};
 use primitives::types::NodeType;
-use tokio::sync::mpsc::unbounded_channel;
-use udp2p::protocol::protocol::Message;
 use vrrb_config::NodeConfig;
 
 use crate::{
@@ -71,10 +66,10 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
     let mut dkg_instances = vec![];
     for i in 0..total_nodes {
         let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
-        let secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
+        let _secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
 
-        // let (_, msg_receiver) = unbounded_channel::<(Packet, std::net::SocketAddr)>();
-        // let (msg_sender, _) = unbounded_channel();
+        // let (_, msg_receiver) = unbounded_channel::<(Packet,
+        // std::net::SocketAddr)>(); let (msg_sender, _) = unbounded_channel();
 
         dkg_instances.push(DkgEngine {
             node_info: Arc::new(RwLock::new(node::Node::new(NodeConfig {
@@ -113,31 +108,6 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
     dkg_instances
 }
 
-/// It creates a bunch of channels and returns a `CommandHandler` struct that
-/// contains all of them
-///
-/// Returns:
-///
-/// A CommandHandler struct
-fn generate_command_handler() -> CommandHandler {
-    let (to_mining_sender, _to_mining_receiver) = unbounded_channel::<Command>();
-    let (to_blockchain_sender, _to_blockchain_receiver) = unbounded_channel::<Command>();
-    let (to_gossip_sender, _to_gossip_receiver) = unbounded_channel::<Command>();
-    let (to_swarm_sender, _to_swarm_receiver) = unbounded_channel::<Command>();
-    let (to_state_sender, _to_state_receiver) = unbounded_channel::<Command>();
-    let (to_gossip_tx, _to_gossip_rx) = channel::<(std::net::SocketAddr, Message)>();
-    let (_sn, rx) = unbounded_channel::<Command>();
-
-    CommandHandler {
-        to_mining_sender,
-        to_blockchain_sender,
-        to_gossip_sender,
-        to_swarm_sender,
-        to_state_sender,
-        to_gossip_tx,
-        receiver: rx,
-    }
-}
 
 pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
     let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
@@ -195,7 +165,7 @@ pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
         let _ = dkg_engine_node4.ack_partial_commitment(i);
     }
 
-    let mut new_store: HashMap<(u16, u16), Ack> = HashMap::new();
+    let mut new_store: HashMap<(u16, u16), Ack>;
     new_store = dkg_engine_node1
         .dkg_state
         .ack_message_store
@@ -228,10 +198,11 @@ pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
     let _ = dkg_engine_node3.generate_key_sets();
     let _ = dkg_engine_node4.generate_key_sets();
 
-    return vec![
+    // Returning the dkg engines
+    vec![
         dkg_engine_node1,
         dkg_engine_node2,
         dkg_engine_node3,
         dkg_engine_node4,
-    ];
+    ]
 }

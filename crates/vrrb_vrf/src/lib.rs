@@ -17,7 +17,6 @@ mod tests {
         VRF,
     };
 
-    use super::*;
     use crate::{vrng::VRNG, vvrf::VVRF};
 
     #[test]

@@ -84,42 +84,42 @@ impl VRNG for VVRF {
         let mut data = [0u8; 1];
         self.rng.fill_bytes(&mut data);
         let num = u8::from_be_bytes(data) % (max - min + 1) + min;
-        return num % (max - min + 1) + min;
+        num % (max - min + 1) + min
     }
 
     fn generate_u16_in_range(&mut self, min: u16, max: u16) -> u16 {
         let mut data = [0u8; 2];
         self.rng.fill_bytes(&mut data);
         let num = u16::from_be_bytes(data) % (max - min + 1) + min;
-        return num % (max - min + 1) + min;
+        num % (max - min + 1) + min
     }
 
     fn generate_u32_in_range(&mut self, min: u32, max: u32) -> u32 {
         let mut data = [0u8; 4];
         self.rng.fill_bytes(&mut data);
         let num = u32::from_be_bytes(data) % (max - min + 1) + min;
-        return num % (max - min + 1) + min;
+        num % (max - min + 1) + min
     }
 
     fn generate_u64_in_range(&mut self, min: u64, max: u64) -> u64 {
         let mut data = [0u8; 8];
         self.rng.fill_bytes(&mut data);
         let num = u64::from_be_bytes(data) % (max - min + 1) + min;
-        return num % (max - min + 1) + min;
+        num % (max - min + 1) + min
     }
 
     fn generate_u128_in_range(&mut self, min: u128, max: u128) -> u128 {
         let mut data = [0u8; 16];
         self.rng.fill_bytes(&mut data);
         let num = u128::from_be_bytes(data) % (max - min + 1) + min;
-        return num % (max - min + 1) + min;
+        num % (max - min + 1) + min
     }
 
     fn generate_usize_in_range(&mut self, min: usize, max: usize) -> usize {
         let data = &[0u8; 8];
         let (int_bytes, _) = data.split_at(std::mem::size_of::<usize>());
         let num = usize::from_be_bytes(int_bytes.try_into().unwrap());
-        return num % (max - min + 1) + min;
+        num % (max - min + 1) + min
     }
 
     fn generate_word(&mut self) -> String {
@@ -139,6 +139,7 @@ impl VRNG for VVRF {
         (0..n)
             .map(|_| WORDS.choose(&mut rng).unwrap())
             .fold(String::new(), |mut acc, word| {
+                #[allow(clippy::single_char_add_str)]
                 acc.push_str(" ");
                 acc.push_str(word);
                 acc
@@ -170,7 +171,7 @@ impl VVRF {
     }
 
     pub fn generate_secret_key() -> SecretKey {
-        return SecretKey::new(&mut rand::thread_rng());
+        SecretKey::new(&mut rand::thread_rng())
     }
 
     ///get vrf from openssl struct ECVRF (eliptic curve vrf)
@@ -180,8 +181,8 @@ impl VVRF {
 
     ///get pk from vrf crate
     fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {
-        let key = vrf.derive_public_key(&secret_key.secret_bytes()).unwrap();
-        key
+        // TODO: Is this unwrap neccesary?
+        vrf.derive_public_key(&secret_key.secret_bytes()).unwrap()
     }
 
     ///generate seed
@@ -214,12 +215,12 @@ impl VVRF {
     pub fn verify_seed(&mut self) -> Result<(), InvalidVVRF> {
         if let Ok(beta) = self.vrf.verify(&self.pubkey, &self.proof, &self.message) {
             if self.hash.to_vec() != beta {
-                return Err(InvalidVVRF::InvalidProofError);
+                Err(InvalidVVRF::InvalidProofError)
             } else {
-                return Ok(());
+                Ok(())
             }
         } else {
-            return Err(InvalidVVRF::InvalidProofError);
+            Err(InvalidVVRF::InvalidProofError)
         }
     }
 

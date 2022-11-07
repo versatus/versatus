@@ -2,7 +2,8 @@
 use accountable::accountable::Accountable;
 use rand::{
     distributions::{Distribution, WeightedIndex},
-    thread_rng, Rng,
+    thread_rng,
+    Rng,
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
@@ -140,7 +141,7 @@ impl RewardState {
         self.n_flakes_current_epoch = (remaining_blocks as f64 * 0.6f64) as u128;
         self.n_grains_current_epoch = (remaining_blocks as f64 * 0.4f64) as u128;
         self.epoch += 1;
-        self.next_epoch_block = self.next_epoch_block + N_BLOCKS_PER_EPOCH;
+        self.next_epoch_block += N_BLOCKS_PER_EPOCH;
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -157,7 +158,10 @@ impl RewardState {
         serde_json::from_str::<RewardState>(&to_string).unwrap()
     }
 
+    //TODO: Can we rename that?
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
+        // TODO: Is this unwrap safe?
         serde_json::to_string(self).unwrap()
     }
 
@@ -270,7 +274,7 @@ impl RewardState {
 }
 
 impl Reward {
-    pub fn new(miner: Option<String>, reward_state: &RewardState) -> Reward {
+    pub fn new(miner: Option<String>, _reward_state: &RewardState) -> Reward {
         Reward {
             miner,
             amount: 0, // Add error handling, as this should NEVER happen.
@@ -283,16 +287,17 @@ impl Reward {
             miner,
             amount: match category {
                 Category::Genesis(Some(amount)) => amount,
-                 // TODO: set amount to base line reward by default
+                // TODO: set amount to base line reward by default
                 _ => 0,
             },
         }
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
+        // TODO: Is this unwrap safe?
         let as_string = serde_json::to_string(self).unwrap();
 
-        as_string.as_bytes().iter().copied().collect()
+        as_string.as_bytes().to_vec()
     }
 
     pub fn from_bytes(data: &[u8]) -> Reward {
@@ -312,11 +317,11 @@ impl Category {
     }
 
     pub fn generate_category(reward_state: &RewardState) -> Category {
-        let n_flakes_current_epoch = reward_state.clone().n_flakes_current_epoch.clone();
-        let n_grains_current_epoch = reward_state.clone().n_grains_current_epoch.clone();
-        let n_nuggets_current_epoch = reward_state.clone().n_grains_current_epoch.clone();
-        let n_veins_current_epoch = reward_state.clone().n_veins_current_epoch.clone();
-        let n_motherlodes_current_epoch = reward_state.clone().n_motherlodes_current_epoch.clone();
+        let n_flakes_current_epoch = (*reward_state).n_flakes_current_epoch;
+        let n_grains_current_epoch = (*reward_state).n_grains_current_epoch;
+        let n_nuggets_current_epoch = (*reward_state).n_grains_current_epoch;
+        let n_veins_current_epoch = (*reward_state).n_veins_current_epoch;
+        let n_motherlodes_current_epoch = (*reward_state).n_motherlodes_current_epoch;
 
         let items = vec![
             (Category::Flake(None), n_flakes_current_epoch),
@@ -361,7 +366,7 @@ impl Category {
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
 
-        as_string.as_bytes().iter().copied().collect()
+        as_string.as_bytes().to_vec()
     }
 
     pub fn from_bytes(data: &[u8]) -> Category {

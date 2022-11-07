@@ -106,7 +106,7 @@ impl CommandHandler {
             Command::StoreStateDbChunk(_object, _chunk, _chunk_number, _total_chunks) => {},
             Command::ProcessBacklog => {},
             Command::CheckStateUpdateStatus((_block_height, _block, _last_block)) => {},
-            Command::Quit => {
+            Command::Stop => {
                 // TODO: Inform all the threads that you're shutting down.
             },
             Command::SendMessage(src, message) => {

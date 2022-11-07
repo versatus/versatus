@@ -11,6 +11,12 @@ pub struct Ledger<C: Clone + Ownable + Nonceable + Serialize> {
     pub claims: LinkedHashMap<String, C>,
 }
 
+impl Default for Ledger<Claim> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ledger<Claim> {
     pub fn new() -> Ledger<Claim> {
         Ledger {
@@ -28,6 +34,8 @@ impl Ledger<Claim> {
         serde_json::from_slice::<Ledger<Claim>>(&data).unwrap()
     }
 
+    // TODO: Should we change the name?
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
