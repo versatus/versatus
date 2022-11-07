@@ -205,7 +205,7 @@ impl Miner {
     //TODO: Require a specific key to mine the genesis block so that only one node
     // controlled by the organization can mine it.
     pub fn genesis(&mut self) -> Option<Block> {
-        if !GENESIS_ALLOWED_MINERS.contains(self.claim.pubkey) {
+        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.pubkey) {
             return None;
         }
         self.claim_map
