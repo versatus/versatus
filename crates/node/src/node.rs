@@ -36,11 +36,7 @@ use crate::{
     result::*,
     runtime::blockchain_module::BlockchainModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth,
-    NodeType,
-    RuntimeModule,
-    RuntimeModuleState,
-    StateModule,
+    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -79,9 +75,9 @@ pub struct Node {
     /// Whether the current node is a bootstrap node or not
     is_bootsrap: bool,
 
-    /// The address of the bootstrap node, used for peer discovery and initial
+    /// The address of the bootstrap node(s), used for peer discovery and initial
     /// state sync
-    bootsrap_addr: SocketAddr,
+    bootstrap_node_addresses: Vec<SocketAddr>,
 
     /// VRRB world state. it contains the accounts tree
     // state: LeftRightTrie<MemoryDB>,
@@ -114,11 +110,13 @@ impl Node {
         let mut secret_key_encoded = Vec::new();
 
         let http_api_server_config = HttpApiServerConfig {
-            address: config.http_api_address.clone(),
+            address: config.http_api_address.to_string(),
             api_title: config.http_api_title.clone(),
             api_version: config.http_api_version.clone(),
             server_timeout: config.http_api_shutdown_timeout.clone(),
         };
+
+        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
 
         Self {
             id: config.id.clone(),
@@ -128,7 +126,7 @@ impl Node {
             pubkey: pubkey.to_string(),
             public_key: pubkey.to_string().into_bytes(),
             is_bootsrap: config.bootstrap,
-            bootsrap_addr: config.bootstrap_node_addr,
+            bootstrap_node_addresses,
             running_status: RuntimeModuleState::Stopped,
             data_dir: config.data_dir().clone(),
             vm,
@@ -153,10 +151,6 @@ impl Node {
 
     pub fn is_bootsrap(&self) -> bool {
         self.is_bootsrap
-    }
-
-    pub fn bootsrap_addr(&self) -> SocketAddr {
-        self.bootsrap_addr
     }
 
     pub fn status(&self) -> RuntimeModuleState {
