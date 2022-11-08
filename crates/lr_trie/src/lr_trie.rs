@@ -3,7 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
 use left_right::{Absorb, ReadHandle, WriteHandle};
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 use serde::{Deserialize, Serialize};
 
 use crate::{Key, Operation};
@@ -168,6 +168,41 @@ where
     }
 }
 
+pub enum LeftRightTrieError {
+    FailedToDeserializeValue(Vec<u8>),
+    NoValueForKey,
+    FailedToGetValueForKey(Vec<u8>, TrieError),
+}
+
+pub trait GetDeserialized<T: Serialize + for<'a> Deserialize<'a>> {
+    fn get_deserialized_data(&self, key: Vec<u8>) -> Result<T, LeftRightTrieError>;
+}
+
+impl<T, D> GetDeserialized<T> for ReadHandle<InnerTrie<D>>
+where
+    D: Database,
+    T: for<'a> Deserialize<'a> + Serialize + Clone,
+{
+    fn get_deserialized_data(&self, key: Vec<u8>) -> Result<T, LeftRightTrieError> {
+        match self
+            .enter()
+            .map(|guard| guard.clone())
+            .unwrap_or_default()
+            .get(&key)
+        {
+            Ok(maybe_bytes) => match maybe_bytes {
+                Some(bytes) => match &bincode::deserialize::<T>(&bytes) {
+                    Ok(data) => Ok(data.clone()),
+                    Err(_) => Err(LeftRightTrieError::FailedToDeserializeValue(bytes)),
+                },
+                None => Err(LeftRightTrieError::NoValueForKey),
+            },
+            Err(err) => Err(LeftRightTrieError::FailedToGetValueForKey(key, err)),
+        }
+    }
+}
+
+
 impl<D: Database> From<D> for LeftRightTrie<D> {
     fn from(db: D) -> Self {
         let db = Arc::new(db);
@@ -192,7 +227,7 @@ impl<D: Database> Clone for LeftRightTrie<D> {
 mod tests {
     use std::thread;
 
-    use patriecia::{db::MemoryDB, inner::TrieIterator};
+    use patriecia::db::MemoryDB;
 
     use super::*;
 
