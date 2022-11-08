@@ -36,7 +36,11 @@ use crate::{
     result::*,
     runtime::blockchain_module::BlockchainModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -75,8 +79,8 @@ pub struct Node {
     /// Whether the current node is a bootstrap node or not
     is_bootsrap: bool,
 
-    /// The address of the bootstrap node(s), used for peer discovery and initial
-    /// state sync
+    /// The address of the bootstrap node(s), used for peer discovery and
+    /// initial state sync
     bootstrap_node_addresses: Vec<SocketAddr>,
 
     /// VRRB world state. it contains the accounts tree

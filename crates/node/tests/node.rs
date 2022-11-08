@@ -10,11 +10,11 @@ use vrrb_core::event_router::Event;
 
 #[tokio::test]
 async fn node_runtime_starts_and_stops() {
-    let temp_dir_path = env::temp_dir();
-    let db_path = temp_dir_path.clone();
-    _ = db_path.join("node.db");
+    let data_dir = env::temp_dir();
+    let db_path = data_dir.join("node.db");
 
-    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+    let gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081);
 
     let id = Uuid::new_v4().to_simple().to_string();
     let idx = 100;
@@ -22,14 +22,13 @@ async fn node_runtime_starts_and_stops() {
     let node_config = NodeConfig {
         id,
         idx,
-        data_dir: temp_dir_path,
-        node_type: NodeType::Full,
+        data_dir,
         db_path,
-        node_idx: 1,
+        node_type: NodeType::Full,
+        gossip_address,
         bootstrap: false,
-        address,
-        bootstrap_node_addr: address,
-        http_api_address: "127.0.0.1:0".into(),
+        bootstrap_node_addresses: vec![],
+        http_api_address,
         http_api_title: "Node HTTP API".into(),
         http_api_version: "1.0".into(),
         http_api_shutdown_timeout: None,
