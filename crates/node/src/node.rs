@@ -36,7 +36,11 @@ use crate::{
     result::*,
     runtime::blockchain_module::BlockchainModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
