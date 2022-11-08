@@ -15,10 +15,11 @@ use block::header::BlockHeader;
 use claim::claim::Claim;
 use noncing::nonceable::Nonceable;
 use pool::pool::{Pool, PoolKind};
+use primitives::types::Epoch;
 use reward::reward::RewardState;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::digest;
 use state::state::NetworkState;
 use txn::txn::Txn;
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -41,8 +42,8 @@ pub enum MinerStatus {
 #[derive(Debug)]
 pub struct NoLowestPointerError(String);
 
-/// The miner struct contains all the data and methods needed to operate a mining unit
-/// and participate in the data replication process.
+/// The miner struct contains all the data and methods needed to operate a
+/// mining unit and participate in the data replication process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
@@ -104,6 +105,8 @@ pub struct Miner {
     /// that the block was indeed proposed by the miner with the claim
     /// entitled to mine the given block at the given block height
     secret_key: String,
+
+    epoch: Epoch,
 }
 
 impl Miner {
@@ -118,9 +121,10 @@ impl Miner {
         reward_state: RewardState,
         network_state: NetworkState,
         n_miners: u128,
-    ) -> Miner {
-        let miner = Miner {
-            claim: Claim::new(pubkey.clone(), address, 1),
+        epoch: Epoch,
+    ) -> Self {
+        Self {
+            claim: Claim::new(pubkey, address, 1),
             mining: false,
             claim_map: LinkedHashMap::new(),
             txn_pool: Pool::new(PoolKind::Txn),
@@ -135,9 +139,8 @@ impl Miner {
             abandoned_claim_counter: LinkedHashMap::new(),
             abandoned_claim: None,
             secret_key,
-        };
-
-        miner
+            epoch,
+        }
     }
 
     /// Calculates the pointer sums and returns the lowest for a given block
@@ -153,22 +156,20 @@ impl Miner {
         // pointer sum
         let mut pointers = claim_map
             .iter()
-            .map(|(_, claim)| return (claim.clone().hash, claim.clone().get_pointer(block_seed)))
+            .map(|(_, claim)| (claim.clone().hash, claim.clone().get_pointer(block_seed)))
             .collect::<Vec<_>>();
 
         // Retains only the pointers that have Some(value) in the 2nd field of the tuple
-        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None variant
-        // in the event that the pointer sum contains integer overflows OR in the event that
-        // not ever
+        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None
+        // variant in the event that the pointer sum contains integer overflows
+        // OR in the event that not ever
         pointers.retain(|(_, v)| !v.is_none());
 
         // unwraps all the pointer sum values.
         //TODO: make this more efficient, this is a wasted operation
         let mut base_pointers = pointers
             .iter()
-            .map(|(k, v)| {
-                return (k.clone(), v.unwrap());
-            })
+            .map(|(k, v)| (k.clone(), v.unwrap()))
             .collect::<Vec<_>>();
 
         // check if there's a minimum, and return the key of the lowest
@@ -185,7 +186,7 @@ impl Miner {
     /// claim.
     pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
         if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
-            return Ok(hash == self.clone().claim.hash);
+            Ok(hash == self.clone().claim.hash)
         } else {
             Err(
                 Box::new(
@@ -210,25 +211,25 @@ impl Miner {
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> Option<Block> {
-        let claim_map_hash =
-            digest_bytes(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
+    pub fn mine(&mut self) -> (Option<Block>, u128) {
+        let claim_map_hash = digest(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
         if let Some(last_block) = self.last_block.clone() {
             return Block::mine(
                 self.clone().claim,
-                last_block.clone(),
-                self.clone().txn_pool.confirmed.clone(),
-                self.clone().claim_pool.confirmed.clone(),
+                last_block,
+                self.clone().txn_pool.confirmed,
+                self.clone().claim_pool.confirmed,
                 Some(claim_map_hash),
                 &self.clone().reward_state.clone(),
-                &self.clone().network_state.clone(),
-                self.clone().neighbors.clone(),
+                &self.clone().network_state,
+                self.clone().neighbors,
                 self.abandoned_claim.clone(),
                 self.secret_key.clone(),
+                self.epoch,
             );
         }
 
-        None
+        (None, 0)
     }
 
     /// Increases the nonce and calculates the new hash for all claims
@@ -285,17 +286,18 @@ impl Miner {
         if rejected.len() as f64 / self.claim_map.len() as f64 > 1.0 - VALIDATOR_THRESHOLD {
             let slash_claims = validators
                 .iter()
-                .map(|(k, _)| return k.to_string())
+                .map(|(k, _)| k.to_string())
                 .collect::<Vec<_>>();
-            return Some(slash_claims);
+            Some(slash_claims)
         } else {
-            return None;
+            None
         }
     }
 
-    /// Turns a claim into an ineligible claim in the event a miner proposes an invalid block or tries to spam the network.
-    //TODO: Need much stricter penalty, as this miner can still send messages. The transport layer should reject further messages
-    // from this node.
+    /// Turns a claim into an ineligible claim in the event a miner proposes an
+    /// invalid block or tries to spam the network.
+    //TODO: Need much stricter penalty, as this miner can still send messages. The
+    // transport layer should reject further messages from this node.
     pub fn slash_claim(&mut self, pubkey: String) {
         if let Some(claim) = self.claim_map.get_mut(&pubkey) {
             claim.eligible = false;
@@ -335,6 +337,8 @@ impl Miner {
     }
 
     /// Serializes the miner into a string
+    // TODO: Consider changing this to `serialize_to_string`
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(&self).unwrap()
     }

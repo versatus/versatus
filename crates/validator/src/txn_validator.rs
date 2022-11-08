@@ -8,13 +8,12 @@ use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
 use lr_trie::{GetDeserialized, LeftRightTrieError};
 use lrdb::Account;
-use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
+use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
 #[allow(deprecated)]
 use secp256k1::{
     Signature,
     {Message, PublicKey, Secp256k1},
 };
-use serde::{Deserialize, Serialize};
 use txn::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
@@ -161,24 +160,27 @@ impl<D: Database> TxnValidator<D> {
             .get_deserialized_data(txn.sender_address.clone().into_bytes());
         match data {
             Ok(account) => {
-                if let None = (account.credits - account.debits).checked_sub(txn.txn_amount) {
+                if (account.credits - account.debits)
+                    .checked_sub(txn.txn_amount)
+                    .is_none()
+                {
                     return Err(TxnValidatorError::TxnAmountIncorrect);
                 };
                 Ok(())
             },
-            Err(_) => return Err(TxnValidatorError::InvalidSender),
+            Err(_) => Err(TxnValidatorError::InvalidSender),
         }
     }
 
     /// An entire Txn structure validator
     pub fn validate_structure(&self, txn: &Txn) -> Result<()> {
-        self.validate_amount(&txn)
-            .and_then(|_| self.validate_public_key(&txn))
-            .and_then(|_| self.validate_sender_address(&txn))
-            .and_then(|_| self.validate_receiver_address(&txn))
-            .and_then(|_| self.validate_signature(&txn))
-            .and_then(|_| self.validate_amount(&txn))
-            .and_then(|_| self.validate_timestamp(&txn))
+        self.validate_amount(txn)
+            .and_then(|_| self.validate_public_key(txn))
+            .and_then(|_| self.validate_sender_address(txn))
+            .and_then(|_| self.validate_receiver_address(txn))
+            .and_then(|_| self.validate_signature(txn))
+            .and_then(|_| self.validate_amount(txn))
+            .and_then(|_| self.validate_timestamp(txn))
     }
 
     /// An entire Txn validator

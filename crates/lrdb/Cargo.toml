@@ -7,17 +7,11 @@ edition = "2021"
 
 [dependencies]
 evmap = "5.0.2"
-evmap-derive = "0.2.0"
-linked-hash-map = "0.5.6"
 sha2 = "0.10.2"
 secp256k1 = { version = "0.24.0", features = ["global-context", "rand"] }
 serde = { version = "1.0.142", features = ["derive"] }
-bincode = "1.3.3"
-patriecia = { git = "https://github.com/vrrb-io/patriecia", branch = "main" }
 thiserror = "1.0.32"
-vrrb_core = {path = "../vrrb_core"}
 
 [dev-dependencies]
 rand = "0.8.5"
 secp256k1 = { version = "0.24.0", features = ["global-context", "rand"] }
-

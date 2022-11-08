@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::digest;
+use udp2p::node::peer_id::PeerId;
 
 use crate::message::{AsMessage, Message};
 
@@ -88,6 +89,32 @@ pub enum MessageType {
         claim: Vec<u8>,
         sender_id: String,
     },
+    DKGPartCommitmentMessage {
+        dkg_part_commitment: Vec<u8>,
+        sender_id: String,
+    },
+    DKGACKCommitmentMessage {
+        dkg_ack_commitment: Vec<u8>,
+        sender_id: String,
+    },
+    SendPeerIDMessage {
+        pub_key: String,
+        peer_id: PeerId,
+    },
+    ResetPeerConnectionMessage {
+        peer_id: PeerId,
+    },
+    RemovePeerMessage {
+        peer_id: PeerId,
+        socket_addr: SocketAddr,
+    },
+    AddPeerMessage {
+        peer_id: PeerId,
+        socket_addr: SocketAddr,
+    },
+    SendChainLockSignatureMessage {
+        chain_lock_signature: Vec<u8>,
+    },
 }
 
 impl MessageType {
@@ -113,11 +140,11 @@ impl StateBlock {
 }
 
 impl AsMessage for MessageType {
-    fn into_message(&self, return_receipt: u8) -> Message {
+    fn into_message(self, return_receipt: u8) -> Message {
         Message {
-            id: digest_bytes(&self.clone().as_bytes()).as_bytes().to_vec(),
+            id: digest(&*self.clone().as_bytes()).as_bytes().to_vec(),
             source: None,
-            data: self.clone().as_bytes(),
+            data: self.as_bytes(),
             sequence_number: None,
             signature: None,
             topics: None,

@@ -10,5 +10,4 @@ tokio = { version = "1.21.2", features = ["full"] }
 commands = { path = "../commands" }
 telemetry = { path = "../telemetry" }
 anyhow = "1.0.65"
-lru_time_cache = "0.11.0"
-cuckoofilter = "0.5.0"
+

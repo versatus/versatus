@@ -10,7 +10,7 @@ use crate::types::DkgError;
 /// * `upper_bound`: The upper bound value for no of nodes in LLMQ.
 /// * `threshold`: The value determines minimum no of nodes needed to sign the
 ///   message.
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ThresholdConfig {
     pub upper_bound: u16,

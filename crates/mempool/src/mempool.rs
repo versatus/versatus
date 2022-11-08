@@ -1,5 +1,3 @@
-use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     hash::Hash,
@@ -9,7 +7,8 @@ use std::{
 
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
-
+use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
+use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
 use txn::txn::Txn;
 
@@ -44,9 +43,9 @@ impl TxnRecord {
         }
     }
 
-    pub fn new_by_id(txn_id: &String) -> TxnRecord {
+    pub fn new_by_id(txn_id: &str) -> TxnRecord {
         TxnRecord {
-            txn_id: txn_id.clone(),
+            txn_id: txn_id.to_owned(),
             ..Default::default()
         }
     }
@@ -143,15 +142,13 @@ impl Absorb<MempoolOp> for Mempool {
         match op {
             MempoolOp::Add(recdata, status) => match status {
                 TxnStatus::Pending => {
-                    self.pending.insert(recdata.txn_id.clone(), recdata.clone());
+                    self.pending.insert(recdata.txn_id.clone(), recdata);
                 },
                 TxnStatus::Validated => {
-                    self.validated
-                        .insert(recdata.txn_id.clone(), recdata.clone());
+                    self.validated.insert(recdata.txn_id.clone(), recdata);
                 },
                 TxnStatus::Rejected => {
-                    self.rejected
-                        .insert(recdata.txn_id.clone(), recdata.clone());
+                    self.rejected.insert(recdata.txn_id.clone(), recdata);
                 },
             },
             MempoolOp::Remove(recdata, status) => match status {
@@ -189,7 +186,7 @@ impl FetchFiltered for ReadHandle<Mempool> {
         F: FnMut(&String, &mut TxnRecord) -> bool,
     {
         if let Some(map) = self.enter().map(|guard| guard.clone()) {
-            let mut result = map.pending.clone();
+            let mut result = map.pending;
             result.retain(f);
             let mut returned = Vec::<TxnRecord>::new();
             for (_, v) in &result {
@@ -198,7 +195,7 @@ impl FetchFiltered for ReadHandle<Mempool> {
             // TODO:  Error - length
             return returned[0..amount as usize].to_vec();
         };
-        return Vec::<TxnRecord>::new();
+        Vec::<TxnRecord>::new()
     }
 }
 
@@ -207,12 +204,18 @@ pub struct LeftRightMemPoolDB {
     pub write: WriteHandle<Mempool, MempoolOp>,
 }
 
-impl LeftRightMemPoolDB {
-    /// Creates new Mempool DB
-    pub fn new() -> Self {
+impl Default for LeftRightMemPoolDB {
+    fn default() -> Self {
         let (write, read) = left_right::new::<Mempool, MempoolOp>();
 
         LeftRightMemPoolDB { read, write }
+    }
+}
+
+impl LeftRightMemPoolDB {
+    /// Creates new Mempool DB
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Getter for Mempool DB
@@ -231,10 +234,10 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
+    /// use std::collections::HashMap;
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::HashMap;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     ///
@@ -253,12 +256,8 @@ impl LeftRightMemPoolDB {
     /// };
     ///
     /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// assert_eq!(1, lrmempooldb.size().0);
@@ -276,17 +275,16 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    ///
     /// use std::collections::{HashMap, HashSet};
     ///
-    /// use mempool::mempool::{LeftRightMemPoolDB,TxnStatus};
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
     ///
-    /// txns.insert( Txn {
+    /// txns.insert(Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
@@ -301,12 +299,8 @@ impl LeftRightMemPoolDB {
     /// });
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// if let Some(txn) = lrmempooldb.get_txn(&txn_id) {
@@ -320,11 +314,8 @@ impl LeftRightMemPoolDB {
             return None;
         }
 
-        self.get().and_then(|map| {
-            map.pending
-                .get(txn_id)
-                .and_then(|t| Some(Txn::from_string(&t.txn)))
-        })
+        self.get()
+            .and_then(|map| map.pending.get(txn_id).map(|t| Txn::from_string(&t.txn)))
     }
 
     /// Getter for an entire pending Txn record
@@ -360,16 +351,15 @@ impl LeftRightMemPoolDB {
     ///
     /// # Examples
     /// ```
-    ///
+    /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     ///
-    /// txns.insert( Txn {
+    /// txns.insert(Txn {
     ///     txn_id: String::from("1"),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
@@ -384,12 +374,8 @@ impl LeftRightMemPoolDB {
     /// });
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// assert_eq!(1, lrmempooldb.size().0);
@@ -413,17 +399,16 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
+    /// use std::collections::{HashMap, HashSet};
     ///
-    ///
-    /// use mempool::mempool::{LeftRightMemPoolDB,TxnStatus};
+    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
     ///
-    /// txns.insert( Txn {
+    /// txns.insert(Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
@@ -438,12 +423,8 @@ impl LeftRightMemPoolDB {
     /// });
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// match lrmempooldb.remove_txn_by_id(txn_id.clone()) {
@@ -469,10 +450,10 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
+    /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let txn_id = String::from("1");
@@ -492,20 +473,12 @@ impl LeftRightMemPoolDB {
     /// };
     ///
     /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     /// match lrmempooldb.remove_txn(&txn, TxnStatus::Pending) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// assert_eq!(0, lrmempooldb.size().0);
@@ -523,7 +496,6 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    ///
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
@@ -533,7 +505,7 @@ impl LeftRightMemPoolDB {
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
     ///
-    /// txns.insert( Txn {
+    /// txns.insert(Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
@@ -548,12 +520,8 @@ impl LeftRightMemPoolDB {
     /// });
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///      Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// match lrmempooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
@@ -603,10 +571,10 @@ impl LeftRightMemPoolDB {
 
     /// Purge rejected transactions.
     pub fn purge_txn_rejected(&mut self) -> Result<()> {
-        self.get().and_then(|mut map| {
-            map.rejected.clear();
-            Some(())
-        });
+        if let Some(mut map) = self.get() {
+            map.rejected.clear()
+        }
+
         Ok(())
     }
 
@@ -615,17 +583,16 @@ impl LeftRightMemPoolDB {
     /// # Examples
     ///
     /// ```
-    ///
+    /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use txn::txn::Txn;
-    /// use std::collections::{HashSet, HashMap};
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
     ///
-    /// txns.insert( Txn {
+    /// txns.insert(Txn {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
@@ -640,12 +607,8 @@ impl LeftRightMemPoolDB {
     /// });
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///     Ok(_) => {
-    ///         
-    ///     },
-    ///     Err(_) => {
-    ///
-    ///     }
+    ///     Ok(_) => {},
+    ///     Err(_) => {},
     /// };
     ///
     /// assert_eq!(1, lrmempooldb.size().0);

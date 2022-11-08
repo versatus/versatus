@@ -18,6 +18,7 @@ struct MessageEnvelope {
 /// The basic structure for allocating commands to different parts of the
 /// system.
 #[derive(Debug)]
+#[deprecated(note = "replaced by EventRouter")]
 pub struct CommandHandler {
     pub to_mining_sender: UnboundedSender<Command>,
     pub to_blockchain_sender: UnboundedSender<Command>,
@@ -105,7 +106,7 @@ impl CommandHandler {
             Command::StoreStateDbChunk(_object, _chunk, _chunk_number, _total_chunks) => {},
             Command::ProcessBacklog => {},
             Command::CheckStateUpdateStatus((_block_height, _block, _last_block)) => {},
-            Command::Quit => {
+            Command::Stop => {
                 // TODO: Inform all the threads that you're shutting down.
             },
             Command::SendMessage(src, message) => {

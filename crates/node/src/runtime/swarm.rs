@@ -8,7 +8,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use vrrb_core::event_router::Event;
 use block::invalid::InvalidBlockErrorReason;
 use claim::claim::Claim;
 use commands::command::ComponentTypes;
@@ -21,7 +20,7 @@ use public_ip;
 use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
-use state::state::{Components, NetworkState};
+use state::{Components, NetworkState};
 use telemetry::info;
 use tokio::sync::mpsc::{self, error::TryRecvError};
 use txn::txn::Txn;
@@ -36,6 +35,7 @@ use udp2p::{
     transport::{handler::MessageHandler as GossipMessageHandler, transport::Transport},
     utils::utils::ByteRep,
 };
+use vrrb_core::event_router::Event;
 use wallet::wallet::WalletAccount;
 
 use crate::{node_auth::NodeAuth, result::Result, RuntimeModule, RuntimeModuleState};

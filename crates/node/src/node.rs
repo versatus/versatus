@@ -15,8 +15,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
-
 use block::Block;
 use claim::claim::Claim;
 use commands::command::{Command, ComponentTypes};
@@ -32,17 +30,18 @@ use network::{components::StateComponent, message};
 use patriecia::db::MemoryDB;
 use pickledb::PickleDb;
 use poem::listener::Listener;
-use primitives::types::{NodeId, NodeIdx, StopSignal};
+use primitives::types::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey, StopSignal};
 use public_ip;
 use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-use state::state::{Components, NetworkState};
+use state::{Components, NetworkState};
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
+use trecho::vm::Cpu;
 use txn::txn::Txn;
 use udp2p::{
     discovery::{kad::Kademlia, routing::RoutingTable},
@@ -56,15 +55,19 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use uuid::Uuid;
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use wallet::wallet::WalletAccount;
 
 use crate::{
     miner::MiningModule,
     result::*,
-    runtime::blockchain::BlockchainModule,
-    state::StateModule,
+    runtime::blockchain_module::BlockchainModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState,
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -74,7 +77,7 @@ pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 #[derive(Debug)]
 pub struct Node {
     /// Every node needs a unique ID to identify it as a member of the network.
-    pub id: primitives::types::NodeIdentifier,
+    pub id: NodeIdentifier,
 
     /// Index of the node in the network
     pub idx: NodeIdx,
@@ -82,41 +85,44 @@ pub struct Node {
     /// Every node needs to have a secret key to sign messages, blocks, tx, etc.
     /// for authenticity
     //TODO: Discuss whether we need this here or whether it's redundant.
-    pub secret_key: primitives::types::SecretKey,
+    pub secret_key: SecretKey,
 
     /// Every node needs to have a public key to have its messages, blocks, tx,
     /// etc, signatures validated by other nodes
     //TODOL: Discuss whether this is needed here.
     pub pubkey: String,
-    pub public_key: primitives::types::PublicKey,
+    pub public_key: PublicKey,
 
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
     //TODO: Create different custom structs for different kinds of nodes with different
     // authorization so that we can have custom impl blocks based on the type.
-    pub node_type: primitives::types::NodeType,
+    pub node_type: NodeType,
 
-    /// The command handler used to allocate commands to different parts of the
-    /// system
-    // pub command_handler: CommandHandler,
-
-    /// The message handler used to convert received messages into a command and
-    /// to structure and pack outgoing messages to be sent to the transport
-    /// layer
-    // pub message_handler: MessageHandler<MessageType, (Packet, SocketAddr)>,
+    /// Directory used to persist all VRRB node information to disk
     data_dir: PathBuf,
-    // control_rx: UnboundedReceiver<Command>,
+
+    /// Whether the current node is a bootstrap node or not
     is_bootsrap: bool,
+
+    /// The address of the bootstrap node, used for peer discovery and initial
+    /// state sync
     bootsrap_addr: SocketAddr,
-    // db_path: PathBuf,
+
     /// VRRB world state. it contains the accounts tree
     // state: LeftRightTrie<MemoryDB>,
+
     /// Confirmed transactions
     // txns: LeftRightTrie<MemoryDB>,
-    // mempool: HashMap<String, String>,
+
+    /// Unconfirmed transactions
+    // mempool: LeftRightTrie<MemoryDB>,
+
     // validator_unit: Option<i32>,
     running_status: RuntimeModuleState,
+
+    vm: Cpu,
 }
 
 impl Node {
@@ -125,25 +131,12 @@ impl Node {
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
         let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
-        let id = Uuid::new_v4().to_simple().to_string();
+        let vm = trecho::vm::Cpu::new();
 
         //TODO: use SecretKey from threshold crypto crate for MasterNode
         //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
-
-        // TODO: replace memorydb with real backing db later
-        let mem_db = MemoryDB::new(true);
-        let backing_db = Arc::new(mem_db);
-        let lr_trie = LeftRightTrie::new(backing_db);
-
-        /*
-        let new_secret_wrapped =SerdeSecret(secret_key);
-        let mut secret_key_encoded = Vec::new();
-        if node_type==NodeType::MasterNode{
-            secret_key_encoded=bincode::serialize(&new_secret_wrapped).unwrap();
-        }
-        */
 
         Self {
             id: config.id.clone(),
@@ -152,26 +145,11 @@ impl Node {
             secret_key: secret_key_encoded,
             pubkey: pubkey.to_string(),
             public_key: pubkey.to_string().into_bytes(),
-            // db_path: todo!(),
-            // state,
-            // txns: todo!(),
-            // mempool,
-            // validator_unit: todo!(),
             is_bootsrap: config.bootstrap,
             bootsrap_addr: config.bootstrap_node_addr,
             running_status: RuntimeModuleState::Stopped,
             data_dir: config.data_dir().clone(),
-            // control_rx: todo!(),
-            // command_handler: todo!(),
-            // message_handler: todo!(),
-            //
-            //
-            // TODO: refactor these values
-            // public_key: pubkey.to_string().to_vec(),
-            // message_cache: HashSet::new(),
-            // packet_storage: HashMap::new(),
-            // command_handler,
-            // message_handler,
+            vm,
         }
     }
 
@@ -213,85 +191,20 @@ impl Node {
         telemetry::debug!("parsing runtime configuration");
 
         self.running_status = RuntimeModuleState::Running;
-        // TODO: publish that node is running
 
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
         let lr_trie = LeftRightTrie::new(backing_db);
 
-        // Data directory setup
-        // TODO: setup storage facade crate
-        // ___________________________________________________________________________________________________
-
-        // let db = pickledb::PickleDb::new();
-
-        // self.setup_data_dir(self.data_dir.clone());
-        // self.setup_log_and_db_file(self.data_dir.clone());
-        // self.setup_wallet(self.data_dir.clone());
-
-        //____________________________________________________________________________________________________
-        // Swarm module
-        // Need to replace swarm with custom swarm-like struct.
-
-        // TODO: join all handles and route commands through router
-        // TODO: figure out what to do with these older values
-
-        let pub_ip = public_ip::addr_v4().await.unwrap();
-        let port: usize = 19292;
-        // let port: usize = thread_rng().gen_range(9292..19292);
-
-        let addr = format!("{:?}:{:?}", pub_ip, port.clone());
-        let local_sock: SocketAddr = addr.parse()?;
-
-        // Bind a UDP Socket to a Socket Address with a random port between
-        // 9292 and 19292 on the localhost address.
-        let sock = UdpSocket::bind(format!("0.0.0.0:{:?}", port.clone()))?;
-        // .expect("Unable to bind to address");
-
-        let swarm_config = SwarmConfig {
-            port,
-            ip_address: pub_ip,
-            local_socket_addr: local_sock.clone(),
-            pub_socket_addr: local_sock.clone(),
-            udp_socket: sock,
-        };
-
-        let (swarm_control_tx, mut swarm_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
-
-        let mut swarm = SwarmModule::new(swarm_config);
-
-        let swarm_handle = tokio::spawn(async move {
-            swarm.start(&mut swarm_control_rx);
-        });
-
-        let (blockchain_control_tx, mut blockchain_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
-
-        let mut blockchain_module = BlockchainModule::new();
-
-        let blockchain_handle = tokio::spawn(async move {
-            blockchain_module.start(&mut blockchain_control_rx);
-        });
-
-        //____________________________________________________________________________________________________
-        // Mining module
-        let (mining_control_tx, mut mining_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
-
-        let mut minig_module = MiningModule::new();
-
-        let mining_handle = tokio::spawn(async move {
-            minig_module.start(&mut mining_control_rx);
-        });
+        // TODO: setup other modules
 
         //____________________________________________________________________________________________________
         // State module
         let (state_control_tx, mut state_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let mut state_module = StateModule::new();
+        let mut state_module = StateModule::new("".into());
 
         let state_handle = tokio::spawn(async move {
             state_module.start(&mut state_control_rx);
@@ -302,41 +215,27 @@ impl Node {
 
         let mut event_router = EventRouter::new();
 
-    
-        event_router.add_subscriber(Topic::Control, swarm_control_tx);
-        event_router.add_subscriber(Topic::Control, blockchain_control_tx.clone());
-        event_router.add_subscriber(Topic::Control, mining_control_tx);
-        event_router.add_subscriber(Topic::Control, state_control_tx.clone());
+        // event_router.add_subscriber(Topic::Control, state_control_tx.clone());
 
-
-
-        // TODO: feed command handler to transport layer
         // TODO: report error from handle
-        // let router_handle = tokio::spawn(async move {
-        //     // TODO: fix blocking loop on router
-        //     // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
-        //     //     telemetry::error!("error while listening for commands: {0}", err);
-        //     // }
-        // });
-
-        // if let Err(err) = cmd_router.start(&mut router_control_rx).await {
-        //     telemetry::error!("error while listening for commands: {0}", err);
-        // }
+        let router_handle = tokio::spawn(async move {
+            // TODO: fix blocking loop on router
+            event_router.start(&mut router_control_rx).await
+            // }
+        });
 
         // Runtime module teardown
         //____________________________________________________________________________________________________
         // TODO: start node API here
-        //
-        // TODO: rethink this loop
         loop {
             match control_rx.try_recv() {
-                Ok(sig) => {
-                    telemetry::info!("Received stop signal");
+                Ok(evt) => {
+                    telemetry::info!("Received stop event");
 
                     // TODO: send signal to stop all task handlers here
                     router_control_tx
-                        .send((Topic::Control, sig))
-                        .unwrap();
+                        .send((Topic::Control, evt))
+                        .unwrap_or_default();
 
                     self.teardown();
 
@@ -367,9 +266,10 @@ mod tests {
         net::{IpAddr, Ipv4Addr},
     };
 
+    use vrrb_config::NodeConfig;
+
     use super::*;
     use crate::test_utils::create_mock_full_node_config;
-    use vrrb_config::NodeConfig;
 
     #[test]
     fn node_teardown_updates_node_status() {
@@ -385,81 +285,3 @@ mod tests {
         assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     }
 }
-
-// fn setup_data_dir(&self, data_dir: PathBuf) -> Result<()> {
-//     // TODO: decide who to feed this data dir
-//     let data_dir = storage::create_node_data_dir()?;
-//
-//     /*
-//     let data_dir = String::from(".vrrb").into();
-//     let fs_storage = FileSystemStorage::new(data_dir);
-//
-//     let directory = {
-//         if let Some(dir) = std::env::args().nth(2) {
-//             std::fs::create_dir_all(dir.clone())?;
-//             dir.clone()
-//         } else {
-//             std::fs::create_dir_all("./.vrrb_data".to_string())?;
-//             "./.vrrb_data".to_string()
-//         }
-//     };
-//
-//     let events_path = format!("{}/events_{}.json", directory.clone(), event_file_suffix);
-//     fs::File::create(events_path.clone()).unwrap();
-//     if let Err(err) = write_to_json(events_path.clone(), VrrbNetworkEvent::VrrbStarted) {
-//         info!("Error writting to json in main.rs 164");
-//         error!("{:?}", err.to_string());
-//     }
-//     */
-//
-//     Ok(())
-// }
-//
-// fn setup_log_and_db_file(&self, data_dir: PathBuf) -> Result<()> {
-//     /*
-//     let node_type = NodeAuth::Full;
-//     let log_file_suffix: u8 = rng.gen();
-//     let log_file_path = if let Some(path) = std::env::args().nth(4) {
-//         path
-//     } else {
-//         format!(
-//             "{}/vrrb_log_file_{}.log",
-//             directory.clone(),
-//             log_file_suffix
-//         )
-//     };
-//     let _ = WriteLogger::init(
-//         LevelFilter::Info,
-//         Config::default(),
-//         fs::File::create(log_file_path).unwrap(),
-//     );
-//
-//     */
-//     Ok(())
-// }
-//
-// fn setup_wallet(&self, data_dir: PathBuf) -> Result<()> {
-//     /*
-//     let wallet = if let Some(secret_key) = std::env::args().nth(3) {
-//         WalletAccount::restore_from_private_key(secret_key)
-//     } else {
-//         WalletAccount::new()
-//     };
-//
-//     let mut rng = rand::thread_rng();
-//     let file_suffix: u32 = rng.gen();
-//     let path = if let Some(path) = std::env::args().nth(5) {
-//         path
-//     } else {
-//         format!("{}/test_{}.json", directory.clone(), file_suffix)
-//     };
-//
-//     let mut network_state = NetworkState::restore(&path);
-//     let ledger = Ledger::new();
-//     network_state.set_ledger(ledger.as_bytes());
-//     let reward_state = RewardState::start();
-//     network_state.set_reward_state(reward_state);
-//     */
-//
-//     Ok(())
-// }

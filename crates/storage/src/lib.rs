@@ -1,9 +1,4 @@
-use std::{
-    env, fs,
-    io::{self, BufWriter},
-    os,
-    path::PathBuf,
-};
+use std::{env, fs, path::PathBuf};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -69,28 +64,30 @@ pub fn get_node_data_dir() -> Result<PathBuf> {
     Ok(vrrb_data_dir)
 }
 
-pub struct FileSystemStorage {
+pub struct FileSystemStorageDriver {
     // buf: BufWriter<std::fs::File>,
-    data_dir: PathBuf,
+    _data_dir: PathBuf,
 }
 
-impl FileSystemStorage {
+impl FileSystemStorageDriver {
     pub fn new(data_dir: PathBuf) -> Self {
-        Self { data_dir }
+        Self {
+            _data_dir: data_dir,
+        }
     }
 
-    fn init() {}
+    fn _init() {}
 }
 
-impl Default for FileSystemStorage {
+impl Default for FileSystemStorageDriver {
     fn default() -> Self {
         Self {
-            data_dir: String::from(".vrrb").into(),
+            _data_dir: String::from(".vrrb").into(),
         }
     }
 }
 
-impl Storage for FileSystemStorage {
+impl Storage for FileSystemStorageDriver {
     fn get() -> Result<Vec<u8>> {
         todo!()
     }
@@ -99,7 +96,7 @@ impl Storage for FileSystemStorage {
         todo!()
     }
 
-    fn append(key: String, value: Vec<u8>) -> Result<Vec<u8>> {
+    fn append(_key: String, _value: Vec<u8>) -> Result<Vec<u8>> {
         todo!()
     }
 

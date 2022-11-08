@@ -26,7 +26,7 @@ pub struct Message {
 /// for the easy conversion of the type into a message that can be packed
 /// into a byte array and sent across the network.
 pub trait AsMessage {
-    fn into_message(&self, return_receipt: u8) -> Message;
+    fn into_message(self, return_receipt: u8) -> Message;
 }
 
 impl Message {
@@ -49,8 +49,8 @@ impl Packetize for Message {
     type PacketMap = HashMap<u32, Packet>;
     type Packets = Vec<Packet>;
 
-    fn into_packets(&self) -> Vec<Packet> {
-        let message_string = serde_json::to_string(self).unwrap();
+    fn into_packets(self) -> Vec<Packet> {
+        let message_string = serde_json::to_string(&self).unwrap();
         let message_bytes = message_string.as_bytes();
         let n_bytes = message_bytes.len();
         if n_bytes > MAX_TRANSMIT_SIZE {
@@ -66,7 +66,7 @@ impl Packetize for Message {
                 .map(|idx| {
                     if *idx == n_packets - 1 {
                         start = end;
-                        return Packet::new(
+                        Packet::new(
                             self.id.clone(),
                             self.source.clone(),
                             message_bytes[start..].to_vec(),
@@ -74,9 +74,9 @@ impl Packetize for Message {
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
                             self.return_receipt,
-                        );
+                        )
                     } else if *idx == 0 {
-                        return Packet::new(
+                        Packet::new(
                             self.id.clone(),
                             self.source.clone(),
                             message_bytes[start..end].to_vec(),
@@ -84,11 +84,11 @@ impl Packetize for Message {
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
                             self.return_receipt,
-                        );
+                        )
                     } else {
                         start = end;
                         end = start + (MAX_TRANSMIT_SIZE);
-                        return Packet::new(
+                        Packet::new(
                             self.id.clone(),
                             self.source.clone(),
                             message_bytes[start..end].to_vec(),
@@ -96,7 +96,7 @@ impl Packetize for Message {
                             (idx + 1).to_be_bytes().to_vec(),
                             n_packets.to_be_bytes().to_vec(),
                             self.return_receipt,
-                        );
+                        )
                     }
                 })
                 .collect::<Vec<Packet>>();
@@ -118,11 +118,11 @@ impl Packetize for Message {
 
     /// Serializes a vector of packets into nested vectors of bytes.
     fn as_packet_bytes(&self) -> Vec<Vec<u8>> {
-        let packets = self.into_packets();
+        let packets = self.clone().into_packets();
 
         packets
             .iter()
-            .map(|packet| return packet.as_bytes())
+            .map(|packet| packet.as_bytes())
             .collect::<Vec<Vec<u8>>>()
     }
 
@@ -131,7 +131,7 @@ impl Packetize for Message {
     fn assemble(map: &mut Self::PacketMap) -> Self::FlatPackets {
         let mut byte_slices = map
             .iter()
-            .map(|(packet_number, packet)| return (*packet_number, packet.clone()))
+            .map(|(packet_number, packet)| (*packet_number, packet.clone()))
             .collect::<Vec<(u32, Packet)>>();
 
         byte_slices.sort_unstable_by_key(|k| k.0);
@@ -150,7 +150,7 @@ impl Packetize for Message {
             if map.len() == usize::from_be_bytes(packet.clone().convert_total_packets()) {
                 let mut byte_slices = map
                     .iter()
-                    .map(|(packet_number, packet)| return (*packet_number, packet.clone()))
+                    .map(|(packet_number, packet)| (*packet_number, packet.clone()))
                     .collect::<Vec<(u32, Packet)>>();
 
                 byte_slices.sort_unstable_by_key(|k| k.0);
@@ -163,6 +163,6 @@ impl Packetize for Message {
                 return Ok(assembled);
             }
         }
-        return Err(NotCompleteError);
+        Err(NotCompleteError)
     }
 }
