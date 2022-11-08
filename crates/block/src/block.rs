@@ -50,7 +50,7 @@ pub struct Block {
     /// Quorum signature needed for finalizing the block and locking the chain
     pub threshold_signature: Option<RawSignature>,
 
-    //Epoch for which block was created
+    /// Epoch for which block was created
     pub epoch: Epoch,
 
     /// Measurement of utility for the chain
