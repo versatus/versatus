@@ -129,8 +129,8 @@ impl Miner {
         n_miners: u128,
         epoch: Epoch,
     ) -> Self {
-        Self {
-            claim: Claim::new(pubkey, address, 1),
+        Miner {
+            claim: Claim::new(pubkey.clone(), address, 1),
             mining: false,
             claim_map: LinkedHashMap::new(),
             txn_pool: Pool::new(PoolKind::Txn),

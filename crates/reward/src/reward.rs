@@ -274,7 +274,7 @@ impl RewardState {
 }
 
 impl Reward {
-    pub fn new(miner: Option<String>, _reward_state: &RewardState) -> Reward {
+        pub fn new(miner: Option<String>, reward_state: &RewardState) -> Reward {
         Reward {
             miner,
             amount: 0, // Add error handling, as this should NEVER happen.
