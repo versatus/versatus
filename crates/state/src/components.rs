@@ -1,6 +1,5 @@
 //FEATURE TAG(S): Left-Right Database, Left-Right State Trie
 
-
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
 use serde::{Deserialize, Serialize};

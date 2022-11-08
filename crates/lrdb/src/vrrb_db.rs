@@ -238,7 +238,6 @@ pub struct AccountFieldsUpdate {
     pub code: Option<Option<String>>,
 }
 
-
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
 // be properly scheduled.
 impl Ord for AccountFieldsUpdate {
@@ -354,7 +353,6 @@ impl Default for VrrbDb {
         }
     }
 }
-
 
 impl VrrbDb {
     /// Returns new, empty account.
