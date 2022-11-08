@@ -8,7 +8,6 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use claim::claim::Claim;
-use primitives::types::Epoch;
 use rand::Rng;
 use reward::reward::Reward;
 use secp256k1::{

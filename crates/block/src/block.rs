@@ -69,7 +69,7 @@ impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(
-        reward: &Reward,
+        _reward: &Reward,
         claim: Claim,
         secret_key: String,
         miner: Option<String>,

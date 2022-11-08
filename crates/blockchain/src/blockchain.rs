@@ -1,5 +1,6 @@
 // Feature Tags: Block Structure, State Syncing, Block Validation, Block
 // Confirmation
+
 use std::{
     collections::{HashSet, LinkedList},
     error::Error,
@@ -12,7 +13,7 @@ use block::{
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
-use commands::command::{Command, ComponentTypes};
+use commands::command::ComponentTypes;
 use log::info;
 use messages::message_types::MessageType;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
@@ -70,7 +71,7 @@ impl Blockchain {
     /// previous block.
     pub fn check_next_block_height(&self, block: &Block) -> bool {
         // Check if there is a genesis block
-        if let Some(_) = self.genesis.as_ref() {
+        if self.genesis.as_ref().is_some() {
             // If so, check if there is a child block
             if let Some(child) = self.child.as_ref() {
                 // If so check if the block height is equal to last block's height + 1
@@ -146,7 +147,7 @@ impl Blockchain {
         let keys = db.get_all();
 
         for key in keys.iter() {
-            let value = db.get::<Block>(&key).unwrap();
+            let value = db.get::<Block>(key).unwrap();
             let k = key.clone();
             db_map.insert(k, value);
         }
@@ -170,7 +171,7 @@ impl Blockchain {
         );
 
         db_map.iter().for_each(|(k, v)| {
-            if let Err(e) = db.set(&k, &v) {
+            if let Err(e) = db.set(k, &v) {
                 println!("Error setting block in database: {:?}", e);
             };
         });
@@ -204,21 +205,16 @@ impl Blockchain {
     pub fn process_block(
         &mut self,
         network_state: &NetworkState,
-        reward: &Reward,
+        _reward: &Reward,
         block: &Block,
     ) -> Result<(), InvalidBlockError> {
-        if let Err(e) = self.check_block_sequence(block) {
-            return Err(e);
-        }
+        self.check_block_sequence(block)?;
         if let Some(genesis_block) = &self.genesis {
             if let Some(last_block) = &self.child {
-                if let Err(e) = block.valid(
-                    &last_block,
-                    &(network_state.to_owned()),
-                ) {
+                if let Err(e) = block.valid(last_block, &(network_state.to_owned())) {
                     self.future_blocks
                         .insert(block.clone().header.last_hash, block.clone());
-                    return Err(e);
+                    Err(e)
                 } else {
                     self.parent = self.child.clone();
                     self.child = Some(block.clone());
@@ -228,38 +224,30 @@ impl Blockchain {
                         self.block_cache.insert(block.hash.clone(), block.clone());
                     }
 
-                    if let Err(e) = self.dump(&block) {
-                        println!("Error dumping block to chain db: {:?}", e);
-                    };
-
-                    return Ok(());
-                }
-            } else {
-                if let Err(e) = block.valid(
-                    &genesis_block,
-                    &(network_state.to_owned()),
-                ) {
-                    return Err(e);
-                } else {
-                    self.child = Some(block.clone());
-                    self.chain.push_back(block.header.clone());
-                    if let Err(e) = self.dump(&block) {
+                    if let Err(e) = self.dump(block) {
                         println!("Error dumping block to chain db: {:?}", e);
                     };
                     Ok(())
                 }
+            } else if let Err(e) = block.valid(genesis_block, &(network_state.to_owned())) {
+                Err(e)
+            } else {
+                self.child = Some(block.clone());
+                self.chain.push_back(block.header.clone());
+                if let Err(e) = self.dump(block) {
+                    println!("Error dumping block to chain db: {:?}", e);
+                };
+                Ok(())
             }
         } else {
             // check that this is a valid genesis block.
             if block.header.block_height == 0 {
-                if let Ok(true) =
-                block.valid_genesis(&(network_state.to_owned()))
-                {
+                if let Ok(true) = block.valid_genesis(&(network_state.to_owned())) {
                     self.genesis = Some(block.clone());
                     self.child = Some(block.clone());
                     self.block_cache.insert(block.hash.clone(), block.clone());
                     self.chain.push_back(block.header.clone());
-                    if let Err(e) = self.dump(&block) {
+                    if let Err(e) = self.dump(block) {
                         println!("Error dumping block to chain db: {:?}", e);
                     };
                     Ok(())
@@ -287,42 +275,38 @@ impl Blockchain {
 
     /// Checks whether the block is in sequence or not.
     pub fn check_block_sequence(&self, block: &Block) -> Result<bool, InvalidBlockError> {
-        if let Some(_) = self.genesis.clone() {
+        if self.genesis.clone().is_some() {
             if let Some(child) = self.child.clone() {
                 let next_height = child.header.block_height + 1;
                 if block.header.block_height > next_height {
                     //I'm missing blocks return BlockOutOfSequence error
-                    return Err(InvalidBlockError {
+                    Err(InvalidBlockError {
                         details: InvalidBlockErrorReason::BlockOutOfSequence,
-                    });
+                    })
                 } else if block.header.block_height < next_height {
-                    return Err(InvalidBlockError {
+                    Err(InvalidBlockError {
                         details: InvalidBlockErrorReason::NotTallestChain,
-                    });
+                    })
                 } else {
-                    return Ok(true);
+                    Ok(true)
                 }
-            } else {
-                if block.header.block_height > 1 {
-                    return Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::BlockOutOfSequence,
-                    });
-                } else if block.header.block_height < 1 {
-                    return Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::NotTallestChain,
-                    });
-                } else {
-                    return Ok(true);
-                }
-            }
-        } else {
-            if block.header.block_height != 0 {
-                return Err(InvalidBlockError {
+            } else if block.header.block_height > 1 {
+                Err(InvalidBlockError {
                     details: InvalidBlockErrorReason::BlockOutOfSequence,
-                });
+                })
+            } else if block.header.block_height < 1 {
+                Err(InvalidBlockError {
+                    details: InvalidBlockErrorReason::NotTallestChain,
+                })
             } else {
-                return Ok(true);
+                Ok(true)
             }
+        } else if block.header.block_height != 0 {
+            Err(InvalidBlockError {
+                details: InvalidBlockErrorReason::BlockOutOfSequence,
+            })
+        } else {
+            Ok(true)
         }
     }
 
@@ -355,7 +339,7 @@ impl Blockchain {
         let gossip_msg = GossipMessage {
             id: msg_id.inner(),
             data: message.as_bytes(),
-            sender: src.clone(),
+            sender: src,
         };
         let head = Header::Gossip;
         let msg = Message {
@@ -383,8 +367,8 @@ impl Blockchain {
             && self.components_received.contains(&ComponentTypes::Child)
             && self.components_received.contains(&ComponentTypes::Parent)
             && self
-            .components_received
-            .contains(&ComponentTypes::NetworkState)
+                .components_received
+                .contains(&ComponentTypes::NetworkState)
             && self.components_received.contains(&ComponentTypes::Ledger)
     }
 
@@ -394,7 +378,7 @@ impl Blockchain {
         if let Some(time) = self.started_updating {
             let diff = now.checked_sub(time);
             info!("Time in nanos since last update: {:?}", diff);
-            return diff;
+            diff
         } else {
             None
         }
@@ -480,7 +464,7 @@ impl Blockchain {
             missing.push(component);
         }
 
-        return missing;
+        missing
     }
 
     /// Serializes a chain into bytes
@@ -490,11 +474,11 @@ impl Blockchain {
 
     /// Deserialize a slice of bytes into a blockchain
     pub fn from_bytes(data: &[u8]) -> Blockchain {
-        serde_json::from_slice::<Blockchain>(&data).unwrap()
+        serde_json::from_slice::<Blockchain>(data).unwrap()
     }
 
     /// Serializes a chain into a string
-    pub fn to_string(&self) -> String {
+    pub fn serialize_to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 
@@ -505,7 +489,7 @@ impl Blockchain {
 
     /// Returns a vector of all the field names of a chain.
     pub fn get_field_names(&self) -> Vec<String> {
-        return vec![
+        vec![
             "genesis".to_string(),
             "child".to_string(),
             "parent".to_string(),
@@ -516,7 +500,7 @@ impl Blockchain {
             "invalid".to_string(),
             "updating_state".to_string(),
             "state_update_cache".to_string(),
-        ];
+        ]
     }
 }
 
@@ -531,33 +515,16 @@ impl Error for Blockchain {}
 impl GettableFields for Blockchain {
     fn get_field(&self, field: &str) -> Option<String> {
         match field {
-            "genesis" => {
-                if let Some(genesis) = self.genesis.clone() {
-                    return Some(genesis.to_string());
-                }
-                return None;
-            },
-            "child" => {
-                if let Some(child) = self.child.clone() {
-                    return Some(child.to_string());
-                }
-                return None;
-            },
-            "parent" => {
-                if let Some(parent) = self.parent.clone() {
-                    return Some(parent.to_string());
-                }
-                return None;
-            },
-            "chain" => return Some(serde_json::to_string(&self.chain).unwrap()),
+            "genesis" => self.genesis.clone().map(|g| g.to_string()),
+            "child" => self.child.clone().map(|c| c.to_string()),
+            "parent" => self.parent.clone().map(|p| p.to_string()),
+            "chain" => Some(serde_json::to_string(&self.chain).unwrap()),
             "chain_db" => Some(self.chain_db.clone()),
-            "block_cache" => return Some(serde_json::to_string(&self.block_cache).unwrap()),
-            "future_blocks" => return Some(serde_json::to_string(&self.future_blocks).unwrap()),
-            "invalid" => return Some(serde_json::to_string(&self.invalid).unwrap()),
-            "updating_state" => return Some(format!("{}", self.updating_state)),
-            "state_update_cache" => {
-                return Some(serde_json::to_string(&self.state_update_cache).unwrap())
-            },
+            "block_cache" => Some(serde_json::to_string(&self.block_cache).unwrap()),
+            "future_blocks" => Some(serde_json::to_string(&self.future_blocks).unwrap()),
+            "invalid" => Some(serde_json::to_string(&self.invalid).unwrap()),
+            "updating_state" => Some(format!("{}", self.updating_state)),
+            "state_update_cache" => Some(serde_json::to_string(&self.state_update_cache).unwrap()),
             _ => None,
         }
     }

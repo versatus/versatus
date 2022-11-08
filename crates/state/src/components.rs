@@ -2,16 +2,8 @@
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use accountable::accountable::Accountable;
-use claim::claim::Claim;
-use ledger::ledger::Ledger;
-use log::info;
-use noncing::nonceable::Nonceable;
-use ownable::ownable::Ownable;
-use reward::reward::Reward;
-use ritelinked::LinkedHashMap;
-use serde::{Deserialize, Serialize};
 
+use serde::{Deserialize, Serialize};
 use crate::types::{
     StateArchive,
     StateBlockchain,

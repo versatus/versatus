@@ -130,7 +130,7 @@ impl Miner {
         epoch: Epoch,
     ) -> Self {
         Miner {
-            claim: Claim::new(pubkey.clone(), address, 1),
+            claim: Claim::new(pubkey, address, 1),
             mining: false,
             claim_map: LinkedHashMap::new(),
             txn_pool: Pool::new(PoolKind::Txn),
@@ -230,9 +230,9 @@ impl Miner {
                 self.clone().txn_pool.confirmed,
                 self.clone().claim_pool.confirmed,
                 Some(claim_map_hash),
-                &mut self.clone().reward.clone(),
-                &self.clone().network_state.clone(),
-                self.clone().neighbors.clone(),
+                &mut self.clone().reward,
+                &self.clone().network_state,
+                self.clone().neighbors,
                 self.abandoned_claim.clone(),
                 self.secret_key.clone(),
                 self.epoch,

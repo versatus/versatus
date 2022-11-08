@@ -97,6 +97,7 @@ impl Reward {
         }
     }
 
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }

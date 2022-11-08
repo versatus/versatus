@@ -162,8 +162,8 @@ impl<'de> NetworkState {
         txns: &LinkedHashMap<String, A>,
         reward: R,
     ) -> StateHash {
-        let credit_hash = self.clone().credit_hash(&txns, reward);
-        let debit_hash = self.clone().debit_hash(&txns);
+        let credit_hash = self.clone().credit_hash(txns, reward);
+        let debit_hash = self.clone().debit_hash(txns);
         let reward_state_hash = digest(format!("{:?}", self.reward).as_bytes());
         let payload = format!(
             "{:?},{:?},{:?},{:?}",
