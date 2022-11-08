@@ -6,7 +6,7 @@ use left_right::{Absorb, ReadHandle, WriteHandle};
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie, trie::Trie};
 use serde::{Deserialize, Serialize};
 
-use crate::{Key, Operation, TrieValue};
+use crate::{Key, Operation};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -192,12 +192,12 @@ where
         {
             Ok(maybe_bytes) => match maybe_bytes {
                 Some(bytes) => match &bincode::deserialize::<T>(&bytes) {
-                    Ok(data) => return Ok(data.clone()),
-                    Err(_) => return Err(LeftRightTrieError::FailedToDeserializeValue(bytes)),
+                    Ok(data) => Ok(data.clone()),
+                    Err(_) => Err(LeftRightTrieError::FailedToDeserializeValue(bytes)),
                 },
                 None => Err(LeftRightTrieError::NoValueForKey),
             },
-            Err(err) => return Err(LeftRightTrieError::FailedToGetValueForKey(key, err)),
+            Err(err) => Err(LeftRightTrieError::FailedToGetValueForKey(key, err)),
         }
     }
 }
