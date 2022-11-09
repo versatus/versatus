@@ -1,4 +1,5 @@
 pub mod block;
+pub mod genesis;
 pub mod header;
 pub mod invalid;
 pub use crate::block::*;

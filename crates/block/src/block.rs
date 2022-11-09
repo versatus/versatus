@@ -18,6 +18,7 @@ use txn::txn::Txn;
 use verifiable::verifiable::Verifiable;
 
 use crate::{
+    genesis,
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
@@ -77,11 +78,20 @@ impl Block {
         let mut claims = LinkedHashMap::new();
         claims.insert(claim.clone().pubkey, claim);
 
+        #[cfg(mainnet)]
+        let txns = genesis::generate_genesis_txns();
+
+        // TODO: Genesis block on local/testnet should generate either a faucet for
+        // tokens, or fill some initial accounts so that testing can be executed
+
+        #[cfg(not(mainnet))]
+        let txns = LinkedHashMap::new();
+
         let genesis = Block {
             header,
             neighbors: None,
             height: 0,
-            txns: LinkedHashMap::new(),
+            txns,
             claims,
             hash: state_hash,
             received_at: None,
