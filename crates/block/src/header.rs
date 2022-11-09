@@ -20,7 +20,7 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 
-use crate::{block::Block, AdjustmentNextEpoch};
+use crate::{block::Block, NextEpochAdjustment};
 
 // TODO: Helper constants like the ones below should be in their own mod
 pub const NANO: u128 = 1;
@@ -69,9 +69,9 @@ impl BlockHeader {
             .unwrap()
             .as_nanos();
         let txn_hash = digest("Genesis_Txn_Hash".as_bytes());
-        let block_reward = Reward::start(Some(claim.address.clone()));
+        let block_reward = Reward::genesis(Some(claim.address.clone()));
         //TODO: Replace reward state
-        let next_block_reward = Reward::start(miner);
+        let next_block_reward = Reward::genesis(miner);
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
         let payload = format!(
@@ -116,7 +116,7 @@ impl BlockHeader {
         neighbor_hash: Option<String>,
         secret_key: String,
         epoch_change: bool,
-        adjustment_next_epoch: AdjustmentNextEpoch,
+        adjustment_next_epoch: NextEpochAdjustment,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be

@@ -52,7 +52,7 @@ impl Reward {
     /// Returns:
     ///
     /// A Reward struct
-    pub fn start(miner: Option<String>) -> Reward {
+    pub fn genesis(miner: Option<String>) -> Reward {
         Reward {
             current_block: 0,
             epoch: 1,
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_reward_state_starting_point() {
-        let reward = Reward::start(Some("MINER_1".to_string()));
+        let reward = Reward::genesis(Some("MINER_1".to_string()));
         assert!(reward.amount == BASELINE_REWARD);
         assert!(reward.epoch == 1);
         assert!(reward.next_epoch_block == NUMBER_OF_BLOCKS_PER_EPOCH);
@@ -165,14 +165,14 @@ mod tests {
 
     #[test]
     fn test_reward_state_after_next_epoch() {
-        let mut reward = Reward::start(Some("MINER_1".to_string()));
+        let mut reward = Reward::genesis(Some("MINER_1".to_string()));
         reward.new_epoch(15);
         assert!(reward.amount >= MIN_BASELINE_REWARD && reward.amount <= MAX_BASELINE_REWARD);
     }
 
     #[test]
     fn test_restored_reward_state() {
-        let mut reward = Reward::start(Some("MINER".to_string()));
+        let mut reward = Reward::genesis(Some("MINER".to_string()));
         reward.new_epoch(15);
         assert!(reward.amount >= MIN_BASELINE_REWARD && reward.amount <= MAX_BASELINE_REWARD);
         assert!(reward.valid_reward());

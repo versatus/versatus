@@ -22,9 +22,9 @@ mod tests {
     fn test_genesis_block_utility() {
         let secp = Secp256k1::new();
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let reward = Reward::start(None);
+        let reward = Reward::genesis(None);
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(&reward, claim, secret_key.to_string(), None);
+        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
         assert!(genesis_block_opt.is_some());
         let genesis_block = genesis_block_opt.unwrap();
         assert!(genesis_block.utility == 0);
@@ -34,9 +34,8 @@ mod tests {
     fn test_block_utility() {
         let secp = Secp256k1::new();
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let reward = Reward::start(None);
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(&reward, claim, secret_key.to_string(), None);
+        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
         let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());
 
         let (secret_key_2, _) = secp.generate_keypair(&mut thread_rng());
@@ -51,7 +50,7 @@ mod tests {
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
         genesis_block.header.timestamp = timestamp;
 
-        let mut reward =Reward::start(Some("MINER_1".to_string()));
+        let mut reward = Reward::genesis(Some("MINER_1".to_string()));
         let block_headers = vec![get_block_header(2), get_block_header(3)];
         let last_block = Block::mine(
             last_block_claim,
@@ -96,9 +95,9 @@ mod tests {
     fn test_block_adjustment_reward() {
         let secp = Secp256k1::new();
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let reward = Reward::start(None);
+        let reward = Reward::genesis(None);
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(&reward, claim, secret_key.to_string(), None);
+        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
         let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());
 
         let (secret_key_2, _) = secp.generate_keypair(&mut thread_rng());
@@ -112,8 +111,8 @@ mod tests {
             .unwrap();
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
         genesis_block.header.timestamp = timestamp;
-        let mut reward =Reward::start(Some("MINER_1".to_string()));
-     
+        let mut reward = Reward::genesis(Some("MINER_1".to_string()));
+
         let block_headers = vec![get_block_header(2), get_block_header(3)];
         let last_block = Block::mine(
             last_block_claim,
@@ -133,7 +132,7 @@ mod tests {
             .unwrap();
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
 
-        let adjustment=last_block.1;
+        let adjustment = last_block.1;
         reward.new_epoch(adjustment);
         assert!(reward.valid_reward());
         let mut last_block = last_block.0.unwrap();

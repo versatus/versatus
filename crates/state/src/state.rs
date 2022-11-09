@@ -300,10 +300,6 @@ impl<'de> NetworkState {
     }
 
     /// It returns the reward of the current state.
-    ///
-    /// Returns:
-    ///
-    /// The reward of the current state.
     pub fn get_reward(&self) -> Option<Reward> {
         self.reward.clone()
     }

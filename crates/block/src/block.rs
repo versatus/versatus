@@ -31,7 +31,7 @@ const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
 pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
 pub type CurrentUtility = i128;
-pub type AdjustmentNextEpoch = i128;
+pub type NextEpochAdjustment = i128;
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -61,19 +61,14 @@ pub struct Block {
     pub utility: CurrentUtility,
 
     /// Adjustment For Next Epoch
-    pub adjustment_for_next_epoch: Option<AdjustmentNextEpoch>,
+    pub adjustment_for_next_epoch: Option<NextEpochAdjustment>,
 }
 
 
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(
-        _reward: &Reward,
-        claim: Claim,
-        secret_key: String,
-        miner: Option<String>,
-    ) -> Option<Block> {
+    pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Option<Block> {
         // Create the genesis header
         let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner);
         // Create the genesis state hash
@@ -139,7 +134,7 @@ impl Block {
         abandoned_claim: Option<Claim>,
         signature: String,
         epoch: Epoch,
-    ) -> (Option<Block>, AdjustmentNextEpoch) {
+    ) -> (Option<Block>, NextEpochAdjustment) {
         // TODO: Replace with Tx Trie Root
         let txn_hash = {
             let mut txn_vec = vec![];
