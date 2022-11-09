@@ -1,7 +1,6 @@
 pub mod election;
 pub mod quorum;
 
-
 #[cfg(test)]
 mod tests {
     use std::{
