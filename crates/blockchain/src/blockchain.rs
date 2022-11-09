@@ -253,17 +253,15 @@ impl Blockchain {
                     Ok(())
                 } else {
                     self.invalid.insert(block.hash.clone(), block.clone());
-                    Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::General,
-                    })
+                    Err(InvalidBlockError::new(InvalidBlockErrorReason::General))
                 }
             } else {
                 // request genesis block.
                 self.future_blocks
                     .insert(block.clone().header.last_hash, block.clone());
-                Err(InvalidBlockError {
-                    details: InvalidBlockErrorReason::BlockOutOfSequence,
-                })
+                Err(InvalidBlockError::new(
+                    InvalidBlockErrorReason::BlockOutOfSequence,
+                ))
             }
         }
     }
@@ -280,31 +278,31 @@ impl Blockchain {
                 let next_height = child.header.block_height + 1;
                 if block.header.block_height > next_height {
                     //I'm missing blocks return BlockOutOfSequence error
-                    Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::BlockOutOfSequence,
-                    })
+                    Err(InvalidBlockError::new(
+                        InvalidBlockErrorReason::BlockOutOfSequence,
+                    ))
                 } else if block.header.block_height < next_height {
-                    Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::NotTallestChain,
-                    })
+                    Err(InvalidBlockError::new(
+                        InvalidBlockErrorReason::NotTallestChain,
+                    ))
                 } else {
                     Ok(true)
                 }
             } else if block.header.block_height > 1 {
-                Err(InvalidBlockError {
-                    details: InvalidBlockErrorReason::BlockOutOfSequence,
-                })
+                Err(InvalidBlockError::new(
+                    InvalidBlockErrorReason::BlockOutOfSequence,
+                ))
             } else if block.header.block_height < 1 {
-                Err(InvalidBlockError {
-                    details: InvalidBlockErrorReason::NotTallestChain,
-                })
+                Err(InvalidBlockError::new(
+                    InvalidBlockErrorReason::NotTallestChain,
+                ))
             } else {
                 Ok(true)
             }
         } else if block.header.block_height != 0 {
-            Err(InvalidBlockError {
-                details: InvalidBlockErrorReason::BlockOutOfSequence,
-            })
+            Err(InvalidBlockError::new(
+                InvalidBlockErrorReason::BlockOutOfSequence,
+            ))
         } else {
             Ok(true)
         }
@@ -473,13 +471,19 @@ impl Blockchain {
     }
 
     /// Deserialize a slice of bytes into a blockchain
-    pub fn from_bytes(data: &[u8]) -> Blockchain {
-        serde_json::from_slice::<Blockchain>(data).unwrap()
+    pub fn from_bytes(data: &[u8]) -> Result<Blockchain, serde_json::Error> {
+        match serde_json::from_slice::<Blockchain>(data) {
+            Ok(chain) => Ok(chain),
+            Err(e) => Err(e),
+        }
     }
 
     /// Serializes a chain into a string
-    pub fn serialize_to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
+    pub fn serialize_to_string(&self) -> Result<String, serde_json::Error> {
+        match serde_json::to_string(self) {
+            Ok(chain_str) => Ok(chain_str),
+            Err(e) => Err(e),
+        }
     }
 
     /// Deserializes a string slice into a chain
