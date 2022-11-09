@@ -11,17 +11,9 @@ mod transfer;
 pub const MAX_CONNECTED_NODES: usize = 8;
 pub mod bootstrap;
 
-use std::{
-    time::Duration,
-};
+use crate::bootstrap::node_bootstrap_syncing_context_start;
 
-use futures_timer::Delay;
-
-use routerswarmcast::bootstrap::node_bootstrap_syncing_context_start;
-
-async fn syncing() {
-
-    pretty_env_logger::init();
+pub async fn node_syncing() {
 
     let offset_localstate_file_as_param: u64 = 100;
 
@@ -29,6 +21,4 @@ async fn syncing() {
         node_bootstrap_syncing_context_start(
             offset_localstate_file_as_param).await;
     });
-
-    Delay::new(Duration::from_secs(100000000000)).await.unwrap();
 }

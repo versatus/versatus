@@ -10,9 +10,10 @@ use config::{
     File
 };
 
-use log::error;
 use rcrefcell::RcCell;
 use uuid::Uuid;
+
+use telemetry::{error, debug};
 
 use crate::{
     lrnodepool::LeftRightNodePoolDB,
@@ -70,6 +71,8 @@ impl BrokerAddr {
         }
     }
 
+    // TODO, problems with compiler.
+    #[allow(dead_code)]
     pub fn new_from_str(
         local_ip: String,
         port: String
@@ -101,6 +104,7 @@ impl BrokerAddr {
 
 }
 
+/// Application context, an alternative of using global static vars or passing around tens of parameters.
 pub struct AppContext<'m> {
     pub node_routes_db: LeftRightNodePoolDB<'m>,
     pub args: AppParams,
@@ -116,6 +120,7 @@ pub struct AppContext<'m> {
 
 pub type RcContext<'m> = RcCell<AppContext<'m>>;
 
+/// Application context handler, encapsulating the AppContext with handy helper functions.
 pub struct ContextHandler<'m> {
     state: RcContext<'m>
 }
@@ -124,6 +129,17 @@ unsafe impl<'m> Send for ContextHandler<'m> {}
 
 impl<'m> ContextHandler<'m> {
 
+    /// Localstate data broker, all the operation in a separate thread.
+    /// TODO: To be integrated with the existing structure.
+    /// 
+    /// # Arguments
+    /// * `node_type`                   - Node type.
+    /// * `discovery_local_address`     - local bind address for discovery, by default 0.0.0.0
+    /// * `discovery_broadcast_address` - broadcast address for discovery, by default 0.0.0.0
+    /// * `discovery_port`              - discovery port
+    /// * `broker_local_ip`             - broker local bind address 0.0.0.0
+    /// * `broker_port`                 - broker port
+    /// 
     pub fn _new_with_params(
         node_type: NodeType,
         discovery_local_address: &str,
@@ -147,6 +163,11 @@ impl<'m> ContextHandler<'m> {
         }
     }
 
+    /// Context wrapper builder from exisiting context.
+    /// 
+    /// # Arguments
+    /// * `context`             - application context with predefined parameters
+    /// 
     pub fn new(
         context: RcContext<'m>
     ) -> Self
@@ -156,14 +177,20 @@ impl<'m> ContextHandler<'m> {
         }
     }
 
+    /// Context wrapper builder from scratch.
     pub fn init() -> Self
-    where AppContext<'m>: Send + 'static
+        where AppContext<'m>: Send + 'static
     {
         ContextHandler {
             state: AppContext::<'m>::new()
         }
     }
 
+    /// Context wrapper builder from exisiting config.
+    /// 
+    /// # Arguments
+    /// * `context`             - application context with predefined parameters
+    /// 
     pub fn _new_from_config(
         config: AppConfig
     ) -> Self
@@ -174,6 +201,7 @@ impl<'m> ContextHandler<'m> {
         }
     }
 
+    /// Create a clone of the handler with same application context.
     pub fn clone(&self) -> Self
     {
         ContextHandler::new(self.state.clone())
@@ -187,6 +215,7 @@ impl<'m> ContextHandler<'m> {
 
 impl<'m> AppContext<'m> {
 
+    /// Create AppContext from cli parameters.
     pub fn new() -> RcCell<Self> 
         where AppContext<'m>: Send + 'static
     {
@@ -214,19 +243,19 @@ impl<'m> AppContext<'m> {
             }
         };
     
-        log::debug!("Loaded configuration : {:#?}", config);
+        debug!("Loaded configuration : {:#?}", config);
 
         let node_id = match Uuid::parse_str(&config.node_id.as_str()) {
             Ok(uuid) => uuid.to_string(),
             Err(e) => {
-                log::error!("UUID Parse error: {}", e);
+                error!("UUID Parse error: {}", e);
                 Uuid::new_v4().to_string()
             }
         };
 
         let localstate_filepath = &config.file_path_localstate;
         if ! Path::new(&localstate_filepath).exists() {
-            log::error!("Incorrect localstate file path : {}", &localstate_filepath);
+            error!("Incorrect localstate file path : {}", &localstate_filepath);
             // TODO: Exit strategy
             process::exit(0x0100);
         }
@@ -249,6 +278,13 @@ impl<'m> AppContext<'m> {
         )
     }
 
+    /// Create context from already exising configuration file.
+    /// 
+    /// # Arguments
+    /// * `config`             - application configuration
+    /// 
+    // TODO
+    #[allow(dead_code)]
     pub fn new_from_config(
             config: AppConfig
     ) -> RcCell<Self> 
@@ -259,14 +295,14 @@ impl<'m> AppContext<'m> {
         let node_id = match Uuid::parse_str(&config.node_id.as_str()) {
             Ok(uuid) => uuid.to_string(),
             Err(e) => {
-                log::error!("UUID Parse error: {}", e);
+                error!("UUID Parse error: {}", e);
                 Uuid::new_v4().to_string()
             }
         };
 
         let localstate_filepath = &config.file_path_localstate;
         if ! Path::new(&localstate_filepath).exists() {
-            log::error!("Incorrect localstate file path : {}", &localstate_filepath);
+            error!("Incorrect localstate file path : {}", &localstate_filepath);
             // TODO: Exit strategy
             process::exit(0x0100);
         }
@@ -290,6 +326,20 @@ impl<'m> AppContext<'m> {
 
     }
 
+    /// 
+    /// Create context with parameters.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `node_type`                   - Node type.
+    /// * `discovery_local_address`     - local bind address for discovery, by default 0.0.0.0
+    /// * `discovery_broadcast_address` - broadcast address for discovery, by default 0.0.0.0
+    /// * `discovery_port`              - discovery port
+    /// * `broker_local_ip`             - broker local bind address 0.0.0.0
+    /// * `broker_port`                 - broker port
+    /// 
+    // TODO
+    #[allow(dead_code)]
     pub fn new_with_params(
             node_type: NodeType,
             discovery_bind_local_address: &str,
@@ -305,14 +355,14 @@ impl<'m> AppContext<'m> {
         let node_id = match Uuid::parse_str(&args.uuid_node.as_str()) {
             Ok(uuid) => uuid.to_string(),
             Err(e) => {
-                log::error!("UUID Parse error: {}", e);
+                error!("UUID Parse error: {}", e);
                 Uuid::new_v4().to_string()
             }
         };
 
         let localstate_filepath = &args.file_localstate;
         if ! Path::new(&localstate_filepath).exists() {
-            log::error!("Incorrect localstate file path : {}", &localstate_filepath);
+            error!("Incorrect localstate file path : {}", &localstate_filepath);
             // TODO: Exit strategy
             process::exit(0x0100);
         }
@@ -335,6 +385,7 @@ impl<'m> AppContext<'m> {
         )
     }
 
+    /// Setters & Getters section.
     pub fn set_state(&mut self, new_state: NodeUpdateState) -> &Self {
         self.node_state = new_state;
         self

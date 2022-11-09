@@ -1,7 +1,3 @@
-use log::{
-    error, 
-    info,
-};
 
 use std::{
     net::{Ipv4Addr, IpAddr, Ipv6Addr},
@@ -14,6 +10,8 @@ use futures_timer::Delay;
 use tokio::net::UdpSocket;
 use chrono::Utc;
 
+use telemetry::{info, error, debug};
+
 use crate::context::{ContextHandler};
 use crate::message::{NodeRouteEntry, NodeType};
 
@@ -21,7 +19,12 @@ const DISCOVERY_DELAY_SECS: u64 = 3;
 const CLEAN_ROUTINE_DELAY_SECS: u64 = 7;
 const MAX_TIMEOUT_SECS: i64 = 20;
 
-// clearning "routing table" in a separate thread.
+/// function clearning "routing table" in a separate thread.
+/// Removes nodes which were not responsing for more than MAX_TIMEOUT_SECS seconds.
+/// 
+/// # Arguments
+/// * `context`             - application context with predefined parameters
+/// 
 pub fn route_table_cleaning_routine_start(
     context: ContextHandler<'static>,
 ) {
@@ -40,6 +43,13 @@ pub fn route_table_cleaning_routine_start(
     });
 }
 
+/// function which spawns threads broadcasting and receiving UDP messages about the state of the networks.
+/// This mechanism serves both for updating all the nodes about current state of network and all the nodes AND removal inactive nodes.
+/// 
+/// # Arguments
+/// * `context`             - application context with predefined parameters
+/// * `node_route_message`  - a template of the broadcasted UDP state with predefined values.
+/// 
 pub fn node_discoverer_start(
         context: ContextHandler<'static>,
         node_route_message: NodeRouteEntry,
@@ -53,7 +63,7 @@ pub fn node_discoverer_start(
     let bind_sender_local_address = ctx.get().borrow().bind_sender_local_address.clone();
     let broadcast_target_address = ctx.get().borrow().broadcast_target_address.clone();    
 
-    // spread information about the current node's state.
+    // spreads information about the current node's state and its closest discovered neighours.
     tokio::spawn(async move {
 
         match Ipv4Addr::from_str(broadcast_target_address.as_str()) {
@@ -146,7 +156,7 @@ pub fn node_discoverer_start(
         }
     });
 
-    // retrieve information from the network of Nodes
+    // retrieves information from the network about active nodes.
     tokio::spawn(async move {
 
         let ctx1 = context.clone();
@@ -169,7 +179,7 @@ pub fn node_discoverer_start(
 
                             let ts = Utc::now().timestamp_millis();
             
-                            log::debug!("Received {} bytes on the {} from Node : {}", bytes_read, bind_sender_local_address, from_node.ip());
+                            debug!("Received {} bytes on the {} from Node : {}", bytes_read, bind_sender_local_address, from_node.ip());
                             
                             let mut node_route_message = match NodeRouteEntry::from_bytes(&buf[0..bytes_read]) {
                                 
@@ -195,7 +205,7 @@ pub fn node_discoverer_start(
                                 }
                             }
                             
-                            log::debug!("Network distance in millis : {}", (ts - node_route_message.time()));
+                            debug!("Network distance in millis : {}", (ts - node_route_message.time()));
             
                             if tx.unbounded_send(node_route_message).is_err() {
                                 // Sending error

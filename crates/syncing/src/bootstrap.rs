@@ -6,7 +6,7 @@ use std::{
 use chrono::Utc;
 use futures::{future, StreamExt};
 
-use log::{debug,error, info};
+use telemetry::{debug, error, info};
 use queues::{CircularBuffer, IsQueue};
 
 use crate::{
@@ -18,11 +18,11 @@ use crate::{
 
 pub const MESSAGE_CACHE_SIZE: usize = 100;
 
-// Local context containing current state of the boostrap syncing.
+/// Local context containing current state of the local node boostrap syncing.
 pub struct BootstrapContext {
-    node_ip_addr: IpAddr,
-    node_distance_in_millis: i64,
-    is_local_node_boostrapped: bool,
+    node_ip_addr: IpAddr,               // Node address
+    node_distance_in_millis: i64,       // Node distance in milliseconds
+    is_local_node_boostrapped: bool,    // Is local Node already boostrapped and ready to serve contents of its localstate.
 }
 
 impl BootstrapContext {
@@ -35,11 +35,15 @@ impl BootstrapContext {
     }
 }
 
+/// Node syncing context start
+/// 
+/// # Arguments
+/// * `offset_localstate_file` - default file offset in localstate file
+/// 
+//  TODO: to be integrated into Block & chain.
 pub async fn node_bootstrap_syncing_context_start(
     offset_localstate_file: u64,
 ) {
-    log::info!("o_O");
-    
     let context = ContextHandler::init();
 
     let mut node_route_message = NodeRouteEntry::new(
@@ -68,7 +72,7 @@ pub async fn node_bootstrap_syncing_context_start(
                     node_route_message,
                 );    
 
-    log::info!("Start of {}, on address {}", context.get().borrow().node_id, context.get().borrow().bind_sender_local_address.clone());
+    info!("Start of {}, on address {}", context.get().borrow().node_id, context.get().borrow().bind_sender_local_address.clone());
 
     let mut cache = CircularBuffer::<Arc<NodeRouteEntry>>::new(MESSAGE_CACHE_SIZE);
 

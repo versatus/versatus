@@ -17,17 +17,27 @@ use std::{
 
 use crate::{error::NodePoolError, message::NodeType, MAX_CONNECTED_NODES};
 
+// TODO, fix the compiler.
+#[allow(dead_code)]
 pub type Result<T> = StdResult<T, NodePoolError>;
 
+/// A key containing state of a single node.
 #[derive(Eq, Serialize, Deserialize, Debug, Default)]
 pub struct NodeKey<'m> {
-    pub node_id: Cow<'m, str>,  // contains PeerId
-    pub node_distance: i64,     // network distance in millis
-    pub node_type: u8,          // 
-    pub node_timestamp: i64     // last update
+    pub node_id: Cow<'m, str>,  // contains PeerId.
+    pub node_distance: i64,     // network distance in millis, used for sorting by the closest and fasters neighbours.
+    pub node_type: u8,          // information about node's type.
+    pub node_timestamp: i64     // last contact with the node, allows to distinguish inactive nodes.
 }
 
 impl<'m> NodeKey<'m> {
+    /// Builds a new key
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_distance`       - Node distance in milliseconds
+    /// * `node_type`           - NodeType - Archive, ... etc
+    /// 
     pub fn new<M: Into<Cow<'m, str>>>(
             node_id: M,
             node_distance: i64,
@@ -91,7 +101,16 @@ pub struct NodeAddr<'m> {
     pub addr_set: HashSet<IpAddr>,
 }
 
+/// Node details and addresses, discovered during process of syncing.
 impl<'m> NodeAddr<'m> {
+
+    /// Builds a NodeAddr
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_distance`       - Node distance in milliseconds
+    /// * `node_type`           - NodeType - Archive, ... etc
+    /// 
     pub fn new<N: Into<Cow<'m, str>>>(
         node_id: N,             // contains PeerId
         node_distance: i64,     // network distance in millis
@@ -119,12 +138,15 @@ impl<'m> Default for NodePool<'m> {
     }
 }
 
+/// All the map operations.
+// TODO, fix the compiler
+#[allow(dead_code)]
 pub enum NodePoolOp {
-    Add(String,i64,NodeType,IpAddr),
-    AddAddr(String,IpAddr),
-    UpdateDistance(String,i64),
-    RemoveInactiveNodes(i64),
-    Remove(String),
+    Add(String,i64,NodeType,IpAddr),    // add a new node.
+    AddAddr(String,IpAddr),             // add an address to already exisiting node.
+    UpdateDistance(String,i64),         // update current network distance. TODO
+    RemoveInactiveNodes(i64),           // remove inactive node by max distance from the map and network.
+    Remove(String),                     // remove inactive node by ID. TODO
 }
 
 impl<'m> Absorb<NodePoolOp> for NodePool<'m> {
@@ -206,17 +228,26 @@ unsafe impl Sync for LeftRightNodePoolDB<'_> {}
 
 impl<'m> LeftRightNodePoolDB<'m> {
 
+    /// Builds a LeftRightNodePoolDB
     pub fn new() -> Self {
-
+        
         let (write, read) = left_right::new::<NodePool, NodePoolOp>();
 
         LeftRightNodePoolDB { read, write }
     }
-
+    
     pub fn get(&self) -> Option<NodePool> {
         self.read.enter().map(|guard| guard.clone())
     }
-
+    
+    /// Add new node
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_distance`       - Node distance in milliseconds
+    /// * `node_type`           - NodeType - Archive, ... etc
+    /// * `node_addr`           - received address for the node.
+    /// 
     pub fn add_node(&mut self, node_id: String, node_distance: i64, node_type: NodeType, node_addr: IpAddr) -> &mut Self {
 
         self.write
@@ -226,7 +257,13 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
-    pub fn add_addr(&mut self, node_id: String, node_addr: IpAddr) -> &mut Self {
+    /// Add address to an existing Node.
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_addr`           - received address for the node.
+    /// 
+    pub fn _add_addr(&mut self, node_id: String, node_addr: IpAddr) -> &mut Self {
 
         self.write
             .append(NodePoolOp::AddAddr(node_id, node_addr))
@@ -235,7 +272,13 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
-    pub fn add_addrs(&mut self, node_id: String, node_addrs: &Vec<IpAddr>) -> &mut Self {
+    /// Add addresses to an existing Node.
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_addrs`          - Vec received address for the node.
+    /// 
+    pub fn _add_addrs(&mut self, node_id: String, node_addrs: &Vec<IpAddr>) -> &mut Self {
 
         for ip in node_addrs {
 
@@ -248,6 +291,12 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
+    /// Add addresses IPv4 to an existing Node.
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_addrs`          - Vec received address IPv4 for the node.
+    /// 
     pub fn add_addrs_v4(&mut self, node_id: String, node_addrs: &Vec<Ipv4Addr>) -> &mut Self {
 
         for ip in node_addrs {
@@ -261,6 +310,13 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
+    /// 
+    /// Add addresses IPv6 to an existing Node.
+    /// 
+    /// # Arguments
+    /// * `node_id`             - NodeId
+    /// * `node_addrs`          - Vec received address IPv6 for the node.
+    /// 
     pub fn add_addrs_v6(&mut self, node_id: String, node_addrs: &Vec<Ipv6Addr>) -> &mut Self {
 
         for ip in node_addrs {
@@ -274,7 +330,15 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
-    pub fn update_node_distance(&mut self, node_id: String, node_distance: i64) -> &mut Self {
+    /// 
+    /// Update an existing Node distance.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `node_id`             - NodeId
+    /// * `node_distance`       - Node distance in milliseconds
+    /// 
+    pub fn _update_node_distance(&mut self, node_id: String, node_distance: i64) -> &mut Self {
 
         self.write.append(NodePoolOp::UpdateDistance(node_id.clone(), node_distance));
 
@@ -283,6 +347,13 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
+    /// 
+    /// Remove inactive nodes
+    /// 
+    /// # Arguments
+    /// 
+    /// * `max_inactivity_duration_in_secs`             - maximum inactivity period for a node
+    /// 
     pub fn remove_inactive_nodes(&mut self, max_inactivity_duration_in_secs: i64) -> &mut Self  {
 
         self.write.append(NodePoolOp::RemoveInactiveNodes(max_inactivity_duration_in_secs));
@@ -292,7 +363,13 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self
     }
 
-    pub fn get_node(&mut self, node_id: &'m String) -> Option<NodeAddr> {
+    /// Retrieve an existing Node.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `node_id`             - NodeId
+    /// 
+    pub fn _get_node(&mut self, node_id: &'m String) -> Option<NodeAddr> {
 
         if node_id.is_empty() {
             return None;
@@ -307,7 +384,9 @@ impl<'m> LeftRightNodePoolDB<'m> {
         })
     }
 
-    pub fn get_all_nodes(&mut self) -> Option<Vec<NodeAddr>> {
+    /// Retrieve all the existing registered Nodes.
+    /// 
+    pub fn _get_all_nodes(&mut self) -> Option<Vec<NodeAddr>> {
 
         self.get().and_then(|map| {
 
@@ -320,6 +399,12 @@ impl<'m> LeftRightNodePoolDB<'m> {
         })
     }
 
+    /// 
+    /// Retrieve all the existing registered Nodes from the current sub cluster of Nodes.
+    /// 
+    /// # Arguments
+    /// * `node_type`           - NodeType - Archive, ... etc
+    /// 
     pub fn get_cluster(&mut self, node_type: NodeType) -> Option<Vec<NodeAddr>> {
 
         self.get().and_then(|map| {
@@ -348,7 +433,13 @@ impl<'m> LeftRightNodePoolDB<'m> {
         })
     }
 
-    pub fn remove_node(&mut self, node_id: &String) -> Result<()> {
+    /// Remove an existing Node.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `node_id`             - NodeId
+    /// 
+    pub fn _remove_node(&mut self, node_id: &String) -> Result<()> {
 
         self.write
             .append(NodePoolOp::Remove(node_id.clone()))

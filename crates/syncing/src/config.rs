@@ -10,6 +10,9 @@ use serde::{
 use uuid::Uuid;
 
 use crate::message::NodeType;
+
+/// Application config
+/// TODO: To be integrated with the general Node configuration strategy.
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
 pub struct AppConfig {
@@ -25,6 +28,7 @@ pub struct AppConfig {
     pub broker_port: u16,                       // broker port
 }
 
+/// Default values for the application config.
 impl Default for AppConfig {
     fn default() -> Self {
         Self {

@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-use log::{info, error, debug};
+use telemetry::{info, error, debug};
 use udt::UdtError;
 
 use crate::{
@@ -16,11 +16,18 @@ use crate::{
     context::ContextHandler,
 };
 
+/// Local state Broker, encapsulates the Data server.
 pub struct LocalstateBroker {
     pub broker: DATAServer,
 }
 
 impl LocalstateBroker {
+
+    /// Builds a new broker, using application context.
+    /// 
+    /// # Arguments
+    /// * `context` - application context with predefined parameters
+    /// 
     pub fn new(
         context: ContextHandler<'static>,
     ) -> Self {
@@ -35,11 +42,19 @@ impl LocalstateBroker {
     }    
 }
 
+/// Local state Client for an external broker, encapsulates the Data client.
 pub struct LocalstateBrokerClient {
     pub node_syncer: DATAClient
 }
 
 impl LocalstateBrokerClient {
+
+    /// Builds a new broker connection to the nearest Data state broker
+    /// 
+    /// # Arguments
+    /// * `ip_addr` - ip address of the remote data broker
+    /// * `port`    - port of the remote data broker
+    /// 
     pub fn new(ip_addr: IpAddr, port: u16) -> Self {
 
         let data_client = DATAClient::new_from_ip_addr(ip_addr, port);
@@ -56,16 +71,21 @@ impl LocalstateBrokerClient {
 }
 
 /// Data retrieval, all the operation in the current thread
+/// 
+/// # Arguments
+/// * `context`     - application context with predefined parameters
+/// * `node_addr`   - ip address of the assessed remote data broker
+/// 
 pub fn broker_retrieve(
     context: ContextHandler<'_>,
     node_addr: IpAddr
-) -> Result<usize, UdtError>
-{
+) -> Result<usize, UdtError> {
+
     let local_localstate_filename = context.get().borrow().localstate_file_path.clone();
     let path: &Path = Path::new(&local_localstate_filename);
     if ! path.is_file() {
         let msg = format!("broker_retrieve: UDT parameter error : {} is not a file", local_localstate_filename);
-        log::error!("{}", msg);
+        error!("{}", msg);
         return Err(UdtError{err_code: 10001, err_msg: msg})
     }
 
@@ -109,7 +129,12 @@ pub fn broker_retrieve(
     }
 }
 
-/// localstate data server, all the operation in a separate thread.
+/// Localstate data broker, all the operation in a separate thread.
+/// 
+/// # Arguments
+/// * `context`             - application context with predefined parameters
+/// * `localstate_offset`   - offset in the localstate file
+/// 
 pub fn broker_server_start(
     context: ContextHandler<'static>,
     localstate_offset: u64,

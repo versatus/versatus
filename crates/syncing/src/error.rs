@@ -5,11 +5,8 @@ use std::fmt;
 #[derive(Debug, Error)]
 pub enum DiscovererError {
 
-        #[error(display = "Failed to deserialize NodeRouteEntry from bytes: {}", _0)]
-        Deserialize(String),
-
-            #[error(display = "IO Error: {}", _0)]
-            Io(io::Error),
+    #[error(display = "Failed to deserialize NodeRouteEntry from bytes: {}", _0)]
+    Deserialize(String),
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -17,7 +14,9 @@ pub enum NodePoolError {
     NodeMissing,
 }
 
+// TODO: fix compiler
 #[derive(PartialEq, Eq, Debug)]
+#[allow(dead_code)]
 pub enum BootstrapError {
     NodeMissing,
     NodeOutOfSync,
@@ -35,6 +34,8 @@ impl fmt::Display for BootstrapError {
     }
 }
 
+// TODO: fix compiler.
+#[allow(dead_code)]
 #[derive(PartialEq, Eq, Debug)]
 pub enum DataBrokerError {
     ConnectionError,
