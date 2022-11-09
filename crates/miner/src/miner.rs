@@ -212,7 +212,6 @@ impl Miner {
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
         Block::genesis(
-            &self.reward.clone(),
             self.claim.clone(),
             self.secret_key.clone(),
             None,
