@@ -22,7 +22,6 @@ mod tests {
     fn test_genesis_block_utility() {
         let secp = Secp256k1::new();
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let reward = Reward::genesis(None);
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
         let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
         assert!(genesis_block_opt.is_some());
@@ -95,7 +94,6 @@ mod tests {
     fn test_block_adjustment_reward() {
         let secp = Secp256k1::new();
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let reward = Reward::genesis(None);
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
         let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
         let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());

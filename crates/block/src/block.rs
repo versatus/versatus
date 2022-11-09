@@ -162,20 +162,12 @@ impl Block {
         let mut adjustment_next_epoch = 0;
         if epoch != last_block.epoch {
             block_utility = utility_amount;
-            adjustment_next_epoch = if utility_amount > last_block.utility {
-                (block_utility as f64 * GROSS_UTILITY_PERCENTAGE) as i128
-            } else {
-                (block_utility as f64 * -GROSS_UTILITY_PERCENTAGE) as i128
-            };
-            if let Some(adjustment_percentage_previous_epoch) = last_block.adjustment_for_next_epoch
-            {
-                if (adjustment_next_epoch / NUMBER_OF_BLOCKS_PER_EPOCH as i128)
-                    >= adjustment_percentage_previous_epoch * reward.amount as i128
-                {
-                    adjustment_next_epoch = adjustment_percentage_previous_epoch
-                        * (reward.amount * NUMBER_OF_BLOCKS_PER_EPOCH) as i128
-                };
-            };
+            adjustment_next_epoch = Self::set_next_adjustment_epoch(
+                &last_block,
+                reward,
+                &mut block_utility,
+                utility_amount,
+            );
         } else {
             block_utility = utility_amount + last_block.utility;
         }
@@ -237,6 +229,43 @@ impl Block {
         let hash = hashable_state.hash(&block.txns, block.header.block_reward.clone());
         block.hash = hash;
         (Some(block), adjustment_next_epoch)
+    }
+
+    /// If the utility of the current block is greater than the utility of the previous block, then the
+    /// next adjustment epoch is the current block utility times the gross utility percentage.
+    /// Otherwise, the next adjustment epoch is the current block utility times the negative gross
+    /// utility percentage
+    ///
+    /// Arguments:
+    ///
+    /// * `last_block`: The last block in the chain.
+    /// * `reward`: The reward for the current epoch.
+    /// * `block_utility`: The utility of the block being processed.
+    /// * `utility_amount`: The amount of utility that was generated in the last epoch.
+    ///
+    /// Returns:
+    ///
+    /// The adjustment for the next epoch.
+    fn set_next_adjustment_epoch(
+        last_block: &Block,
+        reward: &Reward,
+        block_utility: &mut i128,
+        utility_amount: i128,
+    ) -> i128 {
+        let mut adjustment_next_epoch = if utility_amount > last_block.utility {
+            (*block_utility as f64 * GROSS_UTILITY_PERCENTAGE) as i128
+        } else {
+            (*block_utility as f64 * -GROSS_UTILITY_PERCENTAGE) as i128
+        };
+        if let Some(adjustment_percentage_previous_epoch) = last_block.adjustment_for_next_epoch {
+            if (adjustment_next_epoch / NUMBER_OF_BLOCKS_PER_EPOCH as i128)
+                >= adjustment_percentage_previous_epoch * reward.amount as i128
+            {
+                adjustment_next_epoch = adjustment_percentage_previous_epoch
+                    * (reward.amount * NUMBER_OF_BLOCKS_PER_EPOCH) as i128
+            };
+        };
+        adjustment_next_epoch
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
