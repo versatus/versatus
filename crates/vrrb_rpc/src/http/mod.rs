@@ -1,4 +1,4 @@
-use std::{convert::Infallible, io, net::SocketAddr, time::Duration};
+use std::{convert::Infallible, fmt::Debug, io, net::SocketAddr, time::Duration};
 
 use poem::{
     listener::{Acceptor, TcpAcceptor},
@@ -22,6 +22,7 @@ impl HttpApi {
 /// Configuration store for an HttpApiServer
 // TODO: implement a builder over this config.
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
+#[derive(Debug, Clone)]
 pub struct HttpApiServerConfig {
     pub address: String,
     pub api_title: String,
@@ -32,6 +33,7 @@ pub struct HttpApiServerConfig {
 /// Configuration store for an HttpApiRouter
 // TODO: implement a builder over this config.
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
+#[derive(Debug, Clone)]
 pub struct HttpApiRouterConfig {
     pub address: SocketAddr,
     pub api_title: String,
@@ -44,6 +46,16 @@ pub struct HttpApiServer {
     server: Server<Infallible, TcpAcceptor>,
     server_timeout: Option<Duration>,
     app: Route,
+}
+
+impl Debug for HttpApiServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpApiServer")
+            // .field("server", &self.server)
+            .field("server_timeout", &self.server_timeout)
+            // .field("app", &self.app)
+            .finish()
+    }
 }
 
 impl HttpApiServer {

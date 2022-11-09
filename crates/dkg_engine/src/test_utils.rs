@@ -86,11 +86,17 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
                 // message_handler: MessageHandler::new(msg_sender, msg_receiver),
                 data_dir: PathBuf::from("bananas"),
                 db_path: PathBuf::from("bananas"),
-                node_idx: i,
-                address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
                 bootstrap: false,
-                bootstrap_node_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                bootstrap_node_addresses: vec![SocketAddr::new(
+                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                    8080,
+                )],
                 node_type: node_type.clone(),
+                http_api_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+                http_api_title: "Node HTTP API".into(),
+                http_api_version: "1.0".into(),
+                http_api_shutdown_timeout: None,
             }))),
             threshold_config: valid_threshold_config(),
             dkg_state: DkgState {
@@ -107,7 +113,6 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
     }
     dkg_instances
 }
-
 
 pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
     let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);

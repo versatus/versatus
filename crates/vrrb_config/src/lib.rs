@@ -1,5 +1,4 @@
-// use secp256k1::{PublicKey, Secp256k1, SecretKey};
-use std::{net::SocketAddr, path::PathBuf};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
@@ -7,17 +6,20 @@ pub struct NodeConfig {
     pub idx: primitives::types::NodeIdx,
     pub data_dir: PathBuf,
     pub db_path: PathBuf,
-    pub node_idx: primitives::types::NodeIdx,
-    pub address: SocketAddr,
-    pub bootstrap: bool,
-    pub bootstrap_node_addr: SocketAddr,
+    pub gossip_address: SocketAddr,
     pub node_type: primitives::types::NodeType,
-    // pub public_key: primitives::PublicKey,
-    // pub secret_key: primitives::SecretKey,
+    pub bootstrap: bool,
+    pub bootstrap_node_addresses: Vec<SocketAddr>,
+    pub http_api_address: SocketAddr,
+    pub http_api_title: String,
+    pub http_api_version: String,
+    pub http_api_shutdown_timeout: Option<Duration>,
 }
 
 impl NodeConfig {
     pub fn db_path(&self) -> &PathBuf {
+        // TODO: refactor to Option and check if present and return configured db path or default path within vrrb's data
+        // dir
         &self.db_path
     }
 
