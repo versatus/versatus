@@ -18,8 +18,8 @@ pub struct NodeConfig {
 
 impl NodeConfig {
     pub fn db_path(&self) -> &PathBuf {
-        // TODO: refactor to Option and check if present and return configured db path or default path within vrrb's data
-        // dir
+        // TODO: refactor to Option and check if present and return configured db path
+        // or default path within vrrb's data dir
         &self.db_path
     }
 

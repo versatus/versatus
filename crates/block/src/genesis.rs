@@ -23,7 +23,6 @@ const EMPLOYEESS: [&str; 2] = [
     "3ki3QpPM2cGE3X5MZm6L4NcMdrp7R9vVeE2PEE427uqa",
 ];
 
-
 const INVESTORS: [&str; 2] = [
     "C5dz418Wf5cKeGKCUBN7AUTRcGK9wcRknEfVbjSyAMZm",
     "5TAgthC5PLYBP3JSvjjfnd1jkY1VLrC78p4T4MucHFE",
@@ -40,23 +39,9 @@ mod vesting {
         pub unlock_years: f64,
     }
 
-    pub fn create_vesting(target: &str, config: VestingConfig) -> (String, Txn) {
-        return (
-            String::new(),
-            Txn {
-                txn_id: todo!(),
-                txn_timestamp: todo!(),
-                sender_address: todo!(),
-                sender_public_key: todo!(),
-                receiver_address: todo!(),
-                txn_token: todo!(),
-                txn_amount: todo!(),
-                txn_payload: todo!(),
-                txn_signature: todo!(),
-                validators: todo!(),
-                nonce: todo!(),
-            },
-        );
+    #[allow(clippy::diverging_sub_expression)]
+    pub fn create_vesting(_target: &str, _config: VestingConfig) -> (String, Txn) {
+        todo!()
     }
 }
 
