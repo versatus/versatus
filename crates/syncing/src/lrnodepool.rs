@@ -1,6 +1,7 @@
 
 use chrono::Utc;
 use left_right::{Absorb, ReadHandle, WriteHandle};
+use primitives::types::NodeType;
 
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
@@ -15,7 +16,7 @@ use std::{
     result::Result as StdResult,
 };
 
-use crate::{error::NodePoolError, message::NodeType, MAX_CONNECTED_NODES};
+use crate::{error::NodePoolError, MAX_CONNECTED_NODES};
 
 // TODO, fix the compiler.
 #[allow(dead_code)]
@@ -174,7 +175,7 @@ impl<'m> Absorb<NodePoolOp> for NodePool<'m> {
             },
             NodePoolOp::AddAddr(id, value) => {
 
-                let key = NodeKey::new(id.clone(), 0, NodeType::ALL);
+                let key = NodeKey::new(id.clone(), 0, NodeType::Full);
 
                 if let Some(entry) = self.nodes.get_key_value(&key) {
                     let new_key = entry.0.clone();
@@ -186,7 +187,7 @@ impl<'m> Absorb<NodePoolOp> for NodePool<'m> {
             },
             NodePoolOp::UpdateDistance(id, value) => {
 
-                let key = NodeKey::new(id.clone(), *value, NodeType::ALL);
+                let key = NodeKey::new(id.clone(), *value, NodeType::Full);
                 
                 if let Some(entry) = self.nodes.get_key_value(&key) {
                     let mut new_key = entry.0.clone();
@@ -410,7 +411,7 @@ impl<'m> LeftRightNodePoolDB<'m> {
         self.get().and_then(|map| {
 
             let vec: Vec<NodeAddr> = match node_type {
-                NodeType::ALL => {
+                NodeType::Full => {
                     map
                     .nodes
                     .values()

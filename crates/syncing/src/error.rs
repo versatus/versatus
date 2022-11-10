@@ -1,4 +1,3 @@
-use async_std::io;
 use err_derive::Error;
 use std::fmt;
 
@@ -11,7 +10,6 @@ pub enum DiscovererError {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum NodePoolError {
-    NodeMissing,
 }
 
 // TODO: fix compiler

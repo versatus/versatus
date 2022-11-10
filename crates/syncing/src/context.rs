@@ -10,6 +10,7 @@ use config::{
     File
 };
 
+use primitives::types::NodeType;
 use rcrefcell::RcCell;
 use uuid::Uuid;
 
@@ -17,7 +18,6 @@ use telemetry::{error, debug};
 
 use crate::{
     lrnodepool::LeftRightNodePoolDB,
-    message::NodeType,
     config::AppConfig,
 };
 

@@ -8,55 +8,13 @@ use std::{
 };
 
 use chrono::Utc;
-use serde::{
-    Serialize,
-    Deserialize,
-};
+use primitives::types::NodeType;
 
 use crate::MAX_CONNECTED_NODES;
 use crate::context::NodeUpdateState;
 use crate::error::DiscovererError;
 
 pub type Result<T> = StdResult<T, DiscovererError>;
-
-#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-#[repr(u8)]
-#[serde(rename_all = "snake_case")]
-#[serde(try_from = "String")]
-pub enum NodeType {
-    Archive         = 0,
-    Computational   = 1,
-    Miner           = 2,
-    Validator       = 3,
-    ALL             = 10,
-    Unknown         = 255,
-}
-
-impl From<String> for NodeType {
-    fn from(src: String) -> Self {
-        match src.to_ascii_lowercase().as_str() {
-            "computational" => NodeType::Computational,
-            "validator" => NodeType::Validator,
-            "archive" => NodeType::Archive,
-            "miner" => NodeType::Miner,
-            "all" => NodeType::ALL,
-            _ => NodeType::Unknown,
-        }
-    }
-}
-
-impl From<usize> for NodeType {
-    fn from(node_type: usize) -> Self {
-        match node_type {
-            0  =>  NodeType::Archive,
-            1  =>  NodeType::Computational,
-            2  =>  NodeType::Miner,
-            3  =>  NodeType::Validator,
-            10 =>  NodeType::ALL,
-            _ =>   NodeType::Unknown
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct NodeRouteEntry {
@@ -266,10 +224,13 @@ fn parse_node_type(
     }
 
     let node_type = match buf[*pos] {
-        0 => NodeType::Archive,
-        1 => NodeType::Computational,
-        2 => NodeType::Miner,
-        3 => NodeType::Validator,
+        0 => NodeType::Full,
+        1 => NodeType::Light,
+        2 => NodeType::Archive,
+        3 => NodeType::Miner,
+        4 => NodeType::Bootstrap,
+        5 => NodeType::Validator,
+        6 => NodeType::MasterNode,
         unknown_type => return Err(DiscovererError::Deserialize(format!("Distorted UDP packet, unknown node type : {}", unknown_type))),
     };
     *pos += 1;

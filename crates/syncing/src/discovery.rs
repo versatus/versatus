@@ -7,13 +7,14 @@ use std::{
 
 use futures::channel::mpsc;
 use futures_timer::Delay;
+use primitives::types::NodeType;
 use tokio::net::UdpSocket;
 use chrono::Utc;
 
 use telemetry::{info, error, debug};
 
 use crate::context::{ContextHandler};
-use crate::message::{NodeRouteEntry, NodeType};
+use crate::message::{NodeRouteEntry};
 
 const DISCOVERY_DELAY_SECS: u64 = 3;
 const CLEAN_ROUTINE_DELAY_SECS: u64 = 7;
@@ -88,7 +89,7 @@ pub fn node_discoverer_start(
                         message_template.time = Utc::now().timestamp_millis();
                         message_template.node_state = ctx.get().borrow_mut().state().clone();
     
-                        if let Some(cluster) = ctx.get().borrow_mut().node_routes_db.get_cluster(NodeType::ALL) {
+                        if let Some(cluster) = ctx.get().borrow_mut().node_routes_db.get_cluster(NodeType::Full) {
     
                             let mut cluster_ipv4s: Vec<Ipv4Addr> = 
                                 cluster

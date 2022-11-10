@@ -12,13 +12,13 @@ use telemetry::{info, error, debug};
 use udt::UdtError;
 
 use crate::{
-    transfer::{DATAClient, DATAServer, DATAClientConnection},
+    transfer::{DataClient, DataServer, DataClientConnection},
     context::ContextHandler,
 };
 
 /// Local state Broker, encapsulates the Data server.
 pub struct LocalstateBroker {
-    pub broker: DATAServer,
+    pub broker: DataServer,
 }
 
 impl LocalstateBroker {
@@ -34,7 +34,7 @@ impl LocalstateBroker {
 
         LocalstateBroker {
 
-            broker: DATAServer::new(
+            broker: DataServer::new(
                 context.get().borrow().broker_edge.local_ip().clone(),
                 context.get().borrow().broker_edge.port(),
             ),
@@ -44,7 +44,7 @@ impl LocalstateBroker {
 
 /// Local state Client for an external broker, encapsulates the Data client.
 pub struct LocalstateBrokerClient {
-    pub node_syncer: DATAClient
+    pub node_syncer: DataClient
 }
 
 impl LocalstateBrokerClient {
@@ -57,7 +57,7 @@ impl LocalstateBrokerClient {
     /// 
     pub fn new(ip_addr: IpAddr, port: u16) -> Self {
 
-        let data_client = DATAClient::new_from_ip_addr(ip_addr, port);
+        let data_client = DataClient::new_from_ip_addr(ip_addr, port);
 
         LocalstateBrokerClient {
 
@@ -65,7 +65,7 @@ impl LocalstateBrokerClient {
         }
     }
     
-    pub fn connect_client(&self) -> Result<DATAClientConnection, UdtError> {
+    pub fn connect_client(&self) -> Result<DataClientConnection, UdtError> {
         self.node_syncer.connect()
     }
 }

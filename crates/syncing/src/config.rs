@@ -3,13 +3,12 @@ use std::net::{
     Ipv4Addr,
 };
 
+use primitives::types::NodeType;
 use serde::{
     Deserialize
 };
 
 use uuid::Uuid;
-
-use crate::message::NodeType;
 
 /// Application config
 /// TODO: To be integrated with the general Node configuration strategy.

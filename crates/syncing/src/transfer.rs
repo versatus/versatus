@@ -45,12 +45,12 @@ fn init_socket_addr(server_ip: String, server_port: u16) -> Result<SocketAddr, A
     }
 }
 
-trait UDTransfer {
+trait Udtransfer {
     fn send_udt_data(&self, buf: &[u8]) -> Result<usize, UdtError>;
     fn recv_udt_data(&self, buf: &mut Box<Vec<u8>>) -> Result<usize, UdtError>;
 }
 
-impl UDTransfer for UdtSocket {
+impl Udtransfer for UdtSocket {
 
     ///
     /// Transfer data to a remote data server
@@ -141,7 +141,7 @@ impl UDTransfer for UdtSocket {
 /// Data server struct, represents its  internal details
 /// 
 #[derive(Debug)]
-pub struct DATAServer {
+pub struct DataServer {
     pub ip_addr: IpAddr,
     pub port: u16,
     sock: UdtSocket,
@@ -150,7 +150,7 @@ pub struct DATAServer {
 ///
 /// Data client struct, represents its  internal details
 /// 
-pub struct DATAClient {
+pub struct DataClient {
     addr: SocketAddr,
     sock: UdtSocket,
 }
@@ -158,18 +158,18 @@ pub struct DATAClient {
 /// 
 /// Data server connection.
 /// 
-pub struct DATAServerConnection {
+pub struct DataServerConnection {
     sock: UdtSocket,
 }
 
 /// 
 /// Data client connection.
 /// 
-pub struct DATAClientConnection {
+pub struct DataClientConnection {
     sock: UdtSocket,
 }
 
-impl DATAClient {
+impl DataClient {
 
     ///
     /// Builds a new data client for data transfer.
@@ -178,10 +178,10 @@ impl DATAClient {
     /// * `remote_ip`           - Remote server IP, as String
     /// * `remote_port`         - Remote server PORT
     /// 
-    pub fn _new(remote_ip: String, remote_port: u16) -> Result<DATAClient, DataBrokerError> {
+    pub fn new(remote_ip: String, remote_port: u16) -> Result<DataClient, DataBrokerError> {
         let sock = init_udt_socket();
         match init_socket_addr(remote_ip, remote_port) {
-            Ok(addr) => Ok(DATAClient {
+            Ok(addr) => Ok(DataClient {
                                         addr,
                                         sock,
                                     }),
@@ -196,7 +196,7 @@ impl DATAClient {
     /// * `remote_ip`           - Remote server IP, as IpAddr
     /// * `remote_port`         - Remote server PORT
     /// 
-    pub fn new_from_ip_addr(remote_ip: IpAddr, remote_port: u16) -> DATAClient {
+    pub fn new_from_ip_addr(remote_ip: IpAddr, remote_port: u16) -> DataClient {
         let sock = init_udt_socket();
         let connection_string = format!("{}:{}", remote_ip.to_string(), remote_port);
         let addr = match connection_string.parse::<SocketAddr>() {
@@ -207,7 +207,7 @@ impl DATAClient {
             }
         };
 
-        DATAClient {
+        DataClient {
             addr,
             sock,
         }
@@ -216,11 +216,11 @@ impl DATAClient {
     ///
     /// Try to connect to the remote server.
     /// 
-    pub fn connect(&self) -> Result<DATAClientConnection, UdtError> {
+    pub fn connect(&self) -> Result<DataClientConnection, UdtError> {
         debug!("Connecting to : {:#?} ...", self.addr);
         match self.sock.connect(self.addr) {
             Ok(_) => 
-                Ok(DATAClientConnection {
+                Ok(DataClientConnection {
                     sock: self.sock,
                 }),
             Err(e) => Err(e)
@@ -232,7 +232,7 @@ impl DATAClient {
     }
 }
 
-impl DATAServer {
+impl DataServer {
 
     ///
     /// Builds a new data server for data transfer.
@@ -241,13 +241,13 @@ impl DATAServer {
     /// * `ip_addr`         - local server IP, as String
     /// * `port`            - local server PORT
     /// 
-    pub fn new(ip_addr: IpAddr, port: u16) -> DATAServer {
+    pub fn new(ip_addr: IpAddr, port: u16) -> DataServer {
         let sock = init_udt_socket();
         let sock_addr = SocketAddr::new(ip_addr, port);
         if let Err(e) = sock.bind(sock_addr) {
-            error!("DATAServer::new, binding error : {:#?}", e);
+            error!("DataServer::new, binding error : {:#?}", e);
         }
-        DATAServer {
+        DataServer {
             sock,
             ip_addr,
             port,
@@ -264,16 +264,16 @@ impl DATAServer {
     /// 
     /// Accepts a new incoming connection.
     /// 
-    pub fn accept(&self) -> Result<DATAServerConnection, UdtError> {
+    pub fn accept(&self) -> Result<DataServerConnection, UdtError> {
         self.sock.accept().map(move |(sock, _)| {
-            DATAServerConnection {
+            DataServerConnection {
                 sock,
             }
         })
     }
 }
 
-impl DATAServerConnection {
+impl DataServerConnection {
 
     /// 
     /// Retrieves address of the remote client
@@ -298,12 +298,12 @@ impl DATAServerConnection {
     /// # Arguments
     /// * `buffer`           - Buffer with data
     /// 
-    pub fn _recv(&self, buffer:  &mut Box<Vec<u8>>) -> Result<usize, UdtError> {
+    pub fn recv(&self, buffer:  &mut Box<Vec<u8>>) -> Result<usize, UdtError> {
         self.sock.recv_udt_data(buffer)
     }
 }
 
-impl DATAClientConnection {
+impl DataClientConnection {
  
     ///
     /// Sends data to a remote data server
@@ -311,7 +311,7 @@ impl DATAClientConnection {
     /// # Arguments
     /// * `buffer`           - Buffer with data
     /// 
-    pub fn _send(&self, buffer: &[u8]) -> Result<usize, UdtError> {
+    pub fn send(&self, buffer: &[u8]) -> Result<usize, UdtError> {
         self.sock.send_udt_data(buffer)
     }
 

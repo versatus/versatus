@@ -6,12 +6,13 @@ use std::{
 use chrono::Utc;
 use futures::{future, StreamExt};
 
+use primitives::types::NodeType;
 use telemetry::{debug, error, info};
 use queues::{CircularBuffer, IsQueue};
 
 use crate::{
     context::{ContextHandler, NodeUpdateState},
-    message::{NodeRouteEntry, NodeType},
+    message::{NodeRouteEntry},
     discovery::{route_table_cleaning_routine_start, node_discoverer_start},
     broker::{broker_server_start, broker_retrieve}
 };
