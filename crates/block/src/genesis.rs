@@ -23,7 +23,6 @@ const EMPLOYEESS: [&str; 2] = [
     "3ki3QpPM2cGE3X5MZm6L4NcMdrp7R9vVeE2PEE427uqa",
 ];
 
-
 const INVESTORS: [&str; 2] = [
     "C5dz418Wf5cKeGKCUBN7AUTRcGK9wcRknEfVbjSyAMZm",
     "5TAgthC5PLYBP3JSvjjfnd1jkY1VLrC78p4T4MucHFE",

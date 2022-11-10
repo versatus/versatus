@@ -18,7 +18,6 @@ use txn::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
 
-
 pub const ADDRESS_PREFIX: &str = "0x192";
 pub enum TxnFees {
     Slow,

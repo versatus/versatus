@@ -202,7 +202,6 @@ where
     }
 }
 
-
 impl<D: Database> From<D> for LeftRightTrie<D> {
     fn from(db: D) -> Self {
         let db = Arc::new(db);
