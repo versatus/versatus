@@ -1,10 +1,10 @@
-use err_derive::Error;
+use thiserror::Error;
 use std::fmt;
 
 #[derive(Debug, Error)]
 pub enum DiscovererError {
 
-    #[error(display = "Failed to deserialize NodeRouteEntry from bytes: {}", _0)]
+    #[error("Failed to deserialize NodeRouteEntry from bytes: `{0}`")]
     Deserialize(String),
 }
 
