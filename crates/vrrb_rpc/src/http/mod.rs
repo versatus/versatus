@@ -2,18 +2,19 @@ use std::{convert::Infallible, fmt::Debug, io, net::SocketAddr, time::Duration};
 
 use poem::{
     listener::{Acceptor, TcpAcceptor},
-    Route,
-    Server,
+    Route, Server,
 };
 use poem_openapi::{payload::PlainText, OpenApi, OpenApiService};
 use tokio::sync::mpsc::Receiver;
 
+#[derive(Debug, Clone)]
 struct HttpApi;
 
 #[OpenApi]
 impl HttpApi {
-    /// Healthcheck route
+    /// Health check route
     #[oai(path = "/health", method = "get")]
+    #[telemetry::instrument(name = "healthcheck")]
     async fn index(&self) -> PlainText<&'static str> {
         PlainText("ok")
     }
@@ -51,9 +52,7 @@ pub struct HttpApiServer {
 impl Debug for HttpApiServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HttpApiServer")
-            // .field("server", &self.server)
             .field("server_timeout", &self.server_timeout)
-            // .field("app", &self.app)
             .finish()
     }
 }
@@ -148,7 +147,7 @@ mod tests {
         let _api_version = "1.0".to_string();
 
         let config = HttpApiRouterConfig {
-            address: addr.as_socket_addr().unwrap().clone(),
+            address: *addr.as_socket_addr().unwrap(),
             api_title: "Node HTTP API".into(),
             api_version: "1.0".into(),
             server_timeout: None,

@@ -18,5 +18,5 @@ pub enum RuntimeModuleState {
 pub trait RuntimeModule {
     fn name(&self) -> String;
     fn status(&self) -> RuntimeModuleState;
-    fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()>;
+    async fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()>;
 }

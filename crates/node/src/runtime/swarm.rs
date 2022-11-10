@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use async_trait::async_trait;
 use block::invalid::InvalidBlockErrorReason;
 use claim::claim::Claim;
 use commands::command::ComponentTypes;
@@ -57,6 +58,7 @@ pub struct SwarmModule {
     //
 }
 
+#[async_trait]
 impl RuntimeModule for SwarmModule {
     fn name(&self) -> String {
         String::from("Swarm module")
@@ -66,7 +68,7 @@ impl RuntimeModule for SwarmModule {
         todo!()
     }
 
-    fn start(&mut self, control_rx: &mut mpsc::UnboundedReceiver<Event>) -> Result<()> {
+    async fn start(&mut self, control_rx: &mut mpsc::UnboundedReceiver<Event>) -> Result<()> {
         // TODO: rethink this loop
         loop {
             match control_rx.try_recv() {

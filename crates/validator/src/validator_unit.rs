@@ -228,6 +228,7 @@ impl Core {
         self.join_handle = Some(join_handle);
     }
 }
+
 pub struct ValidatorUnit<D: Database> {
     pub cores: Vec<Core>,
     pub mempool_read_handle: ReadHandle<Mempool>,

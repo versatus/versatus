@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use blockchain::blockchain::Blockchain;
 use tokio::sync::mpsc::error::TryRecvError;
 use vrrb_core::event_router::Event;
@@ -17,6 +18,7 @@ impl BlockchainModule {
     }
 }
 
+#[async_trait]
 impl RuntimeModule for BlockchainModule {
     fn name(&self) -> String {
         String::from("Blockchain module")
@@ -26,7 +28,7 @@ impl RuntimeModule for BlockchainModule {
         todo!()
     }
 
-    fn start(
+    async fn start(
         &mut self,
         control_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {

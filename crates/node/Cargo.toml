@@ -23,6 +23,7 @@ wallet = { path = "../wallet" }
 txn = { path = "../txn" }
 state = { path = "../state" }
 validator = { path = "../validator" }
+mempool = { path = "../mempool" }
 events = { path = "../events" }
 reward = { path = "../reward" }
 blockchain = { path = "../blockchain" }
@@ -49,3 +50,4 @@ poem = "1.3.43"
 public-ip = "0.2.2"
 anyhow = "1.0.65"
 async-trait = "0.1.58"
+derive_builder = "0.11.2"

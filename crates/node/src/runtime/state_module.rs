@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use state::{state::NetworkState, NodeState};
 use tokio::sync::mpsc::error::TryRecvError;
 use vrrb_core::event_router::{Event, Topic};
@@ -45,6 +46,7 @@ impl StateModule {
     }
 }
 
+#[async_trait]
 impl RuntimeModule for StateModule {
     fn name(&self) -> String {
         String::from("State module")
@@ -54,7 +56,7 @@ impl RuntimeModule for StateModule {
         self.running_status.clone()
     }
 
-    fn start(
+    async fn start(
         &mut self,
         event_stream: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {
@@ -86,8 +88,7 @@ impl RuntimeModule for StateModule {
 #[cfg(test)]
 mod tests {
     use std::{
-        env,
-        io,
+        env, io,
         net::{IpAddr, Ipv4Addr, SocketAddr},
         os,
         path::PathBuf,
@@ -116,7 +117,7 @@ mod tests {
         assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
 
         let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).unwrap();
+            state_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
         });
 
@@ -137,7 +138,7 @@ mod tests {
         assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
 
         let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).unwrap();
+            state_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
         });
 

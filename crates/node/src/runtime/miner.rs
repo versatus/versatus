@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use tokio::sync::mpsc::error::TryRecvError;
 use vrrb_core::event_router::Event;
 
@@ -13,6 +14,7 @@ impl MiningModule {
     }
 }
 
+#[async_trait]
 impl RuntimeModule for MiningModule {
     fn name(&self) -> String {
         String::from("State module")
@@ -22,7 +24,7 @@ impl RuntimeModule for MiningModule {
         todo!()
     }
 
-    fn start(
+    async fn start(
         &mut self,
         control_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {

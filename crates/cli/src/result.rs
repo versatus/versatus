@@ -16,6 +16,9 @@ pub enum CliError {
 
     #[error("primitive error: {0}")]
     Primitive(#[from] primitives::types::Error),
+
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, CliError>;

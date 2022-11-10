@@ -1,7 +1,7 @@
 use std::collections::{hash_map::Entry, HashMap};
 
 // use telemetry::tracing::subscriber;
-use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -33,6 +33,7 @@ pub enum Topic {
 pub struct EventRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<Topic, Vec<Subscriber>>,
+    // subs: HashMap<Topic, Vec<crossbeam::channel::Sender>>,
 }
 
 pub type DirectedEvent = (Topic, Event);
@@ -47,6 +48,7 @@ impl EventRouter {
     pub fn new() -> Self {
         Self {
             subscribers: HashMap::new(),
+            // subs: HashMap::new(),
         }
     }
 
@@ -59,20 +61,11 @@ impl EventRouter {
         }
     }
 
-    /// Starts the command router, distributing all incomming commands to
+    /// Starts the event router, distributing all incomming commands to
     /// specified routes
     pub async fn start(&mut self, command_rx: &mut UnboundedReceiver<DirectedEvent>) {
-        loop {
-            let (topic, event) = match command_rx.try_recv() {
-                Ok(cmd) => cmd,
-                Err(err) if err == TryRecvError::Disconnected => {
-                    telemetry::error!("The command channel for event router has been closed.");
-                    (Topic::Control, Event::Stop)
-                    //TODO: refactor this error handling
-                },
-                // TODO: log all other errors
-                _ => (Topic::Control, Event::NoOp),
-            };
+        while let Some((topic, event)) = command_rx.recv().await {
+            telemetry::info!("event router received stop signal");
 
             if event == Event::Stop {
                 telemetry::info!("event router received stop signal");

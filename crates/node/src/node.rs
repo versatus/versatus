@@ -32,10 +32,12 @@ use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
-    miner::MiningModule,
+    // miner::MiningModule,
     result::*,
-    runtime::blockchain_module::BlockchainModule,
-    swarm::{SwarmConfig, SwarmModule},
+    validator_module::ValidatorModule,
+    // runtime::blockchain_module::BlockchainModule,
+    // swarm::{SwarmConfig, SwarmModule},
+    // validator_module::{self, ValidatorModule},
     NodeAuth,
     NodeType,
     RuntimeModule,
@@ -173,14 +175,21 @@ impl Node {
     /// that intend to run VRRB nodes
     #[telemetry::instrument]
     pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()> {
-        telemetry::debug!("parsing runtime configuration");
-
+        //
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
         let lr_trie = LeftRightTrie::new(backing_db);
 
+        //
         // TODO: setup other modules
+        //
+        //____________________________________________________________________________________________________
+        // Validator module
+        let (validator_control_tx, mut validator_control_rx) =
+            tokio::sync::mpsc::unbounded_channel::<Event>();
+
+        let mut validator_module = ValidatorModule::new();
 
         //____________________________________________________________________________________________________
         // State module
@@ -193,19 +202,21 @@ impl Node {
             state_module.start(&mut state_control_rx);
         });
 
+        let validator_handle = tokio::spawn(async move {
+            validator_module.start(&mut validator_control_rx);
+        });
+
         let (router_control_tx, mut router_control_rx) =
             tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
         let mut event_router = EventRouter::new();
-
-        // event_router.add_subscriber(Topic::Control, state_control_tx.clone());
+        event_router.add_subscriber(Topic::Control, state_control_tx.clone());
+        event_router.add_subscriber(Topic::Control, validator_control_tx.clone());
 
         // TODO: report error from handle
-        let router_handle = tokio::spawn(async move {
-            // TODO: fix blocking loop on router
-            event_router.start(&mut router_control_rx).await
-            // }
-        });
+        // TODO: fix blocking loop on router
+        let router_handle =
+            tokio::spawn(async move { event_router.start(&mut router_control_rx).await });
 
         let (http_server_control_tx, mut http_server_control_rx) =
             tokio::sync::mpsc::channel::<()>(1);
@@ -221,34 +232,22 @@ impl Node {
 
         self.set_status(RuntimeModuleState::Running);
 
-        // Runtime module teardown
-        //____________________________________________________________________________________________________
-        // TODO: start node API here
-        loop {
-            match control_rx.try_recv() {
-                Ok(evt) => {
-                    telemetry::info!("Received stop event");
+        // NOTE: wait for stop signal
+        control_rx.recv().await;
+        // .map_err(|err| NodeError::Other(String::from("failed to listen for ctrl+c")))?;
 
-                    http_server_control_tx.send(());
+        telemetry::info!("Received stop event");
 
-                    // TODO: send signal to stop all task handlers here
-                    router_control_tx
-                        .send((Topic::Control, evt))
-                        .unwrap_or_default();
+        // http_server_control_tx.send(());
 
-                    self.teardown();
-
-                    break;
-                },
-                Err(err) if err == TryRecvError::Disconnected => {
-                    telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
-                    telemetry::warn!("Shutting down");
-                    break;
-                },
-                _ => {},
-            }
-        }
+        // TODO: send signal to stop all task handlers here
+        // router_control_tx
+        //     .send((Topic::Control, Event::Stop))
+        //     .unwrap_or_default();
         //
+
+        self.teardown();
+
         // TODO: await on all task handles here
 
         telemetry::info!("Node shutdown complete");
