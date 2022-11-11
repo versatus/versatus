@@ -211,33 +211,30 @@ impl Miner {
         }
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
-        Block::genesis(
-            self.claim.clone(),
-            self.secret_key.clone(),
-            None,
-        )
+        Block::genesis(self.claim.clone(), self.secret_key.clone(), None)
     }
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
     pub fn mine(&mut self) -> (Option<Block>, i128) {
-        let claim_map_hash = digest(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
-        if let Some(last_block) = self.last_block.clone() {
-            return Block::mine(
-                self.clone().claim,
-                last_block,
-                self.clone().txn_pool.confirmed,
-                self.clone().claim_pool.confirmed,
-                Some(claim_map_hash),
-                &mut self.clone().reward,
-                &self.clone().network_state,
-                self.clone().neighbors,
-                self.abandoned_claim.clone(),
-                self.secret_key.clone(),
-                self.epoch,
-            );
+        if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
+            let claim_map_hash = digest(claim_map_str.as_bytes());
+            if let Some(last_block) = self.last_block.clone() {
+                return Block::mine(
+                    self.clone().claim,
+                    last_block,
+                    self.clone().txn_pool.confirmed,
+                    self.clone().claim_pool.confirmed,
+                    Some(claim_map_hash),
+                    &mut self.clone().reward,
+                    &self.clone().network_state,
+                    self.clone().neighbors,
+                    self.abandoned_claim.clone(),
+                    self.secret_key.clone(),
+                    self.epoch,
+                );
+            }
         }
-
         (None, 0)
     }
 
