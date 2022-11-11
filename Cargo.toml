@@ -56,6 +56,7 @@ members = [
     "crates/network",
     "crates/node",
     "crates/storage",
+    "crates/syncing",
     "crates/verifiable",
     "crates/ledger",
     "crates/accountable",
