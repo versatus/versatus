@@ -3,7 +3,7 @@ on: [pull_request]
 name: Rust
 
 jobs:
-    cargo-test:
+    pr-health-checks:
         name: cargo test
         runs-on: ubuntu-latest
         steps:
