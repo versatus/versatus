@@ -4,7 +4,7 @@ name: Rust
 
 jobs:
     pr-health-checks:
-        name: cargo test
+        name: PR health checks
         runs-on: ubuntu-latest
         steps:
             - name: Install dev-dependencies
