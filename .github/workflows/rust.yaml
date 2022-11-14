@@ -7,7 +7,7 @@ jobs:
         name: cargo test
         runs-on: ubuntu-latest
         steps:
-            - name: Install dev-dependencies 
+            - name: Install dev-dependencies
               run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
             - name: Checkout sources
               uses: actions/checkout@v2
@@ -20,6 +20,12 @@ jobs:
                   profile: minimal
                   toolchain: stable
                   override: true
+
+            - name: cargo clippy
+              uses: actions-rs/cargo@v1
+              with:
+                  command: clippy
+                  args: --all -- -D warnings
 
             - name: cargo test
               uses: actions-rs/cargo@v1
