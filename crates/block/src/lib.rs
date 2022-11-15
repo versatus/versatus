@@ -207,7 +207,7 @@ mod tests {
     pub fn get_txns() -> LinkedHashMap<String, Txn> {
         let mut txns = LinkedHashMap::new();
         let mut rng = rand::thread_rng();
-        let random_number = rng.gen_range(0, 10);
+        let random_number = rng.gen_range(1, 10);
         let start = std::time::SystemTime::now();
         let since_the_epoch = start
             .duration_since(UNIX_EPOCH)
