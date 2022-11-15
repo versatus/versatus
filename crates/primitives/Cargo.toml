@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.37"
 serde = { version = "1.0.145", features = ["derive"] }
-
+secp256k1 = { version = "0.24.0", features = ["rand", "serde"] }

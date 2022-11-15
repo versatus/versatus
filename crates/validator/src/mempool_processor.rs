@@ -1,5 +1,6 @@
 use std::{
-    collections::HashSet,
+    collections::{hash_map::DefaultHasher, HashSet},
+    hash::{Hash, Hasher},
     sync::mpsc::{Receiver, RecvError, SendError, Sender},
 };
 
@@ -8,7 +9,7 @@ use mempool::{
     mempool::{LeftRightMemPoolDB, TxnStatus},
 };
 use patriecia::db::Database;
-use txn::txn::Txn;
+use txn::txn::Transaction;
 
 use crate::validator_unit::{Core, CoreControlMsg, CoreId, ValidatorUnit};
 
@@ -105,12 +106,10 @@ where
                                     let amount_of_cores = self.validator.cores.len();
                                     let mut amount_of_txns = vec![0; amount_of_cores];
                                     for txn in &txns {
-                                        // Add txns with valid txn_id to the pending mempool
-                                        if !txn.txn_id.is_empty() {
-                                            amount_of_txns[(txn.txn_id.as_bytes()[0]
-                                                % amount_of_cores as u8)
-                                                as usize] += 1;
-                                        }
+                                        let mut hash = DefaultHasher::new();
+                                        txn.hash(&mut hash);
+                                        amount_of_txns[(hash.finish() as u8 % amount_of_cores as u8)
+                                            as usize] += 1;
                                     }
 
                                     // This mempool function always return OK
@@ -225,8 +224,8 @@ where
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolControlMsg {
-    NewFromNetwork(HashSet<Txn>),
-    NewValidated(HashSet<(Txn, bool)>),
+    NewFromNetwork(HashSet<Transaction>),
+    NewValidated(HashSet<(Transaction, bool)>),
     Start,
     Stop,
 }

@@ -5,7 +5,7 @@ use std::{
 };
 
 use evmap;
-use txn::txn::Txn;
+use txn::txn::Transaction;
 
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(Hash)]
@@ -64,8 +64,8 @@ impl EvMemPool {
         self.cache.contains(&Validated(tx_id, 0))
     }
 
-    pub fn convert_to_txn(&self, txn_id: String) -> Txn {
-        Txn::from_string(&txn_id)
+    pub fn convert_to_txn(&self, txn_id: String) -> Transaction {
+        Transaction::from_string(&txn_id)
     }
 
     pub fn remove(&mut self, txn_id: String) {

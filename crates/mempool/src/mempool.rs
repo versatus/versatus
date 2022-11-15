@@ -10,7 +10,8 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
-use txn::txn::Txn;
+#[allow(deprecated)]
+use txn::txn::{Transaction, Txn};
 
 use super::error::MempoolError;
 
@@ -20,7 +21,6 @@ pub type Result<T> = StdResult<T, MempoolError>;
 pub struct TxnRecord {
     pub txn_id: String,
     pub txn: String,
-    pub txn_timestamp: u128,
     pub txn_added_timestamp: u128,
     pub txn_validated_timestamp: u128,
     pub txn_rejected_timestamp: u128,
@@ -28,16 +28,16 @@ pub struct TxnRecord {
 }
 
 impl TxnRecord {
-    pub fn new(txn: &Txn) -> TxnRecord {
+    pub fn new(txn: &Transaction) -> TxnRecord {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("The system time seems to be set to be earlier than 1970-01-01 00:00:00 UTC")
             .as_nanos();
 
+
         TxnRecord {
-            txn_id: txn.txn_id.clone(),
+            txn_id: txn.get_id(),
             txn: txn.to_string(),
-            txn_timestamp: txn.txn_timestamp,
             txn_added_timestamp: timestamp,
             ..Default::default()
         }
@@ -61,7 +61,7 @@ pub enum TxnStatus {
     Rejected,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Mempool {
     pub pending: MempoolType,
     pub validated: MempoolType,
@@ -180,6 +180,9 @@ impl FetchFiltered for ReadHandle<Mempool> {
                 returned.push(v.clone());
             }
             // TODO:  Error - length
+            if amount > returned.len() as u32 {
+                return returned.to_vec();
+            }
             return returned[0..amount as usize].to_vec();
         };
         Vec::<TxnRecord>::new()
@@ -224,23 +227,11 @@ impl LeftRightMemPoolDB {
     /// use std::collections::HashMap;
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     ///
-    /// let txn = Txn {
-    ///     txn_id: String::from("1"),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// };
+    /// let txn = Transaction::default();
     ///
     /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
     ///     Ok(_) => {},
@@ -249,7 +240,7 @@ impl LeftRightMemPoolDB {
     ///
     /// assert_eq!(1, lrmempooldb.size().0);
     /// ```
-    pub fn add_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+    pub fn add_txn(&mut self, txn: &Transaction, status: TxnStatus) -> Result<()> {
         self.write
             .append(MempoolOp::Add(TxnRecord::new(txn), status))
             .publish();
@@ -265,44 +256,34 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
+    /// let mut txns = HashSet::<Transaction>::new();
     ///
-    /// txns.insert(Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
+    /// txns.insert(Transaction::default());
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {},
     ///     Err(_) => {},
     /// };
     ///
-    /// if let Some(txn) = lrmempooldb.get_txn(&txn_id) {
+    /// if let Some(txn) = lrmempooldb.get_txn(&txns.iter().next().unwrap().get_id()) {
     ///     assert_eq!(1, lrmempooldb.size().0);
     /// } else {
     ///     panic!("Transaction missing !");
     /// };
     /// ```
-    pub fn get_txn(&mut self, txn_id: &String) -> Option<Txn> {
+    pub fn get_txn(&mut self, txn_id: &String) -> Option<Transaction> {
         if txn_id.is_empty() {
             return None;
         }
 
-        self.get()
-            .and_then(|map| map.pending.get(txn_id).map(|t| Txn::from_string(&t.txn)))
+        self.get().and_then(|map| {
+            map.pending
+                .get(txn_id)
+                .map(|t| Transaction::from_string(&t.txn))
+        })
     }
 
     /// Getter for an entire pending Txn record
@@ -341,24 +322,12 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
+    /// let mut txns = HashSet::<Transaction>::new();
     ///
-    /// txns.insert(Txn {
-    ///     txn_id: String::from("1"),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
+    /// txns.insert(Transaction::default());
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {},
@@ -369,7 +338,7 @@ impl LeftRightMemPoolDB {
     /// ```
     pub fn add_txn_batch(
         &mut self,
-        txn_batch: &HashSet<Txn>,
+        txn_batch: &HashSet<Transaction>,
         txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
@@ -389,44 +358,28 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
+    /// let mut txns = HashSet::<Transaction>::new();
     ///
-    /// txns.insert(Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
+    /// txns.insert(Transaction::default());
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {},
     ///     Err(_) => {},
     /// };
     ///
-    /// match lrmempooldb.remove_txn_by_id(txn_id.clone()) {
+    /// match lrmempooldb.remove_txn_by_id(&txns.iter().next().unwrap().get_id(), TxnStatus::Pending) {
     ///     Ok(_) => {},
     ///     Err(_) => {},
     /// };
     ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<()> {
+    pub fn remove_txn_by_id(&mut self, txn_id: &str, txns_status: TxnStatus) -> Result<()> {
         self.write
-            .append(MempoolOp::Remove(
-                TxnRecord::new_by_id(&txn_id),
-                TxnStatus::Pending,
-            ))
+            .append(MempoolOp::Remove(TxnRecord::new_by_id(txn_id), txns_status))
             .publish();
         Ok(())
     }
@@ -440,24 +393,12 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let txn_id = String::from("1");
     ///
-    /// let txn = Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// };
+    /// let txn = Transaction::default();
     ///
     /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
     ///     Ok(_) => {},
@@ -470,7 +411,7 @@ impl LeftRightMemPoolDB {
     ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+    pub fn remove_txn(&mut self, txn: &Transaction, status: TxnStatus) -> Result<()> {
         self.write
             .append(MempoolOp::Remove(TxnRecord::new(txn), status))
             .publish();
@@ -486,25 +427,12 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
+    /// let mut txns = HashSet::<Transaction>::new();
     ///
-    /// txns.insert(Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
+    /// txns.insert(Transaction::default());
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {},
@@ -521,7 +449,7 @@ impl LeftRightMemPoolDB {
     // TODO: fix docs
     pub fn remove_txn_batch(
         &mut self,
-        txn_batch: &HashSet<Txn>,
+        txn_batch: &HashSet<Transaction>,
         txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
@@ -534,11 +462,13 @@ impl LeftRightMemPoolDB {
 
     /// Apply Txn on debits and credits of currect state
     // TODO: to be clarified against the new state representation.
+    #[allow(deprecated)]
     pub fn apply_txn_on_state(&mut self, _txn: &Txn, _state: &NetworkState) -> Result<()> {
         Ok(())
     }
 
     /// Was the Txn validated ? And when ?
+    #[allow(deprecated)]
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128> {
         if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
             Ok(txn_record_validated.txn_validated_timestamp)
@@ -548,6 +478,7 @@ impl LeftRightMemPoolDB {
     }
 
     /// Was the Txn rejected ? And when ?
+    #[allow(deprecated)]
     pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128> {
         if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
             Ok(txn_record_rejected.txn_rejected_timestamp)
@@ -573,25 +504,12 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use txn::txn::Transaction;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
+    /// let mut txns = HashSet::<Transaction>::new();
     ///
-    /// txns.insert(Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
+    /// txns.insert(Transaction::default());
     ///
     /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
     ///     Ok(_) => {},

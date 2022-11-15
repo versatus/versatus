@@ -17,9 +17,17 @@ use std::{
 
 use lr_trie::LeftRightTrie;
 use patriecia::db::MemoryDB;
-use primitives::types::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey, StopSignal};
-use rand::{thread_rng, Rng};
-use secp256k1::Secp256k1;
+use primitives::types::{
+    rand,
+    NodeId,
+    NodeIdentifier,
+    NodeIdx,
+    PublicKey,
+    Secp256k1,
+    SecretKey,
+    StopSignal,
+};
+use public_ip;
 use serde::{Deserialize, Serialize};
 use state::NetworkState;
 use telemetry::{error, info, Instrument};
@@ -103,7 +111,6 @@ impl Node {
         //TODO: use SecretKey from threshold crypto crate for MasterNode
         //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be
         // moved to primitive/utils module
-        let mut secret_key_encoded = Vec::new();
 
         let http_api_server_config = HttpApiServerConfig {
             address: config.http_api_address.to_string(),
@@ -119,9 +126,9 @@ impl Node {
             id: config.id.clone(),
             idx: config.idx.clone(),
             node_type: config.node_type.clone(),
-            secret_key: secret_key_encoded,
+            secret_key,
             pubkey: pubkey.to_string(),
-            public_key: pubkey.to_string().into_bytes(),
+            public_key: pubkey,
             is_bootsrap: config.bootstrap,
             bootstrap_node_addresses,
             running_status: RuntimeModuleState::Stopped,

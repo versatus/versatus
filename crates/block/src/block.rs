@@ -7,14 +7,18 @@ use std::fmt;
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
-use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH};
+use lr_trie::LeftRightTrie;
+use mempool::mempool::LeftRightMemPoolDB;
+use patriecia::db::Database;
+use primitives::types::{Epoch, RawSignature, SecretKey, Signature, GENESIS_EPOCH};
 use rand::Rng;
 use reward::reward::{Reward, GENESIS_REWARD, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use txn::txn::Txn;
+#[allow(deprecated)]
+use txn::txn::{Transaction, Txn};
 use verifiable::verifiable::Verifiable;
 
 use crate::{
@@ -34,6 +38,7 @@ pub type CurrentUtility = i128;
 pub type NextEpochAdjustment = i128;
 
 
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Block {
@@ -41,7 +46,7 @@ pub struct Block {
     pub neighbors: Option<Vec<BlockHeader>>,
     pub height: u128,
     // TODO: replace with Tx Trie Root
-    pub txns: LinkedHashMap<String, Txn>,
+    pub txns: LinkedHashMap<String, Transaction>,
     // TODO: Replace with Claim Trie Root
     pub claims: LinkedHashMap<String, Claim>,
     pub hash: String,
@@ -68,7 +73,11 @@ pub struct Block {
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Option<Block> {
+    pub fn genesis(
+        reward_state: &RewardState,
+        claim: Claim,
+        secret_key: SecretKey,
+    ) -> Option<Block> {
         // Create the genesis header
         let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner);
         // Create the genesis state hash
@@ -122,24 +131,29 @@ impl Block {
     /// state with the reward set to the miner wallet's balance), this will
     /// also update the network state with a new confirmed state.
     #[allow(clippy::too_many_arguments)]
-    pub fn mine(
-        claim: Claim,      // The claim entitling the miner to mine the block.
+    #[allow(deprecated)]
+    pub fn mine<D: Database>(
+        claim: &Claim,     // The claim entitling the miner to mine the block.
         last_block: Block, // The last block, which contains the current block reward.
-        txns: LinkedHashMap<String, Txn>,
-        claims: LinkedHashMap<String, Claim>,
+        txns: &LeftRightMemPoolDB,
+        claims: &LinkedHashMap<String, Claim>,
         claim_map_hash: Option<String>,
-        reward: &mut Reward,
-        network_state: &NetworkState,
-        neighbors: Option<Vec<BlockHeader>>,
+        reward_state: &RewardState,
+        network_state: &LeftRightTrie<D>,
+        neighbors: &Option<Vec<BlockHeader>>,
         abandoned_claim: Option<Claim>,
-        signature: String,
+        signature: SecretKey,
         epoch: Epoch,
     ) -> (Option<Block>, NextEpochAdjustment) {
         // TODO: Replace with Tx Trie Root
+        let mut txns_validated = vec![];
         let txn_hash = {
             let mut txn_vec = vec![];
-            txns.iter().for_each(|(_, v)| {
-                txn_vec.extend(v.as_bytes());
+            txns.get().unwrap().validated.iter().for_each(|(_, v)| {
+                let txn = Transaction::from_string(&v.txn);
+                txns_validated.push(txn.clone());
+                let bytes = txn.as_bytes().unwrap();
+                txn_vec.extend(bytes);
             });
             digest(&*txn_vec)
         };
@@ -173,8 +187,8 @@ impl Block {
         // Trie Roots
         let header = BlockHeader::new(
             last_block.clone(),
-            reward,
-            claim,
+            reward_state,
+            claim.clone(),
             txn_hash,
             claim_map_hash,
             neighbors_hash,
@@ -202,12 +216,16 @@ impl Block {
             None
         };
 
+        let utility_amount: u128 = txns_validated.iter().map(|txn| txn.get_amount()).sum();
         let mut block = Block {
             header: header.clone(),
-            neighbors,
+            neighbors: neighbors.clone(),
             height,
-            txns,
-            claims,
+            txns: txns_validated
+                .iter()
+                .map(|txn| (txn.get_id(), txn.clone()))
+                .collect::<LinkedHashMap<String, Transaction>>(),
+            claims: claims.clone(),
             hash: header.last_hash,
             received_at: None,
             received_from: None,
@@ -218,11 +236,11 @@ impl Block {
             adjustment_for_next_epoch: adjustment_next_epoch_opt,
         };
 
-        // TODO: Replace with state trie
-        let mut hashable_state = network_state.clone();
 
-        let hash = hashable_state.hash(&block.txns, block.header.block_reward.clone());
-        block.hash = hash;
+        // block.header.block_reward.clone());
+        //TODO: Apply changes from txns to the state
+        let hash = network_state.root().unwrap();
+        block.hash = hash.to_string();
         (Some(block), adjustment_next_epoch)
     }
 
@@ -415,13 +433,15 @@ impl Verifiable for Block {
             });
         }
 
-        let mut valid_data = true;
-        self.txns.iter().for_each(|(_, txn)| {
-            let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
-            if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
-                valid_data = false;
-            }
-        });
+        let valid_data = true;
+
+        // TODO: Validate threshold signature here for all txns
+        // self.txns.iter().for_each(|(_, txn)| {
+        //     let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
+        //     if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
+        //         valid_data = false;
+        //     }
+        // });
 
         if !valid_data {
             return Err(Self::Error {

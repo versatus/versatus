@@ -1,5 +1,5 @@
 use ritelinked::LinkedHashMap;
-use txn::txn::Txn;
+use txn::txn::Transaction;
 use vesting::VestingConfig;
 
 // 50% after one year, then monthly for 12 months
@@ -30,7 +30,7 @@ const INVESTORS: [&str; 2] = [
 
 // TODO: replace that mock module, when vesting contract is written
 mod vesting {
-    use txn::txn::Txn;
+    use txn::txn::Transaction;
 
     pub struct VestingConfig {
         pub cliff_fraction: f64,
@@ -40,13 +40,12 @@ mod vesting {
     }
 
     #[allow(clippy::diverging_sub_expression)]
-    pub fn create_vesting(_target: &str, _config: VestingConfig) -> (String, Txn) {
+    pub fn create_vesting(_target: &str, _config: VestingConfig) -> (String, Transaction) {
         todo!()
     }
 }
-
-pub fn generate_genesis_txns() -> LinkedHashMap<String, Txn> {
-    let mut genesis_txns: LinkedHashMap<String, Txn> = LinkedHashMap::new();
+pub fn generate_genesis_txns() -> LinkedHashMap<String, Transaction> {
+    let mut genesis_txns: LinkedHashMap<String, Transaction> = LinkedHashMap::new();
     for employee in EMPLOYEESS {
         let vesting_txn = vesting::create_vesting(employee, EMPLOYEE_VESTING);
         genesis_txns.insert(vesting_txn.0, vesting_txn.1);

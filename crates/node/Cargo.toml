@@ -30,9 +30,7 @@ vrrb_rpc = { path = "../vrrb_rpc" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
-secp256k1 = { version = "0.20.2", features = ["rand"] }
 sha256 = "1.0.2"
-rand = { version = "0.6", features = ["std"] }
 bytebuffer = "0.2.1"
 serde_json = "1.0.64"
 serde = { version = "1.0.101", features = ["derive"] }

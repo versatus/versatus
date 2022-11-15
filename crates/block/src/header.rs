@@ -8,15 +8,9 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use claim::claim::Claim;
+use primitives::types::{Message, PublicKey, Secp256k1, Secp256k1Error, SecretKey, Signature};
 use rand::Rng;
-use reward::reward::Reward;
-use secp256k1::{
-    key::{PublicKey, SecretKey},
-    Error,
-    Message,
-    Secp256k1,
-    Signature,
-};
+use reward::reward::{Reward, RewardState};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 
@@ -52,8 +46,7 @@ impl BlockHeader {
     pub fn genesis(
         nonce: u64,
         claim: Claim,
-        secret_key: String,
-        miner: Option<String>,
+        secret_key: SecretKey,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -114,9 +107,7 @@ impl BlockHeader {
         txn_hash: String,
         claim_map_hash: Option<String>,
         neighbor_hash: Option<String>,
-        secret_key: String,
-        epoch_change: bool,
-        adjustment_next_epoch: NextEpochAdjustment,
+        secret_key: SecretKey,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -172,7 +163,7 @@ impl BlockHeader {
         }
     }
 
-    pub fn sign(message: &str, secret_key: String) -> Result<Signature, Error> {
+    pub fn sign(message: &str, secret_key: SecretKey) -> Result<Signature, Secp256k1Error> {
         let message_bytes = message.as_bytes().to_owned();
         let mut buffer = ByteBuffer::new();
         buffer.write_bytes(&message_bytes);
@@ -184,19 +175,18 @@ impl BlockHeader {
         let message_hash = blake3::hash(&new_message);
         let message_hash = Message::from_slice(message_hash.as_bytes())?;
         let secp = Secp256k1::new();
-        let sk = SecretKey::from_str(&secret_key).unwrap();
-        let sig = secp.sign(&message_hash, &sk);
+        let sig = secp.sign_ecdsa(&message_hash, &secret_key);
         Ok(sig)
     }
 
     // TODO: Additional Verification requirements
-    pub fn verify(&self) -> Result<bool, Error> {
+    pub fn verify(&self) -> Result<bool, Secp256k1Error> {
         let message_bytes = self.get_payload().as_bytes().to_vec();
         let signature = {
             if let Ok(signature) = Signature::from_str(&self.signature) {
                 signature
             } else {
-                return Err(Error::InvalidSignature);
+                return Err(Secp256k1Error::InvalidSignature);
             }
         };
 
@@ -204,7 +194,7 @@ impl BlockHeader {
             if let Ok(pubkey) = PublicKey::from_str(&self.claim.pubkey) {
                 pubkey
             } else {
-                return Err(Error::InvalidPublicKey);
+                return Err(Secp256k1Error::InvalidPublicKey);
             }
         };
 
@@ -217,11 +207,11 @@ impl BlockHeader {
         let message_hash = blake3::hash(&new_message);
         let message_hash = Message::from_slice(message_hash.as_bytes())?;
         let secp = Secp256k1::new();
-        let valid = secp.verify(&message_hash, &signature, &pubkey);
+        let valid = secp.verify_ecdsa(&message_hash, &signature, &pubkey);
 
         match valid {
             Ok(()) => Ok(true),
-            _ => Err(Error::IncorrectSignature),
+            _ => Err(Secp256k1Error::IncorrectSignature),
         }
     }
 

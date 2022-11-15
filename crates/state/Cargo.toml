@@ -25,3 +25,6 @@ primitives = { path = "../primitives" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 thiserror = "1.0.37"
 rand = "0.8.5"
+
+[dev-dependencies]
+secp256k1 = { version = "0.24.0", features = ["rand", "serde"] }

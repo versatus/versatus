@@ -1,6 +1,5 @@
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
-    collections::HashMap,
     error::Error,
     fmt,
     time::{SystemTime, UNIX_EPOCH},
@@ -13,15 +12,16 @@ use std::{
 use block::block::Block;
 use block::header::BlockHeader;
 use claim::claim::Claim;
+use lr_trie::LeftRightTrie;
+use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
 use noncing::nonceable::Nonceable;
+use patriecia::db::MemoryDB;
 use pool::pool::{Pool, PoolKind};
-use primitives::types::Epoch;
-use reward::reward::Reward;
+use primitives::types::{Epoch, SecretKey};
+use reward::reward::RewardState;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use state::state::NetworkState;
-use txn::txn::Txn;
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -50,7 +50,6 @@ pub struct NoLowestPointerError(String);
 
 /// The miner struct contains all the data and methods needed to operate a
 /// mining unit and participate in the data replication process.
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
     /// as a potential miner, and be elected as a miner in the event their
@@ -69,7 +68,7 @@ pub struct Miner {
     /// A pool of pending transactions and their IDs
     //TODO: Replace with Left-Right Mempool, and relative dependent data to include
     // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
-    pub txn_pool: Pool<String, Txn>,
+    pub txn_pool: LeftRightMemPoolDB,
     /// A pool of claims pending approval and acceptance into the network.
     //TODO: Replace with left-right claim pool for more efficient maintenance,
     // validation and calculation.
@@ -84,7 +83,7 @@ pub struct Miner {
     pub reward: Reward,
     /// The current state of the network
     //TODO: Replace with ReadHandle in the Left-Right State Trie
-    pub network_state: NetworkState,
+    pub network_state: LeftRightTrie<MemoryDB>,
     /// Neighbor blocks
     //This can either be eliminated, or can include the 2nd and 3rd place finishers in the pointer
     // sum calculation and their proposed `BlockHeader`
@@ -110,7 +109,7 @@ pub struct Miner {
     /// The secret key of the miner, used to sign blocks they propose to prove
     /// that the block was indeed proposed by the miner with the claim
     /// entitled to mine the given block at the given block height
-    secret_key: String,
+    secret_key: SecretKey,
 
     epoch: Epoch,
 }
@@ -121,11 +120,11 @@ impl Miner {
     //
     // the miner
     pub fn start(
-        secret_key: String,
+        secret_key: SecretKey,
         pubkey: String,
         address: String,
-        reward: Reward,
-        network_state: NetworkState,
+        reward_state: RewardState,
+        network_state: LeftRightTrie<MemoryDB>,
         n_miners: u128,
         epoch: Epoch,
     ) -> Self {
@@ -133,7 +132,7 @@ impl Miner {
             claim: Claim::new(pubkey, address, 1),
             mining: false,
             claim_map: LinkedHashMap::new(),
-            txn_pool: Pool::new(PoolKind::Txn),
+            txn_pool: LeftRightMemPoolDB::new(),
             claim_pool: Pool::new(PoolKind::Claim),
             last_block: None,
             reward,
@@ -191,8 +190,8 @@ impl Miner {
     ///
     /// claim.
     pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
-        if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
-            Ok(hash == self.clone().claim.hash)
+        if let Some((hash, _)) = self.get_lowest_pointer(nonce) {
+            Ok(hash == self.claim.hash)
         } else {
             Err(
                 Box::new(
@@ -211,29 +210,31 @@ impl Miner {
         }
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
-        Block::genesis(self.claim.clone(), self.secret_key.clone(), None)
+        Block::genesis(
+            &self.reward_state.clone(),
+            self.claim.clone(),
+            self.secret_key,
+        )
     }
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, i128) {
-        if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
-            let claim_map_hash = digest(claim_map_str.as_bytes());
-            if let Some(last_block) = self.last_block.clone() {
-                return Block::mine(
-                    self.clone().claim,
-                    last_block,
-                    self.clone().txn_pool.confirmed,
-                    self.clone().claim_pool.confirmed,
-                    Some(claim_map_hash),
-                    &mut self.clone().reward,
-                    &self.clone().network_state,
-                    self.clone().neighbors,
-                    self.abandoned_claim.clone(),
-                    self.secret_key.clone(),
-                    self.epoch,
-                );
-            }
+    pub fn mine<D>(&mut self) -> (Option<Block>, u128) {
+        let claim_map_hash = digest(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
+        if let Some(last_block) = self.last_block.clone() {
+            return Block::mine::<MemoryDB>(
+                &self.claim,
+                last_block,
+                &self.txn_pool,
+                &self.claim_pool.confirmed,
+                Some(claim_map_hash),
+                &self.reward_state.clone(),
+                &self.network_state,
+                &self.neighbors,
+                self.abandoned_claim.clone(),
+                self.secret_key,
+                self.epoch,
+            );
         }
         (None, 0)
     }
@@ -256,44 +257,21 @@ impl Miner {
     // transactions that have be pre-validated i.e. they should only have the
     // "confirmed side" of the Mempool.
     pub fn check_confirmed(&mut self, txn_id: String) {
-        let mut validators = {
-            if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
-                txn.validators.clone()
-            } else {
-                HashMap::new()
+        if let Some(txn) = self.txn_pool.get_txn(&txn_id) {
+            let confirmed = txn
+                .receipt
+                .iter()
+                .filter(|(_, validated)| *validated)
+                .count();
+            if (confirmed as f64 / self.claim_map.len() as f64) > VALIDATOR_THRESHOLD
+                && self
+                    .txn_pool
+                    .remove_txn_by_id(&txn_id, TxnStatus::Pending)
+                    .is_ok()
+                && self.txn_pool.add_txn(&txn, TxnStatus::Validated).is_err()
+            {
+                //TODO: Log error
             }
-        };
-
-        validators.retain(|_, v| *v);
-        if validators.len() as f64 / (self.claim_map.len() - 1) as f64 > VALIDATOR_THRESHOLD {
-            if let Some((k, v)) = self.txn_pool.pending.remove_entry(&txn_id) {
-                self.txn_pool.confirmed.insert(k, v);
-            }
-        }
-    }
-
-    /// Checks if the transaction has been rejected
-    //TODO: Either eliminate and replace. Each miner should retain only
-    // transactions that have bee pre-validated, i.e. they should only have the
-    // "confirmed side" of the Mempool
-    pub fn check_rejected(&self, txn_id: String) -> Option<Vec<String>> {
-        let mut validators = {
-            if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
-                txn.validators.clone()
-            } else {
-                HashMap::new()
-            }
-        };
-
-        let mut rejected = validators.clone();
-        rejected.retain(|_, v| !*v);
-        validators.retain(|_, v| *v);
-
-        if rejected.len() as f64 / self.claim_map.len() as f64 > 1.0 - VALIDATOR_THRESHOLD {
-            let slash_claims = validators.keys().map(|k| k.to_string()).collect::<Vec<_>>();
-            Some(slash_claims)
-        } else {
-            None
         }
     }
 
@@ -341,25 +319,25 @@ impl Miner {
 
     /// Serializes the miner into a string
     // TODO: Consider changing this to `serialize_to_string`
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
-    }
+    // #[allow(clippy::inherent_to_string)]
+    // pub fn to_string(&self) -> String {
+    //     serde_json::to_string(&self).unwrap()
+    // }
 
     /// Serializes the miner into a vector of bytes
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.to_string().as_bytes().to_vec()
-    }
+    // pub fn as_bytes(&self) -> Vec<u8> {
+    //     self.to_string().as_bytes().to_vec()
+    // }
 
-    /// Deserializes a miner from a byte array
-    pub fn from_bytes(data: &[u8]) -> Miner {
-        serde_json::from_slice(data).unwrap()
-    }
+    // /// Deserializes a miner from a byte array
+    // pub fn from_bytes(data: &[u8]) -> Miner {
+    //     serde_json::from_slice(data).unwrap()
+    // }
 
-    /// Deserializes a miner from a string slice
-    pub fn from_string(data: &str) -> Miner {
-        serde_json::from_str(data).unwrap()
-    }
+    // /// Deserializes a miner from a string slice
+    // pub fn from_string(data: &str) -> Miner {
+    //     serde_json::from_str(data).unwrap()
+    // }
 
     /// Returns a vetor of string representations of the field names of a miner
     pub fn get_field_names(&self) -> Vec<String> {

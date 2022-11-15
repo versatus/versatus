@@ -45,12 +45,12 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::InvalidNode);
         }
         // TODO code to import secret key from node info to be added
-        let secret_key_encoded = self.node_info.read().unwrap().secret_key.clone();
+        let secret_key = self.node_info.read().unwrap().secret_key;
 
         //This need to be moved to either primitive(Generics) module or Node module
 
-        let secret_key =
-            bincode::deserialize::<SerdeSecret<SecretKey>>(secret_key_encoded.as_slice());
+        let secret_key = bincode::deserialize::<SerdeSecret<SecretKey>>(&secret_key.secret_bytes());
+
         if secret_key.is_err() {
             return Err(DkgError::Unknown(format!(
                 "Failed to deserialize the secret key for node {:?}",

@@ -1,5 +1,6 @@
 use std::{env, fs};
 
+use primitives::types::{PublicKey, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 // NOTE: this is used to generate random filenames so files created by tests
@@ -12,6 +13,7 @@ fn generate_random_string() -> String {
         .collect()
 }
 
+use secp256k1::Secp256k1;
 use state::NodeState;
 
 #[test]
@@ -37,8 +39,19 @@ fn accounts_can_be_added() {
 
     let mut node_state = NodeState::new(state_backup_path.clone());
 
+    let mut rng = rand::thread_rng();
+    let secp = Secp256k1::new();
+
+    let mut keys: Vec<PublicKey> = vec![];
+
+    for _ in 0..5 {
+        let secret = SecretKey::new(&mut rng);
+        keys.push(PublicKey::from_secret_key(&secp, &secret));
+    }
+
+
     node_state.add_account(
-        b"my_mock_pkey".to_vec(),
+        keys[0],
         lrdb::Account {
             hash: String::from(""),
             nonce: 1234456,
@@ -50,7 +63,7 @@ fn accounts_can_be_added() {
     );
 
     node_state.add_account(
-        b"my_mock_pkey_2".to_vec(),
+        keys[1],
         lrdb::Account {
             hash: String::from(""),
             nonce: 1234456,
@@ -69,7 +82,7 @@ fn accounts_can_be_added() {
 
     node_state.extend_accounts(vec![
         (
-            b"my_mock_pkey_3".to_vec(),
+            keys[2],
             lrdb::Account {
                 hash: String::from(""),
                 nonce: 1234456,
@@ -80,7 +93,7 @@ fn accounts_can_be_added() {
             },
         ),
         (
-            b"my_mock_pkey_4".to_vec(),
+            keys[3],
             lrdb::Account {
                 hash: String::from(""),
                 nonce: 1234456,
@@ -91,7 +104,7 @@ fn accounts_can_be_added() {
             },
         ),
         (
-            b"my_mock_pkey_5".to_vec(),
+            keys[4],
             lrdb::Account {
                 hash: String::from(""),
                 nonce: 1234456,
@@ -115,8 +128,15 @@ fn accounts_can_be_retrieved() {
 
     let mut node_state = NodeState::new(state_backup_path.clone());
 
+    let mut rng = rand::thread_rng();
+    let secp = Secp256k1::new();
+    let secret1 = SecretKey::new(&mut rng);
+    let secret2 = SecretKey::new(&mut rng);
+    let account1 = PublicKey::from_secret_key(&secp, &secret1);
+    let account2 = PublicKey::from_secret_key(&secp, &secret2);
+
     node_state.add_account(
-        b"my_mock_pkey".to_vec(),
+        account1.clone(),
         lrdb::Account {
             hash: String::from(""),
             nonce: 1234456,
@@ -128,7 +148,7 @@ fn accounts_can_be_retrieved() {
     );
 
     node_state.add_account(
-        b"my_mock_pkey_2".to_vec(),
+        account2.clone(),
         lrdb::Account {
             hash: String::from(""),
             nonce: 1234456,
@@ -141,8 +161,8 @@ fn accounts_can_be_retrieved() {
 
     node_state.serialize_to_json().unwrap();
 
-    node_state.get_account(&b"my_mock_pkey".to_vec()).unwrap();
-    node_state.get_account(&b"my_mock_pkey_2".to_vec()).unwrap();
+    node_state.get_account(&account1).unwrap();
+    node_state.get_account(&account2).unwrap();
 }
 
 #[test]
