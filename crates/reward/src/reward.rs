@@ -282,7 +282,7 @@ impl Reward {
     }
 
     pub fn genesis(miner: Option<String>) -> Reward {
-        let category = Category::Genesis(Some(GENESIS_REWARD as u128));
+        let category = Category::Genesis(Some(GENESIS_REWARD));
         Reward {
             miner,
             amount: match category {
@@ -317,11 +317,11 @@ impl Category {
     }
 
     pub fn generate_category(reward_state: &RewardState) -> Category {
-        let n_flakes_current_epoch = (*reward_state).n_flakes_current_epoch;
-        let n_grains_current_epoch = (*reward_state).n_grains_current_epoch;
-        let n_nuggets_current_epoch = (*reward_state).n_grains_current_epoch;
-        let n_veins_current_epoch = (*reward_state).n_veins_current_epoch;
-        let n_motherlodes_current_epoch = (*reward_state).n_motherlodes_current_epoch;
+        let n_flakes_current_epoch = reward_state.n_flakes_current_epoch;
+        let n_grains_current_epoch = reward_state.n_grains_current_epoch;
+        let n_nuggets_current_epoch = reward_state.n_grains_current_epoch;
+        let n_veins_current_epoch = reward_state.n_veins_current_epoch;
+        let n_motherlodes_current_epoch = reward_state.n_motherlodes_current_epoch;
 
         let items = vec![
             (Category::Flake(None), n_flakes_current_epoch),
