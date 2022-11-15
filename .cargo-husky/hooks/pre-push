@@ -12,8 +12,8 @@ echo '+cargo test --all'
 cargo test --all
 
 # Stricly verifies the code's correctness and idiomatics of the code
-echo '+cargo clippy --all -- -D warnings'
-cargo clippy --all -- -D warnings
+echo '+cargo +nightly clippy --all -- -D warnings'
+cargo +nightly clippy --all -- -D warnings
 
 # Verifies the code is formatted properly
 echo '+cargo +nightly fmt --all -- --check'
