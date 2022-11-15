@@ -16,7 +16,7 @@ use claim::claim::Claim;
 use noncing::nonceable::Nonceable;
 use pool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
-use reward::reward::RewardState;
+use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
@@ -81,7 +81,7 @@ pub struct Miner {
     /// The reward state (previous monetary policy), to track which reward
     /// categories are still available for production
     //TODO: Eliminate and replace with provable current reward amount data
-    pub reward_state: RewardState,
+    pub reward: Reward,
     /// The current state of the network
     //TODO: Replace with ReadHandle in the Left-Right State Trie
     pub network_state: NetworkState,
@@ -124,7 +124,7 @@ impl Miner {
         secret_key: String,
         pubkey: String,
         address: String,
-        reward_state: RewardState,
+        reward: Reward,
         network_state: NetworkState,
         n_miners: u128,
         epoch: Epoch,
@@ -136,7 +136,7 @@ impl Miner {
             txn_pool: Pool::new(PoolKind::Txn),
             claim_pool: Pool::new(PoolKind::Claim),
             last_block: None,
-            reward_state,
+            reward,
             network_state,
             neighbors: None,
             current_nonce_timer: 0,
@@ -212,15 +212,16 @@ impl Miner {
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
         Block::genesis(
-            &self.reward_state.clone(),
+            &self.reward.clone(),
             self.claim.clone(),
             self.secret_key.clone(),
+            None,
         )
     }
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, u128) {
+    pub fn mine(&mut self) -> (Option<Block>, i128) {
         let claim_map_hash = digest(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
         if let Some(last_block) = self.last_block.clone() {
             return Block::mine(
@@ -229,9 +230,9 @@ impl Miner {
                 self.clone().txn_pool.confirmed,
                 self.clone().claim_pool.confirmed,
                 Some(claim_map_hash),
-                &self.clone().reward_state.clone(),
-                &self.clone().network_state,
-                self.clone().neighbors,
+                &mut self.clone().reward.clone(),
+                &self.clone().network_state.clone(),
+                self.clone().neighbors.clone(),
                 self.abandoned_claim.clone(),
                 self.secret_key.clone(),
                 self.epoch,

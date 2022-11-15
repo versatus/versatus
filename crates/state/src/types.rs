@@ -1,6 +1,5 @@
 use std::path::PathBuf;
-
-use reward::reward::RewardState;
+use reward::reward::Reward;
 
 pub type StateGenesisBlock = Option<Vec<u8>>;
 pub type StateChildBlock = Option<Vec<u8>>;
@@ -14,7 +13,7 @@ pub type StatePath = PathBuf;
 pub type LedgerBytes = Vec<u8>;
 pub type CreditsRoot = Option<String>;
 pub type DebitsRoot = Option<String>;
-pub type StateRewardState = Option<RewardState>;
+pub type StateRewardState = Option<Reward>;
 pub type StateRoot = Option<String>;
 pub type CreditsHash = String;
 pub type DebitsHash = String;

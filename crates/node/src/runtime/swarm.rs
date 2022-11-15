@@ -18,7 +18,7 @@ use miner::miner::Miner;
 use network::{components::StateComponent, message};
 use public_ip;
 use rand::{thread_rng, Rng};
-use reward::reward::{Category, RewardState};
+use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use state::{Components, NetworkState};
 use telemetry::info;
