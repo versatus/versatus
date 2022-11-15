@@ -86,7 +86,7 @@ impl Claim {
                 // If there is no integer overflow (which there never should be)
                 // add it to the buffer.
                 if let Some(n) = n {
-                    pointers.push(n as u128);
+                    pointers.push(n);
                 }
             }
         });

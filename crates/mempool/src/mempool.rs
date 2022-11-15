@@ -16,7 +16,7 @@ use super::error::MempoolError;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct TxnRecord {
     pub txn_id: String,
     pub txn: String,
@@ -51,19 +51,6 @@ impl TxnRecord {
     }
 }
 
-impl Default for TxnRecord {
-    fn default() -> Self {
-        TxnRecord {
-            txn_id: String::from(""),
-            txn: String::from(""),
-            txn_timestamp: 0,
-            txn_added_timestamp: 0,
-            txn_validated_timestamp: 0,
-            txn_rejected_timestamp: 0,
-            txn_deleted_timestamp: 0,
-        }
-    }
-}
 
 pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 

@@ -207,9 +207,8 @@ impl Blockchain {
         reward_state: &RewardState,
         block: &Block,
     ) -> Result<(), InvalidBlockError> {
-        if let Err(e) = self.check_block_sequence(block) {
-            return Err(e);
-        }
+        self.check_block_sequence(block)?;
+
         if let Some(genesis_block) = &self.genesis {
             if let Some(last_block) = &self.child {
                 if let Err(e) = block.valid(

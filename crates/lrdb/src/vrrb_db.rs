@@ -36,9 +36,9 @@ impl Account {
         let code = None;
 
         let mut hasher = Sha256::new();
-        hasher.update(&nonce.to_be_bytes());
-        hasher.update(&credits.to_be_bytes());
-        hasher.update(&debits.to_be_bytes());
+        hasher.update(nonce.to_be_bytes());
+        hasher.update(credits.to_be_bytes());
+        hasher.update(debits.to_be_bytes());
         let hash = format!("{:x}", hasher.finalize());
 
         Account {
