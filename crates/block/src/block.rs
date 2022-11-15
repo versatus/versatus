@@ -14,7 +14,7 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use txn::txn::Txn;
+use txn::txn::{Transaction, Txn};
 use verifiable::verifiable::Verifiable;
 
 use crate::{
@@ -37,7 +37,7 @@ pub struct Block {
     pub neighbors: Option<Vec<BlockHeader>>,
     pub height: u128,
     // TODO: replace with Tx Trie Root
-    pub txns: LinkedHashMap<String, Txn>,
+    pub txns: LinkedHashMap<String, Transaction>,
     // TODO: Replace with Claim Trie Root
     pub claims: LinkedHashMap<String, Claim>,
     pub hash: String,
@@ -116,7 +116,7 @@ impl Block {
     pub fn mine(
         claim: Claim,      // The claim entitling the miner to mine the block.
         last_block: Block, // The last block, which contains the current block reward.
-        txns: LinkedHashMap<String, Txn>,
+        txns: LinkedHashMap<String, Transaction>,
         claims: LinkedHashMap<String, Claim>,
         claim_map_hash: Option<String>,
         reward_state: &RewardState,
@@ -130,7 +130,15 @@ impl Block {
         let txn_hash = {
             let mut txn_vec = vec![];
             txns.iter().for_each(|(_, v)| {
-                txn_vec.extend(v.as_bytes());
+                let bytes = v.as_bytes();
+                match bytes {
+                    Ok(bytes) => {
+                        txn_vec.extend(bytes);
+                    },
+                    Err(_) => {
+                        dbg!("Failed to deserialize");
+                    },
+                }
             });
             digest(&*txn_vec)
         };
@@ -175,7 +183,7 @@ impl Block {
 
         let height = last_block.height + 1;
 
-        let utility_amount: u128 = txns.iter().map(|x| x.1.get_amount()).sum();
+        let utility_amount: u128 = txns.iter().map(|(_, txn)| txn.get_amount()).sum();
         let mut block = Block {
             header: header.clone(),
             neighbors,

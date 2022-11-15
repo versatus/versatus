@@ -16,3 +16,4 @@ accountable = { path = "../accountable" }
 pool = { path = "../pool" }
 verifiable = { path = "../verifiable" }
 state = { path = "../state" }
+primitives = { path = "../primitives" }

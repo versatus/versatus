@@ -3,6 +3,7 @@ use std::{
     collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
+    ops::{Add, AddAssign, Sub},
     str::FromStr,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
@@ -12,7 +13,8 @@ use std::{
 use accountable::accountable::Accountable;
 use bytebuffer::ByteBuffer;
 use pool::pool::Pool;
-use secp256k1::{Message, PublicKey, Secp256k1, Signature};
+use primitives::types::{PublicKey, RawSignature};
+use secp256k1::{Message, Secp256k1, Signature};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
@@ -25,11 +27,252 @@ pub struct InvalidTxnError {
     details: String,
 }
 
+/// Amount of OBOL in one VRRB token
+pub const OBOLS_IN_VRRB: u128 = 1_000_000_000;
+
+/// TxnPriority decides how priorities given txn will be.
+/// The associated fee will be added to txn overall cost for each txn
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+pub enum TxnPriority {
+    Slow,
+    Fast,
+    Instant,
+    Contract,
+}
+
+
+///
+impl Into<Obol> for TxnPriority {
+    fn into(self) -> Obol {
+        match self {
+            TxnPriority::Slow => Obol(OBOLS_IN_VRRB / 100),
+            TxnPriority::Fast => Obol(OBOLS_IN_VRRB / 20),
+            TxnPriority::Instant | TxnPriority::Contract => Obol(OBOLS_IN_VRRB / 10),
+        }
+    }
+}
+
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum SystemTokenError {
+    ConversionError,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Vrrb(pub u128);
+impl TryFrom<Obol> for Vrrb {
+    type Error = SystemTokenError;
+
+    fn try_from(value: Obol) -> Result<Self, Self::Error> {
+        if value.0 % OBOLS_IN_VRRB != 0 {
+            return Err(SystemTokenError::ConversionError);
+        }
+        match value.0.checked_div(OBOLS_IN_VRRB) {
+            Some(res) => Ok(Self(res)),
+            None => Err(SystemTokenError::ConversionError),
+        }
+    }
+}
+
+impl TryFrom<Vrrb> for Obol {
+    type Error = SystemTokenError;
+
+    fn try_from(value: Vrrb) -> Result<Self, Self::Error> {
+        match value.0.checked_mul(OBOLS_IN_VRRB) {
+            Some(res) => Ok(Self(res)),
+            None => Err(SystemTokenError::ConversionError),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Obol(pub u128);
+
+
+impl Add for Obol {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Add for Vrrb {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Sub for Vrrb {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl Sub for Obol {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl AddAssign for Obol {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self(self.0) + rhs;
+    }
+}
+
+impl AddAssign for Vrrb {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self(self.0) + rhs;
+    }
+}
+
+
 /// The basic transation structure.
 //TODO: Discuss the pieces of the Transaction structure that should stay and go
 //TODO: Discuss how to best package this to minimize the size of it/compress it
-//TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
-//signature of validators in.
+//TODO: Change `validators` filed to `receipt` or `certificate` to put
+// threshold signature of validators in.
+
+// Instruction: Transfer
+// Instruction: Deploy
+
+/// SystemInstruction enum represents all possible system instructions
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[non_exhaustive]
+pub enum SystemInstruction {
+    Transfer(TransferData),
+    ContractDeploy(Code),
+    ContractUpgrade(Code),
+    ContractCall(CallData),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+pub struct NativeToken(pub u128);
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+pub struct Code(pub Vec<u8>);
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+pub struct CallData(pub Vec<u8>);
+
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+pub struct TransferData {
+    pub amount: NativeToken,
+    pub from: PublicKey,
+    pub to: PublicKey,
+}
+
+
+/// Transaction struct represensing the transactions to be sent over the network
+///
+/// `id` - id
+///
+/// `sender` - public key of the sender of the message.
+///  Should match with the first signature of the transaction
+///
+/// `signature` - contains signature for the message, signing the `instruction`
+/// and `sender` fields.
+// TODO: Validating vector of instructions means, the validator would process
+// all of them, as validating n+1 th instruction require state changes of 0..n
+// txns to be applied. To avoid situation where validators are DOSed with big
+// amount of following malicious txns - n valid instructions and n+1th
+// instruction malicious - resulting in validator computing n instructions
+// without receiving the fee (as txn is deemed  invalid) Prevention should be
+// discussed. RPC prevalidating the txn could help with the problem, but wouldnt
+// solve 100% of it
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+pub struct Transaction {
+    // id: String,
+    pub instructions: Vec<SystemInstruction>,
+    pub sender: PublicKey,
+    pub signature: Option<RawSignature>,
+    pub receipt: Option<RawSignature>,
+    pub priority: TxnPriority,
+}
+
+impl Transaction {
+    pub fn as_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_string(self).map(|string| string.as_bytes().to_vec())
+    }
+
+    pub fn get_amount(&self) -> u128 {
+        let mut amount = 0;
+
+        for ix in &self.instructions {
+            amount += match ix {
+                SystemInstruction::Transfer(TransferData {
+                    amount: NativeToken(amount),
+                    ..
+                }) => *amount,
+                _ => 0,
+            };
+        }
+
+        amount
+    }
+
+    pub fn get_fees(&self) -> Obol {
+        let mut fees = Obol(0);
+
+        for ix in &self.instructions {
+            fees += match ix {
+                SystemInstruction::Transfer(_) => self.priority.clone().into(),
+                _ => TxnPriority::Contract.into(),
+            }
+        }
+
+        fees
+    }
+}
+// impl Accountable for Transaction {
+//     type Category = Option<String>;
+
+//     fn receivable(&self) -> String {
+//         self.receiver_address.clone()
+//     }
+
+//     fn payable(&self) -> Option<String> {
+//         Some(self.sender_address.clone())
+//     }
+
+//     fn get_amount(&self) -> u128 {
+//         self.txn_amount
+//     }
+
+//     fn get_category(&self) -> Option<Self::Category> {
+//         None
+//     }
+// }
+// impl Hash for Transaction {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         // self.txn_id.hash(state);
+//         // self.txn_timestamp.hash(state);
+//         // self.sender_address.hash(state);
+//         // self.sender_public_key.hash(state);
+//         // self.receiver_address.hash(state);
+//         // self.txn_token.hash(state);
+//         // self.txn_amount.hash(state);
+//         // self.txn_payload.hash(state);
+//         // self.txn_signature.hash(state);
+//         self.instructions.hash(state);
+//     }
+
+//     fn hash_slice<H: Hasher>(data: &[Self], state: &mut H)
+//     where
+//         Self: Sized,
+//     {
+//         for piece in data {
+//             piece.hash(state);
+//         }
+//     }
+// }
+
+#[deprecated = "Replaced with `Transaction` struct"]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Txn {
     pub txn_id: String,
