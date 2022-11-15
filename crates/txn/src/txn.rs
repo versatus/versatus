@@ -42,9 +42,9 @@ pub enum TxnPriority {
 
 
 ///
-impl Into<Obol> for TxnPriority {
-    fn into(self) -> Obol {
-        match self {
+impl From<TxnPriority> for Obol {
+    fn from(priority: TxnPriority) -> Self {
+        match priority {
             TxnPriority::Slow => Obol(OBOLS_IN_VRRB / 100),
             TxnPriority::Fast => Obol(OBOLS_IN_VRRB / 20),
             TxnPriority::Instant | TxnPriority::Contract => Obol(OBOLS_IN_VRRB / 10),
@@ -200,6 +200,7 @@ impl Transaction {
         serde_json::to_string(self).map(|string| string.as_bytes().to_vec())
     }
 
+    /// Get amount of VRRB used in the transaction,
     pub fn get_amount(&self) -> u128 {
         let mut amount = 0;
 
