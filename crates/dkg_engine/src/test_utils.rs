@@ -92,7 +92,7 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
                     IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
                     8080,
                 )],
-                node_type: node_type.clone(),
+                node_type,
                 http_api_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
                 http_api_title: "Node HTTP API".into(),
                 http_api_version: "1.0".into(),
