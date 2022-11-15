@@ -135,29 +135,29 @@ pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
 
     for part_commitment in part_committment_tuples.iter() {
         if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
-            if *node_idx as u16 != dkg_engine_node1.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node1.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node1
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
-            if *node_idx as u16 != dkg_engine_node2.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node2.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node2
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
-            if *node_idx as u16 != dkg_engine_node3.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node3.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node3
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
-            if *node_idx as u16 != dkg_engine_node4.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node4.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node4
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
         }
     }
