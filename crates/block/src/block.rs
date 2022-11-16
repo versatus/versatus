@@ -183,7 +183,6 @@ impl Block {
             adjustment_next_epoch,
         );
 
-        // TODO: Discuss whether local clock works well enough for this purpose of
         // guaranteeing at least 1 second between blocks or whether some other
         // mechanism may serve the purpose better, or whether simply sequencing proposed
         // blocks and allowing validator network to determine how much time
