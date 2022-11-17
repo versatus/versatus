@@ -252,7 +252,7 @@ mod tests {
     pub fn get_txns() -> LinkedHashMap<String, Transaction> {
         let mut txns = LinkedHashMap::new();
         let mut rng = thread_rng();
-        let random_number = rng.gen::<i32>() % 10;
+        let random_number = 5 + rng.gen::<i32>() % 10;
 
         for _ in 0..random_number {
             let tx = new_random_signed_txn();
