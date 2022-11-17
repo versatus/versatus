@@ -13,7 +13,9 @@ use std::{
 use block::block::Block;
 use block::header::BlockHeader;
 use claim::claim::Claim;
+use lr_trie::LeftRightTrie;
 use noncing::nonceable::Nonceable;
+use patriecia::db::{Database, MemoryDB};
 use pool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::RewardState;
@@ -50,7 +52,7 @@ pub struct NoLowestPointerError(String);
 
 /// The miner struct contains all the data and methods needed to operate a
 /// mining unit and participate in the data replication process.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
     /// as a potential miner, and be elected as a miner in the event their
@@ -69,6 +71,7 @@ pub struct Miner {
     /// A pool of pending transactions and their IDs
     //TODO: Replace with Left-Right Mempool, and relative dependent data to include
     // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
+    #[allow(deprecated)]
     pub txn_pool: Pool<String, Txn>,
     /// A pool of claims pending approval and acceptance into the network.
     //TODO: Replace with left-right claim pool for more efficient maintenance,
@@ -84,7 +87,7 @@ pub struct Miner {
     pub reward_state: RewardState,
     /// The current state of the network
     //TODO: Replace with ReadHandle in the Left-Right State Trie
-    pub network_state: NetworkState,
+    pub network_state: LeftRightTrie<MemoryDB>,
     /// Neighbor blocks
     //This can either be eliminated, or can include the 2nd and 3rd place finishers in the pointer
     // sum calculation and their proposed `BlockHeader`
@@ -125,7 +128,7 @@ impl Miner {
         pubkey: String,
         address: String,
         reward_state: RewardState,
-        network_state: NetworkState,
+        network_state: LeftRightTrie<MemoryDB>,
         n_miners: u128,
         epoch: Epoch,
     ) -> Self {
@@ -220,10 +223,10 @@ impl Miner {
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, u128) {
+    pub fn mine<D>(&mut self) -> (Option<Block>, u128) {
         let claim_map_hash = digest(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
         if let Some(last_block) = self.last_block.clone() {
-            return Block::mine(
+            return Block::mine::<MemoryDB>(
                 self.clone().claim,
                 last_block,
                 self.clone().txn_pool.confirmed,
@@ -344,25 +347,25 @@ impl Miner {
 
     /// Serializes the miner into a string
     // TODO: Consider changing this to `serialize_to_string`
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
-    }
+    // #[allow(clippy::inherent_to_string)]
+    // pub fn to_string(&self) -> String {
+    //     serde_json::to_string(&self).unwrap()
+    // }
 
     /// Serializes the miner into a vector of bytes
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.to_string().as_bytes().to_vec()
-    }
+    // pub fn as_bytes(&self) -> Vec<u8> {
+    //     self.to_string().as_bytes().to_vec()
+    // }
 
-    /// Deserializes a miner from a byte array
-    pub fn from_bytes(data: &[u8]) -> Miner {
-        serde_json::from_slice(data).unwrap()
-    }
+    // /// Deserializes a miner from a byte array
+    // pub fn from_bytes(data: &[u8]) -> Miner {
+    //     serde_json::from_slice(data).unwrap()
+    // }
 
-    /// Deserializes a miner from a string slice
-    pub fn from_string(data: &str) -> Miner {
-        serde_json::from_str(data).unwrap()
-    }
+    // /// Deserializes a miner from a string slice
+    // pub fn from_string(data: &str) -> Miner {
+    //     serde_json::from_str(data).unwrap()
+    // }
 
     /// Returns a vetor of string representations of the field names of a miner
     pub fn get_field_names(&self) -> Vec<String> {

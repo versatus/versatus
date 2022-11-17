@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
+use lr_trie::{LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::Account;
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::types::PublicKey;
@@ -21,7 +21,7 @@ pub struct NodeState {
 }
 
 impl Clone for NodeState {
-    /// Warning: do not use yet as lr_trie doesn't fully implement clone yet.
+    // Warning: do not use yet as lr_trie doesn't fully implement clone yet.
     fn clone(&self) -> NodeState {
         NodeState {
             path: self.path.clone(),
@@ -56,6 +56,7 @@ struct NodeStateValues {
     pub txns: HashMap<PublicKey, Account>,
     pub state: HashMap<String, Account>,
 }
+
 
 impl From<&NodeState> for NodeStateValues {
     fn from(node_state: &NodeState) -> Self {
@@ -167,10 +168,11 @@ impl NodeState {
             .handle()
             .iter()
             .map(|(k, v)| {
+                let key = PublicKey::from_slice(&k).unwrap();
                 let account: Account = serde_json::from_slice(&v).unwrap_or_default();
-                (k, account)
+                (key, account)
             })
-            .collect::<HashMap<Key, Account>>()
+            .collect::<HashMap<PublicKey, Account>>()
     }
 
     /// Retrieves an account entry from the current state tree.
@@ -178,7 +180,7 @@ impl NodeState {
         let raw_account_bytes = self
             .state_trie
             .handle()
-            .get(key)
+            .get(&key.serialize())
             .unwrap_or_default()
             .unwrap_or_default(); //TODO: Refactor patriecia to only return results, not options
 
@@ -189,12 +191,17 @@ impl NodeState {
 
     /// Adds an account to current state tree.
     pub fn add_account(&mut self, key: PublicKey, account: Account) {
-        self.state_trie.add(key, account);
+        self.state_trie.add(key.serialize().to_vec(), account);
     }
 
     /// Adds multiplpe accounts to current state tree.
     pub fn extend_accounts(&mut self, accounts: Vec<(PublicKey, Account)>) {
-        self.state_trie.extend(accounts);
+        self.state_trie.extend(
+            accounts
+                .iter()
+                .map(|(key, value)| (key.serialize().to_vec(), value.clone()))
+                .collect::<Vec<(Vec<u8>, Account)>>(),
+        );
     }
 
     /// Updates an account on the current state tree.

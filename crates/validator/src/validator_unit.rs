@@ -7,7 +7,7 @@ use std::{
 use left_right::{ReadHandle, ReadHandleFactory};
 use mempool::mempool::{FetchFiltered, *};
 use patriecia::{db::Database, inner::InnerTrie};
-use txn::txn::*;
+use txn::txn::Transaction;
 
 use crate::{mempool_processor::MempoolControlMsg, txn_validator::TxnValidator};
 
@@ -184,17 +184,16 @@ impl Core {
                             .fetch_pending(amount, |_, v| {
                                 v.txn_id.as_bytes()[0] % amount_of_cores == id
                             });
-                        let mut validated = HashSet::<(Txn, bool)>::new();
+                        let mut validated = HashSet::<(Transaction, bool)>::new();
 
                         // Group the txns by their validity
                         for txn_record in batch {
-                            let txn = Txn::from_string(&txn_record.txn);
+                            let txn = Transaction::from_string(&txn_record.txn);
                             match txn_validator.validate(&txn) {
                                 Ok(_) => {
-                                    println!("Validitto");
                                     validated.insert((txn, true));
                                 },
-                                Err(_) => {
+                                Err(e) => {
                                     validated.insert((txn, false));
                                     // Should we send error?
                                     // send_core_err_msg(id, &error_sender,

@@ -9,12 +9,13 @@ use left_right::ReadHandle;
 use lr_trie::{GetDeserialized, LeftRightTrieError};
 use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
+use secp256k1::SecretKey;
 #[allow(deprecated)]
 use secp256k1::{
     Signature,
     {Message, PublicKey, Secp256k1},
 };
-use txn::txn::Txn;
+use txn::txn::{CallData, Code, SystemInstruction, Transaction, Txn};
 
 type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -27,6 +28,7 @@ pub enum TxnFees {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum TxnValidatorError {
+    InvalidInstruction,
     InvalidSender,
     SenderAddressMissing,
     SenderAddressIncorrect,
@@ -57,74 +59,27 @@ impl<D: Database> TxnValidator<D> {
         }
     }
 
-    /// Verifies Txn signature.
-    // TODO, to be moved to a common utility crate
-    #[allow(deprecated)]
-    pub fn verify_signature(&self, txn: &Txn) -> Result<()> {
-        match Signature::from_str(txn.txn_signature.as_str()) {
-            Ok(signature) => match PublicKey::from_str(txn.sender_public_key.as_str()) {
-                Ok(pk) => {
-                    let payload_bytes = txn.txn_payload.as_bytes().to_owned();
-
-                    let mut payload_buffer = ByteBuffer::new();
-                    payload_buffer.write_bytes(&payload_bytes);
-                    while payload_buffer.len() < 32 {
-                        payload_buffer.write_u8(0);
-                    }
-
-                    let new_payload = payload_buffer.to_bytes();
-                    let payload_hash = blake3::hash(&new_payload);
-
-                    match Message::from_slice(payload_hash.as_bytes()) {
-                        Ok(message_hash) => Secp256k1::new()
-                            .verify(&message_hash, &signature, &pk)
-                            .map_err(|_| TxnValidatorError::TxnSignatureIncorrect),
-                        Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
-                    }
-                },
-                Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
-            },
-            Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
-        }
-    }
-
-    /// Txn signature validator.
-    pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
-        if !txn.txn_signature.is_empty() {
-            self.verify_signature(txn)
-                .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
-        } else {
-            Err(TxnValidatorError::TxnSignatureIncorrect)
-        }
-    }
-
-    /// Txn public key validator
-    pub fn validate_public_key(&self, txn: &Txn) -> Result<()> {
-        if !txn.sender_public_key.is_empty() {
-            match PublicKey::from_str(txn.sender_public_key.as_str()) {
-                Ok(_) => Ok(()),
-                Err(_) => Err(TxnValidatorError::SenderPublicKeyIncorrect),
-            }
-        } else {
-            Err(TxnValidatorError::SenderPublicKeyIncorrect)
-        }
+    pub fn validate_signature(&self, txn: &Transaction) -> Result<()> {
+        txn.verify_signature()
+            .map_err(|e| TxnValidatorError::TxnSignatureIncorrect)
     }
 
     /// Txn sender validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_sender_address(&self, txn: &Txn) -> Result<()> {
-        if !txn.sender_address.is_empty()
-            && txn.sender_address.starts_with(ADDRESS_PREFIX)
-            && txn.sender_address.len() > 10
-        {
-            Ok(())
-        } else {
-            Err(TxnValidatorError::SenderAddressMissing)
-        }
-    }
+    // pub fn validate_sender_address(&self, txn: &Transaction) -> Result<()> {
+    //     if !txn.sender_address.is_empty()
+    //         && txn.sender_address.starts_with(ADDRESS_PREFIX)
+    //         && txn.sender_address.len() > 10
+    //     {
+    //         Ok(())
+    //     } else {
+    //         Err(TxnValidatorError::SenderAddressMissing)
+    //     }
+    // }
 
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
+    #[deprecated = "Replaced with instruction validation"]
     pub fn validate_receiver_address(&self, txn: &Txn) -> Result<()> {
         if !txn.receiver_address.is_empty()
             && txn.receiver_address.starts_with(ADDRESS_PREFIX)
@@ -137,6 +92,9 @@ impl<D: Database> TxnValidator<D> {
     }
 
     /// Txn timestamp validator
+    /// TODO: The time should be validated by block_height or blockhash,
+    /// any kind of time that the network has consensus on
+    /// systemtime may be problematic in p2p network
     pub fn validate_timestamp(&self, txn: &Txn) -> Result<()> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(duration) => {
@@ -153,6 +111,7 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
+    #[deprecated = "Replaced with instruction validation"]
     pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
         let data: StdResult<Account, LeftRightTrieError> = self
             .state
@@ -172,19 +131,78 @@ impl<D: Database> TxnValidator<D> {
     }
 
     /// An entire Txn structure validator
-    pub fn validate_structure(&self, txn: &Txn) -> Result<()> {
-        self.validate_amount(txn)
-            .and_then(|_| self.validate_public_key(txn))
-            .and_then(|_| self.validate_sender_address(txn))
-            .and_then(|_| self.validate_receiver_address(txn))
-            .and_then(|_| self.validate_signature(txn))
-            .and_then(|_| self.validate_amount(txn))
-            .and_then(|_| self.validate_timestamp(txn))
+    // pub fn validate_structure(&self, txn: &Transaction) -> Result<()> {
+    //     self.validate_amount(txn)
+    //         // .and_then(|_| self.validate_sender_address(txn))
+    //         .and_then(|_| self.validate_signature(txn))
+    //     // .and_then(|_| self.validate_timestamp(txn))
+    // }
+
+    fn validate_single_instruction(
+        &self,
+        ix: &SystemInstruction,
+        signer: &PublicKey,
+    ) -> Result<()> {
+        match ix {
+            SystemInstruction::Transfer(transfer_data) => {
+                if transfer_data.from != *signer {
+                    return Err(TxnValidatorError::TxnSignatureIncorrect);
+                }
+
+                let data: StdResult<Account, LeftRightTrieError> = self
+                    .state
+                    .get_deserialized_data(transfer_data.from.clone().serialize().to_vec());
+                match data {
+                    Ok(account) => {
+                        if (account.credits - account.debits)
+                            //TODO: verify the correct token unit is used here
+                            .checked_sub(transfer_data.amount.0)
+                            .is_none()
+                        {
+                            return Err(TxnValidatorError::TxnAmountIncorrect);
+                        };
+                        Ok(())
+                    },
+                    Err(_) => Err(TxnValidatorError::InvalidSender),
+                }
+            },
+            SystemInstruction::ContractDeploy(code) => self.validate_contract_deploy(&code),
+            SystemInstruction::ContractUpgrade(code) => self.validate_contract_upgrade(&code),
+            SystemInstruction::ContractCall(call_data) => self.validate_contract_call(&call_data),
+            _ => Err(TxnValidatorError::InvalidInstruction),
+        }
+    }
+
+    // TODO: Implement this once we have vm and contracts
+    fn validate_contract_call(&self, _call_data: &CallData) -> Result<()> {
+        Ok(())
+    }
+
+    // TODO: Implement this once we have vm and contracts
+    fn validate_contract_upgrade(&self, _code: &Code) -> Result<()> {
+        Ok(())
+    }
+
+    // TODO: Implement this once we have vm and contracts
+    fn validate_contract_deploy(&self, _code: &Code) -> Result<()> {
+        Ok(())
+    }
+
+    fn validate_instructions(&self, txn: &Transaction) -> Result<()> {
+        self.validate_signature(txn)?;
+        let signer = txn.sender;
+        for ix in &txn.instructions {
+            self.validate_single_instruction(ix, &signer)?;
+        }
+        Ok(())
     }
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
-    pub fn validate(&self, txn: &Txn) -> Result<()> {
-        self.validate_structure(txn)
+    pub fn validate(&self, txn: &Transaction) -> Result<()> {
+        self.validate_signature(txn)?;
+        self.validate_instructions(txn)?;
+
+        Ok(())
     }
 }

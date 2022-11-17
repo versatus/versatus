@@ -17,7 +17,6 @@ use messages::message_types::MessageType;
 use miner::miner::Miner;
 use network::{components::StateComponent, message};
 use public_ip;
-use rand::{thread_rng, Rng};
 use reward::reward::{Category, RewardState};
 use ritelinked::LinkedHashMap;
 use state::{Components, NetworkState};

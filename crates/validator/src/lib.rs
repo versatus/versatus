@@ -16,6 +16,7 @@ mod tests {
     use mempool::mempool::LeftRightMemPoolDB;
     use patriecia::db::MemoryDB;
     use rand::{rngs::StdRng, Rng, SeedableRng};
+    use secp256k1::{PublicKey, Secp256k1, SecretKey};
     use txn::txn::*;
 
     use crate::{
@@ -28,27 +29,6 @@ mod tests {
         validator_unit::ValidatorUnit,
     };
 
-    //     // TODO: Use proper txns when there will be proper txn validation
-    // implemented
-    fn random_string(rng: &mut StdRng) -> String {
-        format!("{}", rng.gen::<u32>())
-    }
-
-    fn random_txn(rng: &mut StdRng) -> Txn {
-        Txn {
-            txn_id: random_string(rng),
-            txn_timestamp: 0,
-            sender_address: random_string(rng),
-            sender_public_key: random_string(rng),
-            receiver_address: random_string(rng),
-            txn_token: None,
-            txn_amount: 0,
-            txn_payload: random_string(rng),
-            txn_signature: random_string(rng),
-            validators: HashMap::<String, bool>::new(),
-            nonce: 0,
-        }
-    }
 
     #[test]
     fn new_validator_creates_properly() {
@@ -71,6 +51,23 @@ mod tests {
 
         assert_eq!(validator.cores.len() as u8, amount_of_cores);
     }
+
+    pub fn new_signed_txn() -> Transaction {
+        let secp = Secp256k1::new();
+        let mut rng = rand::thread_rng();
+        let secret = SecretKey::new(&mut rng);
+        let mut txn = Transaction {
+            instructions: Default::default(),
+            sender: PublicKey::from_secret_key(&secp, &secret),
+            signature: Default::default(),
+            receipt: Default::default(),
+            priority: Default::default(),
+        };
+
+        txn.sign(&secret).unwrap();
+        txn
+    }
+
     #[test]
     fn new_mempool_processor_creates_properly() {
         let mempool = LeftRightMemPoolDB::new();
@@ -133,9 +130,14 @@ mod tests {
 
         let mut new_txns = HashSet::new();
 
-        let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
-        for _ in 0..1000 {
-            new_txns.insert(random_txn(&mut rng));
+        for _ in 0..500 {
+            // 500 valid txns
+            new_txns.insert(new_signed_txn());
+        }
+
+        for _ in 0..500 {
+            // 500 unsigned txns
+            new_txns.insert(Transaction::default());
         }
 
         let mempool_processor_sender = mempool_processor.validator.mempool_processor_sender.clone();
@@ -145,7 +147,9 @@ mod tests {
             .send(MempoolControlMsg::NewFromNetwork(new_txns))
             .unwrap();
 
-        thread::sleep(Duration::from_secs(3));
+
+        // Add timeout
+
         if let Some(map) = mempool_read_handle
             .handle()
             .enter()
@@ -190,9 +194,8 @@ mod tests {
 
         let mut new_txns = HashSet::new();
 
-        let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
         for _ in 0..1000 {
-            new_txns.insert(random_txn(&mut rng));
+            new_txns.insert(Transaction::default());
         }
 
         let mempool_processor_sender = mempool_processor.validator.mempool_processor_sender.clone();
@@ -206,9 +209,8 @@ mod tests {
 
         let mut new_txns = HashSet::new();
 
-        let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
         for _ in 0..1000 {
-            new_txns.insert(random_txn(&mut rng));
+            new_txns.insert(Transaction::default());
         }
 
         mempool_processor_sender
@@ -220,6 +222,7 @@ mod tests {
 
         thread::sleep(Duration::from_secs(1));
         let err = mempool_error_r.try_recv();
+
 
         assert_eq!(
             err.unwrap(),

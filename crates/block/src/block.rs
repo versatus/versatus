@@ -7,6 +7,8 @@ use std::fmt;
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
+use lr_trie::LeftRightTrie;
+use patriecia::db::Database;
 use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH};
 use rand::Rng;
 use reward::reward::{Category, RewardState, GENESIS_REWARD};
@@ -37,7 +39,7 @@ pub struct Block {
     pub neighbors: Option<Vec<BlockHeader>>,
     pub height: u128,
     // TODO: replace with Tx Trie Root
-    pub txns: LinkedHashMap<String, Transaction>,
+    pub txns: LinkedHashMap<String, Txn>,
     // TODO: Replace with Claim Trie Root
     pub claims: LinkedHashMap<String, Claim>,
     pub hash: String,
@@ -113,14 +115,14 @@ impl Block {
     /// state with the reward set to the miner wallet's balance), this will
     /// also update the network state with a new confirmed state.
     #[allow(clippy::too_many_arguments)]
-    pub fn mine(
+    pub fn mine<D: Database>(
         claim: Claim,      // The claim entitling the miner to mine the block.
         last_block: Block, // The last block, which contains the current block reward.
-        txns: LinkedHashMap<String, Transaction>,
+        txns: LinkedHashMap<String, Txn>,
         claims: LinkedHashMap<String, Claim>,
         claim_map_hash: Option<String>,
         reward_state: &RewardState,
-        network_state: &NetworkState,
+        network_state: &LeftRightTrie<D>,
         neighbors: Option<Vec<BlockHeader>>,
         abandoned_claim: Option<Claim>,
         signature: String,
@@ -131,14 +133,7 @@ impl Block {
             let mut txn_vec = vec![];
             txns.iter().for_each(|(_, v)| {
                 let bytes = v.as_bytes();
-                match bytes {
-                    Ok(bytes) => {
-                        txn_vec.extend(bytes);
-                    },
-                    Err(_) => {
-                        dbg!("Failed to deserialize");
-                    },
-                }
+                txn_vec.extend(bytes);
             });
             digest(&*txn_vec)
         };
@@ -213,8 +208,10 @@ impl Block {
         // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
-        let hash = hashable_state.hash(&block.txns, block.header.block_reward.clone());
-        block.hash = hash;
+        // block.header.block_reward.clone());
+        //TODO: Apply changes from txns to the state
+        let hash = network_state.root().unwrap();
+        block.hash = hash.to_string();
         (Some(block), adjustment_next_epoch)
     }
 
@@ -375,12 +372,14 @@ impl Verifiable for Block {
         }
 
         let mut valid_data = true;
-        self.txns.iter().for_each(|(_, txn)| {
-            let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
-            if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
-                valid_data = false;
-            }
-        });
+
+        // TODO: Validate threshold signature here for all txns
+        // self.txns.iter().for_each(|(_, txn)| {
+        //     let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
+        //     if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
+        //         valid_data = false;
+        //     }
+        // });
 
         if !valid_data {
             return Err(Self::Error {

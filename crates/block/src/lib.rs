@@ -6,9 +6,11 @@ pub use crate::block::*;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, time::UNIX_EPOCH};
+    use std::{collections::HashMap, sync::Arc, time::UNIX_EPOCH};
 
     use claim::claim::Claim;
+    use lr_trie::LeftRightTrie;
+    use patriecia::db::{Database, MemoryDB};
     use rand::{thread_rng, Rng};
     use reward::reward::{Reward, RewardState};
     use ritelinked::LinkedHashMap;
@@ -52,14 +54,14 @@ mod tests {
         genesis_block.header.timestamp = timestamp;
 
         let block_headers = vec![get_block_header(2), get_block_header(3)];
-        let last_block = Block::mine(
+        let last_block = Block::mine::<MemoryDB>(
             last_block_claim,
             genesis_block,
             get_txns(),
             get_claims(),
             None,
             &RewardState::start(),
-            &NetworkState::default(),
+            &LeftRightTrie::default(),
             Some(block_headers),
             None,
             secret_key_1.to_string(),
@@ -75,14 +77,14 @@ mod tests {
 
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
 
-        let block = Block::mine(
+        let block = Block::mine::<MemoryDB>(
             new_block_claim,
             last_block.clone(),
             get_txns(),
             get_claims(),
             None,
             &RewardState::start(),
-            &NetworkState::default(),
+            &LeftRightTrie::default(),
             None,
             None,
             secret_key_2.to_string(),
@@ -113,14 +115,15 @@ mod tests {
         genesis_block.header.timestamp = timestamp;
 
         let block_headers = vec![get_block_header(2), get_block_header(3)];
-        let last_block = Block::mine(
+
+        let last_block = Block::mine::<MemoryDB>(
             last_block_claim,
             genesis_block,
             get_txns(),
             get_claims(),
             None,
             &RewardState::start(),
-            &NetworkState::default(),
+            &LeftRightTrie::default(),
             Some(block_headers),
             None,
             secret_key_1.to_string(),
@@ -136,14 +139,14 @@ mod tests {
         last_block.utility = 10;
 
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
-        let block = Block::mine(
+        let block = Block::mine::<MemoryDB>(
             new_block_claim,
             last_block.clone(),
             get_txns(),
             get_claims(),
             None,
             &RewardState::start(),
-            &NetworkState::default(),
+            &LeftRightTrie::default(),
             None,
             None,
             secret_key_2.to_string(),

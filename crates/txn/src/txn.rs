@@ -1,6 +1,6 @@
 #![allow(unused_imports, dead_code)]
 use std::{
-    collections::HashMap,
+    collections::{hash_map::DefaultHasher, HashMap},
     fmt,
     hash::{Hash, Hasher},
     ops::{Add, AddAssign, Sub},
@@ -13,10 +13,10 @@ use std::{
 use accountable::accountable::Accountable;
 use bytebuffer::ByteBuffer;
 use pool::pool::Pool;
-use primitives::types::{PublicKey, RawSignature};
-use secp256k1::{Message, Secp256k1, Signature};
+use primitives::types::{Message, PublicKey, RawSignature, Secp256k1, SecretKey, Signature};
+use secp256k1::All;
 use serde::{Deserialize, Serialize};
-use sha256::digest;
+use sha2::{Digest, Sha256};
 use state::state::NetworkState;
 use uuid::Uuid;
 use verifiable::verifiable::Verifiable;
@@ -24,7 +24,7 @@ use verifiable::verifiable::Verifiable;
 /// A simple custom error type
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InvalidTxnError {
-    details: String,
+    pub details: String,
 }
 
 /// Amount of OBOL in one VRRB token
@@ -32,12 +32,18 @@ pub const OBOLS_IN_VRRB: u128 = 1_000_000_000;
 
 /// TxnPriority decides how priorities given txn will be.
 /// The associated fee will be added to txn overall cost for each txn
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum TxnPriority {
     Slow,
     Fast,
     Instant,
     Contract,
+}
+
+impl Default for TxnPriority {
+    fn default() -> Self {
+        TxnPriority::Slow
+    }
 }
 
 
@@ -144,7 +150,7 @@ impl AddAssign for Vrrb {
 // Instruction: Deploy
 
 /// SystemInstruction enum represents all possible system instructions
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SystemInstruction {
     Transfer(TransferData),
@@ -153,14 +159,14 @@ pub enum SystemInstruction {
     ContractCall(CallData),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct NativeToken(pub u128);
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Code(pub Vec<u8>);
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct CallData(pub Vec<u8>);
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct TransferData {
     pub amount: NativeToken,
     pub from: PublicKey,
@@ -185,19 +191,84 @@ pub struct TransferData {
 // without receiving the fee (as txn is deemed  invalid) Prevention should be
 // discussed. RPC prevalidating the txn could help with the problem, but wouldnt
 // solve 100% of it
-#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Transaction {
     // id: String,
     pub instructions: Vec<SystemInstruction>,
     pub sender: PublicKey,
-    pub signature: Option<RawSignature>,
+    pub signature: Option<Signature>,
     pub receipt: Option<RawSignature>,
     pub priority: TxnPriority,
 }
 
 impl Transaction {
+    pub fn sign(&mut self, secret: &SecretKey) -> Result<(), InvalidTxnError> {
+        let secp = Secp256k1::new();
+        self.signature = Some(secp.sign_ecdsa(&self.get_message()?, &secret));
+        Ok(())
+    }
+
+    pub fn get_id(&self) -> String {
+        let mut hash = DefaultHasher::new();
+        self.hash(&mut hash);
+        format!("{:x}", hash.finish())
+    }
+
+    fn get_message(&self) -> Result<Message, InvalidTxnError> {
+        let mut msg_bytes = vec![];
+
+        let bytes = serde_json::to_vec(&self.sender).map_err(|e| InvalidTxnError {
+            details: e.to_string(),
+        })?;
+
+        msg_bytes.extend(bytes);
+
+        let bytes = serde_json::to_vec(&self.priority).map_err(|e| InvalidTxnError {
+            details: e.to_string(),
+        })?;
+
+        msg_bytes.extend(bytes);
+
+        let bytes = serde_json::to_vec(&self.instructions).map_err(|e| InvalidTxnError {
+            details: e.to_string(),
+        })?;
+
+        msg_bytes.extend(bytes);
+
+        let mut hasher = Sha256::new();
+        hasher.update(msg_bytes);
+        let hash_bytes = hasher.finalize().to_vec();
+
+        Message::from_slice(&hash_bytes).map_err(|e| InvalidTxnError {
+            details: e.to_string(),
+        })
+    }
+
+    pub fn verify_signature(&self) -> Result<(), InvalidTxnError> {
+        let msg = self.get_message()?;
+        let secp = Secp256k1::new();
+        if let Some(sig) = self.signature {
+            secp.verify_ecdsa(&msg, &sig, &self.sender)
+                .map_err(|e| InvalidTxnError {
+                    details: e.to_string(),
+                })
+        } else {
+            Err(InvalidTxnError {
+                details: "No signature provided".to_string(),
+            })
+        }
+    }
+
     pub fn as_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_string(self).map(|string| string.as_bytes().to_vec())
+    }
+
+    pub fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
+    pub fn from_string(string: &str) -> Self {
+        serde_json::from_str(string).unwrap()
     }
 
     /// Get amount of VRRB used in the transaction,
@@ -228,6 +299,21 @@ impl Transaction {
         }
 
         fees
+    }
+}
+
+impl Default for Transaction {
+    fn default() -> Self {
+        let secp = Secp256k1::new();
+        let mut rng = rand::thread_rng();
+        let secret = SecretKey::new(&mut rng);
+        Self {
+            instructions: Default::default(),
+            sender: PublicKey::from_secret_key(&secp, &secret),
+            signature: Default::default(),
+            receipt: Default::default(),
+            priority: Default::default(),
+        }
     }
 }
 // impl Accountable for Transaction {

@@ -26,3 +26,6 @@ noncing = { path = "../noncing" }
 state = { path = "../state" }
 accountable = { path = "../accountable" }
 primitives = { path = "../primitives" }
+lr_trie = { path = "../lr_trie"}
+
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
