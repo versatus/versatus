@@ -16,6 +16,7 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
+#[allow(deprecated)]
 use txn::txn::{Transaction, Txn};
 use verifiable::verifiable::Verifiable;
 
@@ -31,6 +32,7 @@ pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub type CurrentUtility = u128;
+
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -115,6 +117,7 @@ impl Block {
     /// state with the reward set to the miner wallet's balance), this will
     /// also update the network state with a new confirmed state.
     #[allow(clippy::too_many_arguments)]
+    #[allow(deprecated)]
     pub fn mine<D: Database>(
         claim: Claim,      // The claim entitling the miner to mine the block.
         last_block: Block, // The last block, which contains the current block reward.
@@ -205,8 +208,6 @@ impl Block {
             block.utility = utility_amount + last_block.utility;
         }
 
-        // TODO: Replace with state trie
-        let mut hashable_state = network_state.clone();
 
         // block.header.block_reward.clone());
         //TODO: Apply changes from txns to the state
@@ -371,7 +372,7 @@ impl Verifiable for Block {
             });
         }
 
-        let mut valid_data = true;
+        let valid_data = true;
 
         // TODO: Validate threshold signature here for all txns
         // self.txns.iter().for_each(|(_, txn)| {

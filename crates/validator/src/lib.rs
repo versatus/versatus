@@ -6,7 +6,7 @@ pub mod validator_unit;
 mod tests {
 
     use std::{
-        collections::{HashMap, HashSet},
+        collections::HashSet,
         sync::{mpsc::channel, Arc},
         thread,
         time::Duration,
@@ -15,7 +15,6 @@ mod tests {
     use lr_trie::LeftRightTrie;
     use mempool::mempool::LeftRightMemPoolDB;
     use patriecia::db::MemoryDB;
-    use rand::{rngs::StdRng, Rng, SeedableRng};
     use secp256k1::{PublicKey, Secp256k1, SecretKey};
     use txn::txn::*;
 

@@ -6,16 +6,16 @@ pub use crate::block::*;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc, time::UNIX_EPOCH};
+    use std::{collections::HashMap, time::UNIX_EPOCH};
 
     use claim::claim::Claim;
     use lr_trie::LeftRightTrie;
-    use patriecia::db::{Database, MemoryDB};
+    use patriecia::db::MemoryDB;
     use rand::{thread_rng, Rng};
     use reward::reward::{Reward, RewardState};
     use ritelinked::LinkedHashMap;
     use secp256k1::Secp256k1;
-    use state::NetworkState;
+    #[allow(deprecated)]
     use txn::txn::Txn;
 
     use crate::{header::BlockHeader, Block};
@@ -194,6 +194,7 @@ mod tests {
         }
     }
 
+    #[allow(deprecated)]
     pub fn get_txns() -> LinkedHashMap<String, Txn> {
         let mut txns = LinkedHashMap::new();
         let mut rng = rand::thread_rng();
@@ -211,6 +212,7 @@ mod tests {
                 * 1000;
             txns.insert(
                 i.to_string(),
+                #[allow(deprecated)]
                 Txn {
                     txn_id: i.to_string(),
                     txn_timestamp: time_stamp as u128,

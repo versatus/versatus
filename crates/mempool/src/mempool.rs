@@ -1,6 +1,6 @@
 use std::{
-    collections::{hash_map::DefaultHasher, HashSet},
-    hash::{Hash, Hasher},
+    collections::HashSet,
+    hash::Hash,
     result::Result as StdResult,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -50,18 +50,6 @@ impl TxnRecord {
     }
 }
 
-impl Default for TxnRecord {
-    fn default() -> Self {
-        TxnRecord {
-            txn_id: String::from(""),
-            txn: String::from(""),
-            txn_added_timestamp: 0,
-            txn_validated_timestamp: 0,
-            txn_rejected_timestamp: 0,
-            txn_deleted_timestamp: 0,
-        }
-    }
-}
 
 pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 

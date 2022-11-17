@@ -45,7 +45,7 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::InvalidNode);
         }
         // TODO code to import secret key from node info to be added
-        let secret_key = self.node_info.read().unwrap().secret_key.clone();
+        let secret_key = self.node_info.read().unwrap().secret_key;
 
         //This need to be moved to either primitive(Generics) module or Node module
 

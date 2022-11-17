@@ -24,6 +24,7 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
+#[allow(deprecated)]
 use txn::txn::Txn;
 use uuid::Uuid;
 
@@ -262,6 +263,7 @@ impl WalletAccount {
     }
 
     /// Checks if the local wallet has any transactions in the most recent block
+    #[allow(deprecated)]
     pub fn txns_in_block(&mut self, txns: &LinkedHashMap<String, Txn>) {
         let _my_txns = {
             let mut some_txn = false;
@@ -280,6 +282,7 @@ impl WalletAccount {
 
     /// Structures a `Txn` and returns a Result enum with either Ok(Txn) or an
     /// Error if the local wallet cannot create a Txn for whatever reason
+    #[allow(deprecated)]
     pub fn send_txn(
         &mut self,
         address_number: u32,
@@ -307,6 +310,7 @@ impl WalletAccount {
         let signature = self.sign(&payload).unwrap();
         let uid_payload = format!("{},{},{}", &payload, Uuid::new_v4(), &signature);
 
+        #[allow(deprecated)]
         Ok(Txn {
             txn_id: digest(uid_payload),
             txn_timestamp: time,

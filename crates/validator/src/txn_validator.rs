@@ -1,20 +1,14 @@
 use std::{
     result::Result as StdResult,
-    str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
 use lr_trie::{GetDeserialized, LeftRightTrieError};
 use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
-use secp256k1::SecretKey;
+use primitives::types::PublicKey;
 #[allow(deprecated)]
-use secp256k1::{
-    Signature,
-    {Message, PublicKey, Secp256k1},
-};
 use txn::txn::{CallData, Code, SystemInstruction, Transaction, Txn};
 
 type Result<T> = StdResult<T, TxnValidatorError>;
@@ -61,25 +55,15 @@ impl<D: Database> TxnValidator<D> {
 
     pub fn validate_signature(&self, txn: &Transaction) -> Result<()> {
         txn.verify_signature()
-            .map_err(|e| TxnValidatorError::TxnSignatureIncorrect)
+            .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
     }
-
-    /// Txn sender validator
-    // TODO, to be synchronized with Wallet.
-    // pub fn validate_sender_address(&self, txn: &Transaction) -> Result<()> {
-    //     if !txn.sender_address.is_empty()
-    //         && txn.sender_address.starts_with(ADDRESS_PREFIX)
-    //         && txn.sender_address.len() > 10
-    //     {
-    //         Ok(())
-    //     } else {
-    //         Err(TxnValidatorError::SenderAddressMissing)
-    //     }
-    // }
 
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
+    // TODO: ADDRESS_PREFIX should only be verified on testnet, as it seems the prefix
+    // is only used there
     #[deprecated = "Replaced with instruction validation"]
+    #[allow(deprecated)]
     pub fn validate_receiver_address(&self, txn: &Txn) -> Result<()> {
         if !txn.receiver_address.is_empty()
             && txn.receiver_address.starts_with(ADDRESS_PREFIX)
@@ -95,6 +79,7 @@ impl<D: Database> TxnValidator<D> {
     /// TODO: The time should be validated by block_height or blockhash,
     /// any kind of time that the network has consensus on
     /// systemtime may be problematic in p2p network
+    #[allow(deprecated)]
     pub fn validate_timestamp(&self, txn: &Txn) -> Result<()> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(duration) => {
@@ -108,35 +93,6 @@ impl<D: Database> TxnValidator<D> {
             Err(_) => Err(TxnValidatorError::TimestampError),
         }
     }
-
-    /// Txn receiver validator
-    // TODO, to be synchronized with transaction fees.
-    #[deprecated = "Replaced with instruction validation"]
-    pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
-        let data: StdResult<Account, LeftRightTrieError> = self
-            .state
-            .get_deserialized_data(txn.sender_address.clone().into_bytes());
-        match data {
-            Ok(account) => {
-                if (account.credits - account.debits)
-                    .checked_sub(txn.txn_amount)
-                    .is_none()
-                {
-                    return Err(TxnValidatorError::TxnAmountIncorrect);
-                };
-                Ok(())
-            },
-            Err(_) => Err(TxnValidatorError::InvalidSender),
-        }
-    }
-
-    /// An entire Txn structure validator
-    // pub fn validate_structure(&self, txn: &Transaction) -> Result<()> {
-    //     self.validate_amount(txn)
-    //         // .and_then(|_| self.validate_sender_address(txn))
-    //         .and_then(|_| self.validate_signature(txn))
-    //     // .and_then(|_| self.validate_timestamp(txn))
-    // }
 
     fn validate_single_instruction(
         &self,
@@ -166,9 +122,9 @@ impl<D: Database> TxnValidator<D> {
                     Err(_) => Err(TxnValidatorError::InvalidSender),
                 }
             },
-            SystemInstruction::ContractDeploy(code) => self.validate_contract_deploy(&code),
-            SystemInstruction::ContractUpgrade(code) => self.validate_contract_upgrade(&code),
-            SystemInstruction::ContractCall(call_data) => self.validate_contract_call(&call_data),
+            SystemInstruction::ContractDeploy(code) => self.validate_contract_deploy(code),
+            SystemInstruction::ContractUpgrade(code) => self.validate_contract_upgrade(code),
+            SystemInstruction::ContractCall(call_data) => self.validate_contract_call(call_data),
             _ => Err(TxnValidatorError::InvalidInstruction),
         }
     }

@@ -193,11 +193,8 @@ impl Core {
                                 Ok(_) => {
                                     validated.insert((txn, true));
                                 },
-                                Err(e) => {
+                                Err(_) => {
                                     validated.insert((txn, false));
-                                    // Should we send error?
-                                    // send_core_err_msg(id, &error_sender,
-                                    // err);
                                 },
                             }
                         }

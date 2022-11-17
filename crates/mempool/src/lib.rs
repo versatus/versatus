@@ -5,12 +5,12 @@ pub mod mempool;
 mod tests {
 
     use std::{
-        collections::{HashMap, HashSet},
+        collections::HashSet,
         time::{SystemTime, UNIX_EPOCH},
     };
 
     use secp256k1::{PublicKey, Secp256k1, SecretKey};
-    use txn::txn::{NativeToken, SystemInstruction, Transaction, TransferData, Txn};
+    use txn::txn::{NativeToken, SystemInstruction, Transaction, TransferData};
 
     use crate::mempool::{LeftRightMemPoolDB, TxnStatus};
 
@@ -22,11 +22,6 @@ mod tests {
 
     #[test]
     fn add_a_single_txn() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
         let txn = Transaction::default();
 
         let mut mpooldb = LeftRightMemPoolDB::new();
@@ -75,11 +70,6 @@ mod tests {
 
     #[test]
     fn add_two_different_txn() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
         let txn1 = Transaction::default();
 
         let txn2 = Transaction::default();
@@ -139,16 +129,6 @@ mod tests {
     fn add_batch_of_transactions() {
         let mut txns = HashSet::<Transaction>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        // let txn_id = String::from("1");
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
-        let txn_amount: u128 = 1010101;
-
 
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
@@ -183,8 +163,7 @@ mod tests {
         };
 
 
-        if let Some(txn_retrieved) = mpooldb.get_txn(&example_txn.get_id()) {
-        } else {
+        if mpooldb.get_txn(&example_txn.get_id()).is_none() {
             panic!("No transaction found!");
         }
     }
@@ -234,11 +213,6 @@ mod tests {
 
     #[test]
     fn remove_single_txn() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
         let txn1 = Transaction::default();
 
         let txn2 = Transaction::default();
@@ -283,16 +257,9 @@ mod tests {
     fn remove_txn_batch() {
         let mut txns = HashSet::<Transaction>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
-
-        for n in 1..101 {
+        for _ in 1..101 {
             let txn = Transaction::default();
-
-
             txns.insert(txn);
         }
 
@@ -322,13 +289,8 @@ mod tests {
         let mut lrmpooldb = LeftRightMemPoolDB::new();
         let mut txns = HashSet::<Transaction>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
-
-        for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
+        for _ in 1..u128::try_from(txn_id_max).unwrap_or(0) {
             let txn = Transaction::default();
 
             txns.insert(txn);

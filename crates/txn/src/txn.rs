@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code)]
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
-    fmt,
+    fmt::{self, Display},
     hash::{Hash, Hasher},
     ops::{Add, AddAssign, Sub},
     str::FromStr,
@@ -204,7 +204,7 @@ pub struct Transaction {
 impl Transaction {
     pub fn sign(&mut self, secret: &SecretKey) -> Result<(), InvalidTxnError> {
         let secp = Secp256k1::new();
-        self.signature = Some(secp.sign_ecdsa(&self.get_message()?, &secret));
+        self.signature = Some(secp.sign_ecdsa(&self.get_message()?, secret));
         Ok(())
     }
 
@@ -263,10 +263,6 @@ impl Transaction {
         serde_json::to_string(self).map(|string| string.as_bytes().to_vec())
     }
 
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
     pub fn from_string(string: &str) -> Self {
         serde_json::from_str(string).unwrap()
     }
@@ -291,6 +287,7 @@ impl Transaction {
     pub fn get_fees(&self) -> Obol {
         let mut fees = Obol(0);
 
+
         for ix in &self.instructions {
             fees += match ix {
                 SystemInstruction::Transfer(_) => self.priority.clone().into(),
@@ -299,6 +296,12 @@ impl Transaction {
         }
 
         fees
+    }
+}
+
+impl Display for Transaction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
     }
 }
 
@@ -358,8 +361,8 @@ impl Default for Transaction {
 //         }
 //     }
 // }
-
 #[deprecated = "Replaced with `Transaction` struct"]
+#[allow(deprecated)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Txn {
     pub txn_id: String,
@@ -375,6 +378,7 @@ pub struct Txn {
     pub nonce: u128,
 }
 
+#[allow(deprecated)]
 impl Txn {
     // TODO: convert to_message into a function of the verifiable trait,
     // all verifiable objects need to be able to be converted to a message.
@@ -415,6 +419,7 @@ impl Txn {
     }
 }
 
+#[allow(deprecated)]
 impl Accountable for Txn {
     type Category = Option<String>;
 
@@ -435,6 +440,7 @@ impl Accountable for Txn {
     }
 }
 
+#[allow(deprecated)]
 impl Verifiable for Txn {
     type Dependencies = (NetworkState, Pool<String, Txn>);
     type Error = InvalidTxnError;
@@ -466,6 +472,7 @@ impl std::error::Error for InvalidTxnError {
     }
 }
 
+#[allow(deprecated)]
 impl fmt::Display for Txn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -491,6 +498,7 @@ impl fmt::Display for Txn {
     }
 }
 
+#[allow(deprecated)]
 impl Hash for Txn {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.txn_id.hash(state);
@@ -515,6 +523,7 @@ impl Hash for Txn {
     }
 }
 
+#[allow(deprecated)]
 impl PartialEq for Txn {
     fn eq(&self, other: &Self) -> bool {
         self.txn_id == other.txn_id
@@ -529,4 +538,5 @@ impl PartialEq for Txn {
     }
 }
 
+#[allow(deprecated)]
 impl Eq for Txn {}
