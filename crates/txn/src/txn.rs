@@ -1,4 +1,4 @@
-#![allow(unused_imports, dead_code)]
+#![allow(unused_imports, dead_code, deprecated)]
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     fmt::{self, Display},
@@ -197,7 +197,7 @@ pub struct Transaction {
     pub instructions: Vec<SystemInstruction>,
     pub sender: PublicKey,
     pub signature: Option<Signature>,
-    pub receipt: Option<RawSignature>,
+    pub receipt: Vec<(RawSignature, bool)>,
     pub priority: TxnPriority,
 }
 
@@ -319,50 +319,9 @@ impl Default for Transaction {
         }
     }
 }
-// impl Accountable for Transaction {
-//     type Category = Option<String>;
 
-//     fn receivable(&self) -> String {
-//         self.receiver_address.clone()
-//     }
 
-//     fn payable(&self) -> Option<String> {
-//         Some(self.sender_address.clone())
-//     }
-
-//     fn get_amount(&self) -> u128 {
-//         self.txn_amount
-//     }
-
-//     fn get_category(&self) -> Option<Self::Category> {
-//         None
-//     }
-// }
-// impl Hash for Transaction {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         // self.txn_id.hash(state);
-//         // self.txn_timestamp.hash(state);
-//         // self.sender_address.hash(state);
-//         // self.sender_public_key.hash(state);
-//         // self.receiver_address.hash(state);
-//         // self.txn_token.hash(state);
-//         // self.txn_amount.hash(state);
-//         // self.txn_payload.hash(state);
-//         // self.txn_signature.hash(state);
-//         self.instructions.hash(state);
-//     }
-
-//     fn hash_slice<H: Hasher>(data: &[Self], state: &mut H)
-//     where
-//         Self: Sized,
-//     {
-//         for piece in data {
-//             piece.hash(state);
-//         }
-//     }
-// }
 #[deprecated = "Replaced with `Transaction` struct"]
-#[allow(deprecated)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Txn {
     pub txn_id: String,

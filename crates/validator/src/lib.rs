@@ -106,7 +106,7 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let state_rh_factory = LeftRightTrie::new(memdb).factory();
 
-        let amount_of_cores = 5;
+        let amount_of_cores = 1;
 
         let (mempool_processor_sender, mempool_processor_receiver) = channel();
 
@@ -148,6 +148,7 @@ mod tests {
 
 
         // Add timeout
+        thread::sleep(Duration::from_secs(2));
 
         if let Some(map) = mempool_read_handle
             .handle()
@@ -155,7 +156,7 @@ mod tests {
             .map(|guard| guard.clone())
         {
             assert_eq!(
-                (0, 1000, 0),
+                (0, 500, 500),
                 (map.pending.len(), map.rejected.len(), map.validated.len())
             )
         } else {

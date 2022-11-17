@@ -4,10 +4,7 @@ pub mod mempool;
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        collections::HashSet,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::collections::HashSet;
 
     use secp256k1::{PublicKey, Secp256k1, SecretKey};
     use txn::txn::{NativeToken, SystemInstruction, Transaction, TransferData};
@@ -198,7 +195,7 @@ mod tests {
             },
         };
 
-        match mpooldb.remove_txn_by_id(txn2.get_id()) {
+        match mpooldb.remove_txn_by_id(&txn2.get_id(), TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size().0);
             },

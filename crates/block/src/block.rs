@@ -8,8 +8,9 @@ use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
 use lr_trie::LeftRightTrie;
+use mempool::mempool::LeftRightMemPoolDB;
 use patriecia::db::Database;
-use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH};
+use primitives::types::{Epoch, RawSignature, SecretKey, Signature, GENESIS_EPOCH};
 use rand::Rng;
 use reward::reward::{Category, RewardState, GENESIS_REWARD};
 use ritelinked::LinkedHashMap;
@@ -41,7 +42,7 @@ pub struct Block {
     pub neighbors: Option<Vec<BlockHeader>>,
     pub height: u128,
     // TODO: replace with Tx Trie Root
-    pub txns: LinkedHashMap<String, Txn>,
+    pub txns: LinkedHashMap<String, Transaction>,
     // TODO: Replace with Claim Trie Root
     pub claims: LinkedHashMap<String, Claim>,
     pub hash: String,
@@ -64,7 +65,11 @@ pub struct Block {
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
+    pub fn genesis(
+        reward_state: &RewardState,
+        claim: Claim,
+        secret_key: SecretKey,
+    ) -> Option<Block> {
         // Create the genesis header
         let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
         // Create the genesis state hash
@@ -119,23 +124,26 @@ impl Block {
     #[allow(clippy::too_many_arguments)]
     #[allow(deprecated)]
     pub fn mine<D: Database>(
-        claim: Claim,      // The claim entitling the miner to mine the block.
+        claim: &Claim,     // The claim entitling the miner to mine the block.
         last_block: Block, // The last block, which contains the current block reward.
-        txns: LinkedHashMap<String, Txn>,
-        claims: LinkedHashMap<String, Claim>,
+        txns: &LeftRightMemPoolDB,
+        claims: &LinkedHashMap<String, Claim>,
         claim_map_hash: Option<String>,
         reward_state: &RewardState,
         network_state: &LeftRightTrie<D>,
-        neighbors: Option<Vec<BlockHeader>>,
+        neighbors: &Option<Vec<BlockHeader>>,
         abandoned_claim: Option<Claim>,
-        signature: String,
+        signature: SecretKey,
         epoch: Epoch,
     ) -> (Option<Block>, CurrentUtility) {
         // TODO: Replace with Tx Trie Root
+        let mut txns_validated = vec![];
         let txn_hash = {
             let mut txn_vec = vec![];
-            txns.iter().for_each(|(_, v)| {
-                let bytes = v.as_bytes();
+            txns.get().unwrap().validated.iter().for_each(|(_, v)| {
+                let txn = Transaction::from_string(&v.txn);
+                txns_validated.push(txn.clone());
+                let bytes = txn.as_bytes().unwrap();
                 txn_vec.extend(bytes);
             });
             digest(&*txn_vec)
@@ -159,7 +167,7 @@ impl Block {
         let header = BlockHeader::new(
             last_block.clone(),
             reward_state,
-            claim,
+            claim.clone(),
             txn_hash,
             claim_map_hash,
             neighbors_hash,
@@ -181,13 +189,16 @@ impl Block {
 
         let height = last_block.height + 1;
 
-        let utility_amount: u128 = txns.iter().map(|(_, txn)| txn.get_amount()).sum();
+        let utility_amount: u128 = txns_validated.iter().map(|txn| txn.get_amount()).sum();
         let mut block = Block {
             header: header.clone(),
-            neighbors,
+            neighbors: neighbors.clone(),
             height,
-            txns,
-            claims,
+            txns: txns_validated
+                .iter()
+                .map(|txn| (txn.get_id(), txn.clone()))
+                .collect::<LinkedHashMap<String, Transaction>>(),
+            claims: claims.clone(),
             hash: header.last_hash,
             received_at: None,
             received_from: None,

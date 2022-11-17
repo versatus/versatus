@@ -10,6 +10,7 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
+#[allow(deprecated)]
 use txn::txn::{Transaction, Txn};
 
 use super::error::MempoolError;
@@ -60,7 +61,7 @@ pub enum TxnStatus {
     Rejected,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Mempool {
     pub pending: MempoolType,
     pub validated: MempoolType,
@@ -369,19 +370,16 @@ impl LeftRightMemPoolDB {
     ///     Err(_) => {},
     /// };
     ///
-    /// match lrmempooldb.remove_txn_by_id(txns.iter().next().unwrap().get_id()) {
+    /// match lrmempooldb.remove_txn_by_id(&txns.iter().next().unwrap().get_id(), TxnStatus::Pending) {
     ///     Ok(_) => {},
     ///     Err(_) => {},
     /// };
     ///
     /// assert_eq!(0, lrmempooldb.size().0);
     /// ```
-    pub fn remove_txn_by_id(&mut self, txn_id: String) -> Result<()> {
+    pub fn remove_txn_by_id(&mut self, txn_id: &str, txns_status: TxnStatus) -> Result<()> {
         self.write
-            .append(MempoolOp::Remove(
-                TxnRecord::new_by_id(&txn_id),
-                TxnStatus::Pending,
-            ))
+            .append(MempoolOp::Remove(TxnRecord::new_by_id(txn_id), txns_status))
             .publish();
         Ok(())
     }
@@ -464,11 +462,13 @@ impl LeftRightMemPoolDB {
 
     /// Apply Txn on debits and credits of currect state
     // TODO: to be clarified against the new state representation.
+    #[allow(deprecated)]
     pub fn apply_txn_on_state(&mut self, _txn: &Txn, _state: &NetworkState) -> Result<()> {
         Ok(())
     }
 
     /// Was the Txn validated ? And when ?
+    #[allow(deprecated)]
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128> {
         if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
             Ok(txn_record_validated.txn_validated_timestamp)
@@ -478,6 +478,7 @@ impl LeftRightMemPoolDB {
     }
 
     /// Was the Txn rejected ? And when ?
+    #[allow(deprecated)]
     pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128> {
         if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
             Ok(txn_record_rejected.txn_rejected_timestamp)

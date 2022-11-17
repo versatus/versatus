@@ -20,4 +20,5 @@ serde = { version = "1.0.101", features = ["derive"] }
 sha256 = "1.0.2"
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 primitives = { path = "../primitives" }
+mempool = {path = "../mempool"}
 lr_trie = { path = "../lr_trie"}

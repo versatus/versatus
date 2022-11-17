@@ -6,17 +6,21 @@ pub use crate::block::*;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, time::UNIX_EPOCH};
+    use std::time::UNIX_EPOCH;
 
     use claim::claim::Claim;
     use lr_trie::LeftRightTrie;
+    use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     use patriecia::db::MemoryDB;
-    use rand::{thread_rng, Rng};
+    use primitives::types::{
+        rand::{thread_rng, Rng},
+        PublicKey,
+        Secp256k1,
+        SecretKey,
+    };
     use reward::reward::{Reward, RewardState};
     use ritelinked::LinkedHashMap;
-    use secp256k1::Secp256k1;
-    #[allow(deprecated)]
-    use txn::txn::Txn;
+    use txn::txn::{NativeToken, SystemInstruction, Transaction, TransferData};
 
     use crate::{header::BlockHeader, Block};
 
@@ -26,7 +30,7 @@ mod tests {
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
         let reward_state = RewardState::start();
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(&reward_state, claim, secret_key.to_string());
+        let genesis_block_opt = Block::genesis(&reward_state, claim, secret_key);
         assert!(genesis_block_opt.is_some());
         let genesis_block = genesis_block_opt.unwrap();
         assert!(genesis_block.utility == 0);
@@ -38,7 +42,7 @@ mod tests {
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
         let reward_state = RewardState::start();
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(&reward_state, claim, secret_key.to_string());
+        let genesis_block_opt = Block::genesis(&reward_state, claim, secret_key);
         let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());
 
         let (secret_key_2, _) = secp.generate_keypair(&mut thread_rng());
@@ -53,18 +57,26 @@ mod tests {
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
         genesis_block.header.timestamp = timestamp;
 
+        let txns = get_txns();
+
+        let mut mempool = LeftRightMemPoolDB::new();
+
+        for (_, txn) in txns {
+            mempool.add_txn(&txn, TxnStatus::Validated).unwrap();
+        }
+
         let block_headers = vec![get_block_header(2), get_block_header(3)];
         let last_block = Block::mine::<MemoryDB>(
-            last_block_claim,
+            &last_block_claim,
             genesis_block,
-            get_txns(),
-            get_claims(),
+            &mempool,
+            &get_claims(),
             None,
             &RewardState::start(),
             &LeftRightTrie::default(),
-            Some(block_headers),
+            &Some(block_headers),
             None,
-            secret_key_1.to_string(),
+            secret_key_1,
             1,
         );
         let start = start
@@ -76,20 +88,28 @@ mod tests {
         last_block.header.timestamp = timestamp;
 
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
+        let txns = get_txns();
 
+        let mut mempool = LeftRightMemPoolDB::new();
+
+        for (_, txn) in txns {
+            mempool.add_txn(&txn, TxnStatus::Validated).unwrap();
+        }
         let block = Block::mine::<MemoryDB>(
-            new_block_claim,
+            &new_block_claim,
             last_block.clone(),
-            get_txns(),
-            get_claims(),
+            &mempool,
+            &get_claims(),
             None,
             &RewardState::start(),
             &LeftRightTrie::default(),
+            &None,
             None,
-            None,
-            secret_key_2.to_string(),
+            secret_key_2,
             1,
         );
+
+
         assert!((block.0.unwrap().utility + last_block.utility) > 0);
     }
 
@@ -99,7 +119,7 @@ mod tests {
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
         let reward_state = RewardState::start();
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(&reward_state, claim, secret_key.to_string());
+        let genesis_block_opt = Block::genesis(&reward_state, claim, secret_key);
         let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());
 
         let (secret_key_2, _) = secp.generate_keypair(&mut thread_rng());
@@ -115,18 +135,24 @@ mod tests {
         genesis_block.header.timestamp = timestamp;
 
         let block_headers = vec![get_block_header(2), get_block_header(3)];
+        let txns = get_txns();
 
+        let mut mempool = LeftRightMemPoolDB::new();
+
+        for (_, txn) in txns {
+            mempool.add_txn(&txn, TxnStatus::Validated).unwrap();
+        }
         let last_block = Block::mine::<MemoryDB>(
-            last_block_claim,
+            &last_block_claim,
             genesis_block,
-            get_txns(),
-            get_claims(),
+            &mempool,
+            &get_claims(),
             None,
             &RewardState::start(),
             &LeftRightTrie::default(),
-            Some(block_headers),
+            &Some(block_headers),
             None,
-            secret_key_1.to_string(),
+            secret_key_1,
             0,
         );
         let start = start
@@ -137,19 +163,25 @@ mod tests {
         let mut last_block = last_block.0.unwrap();
         last_block.header.timestamp = timestamp;
         last_block.utility = 10;
+        let txns = get_txns();
 
+        let mut mempool = LeftRightMemPoolDB::new();
+
+        for (_, txn) in txns {
+            mempool.add_txn(&txn, TxnStatus::Validated).unwrap();
+        }
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
         let block = Block::mine::<MemoryDB>(
-            new_block_claim,
+            &new_block_claim,
             last_block.clone(),
-            get_txns(),
-            get_claims(),
+            &mempool,
+            &get_claims(),
             None,
             &RewardState::start(),
             &LeftRightTrie::default(),
+            &None,
             None,
-            None,
-            secret_key_2.to_string(),
+            secret_key_2,
             1,
         );
         let adjustment_next_epoch = block.1;
@@ -194,47 +226,46 @@ mod tests {
         }
     }
 
+
+    pub fn new_random_signed_txn() -> Transaction {
+        let secp = Secp256k1::new();
+        let mut rng = primitives::types::rand::thread_rng();
+        let amount: u128 = rng.gen();
+        let secret = SecretKey::new(&mut rng);
+        let pubkey = PublicKey::from_secret_key(&secp, &secret);
+        let mut txn = Transaction {
+            instructions: vec![SystemInstruction::Transfer(TransferData {
+                from: pubkey,
+                to: pubkey,
+                amount: NativeToken(1 + amount % 200u128),
+            })],
+            sender: pubkey,
+            signature: Default::default(),
+            receipt: Default::default(),
+            priority: Default::default(),
+        };
+
+        txn.sign(&secret).unwrap();
+        txn
+    }
     #[allow(deprecated)]
-    pub fn get_txns() -> LinkedHashMap<String, Txn> {
+    pub fn get_txns() -> LinkedHashMap<String, Transaction> {
         let mut txns = LinkedHashMap::new();
-        let mut rng = rand::thread_rng();
-        let random_number = rng.gen_range(0, 10);
-        let start = std::time::SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards");
-        for i in 0..random_number {
-            let txn_amount: u128 = rng.gen_range(150, 1000);
-            let nonce: u128 = rng.gen_range(10, 100);
-            let time_stamp = (since_the_epoch.as_secs() * 1000
-                + since_the_epoch.subsec_nanos() as u64 / 1_000_000)
-                * 1000
-                * 1000;
-            txns.insert(
-                i.to_string(),
-                #[allow(deprecated)]
-                Txn {
-                    txn_id: i.to_string(),
-                    txn_timestamp: time_stamp as u128,
-                    sender_address: String::from("ABC"),
-                    sender_public_key: String::from("ABC_PUB"),
-                    receiver_address: String::from("DEST"),
-                    txn_token: None,
-                    txn_amount,
-                    txn_payload: String::from("sample_payload"),
-                    txn_signature: String::from("signature"),
-                    validators: HashMap::default(),
-                    nonce,
-                },
-            );
+        let mut rng = thread_rng();
+        let random_number = rng.gen::<i32>() % 10;
+
+        for _ in 0..random_number {
+            let tx = new_random_signed_txn();
+
+            txns.insert(tx.get_id(), tx);
         }
         txns
     }
 
     pub fn get_claims() -> LinkedHashMap<String, Claim> {
         let mut claims = LinkedHashMap::new();
-        let mut rng = rand::thread_rng();
-        let random_number = rng.gen_range(0, 10);
+        let mut rng = thread_rng();
+        let random_number = rng.gen::<i32>() % 10;
         for i in 0..random_number {
             claims.insert(
                 i.to_string(),

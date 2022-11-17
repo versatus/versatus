@@ -1,6 +1,14 @@
 use std::str::FromStr;
 
-pub use secp256k1::{ecdsa::Signature, rand, Message, PublicKey, Secp256k1, SecretKey};
+pub use secp256k1::{
+    ecdsa::Signature,
+    rand,
+    Error as Secp256k1Error,
+    Message,
+    PublicKey,
+    Secp256k1,
+    SecretKey,
+};
 use serde::{Deserialize, Serialize};
 pub type NodeId = String;
 pub type NodeIdx = u16;
