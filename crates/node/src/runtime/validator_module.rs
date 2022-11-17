@@ -28,6 +28,10 @@ impl ValidatorModule {
 
     fn process_event(&mut self, event: Event) {
         match event {
+            Event::TxnCreated(_) => {
+                //
+                //
+            },
             _ => telemetry::warn!("Unrecognized command received: {:?}", event),
         }
     }
@@ -58,9 +62,7 @@ impl RuntimeModule for ValidatorModule {
         &mut self,
         event_stream: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {
-        loop {
-            let event = self.decode_event(event_stream.try_recv());
-
+        while let Some(event) = event_stream.recv().await {
             if event == Event::Stop {
                 telemetry::info!("{0} received stop signal. Stopping", self.name());
 
@@ -75,5 +77,44 @@ impl RuntimeModule for ValidatorModule {
         self.running_status = RuntimeModuleState::Stopped;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        env, io,
+        net::{IpAddr, Ipv4Addr, SocketAddr},
+        os,
+        path::PathBuf,
+        rc::Rc,
+        sync::Arc,
+    };
+
+    use commands::command::Command;
+    use state::node_state;
+    use telemetry::TelemetrySubscriber;
+    use uuid::Uuid;
+    use vrrb_config::NodeConfig;
+    use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn state_runtime_module_starts_and_stops() {
+        let mut validator_module = ValidatorModule::new();
+
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+
+        assert_eq!(validator_module.status(), RuntimeModuleState::Stopped);
+
+        let handle = tokio::spawn(async move {
+            validator_module.start(&mut ctrl_rx).await.unwrap();
+            assert_eq!(validator_module.status(), RuntimeModuleState::Stopped);
+        });
+
+        ctrl_tx.send(Event::Stop).unwrap();
+
+        handle.await.unwrap();
     }
 }
