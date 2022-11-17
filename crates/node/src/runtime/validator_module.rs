@@ -101,7 +101,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn state_runtime_module_starts_and_stops() {
+    async fn validator_runtime_module_starts_and_stops() {
         let mut validator_module = ValidatorModule::new();
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
