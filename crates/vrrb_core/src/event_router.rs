@@ -65,8 +65,6 @@ impl EventRouter {
     /// specified routes
     pub async fn start(&mut self, command_rx: &mut UnboundedReceiver<DirectedEvent>) {
         while let Some((topic, event)) = command_rx.recv().await {
-            telemetry::info!("event router received stop signal");
-
             if event == Event::Stop {
                 telemetry::info!("event router received stop signal");
                 self.fan_out_event(Event::Stop, &topic);

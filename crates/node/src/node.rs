@@ -214,7 +214,6 @@ impl Node {
         event_router.add_subscriber(Topic::Control, validator_control_tx.clone());
 
         // TODO: report error from handle
-        // TODO: fix blocking loop on router
         let router_handle =
             tokio::spawn(async move { event_router.start(&mut router_control_rx).await });
 
@@ -233,22 +232,26 @@ impl Node {
         self.set_status(RuntimeModuleState::Running);
 
         // NOTE: wait for stop signal
-        control_rx.recv().await;
-        // .map_err(|err| NodeError::Other(String::from("failed to listen for ctrl+c")))?;
+        control_rx
+            .recv()
+            .await
+            .ok_or(NodeError::Other(String::from(
+                "failed receive control signal",
+            )))?;
 
         telemetry::info!("Received stop event");
 
-        // http_server_control_tx.send(());
+        http_server_control_tx.send(());
 
-        // TODO: send signal to stop all task handlers here
-        // router_control_tx
-        //     .send((Topic::Control, Event::Stop))
-        //     .unwrap_or_default();
-        //
+        router_control_tx
+            .send((Topic::Control, Event::Stop))
+            .unwrap_or_default();
 
         self.teardown();
 
         // TODO: await on all task handles here
+        validator_handle.await;
+        state_handle.await;
 
         telemetry::info!("Node shutdown complete");
 
