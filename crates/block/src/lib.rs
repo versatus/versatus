@@ -1,6 +1,5 @@
 pub mod block;
 pub mod header;
-pub mod invalid;
 pub use crate::block::*;
 
 #[cfg(test)]

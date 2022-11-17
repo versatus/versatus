@@ -10,7 +10,7 @@ use std::{
 use block::{
     block::Block,
     header::BlockHeader,
-    invalid::{InvalidBlockError, InvalidBlockErrorReason},
+    invalid::{InvalidBlockError, BlockError},
 };
 use commands::command::{Command, ComponentTypes};
 use log::info;
@@ -266,7 +266,7 @@ impl Blockchain {
                 } else {
                     self.invalid.insert(block.hash.clone(), block.clone());
                     Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::General,
+                        details: BlockError::General,
                     })
                 }
             } else {
@@ -274,7 +274,7 @@ impl Blockchain {
                 self.future_blocks
                     .insert(block.clone().header.last_hash, block.clone());
                 Err(InvalidBlockError {
-                    details: InvalidBlockErrorReason::BlockOutOfSequence,
+                    details: BlockError::BlockOutOfSequence,
                 })
             }
         }
@@ -293,11 +293,11 @@ impl Blockchain {
                 if block.header.block_height > next_height {
                     //I'm missing blocks return BlockOutOfSequence error
                     return Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::BlockOutOfSequence,
+                        details: BlockError::BlockOutOfSequence,
                     });
                 } else if block.header.block_height < next_height {
                     return Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::NotTallestChain,
+                        details: BlockError::NotTallestChain,
                     });
                 } else {
                     return Ok(true);
@@ -305,11 +305,11 @@ impl Blockchain {
             } else {
                 if block.header.block_height > 1 {
                     return Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::BlockOutOfSequence,
+                        details: BlockError::BlockOutOfSequence,
                     });
                 } else if block.header.block_height < 1 {
                     return Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::NotTallestChain,
+                        details: BlockError::NotTallestChain,
                     });
                 } else {
                     return Ok(true);
@@ -318,7 +318,7 @@ impl Blockchain {
         } else {
             if block.header.block_height != 0 {
                 return Err(InvalidBlockError {
-                    details: InvalidBlockErrorReason::BlockOutOfSequence,
+                    details: BlockError::BlockOutOfSequence,
                 });
             } else {
                 return Ok(true);
@@ -339,7 +339,7 @@ impl Blockchain {
     pub fn send_invalid_block_message(
         &self,
         block: &Block,
-        reason: InvalidBlockErrorReason,
+        reason: BlockError,
         miner_id: String,
         sender_id: String,
         gossip_tx: std::sync::mpsc::Sender<(SocketAddr, Message)>,

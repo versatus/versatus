@@ -9,7 +9,7 @@ use std::{
 };
 
 use vrrb_core::event_router::Event;
-use block::invalid::InvalidBlockErrorReason;
+use block::invalid::BlockError;
 use claim::claim::Claim;
 use commands::command::ComponentTypes;
 use events::events::{write_to_json, VrrbNetworkEvent};

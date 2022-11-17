@@ -1,6 +1,7 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
-
+#![allow(unused_imports)]
+#![allow(dead_code)]
 use std::{fmt, f32::consts::E};
 
 use accountable::accountable::Accountable;
@@ -16,10 +17,8 @@ use state::state::NetworkState;
 use txn::txn::Txn;
 use verifiable::verifiable::Verifiable;
 
-use crate::{
-    header::BlockHeader,
-    invalid::{InvalidBlockError, InvalidBlockErrorReason},
-};
+use crate::header::BlockHeader;
+
 
 use thiserror::Error;
 
@@ -29,6 +28,56 @@ pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
 const VALIDATOR_THRESHOLD: f64 = 0.60;
+
+
+#[derive(Debug, Error)]
+pub enum BlockError {
+    #[error("blockchain proposed is shorter than my local chain")]
+    NotTallestChain(),
+   
+    #[error("block out of sequence")]
+    BlockOutOfSequence(),
+
+    #[error("invalid claim")]
+    InvalidClaim(),
+
+    #[error("invalid last hash")]
+    InvalidLastHash(),
+    
+    #[error("invalid state hash")]
+    InvalidStateHash(),
+
+    #[error("invalid block height")]
+    InvalidBlockHeight(),
+
+    #[error("invalid block seed")]
+    InvalidBlockSeed(),
+
+    #[error("invalid block reward")]
+    InvalidBlockReward(),
+
+    #[error("invalid txns in block")]
+    InvalidTxns(),
+
+    #[error("invalid claim pointers")]
+    InvalidClaimPointers(),
+
+    #[error("invalid next block reward")]
+    InvalidNextBlockReward(),
+
+    #[error("invalid block signature")]
+    InvalidBlockSignature(),
+
+    #[error("general block error")]
+    General(),
+
+    #[error("invalid header seed generated")]
+    InvalidHeaderSeed(),
+
+    #[error("invalid block header")]
+    InvalidBlockHeader(),
+}
+
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -40,7 +89,7 @@ pub struct Block {
     pub txns: LinkedHashMap<String, Txn>,
     // TODO: Replace with Claim Trie Root
     pub claims: LinkedHashMap<String, Claim>,
-    pub hash: String,
+    pub hash: Vec<u8>,
     pub received_at: Option<u128>,
     pub received_from: Option<String>,
     // TODO: Replace with map of all abandoned claims in the even more than 1 miner is faulty when
@@ -55,19 +104,18 @@ impl Block {
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
         // Create the genesis header
-        let header = (BlockHeader::genesis(0, reward_state, claim.clone(), secret_key)).unwrap();
+        let mut header = (BlockHeader::genesis(0, reward_state, claim.clone(), secret_key)).unwrap();
 
+       // let header = match BlockHeader::genesis(0, reward_state, claim.clone(), secret_key){
+       //     Ok(header) => header,
+       //     Err(e) => Err(e),
+       // };
        // let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
         // Create the genesis state hash
         // TODO: Replace with state trie root
-        let state_hash = digest_bytes(
-            format!(
-                "{},{}",
-                header.last_hash,
-                digest_bytes("Genesis_State_Hash".as_bytes())
-            )
-            .as_bytes(),
-        );
+        let mut genesis_state_hash = "Genesis_State_Hash".as_bytes().to_vec();
+        header.last_hash.append(&mut genesis_state_hash);
+        let state_hash = header.last_hash;
 
         // Replace with claim trie
         let mut claims = LinkedHashMap::new();
@@ -173,7 +221,7 @@ impl Block {
         // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
-        let hash = hashable_state.hash(&block.txns.clone(), block.header.block_reward.clone());
+        let hash = hashable_state.hash(&block.txns.clone(), block.header.block_reward.clone()).into_bytes();
         block.hash = hash;
         Some(block)
     }
@@ -212,7 +260,7 @@ impl fmt::Display for Block {
 // Protocol
 impl Verifiable for Block {
     type Dependencies = (NetworkState, RewardState);
-    type Error = InvalidBlockError;
+    type Error = BlockError;
     type Item = Block;
 
     fn verifiable(&self) -> bool {
@@ -226,35 +274,25 @@ impl Verifiable for Block {
         dependencies: &Self::Dependencies,
     ) -> Result<bool, Self::Error> {
         if self.header.block_height > item.header.block_height + 1 {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::BlockOutOfSequence,
-            });
+            return Err(BlockError::BlockOutOfSequence());
         }
 
         if self.header.block_height < item.header.block_height
             || self.header.block_height == item.header.block_height
         {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::NotTallestChain,
-            });
+            return Err(BlockError::NotTallestChain());
         }
 
         if self.header.block_seed != item.header.next_block_seed {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockSeed,
-            });
+            return Err(BlockError::InvalidBlockSeed());
         }
 
         if self.header.block_reward.category != item.header.next_block_reward.category {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
+            return Err(BlockError::InvalidBlockReward());
         }
 
         if self.header.block_reward.get_amount() != item.header.next_block_reward.get_amount() {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
+            return Err(BlockError::InvalidBlockReward());
         }
 
         if let Some((hash, pointers)) = dependencies
@@ -268,19 +306,13 @@ impl Verifiable for Block {
                     .get_pointer(self.header.block_seed as u128)
                 {
                     if pointers != claim_pointer {
-                        return Err(Self::Error {
-                            details: InvalidBlockErrorReason::InvalidClaimPointers,
-                        });
+                        return Err( BlockError::InvalidClaimPointers());
                     }
                 } else {
-                    return Err(Self::Error {
-                        details: InvalidBlockErrorReason::InvalidClaimPointers,
-                    });
+                    return Err(BlockError::InvalidClaimPointers());
                 }
             } else {
-                return Err(Self::Error {
-                    details: InvalidBlockErrorReason::InvalidClaimPointers,
-                });
+                return Err(BlockError::InvalidClaimPointers());
             }
         }
 
@@ -288,92 +320,65 @@ impl Verifiable for Block {
             .1
             .valid_reward(self.header.block_reward.category)
         {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
+            return Err(BlockError::InvalidBlockReward());
         }
 
         if !dependencies
             .1
             .valid_reward(self.header.next_block_reward.category)
         {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidNextBlockReward,
-            });
+            return Err( BlockError::InvalidNextBlockReward());
         }
 
         if self.header.last_hash != item.hash {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidLastHash,
-            });
+            return Err(BlockError::InvalidLastHash());
         }
 
         if let Err(_) = self.header.claim.valid(&None, &(None, None)) {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidClaim,
-            });
+            return Err(BlockError::InvalidClaim());
         }
 
         Ok(true)
     }
 
     fn valid_genesis(&self, dependencies: &Self::Dependencies) -> Result<bool, Self::Error> {
-        let genesis_last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
-        let genesis_state_hash = digest_bytes(
-            format!(
-                "{},{}",
-                genesis_last_hash,
-                digest_bytes("Genesis_State_Hash".as_bytes())
-            )
-            .as_bytes(),
-        );
-
+        let genesis_last_hash = digest_bytes("Genesis_Last_Hash".as_bytes()).into_bytes();
+        let genesis_msg = "Genesis_State_Hash".as_bytes().to_vec();
+        genesis_last_hash.append(&mut genesis_msg);
+        let genesis_state_hash = genesis_last_hash;
+        
         if self.header.block_height != 0 {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockHeight,
-            });
+            return Err(BlockError::InvalidBlockHeight());
         }
 
         if !dependencies
             .1
             .valid_reward(self.header.block_reward.category)
         {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
+            return Err(BlockError::InvalidBlockReward());
         }
 
         if !dependencies
             .1
             .valid_reward(self.header.next_block_reward.category)
         {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidNextBlockReward,
-            });
+            return Err(BlockError::InvalidNextBlockReward());
         }
 
-        if self.header.last_hash != genesis_last_hash {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidLastHash,
-            });
+        if String::from_utf8(self.header.last_hash) != String::from_utf8(genesis_last_hash) {
+            return Err(BlockError::InvalidLastHash());
         }
 
-        if self.hash != genesis_state_hash {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidStateHash,
-            });
+        if String::from_utf8(self.hash) != String::from_utf8(genesis_state_hash) {
+            return Err(BlockError::InvalidStateHash());
         }
 
         if let Err(_) = self.header.claim.valid(&None, &(None, None)) {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidClaim,
-            });
+            return Err(BlockError::InvalidClaim());
         }
 
         if let Err(_) = self.header.verify() {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockSignature,
-            });
+            return Err(BlockError::InvalidBlockSignature());
         }
 
         let mut valid_data = true;
@@ -385,9 +390,7 @@ impl Verifiable for Block {
         });
 
         if !valid_data {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidTxns,
-            });
+            return Err(BlockError::InvalidTxns());
         }
 
         Ok(true)

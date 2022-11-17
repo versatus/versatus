@@ -3,24 +3,20 @@ use std::{
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
-    u64::MAX as u64MAX, fmt::Display,
 };
 
 use bytebuffer::ByteBuffer;
 use claim::claim::Claim;
-use rand::Rng;
 use reward::reward::{Reward, RewardState};
 use secp256k1::{
     key::{PublicKey, SecretKey},
     Error, Message, Secp256k1, Signature,
 };
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::{digest, digest_bytes, Sha256Digest};
 
-use crate::block::Block;
+use crate::block::{Block, BlockError};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
-
-use thiserror::Error;
 
 // TODO: Helper constants like the ones below should be in their own mod
 pub const NANO: u128 = 1;
@@ -28,24 +24,6 @@ pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
-#[derive(Debug)]
-pub enum InvalidBlockHeader {
-    InvalidSeedError,
-    InvalidPubKeyError,
-    InvalidMessageError,
-}
-
-impl Display for InvalidBlockHeader {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InvalidBlockHeader::InvalidSeedError => write!(f, "Invalid block seed generated"),
-            InvalidBlockHeader::InvalidPubKeyError => write!(f, "Invalid public key"),
-            InvalidBlockHeader::InvalidMessageError => write!(f, "Invalid message"),
-        }
-    }
-}
-
-impl std::error::Error for InvalidBlockHeader {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
@@ -53,7 +31,7 @@ pub struct BlockHeader {
     // TODO: Replace tx hash with tx trie root
     // TODO: Replace claim hash with claim trie root
     // TODO: Add certificate field for validation certification.
-    pub last_hash: String,
+    pub last_hash: Vec<u8>,
     pub block_seed: u64,
     pub next_block_seed: u64,
     pub block_height: u128,
@@ -73,14 +51,14 @@ impl BlockHeader {
         reward_state: &RewardState,
         claim: Claim,
         secret_key: String,
-    ) -> Result<BlockHeader, InvalidBlockHeader> {
+    ) -> Result<BlockHeader, BlockError> {
         // Result<BlockHeader, InvalidBlockHeader>
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
-        let mut rng = rand::thread_rng();
-        let last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
+    
+        let last_hash = "Genesis_Last_Hash".as_bytes().to_vec();
         let block_seed = nonce;
         // Range should remain the same.
         //let next_block_seed: u64 = rng.gen_range(u32MAX as u64, u64MAX);
@@ -98,15 +76,21 @@ impl BlockHeader {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let txn_hash = digest_bytes("Genesis_Txn_Hash".as_bytes());
+        let txn_hash = ("Genesis_Txn_Hash".as_bytes()).digest();
         let block_reward = Reward::genesis(Some(claim.address.clone()));
         //TODO: Replace reward state
         let next_block_reward = Reward::new(None, reward_state);
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
+
+        let formatted_last_hash = match String::from_utf8(last_hash) {
+            Ok(formatted_last_hash) => formatted_last_hash,
+            Err(e) => return Err(BlockError::InvalidBlockHeader()),
+        };
+
         let payload = format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            last_hash,
+            formatted_last_hash,
             block_seed,
             next_block_seed,
             0,
@@ -120,7 +104,7 @@ impl BlockHeader {
         );
 
         let signature = BlockHeader::sign(&payload, secret_key).unwrap().to_string();
-
+       
         return Ok(BlockHeader {
             last_hash,
             block_seed,
@@ -145,12 +129,12 @@ impl BlockHeader {
         claim_map_hash: Option<String>,
         neighbor_hash: Option<String>,
         secret_key: String,
-    ) -> Result<BlockHeader, InvalidBlockHeader> {
+    ) -> Result<BlockHeader, BlockError> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
-        let mut rng = rand::thread_rng();
+        
         let last_hash = last_block.hash;
         let block_seed = last_block.header.next_block_seed.clone();
 
@@ -169,9 +153,15 @@ impl BlockHeader {
         block_reward.miner = Some(claim.clone().address);
         let next_block_reward = Reward::new(None, reward_state);
         let block_height = last_block.header.block_height + 1;
+
+        let formatted_last_hash = match String::from_utf8(last_hash) {
+            Ok(formatted_last_hash) => formatted_last_hash,
+            Err(e) => return Err(BlockError::InvalidBlockHeader()),
+        };
+
         let payload = format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            last_hash,
+            formatted_last_hash,
             block_seed,
             next_block_seed,
             block_height,
@@ -256,9 +246,14 @@ impl BlockHeader {
     }
 
     pub fn get_payload(&self) -> String {
+        let formatted_last_hash = match String::from_utf8(self.last_hash.clone()) {
+            Ok(formatted_last_hash) => formatted_last_hash,
+            Err(e) => return String::from(""),
+        };
+
         format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            self.last_hash,
+            formatted_last_hash,
             self.block_seed,
             self.next_block_seed,
             self.block_height,
@@ -272,12 +267,12 @@ impl BlockHeader {
         )
     }
 
-    pub fn generate_next_block_seed(last_hash: String) -> Result<u64, InvalidBlockHeader>{
+    pub fn generate_next_block_seed(last_hash: Vec<u8>) -> Result<u64, BlockError>{
         let sk = VVRF::generate_secret_key();
-        let mut vvrf = VVRF::new((last_hash).as_bytes(), sk);
+        let mut vvrf = VVRF::new(&last_hash, sk);
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
-            return Err(InvalidBlockHeader::InvalidSeedError);
+            return Err(BlockError::InvalidHeaderSeed());
         }
 
         let mut random_number = vvrf.generate_u64();

@@ -115,7 +115,7 @@ pub fn setup_blockchain() {
                                 // The miner should request the current state of the network and
                                 // then all the blocks they are missing.
                                 match e.details {
-                                    InvalidBlockErrorReason::BlockOutOfSequence => {
+                                    BlockError::BlockOutOfSequence => {
                                         // Stash block in blockchain.future_blocks
                                         // Request state update once. Set "updating_state" field
                                         // in blockchain to true, so that it doesn't request it on
@@ -235,7 +235,7 @@ pub fn setup_blockchain() {
                                             }
                                         }
                                     },
-                                    InvalidBlockErrorReason::NotTallestChain => {
+                                    BlockError::NotTallestChain => {
                                         // Inform the miner they are missing
                                         // blocks
                                         // info!("Error: {:?}", e);
