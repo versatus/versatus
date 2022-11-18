@@ -31,9 +31,11 @@ impl TelemetrySubscriber {
             .with_writer(out)
             .with_file(true)
             .with_line_number(true)
-            // .with_thread_ids(true)
-            // .with_thread_names(true)
+            .with_target(true)
             .json()
+            .with_current_span(false)
+            .flatten_event(true)
+            .with_span_list(false)
             .finish();
 
         sub.try_init()?;
