@@ -1,7 +1,9 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 // use telemetry::tracing::subscriber;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+
+use crate::{Error, Result};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -34,6 +36,7 @@ pub struct EventRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<Topic, Vec<Subscriber>>,
     // subs: HashMap<Topic, Vec<crossbeam::channel::Sender>>,
+    subs: HashMap<Topic, tokio::sync::broadcast::Sender<Event>>,
 }
 
 pub type DirectedEvent = (Topic, Event);
@@ -48,10 +51,22 @@ impl EventRouter {
     pub fn new() -> Self {
         Self {
             subscribers: HashMap::new(),
-            // subs: HashMap::new(),
+            subs: HashMap::new(),
         }
     }
 
+    pub fn subscribe(
+        &self,
+        topic: &Topic,
+    ) -> std::result::Result<tokio::sync::broadcast::Receiver<Event>, Error> {
+        if let Some(sender) = self.subs.get(topic) {
+            Ok(sender.subscribe())
+        } else {
+            Err(Error::Other(format!("unable to subscriber to {topic:?}")))
+        }
+    }
+
+    #[deprecated(note = "replaced by 'subscribe'")]
     pub fn add_subscriber(&mut self, topic: Topic, subscriber: Subscriber) {
         match self.subscribers.entry(topic) {
             Entry::Occupied(mut subscribers) => subscribers.get_mut().push(subscriber),
@@ -63,8 +78,8 @@ impl EventRouter {
 
     /// Starts the event router, distributing all incomming commands to
     /// specified routes
-    pub async fn start(&mut self, command_rx: &mut UnboundedReceiver<DirectedEvent>) {
-        while let Some((topic, event)) = command_rx.recv().await {
+    pub async fn start(&mut self, event_rx: &mut UnboundedReceiver<DirectedEvent>) {
+        while let Some((topic, event)) = event_rx.recv().await {
             if event == Event::Stop {
                 telemetry::info!("event router received stop signal");
                 self.fan_out_event(Event::Stop, &topic);
@@ -81,6 +96,8 @@ impl EventRouter {
             for subscriber in subscriber_list {
                 //TODO: report errors
                 if let Err(err) = subscriber.send(event.clone()) {
+                    dbg!(&err);
+
                     telemetry::error!(
                         "failed to send event {:?} to topic {:?}. reason: {:?}",
                         event,
