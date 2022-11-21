@@ -7,10 +7,6 @@
 
 set -e
 
-# # Stricly verifies the code's correctness and idiomatics of the code
-# echo '+cargo +nightly clippy --all -- -D warnings'
-# cargo +nightly clippy --all -- -D warnings
-
 # Verifies the code is formatted properly
 echo '+cargo +nightly fmt --all -- --check'
 cargo +nightly fmt --all -- --check
