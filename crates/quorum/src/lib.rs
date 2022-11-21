@@ -1,8 +1,6 @@
 pub mod election;
 pub mod quorum;
 
-static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000");
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -12,11 +10,11 @@ mod tests {
 
     use claim::claim::Claim;
     use secp256k1::{self, Secp256k1};
-    use sha256::digest_bytes;
+    use sha256::digest;
 
-    use super::TEST_ADDR;
     use crate::{election::Election, quorum::Quorum};
 
+    static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000");
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
@@ -53,7 +51,8 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        // Is this double hash neccesary?
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload1 = (10, 10, hash);
 
@@ -95,7 +94,7 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload1 = (10, 0, hash);
 
@@ -133,7 +132,7 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload1 = (0, 10, hash);
 
@@ -170,7 +169,7 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload1 = (10, 10, hash);
 
@@ -211,7 +210,7 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload1 = (10, 10, hash);
 
@@ -250,7 +249,7 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload1 = (10, 10, hash);
 
@@ -295,7 +294,7 @@ mod tests {
         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
         pub_key_bytes.push(1u8);
 
-        let hash = digest_bytes(digest_bytes(&pub_key_bytes).as_bytes());
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
         let payload = (10, 10, hash);
 

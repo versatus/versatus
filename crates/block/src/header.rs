@@ -1,5 +1,6 @@
 // FEATURE TAG(S): Block Structure, Rewards
 use std::{
+    fmt::Display,
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
@@ -51,8 +52,7 @@ impl BlockHeader {
         reward_state: &RewardState,
         claim: Claim,
         secret_key: String,
-    ) -> Result<BlockHeader, BlockError> {
-        // Result<BlockHeader, InvalidBlockHeader>
+    ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
@@ -76,7 +76,7 @@ impl BlockHeader {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let txn_hash = ("Genesis_Txn_Hash".as_bytes()).digest();
+        let txn_hash = digest_bytes("Genesis_Txn_Hash".as_bytes());
         let block_reward = Reward::genesis(Some(claim.address.clone()));
         //TODO: Replace reward state
         let next_block_reward = Reward::new(None, reward_state);
@@ -129,7 +129,7 @@ impl BlockHeader {
         claim_map_hash: Option<String>,
         neighbor_hash: Option<String>,
         secret_key: String,
-    ) -> Result<BlockHeader, BlockError> {
+    ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
@@ -189,7 +189,7 @@ impl BlockHeader {
             next_block_reward,
             neighbor_hash: None,
             signature,
-        })
+        }
     }
 
     pub fn sign(message: &str, secret_key: String) -> Result<Signature, Error> {
@@ -267,6 +267,22 @@ impl BlockHeader {
         )
     }
 
+    pub fn generate_next_block_seed(last_hash: String) -> Result<u64, InvalidBlockHeader> {
+        let sk = VVRF::generate_secret_key();
+        let mut vvrf = VVRF::new((last_hash).as_bytes(), sk);
+
+        if VVRF::verify_seed(&mut vvrf).is_err() {
+            return Err(InvalidBlockHeader::InvalidSeedError);
+        }
+
+        let mut random_number = vvrf.generate_u64();
+        while random_number < u32MAX as u64 {
+            random_number = vvrf.generate_u64();
+        }
+
+        return Ok(random_number);
+    }
+
     pub fn generate_next_block_seed(last_hash: Vec<u8>) -> Result<u64, BlockError>{
         let sk = VVRF::generate_secret_key();
         let mut vvrf = VVRF::new(&last_hash, sk);
@@ -291,10 +307,14 @@ impl BlockHeader {
         serde_json::from_slice(data).unwrap()
     }
 
+    // TODO: Consider renaming to `serialize_to_str`
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 
+    //TODO: consider renaming to sth like `deserialize_from_str`
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(data: &str) -> BlockHeader {
         serde_json::from_str(data).unwrap()
     }

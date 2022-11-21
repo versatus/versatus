@@ -1,22 +1,17 @@
 //FEATURE TAG(S): Left-Right Database, Left-Right State Trie
-use std::fs;
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use accountable::accountable::Accountable;
-use claim::claim::Claim;
-use ledger::ledger::Ledger;
-use log::info;
-use noncing::nonceable::Nonceable;
-use ownable::ownable::Ownable;
-use reward::reward::{Reward, RewardState};
-use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
 
 use crate::types::{
-    StateArchive, StateBlockchain, StateChildBlock, StateGenesisBlock, StateLedger,
-    StateNetworkState, StateParentBlock,
+    StateArchive,
+    StateBlockchain,
+    StateChildBlock,
+    StateGenesisBlock,
+    StateLedger,
+    StateNetworkState,
+    StateParentBlock,
 };
 
 /// The components required for a node to sync with the network state
@@ -43,12 +38,15 @@ impl Components {
     }
 
     /// Serializes the Components struct into a string
+    // TODO: Reconsider moving this to Display trait
+    // Also - is this unwrap 100% safe?
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 
     /// Deserializes the Components struct from a string.
-    pub fn from_string(string: &String) -> Components {
-        serde_json::from_str::<Components>(&string).unwrap()
+    pub fn from_string(string: &str) -> Components {
+        serde_json::from_str::<Components>(string).unwrap()
     }
 }

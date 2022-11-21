@@ -1,20 +1,15 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    sync::{mpsc::channel, Arc, RwLock},
+    sync::{Arc, RwLock},
 };
 
-use commands::command::Command;
 use hbbft::{
     crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
     sync_key_gen::Ack,
 };
-use messages::packet::Packet;
-use node::{command_handler::CommandHandler, message_handler::MessageHandler};
 use primitives::types::NodeType;
-use tokio::sync::mpsc::unbounded_channel;
-use udp2p::protocol::protocol::Message;
 use vrrb_config::NodeConfig;
 
 use crate::{
@@ -71,10 +66,10 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
     let mut dkg_instances = vec![];
     for i in 0..total_nodes {
         let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
-        let secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
+        let _secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
 
-        // let (_, msg_receiver) = unbounded_channel::<(Packet, std::net::SocketAddr)>();
-        // let (msg_sender, _) = unbounded_channel();
+        // let (_, msg_receiver) = unbounded_channel::<(Packet,
+        // std::net::SocketAddr)>(); let (msg_sender, _) = unbounded_channel();
 
         dkg_instances.push(DkgEngine {
             node_info: Arc::new(RwLock::new(node::Node::new(NodeConfig {
@@ -91,11 +86,17 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
                 // message_handler: MessageHandler::new(msg_sender, msg_receiver),
                 data_dir: PathBuf::from("bananas"),
                 db_path: PathBuf::from("bananas"),
-                node_idx: i,
-                address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
                 bootstrap: false,
-                bootstrap_node_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                node_type: node_type.clone(),
+                bootstrap_node_addresses: vec![SocketAddr::new(
+                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                    8080,
+                )],
+                node_type,
+                http_api_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+                http_api_title: "Node HTTP API".into(),
+                http_api_version: "1.0".into(),
+                http_api_shutdown_timeout: None,
             }))),
             threshold_config: valid_threshold_config(),
             dkg_state: DkgState {
@@ -111,32 +112,6 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
         });
     }
     dkg_instances
-}
-
-/// It creates a bunch of channels and returns a `CommandHandler` struct that
-/// contains all of them
-///
-/// Returns:
-///
-/// A CommandHandler struct
-fn generate_command_handler() -> CommandHandler {
-    let (to_mining_sender, _to_mining_receiver) = unbounded_channel::<Command>();
-    let (to_blockchain_sender, _to_blockchain_receiver) = unbounded_channel::<Command>();
-    let (to_gossip_sender, _to_gossip_receiver) = unbounded_channel::<Command>();
-    let (to_swarm_sender, _to_swarm_receiver) = unbounded_channel::<Command>();
-    let (to_state_sender, _to_state_receiver) = unbounded_channel::<Command>();
-    let (to_gossip_tx, _to_gossip_rx) = channel::<(std::net::SocketAddr, Message)>();
-    let (_sn, rx) = unbounded_channel::<Command>();
-
-    CommandHandler {
-        to_mining_sender,
-        to_blockchain_sender,
-        to_gossip_sender,
-        to_swarm_sender,
-        to_state_sender,
-        to_gossip_tx,
-        receiver: rx,
-    }
 }
 
 pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
@@ -160,29 +135,29 @@ pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
 
     for part_commitment in part_committment_tuples.iter() {
         if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
-            if *node_idx as u16 != dkg_engine_node1.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node1.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node1
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
-            if *node_idx as u16 != dkg_engine_node2.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node2.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node2
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
-            if *node_idx as u16 != dkg_engine_node3.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node3.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node3
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
-            if *node_idx as u16 != dkg_engine_node4.node_info.read().unwrap().get_node_idx() {
+            if *node_idx != dkg_engine_node4.node_info.read().unwrap().get_node_idx() {
                 dkg_engine_node4
                     .dkg_state
                     .part_message_store
-                    .insert(*node_idx as u16, part.clone());
+                    .insert(*node_idx, part.clone());
             }
         }
     }
@@ -195,7 +170,7 @@ pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
         let _ = dkg_engine_node4.ack_partial_commitment(i);
     }
 
-    let mut new_store: HashMap<(u16, u16), Ack> = HashMap::new();
+    let mut new_store: HashMap<(u16, u16), Ack>;
     new_store = dkg_engine_node1
         .dkg_state
         .ack_message_store
@@ -228,10 +203,11 @@ pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
     let _ = dkg_engine_node3.generate_key_sets();
     let _ = dkg_engine_node4.generate_key_sets();
 
-    return vec![
+    // Returning the dkg engines
+    vec![
         dkg_engine_node1,
         dkg_engine_node2,
         dkg_engine_node3,
         dkg_engine_node4,
-    ];
+    ]
 }

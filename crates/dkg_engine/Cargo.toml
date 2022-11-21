@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hbbft = "0.1.1"
+hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 thiserror = "1.0.32"
 serde = "1.0.144"
 rand = "0.6.5"
@@ -20,4 +20,4 @@ commands = { path = "../commands" }
 messages = { path = "../messages" }
 primitives = { path = "../primitives" }
 vrrb_config = { path = "../vrrb_config" }
-udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }
+udp2p = { git = "https://github.com/ASmithOWL/udp2p" }

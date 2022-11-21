@@ -7,6 +7,7 @@ use std::{
 use evmap;
 use txn::txn::Txn;
 
+#[allow(clippy::derive_hash_xor_eq)]
 #[derive(Hash)]
 pub struct Validated(pub String, pub u128);
 
@@ -22,16 +23,21 @@ impl Validated {
     }
 }
 
-#[allow(unused_mut)]
-impl EvMemPool {
-    pub fn new() -> EvMemPool {
-        let (r, mut w) = evmap::new();
+impl Default for EvMemPool {
+    fn default() -> Self {
+        let (r, w) = evmap::new();
         let cache = HashSet::new();
         EvMemPool {
             tx_reader: r,
             tx_writer: w,
             cache,
         }
+    }
+}
+
+impl EvMemPool {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn add(&mut self, tx_id: String, tx: String) {
@@ -78,10 +84,6 @@ impl EvMemPool {
 impl PartialEq for Validated {
     fn eq(&self, other: &Validated) -> bool {
         self.0 == other.0
-    }
-
-    fn ne(&self, other: &Validated) -> bool {
-        self.0 != other.0
     }
 }
 

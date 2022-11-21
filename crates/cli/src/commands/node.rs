@@ -1,15 +1,14 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
+    time::Duration,
 };
 
 use clap::{Parser, Subcommand};
-use commands::command::Command;
-use vrrb_core::event_router::{Event, Topic, EventRouter, DirectedEvent};
-use node::{Node, NodeType};
-use tokio::sync::oneshot;
+use node::Node;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
+use vrrb_core::event_router::Event;
 
 use crate::result::{CliError, Result};
 
@@ -37,13 +36,13 @@ pub struct RunOpts {
     pub db_path: PathBuf,
 
     #[clap(long, value_parser)]
-    pub address: SocketAddr,
+    pub gossip_address: SocketAddr,
 
     #[clap(long)]
     pub bootstrap: bool,
 
     #[clap(long, value_parser)]
-    pub bootstrap_node_addr: SocketAddr,
+    pub bootstrap_node_addresses: Vec<SocketAddr>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -72,17 +71,21 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
 
 /// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
+    // TODO: get these from proper config
+    let id = Uuid::new_v4().to_simple().to_string();
+    let idx = args.node_idx;
     let node_type = args.node_type.parse()?;
     let data_dir = storage::get_node_data_dir()?;
-    let node_idx = args.node_idx;
     let db_path = args.db_path;
     let bootstrap = args.bootstrap;
-    let bootstrap_node_addr = args.bootstrap_node_addr;
+    let bootstrap_node_addresses = args.bootstrap_node_addresses;
 
-    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+    let gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9000);
 
-    let id = Uuid::new_v4().to_simple().to_string();
-    let idx = 100;
+    let http_api_title = String::from("Node HTTP API");
+    let http_api_version = String::from("1.0.0");
+    let http_api_shutdown_timeout = Some(Duration::from_secs(5));
 
     let node_config = NodeConfig {
         id,
@@ -90,10 +93,13 @@ pub async fn run(args: RunOpts) -> Result<()> {
         data_dir,
         node_type,
         db_path,
-        node_idx,
+        gossip_address,
         bootstrap,
-        address,
-        bootstrap_node_addr: address,
+        bootstrap_node_addresses,
+        http_api_address,
+        http_api_title,
+        http_api_version,
+        http_api_shutdown_timeout,
     };
 
     if args.dettached {
@@ -105,7 +111,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+    let (_ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let mut vrrb_node = Node::new(node_config);
 

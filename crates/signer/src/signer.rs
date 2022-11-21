@@ -7,7 +7,7 @@ use std::{
 
 use dkg_engine::types::{config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
-use primitives::types::{Hash, NodeId, NodeIdx, RawSignature, SignatureType};
+use primitives::types::{Hash, NodeIdx, RawSignature, SignatureType};
 
 use crate::types::{SignerError, SignerResult};
 
@@ -41,7 +41,7 @@ pub struct SignatureProvider {
 
 impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
     fn from(_: PoisonError<RwLockReadGuard<'_, DkgState>>) -> SignerError {
-        return SignerError::DkgStateCannotBeRead;
+        SignerError::DkgStateCannotBeRead
     }
 }
 
@@ -268,14 +268,14 @@ impl Signer for SignatureProvider {
             ));
         }
         let dkg_state = self.dkg_state.read()?;
-        return match signature_type {
+        match signature_type {
             SignatureType::PartialSignature => {
                 let public_key_share_opt = dkg_state.public_key_set.clone();
                 let public_key_share = match public_key_share_opt {
                     Some(public_key_share) => public_key_share.public_key_share(node_idx as usize),
                     None => return Err(SignerError::GroupPublicKeyMissing),
                 };
-                let signature_arr: [u8; 96] = signature.clone().try_into().unwrap();
+                let signature_arr: [u8; 96] = signature.try_into().unwrap();
                 let sig_share_result = SignatureShare::from_bytes(signature_arr);
                 let sig_share = match sig_share_result {
                     Ok(sig_share) => sig_share,
@@ -297,7 +297,7 @@ impl Signer for SignatureProvider {
                     Some(public_key_set) => public_key_set,
                     None => return Err(SignerError::GroupPublicKeyMissing),
                 };
-                let signature_arr: [u8; 96] = signature.clone().try_into().unwrap();
+                let signature_arr: [u8; 96] = signature.try_into().unwrap();
                 let sig_share_result = Signature::from_bytes(signature_arr);
                 let signature = match sig_share_result {
                     Ok(signature) => signature,
@@ -311,7 +311,7 @@ impl Signer for SignatureProvider {
 
                 Ok(public_key_set.public_key().verify(&signature, payload_hash))
             },
-        };
+        }
     }
 }
 

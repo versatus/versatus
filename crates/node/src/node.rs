@@ -15,56 +15,32 @@ use std::{
     time::{Duration, Instant},
 };
 
-use trecho::vm::Cpu;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
-
-use block::Block;
-use claim::claim::Claim;
-use commands::command::{Command, ComponentTypes};
-use events::events::{write_to_json, VrrbNetworkEvent};
-use ledger::ledger::Ledger;
 use lr_trie::LeftRightTrie;
-use messages::{
-    message_types::MessageType,
-    packet::{Packet, Packetize},
-};
-use miner::miner::Miner;
-use network::{components::StateComponent, message};
 use patriecia::db::MemoryDB;
-use pickledb::PickleDb;
-use poem::listener::Listener;
 use primitives::types::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey, StopSignal};
 use public_ip;
 use rand::{thread_rng, Rng};
-use reward::reward::{Category, RewardState};
-use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-use state::{Components, NetworkState};
+use state::NetworkState;
 use telemetry::{error, info, Instrument};
 use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
-use txn::txn::Txn;
-use udp2p::{
-    discovery::{kad::Kademlia, routing::RoutingTable},
-    gossip::{
-        gossip::{GossipConfig, GossipService},
-        protocol::GossipMessage,
-    },
-    node::{peer_id::PeerId, peer_info::PeerInfo, peer_key::Key},
-    protocol::protocol::{packetize, AckMessage, Header, Message, MessageKey},
-    transport::{handler::MessageHandler as GossipMessageHandler, transport::Transport},
-    utils::utils::ByteRep,
-};
+use trecho::vm::Cpu;
 use uuid::Uuid;
-use wallet::wallet::WalletAccount;
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
     miner::MiningModule,
     result::*,
     runtime::blockchain_module::BlockchainModule,
     swarm::{SwarmConfig, SwarmModule},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -103,8 +79,9 @@ pub struct Node {
     /// Whether the current node is a bootstrap node or not
     is_bootsrap: bool,
 
-    /// The address of the bootstrap node, used for peer discovery and initial state sync
-    bootsrap_addr: SocketAddr,
+    /// The address of the bootstrap node(s), used for peer discovery and
+    /// initial state sync
+    bootstrap_node_addresses: Vec<SocketAddr>,
 
     /// VRRB world state. it contains the accounts tree
     // state: LeftRightTrie<MemoryDB>,
@@ -119,6 +96,8 @@ pub struct Node {
     running_status: RuntimeModuleState,
 
     vm: Cpu,
+
+    http_api_server_config: HttpApiServerConfig,
 }
 
 impl Node {
@@ -134,6 +113,15 @@ impl Node {
         // moved to primitive/utils module
         let mut secret_key_encoded = Vec::new();
 
+        let http_api_server_config = HttpApiServerConfig {
+            address: config.http_api_address.to_string(),
+            api_title: config.http_api_title.clone(),
+            api_version: config.http_api_version.clone(),
+            server_timeout: config.http_api_shutdown_timeout.clone(),
+        };
+
+        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
+
         Self {
             id: config.id.clone(),
             idx: config.idx.clone(),
@@ -142,10 +130,11 @@ impl Node {
             pubkey: pubkey.to_string(),
             public_key: pubkey.to_string().into_bytes(),
             is_bootsrap: config.bootstrap,
-            bootsrap_addr: config.bootstrap_node_addr,
+            bootstrap_node_addresses,
             running_status: RuntimeModuleState::Stopped,
             data_dir: config.data_dir().clone(),
             vm,
+            http_api_server_config,
         }
     }
 
@@ -168,12 +157,12 @@ impl Node {
         self.is_bootsrap
     }
 
-    pub fn bootsrap_addr(&self) -> SocketAddr {
-        self.bootsrap_addr
-    }
-
     pub fn status(&self) -> RuntimeModuleState {
         self.running_status.clone()
+    }
+
+    fn set_status(&mut self, status: RuntimeModuleState) {
+        self.running_status = status;
     }
 
     fn teardown(&mut self) {
@@ -185,8 +174,6 @@ impl Node {
     #[telemetry::instrument]
     pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()> {
         telemetry::debug!("parsing runtime configuration");
-
-        self.running_status = RuntimeModuleState::Running;
 
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
@@ -220,6 +207,20 @@ impl Node {
             // }
         });
 
+        let (http_server_control_tx, mut http_server_control_rx) =
+            tokio::sync::mpsc::channel::<()>(1);
+
+        let http_api_server =
+            HttpApiServer::new(self.http_api_server_config.clone()).map_err(|err| {
+                NodeError::Other(format!("Unable to create API server. Reason: {}", err))
+            })?;
+
+        let http_server_handle = tokio::spawn(async move {
+            http_api_server.start(&mut http_server_control_rx).await;
+        });
+
+        self.set_status(RuntimeModuleState::Running);
+
         // Runtime module teardown
         //____________________________________________________________________________________________________
         // TODO: start node API here
@@ -227,6 +228,8 @@ impl Node {
             match control_rx.try_recv() {
                 Ok(evt) => {
                     telemetry::info!("Received stop event");
+
+                    http_server_control_tx.send(());
 
                     // TODO: send signal to stop all task handlers here
                     router_control_tx
@@ -262,9 +265,10 @@ mod tests {
         net::{IpAddr, Ipv4Addr},
     };
 
+    use vrrb_config::NodeConfig;
+
     use super::*;
     use crate::test_utils::create_mock_full_node_config;
-    use vrrb_config::NodeConfig;
 
     #[test]
     fn node_teardown_updates_node_status() {

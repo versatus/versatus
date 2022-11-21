@@ -1,0 +1,10 @@
+node_type = 'Archive'
+node_id = 'aa13123c-de88-4a31-8315-dd8df242830e'
+node_name = 'MASTERConfig'
+is_node_origin = true
+file_path_localstate = './testnet.db'
+discovery_bind_local_address = '0.0.0.0'
+discovery_broadcast_address = '255.255.255.255'
+discovery_port = 5531
+broker_local_ip = '0.0.0.0'
+broker_port = 10001

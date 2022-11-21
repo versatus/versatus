@@ -7,18 +7,20 @@ use std::{fmt, f32::consts::E};
 use accountable::accountable::Accountable;
 use claim::claim::Claim;
 use log::info;
-use primitives::types::RawSignature;
+use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH};
 use rand::Rng;
 use reward::reward::{Category, RewardState, GENESIS_REWARD};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::digest;
 use state::state::NetworkState;
 use txn::txn::Txn;
 use verifiable::verifiable::Verifiable;
 
-use crate::header::BlockHeader;
-
+use crate::{
+    header::BlockHeader,
+    invalid::{InvalidBlockError, InvalidBlockErrorReason},
+};
 
 use thiserror::Error;
 
@@ -26,58 +28,7 @@ pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
-
 const VALIDATOR_THRESHOLD: f64 = 0.60;
-
-
-#[derive(Debug, Error)]
-pub enum BlockError {
-    #[error("blockchain proposed is shorter than my local chain")]
-    NotTallestChain(),
-   
-    #[error("block out of sequence")]
-    BlockOutOfSequence(),
-
-    #[error("invalid claim")]
-    InvalidClaim(),
-
-    #[error("invalid last hash")]
-    InvalidLastHash(),
-    
-    #[error("invalid state hash")]
-    InvalidStateHash(),
-
-    #[error("invalid block height")]
-    InvalidBlockHeight(),
-
-    #[error("invalid block seed")]
-    InvalidBlockSeed(),
-
-    #[error("invalid block reward")]
-    InvalidBlockReward(),
-
-    #[error("invalid txns in block")]
-    InvalidTxns(),
-
-    #[error("invalid claim pointers")]
-    InvalidClaimPointers(),
-
-    #[error("invalid next block reward")]
-    InvalidNextBlockReward(),
-
-    #[error("invalid block signature")]
-    InvalidBlockSignature(),
-
-    #[error("general block error")]
-    General(),
-
-    #[error("invalid header seed generated")]
-    InvalidHeaderSeed(),
-
-    #[error("invalid block header")]
-    InvalidBlockHeader(),
-}
-
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -95,8 +46,15 @@ pub struct Block {
     // TODO: Replace with map of all abandoned claims in the even more than 1 miner is faulty when
     // they are entitled to mine
     pub abandoned_claim: Option<Claim>,
-    // Quorum signature needed for finalizing the block and locking the chain
+
+    /// Quorum signature needed for finalizing the block and locking the chain
     pub threshold_signature: Option<RawSignature>,
+
+    /// Epoch for which block was created
+    pub epoch: Epoch,
+
+    /// Measurement of utility for the chain
+    pub utility: u128,
 }
 
 impl Block {
@@ -104,34 +62,44 @@ impl Block {
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
         // Create the genesis header
-        let mut header = (BlockHeader::genesis(0, reward_state, claim.clone(), secret_key)).unwrap();
-
-       // let header = match BlockHeader::genesis(0, reward_state, claim.clone(), secret_key){
-       //     Ok(header) => header,
-       //     Err(e) => Err(e),
-       // };
-       // let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
+        let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
         // Create the genesis state hash
         // TODO: Replace with state trie root
-        let mut genesis_state_hash = "Genesis_State_Hash".as_bytes().to_vec();
-        header.last_hash.append(&mut genesis_state_hash);
-        let state_hash = header.last_hash;
+        let state_hash = digest_bytes(
+            format!(
+                "{},{}",
+                header.last_hash,
+                digest_bytes("Genesis_State_Hash".as_bytes())
+            )
+            .as_bytes(),
+        );
 
         // Replace with claim trie
         let mut claims = LinkedHashMap::new();
-        claims.insert(claim.clone().pubkey.clone(), claim);
+        claims.insert(claim.clone().pubkey, claim);
+
+        #[cfg(mainnet)]
+        let txns = genesis::generate_genesis_txns();
+
+        // TODO: Genesis block on local/testnet should generate either a faucet for
+        // tokens, or fill some initial accounts so that testing can be executed
+
+        #[cfg(not(mainnet))]
+        let txns = LinkedHashMap::new();
 
         let genesis = Block {
             header,
             neighbors: None,
             height: 0,
-            txns: LinkedHashMap::new(),
+            txns,
             claims,
             hash: state_hash,
             received_at: None,
             received_from: None,
             abandoned_claim: None,
             threshold_signature: None,
+            utility: 0,
+            epoch: GENESIS_EPOCH,
         };
 
         // Update the State Trie & Tx Trie with the miner and new block, this will also
@@ -144,6 +112,7 @@ impl Block {
     /// The mine method is used to generate a new block (and an updated account
     /// state with the reward set to the miner wallet's balance), this will
     /// also update the network state with a new confirmed state.
+    #[allow(clippy::too_many_arguments)]
     pub fn mine(
         claim: Claim,      // The claim entitling the miner to mine the block.
         last_block: Block, // The last block, which contains the current block reward.
@@ -155,14 +124,15 @@ impl Block {
         neighbors: Option<Vec<BlockHeader>>,
         abandoned_claim: Option<Claim>,
         signature: String,
-    ) -> Option<Block> {
+        epoch: Epoch,
+    ) -> (Option<Block>, CurrentUtility) {
         // TODO: Replace with Tx Trie Root
         let txn_hash = {
             let mut txn_vec = vec![];
             txns.iter().for_each(|(_, v)| {
                 txn_vec.extend(v.as_bytes());
             });
-            digest_bytes(&txn_vec)
+            digest(&*txn_vec)
         };
 
         // TODO: Remove there should be no neighbors
@@ -172,7 +142,7 @@ impl Block {
                 neighbors.iter().for_each(|v| {
                     neighbors_vec.extend(v.as_bytes());
                 });
-                Some(digest_bytes(&neighbors_vec))
+                Some(digest(&*neighbors_vec))
             } else {
                 None
             }
@@ -180,7 +150,7 @@ impl Block {
 
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
-        let header = (BlockHeader::new(
+        let header = BlockHeader::new(
             last_block.clone(),
             reward_state,
             claim,
@@ -188,7 +158,7 @@ impl Block {
             claim_map_hash,
             neighbors_hash,
             signature,
-        )).unwrap();
+        );
 
         // TODO: Discuss whether local clock works well enough for this purpose of
         // guaranteeing at least 1 second between blocks or whether some other
@@ -197,33 +167,47 @@ impl Block {
         // between blocks has passed.
         if let Some(time) = header.timestamp.checked_sub(last_block.header.timestamp) {
             if (time / SECOND) < 1 {
-                return None;
+                return (None, 0u128);
             }
         } else {
-            return None;
+            return (None, 0u128);
         }
 
-        let height = last_block.height.clone() + 1;
+        let height = last_block.height + 1;
 
+        let utility_amount: u128 = txns.iter().map(|x| x.1.get_amount()).sum();
         let mut block = Block {
             header: header.clone(),
             neighbors,
             height,
             txns,
             claims,
-            hash: header.last_hash.clone(),
+            hash: header.last_hash,
             received_at: None,
             received_from: None,
             abandoned_claim,
             threshold_signature: None,
+            utility: 0,
+            epoch,
         };
+        let mut adjustment_next_epoch = 0;
+        if block.epoch != last_block.epoch {
+            block.utility = utility_amount;
+            adjustment_next_epoch = if block.utility > last_block.utility {
+                (block.utility as f64 * 0.01) as u128
+            } else {
+                (block.utility as f64 * -0.01) as u128
+            };
+        } else {
+            block.utility = utility_amount + last_block.utility;
+        }
 
         // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
-        let hash = hashable_state.hash(&block.txns.clone(), block.header.block_reward.clone()).into_bytes();
+        let hash = hashable_state.hash(&block.txns.clone(), block.header.block_reward.clone());
         block.hash = hash;
-        Some(block)
+        (Some(block), adjustment_next_epoch)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -240,6 +224,8 @@ impl Block {
         serde_json::from_str::<Block>(&to_string).unwrap()
     }
 
+    // TODO: Consider renaming to `serialize_to_string`
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
@@ -280,15 +266,21 @@ impl Verifiable for Block {
         if self.header.block_height < item.header.block_height
             || self.header.block_height == item.header.block_height
         {
-            return Err(BlockError::NotTallestChain());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::NotTallestChain,
+            });
         }
 
-        if self.header.block_seed != item.header.next_block_seed {
-            return Err(BlockError::InvalidBlockSeed());
+        if self.header.block_nonce != item.header.next_block_nonce {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockNonce,
+            });
         }
 
         if self.header.block_reward.category != item.header.next_block_reward.category {
-            return Err(BlockError::InvalidBlockReward());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
         }
 
         if self.header.block_reward.get_amount() != item.header.next_block_reward.get_amount() {
@@ -297,13 +289,13 @@ impl Verifiable for Block {
 
         if let Some((hash, pointers)) = dependencies
             .0
-            .get_lowest_pointer(self.header.block_seed as u128)
+            .get_lowest_pointer(self.header.block_nonce as u128)
         {
             if hash == self.header.claim.hash {
                 if let Some(claim_pointer) = self
                     .header
                     .claim
-                    .get_pointer(self.header.block_seed as u128)
+                    .get_pointer(self.header.block_nonce as u128)
                 {
                     if pointers != claim_pointer {
                         return Err( BlockError::InvalidClaimPointers());
@@ -320,14 +312,18 @@ impl Verifiable for Block {
             .1
             .valid_reward(self.header.block_reward.category)
         {
-            return Err(BlockError::InvalidBlockReward());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
         }
 
         if !dependencies
             .1
             .valid_reward(self.header.next_block_reward.category)
         {
-            return Err( BlockError::InvalidNextBlockReward());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidNextBlockReward,
+            });
         }
 
         if self.header.last_hash != item.hash {
@@ -335,18 +331,25 @@ impl Verifiable for Block {
         }
 
         if let Err(_) = self.header.claim.valid(&None, &(None, None)) {
-            return Err(BlockError::InvalidClaim());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidClaim,
+            });
         }
 
         Ok(true)
     }
 
     fn valid_genesis(&self, dependencies: &Self::Dependencies) -> Result<bool, Self::Error> {
-        let genesis_last_hash = digest_bytes("Genesis_Last_Hash".as_bytes()).into_bytes();
-        let genesis_msg = "Genesis_State_Hash".as_bytes().to_vec();
-        genesis_last_hash.append(&mut genesis_msg);
-        let genesis_state_hash = genesis_last_hash;
-        
+        let genesis_last_hash = digest_bytes("Genesis_Last_Hash".as_bytes());
+        let genesis_state_hash = digest_bytes(
+            format!(
+                "{},{}",
+                genesis_last_hash,
+                digest_bytes("Genesis_State_Hash".as_bytes())
+            )
+            .as_bytes(),
+        );
+
         if self.header.block_height != 0 {
             return Err(BlockError::InvalidBlockHeight());
         }
@@ -355,18 +358,24 @@ impl Verifiable for Block {
             .1
             .valid_reward(self.header.block_reward.category)
         {
-            return Err(BlockError::InvalidBlockReward());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockReward,
+            });
         }
 
         if !dependencies
             .1
             .valid_reward(self.header.next_block_reward.category)
         {
-            return Err(BlockError::InvalidNextBlockReward());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidNextBlockReward,
+            });
         }
 
-        if String::from_utf8(self.header.last_hash) != String::from_utf8(genesis_last_hash) {
-            return Err(BlockError::InvalidLastHash());
+        if self.header.last_hash != genesis_last_hash {
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidLastHash,
+            });
         }
 
         if String::from_utf8(self.hash) != String::from_utf8(genesis_state_hash) {
@@ -374,11 +383,15 @@ impl Verifiable for Block {
         }
 
         if let Err(_) = self.header.claim.valid(&None, &(None, None)) {
-            return Err(BlockError::InvalidClaim());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidClaim,
+            });
         }
 
         if let Err(_) = self.header.verify() {
-            return Err(BlockError::InvalidBlockSignature());
+            return Err(Self::Error {
+                details: InvalidBlockErrorReason::InvalidBlockSignature,
+            });
         }
 
         let mut valid_data = true;

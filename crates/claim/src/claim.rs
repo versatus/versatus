@@ -5,7 +5,7 @@ use noncing::nonceable::Nonceable;
 use ownable::ownable::Ownable;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use sha256::digest_bytes;
+use sha256::digest;
 use verifiable::verifiable::Verifiable;
 
 /// A custom error type for invalid claims that are used/attempted to be used
@@ -44,7 +44,7 @@ impl Claim {
         // sequentially hash the public key the correct number of times
         // for the given nonce.
         (0..iters).for_each(|_| {
-            hash = digest_bytes(hash.as_bytes());
+            hash = digest(hash.as_bytes());
         });
 
         Claim {
@@ -86,7 +86,7 @@ impl Claim {
                 // If there is no integer overflow (which there never should be)
                 // add it to the buffer.
                 if let Some(n) = n {
-                    pointers.push(n as u128);
+                    pointers.push(n);
                 }
             }
         });
@@ -170,16 +170,16 @@ impl Nonceable for Claim {
     }
 
     fn nonce_up(&mut self) {
-        self.nonce = self.nonce + 1;
-        let iters = if let Some(n) = self.nonce.clone().checked_mul(10) {
+        self.nonce += 1;
+        let iters = if let Some(n) = self.nonce.checked_mul(10) {
             n
         } else {
-            self.nonce.clone()
+            self.nonce
         };
 
         let mut hash = self.pubkey.clone();
         (0..iters).for_each(|_| {
-            hash = digest_bytes(hash.as_bytes());
+            hash = digest(hash.as_bytes());
         });
 
         self.hash = hash;

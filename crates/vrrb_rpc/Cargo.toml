@@ -1,0 +1,14 @@
+[package]
+name = "vrrb_rpc"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+poem = { version = "1.3.48", features = ["test", "rustls"] }
+poem-openapi = { version = "2.0.19", features = ["swagger-ui"] }
+thiserror = "1.0.37"
+tokio = { version = "1.21.2", features = ["full"] }
+serde = "1.0.147"
+serde_json = "1.0.87"

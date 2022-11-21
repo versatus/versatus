@@ -22,7 +22,7 @@ use secp256k1::{
     Signature,
 };
 use serde::{Deserialize, Serialize};
-use sha256::digest_bytes;
+use sha256::digest;
 use state::state::NetworkState;
 use txn::txn::Txn;
 use uuid::Uuid;
@@ -47,9 +47,8 @@ pub struct WalletAccount {
     pub nonce: u128,
 }
 
-impl WalletAccount {
-    /// Initiate a new wallet.
-    pub fn new() -> WalletAccount {
+impl Default for WalletAccount {
+    fn default() -> Self {
         // Initialize a new Secp256k1 context
         let secp = Secp256k1::new();
 
@@ -62,7 +61,8 @@ impl WalletAccount {
         // public_key
         let mut address_bytes = public_key.to_string().as_bytes().to_vec();
         address_bytes.push(1u8);
-        let address = digest_bytes(digest_bytes(&address_bytes).as_bytes());
+        // TODO: Is double hashing neccesary?
+        let address = digest(digest(&*address_bytes).as_bytes());
         // add the testnet prefix to the wallet address (TODO: add handling of
         // testnet/mainnet)
         let mut address_prefix: String = "0x192".to_string();
@@ -84,7 +84,7 @@ impl WalletAccount {
         total_balances.insert(address_prefix.clone(), vrrb_balances);
 
         // Generate a wallet struct by assigning the variables to the fields.
-        let wallet = Self {
+        Self {
             secretkey: secret_key.to_string(),
             welcome_message,
             pubkey: public_key.to_string(),
@@ -93,16 +93,21 @@ impl WalletAccount {
             available_balances: total_balances,
             claims: LinkedHashMap::new(),
             nonce: 0,
-        };
+        }
+    }
+}
 
-        wallet
+impl WalletAccount {
+    /// Initiate a new wallet.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn get_welcome_message(&self) -> String {
         self.welcome_message.clone()
     }
 
-    pub fn restore_from_private_key(private_key: String) -> WalletAccount {
+    pub fn restore_from_private_key(private_key: String) -> Self {
         let secretkey = SecretKey::from_str(&private_key).unwrap();
         let secp = Secp256k1::new();
         let pubkey = PublicKey::from_secret_key(&secp, &secretkey);
@@ -143,7 +148,8 @@ impl WalletAccount {
         (counter..=number_of_addresses).for_each(|n| {
             let mut address_bytes = self.pubkey.as_bytes().to_vec();
             address_bytes.push(n);
-            let address = digest_bytes(digest_bytes(&address_bytes).as_bytes());
+            // TODO: Is double hashing neccesary?
+            let address = digest(digest(&*address_bytes).as_bytes());
             let mut address_prefix: String = "0x192".to_string();
             address_prefix.push_str(&address);
             self.addresses.insert(n as u32, address_prefix);
@@ -176,7 +182,7 @@ impl WalletAccount {
         let mut balance_map = LinkedHashMap::new();
 
         self.addresses.iter().for_each(|(_, address)| {
-            let balance = network_state.get_balance(&address);
+            let balance = network_state.get_balance(address);
             balance_map.insert(address.clone(), balance);
         });
 
@@ -191,16 +197,12 @@ impl WalletAccount {
         self.update_balances(network_state);
         if let Some(address) = self.addresses.get(&address_number) {
             if let Some(entry) = self.total_balances.get(&address.clone()) {
-                if let Some(amount) = entry.get("VRRB") {
-                    return Some(*amount);
-                } else {
-                    return None;
-                }
+                entry.get("VRRB").copied()
             } else {
-                return None;
+                None
             }
         } else {
-            return None;
+            None
         }
     }
 
@@ -303,15 +305,10 @@ impl WalletAccount {
             &time, &sender_address, &self.pubkey, &receiver, &amount, &self.nonce
         );
         let signature = self.sign(&payload).unwrap();
-        let uid_payload = format!(
-            "{},{},{}",
-            &payload,
-            Uuid::new_v4().to_string(),
-            &signature.to_string()
-        );
+        let uid_payload = format!("{},{},{}", &payload, Uuid::new_v4(), &signature);
 
         Ok(Txn {
-            txn_id: digest_bytes(uid_payload.as_bytes()),
+            txn_id: digest(uid_payload),
             txn_timestamp: time,
             sender_address: sender_address.to_string(),
             sender_public_key: self.pubkey.clone(),
@@ -329,7 +326,7 @@ impl WalletAccount {
     /// wallet)
     pub fn get_address(&mut self, address_number: u32) -> String {
         if let Some(address) = self.addresses.get(&address_number) {
-            return address.to_string();
+            address.to_string()
         } else {
             while self.addresses.len() < address_number as usize {
                 self.generate_new_address()
@@ -344,14 +341,14 @@ impl WalletAccount {
         let uid = Uuid::new_v4().to_string();
         let address_number: u32 = self.addresses.len() as u32 + 1u32;
         let payload = format!("{},{},{}", &address_number, &uid, &self.pubkey);
-        let address = digest_bytes(payload.as_bytes());
+        let address = digest(payload.as_bytes());
         self.addresses.insert(address_number, address);
     }
 
     /// Serializes the wallet into a vector of bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
-        as_string.as_bytes().iter().copied().collect()
+        as_string.as_bytes().to_vec()
     }
 
     /// Deserializes a wallet from a byte array
@@ -390,7 +387,7 @@ impl Clone for WalletAccount {
             total_balances: self.total_balances.clone(),
             available_balances: self.available_balances.clone(),
             claims: self.claims.clone(),
-            nonce: self.nonce.clone(),
+            nonce: self.nonce,
         }
     }
 }

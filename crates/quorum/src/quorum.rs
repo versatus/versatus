@@ -66,7 +66,7 @@ impl Election for Quorum {
         while random_number < u32MAX as u64 {
             random_number = vvrf.generate_u64();
         }
-        return Ok(random_number);
+        Ok(random_number)
     }
 
     ///master nodes run elections to determine the next master node quorum
@@ -85,7 +85,7 @@ impl Election for Quorum {
             Err(e) => return Err(e),
         };
 
-        return Ok(elected_quorum);
+        Ok(elected_quorum)
     }
 }
 
@@ -94,22 +94,22 @@ impl Quorum {
     /// block timestamp
     pub fn new(seed: u64, timestamp: u128, height: u128) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::check_payload_validity(height, timestamp) {
-            return Err(InvalidQuorum::InvalidChildBlockError());
+            Err(InvalidQuorum::InvalidChildBlockError())
         } else {
-            return Ok(Quorum {
+            Ok(Quorum {
                 quorum_seed: seed,
                 master_pubkeys: Vec::new(),
                 quorum_pk: String::new(),
                 election_block_height: height,
                 election_timestamp: timestamp,
-            });
+            })
         }
     }
 
     ///checks if the child block height and timestamp are valid
     ///used at seed and quorum creation
     pub fn check_payload_validity(timestamp: Timestamp, height: Height) -> bool {
-        return height > 0 && timestamp > 0;
+        height > 0 && timestamp > 0
     }
 
     ///gets all claims that belong to eligible nodes (master nodes)

@@ -72,6 +72,8 @@ impl Packet {
     }
 
     /// Serializes a Packet into a string
+    // TODO: Is this fine?
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
@@ -82,6 +84,8 @@ impl Packet {
     }
 
     /// Deserializes a string slice into a Packet
+    // Is this ok?
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(data: &str) -> Packet {
         serde_json::from_str(data).unwrap()
     }
@@ -94,7 +98,7 @@ pub trait Packetize {
     type PacketBytes;
     type FlatPackets;
     type PacketMap;
-    fn into_packets(&self) -> Self::Packets;
+    fn into_packets(self) -> Self::Packets;
     fn as_packet_bytes(&self) -> Self::PacketBytes;
     fn assemble(map: &mut Self::PacketMap) -> Self::FlatPackets;
     fn try_assemble(map: &mut Self::PacketMap) -> Result<Self::FlatPackets, NotCompleteError>;

@@ -1,10 +1,4 @@
-use std::{hash::Hash, sync::Arc, time::SystemTime};
-
-use patriecia::db::Database;
-
-use crate::result::{LeftRightDbError, Result};
-
-pub type Nonce = u32;
+use std::{hash::Hash, time::SystemTime};
 
 /// Struct representing the LeftRight Database.
 ///
@@ -13,25 +7,14 @@ pub type Nonce = u32;
 ///
 /// `WriteHandles` provides a way to gain write access to the database.
 /// `last_refresh` denotes the lastest `refresh` of the database.
-#[allow(dead_code)]
 pub struct LeftRightDatabase<K, V>
 where
     K: Clone + Eq + Hash + std::fmt::Debug,
     V: Clone + Eq + evmap::ShallowCopy + std::fmt::Debug,
 {
-    r: evmap::ReadHandleFactory<K, V, ()>,
-    w: evmap::WriteHandle<K, V, ()>,
-    last_refresh: std::time::SystemTime,
-}
-
-impl<K, V> LeftRightDatabase<K, V>
-where
-    K: Clone + Eq + Hash + std::fmt::Debug,
-    V: Clone + Eq + evmap::ShallowCopy + std::fmt::Debug,
-{
-    pub fn new() -> Self {
-        Self::default()
-    }
+    pub r: evmap::ReadHandleFactory<K, V, ()>,
+    pub w: evmap::WriteHandle<K, V, ()>,
+    pub last_refresh: std::time::SystemTime,
 }
 
 impl<K, V> Default for LeftRightDatabase<K, V>

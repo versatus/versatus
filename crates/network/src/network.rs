@@ -1,30 +1,47 @@
-use crate::packet::{
-    generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
-    BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
+use std::{
+    borrow::BorrowMut,
+    collections::{HashMap, HashSet},
+    net::{Ipv6Addr, SocketAddr},
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
 };
-use crate::types::config::{BroadCastError, BroadCastResult};
+
 use bytes::Bytes;
 use crossbeam_channel::unbounded;
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
+use futures::{stream::FuturesUnordered, StreamExt};
 use messages::message::Message;
 use qp2p::{
-    Config, Connection, ConnectionIncoming, Endpoint, EndpointError, IncomingConnections,
+    Config,
+    Connection,
+    ConnectionIncoming,
+    Endpoint,
+    EndpointError,
+    IncomingConnections,
     RetryConfig,
 };
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
-use std::collections::{HashMap, HashSet};
-use std::net::{Ipv6Addr, SocketAddr};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 use tokio::net::UdpSocket;
+
+use crate::{
+    packet::{
+        generate_batch_id,
+        packet_forwarder,
+        reassemble_packets,
+        recv_mmsg,
+        split_into_packets,
+        BATCH_ID_SIZE,
+        MTU_SIZE,
+        NUM_RCVMMSGS,
+    },
+    types::config::{BroadCastError, BroadCastResult},
+};
 
 type BroadCastStatus = Result<BroadCastResult, BroadCastError>;
 
-/// This is an enum that is used to determine the type of broadcast that is being used.
+/// This is an enum that is used to determine the type of broadcast that is
+/// being used.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum BroadcastType {
     Quic,
@@ -53,7 +70,7 @@ pub type EndPointResult = Result<
 
 impl BroadcastEngine {
     pub async fn new_endpoint(port: u16) -> EndPointResult {
-        Ok(Endpoint::new_peer(
+        Endpoint::new_peer(
             (Ipv6Addr::LOCALHOST, port),
             &[],
             Config {
@@ -65,8 +82,9 @@ impl BroadcastEngine {
                 ..Config::default()
             },
         )
-        .await?)
+        .await
     }
+
     //create a new broadcast engine for each node
     pub async fn new(
         udp_port: u16,
@@ -74,24 +92,30 @@ impl BroadcastEngine {
         raptor_num_packet_blast: usize,
     ) -> Result<BroadcastEngine, BroadCastError> {
         match BroadcastEngine::new_endpoint(udp_port).await {
-            Ok((node, incoming_conns, _contact)) => {
-                return Ok(BroadcastEngine {
-                    peer_connection_list: Arc::new(Mutex::new(Vec::new())),
-                    endpoint: (node, incoming_conns),
-                    raptor_udp_port,
-                    raptor_num_packet_blast,
-                })
-            },
-            Err(e) => return Err(BroadCastError::EndpointError(e)),
+            Ok((node, incoming_conns, _contact)) => Ok(BroadcastEngine {
+                peer_connection_list: Arc::new(Mutex::new(Vec::new())),
+                endpoint: (node, incoming_conns),
+                raptor_udp_port,
+                raptor_num_packet_blast,
+            }),
+            Err(e) => Err(BroadCastError::EndpointError(e)),
         }
     }
 
-    /// > This function takes a vector of socket addresses and attempts to connect to each one. If the
-    /// connection is successful, it adds the connection to the peer connection list
+    /// > This function takes a vector of socket addresses and attempts to
+    /// > connect to each one. If the
+    /// connection is successful, it adds the connection to the peer connection
+    /// list
     ///
     /// Arguments:
     ///
-    /// * `address`: A vector of SocketAddr, which is the address of the peer you want to connect to.
+    /// * `address`: A vector of SocketAddr, which is the address of the peer
+    ///   you want to connect to.
+
+    // TODO: Rething this - as the Mutex is locked during the `.await`, which is not
+    // reccomended. Either async-aware Mutex type should be used, or MutexGuard
+    // should be dropped before `.await`
+    #[allow(clippy::await_holding_lock)]
     pub async fn add_peer_connection(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
         if let Ok(mut peers) = self.peer_connection_list.lock() {
             for addr in address.iter() {
@@ -134,10 +158,11 @@ impl BroadcastEngine {
             telemetry::error!("Error acquiring lock on peer connection list");
         };
 
-        return Ok(BroadCastResult::Success);
+        Ok(BroadCastResult::Success)
     }
 
-    /// > This function takes a message and sends it to all the peers in the peer list
+    /// > This function takes a message and sends it to all the peers in the
+    /// > peer list
     ///
     /// Arguments:
     ///
@@ -146,9 +171,14 @@ impl BroadcastEngine {
     /// Returns:
     ///
     /// A future that resolves to a BroadCastStatus
+    // TODO: Again - the Mutex is held during .await - to be reconsidered
+    #[allow(clippy::await_holding_lock)]
     pub async fn quic_broadcast(&self, message: Message) -> BroadCastStatus {
         let mut futs = FuturesUnordered::new();
         if let Ok(peers) = self.peer_connection_list.lock() {
+            if peers.len() == 0 {
+                return Err(BroadCastError::NoPeers);
+            }
             for connection in peers.clone().into_iter() {
                 let new_data = message.as_bytes().clone();
                 futs.push(tokio::spawn(async move {
@@ -157,8 +187,8 @@ impl BroadcastEngine {
                         .1
                         .send((Bytes::new(), Bytes::new(), msg.clone()))
                         .await;
-                    if status.is_err() {
-                        return Err(BroadCastError::BroadcastingDataError(status.unwrap_err()));
+                    if let Err(err) = status {
+                        return Err(BroadCastError::BroadcastingDataError(err));
                     }
                     Ok(())
                 }))
@@ -170,7 +200,8 @@ impl BroadcastEngine {
         Ok(BroadCastResult::Success)
     }
 
-    /// > This function takes a message and an address, and sends the message to the address via QUIC
+    /// > This function takes a message and an address, and sends the message to
+    /// > the address via QUIC
     ///
     /// Arguments:
     ///
@@ -192,18 +223,23 @@ impl BroadcastEngine {
         Ok(BroadCastResult::Success)
     }
 
-    /// > The function takes a message and an erasure count as input and splits the message into packets
+    /// > The function takes a message and an erasure count as input and splits
+    /// > the message into packets
     /// and sends them to the peers
     ///
     /// Arguments:
     ///
     /// * `message`: The message to be broadcasted.
-    /// * `erasure_count`: The number of packets that can be lost and still be able to reconstruct the
+    /// * `erasure_count`: The number of packets that can be lost and still be
+    ///   able to reconstruct the
     /// original message.
     ///
     /// Returns:
     ///
     /// The return type is a future of type BroadCastStatus.
+    // TODO: Verify if mutex really needs to be held during the await
+    #[allow(clippy::await_holding_lock)]
+
     pub async fn unreliable_broadcast(
         &self,
         message: Message,
@@ -221,6 +257,9 @@ impl BroadcastEngine {
             let udp_socket = Arc::new(udp_socket);
             let mut futs = FuturesUnordered::new();
             if let Ok(peers) = self.peer_connection_list.lock() {
+                if peers.len() == 0 {
+                    return Err(BroadCastError::NoPeers);
+                }
                 for (packet_index, packet) in chunks.iter().enumerate() {
                     // Sharding/Distribution of packets as per no of nodes
                     let address: (SocketAddr, Connection) =
@@ -258,7 +297,8 @@ impl BroadcastEngine {
         Ok(BroadCastResult::Success)
     }
 
-    /// It receives packets from the socket, and sends them to the reassembler thread
+    /// It receives packets from the socket, and sends them to the reassembler
+    /// thread
     ///
     /// Arguments:
     ///
@@ -266,7 +306,8 @@ impl BroadcastEngine {
     ///
     /// Returns:
     ///
-    /// a future that resolves to a result. The result is either an error or a unit.
+    /// a future that resolves to a result. The result is either an error or a
+    /// unit.
     pub async fn process_received_packets(&self, port: u16) -> Result<(), BroadCastError> {
         if let Ok(sock_recv) = UdpSocket::bind(SocketAddr::new(
             std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
@@ -306,6 +347,9 @@ impl BroadcastEngine {
 
             let mut nodes_ips_except_self = vec![];
             if let Ok(peers) = self.peer_connection_list.lock() {
+                if peers.len() == 0 {
+                    return Err(BroadCastError::NoPeers);
+                }
                 peers.iter().for_each(|(addr, _)| {
                     nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec())
                 });
@@ -320,13 +364,12 @@ impl BroadcastEngine {
                 let mut receive_buffers = [buf; NUM_RCVMMSGS];
                 // Receiving a batch of packets from the socket.
                 if let Ok(res) = recv_mmsg(&sock_recv, receive_buffers.borrow_mut()).await {
-                    if res.len() > 0 {
+                    if !res.is_empty() {
                         let mut i = 0;
                         for buf in &receive_buffers {
                             if let Some(packets_info) = res.get(i) {
-                                let _ =
-                                    reassembler_channel_send.send((buf.clone(), packets_info.1));
-                                i = i + 1;
+                                let _ = reassembler_channel_send.send((*buf, packets_info.1));
+                                i += 1;
                             }
                         }
                     }
@@ -334,7 +377,7 @@ impl BroadcastEngine {
             }
         } else {
             telemetry::error!("Udp port {} already in use", port);
-            return Err(BroadCastError::EaddrInUse);
+            Err(BroadCastError::EaddrInUse)
         }
     }
 
@@ -345,14 +388,15 @@ impl BroadcastEngine {
 
 #[cfg(test)]
 mod tests {
-    use crate::network::BroadcastEngine;
-    use bytes::Bytes;
-    use messages::message::Message;
-
     use std::{
         net::{Ipv6Addr, SocketAddr},
         time::Duration,
     };
+
+    use bytes::Bytes;
+    use messages::message::Message;
+
+    use crate::network::BroadcastEngine;
 
     #[tokio::test]
     async fn test_successful_connection() {

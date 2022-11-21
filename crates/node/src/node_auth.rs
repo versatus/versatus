@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::{command_handler::CommandHandler, message_handler::MessageHandler, result::*};
+use crate::{message_handler::MessageHandler, result::*};
 
 //TODO:There needs to be different node types, this is probably not the right
 // variants for the node types we will need in the network, needs to be

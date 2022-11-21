@@ -24,7 +24,7 @@ pub fn write_to_json<T: Debug>(path: String, event: &T) -> Result<(), serde_json
             }
             let json_vec = serde_json::to_vec(&events);
             if let Ok(json) = json_vec {
-                if let Err(e) = fs::write(path.clone(), json) {
+                if let Err(e) = fs::write(path, json) {
                     info!("Error writing event to events.json: {:?}", e);
                 }
             }
@@ -33,7 +33,7 @@ pub fn write_to_json<T: Debug>(path: String, event: &T) -> Result<(), serde_json
             let events = vec![new_event];
             let json_vec = serde_json::to_vec(&events);
             if let Ok(json) = json_vec {
-                if let Err(e) = fs::write(path.clone(), json) {
+                if let Err(e) = fs::write(path, json) {
                     info!("Error writing event to events.json: {:?}", e);
                 }
             }
@@ -41,7 +41,6 @@ pub fn write_to_json<T: Debug>(path: String, event: &T) -> Result<(), serde_json
     }
     Ok(())
 }
-
 
 pub fn get_event<T: Debug>(event: &T) -> VrrbNetworkEvent {
     let event_string = format!("{:?}", event);
