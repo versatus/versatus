@@ -22,6 +22,7 @@ help:
 	$(Q)echo "make run               - Runs main executable"
 	$(Q)echo "make exe               - Builds main executable"
 	$(Q)echo "make test              - Tests all crates"
+	$(Q)echo "make lint              - Runs formatter"
 	$(Q)echo "make bench             - Benchmarks all crates"
 	$(Q)echo "make watch             - Runs main executable in hot-reloading mode for development"
 	$(Q)echo "make clean             - Deletes binaries and documentation."
@@ -36,8 +37,12 @@ run:
 	$(Q)echo "--- Done"
 
 test:
-	$(Q)cargo test --all
+	$(Q)sh infra/scripts/run_tests.sh
 	$(Q)echo "--- Executed tests on all crates"
+
+lint:
+	$(Q)sh infra/scripts/run_lints.sh
+	$(Q)echo "--- Ran all lints and formatters"
 
 watch: 
 	$(Q)sh infra/scripts/watch.sh
