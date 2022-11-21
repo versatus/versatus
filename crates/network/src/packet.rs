@@ -213,7 +213,7 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
         match batch_recv.recv() {
             Ok((batch_id, contents)) => {
                 let batch_fname = format!("{}.BATCH", batch_id);
-                match fs::write(batch_fname, &contents) {
+                match fs::write(batch_fname, contents) {
                     Ok(_) => {},
                     Err(e) => {
                         telemetry::error!("Error occured while write data to file, details {}", e)

@@ -290,10 +290,7 @@ impl Miner {
         validators.retain(|_, v| *v);
 
         if rejected.len() as f64 / self.claim_map.len() as f64 > 1.0 - VALIDATOR_THRESHOLD {
-            let slash_claims = validators
-                .iter()
-                .map(|(k, _)| k.to_string())
-                .collect::<Vec<_>>();
+            let slash_claims = validators.keys().map(|k| k.to_string()).collect::<Vec<_>>();
             Some(slash_claims)
         } else {
             None

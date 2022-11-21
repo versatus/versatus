@@ -22,8 +22,7 @@ pub struct RunOpts {
     pub id: primitives::types::NodeId,
 
     #[clap(long, value_parser)]
-    // TODO: reconsider this id
-    pub node_idx: primitives::types::NodeIdx,
+    pub idx: primitives::types::NodeIdx,
 
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]
@@ -38,11 +37,26 @@ pub struct RunOpts {
     #[clap(long, value_parser)]
     pub gossip_address: SocketAddr,
 
+    #[clap(long, value_parser)]
+    pub http_api_address: SocketAddr,
+
     #[clap(long)]
     pub bootstrap: bool,
 
     #[clap(long, value_parser)]
     pub bootstrap_node_addresses: Vec<SocketAddr>,
+
+    /// Title of the API shown on swagger docs
+    #[clap(long, value_parser, default_value = "Node RPC API")]
+    pub http_api_title: String,
+
+    /// API version shown in swagger docs
+    #[clap(long, value_parser)]
+    pub http_api_version: String,
+    //
+    // /// API shutdown timeout
+    // #[clap(long)]
+    // pub http_api_shutdown_timeout: Option<Duration>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -73,18 +87,18 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
 pub async fn run(args: RunOpts) -> Result<()> {
     // TODO: get these from proper config
     let id = Uuid::new_v4().to_simple().to_string();
-    let idx = args.node_idx;
+    let idx = args.idx;
     let node_type = args.node_type.parse()?;
     let data_dir = storage::get_node_data_dir()?;
     let db_path = args.db_path;
     let bootstrap = args.bootstrap;
     let bootstrap_node_addresses = args.bootstrap_node_addresses;
 
-    let gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
-    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9000);
+    let gossip_address = args.gossip_address;
+    let http_api_address = args.http_api_address;
 
-    let http_api_title = String::from("Node HTTP API");
-    let http_api_version = String::from("1.0.0");
+    let http_api_title = args.http_api_title;
+    let http_api_version = args.http_api_version;
     let http_api_shutdown_timeout = Some(Duration::from_secs(5));
 
     let node_config = NodeConfig {
@@ -111,13 +125,28 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let (_ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let mut vrrb_node = Node::new(node_config);
 
     telemetry::info!("running node in blocking mode");
 
-    vrrb_node.start(&mut ctrl_rx).await?;
+    let node_handle = tokio::spawn(async move {
+        // NOTE: starts the main node service
+        vrrb_node.start(&mut ctrl_rx).await
+    });
+
+    tokio::signal::ctrl_c()
+        .await
+        .map_err(|_| CliError::Other(String::from("failed to listen for ctrl+c")))?;
+
+    ctrl_tx
+        .send(Event::Stop)
+        .map_err(|_| CliError::Other(String::from("failed to send stop event to node")))?;
+
+    node_handle
+        .await
+        .map_err(|_| CliError::Other(String::from("failed to join node task handle")))??;
 
     Ok(())
 }

@@ -21,12 +21,6 @@ jobs:
                   toolchain: stable
                   override: true
 
-            - name: cargo clippy
-              uses: actions-rs/cargo@v1
-              with:
-                  command: clippy
-                  args: --all -- -D warnings
-
             - name: cargo test
               uses: actions-rs/cargo@v1
               with:

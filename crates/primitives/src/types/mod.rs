@@ -18,17 +18,17 @@ pub enum Error {
 #[serde(try_from = "String")]
 pub enum NodeType {
     /// A Node that can archive, validate and mine tokens
-    Full        = 0,
+    Full = 0,
     /// Same as `NodeType::Full` but without archiving capabilities
-    Light       = 1,
+    Light = 1,
     /// Archives all transactions processed in the blockchain
-    Archive     = 2,
+    Archive = 2,
     /// Mining node
-    Miner       = 3,
-    Bootstrap   = 4,
-    Validator   = 5,
-    MasterNode  = 6,
-    Unknown     = 100
+    Miner = 3,
+    Bootstrap = 4,
+    Validator = 5,
+    MasterNode = 6,
+    Unknown = 100,
 }
 
 impl FromStr for NodeType {
@@ -66,14 +66,14 @@ impl From<String> for NodeType {
 impl From<usize> for NodeType {
     fn from(node_type: usize) -> Self {
         match node_type {
-            0  =>  NodeType::Full,
-            1  =>  NodeType::Light,
-            2  =>  NodeType::Archive,
-            3  =>  NodeType::Miner,
-            4  =>  NodeType::Bootstrap,
-            5  =>  NodeType::Validator,
-            6  =>  NodeType::MasterNode,
-            _ =>   NodeType::Unknown
+            0 => NodeType::Full,
+            1 => NodeType::Light,
+            2 => NodeType::Archive,
+            3 => NodeType::Miner,
+            4 => NodeType::Bootstrap,
+            5 => NodeType::Validator,
+            6 => NodeType::MasterNode,
+            _ => NodeType::Unknown,
         }
     }
 }

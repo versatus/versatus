@@ -39,9 +39,9 @@ pub enum TxnValidatorError {
     TxnSignatureIncorrect,
     TxnSignatureTresholdIncorrect,
     TimestampError,
-    FailedToGetValueForKey(Vec<u8>, TrieError),
-    FailedToDeserializeValue(Vec<u8>),
-    FailedToSerializeAccount(Account),
+    FailedToGetValueForKey(TrieError),
+    FailedToDeserializeValue,
+    FailedToSerializeAccount,
     NoValueForKey,
 }
 

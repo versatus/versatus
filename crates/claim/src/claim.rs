@@ -66,7 +66,7 @@ impl Claim {
         // get the hexadecimal format of the block seed
         // TODO: Make the block seed hexadecimal to begin with in the `Block` itself
         // No reason for miners to have to do this conversion.
-        let block_seed_hex = format!("{:x}", block_seed);
+        let block_seed_hex = format!("{block_seed:x}");
         // Get the length of the hexadecimal representation of the block seed
         // for later use
         let block_seed_string_len = block_seed_hex.chars().count();
@@ -86,7 +86,7 @@ impl Claim {
                 // If there is no integer overflow (which there never should be)
                 // add it to the buffer.
                 if let Some(n) = n {
-                    pointers.push(n as u128);
+                    pointers.push(n);
                 }
             }
         });

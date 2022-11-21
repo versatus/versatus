@@ -169,9 +169,9 @@ where
 }
 
 pub enum LeftRightTrieError {
-    FailedToDeserializeValue(Vec<u8>),
+    FailedToDeserializeValue,
     NoValueForKey,
-    FailedToGetValueForKey(Vec<u8>, TrieError),
+    FailedToGetValueForKey(TrieError),
 }
 
 pub trait GetDeserialized<T: Serialize + for<'a> Deserialize<'a>> {
@@ -193,11 +193,11 @@ where
             Ok(maybe_bytes) => match maybe_bytes {
                 Some(bytes) => match &bincode::deserialize::<T>(&bytes) {
                     Ok(data) => Ok(data.clone()),
-                    Err(_) => Err(LeftRightTrieError::FailedToDeserializeValue(bytes)),
+                    Err(_) => Err(LeftRightTrieError::FailedToDeserializeValue),
                 },
                 None => Err(LeftRightTrieError::NoValueForKey),
             },
-            Err(err) => Err(LeftRightTrieError::FailedToGetValueForKey(key, err)),
+            Err(err) => Err(LeftRightTrieError::FailedToGetValueForKey(err)),
         }
     }
 }
