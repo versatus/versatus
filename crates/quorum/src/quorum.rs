@@ -75,15 +75,23 @@ impl Election for Quorum {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
 
+        dbg!("one");
+
         let eligible_claims = match Quorum::get_eligible_claims(ballot) {
             Ok(eligible_claims) => eligible_claims,
             Err(e) => return Err(e),
         };
 
+        dbg!("two");
+
+
         let elected_quorum = match self.get_final_quorum(eligible_claims) {
             Ok(elected_quorum) => elected_quorum,
             Err(e) => return Err(e),
         };
+
+        dbg!("three");
+
 
         Ok(elected_quorum)
     }
@@ -134,6 +142,7 @@ impl Quorum {
     /// sums
     pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
         if self.quorum_seed == 0 {
+            dbg!("no seed");
             return Err(InvalidQuorum::NoSeedError());
         }
 
@@ -151,6 +160,7 @@ impl Quorum {
             .collect();
 
         if claim_tuples.len() < 20 {
+            dbg!("invalid pointer sum");
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
         }
 

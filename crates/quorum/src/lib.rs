@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn elect_quorum() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
-        (0..25).for_each(|i| {
+        (0..30).for_each(|i| {
             let secp = Secp256k1::new();
 
             let mut rng = rand::thread_rng();
@@ -255,8 +255,12 @@ mod tests {
 
         if let Ok(seed) = Quorum::generate_seed(payload1) {
             if let Ok(mut quorum) = Quorum::new(seed, 11, 11) {
+                let mut passed = false;
+
+                //add election re-run function if not enough claims
+
                 assert!(quorum.run_election(dummy_claims).is_ok());
-                assert!(quorum.master_pubkeys.len() == 13);
+                assert!(quorum.master_pubkeys.len() == 16);
             };
         }
     }
