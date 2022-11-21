@@ -8,8 +8,8 @@
 set -e
 
 # Stricly verifies the code's correctness and idiomatics of the code
-echo '+cargo +nightly lippy --all -- -D warnings'
-cargo +nightly clippy --all -- -D warnings
+echo '+cargo +nightly clippy --fix --allow-dirty --allow-staged'
+cargo +nightly clippy --fix --allow-dirty --allow-staged
 
 # Formats the code for consistency
 echo '+cargo +nightly fmt --all'

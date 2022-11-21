@@ -7,17 +7,17 @@
 
 set -e
 
-# Running all the tests
-echo '+cargo test --all'
-cargo test --all
-
-# Stricly verifies the code's correctness and idiomatics of the code
-echo '+cargo +nightly clippy --all -- -D warnings'
-cargo +nightly clippy --all -- -D warnings
+# # Stricly verifies the code's correctness and idiomatics of the code
+# echo '+cargo +nightly clippy --all -- -D warnings'
+# cargo +nightly clippy --all -- -D warnings
 
 # Verifies the code is formatted properly
 echo '+cargo +nightly fmt --all -- --check'
 cargo +nightly fmt --all -- --check
+
+# Running all the tests
+echo '+cargo test --all'
+cargo test --all
 
 # This looks for unused crates from Cargo.toml in crates
 echo '+cargo +nightly udeps --all-targets'
