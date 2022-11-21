@@ -1,5 +1,6 @@
 // Feature Tags: Block Structure, State Syncing, Block Validation, Block
 // Confirmation
+
 use std::{
     collections::{HashSet, LinkedList},
     error::Error,
@@ -16,7 +17,7 @@ use commands::command::ComponentTypes;
 use log::info;
 use messages::message_types::MessageType;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
-use reward::reward::RewardState;
+use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
@@ -70,7 +71,7 @@ impl Blockchain {
     /// previous block.
     pub fn check_next_block_height(&self, block: &Block) -> bool {
         // Check if there is a genesis block
-        if self.genesis.is_some() {
+        if self.genesis.as_ref().is_some() {
             // If so, check if there is a child block
             if let Some(child) = self.child.as_ref() {
                 // If so check if the block height is equal to last block's height + 1
@@ -204,17 +205,13 @@ impl Blockchain {
     pub fn process_block(
         &mut self,
         network_state: &NetworkState,
-        reward_state: &RewardState,
+        _reward: &Reward,
         block: &Block,
     ) -> Result<(), InvalidBlockError> {
         self.check_block_sequence(block)?;
-
         if let Some(genesis_block) = &self.genesis {
             if let Some(last_block) = &self.child {
-                if let Err(e) = block.valid(
-                    last_block,
-                    &(network_state.to_owned(), reward_state.to_owned()),
-                ) {
+                if let Err(e) = block.valid(last_block, &(network_state.to_owned())) {
                     self.future_blocks
                         .insert(block.clone().header.last_hash, block.clone());
                     Err(e)
@@ -230,13 +227,9 @@ impl Blockchain {
                     if let Err(e) = self.dump(block) {
                         println!("Error dumping block to chain db: {:?}", e);
                     };
-
                     Ok(())
                 }
-            } else if let Err(e) = block.valid(
-                genesis_block,
-                &(network_state.to_owned(), reward_state.to_owned()),
-            ) {
+            } else if let Err(e) = block.valid(genesis_block, &(network_state.to_owned())) {
                 Err(e)
             } else {
                 self.child = Some(block.clone());
@@ -249,9 +242,7 @@ impl Blockchain {
         } else {
             // check that this is a valid genesis block.
             if block.header.block_height == 0 {
-                if let Ok(true) =
-                    block.valid_genesis(&(network_state.to_owned(), reward_state.to_owned()))
-                {
+                if let Ok(true) = block.valid_genesis(&(network_state.to_owned())) {
                     self.genesis = Some(block.clone());
                     self.child = Some(block.clone());
                     self.block_cache.insert(block.hash.clone(), block.clone());
@@ -262,17 +253,15 @@ impl Blockchain {
                     Ok(())
                 } else {
                     self.invalid.insert(block.hash.clone(), block.clone());
-                    Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::General,
-                    })
+                    Err(InvalidBlockError::new(InvalidBlockErrorReason::General))
                 }
             } else {
                 // request genesis block.
                 self.future_blocks
                     .insert(block.clone().header.last_hash, block.clone());
-                Err(InvalidBlockError {
-                    details: InvalidBlockErrorReason::BlockOutOfSequence,
-                })
+                Err(InvalidBlockError::new(
+                    InvalidBlockErrorReason::BlockOutOfSequence,
+                ))
             }
         }
     }
@@ -284,38 +273,36 @@ impl Blockchain {
 
     /// Checks whether the block is in sequence or not.
     pub fn check_block_sequence(&self, block: &Block) -> Result<bool, InvalidBlockError> {
-        if self.genesis.is_some() {
+        if self.genesis.clone().is_some() {
             if let Some(child) = self.child.clone() {
                 let next_height = child.header.block_height + 1;
-
-                match block.header.block_height.cmp(&next_height) {
-                    std::cmp::Ordering::Less => Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::NotTallestChain,
-                    }),
-                    std::cmp::Ordering::Equal => Ok(true),
-                    std::cmp::Ordering::Greater =>
+                if block.header.block_height > next_height {
                     //I'm missing blocks return BlockOutOfSequence error
-                    {
-                        Err(InvalidBlockError {
-                            details: InvalidBlockErrorReason::BlockOutOfSequence,
-                        })
-                    },
+                    Err(InvalidBlockError::new(
+                        InvalidBlockErrorReason::BlockOutOfSequence,
+                    ))
+                } else if block.header.block_height < next_height {
+                    Err(InvalidBlockError::new(
+                        InvalidBlockErrorReason::NotTallestChain,
+                    ))
+                } else {
+                    Ok(true)
                 }
+            } else if block.header.block_height > 1 {
+                Err(InvalidBlockError::new(
+                    InvalidBlockErrorReason::BlockOutOfSequence,
+                ))
+            } else if block.header.block_height < 1 {
+                Err(InvalidBlockError::new(
+                    InvalidBlockErrorReason::NotTallestChain,
+                ))
             } else {
-                match block.header.block_height.cmp(&1) {
-                    std::cmp::Ordering::Less => Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::NotTallestChain,
-                    }),
-                    std::cmp::Ordering::Equal => Ok(true),
-                    std::cmp::Ordering::Greater => Err(InvalidBlockError {
-                        details: InvalidBlockErrorReason::BlockOutOfSequence,
-                    }),
-                }
+                Ok(true)
             }
         } else if block.header.block_height != 0 {
-            Err(InvalidBlockError {
-                details: InvalidBlockErrorReason::BlockOutOfSequence,
-            })
+            Err(InvalidBlockError::new(
+                InvalidBlockErrorReason::BlockOutOfSequence,
+            ))
         } else {
             Ok(true)
         }
@@ -484,15 +471,19 @@ impl Blockchain {
     }
 
     /// Deserialize a slice of bytes into a blockchain
-    pub fn from_bytes(data: &[u8]) -> Blockchain {
-        serde_json::from_slice::<Blockchain>(data).unwrap()
+    pub fn from_bytes(data: &[u8]) -> Result<Blockchain, serde_json::Error> {
+        match serde_json::from_slice::<Blockchain>(data) {
+            Ok(chain) => Ok(chain),
+            Err(e) => Err(e),
+        }
     }
 
     /// Serializes a chain into a string
-    // TODO: Consider changing the name to `serialize_to_string`
-    #[allow(clippy::inherent_to_string_shadow_display)]
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
+    pub fn serialize_to_string(&self) -> Result<String, serde_json::Error> {
+        match serde_json::to_string(self) {
+            Ok(chain_str) => Ok(chain_str),
+            Err(e) => Err(e),
+        }
     }
 
     /// Deserializes a string slice into a chain

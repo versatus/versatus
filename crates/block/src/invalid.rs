@@ -25,6 +25,12 @@ pub struct InvalidBlockError {
     pub details: InvalidBlockErrorReason,
 }
 
+impl InvalidBlockError {
+    pub fn new(details: InvalidBlockErrorReason) -> Self {
+        InvalidBlockError { details }
+    }
+}
+
 impl InvalidBlockErrorReason {
     pub fn to_str(&self) -> &str {
         match self {

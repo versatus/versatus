@@ -9,7 +9,7 @@ use ledger::ledger::Ledger;
 use log::info;
 use noncing::nonceable::Nonceable;
 use ownable::ownable::Ownable;
-use reward::reward::{Reward, RewardState};
+use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
@@ -41,7 +41,7 @@ pub struct NetworkState {
     // hash of the state of debits in the network
     pub debits: DebitsRoot,
     //reward state of the network
-    pub reward_state: StateRewardState,
+    pub reward: StateRewardState,
     // the last state hash -> sha256 hash of credits, debits & reward state.
     pub state_hash: StateRoot,
 }
@@ -73,12 +73,11 @@ impl<'de> NetworkState {
             ledger: vec![],
             credits: None,
             debits: None,
-            reward_state: None,
+            reward: None,
             state_hash: None,
         };
 
         network_state.dump_to_file();
-
         network_state
     }
 
@@ -90,8 +89,8 @@ impl<'de> NetworkState {
 
     /// Sets a new `RewardState` to the `reward_state` filed in the
     /// `NetworkState` and dumps the resulting new state to the file
-    pub fn set_reward_state(&mut self, reward_state: RewardState) {
-        self.reward_state = Some(reward_state);
+    pub fn set_reward(&mut self, reward: Reward) {
+        self.reward = Some(reward);
         self.dump_to_file();
     }
 
@@ -165,7 +164,7 @@ impl<'de> NetworkState {
     ) -> StateHash {
         let credit_hash = self.clone().credit_hash(txns, reward);
         let debit_hash = self.clone().debit_hash(txns);
-        let reward_state_hash = digest(format!("{:?}", self.reward_state).as_bytes());
+        let reward_state_hash = digest(format!("{:?}", self.reward).as_bytes());
         let payload = format!(
             "{:?},{:?},{:?},{:?}",
             self.state_hash, credit_hash, debit_hash, reward_state_hash
@@ -215,7 +214,6 @@ impl<'de> NetworkState {
                 .insert(reward.receivable(), reward.get_amount());
         }
 
-        self.update_reward_state(reward.clone());
         self.update_state_hash(hash);
         self.update_credits_and_debits(txns, reward);
 
@@ -281,16 +279,6 @@ impl<'de> NetworkState {
         self.debits = Some(dhs);
     }
 
-    /// Updates the reward state given a new reward of a specific category
-    pub fn update_reward_state(&mut self, reward: Reward) {
-        if let Some(category) = reward.get_category() {
-            if let Some(mut reward_state) = self.reward_state {
-                reward_state.update(category);
-                self.reward_state = Some(reward_state);
-            }
-        }
-    }
-
     /// Updates the state hash
     pub fn update_state_hash(&mut self, hash: &StateHash) {
         self.state_hash = Some(hash.clone());
@@ -311,9 +299,9 @@ impl<'de> NetworkState {
         Ledger::<Claim>::from_bytes(self.ledger.clone()).claims
     }
 
-    /// Returns the `RewardState` from the `NewtorkState`
-    pub fn get_reward_state(&self) -> Option<RewardState> {
-        self.reward_state
+    /// It returns the reward of the current state.
+    pub fn get_reward(&self) -> Option<Reward> {
+        self.reward.clone()
     }
 
     /// Gets the credits from a specific account
@@ -482,7 +470,7 @@ impl Clone for NetworkState {
             ledger: self.ledger.clone(),
             credits: self.credits.clone(),
             debits: self.debits.clone(),
-            reward_state: self.reward_state,
+            reward: self.reward.clone(),
             state_hash: self.state_hash.clone(),
         }
     }

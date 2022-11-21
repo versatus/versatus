@@ -16,7 +16,7 @@ use claim::claim::Claim;
 use noncing::nonceable::Nonceable;
 use pool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
-use reward::reward::RewardState;
+use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
@@ -81,7 +81,7 @@ pub struct Miner {
     /// The reward state (previous monetary policy), to track which reward
     /// categories are still available for production
     //TODO: Eliminate and replace with provable current reward amount data
-    pub reward_state: RewardState,
+    pub reward: Reward,
     /// The current state of the network
     //TODO: Replace with ReadHandle in the Left-Right State Trie
     pub network_state: NetworkState,
@@ -124,19 +124,19 @@ impl Miner {
         secret_key: String,
         pubkey: String,
         address: String,
-        reward_state: RewardState,
+        reward: Reward,
         network_state: NetworkState,
         n_miners: u128,
         epoch: Epoch,
     ) -> Self {
-        Self {
+        Miner {
             claim: Claim::new(pubkey, address, 1),
             mining: false,
             claim_map: LinkedHashMap::new(),
             txn_pool: Pool::new(PoolKind::Txn),
             claim_pool: Pool::new(PoolKind::Claim),
             last_block: None,
-            reward_state,
+            reward,
             network_state,
             neighbors: None,
             current_nonce_timer: 0,
@@ -211,33 +211,30 @@ impl Miner {
         }
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
-        Block::genesis(
-            &self.reward_state.clone(),
-            self.claim.clone(),
-            self.secret_key.clone(),
-        )
+        Block::genesis(self.claim.clone(), self.secret_key.clone(), None)
     }
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, u128) {
-        let claim_map_hash = digest(serde_json::to_string(&self.claim_map).unwrap().as_bytes());
-        if let Some(last_block) = self.last_block.clone() {
-            return Block::mine(
-                self.clone().claim,
-                last_block,
-                self.clone().txn_pool.confirmed,
-                self.clone().claim_pool.confirmed,
-                Some(claim_map_hash),
-                &self.clone().reward_state.clone(),
-                &self.clone().network_state,
-                self.clone().neighbors,
-                self.abandoned_claim.clone(),
-                self.secret_key.clone(),
-                self.epoch,
-            );
+    pub fn mine(&mut self) -> (Option<Block>, i128) {
+        if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
+            let claim_map_hash = digest(claim_map_str.as_bytes());
+            if let Some(last_block) = self.last_block.clone() {
+                return Block::mine(
+                    self.clone().claim,
+                    last_block,
+                    self.clone().txn_pool.confirmed,
+                    self.clone().claim_pool.confirmed,
+                    Some(claim_map_hash),
+                    &mut self.clone().reward,
+                    &self.clone().network_state,
+                    self.clone().neighbors,
+                    self.abandoned_claim.clone(),
+                    self.secret_key.clone(),
+                    self.epoch,
+                );
+            }
         }
-
         (None, 0)
     }
 
