@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cargo run -- node run \
+cargo watch -w crates/ -x "run -- node run \
     --id abcdef \
     --idx 1 \
     --data-dir .vrrb \
@@ -9,4 +9,4 @@ cargo run -- node run \
     --http-api-address 127.0.0.1:8080 \
     --http-api-version 1.0.1 \
     --bootstrap-node-addresses 127.0.0.1:8081 \
-
+    "
