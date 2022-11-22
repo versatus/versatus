@@ -1,7 +1,6 @@
-use std::collections::{hash_map::Entry, HashMap};
-
-// use telemetry::tracing::subscriber;
-use tokio::sync::mpsc::{error::TryRecvError, UnboundedReceiver, UnboundedSender};
+use crate::{Error, Result};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -33,6 +32,7 @@ pub enum Topic {
 pub struct EventRouter {
     /// Map of async transmitters to various runtime modules
     subscribers: HashMap<Topic, Vec<Subscriber>>,
+    topics: HashMap<Topic, tokio::sync::broadcast::Sender<Event>>,
 }
 
 pub type DirectedEvent = (Topic, Event);
@@ -47,9 +47,29 @@ impl EventRouter {
     pub fn new() -> Self {
         Self {
             subscribers: HashMap::new(),
+            topics: HashMap::new(),
         }
     }
 
+    pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {
+        let buffer = size.unwrap_or(1);
+        let (tx, _) = tokio::sync::broadcast::channel(buffer);
+
+        self.topics.insert(topic, tx);
+    }
+
+    pub fn subscribe(
+        &self,
+        topic: &Topic,
+    ) -> std::result::Result<tokio::sync::broadcast::Receiver<Event>, Error> {
+        if let Some(sender) = self.topics.get(topic) {
+            Ok(sender.subscribe())
+        } else {
+            Err(Error::Other(format!("unable to subscriber to {topic:?}")))
+        }
+    }
+
+    #[deprecated(note = "replaced by 'subscribe'")]
     pub fn add_subscriber(&mut self, topic: Topic, subscriber: Subscriber) {
         match self.subscribers.entry(topic) {
             Entry::Occupied(mut subscribers) => subscribers.get_mut().push(subscriber),
@@ -59,21 +79,10 @@ impl EventRouter {
         }
     }
 
-    /// Starts the command router, distributing all incomming commands to
+    /// Starts the event router, distributing all incomming commands to
     /// specified routes
-    pub async fn start(&mut self, command_rx: &mut UnboundedReceiver<DirectedEvent>) {
-        loop {
-            let (topic, event) = match command_rx.try_recv() {
-                Ok(cmd) => cmd,
-                Err(err) if err == TryRecvError::Disconnected => {
-                    telemetry::error!("The command channel for event router has been closed.");
-                    (Topic::Control, Event::Stop)
-                    //TODO: refactor this error handling
-                },
-                // TODO: log all other errors
-                _ => (Topic::Control, Event::NoOp),
-            };
-
+    pub async fn start(&mut self, event_rx: &mut UnboundedReceiver<DirectedEvent>) {
+        while let Some((topic, event)) = event_rx.recv().await {
             if event == Event::Stop {
                 telemetry::info!("event router received stop signal");
                 self.fan_out_event(Event::Stop, &topic);
@@ -143,6 +152,39 @@ mod tests {
 
     #[tokio::test]
     async fn should_route_events() {
+        let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
+        let mut router = EventRouter::new();
+
+        let (miner_event_tx, mut miner_event_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (validator_event_tx, mut validator_event_rx) = unbounded_channel::<Event>();
+
+        router.add_subscriber(Topic::Control, miner_event_tx);
+        router.add_subscriber(Topic::Control, validator_event_tx.clone());
+        router.add_subscriber(Topic::Transactions, validator_event_tx);
+
+        let handle = tokio::spawn(async move {
+            router.start(&mut event_rx).await;
+        });
+
+        event_tx
+            .send((Topic::Transactions, Event::TxnCreated(Vec::new())))
+            .unwrap();
+
+        event_tx.send((Topic::Control, Event::Stop)).unwrap();
+
+        handle.await.unwrap();
+
+        assert_eq!(
+            validator_event_rx.recv().await.unwrap(),
+            Event::TxnCreated(Vec::new())
+        );
+
+        assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Stop);
+        assert_eq!(miner_event_rx.recv().await.unwrap(), Event::Stop);
+    }
+
+    #[tokio::test]
+    async fn all_subscribers_should_receive_messages() {
         let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
         let mut router = EventRouter::new();
 
