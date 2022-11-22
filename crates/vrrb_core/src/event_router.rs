@@ -25,6 +25,7 @@ pub enum Event {
 pub enum Topic {
     Control,
     Transactions,
+    State,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction
@@ -65,7 +66,7 @@ impl EventRouter {
         if let Some(sender) = self.topics.get(topic) {
             Ok(sender.subscribe())
         } else {
-            Err(Error::Other(format!("unable to subscriber to {topic:?}")))
+            Err(Error::Other(format!("unable to subscribe to {topic:?}")))
         }
     }
 
