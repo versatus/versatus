@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
+use async_trait::async_trait;
 use state::{state::NetworkState, NodeState};
-use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::event_router::{Event, Topic};
 
 use crate::{result::Result, NodeError, RuntimeModule, RuntimeModuleState};
@@ -27,7 +28,7 @@ impl StateModule {
     fn decode_event(&mut self, event: std::result::Result<Event, TryRecvError>) -> Event {
         match event {
             Ok(cmd) => cmd,
-            Err(err) if err == TryRecvError::Disconnected => {
+            Err(err) if err == TryRecvError::Closed => {
                 telemetry::error!("The events channel for event router has been closed.");
                 Event::Stop
             },
@@ -45,6 +46,7 @@ impl StateModule {
     }
 }
 
+#[async_trait]
 impl RuntimeModule for StateModule {
     fn name(&self) -> String {
         String::from("State module")
@@ -54,18 +56,17 @@ impl RuntimeModule for StateModule {
         self.running_status.clone()
     }
 
-    fn start(
+    async fn start(
         &mut self,
-        event_stream: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
+        events_rx: &mut tokio::sync::broadcast::Receiver<Event>,
     ) -> Result<()> {
         loop {
-            let event = self.decode_event(event_stream.try_recv());
+            let event = self.decode_event(events_rx.try_recv());
 
             if event == Event::Stop {
                 telemetry::info!("{0} received stop signal. Stopping", self.name());
 
                 self.running_status = RuntimeModuleState::Terminating;
-                // TODO: do cleanup work like backing up the state
 
                 self.state
                     .serialize_to_json()
@@ -86,8 +87,7 @@ impl RuntimeModule for StateModule {
 #[cfg(test)]
 mod tests {
     use std::{
-        env,
-        io,
+        env, io,
         net::{IpAddr, Ipv4Addr, SocketAddr},
         os,
         path::PathBuf,
@@ -111,12 +111,12 @@ mod tests {
 
         let mut state_module = StateModule::new(state_path);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(1);
 
         assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
 
         let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).unwrap();
+            state_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
         });
 
@@ -132,12 +132,12 @@ mod tests {
 
         let mut state_module = StateModule::new(state_path);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(1);
 
         assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
 
         let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).unwrap();
+            state_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
         });
 
