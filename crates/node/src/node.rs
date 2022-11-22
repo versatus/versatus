@@ -18,7 +18,6 @@ use std::{
 use lr_trie::LeftRightTrie;
 use patriecia::db::MemoryDB;
 use primitives::types::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey, StopSignal};
-use public_ip;
 use rand::{thread_rng, Rng};
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
@@ -32,15 +31,8 @@ use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
-    miner::MiningModule,
-    result::*,
-    runtime::blockchain_module::BlockchainModule,
-    swarm::{SwarmConfig, SwarmModule},
-    NodeAuth,
-    NodeType,
-    RuntimeModule,
-    RuntimeModuleState,
-    StateModule,
+    result::{NodeError, Result},
+    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -173,83 +165,65 @@ impl Node {
     /// that intend to run VRRB nodes
     #[telemetry::instrument]
     pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()> {
-        telemetry::debug!("parsing runtime configuration");
-
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
         let lr_trie = LeftRightTrie::new(backing_db);
+        let state_path = "".into();
 
-        // TODO: setup other modules
-
-        //____________________________________________________________________________________________________
-        // State module
-        let (state_control_tx, mut state_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
-
-        let mut state_module = StateModule::new("".into());
-
-        let state_handle = tokio::spawn(async move {
-            state_module.start(&mut state_control_rx);
-        });
-
-        let (router_control_tx, mut router_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
         let mut event_router = EventRouter::new();
 
-        // event_router.add_subscriber(Topic::Control, state_control_tx.clone());
+        event_router.add_topic(Topic::Control, Some(1));
+        event_router.add_topic(Topic::State, Some(1));
+        event_router.add_topic(Topic::Transactions, Some(100));
 
-        // TODO: report error from handle
-        let router_handle = tokio::spawn(async move {
-            // TODO: fix blocking loop on router
-            event_router.start(&mut router_control_rx).await
-            // }
+        let mut state_module = StateModule::new(StateModuleConfig {
+            path: state_path,
+            events_tx: events_tx.clone(),
         });
 
-        let (http_server_control_tx, mut http_server_control_rx) =
-            tokio::sync::mpsc::channel::<()>(1);
+        let mut state_events_rx = event_router.subscribe(&Topic::State)?;
+
+        let state_handle = tokio::spawn(async move {
+            state_module.start(&mut state_events_rx);
+        });
+
+        let mut http_server_events_rx = event_router.subscribe(&Topic::Control)?;
 
         let http_api_server =
             HttpApiServer::new(self.http_api_server_config.clone()).map_err(|err| {
                 NodeError::Other(format!("Unable to create API server. Reason: {}", err))
             })?;
 
+        // TODO: report error from handle
+        let router_handle = tokio::spawn(async move { event_router.start(&mut events_rx).await });
+
         let http_server_handle = tokio::spawn(async move {
-            http_api_server.start(&mut http_server_control_rx).await;
+            http_api_server.start(&mut http_server_events_rx).await;
         });
 
         self.set_status(RuntimeModuleState::Running);
 
-        // Runtime module teardown
-        //____________________________________________________________________________________________________
-        // TODO: start node API here
-        loop {
-            match control_rx.try_recv() {
-                Ok(evt) => {
-                    telemetry::info!("Received stop event");
+        // NOTE: wait for stop signal
+        control_rx
+            .recv()
+            .await
+            .ok_or(NodeError::Other(String::from(
+                "failed receive control signal",
+            )))?;
 
-                    http_server_control_tx.send(());
+        telemetry::info!("Received stop event");
 
-                    // TODO: send signal to stop all task handlers here
-                    router_control_tx
-                        .send((Topic::Control, evt))
-                        .unwrap_or_default();
+        events_tx
+            .send((Topic::Control, Event::Stop))
+            .unwrap_or_default();
 
-                    self.teardown();
+        self.teardown();
 
-                    break;
-                },
-                Err(err) if err == TryRecvError::Disconnected => {
-                    telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
-                    telemetry::warn!("Shutting down");
-                    break;
-                },
-                _ => {},
-            }
-        }
-        //
         // TODO: await on all task handles here
+        state_handle.await;
 
         telemetry::info!("Node shutdown complete");
 

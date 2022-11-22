@@ -2,11 +2,11 @@ use std::{convert::Infallible, fmt::Debug, io, net::SocketAddr, time::Duration};
 
 use poem::{
     listener::{Acceptor, TcpAcceptor},
-    Route,
-    Server,
+    Route, Server,
 };
 use poem_openapi::{payload::PlainText, OpenApi, OpenApiService};
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::broadcast::Receiver;
+use vrrb_core::event_router::Event;
 
 struct HttpApi;
 
@@ -96,7 +96,7 @@ impl HttpApiServer {
 
     /// Starts listening for HTTP connections on the configured address.
     /// NOTE: this method needs to consume the instance of HttpApiServer
-    pub async fn start(self, ctrl_rx: &mut Receiver<()>) -> io::Result<()> {
+    pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> io::Result<()> {
         let server_timeout = self.server_timeout;
         let server = self.server;
         let app = self.app;

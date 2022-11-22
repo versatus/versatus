@@ -1,4 +1,5 @@
-use tokio::sync::mpsc::channel;
+use tokio::sync::broadcast::channel;
+use vrrb_core::event_router::Event;
 use vrrb_rpc::http::*;
 
 #[tokio::test]
@@ -18,6 +19,6 @@ async fn server_starts_and_stops() {
         api.start(&mut ctrl_rx).await.unwrap();
     });
 
-    ctrl_tx.send(()).await.unwrap();
+    ctrl_tx.send(Event::Stop).unwrap();
     server_handle.await.unwrap();
 }
