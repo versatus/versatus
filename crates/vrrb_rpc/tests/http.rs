@@ -1,4 +1,4 @@
-use tokio::sync::mpsc::channel;
+use tokio::sync::broadcast::channel;
 use vrrb_rpc::http::*;
 
 #[tokio::test]
