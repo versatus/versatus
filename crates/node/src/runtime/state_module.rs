@@ -35,9 +35,17 @@ impl StateModule {
     fn decode_event(&mut self, event: std::result::Result<Event, TryRecvError>) -> Event {
         match event {
             Ok(cmd) => cmd,
-            Err(err) if err == TryRecvError::Closed => {
-                telemetry::error!("The events channel for event router has been closed.");
-                Event::Stop
+            Err(err) => match err {
+                TryRecvError::Closed => {
+                    telemetry::error!("The events channel for event router has been closed.");
+                    Event::Stop
+                },
+
+                TryRecvError::Lagged(u64) => {
+                    telemetry::error!("Receiver lagged behind");
+                    Event::NoOp
+                },
+                _ => Event::NoOp,
             },
             _ => Event::NoOp,
         }
@@ -47,7 +55,11 @@ impl StateModule {
         match event {
             Event::TxnCreated(_) => {
                 telemetry::info!("Storing transaction in tx tree.");
+                self.events_tx
+                    .send((Topic::Transactions, Event::TxnCreated(vec![])))
+                    .unwrap();
             },
+            Event::NoOp => {},
             _ => telemetry::warn!("Unrecognized command received: {:?}", event),
         }
     }
@@ -123,7 +135,7 @@ mod tests {
             events_tx,
         });
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(1);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
 
         assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
 
@@ -162,5 +174,37 @@ mod tests {
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn state_runtime_can_publish_events() {
+        let temp_dir_path = env::temp_dir();
+        let mut state_path = temp_dir_path.clone().join("state.json");
+
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+
+        let mut state_module = StateModule::new(StateModuleConfig {
+            path: state_path,
+            events_tx,
+        });
+
+        let events_handle = tokio::spawn(async move {
+            events_rx.recv().await.unwrap();
+        });
+
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+
+        assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
+
+        let handle = tokio::spawn(async move {
+            state_module.start(&mut ctrl_rx).await.unwrap();
+            assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
+        });
+
+        ctrl_tx.send(Event::TxnCreated(vec![])).unwrap();
+        ctrl_tx.send(Event::Stop).unwrap();
+
+        handle.await.unwrap();
+        events_handle.await.unwrap();
     }
 }
