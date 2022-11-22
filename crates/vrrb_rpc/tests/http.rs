@@ -18,6 +18,6 @@ async fn server_starts_and_stops() {
         api.start(&mut ctrl_rx).await.unwrap();
     });
 
-    ctrl_tx.send(()).await.unwrap();
+    ctrl_tx.send(()).unwrap();
     server_handle.await.unwrap();
 }
