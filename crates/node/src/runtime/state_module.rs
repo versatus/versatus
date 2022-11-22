@@ -3,23 +3,30 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use state::{state::NetworkState, NodeState};
 use tokio::sync::broadcast::error::TryRecvError;
-use vrrb_core::event_router::{Event, Topic};
+use vrrb_core::event_router::{DirectedEvent, Event, Topic};
 
 use crate::{result::Result, NodeError, RuntimeModule, RuntimeModuleState};
+
+pub struct StateModuleConfig {
+    pub path: PathBuf,
+    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+}
 
 pub struct StateModule {
     state: NodeState,
     running_status: RuntimeModuleState,
+    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
 }
 
 /// StateModule manages all state persistence and updates within VrrbNodes
 /// it runs as an indepdendant module such that it can be enabled and disabled
 /// as necessary.
 impl StateModule {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(config: StateModuleConfig) -> Self {
         Self {
-            state: NodeState::new(path),
+            state: NodeState::new(config.path),
             running_status: RuntimeModuleState::Stopped,
+            events_tx: config.events_tx,
         }
     }
 }
@@ -109,7 +116,12 @@ mod tests {
         let temp_dir_path = env::temp_dir();
         let mut state_path = temp_dir_path.clone().join("state.json");
 
-        let mut state_module = StateModule::new(state_path);
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+
+        let mut state_module = StateModule::new(StateModuleConfig {
+            path: state_path,
+            events_tx,
+        });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(1);
 
@@ -130,7 +142,12 @@ mod tests {
         let temp_dir_path = env::temp_dir();
         let mut state_path = temp_dir_path.clone().join("state.json");
 
-        let mut state_module = StateModule::new(state_path);
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+
+        let mut state_module = StateModule::new(StateModuleConfig {
+            path: state_path,
+            events_tx,
+        });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(1);
 

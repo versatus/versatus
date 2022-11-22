@@ -32,7 +32,7 @@ use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
     result::{NodeError, Result},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule,
+    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
@@ -169,6 +169,9 @@ impl Node {
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
         let lr_trie = LeftRightTrie::new(backing_db);
+        let state_path = "".into();
+
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
         let mut event_router = EventRouter::new();
 
@@ -176,15 +179,16 @@ impl Node {
         event_router.add_topic(Topic::State, Some(1));
         event_router.add_topic(Topic::Transactions, Some(100));
 
-        let mut state_module = StateModule::new("".into());
+        let mut state_module = StateModule::new(StateModuleConfig {
+            path: state_path,
+            events_tx: events_tx.clone(),
+        });
+
         let mut state_events_rx = event_router.subscribe(&Topic::State)?;
 
         let state_handle = tokio::spawn(async move {
             state_module.start(&mut state_events_rx);
         });
-
-        let (router_control_tx, mut router_control_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
         let mut http_server_events_rx = event_router.subscribe(&Topic::Control)?;
 
@@ -194,8 +198,7 @@ impl Node {
             })?;
 
         // TODO: report error from handle
-        let router_handle =
-            tokio::spawn(async move { event_router.start(&mut router_control_rx).await });
+        let router_handle = tokio::spawn(async move { event_router.start(&mut events_rx).await });
 
         let http_server_handle = tokio::spawn(async move {
             http_api_server.start(&mut http_server_events_rx).await;
@@ -213,7 +216,7 @@ impl Node {
 
         telemetry::info!("Received stop event");
 
-        router_control_tx
+        events_tx
             .send((Topic::Control, Event::Stop))
             .unwrap_or_default();
 
