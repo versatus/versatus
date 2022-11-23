@@ -13,3 +13,5 @@ tokio = { version = "1.21.2", features = ["full"] }
 serde = "1.0.147"
 serde_json = "1.0.87"
 vrrb_core = { path = "../vrrb_core" }
+telemetry = { path = "../telemetry" }
+tracing = "0.1.37"
