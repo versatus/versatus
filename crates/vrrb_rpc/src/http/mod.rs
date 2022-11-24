@@ -1,7 +1,8 @@
-mod api;
 mod config;
+mod router;
+mod routes;
 mod server;
 
-pub use api::*;
 pub use config::*;
+pub use router::*;
 pub use server::*;

@@ -21,7 +21,6 @@ pub const MAX_BASELINE_REWARD: u128 = 25;
 pub const NUMBER_OF_BLOCKS_PER_EPOCH: u128 = 30000000;
 pub const GENESIS_REWARD: u128 = 400_000_000;
 
-
 /// `Reward` is a struct that contains the epoch, next epoch block, current
 /// block, miner, and amount.
 ///
@@ -40,7 +39,6 @@ pub struct Reward {
     pub miner: Option<String>,
     pub amount: u128,
 }
-
 
 impl Reward {
     /// `start` function for Genesis Reward
@@ -148,7 +146,6 @@ impl Accountable for Reward {
         None
     }
 }
-
 
 #[cfg(test)]
 mod tests {

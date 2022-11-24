@@ -1,49 +1,34 @@
-use std::{convert::Infallible, fmt::Debug, io, time::Duration};
+use std::fmt::Debug;
+use std::net::{SocketAddr, TcpListener, TcpStream};
 
-use poem::{
-    listener::{Acceptor, TcpAcceptor},
-    Route, Server,
-};
-use poem_openapi::OpenApiService;
+use axum_server::tls_rustls::RustlsConfig;
 use tokio::sync::broadcast::Receiver;
 use vrrb_core::event_router::Event;
 
-use crate::http::HttpApi;
+use crate::http::router::create_router;
 use crate::http::HttpApiRouterConfig;
 use crate::http::HttpApiServerConfig;
+use crate::{ApiError, Result};
+use axum::{Router, Server};
 
 /// A JSON-RPC API layer for VRRB nodes.
 pub struct HttpApiServer {
-    server: Server<Infallible, TcpAcceptor>,
-    server_timeout: Option<Duration>,
-    app: Route,
+    router: Router,
+    listener: TcpListener,
+    tls_config: Option<RustlsConfig>,
 }
 
 impl Debug for HttpApiServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HttpApiServer")
-            .field("server_timeout", &self.server_timeout)
+            .field("server_timeout", &self.listener.local_addr())
             .finish()
     }
 }
 
 impl HttpApiServer {
-    // TODO: refactor return type into a proper crate specific result
-    pub fn new(config: HttpApiServerConfig) -> Result<Self, String> {
-        let listener = std::net::TcpListener::bind(config.address.clone())
-            .map_err(|_err| format!("unable to bind to address: {}", config.address))?;
-
-        let acceptor = TcpAcceptor::from_std(listener)
-            .map_err(|_err| format!("unable to bind to listener on address: {}", config.address))?;
-
-        let address = acceptor.local_addr();
-        let address = address
-            .get(0)
-            .ok_or_else(|| String::from("unable to retrieve the address the server is bound to"))?;
-
-        let address = address
-            .as_socket_addr()
-            .ok_or_else(|| String::from("unable to retrieve the address the server is bound to"))?;
+    pub fn new(config: HttpApiServerConfig) -> Result<Self> {
+        let address = &config.address.parse().unwrap();
 
         let router_config = HttpApiRouterConfig {
             address: *address,
@@ -52,48 +37,48 @@ impl HttpApiServer {
             server_timeout: config.server_timeout,
         };
 
-        let mut app = Self::create_router(&router_config)?;
-        let server = Server::new_with_acceptor(acceptor);
-        let server_timeout = config.server_timeout;
+        let tls_config = config.tls_config;
+        let router = create_router(&router_config);
+        let listener = TcpListener::bind(address).map_err(|err| {
+            ApiError::Other(format!("unable to bind to address {address}: {}", err))
+        })?;
 
         Ok(Self {
-            server,
-            server_timeout,
-            app,
+            router,
+            listener,
+            tls_config,
+        })
+    }
+
+    pub fn address(&self) -> Result<SocketAddr> {
+        self.listener.local_addr().map_err(|err| {
+            ApiError::Other(format!(
+                "unable to retrieve the server's local address. Reason: {}",
+                err
+            ))
         })
     }
 
     /// Starts listening for HTTP connections on the configured address.
     /// NOTE: this method needs to consume the instance of HttpApiServer
-    pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> io::Result<()> {
-        let server_timeout = self.server_timeout;
-        let server = self.server;
-        let app = self.app;
+    pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> Result<()> {
+        let server = Server::from_tcp(self.listener)
+            .map_err(|err| ApiError::Other(format!("unable to bind to listener: {err}")))?;
 
-        server
-            .run_with_graceful_shutdown(
-                app,
-                async {
-                    if let Err(err) = ctrl_rx.recv().await {
-                        telemetry::info!("Failed to process shutdown signal. Reason: {err}");
-                    }
-                },
-                server_timeout,
-            )
-            .await
-    }
+        let graceful = server
+            .serve(self.router.into_make_service())
+            .with_graceful_shutdown(async {
+                if let Err(err) = ctrl_rx.recv().await {
+                    telemetry::error!("failed to listen for shutdown signal: {err}");
+                }
+                telemetry::info!("shutting down server");
+            });
 
-    pub fn create_router(config: &HttpApiRouterConfig) -> Result<Route, String> {
-        let openapi_service = OpenApiService::new(
-            HttpApi,
-            config.api_title.clone(),
-            config.api_version.clone(),
-        )
-        .server(config.address.to_string());
+        if let Err(err) = graceful.await {
+            telemetry::error!("server error: {err}");
+            return Err(ApiError::Other(err.to_string()));
+        }
 
-        let ui = openapi_service.swagger_ui();
-        let router = Route::new().nest("/", openapi_service).nest("/docs", ui);
-
-        Ok(router)
+        Ok(())
     }
 }
