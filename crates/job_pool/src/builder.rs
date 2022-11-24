@@ -123,7 +123,6 @@ impl PoolBuilder {
             let result = pool.spawn_job(None);
             assert!(result.is_ok());
         }
-
         pool
     }
 }
