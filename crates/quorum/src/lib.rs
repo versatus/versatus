@@ -12,7 +12,7 @@ mod tests {
     use secp256k1::{self, Secp256k1};
     use sha256::digest;
 
-    use crate::{election::Election, quorum::Quorum};
+    use crate::{election::Election, quorum::{Quorum, InvalidQuorum}};
 
     static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000");
     #[test]
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn elect_quorum() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
-        (0..30).for_each(|i| {
+        (0..25).for_each(|i| {
             let secp = Secp256k1::new();
 
             let mut rng = rand::thread_rng();
@@ -255,12 +255,21 @@ mod tests {
 
         if let Ok(seed) = Quorum::generate_seed(payload1) {
             if let Ok(mut quorum) = Quorum::new(seed, 11, 11) {
-                let mut passed = false;
+                if quorum.run_election(dummy_claims).is_ok() {
+                    assert!(quorum.master_pubkeys.len() == 13);
+                } else {
+                    //first run w dummy claims, THEN if that fails enter loop
+                    let new_claims1 = quorum.nonce_claims_and_new_seed(dummy_claims.clone()).unwrap();
+                    if quorum.run_election(new_claims1).is_err(){
+                        let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims1).unwrap();
+                        //let nonced_up_claims: Vec<Claim> = Vec::new();
+                        while quorum.run_election(new_claims2).is_err() {
+                            let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims2).unwrap();
+                        }
 
-                //add election re-run function if not enough claims
-
-                assert!(quorum.run_election(dummy_claims).is_ok());
-                assert!(quorum.master_pubkeys.len() == 16);
+                    }
+                    assert!(quorum.master_pubkeys.len() == 13);
+                }
             };
         }
     }
@@ -281,9 +290,12 @@ mod tests {
                 TEST_ADDR.to_string().clone(),
                 i as u128,
             );
+            dbg!("CLAIM NONCE:", claim.nonce);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
         });
+
+        dbg!("HI");
 
         let secp = Secp256k1::new();
 
@@ -317,3 +329,28 @@ mod tests {
         }
     }
 }
+
+/*
+CLAIM GENERATION 
+    pub fn generate_claims(num_nodes: u128) -> Result<Vec<Claim>, InvalidQuorum> {
+        static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000");
+        //TODO: make function that updates nodes with new Claim
+        let mut dummy_claims = Vec::new();
+        
+        (0..=num_nodes).for_each(|i| {
+            let secp = Secp256k1::new();
+
+            let mut rng = rand::thread_rng();
+
+            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let claim: Claim = Claim::new(
+                public_key.to_string(),
+                TEST_ADDR.to_string().clone(),
+                i as u128,
+            );
+
+            dummy_claims.push(claim);
+        });
+        
+        Ok(dummy_claims)
+    } */

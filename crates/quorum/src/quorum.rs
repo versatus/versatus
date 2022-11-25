@@ -1,6 +1,7 @@
 use std::u32::MAX as u32MAX;
 
 use claim::claim::Claim;
+use secp256k1::Secp256k1;
 use thiserror::Error;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
@@ -75,26 +76,50 @@ impl Election for Quorum {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
 
-        dbg!("one");
-
         let eligible_claims = match Quorum::get_eligible_claims(ballot) {
             Ok(eligible_claims) => eligible_claims,
             Err(e) => return Err(e),
         };
-
-        dbg!("two");
-
 
         let elected_quorum = match self.get_final_quorum(eligible_claims) {
             Ok(elected_quorum) => elected_quorum,
             Err(e) => return Err(e),
         };
 
-        dbg!("three");
-
-
         Ok(elected_quorum)
+
     }
+
+    fn nonce_claims_and_new_seed(&mut self, claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
+        let seed = match Quorum::generate_seed((self.election_timestamp, self.election_block_height, self.quorum_pk.clone())){
+            Ok(seed) => seed,
+            Err(e) => return Err(e),
+        };
+        self.quorum_seed = seed;
+
+        let mut nonce_up_claims = Vec::new();
+        /*
+        let mut v = vec![100, 32, 57];
+for i in v.iter_mut() {
+    *i += 50;
+}
+ */
+        
+        for claim in claims {
+            let mut nonce_up_claim = claim;
+            nonce_up_claim.nonce += 1;
+            nonce_up_claims.push(nonce_up_claim);
+        }
+        Ok(nonce_up_claims)
+    }
+
+    //if election fails: 
+        //nonce_up claims: claim 0 nonce = num_claims.len(); else claim nonce = old nonce -1
+        //generate a new seed
+        //re-run 
+
+
+
 }
 
 impl Quorum {
@@ -132,6 +157,7 @@ impl Quorum {
                 eligible_claims.push(claim);
             });
         if eligible_claims.len() < 20 {
+            dbg!("HERE:");
             return Err(InvalidQuorum::InsufficientNodesError());
         }
         let eligible_claims = eligible_claims;
@@ -159,8 +185,8 @@ impl Quorum {
             })
             .collect();
 
-        if claim_tuples.len() < 20 {
-            dbg!("invalid pointer sum");
+
+        if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
         }
 
@@ -177,4 +203,5 @@ impl Quorum {
 
         Ok(self)
     }
+
 }
