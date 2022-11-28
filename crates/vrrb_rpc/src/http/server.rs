@@ -62,8 +62,6 @@ impl HttpApiServer {
     /// Starts listening for HTTP connections on the configured address.
     /// NOTE: this method needs to consume the instance of HttpApiServer
     pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> Result<()> {
-        let addr = self.address()?;
-
         if let Some(tls_config) = self.tls_config {
             let tls_server = axum_server::from_tcp_rustls(self.listener, tls_config)
                 .serve(self.router.into_make_service());
