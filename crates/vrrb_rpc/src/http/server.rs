@@ -64,8 +64,6 @@ impl HttpApiServer {
     pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> Result<()> {
         let addr = self.address()?;
 
-        dbg!(&addr, &self.tls_config);
-
         if let Some(tls_config) = self.tls_config {
             let tls_server = axum_server::from_tcp_rustls(self.listener, tls_config)
                 .serve(self.router.into_make_service());
@@ -74,8 +72,6 @@ impl HttpApiServer {
                 telemetry::error!("server error: {err}");
                 return Err(ApiError::Other(err.to_string()));
             }
-
-            dbg!("made it here");
 
             return Ok(());
         }
