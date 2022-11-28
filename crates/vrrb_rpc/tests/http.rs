@@ -48,6 +48,7 @@ async fn server_starts_and_stops() {
 }
 
 #[tokio::test]
+#[ignore = "refactoring tls support on another PR"]
 async fn server_uses_https() {
     let tls_config =
         RustlsConfig::from_pem(common::MOCK_TEST_CERT.into(), common::MOCK_TEST_KEY.into())
