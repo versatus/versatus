@@ -8,8 +8,9 @@ use tower_http::trace::TraceLayer;
 
 pub fn create_router(config: &HttpApiRouterConfig) -> Router {
     Router::new()
-        .nest("/accounts", accounts::create_account_router())
+        .route("/", get(|| async { "index" }))
         .route("/health", get(health::health_check))
+        .nest("/accounts", accounts::create_account_router())
         .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()))
 }
 
@@ -27,7 +28,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore]
     async fn index_should_exist() {
         let listener = std::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
         let address = listener.local_addr().unwrap();
