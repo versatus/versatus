@@ -36,6 +36,7 @@ mod tests {
                 i as u128,
             );
 
+            //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
@@ -234,6 +235,8 @@ mod tests {
                 i as u128,
             );
 
+            //let boxed_claim = Box::new(claim);
+
             dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
@@ -255,18 +258,17 @@ mod tests {
 
         if let Ok(seed) = Quorum::generate_seed(payload1) {
             if let Ok(mut quorum) = Quorum::new(seed, 11, 11) {
-                if quorum.run_election(dummy_claims).is_ok() {
+                if quorum.run_election(dummy_claims.clone()).is_ok() {
                     assert!(quorum.master_pubkeys.len() == 13);
                 } else {
                     //first run w dummy claims, THEN if that fails enter loop
-                    let new_claims1 = quorum.nonce_claims_and_new_seed(dummy_claims.clone()).unwrap();
-                    if quorum.run_election(new_claims1).is_err(){
-                        let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims1).unwrap();
+                    let new_claims1 = quorum.nonce_claims_and_new_seed(dummy_claims).unwrap();
+                    if quorum.run_election(new_claims1.clone()).is_err(){
+                        let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims1.clone()).unwrap();
                         //let nonced_up_claims: Vec<Claim> = Vec::new();
-                        while quorum.run_election(new_claims2).is_err() {
-                            let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims2).unwrap();
+                        while quorum.run_election(new_claims2.clone()).is_err() {
+                            let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims2.clone()).unwrap();
                         }
-
                     }
                     assert!(quorum.master_pubkeys.len() == 13);
                 }
@@ -291,6 +293,7 @@ mod tests {
                 i as u128,
             );
             dbg!("CLAIM NONCE:", claim.nonce);
+            //let boxed_claim = Box::new(claim);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
         });

@@ -1,7 +1,6 @@
 use std::u32::MAX as u32MAX;
 
 use claim::claim::Claim;
-use secp256k1::Secp256k1;
 use thiserror::Error;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
@@ -112,11 +111,6 @@ for i in v.iter_mut() {
         }
         Ok(nonce_up_claims)
     }
-
-    //if election fails: 
-        //nonce_up claims: claim 0 nonce = num_claims.len(); else claim nonce = old nonce -1
-        //generate a new seed
-        //re-run 
 
 
 
