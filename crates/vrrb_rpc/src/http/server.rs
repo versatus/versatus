@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::time::Duration;
 
 use axum_server::tls_rustls::RustlsConfig;
+use axum_server::Handle;
 use tokio::sync::broadcast::Receiver;
 use vrrb_core::event_router::Event;
 
@@ -63,15 +65,32 @@ impl HttpApiServer {
     /// NOTE: this method needs to consume the instance of HttpApiServer
     pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> Result<()> {
         if let Some(tls_config) = self.tls_config {
+            let handle = Handle::new();
+
             let tls_server = axum_server::from_tcp_rustls(self.listener, tls_config)
+                .handle(handle.clone())
                 .serve(self.router.into_make_service());
 
-            if let Err(err) = tls_server.await {
-                telemetry::error!("server error: {err}");
-                return Err(ApiError::Other(err.to_string()));
+            let server_handle = tokio::spawn(async move {
+                if let Err(err) = tls_server.await {
+                    telemetry::error!("server error: {err}");
+                    return Err(ApiError::Other(err.to_string()));
+                }
+
+                Ok(())
+            });
+
+            if let Err(err) = ctrl_rx.recv().await {
+                telemetry::error!("failed to listen for shutdown signal: {err}");
             }
 
-            return Ok(());
+            telemetry::info!("shutting down server");
+
+            handle.graceful_shutdown(Some(Duration::from_secs(30)));
+
+            return server_handle.await.map_err(|err| {
+                ApiError::Other(format!("failed to join server handle: {}", err))
+            })?;
         }
 
         let server = Server::from_tcp(self.listener)

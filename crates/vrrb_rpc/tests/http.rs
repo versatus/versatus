@@ -1,6 +1,9 @@
+use std::str::FromStr;
+
 use axum::{body::Body, http::Request};
 use axum_server::tls_rustls::RustlsConfig;
 use hyper::{Client, StatusCode};
+use reqwest::Url;
 use tokio::sync::broadcast::channel;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::http::*;
@@ -70,15 +73,7 @@ async fn server_uses_https() {
         api.start(&mut ctrl_rx).await.unwrap();
     });
 
-    let client = Client::new();
-
-    let response = client
-        .request(
-            Request::builder()
-                .uri(format!("https://{}/health", addr))
-                .body(Body::empty())
-                .unwrap(),
-        )
+    let response = reqwest::get(&format!("https://{}/health", addr))
         .await
         .unwrap();
 

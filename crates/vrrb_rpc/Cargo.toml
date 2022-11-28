@@ -21,5 +21,4 @@ hyper = { version = "0.14.23", features = ["full"] }
 
 [dev-dependencies]
 hyper = "0.14.23"
-reqwest = "0.11.13"
-serial_test = "0.9.0"
+reqwest = { version = "0.11.13", features = ["rustls-tls"] }
