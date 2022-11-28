@@ -333,27 +333,3 @@ mod tests {
     }
 }
 
-/*
-CLAIM GENERATION 
-    pub fn generate_claims(num_nodes: u128) -> Result<Vec<Claim>, InvalidQuorum> {
-        static TEST_ADDR: &'static str = &("0x0000000000000000000000000000000000000000");
-        //TODO: make function that updates nodes with new Claim
-        let mut dummy_claims = Vec::new();
-        
-        (0..=num_nodes).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-            let claim: Claim = Claim::new(
-                public_key.to_string(),
-                TEST_ADDR.to_string().clone(),
-                i as u128,
-            );
-
-            dummy_claims.push(claim);
-        });
-        
-        Ok(dummy_claims)
-    } */

@@ -97,12 +97,7 @@ impl Election for Quorum {
         self.quorum_seed = seed;
 
         let mut nonce_up_claims = Vec::new();
-        /*
-        let mut v = vec![100, 32, 57];
-for i in v.iter_mut() {
-    *i += 50;
-}
- */
+      
         
         for claim in claims {
             let mut nonce_up_claim = claim;
