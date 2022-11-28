@@ -7,15 +7,16 @@ use job_pool::{builder::PoolBuilder, pool::JobPool};
 /// Returns:
 ///
 /// A JobPool
-fn worker() -> JobPool {
+fn test_worker() -> JobPool {
     PoolBuilder::with_workers_capacity(1, 2)
+        .unwrap()
         .stack_size(2 * 1024 * 1024)
         .build()
 }
 
 #[test]
 fn test_run_sync() {
-    let pool = worker();
+    let pool = test_worker();
     let first = pool
         .run_sync_job(|| {
             pub fn sum_from_zero(n: i32) -> i32 {
@@ -24,7 +25,8 @@ fn test_run_sync() {
             std::thread::sleep(Duration::from_millis(120));
             sum_from_zero(12)
         })
-        .join();
+        .join()
+        .expect("Failed to run the task ");
 
     assert_eq!(first, 78);
     let second = pool
@@ -39,7 +41,8 @@ fn test_run_sync() {
             std::thread::sleep(Duration::from_millis(100));
             geometric_progression(1, 2, 10)
         })
-        .join();
+        .join()
+        .expect("Failed to run the task ");
     assert_eq!(second, 512);
     let times = vec![
         pool.state.tasks_completion_time.pop().unwrap(),
@@ -52,7 +55,7 @@ fn test_run_sync() {
 
 #[test]
 fn test_run_async() {
-    let pool = worker();
+    let pool = test_worker();
     let task_result = pool
         .run_async_job(async {
             pub fn sum_from_zero(n: i32) -> i32 {
@@ -60,38 +63,40 @@ fn test_run_async() {
             }
             sum_from_zero(12)
         })
-        .join();
+        .join()
+        .expect("Failed to run the task ");
 
     assert_eq!(task_result, 78);
 }
 
 #[test]
 fn job_failed_due_to_timeout() {
-    let pool = worker();
+    let pool = test_worker();
     let result = pool
         .run_sync_job(|| thread::sleep(Duration::from_millis(100)))
         .join_timeout(Duration::from_millis(10));
-
-    assert!(result.is_err());
-    assert!(result.unwrap_err().has_timeout_occurred());
+    let status = result.unwrap();
+    assert!(status.is_err());
+    assert!(status.unwrap_err().has_timeout_occurred());
 }
 
 #[test]
 fn idle_shutdown_pool() {
     let pool = PoolBuilder::with_workers_capacity(0, 2)
+        .unwrap()
         .stack_size(2 * 1024 * 1024)
         .keep_alive(Duration::from_millis(10))
         .build();
 
     assert_eq!(pool.jobs(), 0, "Job Pool is empty");
-
     pool.run_sync_job(|| {
         pub fn sum_from_zero(n: i32) -> i32 {
             (0..n + 1).fold(0, |a, b| a + b)
         }
         sum_from_zero(12)
     })
-    .join();
+    .join()
+    .expect("Failed to run the task ");
     assert_eq!(pool.jobs(), 1, "One Job is pushed to pool");
 
     thread::sleep(Duration::from_millis(200));
@@ -104,7 +109,7 @@ fn idle_shutdown_pool() {
 
 #[test]
 fn deallocated_slow_jobs_on_join_timeout() {
-    let pool = worker();
+    let pool = test_worker();
     assert_eq!(pool.jobs(), 1);
 
     let _task = pool.run_sync_job(|| {

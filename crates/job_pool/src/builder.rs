@@ -6,14 +6,19 @@ use std::{
 use crossbeam_channel::{bounded, unbounded};
 use uuid::Uuid;
 
-use crate::pool::{JobPool, State};
+use crate::{
+    error::PoolError,
+    pool::{JobPool, State},
+};
 
 /// A builder for constructing a customized [`JobPool`].
 ///
 /// # Examples
 ///
 /// ```
-/// let custom_pool = job_pool::builder::PoolBuilder::with_workers_capacity(2, 4).build();
+/// let custom_pool = job_pool::builder::PoolBuilder::with_workers_capacity(2, 4)
+///     .unwrap()
+///     .build();
 /// ```
 #[derive(Debug)]
 pub struct PoolBuilder {
@@ -24,24 +29,42 @@ pub struct PoolBuilder {
     keep_alive: Duration,
     no_completed_tasks_to_track: usize,
 }
-
+impl Default for PoolBuilder {
+    fn default() -> Self {
+        Self {
+            size: Option::from((2usize, 4usize)),
+            stack_size: Option::from(2 * 1024 * 1024),
+            job_queue_size: Some(10000),
+            concurrent_jobs_limit: 10,
+            keep_alive: Duration::from_secs(120),
+            no_completed_tasks_to_track: 0,
+        }
+    }
+}
 impl PoolBuilder {
-    pub fn with_workers_capacity(min_workers: usize, max_workers: usize) -> Self {
+    pub fn with_workers_capacity(
+        min_workers: usize,
+        max_workers: usize,
+    ) -> Result<Self, PoolError> {
         if min_workers > max_workers {
-            panic!("Job pool minimum size cannot be larger than maximum size");
+            return Err(PoolError::InvalidPoolWorkerConfig(String::from(
+                "Job pool minimum size cannot be larger than maximum size",
+            )));
         }
 
         if max_workers == 0 {
-            panic!("Job pool maximum size must be greater than zero");
+            return Err(PoolError::InvalidPoolWorkerConfig(String::from(
+                "Job pool maximum size must be greater than zero",
+            )));
         }
-        Self {
+        Ok(Self {
             size: Some((min_workers, max_workers)),
             stack_size: None,
             job_queue_size: None,
             concurrent_jobs_limit: 16,
             keep_alive: Duration::from_secs(60),
             no_completed_tasks_to_track: 100,
-        }
+        })
     }
 
     /// set call stack size for Jobs in job pool.Max Size for Rust Thread is 2
@@ -50,7 +73,8 @@ impl PoolBuilder {
     /// ```
     /// // Workers will have a stack size of at least 32 KiB,and Max 2MB.
     /// use job_pool::builder::PoolBuilder;
-    /// let pool = PoolBuilder::with_workers_capacity(1,2,).stack_size(2 * 1024*1024).build();
+    /// let pool = PoolBuilder::with_workers_capacity(1,2,).unwrap().stack_size(2 * 1024*1024).build();
+    /// assert!(pool.stack_size.is_some());
 
     /// ```
     pub fn stack_size(mut self, size: usize) -> Self {
@@ -120,8 +144,7 @@ impl PoolBuilder {
         };
 
         for _ in 0..size.0 {
-            let result = pool.spawn_job(None);
-            assert!(result.is_ok());
+            let _ = pool.spawn_job(None);
         }
         pool
     }

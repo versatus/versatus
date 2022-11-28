@@ -11,7 +11,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::poller::JobPoller;
+use crate::{
+    error::PoolError,
+    poller::JobPoller,
+};
 
 // Type that is returned after job is submitted to the pool
 pub struct Task<T> {
@@ -93,15 +96,24 @@ impl<T> Task<T> {
     }
 
     /// Check if the task exited because of timeout
-
     pub fn has_timeout_occurred(&self) -> bool {
-        self.status.lock().unwrap().is_timeout
+        let has_timed_out = if let Ok(status) = self.status.lock() {
+            status.is_timeout
+        } else {
+            false
+        };
+        has_timed_out
     }
 
     /// Check if the task is done yet.
 
     pub fn is_finished(&self) -> bool {
-        self.status.lock().unwrap().result.is_some()
+        let has_finished = if let Ok(status) = self.status.lock() {
+            status.result.is_some()
+        } else {
+            false
+        };
+        has_finished
     }
 
     /// Block the current thread until the task completes and return the value
@@ -110,28 +122,33 @@ impl<T> Task<T> {
     /// # Panics
     ///
     /// If the underlying task panics, the panic will propagate to this call.
-    pub fn join(self) -> T {
+    pub fn join(self) -> Result<T, PoolError> {
         match self.join_catch() {
-            Ok(value) => value,
-            Err(e) => resume_unwind(e),
+            Some(Ok(value)) => Ok(value),
+            Some(Err(e)) => resume_unwind(e),
+            _ => Err(PoolError::FailedToEndTask),
         }
     }
 
-    fn join_catch(self) -> thread::Result<T> {
-        let mut status = self.status.lock().unwrap();
-
-        if let Some(result) = status.result.take() {
-            result
-        } else {
-            status.waker = Some(crate::waker::unpark_current_thread());
-            drop(status);
-            loop {
-                thread::park();
-                if let Some(result) = self.status.lock().unwrap().result.take() {
-                    break result;
+    fn join_catch(self) -> Option<thread::Result<T>> {
+        if let Ok(mut status) = self.status.lock() {
+            let result = if let Some(result) = status.result.take() {
+                result
+            } else {
+                status.waker = Some(crate::waker::unpark_current_thread());
+                drop(status);
+                loop {
+                    thread::park();
+                    if let Ok(mut status) = self.status.lock() {
+                        if let Some(result) = status.result.take() {
+                            break result;
+                        }
+                    }
                 }
-            }
-        }
+            };
+            return Some(result);
+        };
+        None
     }
 
     /// Block the current worker until the task completes or a timeout is
@@ -140,35 +157,47 @@ impl<T> Task<T> {
     /// # Panics
     ///
     /// If the underlying task panics, the panic will propagate to this call.
-    pub fn join_timeout(self, timeout: Duration) -> Result<T, Self> {
-        self.join_deadline(Instant::now() + timeout)
+    pub fn join_timeout(self, timeout: Duration) -> Result<Result<T, Self>, PoolError> {
+        match self.join_deadline(Instant::now() + timeout) {
+            None => Err(PoolError::FailedToEndTask),
+            Some(task) => Ok(task),
+        }
     }
 
     /// Block the current worker until the task completes or a timeout is
-    pub fn join_deadline(self, deadline: Instant) -> Result<T, Self> {
-        match {
-            let mut status = self.status.lock().unwrap();
-            if let Some(result) = status.result.take() {
-                result
-            } else {
-                status.waker = Some(crate::waker::unpark_current_thread());
-                drop(status);
-                loop {
-                    if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
-                        thread::park_timeout(timeout);
-                        self.status.as_ref().lock().unwrap().is_timeout = true;
-                    } else {
-                        return Err(self);
-                    }
-                    if let Some(result) = self.status.lock().unwrap().result.take() {
-                        break result;
-                    }
+    pub fn join_deadline(self, deadline: Instant) -> Option<Result<T, Self>> {
+        if let Ok(mut status) = self.status.clone().lock() {
+            match {
+                if let Some(result) = status.result.take() {
+                    Some(result)
+                } else {
+                    status.waker = Some(crate::waker::unpark_current_thread());
+                    drop(status);
+                    Some(loop {
+                        if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
+                            thread::park_timeout(timeout);
+                            if let Ok(mut status) = self.status.as_ref().lock() {
+                                status.is_timeout = true;
+                            }
+                        } else {
+                            return Some(Err(self));
+                        }
+                        if let Ok(mut status) = self.status.as_ref().lock() {
+                            if let Some(result) = status.result.take() {
+                                break result;
+                            }
+                        }
+                    })
                 }
+            } {
+                Some(Ok(value)) => return Some(Ok(value)),
+                Some(Err(e)) => resume_unwind(e),
+                _ => {
+                    return None;
+                },
             }
-        } {
-            Ok(value) => Ok(value),
-            Err(e) => resume_unwind(e),
         }
+        None
     }
 }
 
@@ -176,15 +205,17 @@ impl<T> Future for Task<T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut inner = self.status.lock().unwrap();
-        match inner.result.take() {
-            Some(Ok(value)) => Poll::Ready(value),
-            Some(Err(e)) => resume_unwind(e),
-            None => {
-                inner.waker = Some(cx.waker().clone());
-                Poll::Pending
-            },
+        if let Ok(mut inner) = self.status.lock() {
+            return match inner.result.take() {
+                Some(Ok(value)) => Poll::Ready(value),
+                Some(Err(e)) => resume_unwind(e),
+                None => {
+                    inner.waker = Some(cx.waker().clone());
+                    Poll::Pending
+                },
+            };
         }
+        Poll::Pending
     }
 }
 

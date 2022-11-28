@@ -86,6 +86,7 @@ pub struct StopSignal;
 //TXN Hash or Block Hash
 pub type Hash = Vec<u8>;
 pub type RawSignature = Vec<u8>;
+pub type PeerID = Vec<u8>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SignatureType {

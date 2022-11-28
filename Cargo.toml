@@ -56,4 +56,5 @@ members = [
     "crates/telemetry",
     "crates/signer",
     "crates/job_pool",
+    "crates/job_scheduler"
 ]

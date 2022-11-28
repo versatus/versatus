@@ -126,7 +126,11 @@ impl<L: JobListener> Worker<L> {
                 }
             },
             Ok(op) if Some(op.index()) == pending_job_id => {
-                PollingStatus::Unpark(op.recv(&self.pending_job_notifications.1).unwrap())
+                if let Ok(id) = op.recv(&self.pending_job_notifications.1) {
+                    PollingStatus::Unpark(id)
+                } else {
+                    PollingStatus::Busy
+                }
             },
             //If we dont get any notifications,the pool is busy
             Ok(_) => PollingStatus::Busy,
@@ -172,7 +176,9 @@ impl<L: JobListener> Worker<L> {
         if let Some(job) = self.pending_jobs.get_mut(&id) {
             if let JobExecutionStatus::Complete { is_err: _is_err } = job.run() {
                 // Job is complete
-                self.pending_jobs.remove(&id).unwrap().complete();
+                if let Some(job) = self.pending_jobs.remove(&id) {
+                    job.complete();
+                }
             }
         }
     }

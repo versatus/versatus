@@ -34,7 +34,10 @@ pub struct JobPool {
 impl JobPool {
     /// Get the number of jobs currently in the job pool.
     pub fn jobs(&self) -> usize {
-        *self.state.jobs_count.lock().unwrap()
+        if let Ok(jobs_count) = self.state.jobs_count.lock() {
+            return *jobs_count;
+        }
+        0
     }
 
     pub fn queued_tasks(&self) -> usize {
@@ -73,7 +76,7 @@ impl JobPool {
 
     fn execute_job(&self, job: Job) {
         if let Err(job) = self.try_execute_job(job) {
-            self.waiting_queue.0.send(job).unwrap();
+            let _ = self.waiting_queue.0.send(job);
         }
     }
 
@@ -81,7 +84,7 @@ impl JobPool {
         // Send the job to the idle worker polling for the job
         if let Err(e) = self.immediate_job_queue.0.try_send(job) {
             // No Workers are currently polling the queue,Addition worker can be spawn if
-            //no of workers < no of max jobs allowed
+            // No of workers < no of max jobs allowed
             // else the jobs are further pushed down to the waiting
             // If possible, spawn an additional thread to handle the task.
             if let Err(e) = self.spawn_job(Some(e.into_inner())) {
@@ -118,57 +121,66 @@ impl JobPool {
     fn join_deadline(self, deadline: Option<Instant>) -> bool {
         //inform all workers both running as well as idle,that pool is shutting down
         drop(self.waiting_queue.0);
-        let mut workers_count = self.state.jobs_count.lock().unwrap();
-
-        // Graceful shutdown of workers from the pool.
-        while *workers_count > 0 {
-            if let Some(deadline) = deadline {
-                if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
-                    workers_count = self
-                        .state
-                        .shutdown
-                        .wait_timeout(workers_count, timeout)
-                        .unwrap()
-                        .0;
-                } else {
-                    return false;
-                }
+        if let Ok(mut workers_count) = self.state.jobs_count.lock() {
+            if deadline.is_none() {
+                if let Ok(waiting_workers) = self.state.shutdown.wait(workers_count) {
+                    workers_count = waiting_workers;
+                };
             } else {
-                workers_count = self.state.shutdown.wait(workers_count).unwrap();
+                // Graceful shutdown of workers from the pool.
+                while *workers_count > 0 {
+                    if let Some(deadline) = deadline {
+                        if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
+                            let value = self.state.shutdown.wait_timeout(workers_count, timeout);
+                            match value {
+                                Ok(value) => {
+                                    workers_count = value.0;
+                                    if value.1.timed_out() {
+                                        return false;
+                                    }
+                                },
+                                Err(e) => {
+                                    workers_count = e.into_inner().0;
+                                },
+                            }
+                        } else {
+                            return false;
+                        }
+                    }
+                }
             }
+            return true;
         }
-        true
+        false
     }
 
     /// Spawn an additional job from job  pool,
     pub fn spawn_job(&self, task: Option<Job>) -> Result<(), Option<Job>> {
-        let mut jobs_count = self.state.jobs_count.lock().unwrap();
-
-        if *jobs_count >= self.state.max_jobs {
-            return Err(task);
+        if let Ok(mut jobs_count) = self.state.jobs_count.lock() {
+            if *jobs_count >= self.state.max_jobs {
+                return Err(task);
+            }
+            // Configure the job based on the job pool configuration.
+            let mut builder = thread::Builder::new().name(self.name.clone());
+            if let Some(size) = self.stack_size {
+                builder = builder.stack_size(size);
+            }
+            *jobs_count += 1;
+            let worker = Worker::new(
+                task,
+                self.waiting_queue.1.clone(),
+                self.immediate_job_queue.1.clone(),
+                self.concurrency_limit,
+                self.state.keep_alive,
+                WorkerListener {
+                    state: self.state.clone(),
+                },
+            );
+            drop(jobs_count);
+            let _ = builder.spawn(move || worker.run_job());
+            return Ok(());
         }
-
-        // Configure the job based on the job pool configuration.
-        let mut builder = thread::Builder::new().name(self.name.clone());
-        if let Some(size) = self.stack_size {
-            builder = builder.stack_size(size);
-        }
-        *jobs_count += 1;
-        let worker = Worker::new(
-            task,
-            self.waiting_queue.1.clone(),
-            self.immediate_job_queue.1.clone(),
-            self.concurrency_limit,
-            self.state.keep_alive,
-            WorkerListener {
-                state: self.state.clone(),
-            },
-        );
-        drop(jobs_count);
-
-        builder.spawn(move || worker.run_job()).unwrap();
-
-        Ok(())
+        Err(task)
     }
 }
 
@@ -208,7 +220,10 @@ impl JobListener for WorkerListener {
     }
 
     fn on_idle(&mut self) -> bool {
-        *self.state.jobs_count.lock().unwrap() > self.state.min_jobs
+        if let Ok(jobs_count) = self.state.jobs_count.lock() {
+            return *jobs_count > self.state.min_jobs;
+        }
+        false
     }
 }
 

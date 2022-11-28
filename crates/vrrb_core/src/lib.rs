@@ -10,4 +10,5 @@ pub mod result;
 pub mod txn;
 pub mod updateable;
 pub mod verifiable;
+pub mod cache;
 pub use result::*;

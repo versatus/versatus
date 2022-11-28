@@ -27,11 +27,12 @@ where
 
     fn complete(&mut self) {
         if let Some(result) = self.result.take() {
-            let mut task = self.task.lock().unwrap();
-            task.result = Some(result);
-            if let Some(waker) = task.waker.as_ref() {
-                waker.wake_by_ref();
-            };
+            if let Ok(mut task) = self.task.lock() {
+                task.result = Some(result);
+                if let Some(waker) = task.waker.as_ref() {
+                    waker.wake_by_ref();
+                };
+            }
         }
     }
 }
@@ -59,11 +60,12 @@ where
     /// Updates the task associated with the job.
     fn complete(&mut self) {
         if let Some(result) = self.result.take() {
-            let mut task = self.task.lock().unwrap();
-            task.result = Some(result);
-            if let Some(waker) = task.waker.as_ref() {
-                waker.wake_by_ref();
-            };
+            if let Ok(mut task) = self.task.lock() {
+                task.result = Some(result);
+                if let Some(waker) = task.waker.as_ref() {
+                    waker.wake_by_ref();
+                };
+            }
         }
     }
 }
