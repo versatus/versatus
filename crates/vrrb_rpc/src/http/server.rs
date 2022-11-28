@@ -62,6 +62,24 @@ impl HttpApiServer {
     /// Starts listening for HTTP connections on the configured address.
     /// NOTE: this method needs to consume the instance of HttpApiServer
     pub async fn start(self, ctrl_rx: &mut Receiver<Event>) -> Result<()> {
+        let addr = self.address()?;
+
+        dbg!(&addr, &self.tls_config);
+
+        if let Some(tls_config) = self.tls_config {
+            let tls_server = axum_server::from_tcp_rustls(self.listener, tls_config)
+                .serve(self.router.into_make_service());
+
+            if let Err(err) = tls_server.await {
+                telemetry::error!("server error: {err}");
+                return Err(ApiError::Other(err.to_string()));
+            }
+
+            dbg!("made it here");
+
+            return Ok(());
+        }
+
         let server = Server::from_tcp(self.listener)
             .map_err(|err| ApiError::Other(format!("unable to bind to listener: {err}")))?;
 

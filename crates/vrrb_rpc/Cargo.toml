@@ -18,3 +18,8 @@ axum-server = { version = "0.4.4", features = ["tls-rustls"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["trace"] }
 hyper = { version = "0.14.23", features = ["full"] }
+
+[dev-dependencies]
+hyper = "0.14.23"
+reqwest = "0.11.13"
+serial_test = "0.9.0"

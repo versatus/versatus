@@ -1,6 +1,6 @@
 use axum::{body::Body, http::Request};
 use axum_server::tls_rustls::RustlsConfig;
-use hyper::StatusCode;
+use hyper::{Client, StatusCode};
 use tokio::sync::broadcast::channel;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::http::*;
@@ -27,7 +27,7 @@ async fn server_starts_and_stops() {
         api.start(&mut ctrl_rx).await.unwrap();
     });
 
-    let client = hyper::Client::new();
+    let client = Client::new();
 
     let response = client
         .request(
@@ -70,7 +70,7 @@ async fn server_uses_https() {
         api.start(&mut ctrl_rx).await.unwrap();
     });
 
-    let client = hyper::Client::new();
+    let client = Client::new();
 
     let response = client
         .request(
