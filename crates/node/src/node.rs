@@ -110,6 +110,7 @@ impl Node {
             api_title: config.http_api_title.clone(),
             api_version: config.http_api_version.clone(),
             server_timeout: config.http_api_shutdown_timeout.clone(),
+            tls_config: None,
         };
 
         let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
@@ -201,6 +202,10 @@ impl Node {
         let router_handle = tokio::spawn(async move { event_router.start(&mut events_rx).await });
 
         let http_server_handle = tokio::spawn(async move {
+            let address = http_api_server.address();
+
+            telemetry::info!("HTTP server listening at {address:?}");
+
             http_api_server.start(&mut http_server_events_rx).await;
         });
 
