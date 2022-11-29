@@ -14,9 +14,7 @@ mod tests {
     use patriecia::db::MemoryDB;
     use primitives::types::{
         rand::{thread_rng, Rng},
-        PublicKey,
-        Secp256k1,
-        SecretKey,
+        PublicKey, Secp256k1, SecretKey,
     };
     use reward::reward::{Reward, RewardState};
     use ritelinked::LinkedHashMap;
@@ -106,7 +104,6 @@ mod tests {
             secret_key_2,
             1,
         );
-
 
         assert!((block.0.unwrap().utility + last_block.utility) > 0);
     }
@@ -237,7 +234,6 @@ mod tests {
             signature: "".to_string(),
         }
     }
-
 
     pub fn new_random_signed_txn() -> Transaction {
         let secp = Secp256k1::new();

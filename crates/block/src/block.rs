@@ -31,27 +31,33 @@ pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
-const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
 pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
 pub type CurrentUtility = i128;
 pub type NextEpochAdjustment = i128;
 
-
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Block {
     pub header: BlockHeader,
+
     pub neighbors: Option<Vec<BlockHeader>>,
+
     pub height: u128,
+
     // TODO: replace with Tx Trie Root
-    pub txns: LinkedHashMap<String, Transaction>,
+    // pub txns: LinkedHashMap<String, Transaction>,
+    pub txns: Vec<u8>,
     // TODO: Replace with Claim Trie Root
-    pub claims: LinkedHashMap<String, Claim>,
+    // pub claims: LinkedHashMap<String, Claim>,
+    pub claims: Vec<u8>,
+
     pub hash: String,
+
     pub received_at: Option<u128>,
+
     pub received_from: Option<String>,
+
     // TODO: Replace with map of all abandoned claims in the even more than 1 miner is faulty when
     // they are entitled to mine
     pub abandoned_claim: Option<Claim>,
@@ -68,7 +74,6 @@ pub struct Block {
     /// Adjustment For Next Epoch
     pub adjustment_for_next_epoch: Option<NextEpochAdjustment>,
 }
-
 
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
@@ -182,7 +187,6 @@ impl Block {
             block_utility = utility_amount + last_block.utility;
         }
 
-
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
         let header = BlockHeader::new(
@@ -221,21 +225,22 @@ impl Block {
             header: header.clone(),
             neighbors: neighbors.clone(),
             height,
-            txns: txns_validated
-                .iter()
-                .map(|txn| (txn.get_id(), txn.clone()))
-                .collect::<LinkedHashMap<String, Transaction>>(),
-            claims: claims.clone(),
+            // txns: txns_validated
+            //     .iter()
+            //     .map(|txn| (txn.get_id(), txn.clone()))
+            //     .collect::<LinkedHashMap<String, Transaction>>(),
+            txns: todo!(),
+            // claims: claims.clone(),
+            claims: todo!(),
             hash: header.last_hash,
             received_at: None,
             received_from: None,
             abandoned_claim,
             threshold_signature: None,
-            utility: block_utility,
             epoch,
+            utility: block_utility,
             adjustment_for_next_epoch: adjustment_next_epoch_opt,
         };
-
 
         // block.header.block_reward.clone());
         //TODO: Apply changes from txns to the state

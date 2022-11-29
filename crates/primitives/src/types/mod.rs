@@ -1,18 +1,16 @@
 use std::str::FromStr;
 
 pub use secp256k1::{
-    ecdsa::Signature,
-    rand,
-    Error as Secp256k1Error,
-    Message,
-    PublicKey,
-    Secp256k1,
-    SecretKey,
+    ecdsa::Signature, rand, Error as Secp256k1Error, Message, PublicKey, Secp256k1, SecretKey,
 };
+
 use serde::{Deserialize, Serialize};
+
 pub type NodeId = String;
 pub type NodeIdx = u16;
 pub type NodeIdentifier = String;
+
+pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
