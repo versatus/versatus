@@ -292,13 +292,10 @@ mod tests {
                 TEST_ADDR.to_string().clone(),
                 i as u128,
             );
-            dbg!("CLAIM NONCE:", claim.nonce);
             //let boxed_claim = Box::new(claim);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
         });
-
-        dbg!("HI");
 
         let secp = Secp256k1::new();
 

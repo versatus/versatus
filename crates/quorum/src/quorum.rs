@@ -146,7 +146,6 @@ impl Quorum {
                 eligible_claims.push(claim);
             });
         if eligible_claims.len() < 20 {
-            dbg!("HERE:");
             return Err(InvalidQuorum::InsufficientNodesError());
         }
         let eligible_claims = eligible_claims;
@@ -157,7 +156,6 @@ impl Quorum {
     /// sums
     pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
         if self.quorum_seed == 0 {
-            dbg!("no seed");
             return Err(InvalidQuorum::NoSeedError());
         }
 
