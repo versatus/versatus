@@ -1,5 +1,8 @@
 //FEATURE TAG(S): Block, Chain & Syncing, Rewards, Develop SDK, Develop API for
 // Distributed Programs, Remote Procedure Calls.
+/// The wallet module contains very basic Wallet type and methods related to it.
+/// This will largely be replaced under the proposed protocol, however, for the
+/// prototype this version served its purpose
 use std::{
     collections::HashMap,
     fmt,
@@ -7,25 +10,19 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// The wallet module contains very basic Wallet type and methods related to it.
-/// This will largely be replaced under the proposed protocol, however, for the
-/// prototype this version served its purpose
-use accountable::accountable::Accountable;
 use bytebuffer::ByteBuffer;
-use claim::claim::Claim;
 use ritelinked::LinkedHashMap;
 use secp256k1::{
     key::{PublicKey, SecretKey},
-    Error,
-    Message,
-    Secp256k1,
-    Signature,
+    Error, Message, Secp256k1, Signature,
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use txn::txn::Txn;
 use uuid::Uuid;
+use vrrb_core::accountable::Accountable;
+use vrrb_core::claim::Claim;
+use vrrb_core::txn::Txn;
 
 const STARTING_BALANCE: u128 = 1000;
 

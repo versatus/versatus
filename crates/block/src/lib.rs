@@ -8,15 +8,15 @@ pub use crate::block::*;
 mod tests {
     use std::{collections::HashMap, time::UNIX_EPOCH};
 
-    use claim::claim::Claim;
     use rand::{thread_rng, Rng};
     use reward::reward::Reward;
     use ritelinked::LinkedHashMap;
     use secp256k1::Secp256k1;
     use state::NetworkState;
-    use txn::txn::Txn;
+    use vrrb_core::claim::Claim;
+    use vrrb_core::txn::Txn;
 
-    use crate::{header::BlockHeader, Block};
+    use crate::{header::BlockHeader, Block, MineArgs};
 
     #[test]
     fn test_genesis_block_utility() {
@@ -51,6 +51,21 @@ mod tests {
 
         let mut reward = Reward::genesis(Some("MINER_1".to_string()));
         let block_headers = vec![get_block_header(2), get_block_header(3)];
+
+        let mine_args = MineArgs {
+            claim: last_block_claim,
+            last_block: genesis_block,
+            txns: get_txns(),
+            claims: get_claims(),
+            claim_map_hash: None,
+            reward: &mut reward,
+            network_state: &NetworkState::default(),
+            neighbors: Some(block_headers),
+            abandoned_claim: None,
+            signature: secret_key_1.to_string(),
+            epoch: 1,
+        };
+
         let last_block = Block::mine(
             last_block_claim,
             genesis_block,

@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.101", features = ["derive"] }
-ritelinked = {version = "0.3.2", features = [ 'serde' ]}
-verifiable = { path = "../verifiable" }
+ritelinked = { version = "0.3.2", features = ['serde'] }
+vrrb_core = { path = "../vrrb_core" }

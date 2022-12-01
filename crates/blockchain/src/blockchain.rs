@@ -14,19 +14,19 @@ use block::{
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
 use commands::command::ComponentTypes;
-use log::info;
 use messages::message_types::MessageType;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
+use telemetry::info;
 use udp2p::{
     gossip::protocol::GossipMessage,
     protocol::protocol::{Header, Message, MessageKey},
     utils::utils::{timestamp_now, ByteRep},
 };
-use verifiable::verifiable::Verifiable;
+use vrrb_core::verifiable::Verifiable;
 use vrrb_lib::fields::GettableFields;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

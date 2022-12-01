@@ -1,3 +1,4 @@
+#[deprecated(note = "use the struct defined at crates/vrrb_core instead")]
 pub mod ledger;
 
 #[cfg(test)]

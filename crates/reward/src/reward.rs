@@ -1,7 +1,7 @@
 //FEATURE TAG(S): Rewards, Block Structure
 
-use accountable::accountable::Accountable;
 use serde::{Deserialize, Serialize};
+use vrrb_core::accountable::Accountable;
 
 // UNITS
 pub const SPECK: u128 = 1;

@@ -7,26 +7,17 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use claim::claim::Claim;
 use rand::Rng;
 use reward::reward::Reward;
 use secp256k1::{
     key::{PublicKey, SecretKey},
-    Error,
-    Message,
-    Secp256k1,
-    Signature,
+    Error, Message, Secp256k1, Signature,
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
+use vrrb_core::claim::Claim;
 
 use crate::{block::Block, NextEpochAdjustment};
-
-// TODO: Helper constants like the ones below should be in their own mod
-pub const NANO: u128 = 1;
-pub const MICRO: u128 = NANO * 1000;
-pub const MILLI: u128 = MICRO * 1000;
-pub const SECOND: u128 = MILLI * 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {

@@ -10,13 +10,10 @@ reward = { path = "../reward" }
 state = { path = "../state" }
 block = { path = "../block" }
 pool = { path = "../pool" }
-txn = { path = "../txn" }
-claim = { path = "../claim" }
-verifiable = { path = "../verifiable" }
-noncing = { path = "../noncing" }
 ritelinked = { version = "0.3.2", features = ['serde'] }
 serde_json = "1.0.64"
 serde = { version = "1.0.101", features = ["derive"] }
 sha256 = "1.0.2"
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 primitives = { path = "../primitives" }
+vrrb_core = { path = "../vrrb_core" }

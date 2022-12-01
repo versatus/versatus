@@ -5,7 +5,7 @@ use std::{
 };
 
 use evmap;
-use txn::txn::Txn;
+use vrrb_core::txn::Txn;
 
 #[allow(clippy::derive_hash_xor_eq)]
 #[derive(Hash)]

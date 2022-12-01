@@ -7,7 +7,7 @@ use std::{
 use left_right::{ReadHandle, ReadHandleFactory};
 use mempool::mempool::{FetchFiltered, *};
 use patriecia::{db::Database, inner::InnerTrie};
-use txn::txn::*;
+use vrrb_core::txn::*;
 
 use crate::{mempool_processor::MempoolControlMsg, txn_validator::TxnValidator};
 

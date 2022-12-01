@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
-use txn::txn::Txn;
+use vrrb_core::txn::Txn;
 
 use super::error::MempoolError;
 
@@ -50,7 +50,6 @@ impl TxnRecord {
         }
     }
 }
-
 
 pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 

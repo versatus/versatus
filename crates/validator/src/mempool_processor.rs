@@ -8,7 +8,7 @@ use mempool::{
     mempool::{LeftRightMemPoolDB, TxnStatus},
 };
 use patriecia::db::Database;
-use txn::txn::Txn;
+use vrrb_core::txn::Txn;
 
 use crate::validator_unit::{Core, CoreControlMsg, CoreId, ValidatorUnit};
 

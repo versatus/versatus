@@ -9,15 +9,15 @@ use std::{
 };
 
 /// This module contains the basic structure of simple transaction
-use accountable::accountable::Accountable;
+use crate::accountable::Accountable;
+use crate::verifiable::Verifiable;
 use bytebuffer::ByteBuffer;
-use pool::pool::Pool;
+// use pool::pool::Pool;
+// use state::state::NetworkState;
 use secp256k1::{Message, PublicKey, Secp256k1, Signature};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use state::state::NetworkState;
 use uuid::Uuid;
-use verifiable::verifiable::Verifiable;
 
 /// A simple custom error type
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -105,8 +105,10 @@ impl Accountable for Txn {
     }
 }
 
+// TODO: revisit this impl later
 impl Verifiable for Txn {
-    type Dependencies = (NetworkState, Pool<String, Txn>);
+    // type Dependencies = (NetworkState, Pool<String, Txn>);
+    type Dependencies = (bool, bool);
     type Error = InvalidTxnError;
     type Item = Option<String>;
 
@@ -114,7 +116,6 @@ impl Verifiable for Txn {
         true
     }
 
-    #[allow(unused_variables)]
     fn valid(
         &self,
         item: &Self::Item,

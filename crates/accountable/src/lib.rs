@@ -1,3 +1,4 @@
+#[deprecated(note = "use the trait defined at crates/vrrb_core instead")]
 pub mod accountable;
 
 #[cfg(test)]
