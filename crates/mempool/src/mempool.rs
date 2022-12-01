@@ -223,7 +223,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::HashMap;
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     ///
@@ -264,7 +264,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -340,7 +340,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -388,7 +388,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -439,7 +439,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let txn_id = String::from("1");
@@ -485,7 +485,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -572,7 +572,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
