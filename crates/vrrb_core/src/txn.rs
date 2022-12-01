@@ -107,6 +107,7 @@ impl Accountable for Txn {
 
 // TODO: revisit this impl later
 impl Verifiable for Txn {
+    // TODO: replace with the real dependencies
     // type Dependencies = (NetworkState, Pool<String, Txn>);
     type Dependencies = (bool, bool);
     type Error = InvalidTxnError;

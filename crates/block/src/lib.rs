@@ -53,32 +53,21 @@ mod tests {
         let block_headers = vec![get_block_header(2), get_block_header(3)];
 
         let mine_args = MineArgs {
-            claim: last_block_claim,
+            claim: last_block_claim.clone(),
             last_block: genesis_block,
             txns: get_txns(),
             claims: get_claims(),
             claim_map_hash: None,
             reward: &mut reward,
             network_state: &NetworkState::default(),
-            neighbors: Some(block_headers),
+            neighbors: Some(block_headers.clone()),
             abandoned_claim: None,
             signature: secret_key_1.to_string(),
             epoch: 1,
         };
 
-        let last_block = Block::mine(
-            last_block_claim,
-            genesis_block,
-            get_txns(),
-            get_claims(),
-            None,
-            &mut reward,
-            &NetworkState::default(),
-            Some(block_headers),
-            None,
-            secret_key_1.to_string(),
-            1,
-        );
+        let last_block = Block::mine(mine_args);
+
         let start = start
             .checked_sub(std::time::Duration::from_secs(3))
             .unwrap();
@@ -89,19 +78,22 @@ mod tests {
 
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
 
-        let block = Block::mine(
-            new_block_claim,
-            last_block.clone(),
-            get_txns(),
-            get_claims(),
-            None,
-            &mut reward,
-            &NetworkState::default(),
-            None,
-            None,
-            secret_key_2.to_string(),
-            1,
-        );
+        let mine_args = MineArgs {
+            claim: last_block_claim.clone(),
+            last_block: last_block.clone(),
+            txns: get_txns(),
+            claims: get_claims(),
+            claim_map_hash: None,
+            reward: &mut reward,
+            network_state: &NetworkState::default(),
+            neighbors: Some(block_headers.clone()),
+            abandoned_claim: None,
+            signature: secret_key_2.to_string(),
+            epoch: 1,
+        };
+
+        let block = Block::mine(mine_args);
+
         assert!((block.0.unwrap().utility + last_block.utility) > 0);
     }
 
@@ -127,19 +119,23 @@ mod tests {
         let mut reward = Reward::genesis(Some("MINER_1".to_string()));
 
         let block_headers = vec![get_block_header(2), get_block_header(3)];
-        let last_block = Block::mine(
-            last_block_claim,
-            genesis_block,
-            get_txns(),
-            get_claims(),
-            None,
-            &mut reward,
-            &NetworkState::default(),
-            Some(block_headers),
-            None,
-            secret_key_1.to_string(),
-            0,
-        );
+
+        let mine_args = MineArgs {
+            claim: last_block_claim,
+            last_block: genesis_block,
+            txns: get_txns(),
+            claims: get_claims(),
+            claim_map_hash: None,
+            reward: &mut reward,
+            network_state: &NetworkState::default(),
+            neighbors: Some(block_headers),
+            abandoned_claim: None,
+            signature: secret_key_1.to_string(),
+            epoch: 0,
+        };
+
+        let last_block = Block::mine(mine_args);
+
         let start = start
             .checked_sub(std::time::Duration::from_secs(3))
             .unwrap();
@@ -147,35 +143,44 @@ mod tests {
 
         let adjustment = last_block.1;
         reward.new_epoch(adjustment);
+
         assert!(reward.valid_reward());
+
         let mut last_block = last_block.0.unwrap();
         last_block.header.timestamp = timestamp;
         last_block.utility = 10;
 
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
-        let block = Block::mine(
-            new_block_claim,
-            last_block.clone(),
-            get_txns(),
-            get_claims(),
-            None,
-            &mut reward,
-            &NetworkState::default(),
-            None,
-            None,
-            secret_key_2.to_string(),
-            1,
-        );
+
+        let mine_args = MineArgs {
+            claim: new_block_claim,
+            last_block,
+            txns: get_txns(),
+            claims: get_claims(),
+            claim_map_hash: None,
+            reward: &mut reward,
+            network_state: &NetworkState::default(),
+            neighbors: None,
+            abandoned_claim: None,
+            signature: secret_key_2.to_string(),
+            epoch: 1,
+        };
+
+        let block = Block::mine(mine_args);
         let adjustment_next_epoch = block.1;
         let block_data = block.0.unwrap();
+
         assert_eq!(
             adjustment_next_epoch,
             ((block_data.utility as f64) * 0.01) as i128
         );
+
         assert!(block_data.adjustment_for_next_epoch.is_some());
+
         if let Some(adjustment_for_next_epoch) = block_data.adjustment_for_next_epoch {
             assert!(adjustment_for_next_epoch > 0);
         }
+
         assert!(reward.valid_reward());
     }
 

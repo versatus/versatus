@@ -17,8 +17,6 @@ messages = { path = "../messages" }
 lr_trie = { path = "../lr_trie" }
 storage = { path = "../storage" }
 miner = { path = "../miner" }
-claim = { path = "../claim" }
-ledger = { path = "../ledger" }
 wallet = { path = "../wallet" }
 state = { path = "../state" }
 validator = { path = "../validator" }

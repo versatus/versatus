@@ -4,9 +4,9 @@ use std::fs;
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
 use vrrb_core::accountable::Accountable;
-use claim::claim::Claim;
-use ledger::ledger::Ledger;
-use log::info;
+use vrrb_core::claim::Claim;
+use vrrb_core::ledger::Ledger;
+use telemetry::info;
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
