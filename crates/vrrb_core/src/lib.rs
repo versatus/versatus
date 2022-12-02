@@ -8,5 +8,6 @@ pub mod ownable;
 pub mod result;
 pub mod txn;
 pub mod updateable;
+pub mod utils;
 pub mod verifiable;
 pub use result::*;

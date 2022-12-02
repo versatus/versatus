@@ -1,6 +1,7 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
+use lr_trie::{LeftRightTrie, TrieRoot};
 use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::LinkedHashMap;
@@ -54,8 +55,10 @@ pub struct Block {
     pub height: u128,
     // TODO: replace with Tx Trie Root
     pub txns: LinkedHashMap<String, Txn>,
+    // pub txns: TrieRoot,
     // TODO: Replace with Claim Trie Root
     pub claims: LinkedHashMap<String, Claim>,
+    // pub claims: TrieRoot,
     pub hash: String,
     pub received_at: Option<u128>,
     pub received_from: Option<String>,

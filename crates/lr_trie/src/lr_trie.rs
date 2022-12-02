@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Key, Operation};
 
+pub type TrieRoot = Option<H256>;
+
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
 pub struct LeftRightTrie<D>
@@ -60,7 +62,7 @@ where
         self.handle().len() == 0
     }
 
-    pub fn root(&self) -> Option<H256> {
+    pub fn root(&self) -> TrieRoot {
         self.handle().root_hash().ok()
     }
 

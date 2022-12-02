@@ -1,4 +1,7 @@
+pub mod block_integrity_checker;
+pub mod block_processor;
 pub mod blockchain;
+pub mod result;
 
 #[cfg(test)]
 mod tests {
