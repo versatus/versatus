@@ -23,4 +23,3 @@ vrrb_core = { path = "../vrrb_core" }
 
 [dev-dependencies]
 rand = "0.8.5"
-mempool = { path = "../mempool" }
