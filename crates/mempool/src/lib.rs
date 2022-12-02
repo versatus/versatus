@@ -9,7 +9,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use txn::txn::Txn;
+    use vrrb_core::txn::Txn;
 
     use crate::mempool::{LeftRightMemPoolDB, TxnStatus};
 

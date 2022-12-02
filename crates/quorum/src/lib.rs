@@ -8,9 +8,9 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use claim::claim::Claim;
     use secp256k1::{self, Secp256k1};
     use sha256::digest;
+    use vrrb_core::claim::Claim;
 
     use crate::{election::Election, quorum::Quorum};
 

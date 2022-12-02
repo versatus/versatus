@@ -8,14 +8,13 @@ pub trait Verifiable {
 
     fn verifiable(&self) -> bool;
 
-    #[allow(unused_variables)]
+    // TODO? rename to is_valid
     fn valid(
         &self,
         item: &Self::Item,
         debendencies: &Self::Dependencies,
     ) -> Result<bool, Self::Error>;
 
-    #[allow(unused_variables)]
     fn valid_genesis(&self, dependencies: &Self::Dependencies) -> Result<bool, Self::Error> {
         Ok(true)
     }

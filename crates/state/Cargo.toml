@@ -12,16 +12,12 @@ log = "0.4.14"
 serde_json = "1.0.64"
 hex = "*"
 serde = { version = "1.0.101", features = ["derive"] }
-claim = { path = "../claim" }
-verifiable = { path = "../verifiable" }
-ledger = { path = "../ledger" }
-accountable = { path = "../accountable" }
 lrdb = { path = "../lrdb" }
-ownable = { path = "../ownable" }
-noncing = { path = "../noncing" }
 reward = { path = "../reward" }
 lr_trie = { path = "../lr_trie" }
 primitives = { path = "../primitives" }
+vrrb_core = { path = "../vrrb_core" }
+telemetry = { path = "../telemetry" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 thiserror = "1.0.37"
 rand = "0.8.5"

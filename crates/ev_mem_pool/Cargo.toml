@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 evmap = "10.0.2"
-txn = { path="../txn"}
+vrrb_core = { path = "../vrrb_core" }
+

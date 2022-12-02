@@ -6,14 +6,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use block::header::BlockHeader;
 /// This module is for the creation and operation of a mining unit within a node
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
-use block::block::Block;
-use block::header::BlockHeader;
-use claim::claim::Claim;
-use noncing::nonceable::Nonceable;
+use block::{block::Block, MineArgs};
 use pool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
@@ -21,7 +19,10 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use txn::txn::Txn;
+use vrrb_core::claim::Claim;
+use vrrb_core::nonceable::Nonceable;
+use vrrb_core::txn::Txn;
+
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
@@ -220,19 +221,22 @@ impl Miner {
         if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
             let claim_map_hash = digest(claim_map_str.as_bytes());
             if let Some(last_block) = self.last_block.clone() {
-                return Block::mine(
-                    self.clone().claim,
+                let mine_args = MineArgs {
+                    claim: self.clone().claim,
                     last_block,
-                    self.clone().txn_pool.confirmed,
-                    self.clone().claim_pool.confirmed,
-                    Some(claim_map_hash),
-                    &mut self.clone().reward,
-                    &self.clone().network_state,
-                    self.clone().neighbors,
-                    self.abandoned_claim.clone(),
-                    self.secret_key.clone(),
-                    self.epoch,
-                );
+                    txns: self.clone().txn_pool.confirmed,
+                    claims: self.clone().claim_pool.confirmed,
+
+                    claim_map_hash: Some(claim_map_hash),
+                    reward: &mut self.clone().reward,
+                    network_state: &self.clone().network_state,
+                    neighbors: self.clone().neighbors,
+                    abandoned_claim: self.abandoned_claim.clone(),
+                    signature: self.secret_key.clone(),
+                    epoch: self.epoch,
+                };
+
+                return Block::mine(mine_args);
             }
         }
         (None, 0)

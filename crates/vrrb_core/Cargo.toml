@@ -10,3 +10,13 @@ tokio = { version = "1.21.2", features = ["full"] }
 telemetry = { path = "../telemetry" }
 anyhow = "1.0.65"
 thiserror = "1.0.37"
+ritelinked = { version = "0.3.2", features = ['serde'] }
+sha256 = "1.0.2"
+serde_json = "1.0.64"
+serde = { version = "1.0.101", features = ["derive"] }
+hex = "0.4.3"
+secp256k1 = { version = "0.20.2", features = ["rand"] }
+bytebuffer = "0.2.1"
+uuid = { version = "0.8.0", features = ["serde", "v4"] }
+# pool = { path = "../pool" }
+# state = { path = "../state" }

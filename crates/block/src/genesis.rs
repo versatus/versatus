@@ -1,6 +1,6 @@
 use ritelinked::LinkedHashMap;
-use txn::txn::Txn;
 use vesting::VestingConfig;
+use vrrb_core::txn::Txn;
 
 // 50% after one year, then monthly for 12 months
 const EMPLOYEE_VESTING: VestingConfig = VestingConfig {
@@ -30,7 +30,7 @@ const INVESTORS: [&str; 2] = [
 
 // TODO: replace that mock module, when vesting contract is written
 mod vesting {
-    use txn::txn::Txn;
+    use vrrb_core::txn::Txn;
 
     pub struct VestingConfig {
         pub cliff_fraction: f64,
