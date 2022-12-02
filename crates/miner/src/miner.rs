@@ -12,7 +12,7 @@ use block::header::BlockHeader;
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
 use block::{block::Block, MineArgs};
-use pool::pool::{Pool, PoolKind};
+use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;

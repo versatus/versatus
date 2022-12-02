@@ -42,7 +42,6 @@ members = [
     "crates/state",
     "crates/wallet",
     "crates/events",
-    "crates/ev_mem_pool",
     "crates/commands",
     "crates/mempool",
     "crates/messages",

@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 serde_json = "1.0.64"
 serde = { version = "1.0.101", features = ["derive"] }
-pool = { path = "../pool" }
 state = { path = "../state" }
 mempool = { path = "../mempool" }
 left-right = "0.11.5"
@@ -24,4 +23,3 @@ vrrb_core = { path = "../vrrb_core" }
 
 [dev-dependencies]
 rand = "0.8.5"
-mempool = { path = "../mempool" }
