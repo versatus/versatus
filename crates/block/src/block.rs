@@ -1,34 +1,50 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
-#![allow(unused_imports)]
-#![allow(dead_code)]
-use std::fmt;
 
-use accountable::accountable::Accountable;
-use claim::claim::Claim;
-use log::info;
-use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH};
-use rand::Rng;
-use reward::reward::{Category, RewardState, GENESIS_REWARD};
+use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
+use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use txn::txn::Txn;
-use verifiable::verifiable::Verifiable;
+use std::fmt;
+use vrrb_core::accountable::Accountable;
+use vrrb_core::claim::Claim;
+use vrrb_core::txn::Txn;
+use vrrb_core::verifiable::Verifiable;
+
+#[cfg(mainnet)]
+use crate::genesis;
+
+#[cfg(mainnet)]
+use reward::reward::GENESIS_REWARD;
 
 use crate::{
-    genesis,
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
 
-pub const NANO: u128 = 1;
-pub const MICRO: u128 = NANO * 1000;
-pub const MILLI: u128 = MICRO * 1000;
-pub const SECOND: u128 = MILLI * 1000;
-const VALIDATOR_THRESHOLD: f64 = 0.60;
-pub type CurrentUtility = u128;
+pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
+pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
+
+pub type CurrentUtility = i128;
+pub type NextEpochAdjustment = i128;
+
+pub struct MineArgs<'a> {
+    /// The claim entitling the miner to mine the block.
+    pub claim: Claim,
+    pub last_block: Block,
+    /// The last block, which contains the current block reward.
+    pub txns: LinkedHashMap<String, Txn>,
+    pub claims: LinkedHashMap<String, Claim>,
+    pub claim_map_hash: Option<String>,
+    pub reward: &'a mut Reward,
+    pub network_state: &'a NetworkState,
+    pub neighbors: Option<Vec<BlockHeader>>,
+    pub abandoned_claim: Option<Claim>,
+    pub signature: String,
+    pub epoch: Epoch,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -54,15 +70,18 @@ pub struct Block {
     pub epoch: Epoch,
 
     /// Measurement of utility for the chain
-    pub utility: u128,
+    pub utility: CurrentUtility,
+
+    /// Adjustment For Next Epoch
+    pub adjustment_for_next_epoch: Option<NextEpochAdjustment>,
 }
 
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(reward_state: &RewardState, claim: Claim, secret_key: String) -> Option<Block> {
+    pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Option<Block> {
         // Create the genesis header
-        let header = BlockHeader::genesis(0, reward_state, claim.clone(), secret_key);
+        let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner);
         // Create the genesis state hash
         // TODO: Replace with state trie root
         let state_hash = digest(
@@ -100,6 +119,7 @@ impl Block {
             threshold_signature: None,
             utility: 0,
             epoch: GENESIS_EPOCH,
+            adjustment_for_next_epoch: None,
         };
 
         // Update the State Trie & Tx Trie with the miner and new block, this will also
@@ -112,20 +132,32 @@ impl Block {
     /// The mine method is used to generate a new block (and an updated account
     /// state with the reward set to the miner wallet's balance), this will
     /// also update the network state with a new confirmed state.
-    #[allow(clippy::too_many_arguments)]
     pub fn mine(
-        claim: Claim,      // The claim entitling the miner to mine the block.
-        last_block: Block, // The last block, which contains the current block reward.
-        txns: LinkedHashMap<String, Txn>,
-        claims: LinkedHashMap<String, Claim>,
-        claim_map_hash: Option<String>,
-        reward_state: &RewardState,
-        network_state: &NetworkState,
-        neighbors: Option<Vec<BlockHeader>>,
-        abandoned_claim: Option<Claim>,
-        signature: String,
-        epoch: Epoch,
-    ) -> (Option<Block>, CurrentUtility) {
+        args: MineArgs,
+        // claim: Claim,      // The claim entitling the miner to mine the block.
+        // last_block: Block, // The last block, which contains the current block reward.
+        // txns: LinkedHashMap<String, Txn>,
+        // claims: LinkedHashMap<String, Claim>,
+        // claim_map_hash: Option<String>,
+        // reward: &mut Reward,
+        // network_state: &NetworkState,
+        // neighbors: Option<Vec<BlockHeader>>,
+        // abandoned_claim: Option<Claim>,
+        // signature: String,
+        // epoch: Epoch,
+    ) -> (Option<Block>, NextEpochAdjustment) {
+        let claim = args.claim;
+        let last_block = args.last_block;
+        let txns = args.txns;
+        let claims = args.claims;
+        let claim_map_hash = args.claim_map_hash;
+        let reward = args.reward;
+        let network_state = args.network_state;
+        let neighbors = args.neighbors;
+        let abandoned_claim = args.abandoned_claim;
+        let signature = args.signature;
+        let epoch = args.epoch;
+
         // TODO: Replace with Tx Trie Root
         let txn_hash = {
             let mut txn_vec = vec![];
@@ -148,34 +180,50 @@ impl Block {
             }
         };
 
+        let mut block_utility: i128 = 0;
+        let utility_amount: i128 = txns.iter().map(|x| x.1.get_amount() as i128).sum();
+        let mut adjustment_next_epoch = 0;
+        if epoch != last_block.epoch {
+            block_utility = utility_amount;
+            adjustment_next_epoch =
+                Self::set_next_adjustment_epoch(&last_block, reward, utility_amount);
+        } else {
+            block_utility = utility_amount + last_block.utility;
+        }
+
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
         let header = BlockHeader::new(
             last_block.clone(),
-            reward_state,
+            reward,
             claim,
             txn_hash,
             claim_map_hash,
             neighbors_hash,
             signature,
+            epoch == last_block.epoch,
+            adjustment_next_epoch,
         );
 
-        // TODO: Discuss whether local clock works well enough for this purpose of
         // guaranteeing at least 1 second between blocks or whether some other
         // mechanism may serve the purpose better, or whether simply sequencing proposed
         // blocks and allowing validator network to determine how much time
         // between blocks has passed.
         if let Some(time) = header.timestamp.checked_sub(last_block.header.timestamp) {
             if (time / SECOND) < 1 {
-                return (None, 0u128);
+                return (None, 0i128);
             }
         } else {
-            return (None, 0u128);
+            return (None, 0i128);
         }
 
         let height = last_block.height + 1;
+        let adjustment_next_epoch_opt = if adjustment_next_epoch != 0 {
+            Some(adjustment_next_epoch)
+        } else {
+            None
+        };
 
-        let utility_amount: u128 = txns.iter().map(|x| x.1.get_amount()).sum();
         let mut block = Block {
             header: header.clone(),
             neighbors,
@@ -187,20 +235,10 @@ impl Block {
             received_from: None,
             abandoned_claim,
             threshold_signature: None,
-            utility: 0,
+            utility: block_utility,
             epoch,
+            adjustment_for_next_epoch: adjustment_next_epoch_opt,
         };
-        let mut adjustment_next_epoch = 0;
-        if block.epoch != last_block.epoch {
-            block.utility = utility_amount;
-            adjustment_next_epoch = if block.utility > last_block.utility {
-                (block.utility as f64 * 0.01) as u128
-            } else {
-                (block.utility as f64 * -0.01) as u128
-            };
-        } else {
-            block.utility = utility_amount + last_block.utility;
-        }
 
         // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
@@ -208,6 +246,40 @@ impl Block {
         let hash = hashable_state.hash(&block.txns, block.header.block_reward.clone());
         block.hash = hash;
         (Some(block), adjustment_next_epoch)
+    }
+
+    /// If the utility amount is greater than the last block's utility, then the next adjustment epoch
+    /// is the utility amount times the gross utility percentage. Otherwise, the next adjustment epoch
+    /// is the utility amount times the negative gross utility percentage
+    ///
+    /// Arguments:
+    ///
+    /// * `last_block`: The last block in the chain.
+    /// * `reward`: The reward for the current epoch.
+    /// * `utility_amount`: The amount of utility that was generated in the last epoch.
+    ///
+    /// Returns:
+    ///
+    /// The amount of the adjustment for the next epoch.
+    fn set_next_adjustment_epoch(
+        last_block: &Block,
+        reward: &Reward,
+        utility_amount: i128,
+    ) -> i128 {
+        let mut adjustment_next_epoch = if utility_amount > last_block.utility {
+            (utility_amount as f64 * GROSS_UTILITY_PERCENTAGE) as i128
+        } else {
+            (utility_amount as f64 * -GROSS_UTILITY_PERCENTAGE) as i128
+        };
+        if let Some(adjustment_percentage_previous_epoch) = last_block.adjustment_for_next_epoch {
+            if (adjustment_next_epoch / NUMBER_OF_BLOCKS_PER_EPOCH as i128)
+                >= adjustment_percentage_previous_epoch * reward.amount as i128
+            {
+                adjustment_next_epoch = adjustment_percentage_previous_epoch
+                    * (reward.amount * NUMBER_OF_BLOCKS_PER_EPOCH) as i128
+            };
+        };
+        adjustment_next_epoch
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -245,7 +317,7 @@ impl fmt::Display for Block {
 // TODO: Rewrite Verifiable to comport with Masternode Quorum Validation
 // Protocol
 impl Verifiable for Block {
-    type Dependencies = (NetworkState, RewardState);
+    type Dependencies = NetworkState;
     type Error = InvalidBlockError;
     type Item = Block;
 
@@ -253,39 +325,33 @@ impl Verifiable for Block {
         true
     }
 
-    #[allow(unused_variables)]
     fn valid(
         &self,
         item: &Self::Item,
         dependencies: &Self::Dependencies,
     ) -> Result<bool, Self::Error> {
         if self.header.block_height > item.header.block_height + 1 {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::BlockOutOfSequence,
-            });
+            return Err(Self::Error::new(
+                InvalidBlockErrorReason::BlockOutOfSequence,
+            ));
         }
 
         if self.header.block_height <= item.header.block_height {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::NotTallestChain,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::NotTallestChain));
         }
 
         if self.header.block_nonce != item.header.next_block_nonce {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockNonce,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidBlockNonce));
         }
 
         if self.header.block_reward.get_amount() != item.header.next_block_reward.get_amount() {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockReward,
-            });
+            return Err(Self::Error::new(
+                InvalidBlockErrorReason::InvalidBlockReward,
+            ));
         }
 
-        if let Some((hash, pointers)) = dependencies
-            .0
-            .get_lowest_pointer(self.header.block_nonce as u128)
+        if let Some((hash, pointers)) =
+            dependencies.get_lowest_pointer(self.header.block_nonce as u128)
         {
             if hash == self.header.claim.hash {
                 if let Some(claim_pointer) = self
@@ -294,32 +360,28 @@ impl Verifiable for Block {
                     .get_pointer(self.header.block_nonce as u128)
                 {
                     if pointers != claim_pointer {
-                        return Err(Self::Error {
-                            details: InvalidBlockErrorReason::InvalidClaimPointers,
-                        });
+                        return Err(Self::Error::new(
+                            InvalidBlockErrorReason::InvalidClaimPointers,
+                        ));
                     }
                 } else {
-                    return Err(Self::Error {
-                        details: InvalidBlockErrorReason::InvalidClaimPointers,
-                    });
+                    return Err(Self::Error::new(
+                        InvalidBlockErrorReason::InvalidClaimPointers,
+                    ));
                 }
             } else {
-                return Err(Self::Error {
-                    details: InvalidBlockErrorReason::InvalidClaimPointers,
-                });
+                return Err(Self::Error::new(
+                    InvalidBlockErrorReason::InvalidClaimPointers,
+                ));
             }
         }
 
         if self.header.last_hash != item.hash {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidLastHash,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidLastHash));
         }
 
         if self.header.claim.valid(&None, &(None, None)).is_err() {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidClaim,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidClaim));
         }
 
         Ok(true)
@@ -337,33 +399,27 @@ impl Verifiable for Block {
         );
 
         if self.header.block_height != 0 {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockHeight,
-            });
+            return Err(Self::Error::new(
+                InvalidBlockErrorReason::InvalidBlockHeight,
+            ));
         }
 
         if self.header.last_hash != genesis_last_hash {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidLastHash,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidLastHash));
         }
 
         if self.hash != genesis_state_hash {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidStateHash,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidStateHash));
         }
 
         if self.header.claim.valid(&None, &(None, None)).is_err() {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidClaim,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidClaim));
         }
 
         if self.header.verify().is_err() {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidBlockSignature,
-            });
+            return Err(Self::Error::new(
+                InvalidBlockErrorReason::InvalidBlockSignature,
+            ));
         }
 
         let mut valid_data = true;
@@ -375,9 +431,7 @@ impl Verifiable for Block {
         });
 
         if !valid_data {
-            return Err(Self::Error {
-                details: InvalidBlockErrorReason::InvalidTxns,
-            });
+            return Err(Self::Error::new(InvalidBlockErrorReason::InvalidTxns));
         }
 
         Ok(true)

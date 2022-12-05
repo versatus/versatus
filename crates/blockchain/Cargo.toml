@@ -27,5 +27,7 @@ commands = { path = "../commands" }
 messages = { path = "../messages" }
 reward = { path = "../reward" }
 state = { path = "../state" }
-verifiable = { path = "../verifiable" }
+vrrb_core = { path = "../vrrb_core" }
+telemetry = { path = "../telemetry" }
+# verifiable = { path = "../verifiable" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }

@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
-use txn::txn::Txn;
+use vrrb_core::txn::Txn;
 
 use super::error::MempoolError;
 
@@ -50,7 +50,6 @@ impl TxnRecord {
         }
     }
 }
-
 
 pub type MempoolType = IndexMap<String, TxnRecord, FxBuildHasher>;
 
@@ -224,7 +223,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::HashMap;
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     ///
@@ -265,7 +264,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -341,7 +340,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -389,7 +388,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -440,7 +439,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let txn_id = String::from("1");
@@ -486,7 +485,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
@@ -573,7 +572,7 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use txn::txn::Txn;
+    /// use vrrb_core::txn::Txn;
     ///
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();

@@ -1,7 +1,7 @@
 use std::u32::MAX as u32MAX;
 
-use claim::claim::Claim;
 use thiserror::Error;
+use vrrb_core::claim::Claim;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::election::Election;

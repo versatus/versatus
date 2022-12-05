@@ -1,6 +1,5 @@
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 pub type NodeId = String;
 pub type NodeIdx = u16;
 pub type NodeIdentifier = String;
@@ -12,6 +11,8 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
+
+pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -108,3 +109,11 @@ macro_rules! is_enum_variant {
 pub type Epoch = u128;
 
 pub const GENESIS_EPOCH: Epoch = 0;
+pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
+pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
+
+// Time-related helper constants
+pub const NANO: u128 = 1;
+pub const MICRO: u128 = NANO * 1000;
+pub const MILLI: u128 = MICRO * 1000;
+pub const SECOND: u128 = MILLI * 1000;

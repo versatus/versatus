@@ -16,13 +16,9 @@ serde = { version = "1.0.101", features = ["derive"] }
 blake3 = "0.3.8"
 hex = "*"
 thiserror = "1.0"
-log = "0.4.14"
 ritelinked = { version = "0.3.2", features = ['serde'] }
-claim = { path = "../claim" }
 reward = { path = "../reward" }
-txn = { path = "../txn" }
-verifiable = { path = "../verifiable" }
-noncing = { path = "../noncing" }
 state = { path = "../state" }
-accountable = { path = "../accountable" }
 primitives = { path = "../primitives" }
+vrrb_core = { path = "../vrrb_core" }
+telemetry = { path = "../telemetry" }

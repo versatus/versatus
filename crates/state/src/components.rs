@@ -2,8 +2,8 @@
 
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
-use serde::{Deserialize, Serialize};
 
+use serde::{Deserialize, Serialize};
 use crate::types::{
     StateArchive,
     StateBlockchain,

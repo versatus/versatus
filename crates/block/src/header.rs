@@ -7,26 +7,17 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use claim::claim::Claim;
 use rand::Rng;
-use reward::reward::{Reward, RewardState};
+use reward::reward::Reward;
 use secp256k1::{
     key::{PublicKey, SecretKey},
-    Error,
-    Message,
-    Secp256k1,
-    Signature,
+    Error, Message, Secp256k1, Signature,
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
+use vrrb_core::claim::Claim;
 
-use crate::block::Block;
-
-// TODO: Helper constants like the ones below should be in their own mod
-pub const NANO: u128 = 1;
-pub const MICRO: u128 = NANO * 1000;
-pub const MILLI: u128 = MICRO * 1000;
-pub const SECOND: u128 = MILLI * 1000;
+use crate::{block::Block, NextEpochAdjustment};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
@@ -51,9 +42,9 @@ pub struct BlockHeader {
 impl BlockHeader {
     pub fn genesis(
         nonce: u64,
-        reward_state: &RewardState,
         claim: Claim,
         secret_key: String,
+        miner: Option<String>,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -71,7 +62,7 @@ impl BlockHeader {
         let txn_hash = digest("Genesis_Txn_Hash".as_bytes());
         let block_reward = Reward::genesis(Some(claim.address.clone()));
         //TODO: Replace reward state
-        let next_block_reward = Reward::new(None, reward_state);
+        let next_block_reward = Reward::genesis(miner);
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
         let payload = format!(
@@ -109,12 +100,14 @@ impl BlockHeader {
 
     pub fn new(
         last_block: Block,
-        reward_state: &RewardState,
+        reward: &mut Reward,
         claim: Claim,
         txn_hash: String,
         claim_map_hash: Option<String>,
         neighbor_hash: Option<String>,
         secret_key: String,
+        epoch_change: bool,
+        adjustment_next_epoch: NextEpochAdjustment,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -130,7 +123,12 @@ impl BlockHeader {
             .as_nanos();
         let mut block_reward = last_block.header.next_block_reward;
         block_reward.miner = Some(claim.clone().address);
-        let next_block_reward = Reward::new(None, reward_state);
+
+        let mut next_block_reward = reward.clone();
+        if epoch_change {
+            reward.new_epoch(adjustment_next_epoch);
+            next_block_reward = reward.clone();
+        }
         let block_height = last_block.header.block_height + 1;
         let payload = format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",

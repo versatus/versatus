@@ -6,7 +6,7 @@ use std::{cmp::Eq, hash::Hash};
 //TODO: Replace this module with the Left-Right Pool(s).
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use verifiable::verifiable::Verifiable;
+use vrrb_core::verifiable::Verifiable;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Pool<K: Serialize + Eq + Hash, V: Verifiable> {

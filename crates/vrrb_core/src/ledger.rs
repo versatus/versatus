@@ -1,6 +1,6 @@
-use claim::claim::Claim;
-use noncing::nonceable::Nonceable;
-use ownable::ownable::Ownable;
+use crate::claim::Claim;
+use crate::nonceable::Nonceable;
+use crate::ownable::Ownable;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 

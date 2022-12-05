@@ -20,8 +20,5 @@ log = "0.4.14"
 ritelinked = { version = "0.3.2", features = ['serde'] }
 strum = "0.21.0"
 strum_macros = "0.21.0"
-txn = { path = "../txn" }
 state = { path = "../state" }
-claim = { path = "../claim" }
-accountable = { path = "../accountable" }
-
+vrrb_core = { path = "../vrrb_core" }
