@@ -181,7 +181,7 @@ impl Blockchain {
     /// Dumps data to a PickleDB Instance
     pub fn dump(&self, block: &Block) -> Result<(), Box<dyn Error>> {
         let mut db = self.get_chain_db();
-        if let Err(e) = db.set(&std::str::from_utf8(&block.header.last_hash)?, block) {
+        if let Err(e) = db.set(&std::str::from_utf8(&block.header.last_hash).unwrap(), block) {
             return Err(Box::new(e));
         }
 
