@@ -11,7 +11,7 @@ use block::header::BlockHeader;
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
-use block::{block::Block, MineArgs};
+use block::{block::Block, MineArgs, invalid::InvalidBlockError};
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
@@ -212,7 +212,14 @@ impl Miner {
         }
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
-        Block::genesis(self.claim.clone(), self.secret_key.clone(), None)
+        
+        let genesis_block = Block::genesis(self.claim.clone(), self.secret_key.clone(), None);
+
+        if genesis_block.is_ok(){
+            Some(genesis_block.unwrap())
+        } else {
+            None
+        }
     }
 
     /// Attempts to mine a block

@@ -97,7 +97,7 @@ fn setup_mining() {
                                     miner.clone().claim_map.get(&miner.clone().claim.pubkey)
                                 {
                                     let lowest_pointer = miner.get_lowest_pointer(
-                                        last_block.header.next_block_nonce as u128,
+                                        last_block.header.next_block_seed as u128,
                                     );
                                     if let Some((hash, _)) = lowest_pointer.clone() {
                                         if hash == claim.hash.clone() {
@@ -376,7 +376,7 @@ fn setup_mining() {
                                 miner.clone().claim_map.get(&miner.clone().claim.pubkey)
                             {
                                 let lowest_pointer = miner
-                                    .get_lowest_pointer(last_block.header.next_block_nonce as u128);
+                                    .get_lowest_pointer(last_block.header.next_block_seed as u128);
                                 if let Some((hash, _)) = lowest_pointer.clone() {
                                     if miner.check_time_elapsed() > 30 {
                                         miner.current_nonce_timer = miner.get_timestamp();

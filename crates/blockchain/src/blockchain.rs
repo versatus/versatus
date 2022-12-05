@@ -36,9 +36,9 @@ pub struct Blockchain {
     pub parent: Option<Block>,
     pub chain: LinkedList<BlockHeader>,
     pub chain_db: String, // Path to the chain database.
-    pub block_cache: LinkedHashMap<String, Block>,
-    pub future_blocks: LinkedHashMap<String, Block>,
-    pub invalid: LinkedHashMap<String, Block>,
+    pub block_cache: LinkedHashMap<Vec<u8>, Block>,
+    pub future_blocks: LinkedHashMap<Vec<u8>, Block>,
+    pub invalid: LinkedHashMap<Vec<u8>, Block>,
     pub components_received: HashSet<ComponentTypes>,
     pub updating_state: bool,
     pub processing_backlog: bool,
@@ -182,7 +182,7 @@ impl Blockchain {
     /// Dumps data to a PickleDB Instance
     pub fn dump(&self, block: &Block) -> Result<(), Box<dyn Error>> {
         let mut db = self.get_chain_db();
-        if let Err(e) = db.set(&block.header.last_hash, block) {
+        if let Err(e) = db.set(&std::str::from_utf8(&block.header.last_hash).unwrap(), block) {
             return Err(Box::new(e));
         }
 

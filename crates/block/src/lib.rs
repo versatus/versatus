@@ -24,7 +24,7 @@ mod tests {
         let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
         let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
         let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
-        assert!(genesis_block_opt.is_some());
+        assert!(genesis_block_opt.is_ok());
         let genesis_block = genesis_block_opt.unwrap();
         assert!(genesis_block.utility == 0);
     }
@@ -191,9 +191,9 @@ mod tests {
             .unwrap();
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
         BlockHeader {
-            last_hash: "".to_string(),
-            block_nonce: 0,
-            next_block_nonce: 0,
+            last_hash: Vec::<u8>::new(),
+            block_seed: 0,
+            next_block_seed: 0,
             block_height: 0,
             timestamp,
             txn_hash: "".to_string(),
@@ -277,4 +277,26 @@ mod tests {
         }
         claims
     }
+
+    #[test]
+    fn test_vfr_seed_same_msg() {
+        let secp = Secp256k1::new();
+        let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
+        let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
+        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
+        assert!(genesis_block_opt.is_ok());
+        let genesis_block = genesis_block_opt.unwrap();
+        assert!(genesis_block.utility == 0);
+
+        let secp2 = Secp256k1::new();
+        let (secret_key, _) = secp2.generate_keypair(&mut thread_rng());
+        let claim2 = Claim::new("pubkey".to_string(), "address".to_string(), 1);
+        let genesis_block_opt2 = Block::genesis(claim2, secret_key.to_string(), None);
+        assert!(genesis_block_opt2.is_ok());
+        let genesis_block2 = genesis_block_opt2.unwrap();
+        assert!(genesis_block2.utility == 0);
+
+        assert!(genesis_block.header.block_seed == genesis_block2.header.block_seed);
+    }
+
 }

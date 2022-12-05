@@ -22,3 +22,4 @@ state = { path = "../state" }
 primitives = { path = "../primitives" }
 vrrb_core = { path = "../vrrb_core" }
 telemetry = { path = "../telemetry" }
+vrrb_vrf = { path = "../vrrb_vrf" }
