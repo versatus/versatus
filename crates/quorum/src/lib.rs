@@ -213,8 +213,6 @@ mod tests {
             let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
-            //let boxed_claim = Box::new(claim);
-
             dummy_claims.push(claim);
         });
         let secp = Secp256k1::new();
