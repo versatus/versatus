@@ -6,6 +6,7 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
+use primitives::types::RawSignature;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
@@ -35,11 +36,14 @@ pub struct BlockHeader {
 }
 
 impl BlockHeader {
+
+    //TODO: miners needs to wait on threshold signature before passing to this fxn
     pub fn genesis(
         seed: u64,
         claim: Claim,
         secret_key: Vec<u8>,
         miner: Option<String>,
+        threshold_signature: RawSignature
     ) -> Result<BlockHeader, InvalidBlockErrorReason> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -49,7 +53,8 @@ impl BlockHeader {
         let last_hash = "Genesis_Last_Hash".as_bytes().to_vec();
         let block_seed = seed;
         // Range should remain the same.
-        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone()) {
+
+        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()) {
             Ok(next_block_seed) => next_block_seed,
             Err(e) => return Err(e),
         };
@@ -110,6 +115,7 @@ impl BlockHeader {
         secret_key: SecretKeyBytes,
         epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
+        threshold_signature: Option<RawSignature>
     ) -> Result<BlockHeader, InvalidBlockErrorReason> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -118,7 +124,7 @@ impl BlockHeader {
         //let mut rng = rand::thread_rng();
         let last_hash = last_block.hash;
         let block_seed = last_block.header.next_block_seed;
-        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone()) {
+        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.unwrap().clone()) {
             Ok(next_block_seed) => next_block_seed,
             Err(e) => return Err(e),
         };
@@ -185,9 +191,11 @@ impl BlockHeader {
         )
     }
 
-    pub fn generate_next_block_seed(last_hash: Vec<u8>) -> Result<u64, InvalidBlockErrorReason>{
+    //TODO Option wrapper removed from threshiold_signature as waiting will be required before it can be passed in 
+    pub fn generate_next_block_seed(last_hash: Vec<u8>, threshold_sig: RawSignature) -> Result<u64, InvalidBlockErrorReason>{
         let sk = VVRF::generate_secret_key();
-        let mut vvrf = VVRF::new(&last_hash, sk);
+        let msg: Vec<u8> = last_hash.iter().cloned().chain(threshold_sig.iter().cloned()).collect();
+        let mut vvrf = VVRF::new(&msg, sk);
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
             return Err(InvalidBlockErrorReason::InvalidBlockHeader);
