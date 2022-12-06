@@ -12,7 +12,6 @@ use vrrb_core::accountable::Accountable;
 use vrrb_core::claim::Claim;
 use vrrb_core::txn::Txn;
 use vrrb_core::verifiable::Verifiable;
-use thiserror::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -21,7 +20,6 @@ use crate::genesis;
 use reward::reward::GENESIS_REWARD;
 
 use crate::{
-    genesis,
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
@@ -83,7 +81,8 @@ impl Block {
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Result<Block, InvalidBlockError> {
         // Create the genesis header
-        let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner);
+
+        let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner, Vec::new());
         // Create the genesis state hash
         // TODO: Replace with state trie root
         let mut state_hash = "".to_string();
@@ -125,7 +124,7 @@ impl Block {
             received_at: None,
             received_from: None,
             abandoned_claim: None,
-            threshold_signature: None,
+            threshold_signature: Some(vec![0; 5]),
             utility: 0,
             epoch: GENESIS_EPOCH,
             adjustment_for_next_epoch: None,
@@ -199,6 +198,8 @@ impl Block {
             block_utility = utility_amount + last_block.utility;
         }
 
+        
+
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
         let header = BlockHeader::new(
@@ -211,6 +212,7 @@ impl Block {
             signature,
             epoch == last_block.epoch,
             adjustment_next_epoch,
+            Some(vec![0; 5]),
         );
 
         // guaranteeing at least 1 second between blocks or whether some other
@@ -246,7 +248,7 @@ impl Block {
             received_at: None,
             received_from: None,
             abandoned_claim,
-            threshold_signature: None,
+            threshold_signature: Some(vec![0; 5]),
             utility: block_utility,
             epoch,
             adjustment_for_next_epoch: adjustment_next_epoch_opt,
