@@ -40,7 +40,6 @@ members = [
     "crates/miner",
     "crates/state",
     "crates/wallet",
-    "crates/events",
     "crates/mempool",
     "crates/vrrb_lib",
     "crates/vrrb_cli",

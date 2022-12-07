@@ -18,7 +18,6 @@ miner = { path = "../miner" }
 wallet = { path = "../wallet" }
 state = { path = "../state" }
 validator = { path = "../validator" }
-events = { path = "../events" }
 reward = { path = "../reward" }
 blockchain = { path = "../blockchain" }
 vrrb_rpc = { path = "../vrrb_rpc" }
