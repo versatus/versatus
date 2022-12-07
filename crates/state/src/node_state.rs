@@ -1,14 +1,31 @@
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
-
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
-use lrdb::Account;
+use lrdb::{StateDb, StateDbReadHandleFactory};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
-use primitives::types::node::PublicKey;
+use primitives::{node, PublicKey, SerializedPublicKey, TxHash};
 use serde::{Deserialize, Serialize};
+use telemetry::info;
+use vrrb_core::{
+    account::{Account, UpdateArgs},
+    txn::Txn,
+};
 
 use crate::{result::Result, types::StatePath, StateError};
+
+const DEFAULT_SERIALIZED_STATE_FILENAME: &str = "state";
+const DEFAULT_SERIALIZED_CONFIRMED_TXNS_FILENAME: &str = "txns";
+const DEFAULT_SERIALIZED_MEMPOOL_FILENAME: &str = "mempool";
+
+#[derive(Debug, Clone, Default)]
+pub struct NodeStateConfig {
+    pub path: StatePath,
+    pub serialized_state_filename: Option<String>,
+    pub serialized_mempool_filename: Option<String>,
+    pub serialized_confirmed_txns_filename: Option<String>,
+}
 
 /// The Node State struct, contains basic information required to determine
 /// the current state of the network.
@@ -16,83 +33,29 @@ use crate::{result::Result, types::StatePath, StateError};
 pub struct NodeState {
     /// Path to database
     pub path: StatePath,
-    state_trie: LeftRightTrie<MemoryDB>,
-    tx_trie: LeftRightTrie<MemoryDB>,
-}
-
-impl Clone for NodeState {
-    /// Warning: do not use yet as lr_trie doesn't fully implement clone yet.
-    fn clone(&self) -> NodeState {
-        NodeState {
-            path: self.path.clone(),
-            state_trie: self.state_trie.clone(),
-            tx_trie: self.tx_trie.clone(),
-        }
-    }
-}
-
-impl From<NodeStateValues> for NodeState {
-    fn from(node_state_values: NodeStateValues) -> Self {
-        let mut state_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
-
-        let mapped_state = node_state_values
-            .state
-            .into_iter()
-            .map(|(key, acc)| (key.into_bytes(), acc))
-            .collect();
-
-        state_trie.extend(mapped_state);
-
-        Self {
-            path: PathBuf::new(),
-            state_trie,
-            tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct NodeStateValues {
-    pub txns: HashMap<PublicKey, Account>,
-    pub state: HashMap<String, Account>,
-}
-
-impl From<&NodeState> for NodeStateValues {
-    fn from(node_state: &NodeState) -> Self {
-        let state = node_state
-            .entries()
-            .into_iter()
-            .map(|(k, v)| (format!("{:?}", k), v))
-            .collect();
-
-        Self {
-            txns: HashMap::new(),
-            state,
-        }
-    }
-}
-
-impl NodeStateValues {
-    /// Converts a vector of bytes into a Network State or returns an error if
-    /// it's unable to
-    #[allow(dead_code)]
-    pub fn from_bytes(data: &[u8]) -> Result<NodeStateValues> {
-        serde_json::from_slice::<NodeStateValues>(data)
-            .map_err(|err| StateError::Other(err.to_string()))
-    }
+    // TODO: change lifetime parameter once refactoring is complete
+    state_db: StateDb<'static>,
+    tx_trie: LeftRightTrie<'static, TxHash, Txn, MemoryDB>,
 }
 
 impl NodeState {
-    pub fn new(path: std::path::PathBuf) -> Self {
+    pub fn new(cfg: &NodeStateConfig) -> Self {
+        let path = cfg.path.clone();
+
+        if let Some(serialized_state_filename) = &cfg.serialized_state_filename {
+            info!("restoring state from file {serialized_state_filename}");
+        }
+
+        let mut state_db = StateDb::new();
+
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
-        let state_trie = LeftRightTrie::new(backing_db.clone());
         let tx_trie = LeftRightTrie::new(backing_db);
 
         Self {
             path,
-            state_trie,
+            state_db,
             tx_trie,
         }
     }
@@ -151,59 +114,136 @@ impl NodeState {
     }
 
     /// Returns the current state trie's root hash.
-    pub fn root_hash(&self) -> Option<H256> {
-        self.state_trie.root()
+    pub fn state_root_hash(&self) -> Option<H256> {
+        self.state_db.root_hash()
+    }
+
+    pub fn read_handle(&self) -> NodeStateReadHandle {
+        let state_handle_factory = self.state_db_factory();
+
+        NodeStateReadHandle {
+            state_handle_factory,
+        }
     }
 
     /// Produces a reader factory that can be used to generate read handles into
     /// the state tree.
-    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
-        self.state_trie.factory()
+    pub fn state_db_factory(&self) -> StateDbReadHandleFactory {
+        self.state_db.factory()
     }
 
     /// Returns a mappig of public keys and accounts.
-    pub fn entries(&self) -> HashMap<PublicKey, Account> {
-        self.state_trie
-            .handle()
-            .iter()
-            .map(|(k, v)| {
-                let account: Account = serde_json::from_slice(&v).unwrap_or_default();
-                (k, account)
-            })
-            .collect::<HashMap<Key, Account>>()
+    pub fn entries(&self) -> HashMap<SerializedPublicKey, Account> {
+        self.state_db.read_handle().entries()
     }
 
     /// Retrieves an account entry from the current state tree.
-    pub fn get_account(&mut self, key: &PublicKey) -> Result<Account> {
-        let raw_account_bytes = self
-            .state_trie
-            .handle()
-            .get(key)
-            .unwrap_or_default()
-            .unwrap_or_default(); //TODO: Refactor patriecia to only return results, not options
-
-        let account = serde_json::from_slice(&raw_account_bytes).unwrap_or_default();
+    pub fn get_account(&mut self, key: &SerializedPublicKey) -> Result<Account> {
+        let account = self.state_db.read_handle().get(key).unwrap_or_default();
 
         Ok(account)
     }
 
     /// Adds an account to current state tree.
-    pub fn add_account(&mut self, key: PublicKey, account: Account) {
-        self.state_trie.add(key, account);
+    pub fn add_account(&mut self, key: SerializedPublicKey, account: Account) {
+        self.state_db.insert(key, account);
+    }
+
+    /// Inserts an account to current state tree.
+    pub fn insert_account(&mut self, key: SerializedPublicKey, account: Account) {
+        self.state_db.insert(key, account);
     }
 
     /// Adds multiplpe accounts to current state tree.
-    pub fn extend_accounts(&mut self, accounts: Vec<(PublicKey, Account)>) {
-        self.state_trie.extend(accounts);
+    pub fn extend_accounts(&mut self, accounts: Vec<(SerializedPublicKey, Account)>) {
+        self.state_db.extend(accounts);
     }
 
     /// Updates an account on the current state tree.
-    pub fn update_account(&mut self, _key: PublicKey, _account: Account) {
-        todo!()
+    pub fn update_account(&mut self, key: SerializedPublicKey, account: Account) -> Result<()> {
+        self.state_db
+            .update(
+                key,
+                UpdateArgs {
+                    nonce: account.nonce + 1,
+                    credits: Some(account.credits),
+                    debits: Some(account.debits),
+                    storage: Some(account.storage),
+                    code: Some(account.code),
+                },
+            )
+            .map_err(|err| StateError::Other(err.to_string()))
     }
 
     /// Removes an account from the current state tree.
-    pub fn remove_account(&mut self, _key: PublicKey) {
+    pub fn remove_account(&mut self, key: SerializedPublicKey) {
         todo!()
+    }
+}
+
+impl Clone for NodeState {
+    fn clone(&self) -> NodeState {
+        NodeState {
+            path: self.path.clone(),
+            tx_trie: self.tx_trie.clone(),
+            state_db: self.state_db.clone(),
+        }
+    }
+}
+
+impl From<NodeStateValues> for NodeState {
+    fn from(node_state_values: NodeStateValues) -> Self {
+        let mut state_db = StateDb::new();
+
+        let mapped_state = node_state_values
+            .state
+            .into_iter()
+            .map(|(key, acc)| (key, acc))
+            .collect();
+
+        state_db.extend(mapped_state);
+
+        Self {
+            path: PathBuf::new(),
+            state_db,
+            tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NodeStateValues {
+    pub txns: HashMap<TxHash, Txn>,
+    pub state: HashMap<SerializedPublicKey, Account>,
+}
+
+impl From<&NodeState> for NodeStateValues {
+    fn from(node_state: &NodeState) -> Self {
+        Self {
+            txns: HashMap::new(),
+            state: node_state.entries(),
+        }
+    }
+}
+
+impl NodeStateValues {
+    /// Converts a vector of bytes into a Network State or returns an error if
+    /// it's unable to
+    #[allow(dead_code)]
+    pub fn from_bytes(data: &[u8]) -> Result<NodeStateValues> {
+        serde_json::from_slice::<NodeStateValues>(data)
+            .map_err(|err| StateError::Other(err.to_string()))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NodeStateReadHandle {
+    state_handle_factory: StateDbReadHandleFactory,
+}
+
+impl NodeStateReadHandle {
+    /// Returns a copy of all values stored within the state trie
+    pub fn values(&self) -> HashMap<SerializedPublicKey, Account> {
+        self.state_handle_factory.handle().entries()
     }
 }

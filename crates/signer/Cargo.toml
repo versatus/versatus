@@ -14,3 +14,4 @@ serde = "1.0.144"
 primitives = { path = "../primitives" }
 node = { path = "../node" }
 dkg_engine = { path = "../dkg_engine" }
+tokio = { version = "1.23.0", features = ["full"] }

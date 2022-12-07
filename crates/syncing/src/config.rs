@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use primitives::types::node::NodeType;
+use primitives::node::NodeType;
 use serde::Deserialize;
 use uuid::Uuid;
 

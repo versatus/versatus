@@ -11,12 +11,7 @@ use bytes::Bytes;
 use crossbeam_channel::unbounded;
 use futures::{stream::FuturesUnordered, StreamExt};
 use qp2p::{
-    Config,
-    Connection,
-    ConnectionIncoming,
-    Endpoint,
-    EndpointError,
-    IncomingConnections,
+    Config, Connection, ConnectionIncoming, Endpoint, EndpointError, IncomingConnections,
     RetryConfig,
 };
 use raptorq::Decoder;
@@ -26,14 +21,8 @@ use tokio::net::UdpSocket;
 use crate::{
     message::Message,
     packet::{
-        generate_batch_id,
-        packet_forwarder,
-        reassemble_packets,
-        recv_mmsg,
-        split_into_packets,
-        BATCH_ID_SIZE,
-        MTU_SIZE,
-        NUM_RCVMMSGS,
+        generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
+        BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
     },
     types::config::{BroadCastError, BroadCastResult},
 };
@@ -384,6 +373,10 @@ impl BroadcastEngine {
     pub fn get_incomming_connections(&mut self) -> &mut IncomingConnections {
         &mut self.endpoint.1
     }
+
+    pub fn local_addr(&self) -> SocketAddr {
+        self.endpoint.0.local_addr()
+    }
 }
 
 #[cfg(test)]
@@ -490,14 +483,10 @@ mod tests {
 
     pub fn test_message() -> Message {
         let msg = Message {
-            id: "1".to_string().as_bytes().to_vec(),
-            source: Some("vrrb".to_string().as_bytes().to_vec()),
+            id: uuid::Uuid::new_v4(),
             data: "Hello_VRRB".to_string().as_bytes().to_vec(),
+            source: Some("vrrb".to_string().as_bytes().to_vec()),
             sequence_number: Some(1i32.to_ne_bytes().to_vec()),
-            signature: None,
-            topics: None,
-            key: None,
-            validated: 1u8,
             return_receipt: 0u8,
         };
         msg

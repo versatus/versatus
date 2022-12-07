@@ -2,7 +2,7 @@ mod lrdb;
 pub mod result;
 mod state_db;
 
-pub use lrdb::*;
+pub use crate::lrdb::*;
 pub use state_db::*;
 
 #[cfg(test)]

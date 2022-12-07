@@ -1,18 +1,32 @@
-pub mod node;
-
+use secp256k1::rand::rngs::OsRng;
+use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
-pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 #[derive(Clone, Debug, Default)]
 pub struct StopSignal;
 
-//TXN Hash or Block Hash
-pub type Hash = Vec<u8>;
+type Hash = Vec<u8>;
+pub type TxHash = Hash;
+pub type PayloadHash = Hash;
+pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;
-pub type PeerID = Vec<u8>;
-pub type SecretKeyBytes =Vec<u8>;
-pub type PublicKeyBytes =Vec<u8>;
+pub type PeerId = Vec<u8>;
 
+/// Represents a byte slice produced from an instance of secp256k1::SecretKey
+pub type SerializedSecretKey = Vec<u8>;
+
+/// Represents a byte slice produced from an instance of secp256k1::PublicKey
+pub type SerializedPublicKey = Vec<u8>;
+
+pub type PublicKey = secp256k1::PublicKey;
+pub type SecretKey = secp256k1::SecretKey;
+
+pub type AccountKeypair = (secp256k1::SecretKey, secp256k1::PublicKey);
+
+pub fn generate_account_keypair() -> AccountKeypair {
+    let secp = Secp256k1::new();
+    secp.generate_keypair(&mut OsRng)
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SignatureType {
@@ -45,3 +59,4 @@ pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
+pub const VALIDATOR_THRESHOLD: f64 = 0.60;
