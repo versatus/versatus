@@ -1,22 +1,26 @@
 //FEATURE TAG(S): Left-Right Database, Left-Right State Trie
 use std::fs;
 
-/// This module contains the Network State struct (which will be replaced with
-/// the Left-Right State Trie)
-use vrrb_core::accountable::Accountable;
-use vrrb_core::claim::Claim;
-use vrrb_core::ledger::Ledger;
-use telemetry::info;
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use vrrb_core::nonceable::Nonceable;
-use vrrb_core::ownable::Ownable;
+use telemetry::info;
+/// This module contains the Network State struct (which will be replaced with
+/// the Left-Right State Trie)
+use vrrb_core::accountable::Accountable;
+use vrrb_core::{claim::Claim, ledger::Ledger, nonceable::Nonceable, ownable::Ownable};
 
 use crate::types::{
-    CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
-    StateRewardState, StateRoot,
+    CreditsHash,
+    CreditsRoot,
+    DebitsHash,
+    DebitsRoot,
+    LedgerBytes,
+    StateHash,
+    StatePath,
+    StateRewardState,
+    StateRoot,
 };
 
 /// The Network State struct, contains basic information required to determine

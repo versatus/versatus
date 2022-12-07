@@ -1,10 +1,12 @@
-use vrrb_core::event_router::Event;
-
-use crate::http::routes::{accounts, health};
-use crate::http::HttpApiRouterConfig;
 use axum::{routing::get, Router};
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
+use vrrb_core::event_router::Event;
+
+use crate::http::{
+    routes::{accounts, health},
+    HttpApiRouterConfig,
+};
 
 pub fn create_router(config: &HttpApiRouterConfig) -> Router {
     Router::new()
@@ -22,8 +24,7 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
-    use tower::Service;
-    use tower::ServiceExt;
+    use tower::{Service, ServiceExt};
 
     use super::*;
 

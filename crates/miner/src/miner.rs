@@ -19,9 +19,7 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use vrrb_core::claim::Claim;
-use vrrb_core::nonceable::Nonceable;
-use vrrb_core::txn::Txn;
+use vrrb_core::{claim::Claim, nonceable::Nonceable, txn::Txn};
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;

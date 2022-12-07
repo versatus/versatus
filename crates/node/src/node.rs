@@ -32,7 +32,12 @@ use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
     result::{NodeError, Result},
-    NodeAuth, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
+    StateModuleConfig,
 };
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;

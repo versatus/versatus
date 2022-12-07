@@ -14,15 +14,16 @@ use bytebuffer::ByteBuffer;
 use ritelinked::LinkedHashMap;
 use secp256k1::{
     key::{PublicKey, SecretKey},
-    Error, Message, Secp256k1, Signature,
+    Error,
+    Message,
+    Secp256k1,
+    Signature,
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
 use uuid::Uuid;
-use vrrb_core::accountable::Accountable;
-use vrrb_core::claim::Claim;
-use vrrb_core::txn::Txn;
+use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn};
 
 const STARTING_BALANCE: u128 = 1000;
 

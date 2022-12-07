@@ -8,9 +8,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// This module contains the basic structure of simple transaction
-use crate::accountable::Accountable;
-use crate::verifiable::Verifiable;
 use bytebuffer::ByteBuffer;
 // use pool::pool::Pool;
 // use state::state::NetworkState;
@@ -18,6 +15,10 @@ use secp256k1::{Message, PublicKey, Secp256k1, Signature};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use uuid::Uuid;
+
+/// This module contains the basic structure of simple transaction
+use crate::accountable::Accountable;
+use crate::verifiable::Verifiable;
 
 /// A simple custom error type
 #[derive(Clone, Debug, Serialize, Deserialize)]

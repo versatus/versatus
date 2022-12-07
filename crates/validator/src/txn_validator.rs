@@ -11,9 +11,9 @@ use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
 #[allow(deprecated)]
 use secp256k1::{
-    Signature, {Message, PublicKey, Secp256k1},
+    Signature,
+    {Message, PublicKey, Secp256k1},
 };
-
 use vrrb_core::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;

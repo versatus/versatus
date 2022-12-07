@@ -1,17 +1,19 @@
-use std::fmt::Debug;
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::time::Duration;
+use std::{
+    fmt::Debug,
+    net::{SocketAddr, TcpListener, TcpStream},
+    time::Duration,
+};
 
-use axum_server::tls_rustls::RustlsConfig;
-use axum_server::Handle;
+use axum::{Router, Server};
+use axum_server::{tls_rustls::RustlsConfig, Handle};
 use tokio::sync::broadcast::Receiver;
 use vrrb_core::event_router::Event;
 
-use crate::http::router::create_router;
-use crate::http::HttpApiRouterConfig;
-use crate::http::HttpApiServerConfig;
-use crate::{ApiError, Result};
-use axum::{Router, Server};
+use crate::{
+    http::{router::create_router, HttpApiRouterConfig, HttpApiServerConfig},
+    ApiError,
+    Result,
+};
 
 /// A JSON-RPC API layer for VRRB nodes.
 pub struct HttpApiServer {

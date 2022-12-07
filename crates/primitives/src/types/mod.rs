@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+
+use serde::{Deserialize, Serialize};
 pub type NodeId = String;
 pub type NodeIdx = u16;
 pub type NodeIdentifier = String;

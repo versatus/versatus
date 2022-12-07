@@ -1,24 +1,20 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
+use std::fmt;
+
 use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
+#[cfg(mainnet)]
+use reward::reward::GENESIS_REWARD;
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use std::fmt;
-use vrrb_core::accountable::Accountable;
-use vrrb_core::claim::Claim;
-use vrrb_core::txn::Txn;
-use vrrb_core::verifiable::Verifiable;
+use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn, verifiable::Verifiable};
 
 #[cfg(mainnet)]
 use crate::genesis;
-
-#[cfg(mainnet)]
-use reward::reward::GENESIS_REWARD;
-
 use crate::{
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
@@ -248,15 +244,17 @@ impl Block {
         (Some(block), adjustment_next_epoch)
     }
 
-    /// If the utility amount is greater than the last block's utility, then the next adjustment epoch
-    /// is the utility amount times the gross utility percentage. Otherwise, the next adjustment epoch
-    /// is the utility amount times the negative gross utility percentage
+    /// If the utility amount is greater than the last block's utility, then the
+    /// next adjustment epoch is the utility amount times the gross utility
+    /// percentage. Otherwise, the next adjustment epoch is the utility
+    /// amount times the negative gross utility percentage
     ///
     /// Arguments:
     ///
     /// * `last_block`: The last block in the chain.
     /// * `reward`: The reward for the current epoch.
-    /// * `utility_amount`: The amount of utility that was generated in the last epoch.
+    /// * `utility_amount`: The amount of utility that was generated in the last
+    ///   epoch.
     ///
     /// Returns:
     ///

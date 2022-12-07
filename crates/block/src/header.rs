@@ -11,7 +11,10 @@ use rand::Rng;
 use reward::reward::Reward;
 use secp256k1::{
     key::{PublicKey, SecretKey},
-    Error, Message, Secp256k1, Signature,
+    Error,
+    Message,
+    Secp256k1,
+    Signature,
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
