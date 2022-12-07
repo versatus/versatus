@@ -1,11 +1,21 @@
-use std::collections::{hash_map::Entry, HashMap};
-
+use crate::txn::Txn;
+use crate::{Error, Result};
+use primitives::types::{NodeType, PeerId};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::net::SocketAddr;
+use telemetry::{error, info};
+use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-
-use crate::Error;
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct PeerData {
+    pub address: SocketAddr,
+    pub node_type: NodeType,
+    pub peer_id: PeerId,
+}
 
 // NOTE: naming convention for events goes as follows:
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
@@ -17,9 +27,80 @@ pub enum Event {
     Stop,
     /// New txn came from network, requires validation
     TxnCreated(Vec<u8>),
+    NewTxnCreated(Txn),
+    /// Single txn validated
+    TxnValidated(Vec<u8>),
     /// Batch of validated txns
     TxnBatchValidated(Vec<u8>),
     BlockConfirmed(Vec<u8>),
+    ClaimCreated(Vec<u8>),
+    ClaimProcessed(Vec<u8>),
+    UpdateLastBlock(Vec<u8>),
+    ClaimAbandoned(String, Vec<u8>),
+    SlashClaims(Vec<String>),
+    CheckAbandoned,
+    PeerRequestedStateSync(PeerData),
+
+    /// A peer joined the network, should be added to the node's peer list
+    PeerJoined(PeerData),
+
+    /// Peer abandoned the network. Should be removed from the node's peer list
+    PeerLeft(SocketAddr),
+    // SendTxn(u32, String, u128), // address number, receiver address, amount
+    // ProcessTxnValidator(Vec<u8>),
+    // PendingBlock(Vec<u8>, String),
+    // InvalidBlock(Vec<u8>),
+    // ProcessClaim(Vec<u8>),
+    // CheckStateUpdateStatus((u128, Vec<u8>, u128)),
+    // StateUpdateCompleted(Vec<u8>),
+    // StoreStateDbChunk(Vec<u8>, Vec<u8>, u32, u32),
+    // SendState(String, u128),
+    // SendMessage(SocketAddr, Message),
+    // GetBalance(u32),
+    // SendGenesis(String),
+    // SendStateComponents(String, Vec<u8>, String),
+    // GetStateComponents(String, Vec<u8>, String),
+    // RequestedComponents(String, Vec<u8>, String, String),
+    // StoreStateComponents(Vec<u8>, ComponentTypes),
+    // StoreChild(Vec<u8>),
+    // StoreParent(Vec<u8>),
+    // StoreGenesis(Vec<u8>),
+    // StoreLedger(Vec<u8>),
+    // StoreNetworkState(Vec<u8>),
+    // StateUpdateComponents(Vec<u8>, ComponentTypes),
+    // UpdateAppMiner(Vec<u8>),
+    // UpdateAppBlockchain(Vec<u8>),
+    // UpdateAppMessageCache(Vec<u8>),
+    // UpdateAppWallet(Vec<u8>),
+    // Publish(Vec<u8>),
+    // Gossip(Vec<u8>),
+    // AddNewPeer(String, String),
+    // AddKnownPeers(Vec<u8>),
+    // AddExplicitPeer(String, String),
+    // ProcessPacket((Packet, SocketAddr)),
+    // Bootstrap(String, String),
+    // SendPing(String),
+    // ReturnPong(Vec<u8>, String),
+    // InitHandshake(String),
+    // ReciprocateHandshake(String, String, String),
+    // CompleteHandshake(String, String, String),
+    // ProcessAck(String, u32, String),
+    // CleanInbox(String),
+    // StartMiner,
+    // GetHeight,
+    // MineBlock,
+    // MineGenesis,
+    // StopMine,
+    // GetState,
+    // ProcessBacklog,
+    // SendAddress,
+    // NonceUp,
+    // InitDKG,
+    // SendPartMessage(Vec<u8>),
+    // SendAckMessage(Vec<u8>),
+    // PublicKeySetSync,
+    // Stop,
+    // NoOp,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -28,14 +109,14 @@ pub enum Topic {
     Control,
     Transactions,
     State,
+    Network,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction
 /// between runtime modules.
 pub struct EventRouter {
     /// Map of async transmitters to various runtime modules
-    subscribers: HashMap<Topic, Vec<Subscriber>>,
-    topics: HashMap<Topic, tokio::sync::broadcast::Sender<Event>>,
+    topics: HashMap<Topic, Sender<Event>>,
 }
 
 pub type DirectedEvent = (Topic, Event);
@@ -49,14 +130,13 @@ impl Default for EventRouter {
 impl EventRouter {
     pub fn new() -> Self {
         Self {
-            subscribers: HashMap::new(),
             topics: HashMap::new(),
         }
     }
 
     pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {
         let buffer = size.unwrap_or(1);
-        let (tx, _) = tokio::sync::broadcast::channel(buffer);
+        let (tx, _) = broadcast::channel(buffer);
 
         self.topics.insert(topic, tx);
     }
@@ -64,7 +144,7 @@ impl EventRouter {
     pub fn subscribe(
         &self,
         topic: &Topic,
-    ) -> std::result::Result<tokio::sync::broadcast::Receiver<Event>, Error> {
+    ) -> std::result::Result<broadcast::Receiver<Event>, Error> {
         if let Some(sender) = self.topics.get(topic) {
             Ok(sender.subscribe())
         } else {
@@ -72,25 +152,14 @@ impl EventRouter {
         }
     }
 
-    #[deprecated(note = "replaced by 'subscribe'")]
-    pub fn add_subscriber(&mut self, topic: Topic, subscriber: Subscriber) {
-        match self.subscribers.entry(topic) {
-            Entry::Occupied(mut subscribers) => subscribers.get_mut().push(subscriber),
-            Entry::Vacant(empty) => {
-                empty.insert(vec![subscriber]);
-            },
-        }
-    }
-
-    /// Starts the event router, distributing all incomming commands to
-    /// specified routes
+    /// Starts the event router, distributing all incomming events to all subscribers
     pub async fn start(&mut self, event_rx: &mut UnboundedReceiver<DirectedEvent>) {
         while let Some((topic, event)) = event_rx.recv().await {
             if event == Event::Stop {
-                telemetry::info!("event router received stop signal");
+                info!("event router received stop signal");
                 self.fan_out_event(Event::Stop, &topic);
 
-                break;
+                return;
             }
 
             self.fan_out_event(event, &topic);
@@ -98,17 +167,9 @@ impl EventRouter {
     }
 
     fn fan_out_event(&mut self, event: Event, topic: &Topic) {
-        if let Some(subscriber_list) = self.subscribers.get_mut(topic) {
-            for subscriber in subscriber_list {
-                //TODO: report errors
-                if let Err(err) = subscriber.send(event.clone()) {
-                    telemetry::error!(
-                        "failed to send event {:?} to topic {:?}. reason: {:?}",
-                        event,
-                        topic,
-                        err
-                    );
-                }
+        if let Some(topic_sender) = self.topics.get_mut(topic) {
+            if let Err(err) = topic_sender.send(event.clone()) {
+                error!("failed to send event {event:?} to topic {topic:?}: {err:?}");
             }
         }
     }
@@ -121,26 +182,23 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn should_register_susbcribers() {
+    #[tokio::test]
+    async fn should_susbcribe_to_topics() {
         let mut router = EventRouter::new();
 
-        let (miner_command_tx, _) = unbounded_channel::<Event>();
+        router.add_topic(Topic::Control, None);
 
-        router.add_subscriber(Topic::Control, miner_command_tx);
-
-        let control_subscribers = router.subscribers.get(&Topic::Control).unwrap();
-        assert_eq!(control_subscribers.len(), 1);
+        router.subscribe(&Topic::Control).unwrap();
     }
 
     #[tokio::test]
     async fn should_stop_when_issued_stop_event() {
         let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
-        let (subscriber_tx, mut subscriber_rx) = unbounded_channel::<Event>();
-
         let mut router = EventRouter::new();
 
-        router.add_subscriber(Topic::Control, subscriber_tx);
+        router.add_topic(Topic::Control, Some(10));
+
+        let mut subscriber_rx = router.subscribe(&Topic::Control).unwrap();
 
         let handle = tokio::spawn(async move {
             router.start(&mut event_rx).await;
@@ -152,74 +210,10 @@ mod tests {
 
         assert_eq!(subscriber_rx.try_recv().unwrap(), Event::Stop);
     }
-
-    #[tokio::test]
-    async fn should_route_events() {
-        let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
-        let mut router = EventRouter::new();
-
-        let (miner_event_tx, mut miner_event_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
-        let (validator_event_tx, mut validator_event_rx) = unbounded_channel::<Event>();
-
-        router.add_subscriber(Topic::Control, miner_event_tx);
-        router.add_subscriber(Topic::Control, validator_event_tx.clone());
-        router.add_subscriber(Topic::Transactions, validator_event_tx);
-
-        let handle = tokio::spawn(async move {
-            router.start(&mut event_rx).await;
-        });
-
-        event_tx
-            .send((Topic::Transactions, Event::TxnCreated(Vec::new())))
-            .unwrap();
-
-        event_tx.send((Topic::Control, Event::Stop)).unwrap();
-
-        handle.await.unwrap();
-
-        assert_eq!(
-            validator_event_rx.recv().await.unwrap(),
-            Event::TxnCreated(Vec::new())
-        );
-
-        assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Stop);
-        assert_eq!(miner_event_rx.recv().await.unwrap(), Event::Stop);
-    }
-
-    #[tokio::test]
-    async fn all_subscribers_should_receive_messages() {
-        let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
-        let mut router = EventRouter::new();
-
-        let (miner_event_tx, mut miner_event_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
-        let (validator_event_tx, mut validator_event_rx) = unbounded_channel::<Event>();
-
-        router.add_subscriber(Topic::Control, miner_event_tx);
-        router.add_subscriber(Topic::Control, validator_event_tx.clone());
-        router.add_subscriber(Topic::Transactions, validator_event_tx);
-
-        let handle = tokio::spawn(async move {
-            router.start(&mut event_rx).await;
-        });
-
-        event_tx
-            .send((Topic::Transactions, Event::TxnCreated(Vec::new())))
-            .unwrap();
-
-        event_tx.send((Topic::Control, Event::Stop)).unwrap();
-
-        handle.await.unwrap();
-
-        assert_eq!(
-            validator_event_rx.recv().await.unwrap(),
-            Event::TxnCreated(Vec::new())
-        );
-
-        assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Stop);
-        assert_eq!(miner_event_rx.recv().await.unwrap(), Event::Stop);
-    }
 }
 
+// NOTE: kept for reference
+//
 /// Command represents the vocabulary of available RPC-style interactions with
 /// VRRB node internal components. Commands are meant to be issued by a command
 /// router that controls node runtime modules.

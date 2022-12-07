@@ -9,11 +9,11 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
+use primitives::types::PublicKey;
 use secp256k1::ecdsa::Signature;
-// use pool::pool::Pool;
-// use state::state::NetworkState;
-use secp256k1::{Message, PublicKey, Secp256k1};
+use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use sha256::digest;
 use uuid::Uuid;
 use primitives::types::PublicKeyBytes;
@@ -23,121 +23,147 @@ use crate::accountable::Accountable;
 use crate::verifiable::Verifiable;
 
 /// A simple custom error type
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InvalidTxnError {
-    details: String,
+#[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]
+pub enum TxnError {
+    #[error("invalid transaction: {0}")]
+    InvalidTxn(String),
 }
+
+pub type TxNonce = u128;
+pub type TxTimestamp = i64;
+pub type TxAmount = u128;
+pub type TxSignature = Vec<u8>;
+pub type TxPayload = String;
+
+// TODO: replace with a generic token struct
+pub type TxToken = String;
 
 /// The basic transation structure.
 //TODO: Discuss the pieces of the Transaction structure that should stay and go
 //TODO: Discuss how to best package this to minimize the size of it/compress it
 //TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
 //signature of validators in.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
-    pub txn_id: String,
-    pub txn_timestamp: u128,
+    // TODO: Make all fields private
+    pub timestamp: TxTimestamp,
     pub sender_address: String,
-    pub sender_public_key: PublicKeyBytes,
+    pub sender_public_key: PublicKey,
     pub receiver_address: String,
-    pub txn_token: Option<String>,
-    pub txn_amount: u128,
-    pub txn_payload: String,
-    pub txn_signature: String,
-    pub validators: HashMap<String, bool>,
-    pub nonce: u128,
+    pub token: Option<TxToken>,
+    pub amount: TxAmount,
+    pub payload: Option<TxPayload>,
+    pub signature: TxSignature,
+    pub validators: Option<HashMap<String, bool>>,
+    pub nonce: TxNonce,
+}
+
+#[derive(Debug, Clone)]
+pub struct NewTxnArgs {
+    pub sender_address: String,
+    pub sender_public_key: PublicKey,
+    pub receiver_address: String,
+    pub token: Option<TxToken>,
+    pub amount: TxAmount,
+    pub payload: Option<TxPayload>,
+    pub signature: TxSignature,
+    pub validators: Option<HashMap<String, bool>>,
+    pub nonce: TxNonce,
 }
 
 impl Txn {
-    // TODO: convert to_message into a function of the verifiable trait,
-    // all verifiable objects need to be able to be converted to a message.
+    pub fn new(args: NewTxnArgs) -> Self {
+        let timestamp = chrono::offset::Utc::now().timestamp();
 
-    #[allow(clippy::inherent_to_string_shadow_display)]
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+        Self {
+            timestamp,
+            sender_address: args.sender_address,
+            sender_public_key: args.sender_public_key,
+            receiver_address: args.receiver_address,
+            token: args.token,
+            amount: args.amount,
+            payload: args.payload,
+            signature: args.signature,
+            validators: args.validators,
+            nonce: args.nonce,
+        }
     }
 
+    /// Produces a SHA 256 hash string of the transaction
+    pub fn digest(&self) -> String {
+        let encoded = self.encode();
+
+        digest(encoded.as_slice())
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap_or_default()
+    }
+
+    #[deprecated(note = "use encode instead")]
     pub fn as_bytes(&self) -> Vec<u8> {
         let as_string = serde_json::to_string(self).unwrap();
         as_string.as_bytes().to_vec()
     }
 
+    #[deprecated(note = "rely on the from trait implementation instead")]
     pub fn from_bytes(data: &[u8]) -> Txn {
-        serde_json::from_slice::<Txn>(data).unwrap()
+        Self::from(data)
     }
 
+    #[deprecated(note = "rely on the from trait implementation instead")]
     pub fn from_string(string: &str) -> Txn {
-        serde_json::from_str::<Txn>(string).unwrap()
+        Self::from(string)
     }
 
-    pub fn get_field_names(&self) -> Vec<String> {
-        vec![
-            "txn_id".to_string(),
-            "txn_timestamp".to_string(),
-            "sender_address".to_string(),
-            "sender_public_key".to_string(),
-            "receiver_address".to_string(),
-            "txn_token".to_string(),
-            "txn_amount".to_string(),
-            "txn_payload".to_string(),
-            "txn_signature".to_string(),
-            "txn_signature".to_string(),
-            "validators".to_string(),
-            "nonce".to_string(),
-        ]
+    pub fn is_null(&self) -> bool {
+        self == &NULL_TXN
     }
 }
 
-impl Accountable for Txn {
-    type Category = Option<String>;
+pub const NULL_TXN: Txn = Txn {
+    timestamp: 0,
+    sender_address: String::new(),
+    sender_public_key: vec![],
+    receiver_address: String::new(),
+    token: None,
+    amount: 0,
+    payload: None,
+    signature: vec![],
+    validators: None,
+    nonce: 0,
+};
 
-    fn receivable(&self) -> String {
-        self.receiver_address.clone()
-    }
-
-    fn payable(&self) -> Option<String> {
-        Some(self.sender_address.clone())
-    }
-
-    fn get_amount(&self) -> u128 {
-        self.txn_amount
-    }
-
-    fn get_category(&self) -> Option<Self::Category> {
-        None
-    }
-}
-
-// TODO: revisit this impl later
-impl Verifiable for Txn {
-    // TODO: replace with the real dependencies
-    // type Dependencies = (NetworkState, Pool<String, Txn>);
-    type Dependencies = (bool, bool);
-    type Error = InvalidTxnError;
-    type Item = Option<String>;
-
-    fn verifiable(&self) -> bool {
-        true
-    }
-
-    fn valid(
-        &self,
-        item: &Self::Item,
-        dependencies: &Self::Dependencies,
-    ) -> Result<bool, Self::Error> {
-        Ok(true)
+impl From<String> for Txn {
+    fn from(data: String) -> Self {
+        data.parse().unwrap_or(NULL_TXN)
     }
 }
 
-impl std::fmt::Display for InvalidTxnError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "InvalidTxn: {}", self.details)
+impl From<Vec<u8>> for Txn {
+    fn from(data: Vec<u8>) -> Self {
+        serde_json::from_slice::<Txn>(&data).unwrap_or(NULL_TXN)
     }
 }
 
-impl std::error::Error for InvalidTxnError {
-    fn description(&self) -> &str {
-        "Invalid Transaction Error"
+impl From<&[u8]> for Txn {
+    fn from(data: &[u8]) -> Self {
+        serde_json::from_slice::<Txn>(data).unwrap_or(NULL_TXN)
+    }
+}
+
+impl FromStr for Txn {
+    type Err = TxnError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str::<Txn>(s)
+            .map_err(|err| TxnError::InvalidTxn(format!("failed to parse &str into Txn: {err}")))
+    }
+}
+
+impl From<&str> for Txn {
+    fn from(data: &str) -> Self {
+        data.parse().unwrap_or(NULL_TXN)
     }
 }
 
@@ -146,37 +172,34 @@ impl fmt::Display for Txn {
         write!(
             f,
             "Txn(\n \
-            txn_id: {},\n \
-            txn_timestamp: {},\n \
-            sender_address: {},\n \
-            sender_public_key: {},\n \
-            receiver_address: {},\n \
-            txn_token: {:?},\n \
-            txn_amount: {},\n \
-            txn_signature: {}",
-            self.txn_id,
-            self.txn_timestamp,
+            timestamp: {},\n \
+            sender_address: {:?},\n \
+            sender_public_key: {:?},\n \
+            receiver_address: {:?},\n \
+            token: {:?},\n \
+            amount: {},\n \
+            signature: {:?}",
+            self.timestamp,
             self.sender_address,
             hex::encode(self.sender_public_key.clone()),
             self.receiver_address,
-            self.txn_token,
-            self.txn_amount,
-            self.txn_signature,
+            self.token,
+            self.amount,
+            self.signature,
         )
     }
 }
 
 impl Hash for Txn {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.txn_id.hash(state);
-        self.txn_timestamp.hash(state);
+        self.timestamp.hash(state);
         self.sender_address.hash(state);
         self.sender_public_key.hash(state);
         self.receiver_address.hash(state);
-        self.txn_token.hash(state);
-        self.txn_amount.hash(state);
-        self.txn_payload.hash(state);
-        self.txn_signature.hash(state);
+        self.token.hash(state);
+        self.amount.hash(state);
+        self.payload.hash(state);
+        self.signature.hash(state);
         self.nonce.hash(state);
     }
 
@@ -192,16 +215,6 @@ impl Hash for Txn {
 
 impl PartialEq for Txn {
     fn eq(&self, other: &Self) -> bool {
-        self.txn_id == other.txn_id
-            && self.txn_timestamp == other.txn_timestamp
-            && self.sender_address == other.sender_address
-            && self.sender_public_key == other.sender_public_key
-            && self.receiver_address == other.receiver_address
-            && self.txn_token == other.txn_token
-            && self.txn_amount == other.txn_amount
-            && self.txn_signature == other.txn_signature
-            && self.nonce == other.nonce
+        self.digest() == other.digest()
     }
 }
-
-impl Eq for Txn {}

@@ -1,7 +1,8 @@
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
-
 /// This module contains the Network State struct (which will be replaced with
 /// the Left-Right State Trie)
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+
+use derive_builder::Builder;
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::Account;
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
@@ -9,6 +10,18 @@ use primitives::types::node::PublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::{result::Result, types::StatePath, StateError};
+
+const DEFAULT_SERIALIZED_STATE_FILENAME: &str = "state";
+const DEFAULT_SERIALIZED_CONFIRMED_TXNS_FILENAME: &str = "txns";
+const DEFAULT_SERIALIZED_MEMPOOL_FILENAME: &str = "mempool";
+
+#[derive(Debug, Clone, Default)]
+pub struct NodeStateConfig {
+    pub path: StatePath,
+    pub serialized_state_filename: Option<String>,
+    pub serialized_mempool_filename: Option<String>,
+    pub serialized_confirmed_txns_filename: Option<String>,
+}
 
 /// The Node State struct, contains basic information required to determine
 /// the current state of the network.
@@ -21,7 +34,6 @@ pub struct NodeState {
 }
 
 impl Clone for NodeState {
-    /// Warning: do not use yet as lr_trie doesn't fully implement clone yet.
     fn clone(&self) -> NodeState {
         NodeState {
             path: self.path.clone(),
@@ -82,12 +94,35 @@ impl NodeStateValues {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct NodeStateReadHandle {
+    state_handle_factory: ReadHandleFactory<InnerTrie<MemoryDB>>,
+}
+
+impl NodeStateReadHandle {
+    /// Returns a copy of all values stored within the state trie
+    pub fn values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        self.state_handle_factory
+            .handle()
+            .enter()
+            .map(|guard| guard.values())
+            .unwrap_or_else(|| Ok(vec![]))
+            .map_err(|err| StateError::Other(err.to_string()))
+    }
+}
+
 impl NodeState {
-    pub fn new(path: std::path::PathBuf) -> Self {
+    pub fn new(cfg: &NodeStateConfig) -> Self {
+        let path = cfg.path.clone();
+
+        if let Some(serialized_state_filename) = &cfg.serialized_state_filename {
+            telemetry::info!("restoring state from file {serialized_state_filename}");
+        }
+
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
-        let state_trie = LeftRightTrie::new(backing_db.clone());
+        let mut state_trie = LeftRightTrie::new(backing_db.clone());
         let tx_trie = LeftRightTrie::new(backing_db);
 
         Self {
@@ -155,6 +190,14 @@ impl NodeState {
         self.state_trie.root()
     }
 
+    pub fn read_handle(&self) -> NodeStateReadHandle {
+        let state_handle_factory = self.state_trie.factory();
+
+        NodeStateReadHandle {
+            state_handle_factory,
+        }
+    }
+
     /// Produces a reader factory that can be used to generate read handles into
     /// the state tree.
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
@@ -189,6 +232,11 @@ impl NodeState {
 
     /// Adds an account to current state tree.
     pub fn add_account(&mut self, key: PublicKey, account: Account) {
+        self.state_trie.add(key, account);
+    }
+
+    /// Inserts an account to current state tree.
+    pub fn insert_account(&mut self, key: PublicKey, account: Account) {
         self.state_trie.add(key, account);
     }
 

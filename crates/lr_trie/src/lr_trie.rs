@@ -76,6 +76,13 @@ where
     where
         T: Serialize,
     {
+        self.insert(key, value)
+    }
+
+    pub fn insert<T>(&mut self, key: Key, value: T)
+    where
+        T: Serialize,
+    {
         self.add_uncommitted(key, value);
         self.publish();
     }
