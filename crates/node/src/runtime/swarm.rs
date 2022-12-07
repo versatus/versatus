@@ -13,7 +13,6 @@ use claim::claim::Claim;
 use commands::command::ComponentTypes;
 use events::events::{write_to_json, VrrbNetworkEvent};
 use ledger::ledger::Ledger;
-use messages::message_types::MessageType;
 use miner::miner::Miner;
 use network::{components::StateComponent, message};
 use public_ip;

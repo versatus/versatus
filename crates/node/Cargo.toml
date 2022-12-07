@@ -11,16 +11,13 @@ block = { path = "../block" }
 vrrb_core = { path = "../vrrb_core" }
 telemetry = { path = "../telemetry" }
 vrrb_config = { path = "../vrrb_config" }
-commands = { path = "../commands" }
 network = { path = "../network" }
-messages = { path = "../messages" }
 lr_trie = { path = "../lr_trie" }
 storage = { path = "../storage" }
 miner = { path = "../miner" }
 wallet = { path = "../wallet" }
 state = { path = "../state" }
 validator = { path = "../validator" }
-events = { path = "../events" }
 reward = { path = "../reward" }
 blockchain = { path = "../blockchain" }
 vrrb_rpc = { path = "../vrrb_rpc" }

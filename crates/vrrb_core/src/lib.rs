@@ -1,6 +1,7 @@
 pub mod account;
 pub mod accountable;
 pub mod claim;
+pub mod component;
 pub mod event_router;
 pub mod ledger;
 pub mod nonceable;

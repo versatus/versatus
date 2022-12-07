@@ -23,11 +23,9 @@ strum = "0.21.0"
 strum_macros = "0.21.0"
 block = { path = "../block" }
 vrrb_lib = { path = "../vrrb_lib" }
-commands = { path = "../commands" }
-messages = { path = "../messages" }
 reward = { path = "../reward" }
 state = { path = "../state" }
 vrrb_core = { path = "../vrrb_core" }
+network = { path = "../network" }
 telemetry = { path = "../telemetry" }
-# verifiable = { path = "../verifiable" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p", branch = "main" }

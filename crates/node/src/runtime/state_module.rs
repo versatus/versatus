@@ -115,7 +115,6 @@ mod tests {
         sync::Arc,
     };
 
-    use commands::command::Command;
     use state::node_state;
     use telemetry::TelemetrySubscriber;
     use uuid::Uuid;
