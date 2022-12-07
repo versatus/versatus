@@ -1,10 +1,13 @@
 use std::{
     collections::{HashMap, HashSet},
+    convert::TryInto,
+    error::Error,
     fs,
     fs::File,
     io::{Read, Result},
     net::{Ipv6Addr, SocketAddr},
     path::PathBuf,
+    result::Result as StdResult,
     str,
     sync::Arc,
 };
@@ -14,8 +17,6 @@ use futures::future::try_join_all;
 use rand::{distributions::Alphanumeric, thread_rng, Rng, RngCore};
 use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
 use serde::{Deserialize, Serialize};
-use std::result::Result as StdResult;
-use std::{convert::TryInto, error::Error};
 use tokio::net::UdpSocket;
 
 /// Maximum over-the-wire size of a Transaction

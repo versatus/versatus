@@ -1,8 +1,12 @@
-use crate::components::StateComponent;
-use crate::packet::{NotCompleteError, Packet, Packetize};
+use std::collections::HashMap;
+
 use log::info;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use crate::{
+    components::StateComponent,
+    packet::{NotCompleteError, Packet, Packetize},
+};
 
 pub const MAX_TRANSMIT_SIZE: usize = 1024;
 
@@ -52,16 +56,17 @@ impl Message {
 // /// Processes messages that come across the network and returns an
 // /// `Option<Command>` to be allocated to different parts of the system.
 // #[allow(unused_variables)]
-// pub fn process_message(message: MessageType, node_id: String, addr: String) -> Option<Command> {
-//     match message.clone() {
-//         MessageType::TxnMessage { txn, .. } => Some(Command::ProcessTxn(txn)),
-//         MessageType::BlockMessage {
+// pub fn process_message(message: MessageType, node_id: String, addr: String)
+// -> Option<Command> {     match message.clone() {
+//         MessageType::TxnMessage { txn, .. } =>
+// Some(Command::ProcessTxn(txn)),         MessageType::BlockMessage {
 //             block, sender_id, ..
 //         } => Some(Command::PendingBlock(block, sender_id)),
 //         MessageType::TxnValidatorMessage { txn_validator, .. } => {
 //             Some(Command::ProcessTxnValidator(txn_validator))
 //         },
-//         MessageType::ClaimMessage { claim, .. } => Some(Command::ProcessClaim(claim)),
+//         MessageType::ClaimMessage { claim, .. } =>
+// Some(Command::ProcessClaim(claim)),
 //         MessageType::GetNetworkStateMessage {
 //             sender_id,
 //             requested_from,
@@ -72,19 +77,19 @@ impl Message {
 //         } => {
 //             if requested_from == node_id {
 //                 match StateComponent::from_bytes(&component) {
-//                     StateComponent::NetworkState => Some(Command::SendStateComponents(
-//                         requestor_address.to_string(),
-//                         component,
+//                     StateComponent::NetworkState =>
+// Some(Command::SendStateComponents(                         
+// requestor_address.to_string(),                         component,
 //                         sender_id,
 //                     )),
-//                     StateComponent::Blockchain => Some(Command::SendStateComponents(
-//                         requestor_address.to_string(),
-//                         component,
+//                     StateComponent::Blockchain =>
+// Some(Command::SendStateComponents(                         
+// requestor_address.to_string(),                         component,
 //                         sender_id,
 //                     )),
-//                     StateComponent::Ledger => Some(Command::SendStateComponents(
-//                         requestor_address.to_string(),
-//                         component,
+//                     StateComponent::Ledger =>
+// Some(Command::SendStateComponents(                         
+// requestor_address.to_string(),                         component,
 //                         sender_id,
 //                     )),
 //                     StateComponent::All => Some(Command::SendStateComponents(
@@ -110,8 +115,8 @@ impl Message {
 //             );
 //             if requestor == node_id {
 //                 info!("Received state components");
-//                 return Some(Command::StoreStateComponents(data, ComponentTypes::All));
-//             }
+//                 return Some(Command::StoreStateComponents(data,
+// ComponentTypes::All));             }
 //             None
 //         },
 //         MessageType::GenesisMessage {
@@ -122,8 +127,8 @@ impl Message {
 //         } => {
 //             if requestor == addr {
 //                 info!("Received Genesis Block Message");
-//                 Some(Command::StoreStateComponents(data, ComponentTypes::Genesis))
-//             } else {
+//                 Some(Command::StoreStateComponents(data,
+// ComponentTypes::Genesis))             } else {
 //                 None
 //             }
 //         },
@@ -135,8 +140,8 @@ impl Message {
 //         } => {
 //             if requestor == addr {
 //                 info!("Received Child Block Message");
-//                 Some(Command::StoreStateComponents(data, ComponentTypes::Child))
-//             } else {
+//                 Some(Command::StoreStateComponents(data,
+// ComponentTypes::Child))             } else {
 //                 None
 //             }
 //         },
@@ -148,8 +153,8 @@ impl Message {
 //         } => {
 //             if requestor == addr {
 //                 info!("Received Network Parent Block Message");
-//                 Some(Command::StoreStateComponents(data, ComponentTypes::Parent))
-//             } else {
+//                 Some(Command::StoreStateComponents(data,
+// ComponentTypes::Parent))             } else {
 //                 None
 //             }
 //         },
@@ -162,8 +167,8 @@ impl Message {
 //             if requestor == addr {
 //                 info!("Received Ledger Message");
 //
-//                 Some(Command::StoreStateComponents(data, ComponentTypes::Ledger))
-//             } else {
+//                 Some(Command::StoreStateComponents(data,
+// ComponentTypes::Ledger))             } else {
 //                 None
 //             }
 //         },
@@ -307,8 +312,8 @@ impl Message {
 //             .collect::<Vec<Vec<u8>>>()
 //     }
 //
-//     /// Reassembles a map of packets into a serialized vector of bytes that can
-//     /// be converted back into a Message for processing
+//     /// Reassembles a map of packets into a serialized vector of bytes that
+// can     /// be converted back into a Message for processing
 //     fn assemble(map: &mut Self::PacketMap) -> Self::FlatPackets {
 //         let mut byte_slices = map
 //             .iter()
@@ -326,13 +331,13 @@ impl Message {
 //
 //     /// Does the same thing as assemble but with better error handling in the
 //     /// event packets are missing or cannot be assembled.
-//     fn try_assemble(map: &mut Self::PacketMap) -> Result<Self::FlatPackets, NotCompleteError> {
-//         if let Some((_, packet)) = map.clone().iter().next() {
-//             if map.len() == usize::from_be_bytes(packet.clone().convert_total_packets()) {
-//                 let mut byte_slices = map
-//                     .iter()
-//                     .map(|(packet_number, packet)| (*packet_number, packet.clone()))
-//                     .collect::<Vec<(u32, Packet)>>();
+//     fn try_assemble(map: &mut Self::PacketMap) -> Result<Self::FlatPackets,
+// NotCompleteError> {         if let Some((_, packet)) =
+// map.clone().iter().next() {             if map.len() ==
+// usize::from_be_bytes(packet.clone().convert_total_packets()) {               
+// let mut byte_slices = map                     .iter()
+//                     .map(|(packet_number, packet)| (*packet_number,
+// packet.clone()))                     .collect::<Vec<(u32, Packet)>>();
 //
 //                 byte_slices.sort_unstable_by_key(|k| k.0);
 //                 let mut assembled = vec![];

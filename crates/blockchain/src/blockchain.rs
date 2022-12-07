@@ -25,8 +25,7 @@ use udp2p::{
     protocol::protocol::{Header, Message, MessageKey},
     utils::utils::{timestamp_now, ByteRep},
 };
-use vrrb_core::component::ComponentTypes;
-use vrrb_core::verifiable::Verifiable;
+use vrrb_core::{component::ComponentTypes, verifiable::Verifiable};
 use vrrb_lib::fields::GettableFields;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

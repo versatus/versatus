@@ -7,12 +7,16 @@ use std::{
     time::Duration,
 };
 
-use crate::message::Message;
 use bytes::Bytes;
 use crossbeam_channel::unbounded;
 use futures::{stream::FuturesUnordered, StreamExt};
 use qp2p::{
-    Config, Connection, ConnectionIncoming, Endpoint, EndpointError, IncomingConnections,
+    Config,
+    Connection,
+    ConnectionIncoming,
+    Endpoint,
+    EndpointError,
+    IncomingConnections,
     RetryConfig,
 };
 use raptorq::Decoder;
@@ -20,9 +24,16 @@ use serde::{Deserialize, Serialize};
 use tokio::net::UdpSocket;
 
 use crate::{
+    message::Message,
     packet::{
-        generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
-        BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
+        generate_batch_id,
+        packet_forwarder,
+        reassemble_packets,
+        recv_mmsg,
+        split_into_packets,
+        BATCH_ID_SIZE,
+        MTU_SIZE,
+        NUM_RCVMMSGS,
     },
     types::config::{BroadCastError, BroadCastResult},
 };
@@ -382,9 +393,9 @@ mod tests {
         time::Duration,
     };
 
-    use crate::message::Message;
-    use crate::network::BroadcastEngine;
     use bytes::Bytes;
+
+    use crate::{message::Message, network::BroadcastEngine};
 
     #[tokio::test]
     async fn test_successful_connection() {

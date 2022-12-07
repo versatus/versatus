@@ -17,8 +17,8 @@ pub enum VrrbNetworkEvent {
     // VrrbOutboxUpdate {
     //     // TODO: it'd be better to split that into custom types
     //     #[allow(clippy::type_complexity)]
-    //     outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>, Packet)>>,
-    // },
+    //     outbox: HashMap<String, HashMap<u32, (HashSet<SocketAddr>, HashSet<SocketAddr>,
+    // Packet)>>, },
     // VrrbAckReceived {
     //     packet: String,
     //     src: String,
