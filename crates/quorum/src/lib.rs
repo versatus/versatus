@@ -12,7 +12,10 @@ mod tests {
     use sha256::digest;
     use vrrb_core::claim::Claim;
 
-    use crate::{election::Election, quorum::{Quorum, InvalidQuorum}};
+    use crate::{
+        election::Election,
+        quorum::{InvalidQuorum, Quorum},
+    };
 
     static TEST_ADDR: &str = "0x0000000000000000000000000000000000000000";
 
@@ -239,11 +242,15 @@ mod tests {
                 } else {
                     //first run w dummy claims, THEN if that fails enter loop
                     let new_claims1 = quorum.nonce_claims_and_new_seed(dummy_claims).unwrap();
-                    if quorum.run_election(new_claims1.clone()).is_err(){
-                        let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims1.clone()).unwrap();
+                    if quorum.run_election(new_claims1.clone()).is_err() {
+                        let new_claims2 = quorum
+                            .nonce_claims_and_new_seed(new_claims1.clone())
+                            .unwrap();
                         //let nonced_up_claims: Vec<Claim> = Vec::new();
                         while quorum.run_election(new_claims2.clone()).is_err() {
-                            let new_claims2 = quorum.nonce_claims_and_new_seed(new_claims2.clone()).unwrap();
+                            let new_claims2 = quorum
+                                .nonce_claims_and_new_seed(new_claims2.clone())
+                                .unwrap();
                         }
                     }
                     assert!(quorum.master_pubkeys.len() == 13);
@@ -307,4 +314,3 @@ mod tests {
         }
     }
 }
-

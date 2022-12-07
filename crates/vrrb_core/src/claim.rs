@@ -1,14 +1,11 @@
+use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
 /// permissionless Proof of Claim Miner Election algorithm
-///
 use serde_json;
-
-use crate::nonceable::Nonceable;
-use crate::ownable::Ownable;
-use crate::verifiable::Verifiable;
-use serde::{Deserialize, Serialize};
 use sha256::digest;
+
+use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.

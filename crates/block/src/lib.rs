@@ -13,8 +13,7 @@ mod tests {
     use ritelinked::LinkedHashMap;
     use secp256k1::Secp256k1;
     use state::NetworkState;
-    use vrrb_core::claim::Claim;
-    use vrrb_core::txn::Txn;
+    use vrrb_core::{claim::Claim, txn::Txn};
 
     use crate::{header::BlockHeader, Block, MineArgs};
 

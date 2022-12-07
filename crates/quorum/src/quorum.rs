@@ -86,19 +86,25 @@ impl Election for Quorum {
         };
 
         Ok(elected_quorum)
-
     }
 
-    fn nonce_claims_and_new_seed(&mut self, claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
-        let seed = match Quorum::generate_seed((self.election_timestamp, self.election_block_height, self.quorum_pk.clone())){
+    fn nonce_claims_and_new_seed(
+        &mut self,
+        claims: Vec<Claim>,
+    ) -> Result<Vec<Claim>, InvalidQuorum> {
+        let seed = match Quorum::generate_seed((
+            self.election_timestamp,
+            self.election_block_height,
+            self.quorum_pk.clone(),
+        )) {
             Ok(seed) => seed,
             Err(e) => return Err(e),
         };
         self.quorum_seed = seed;
 
         let mut nonce_up_claims = Vec::new();
-      
-        
+
+
         for claim in claims {
             let mut nonce_up_claim = claim;
             nonce_up_claim.nonce += 1;
@@ -106,9 +112,6 @@ impl Election for Quorum {
         }
         Ok(nonce_up_claims)
     }
-
-
-
 }
 
 impl Quorum {
@@ -190,5 +193,4 @@ impl Quorum {
 
         Ok(self)
     }
-
 }

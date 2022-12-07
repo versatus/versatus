@@ -1,7 +1,8 @@
 pub mod error;
 pub mod mempool;
 
-// TODO: remove deprecated modules after consolidating their internals into mempool
+// TODO: remove deprecated modules after consolidating their internals into
+// mempool
 #[deprecated(note = "use mempool::Mempool instead")]
 pub mod ev_mem_pool;
 #[deprecated(note = "use mempool::Mempool instead")]
