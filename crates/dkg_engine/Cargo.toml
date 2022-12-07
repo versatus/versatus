@@ -16,8 +16,6 @@ hex = "0.4.2"
 
 #internal
 node = { path = "../node" }
-commands = { path = "../commands" }
-messages = { path = "../messages" }
 primitives = { path = "../primitives" }
 vrrb_config = { path = "../vrrb_config" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }

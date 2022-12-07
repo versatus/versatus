@@ -13,8 +13,7 @@ use block::{
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
 };
-use commands::command::ComponentTypes;
-use messages::message_types::MessageType;
+use network::types::message::MessageType;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
@@ -26,6 +25,7 @@ use udp2p::{
     protocol::protocol::{Header, Message, MessageKey},
     utils::utils::{timestamp_now, ByteRep},
 };
+use vrrb_core::component::ComponentTypes;
 use vrrb_core::verifiable::Verifiable;
 use vrrb_lib::fields::GettableFields;
 
@@ -360,6 +360,7 @@ impl Blockchain {
     ///     Parent (Previous block to child) Block
     ///     The current state of the network
     ///     The current network ledger
+    // TODO: revisit component integrity validation later
     pub fn received_core_components(&self) -> bool {
         self.components_received.contains(&ComponentTypes::Genesis)
             && self.components_received.contains(&ComponentTypes::Child)

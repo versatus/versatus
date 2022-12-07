@@ -12,4 +12,3 @@ ritelinked = { version = "0.3.2", features = ['serde'] }
 serde_json = "1.0.64"
 serde = { version = "1.0.101", features = ["derive"] }
 log = "0.4.14"
-messages = { path = "../messages" }

@@ -17,7 +17,6 @@ path = "crates/cli/src/main.rs"
 [dependencies]
 tokio = { version = "1.21.0", features = ["full"] }
 telemetry = { path = "crates/telemetry" }
-commands = { path = "crates/commands" }
 cli = { path = "crates/cli" }
 anyhow = "1.0.64"
 
@@ -42,9 +41,7 @@ members = [
     "crates/state",
     "crates/wallet",
     "crates/events",
-    "crates/commands",
     "crates/mempool",
-    "crates/messages",
     "crates/vrrb_lib",
     "crates/vrrb_cli",
     "crates/vrrb_gui",
