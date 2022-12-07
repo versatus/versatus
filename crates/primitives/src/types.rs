@@ -1,18 +1,16 @@
-pub mod node;
-
 use serde::{Deserialize, Serialize};
-pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 #[derive(Clone, Debug, Default)]
 pub struct StopSignal;
 
-//TXN Hash or Block Hash
-pub type Hash = Vec<u8>;
+type Hash = Vec<u8>;
+pub type TxHash = Hash;
+pub type PayloadHash = Hash;
+pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;
-pub type PeerID = Vec<u8>;
-pub type SecretKeyBytes =Vec<u8>;
-pub type PublicKeyBytes =Vec<u8>;
-
+pub type PeerId = Vec<u8>;
+pub type SecretKey = Vec<u8>;
+pub type PublicKey = Vec<u8>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SignatureType {
@@ -45,3 +43,4 @@ pub const NANO: u128 = 1;
 pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
+pub const VALIDATOR_THRESHOLD: f64 = 0.60;

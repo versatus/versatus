@@ -210,7 +210,11 @@ impl Miner {
         }
         self.claim_map
             .insert(self.claim.public_key.clone(), self.claim.clone());
-        Block::genesis(self.claim.clone(), self.secret_key.clone().as_bytes().to_vec(), None)
+        Block::genesis(
+            self.claim.clone(),
+            self.secret_key.clone().as_bytes().to_vec(),
+            None,
+        )
     }
 
     /// Attempts to mine a block
@@ -260,7 +264,7 @@ impl Miner {
     pub fn check_confirmed(&mut self, txn_id: String) {
         let mut validators = {
             if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
-                txn.validators.clone()
+                txn.validators()
             } else {
                 HashMap::new()
             }
@@ -281,7 +285,7 @@ impl Miner {
     pub fn check_rejected(&self, txn_id: String) -> Option<Vec<String>> {
         let mut validators = {
             if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
-                txn.validators.clone()
+                txn.validators().clone()
             } else {
                 HashMap::new()
             }

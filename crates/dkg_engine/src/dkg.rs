@@ -4,9 +4,9 @@ use hbbft::{
     crypto::{serde_impl::SerdeSecret, SecretKey},
     sync_key_gen::{PartOutcome, SyncKeyGen},
 };
-use primitives::types::node::NodeType;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
+use primitives::NodeType;
 
 /// This is a trait that is implemented by the `DkgEngine` struct. It contains
 /// the functions that are required to run the DKG protocol.
@@ -215,20 +215,20 @@ mod tests {
         types::{DkgEngine, DkgError},
     };
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn failed_to_generate_part_committment_message_since_only_master_node_allowed() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::Miner);
+    async fn failed_to_generate_part_committment_message_since_only_master_node_allowed() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Miner).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let result = dkg_engine.generate_sync_keygen_instance(1);
         assert_eq!(result.is_err(), true);
         assert!(is_enum_variant!(result, Err(DkgError::InvalidNode { .. })));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn generate_part_committment_message() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    async fn generate_part_committment_message() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let part_committement_result = dkg_engine.generate_sync_keygen_instance(1);
         assert_eq!(part_committement_result.is_ok(), true);
@@ -238,10 +238,10 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn successfull_acknowledge_part_committment_message() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    async fn successfull_acknowledge_part_committment_message() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(0);
@@ -252,10 +252,10 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn failed_to_acknowledge_part_committment_missing_committment() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    async fn failed_to_acknowledge_part_committment_missing_committment() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(1);
@@ -266,10 +266,10 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn failed_to_acknowledge_part_committment_missing_syncgen_instance() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    async fn failed_to_acknowledge_part_committment_missing_syncgen_instance() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let result = dkg_engine.ack_partial_commitment(0);
         assert_eq!(result.is_err(), true);
@@ -279,10 +279,10 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn successfull_acknowledge_all_acks() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    async fn successfull_acknowledge_all_acks() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();
@@ -325,10 +325,10 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore = "temporarily broken because of changes in both node and dkg"]
-    fn successfull_generations_of_key_sets() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+    async fn successfull_generations_of_key_sets() {
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();

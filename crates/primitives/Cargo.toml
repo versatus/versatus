@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.37"
 serde = { version = "1.0.145", features = ["derive"] }
-
+hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }

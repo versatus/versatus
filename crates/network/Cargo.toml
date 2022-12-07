@@ -21,4 +21,7 @@ serde = { version = "1.0.144", features = ["derive"] }
 qp2p = "0.30.0"
 bytes = { version = "1.2.1", features = ["serde"] }
 telemetry = { path = "../telemetry" }
+vrrb_core = { path = "../vrrb_core" }
+primitives = { path = "../primitives" }
 thiserror = "1.0.33"
+uuid = { version = "1.2.1", features = ["v4", "serde"] }

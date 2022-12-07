@@ -5,7 +5,7 @@ use std::{
     u64::MAX as u64MAX,
 };
 
-use primitives::types::SecretKeyBytes;
+use primitives::SecretKey as SecretKeyBytes;
 use rand::Rng;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
