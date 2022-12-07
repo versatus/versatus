@@ -4,9 +4,14 @@ use std::{
 };
 
 use jsonrpsee::{core::client::Subscription, ws_client::WsClientBuilder};
-use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
+use node::{
+    test_utils::{
+        create_mock_bootstrap_node_config, create_mock_full_node_config,
+        create_mock_full_node_config_with_bootstrap,
+    },
+    Node, NodeType, RuntimeModuleState,
+};
 use tokio::sync::mpsc::unbounded_channel;
-use vrrb_config::NodeConfig;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{
     api::{CreateTxnArgs, RpcClient},
@@ -15,23 +20,29 @@ use vrrb_rpc::rpc::{
 
 #[tokio::test]
 async fn can_add_txns_to_mempool() {
-    let node_config = create_mock_full_node_config();
+    let node_config = create_mock_bootstrap_node_config();
 
+    let (bootstrap_ctrl_tx, bootstrap_ctrl_rx) = unbounded_channel::<Event>();
     let (ctrl_tx_1, ctrl_rx_1) = unbounded_channel::<Event>();
 
-    let vrrb_node_1 = Node::start(&node_config, ctrl_rx_1).await.unwrap();
+    let bootstrap_node = Node::start(&node_config, bootstrap_ctrl_rx).await.unwrap();
 
-    let client = create_client(vrrb_node_1.jsonrpc_server_address())
+    let bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
+
+    let node_config_1 = create_mock_full_node_config_with_bootstrap(vec![bootstrap_gossip_address]);
+    let node_1 = Node::start(&node_config_1, ctrl_rx_1).await.unwrap();
+
+    let bootstrap_handle = tokio::spawn(async move {
+        bootstrap_node.wait().await.unwrap();
+    });
+
+    let client = create_client(node_1.jsonrpc_server_address())
         .await
         .unwrap();
 
-    assert_eq!(vrrb_node_1.status(), RuntimeModuleState::Stopped);
-
-    let handle_1 = tokio::spawn(async move {
-        vrrb_node_1.wait().await.unwrap();
+    let node_1_handle = tokio::spawn(async move {
+        node_1.wait().await.unwrap();
     });
-
-    ctrl_tx_1.send(Event::Stop).unwrap();
 
     client
         .create_txn(CreateTxnArgs {
@@ -47,5 +58,15 @@ async fn can_add_txns_to_mempool() {
         .await
         .unwrap();
 
-    handle_1.await.unwrap();
+    let mempool_snapshot = client.get_full_mempool().await.unwrap();
+
+    dbg!(&mempool_snapshot);
+
+    assert!(!mempool_snapshot.is_empty());
+
+    ctrl_tx_1.send(Event::Stop).unwrap();
+    bootstrap_ctrl_tx.send(Event::Stop).unwrap();
+
+    node_1_handle.await.unwrap();
+    bootstrap_handle.await.unwrap();
 }

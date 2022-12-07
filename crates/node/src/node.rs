@@ -12,6 +12,7 @@ use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
 
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
+use theater::{Actor, ActorImpl};
 use tokio::{
     sync::{
         broadcast::Receiver,
@@ -35,69 +36,9 @@ const NUMBER_OF_NETWORK_PACKETS: usize = 32;
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
 #[derive(Debug)]
-pub struct OldNode {
-    /// Every node needs a unique ID to identify it as a member of the network.
-    pub id: NodeIdentifier,
-
-    /// Index of the node in the network
-    pub idx: NodeIdx,
-
-    pub keypair: KeyPair,
-    /// The type of the node, used for custom impl's based on the type the
-    /// capabilities may vary.
-    //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
-    //TODO: Create different custom structs for different kinds of nodes with different
-    // authorization so that we can have custom impl blocks based on the type.
-    pub node_type: NodeType,
-
-    /// Directory used to persist all VRRB node information to disk
-    data_dir: PathBuf,
-
-    /// Address the node listens for network events through RaptorQ
-    raptorq_gossip_address: SocketAddr,
-
-    /// Address the node listens for network events through udp2p
-    udp_gossip_address: SocketAddr,
-
-    /// Address the node listens for JSON-RPC connections
-    jsonrpc_server_address: SocketAddr,
-
-    /// Whether the current node is a bootstrap node or not
-    is_bootsrap: bool,
-
-    /// The address of the bootstrap node(s), used for peer discovery and
-    /// initial state sync
-    bootstrap_node_addresses: Vec<SocketAddr>,
-
-    /// VRRB world state. it contains the accounts tree
-    // state: LeftRightTrie<MemoryDB>,
-
-    /// Confirmed transactions
-    // txns: LeftRightTrie<MemoryDB>,
-
-    /// Unconfirmed transactions
-    // mempool: LeftRightTrie<MemoryDB>,
-
-    // validator_unit: Option<i32>,
-    running_status: RuntimeModuleState,
-
-    vm: Cpu,
-
-    http_api_server_config: HttpApiServerConfig,
-}
-
-// TODO: make all of these handles optional so as to make the node configurable
-#[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
 
-    // state_handle: JoinHandle<()>,
-    // gossip_handle: JoinHandle<()>,
-    // state_handle: JoinHandle<Result<()>>,
-    // gossip_handle: JoinHandle<Result<()>>,
-    // miner_handle: JoinHandle<()>,
-    // txn_validator_handle: JoinHandle<()>,
-    //
     // NOTE: core node features
     event_router_handle: JoinHandle<()>,
     running_status: RuntimeModuleState,
@@ -275,6 +216,10 @@ impl Node {
         self.running_status.clone()
     }
 
+    pub fn keypair(&self) -> KeyPair {
+        self.keypair.clone()
+    }
+
     pub fn udp_gossip_address(&self) -> SocketAddr {
         self.config.udp_gossip_address
     }
@@ -354,8 +299,14 @@ impl Node {
 
         let state_read_handle = state_module.read_handle();
 
-        let state_handle =
-            tokio::spawn(async move { state_module.start(&mut state_events_rx).await });
+        let mut state_module_actor = ActorImpl::new(state_module);
+
+        let state_handle = tokio::spawn(async move {
+            state_module_actor
+                .start(&mut state_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
 
         Ok((state_read_handle, Some(state_handle)))
     }

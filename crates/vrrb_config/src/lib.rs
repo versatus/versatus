@@ -1,39 +1,61 @@
+use bootstrap::BootstrapConfig;
 use derive_builder::Builder;
-use secp256k1::{PublicKey, SecretKey};
+use primitives::{NodeId, NodeIdx, NodeType};
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 mod bootstrap;
 
 #[derive(Builder, Debug, Clone)]
 pub struct NodeConfig {
-    pub id: primitives::NodeId,
-    pub idx: primitives::NodeIdx,
+    /// UUID that identifies each node
+    pub id: NodeId,
+
+    /// Peer ID used to identify Nodes within the context of the p2p network
+    pub idx: NodeIdx,
+
+    /// Directory used to persist all VRRB node information to disk
     pub data_dir: PathBuf,
+
     pub db_path: PathBuf,
+
+    /// Address the node listens for network events through RaptorQ
     pub raptorq_gossip_address: SocketAddr,
+
+    /// Address the node listens for network events through udp2p
     pub udp_gossip_address: SocketAddr,
-    pub node_type: primitives::NodeType,
+
+    /// The type of the node, used for custom impl's based on the type the
+    /// capabilities may vary.
+    //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
+    //TODO: Create different custom structs for different kinds of nodes with different
+    // authorization so that we can have custom impl blocks based on the type.
+    pub node_type: NodeType,
+
+    /// The address of the bootstrap node(s), used for peer discovery and
+    /// initial state sync
     pub bootstrap_node_addresses: Vec<SocketAddr>,
+
+    /// The address each node's HTTPs server listen to connection
     pub http_api_address: SocketAddr,
+
+    /// An optional title meant to be displayed on API docs
     pub http_api_title: String,
+
+    /// Version meant to be displayed on API docs
     pub http_api_version: String,
+
+    /// Optional timeout to consider when shutting down the node's HTTP API server
     pub http_api_shutdown_timeout: Option<Duration>,
+
+    /// Address the node listens for JSON-RPC connections
+    pub jsonrpc_server_address: SocketAddr,
 
     // TODO: refactor env-aware options
     #[builder(default = "false")]
     pub preload_mock_state: bool,
 
-    //
-    //TODO: use SecretKey from threshold crypto crate for MasterNode
-    //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be
-    // moved to primitive/utils module
-    // let mut secret_key_encoded = Vec::new();
-    //
-    // TODO: replace keys with hhbft ones
-    // pub node_public_key: PublicKey,
-    // pub node_secret_key: SecretKey,
-    /// Address the node listens for JSON-RPC connections
-    pub jsonrpc_server_address: SocketAddr,
+    /// Bootstrap configuration
+    pub bootstrap_config: Option<BootstrapConfig>,
 }
 
 impl NodeConfig {
@@ -50,20 +72,13 @@ impl NodeConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr};
-
-    use primitives::NodeType;
-    use secp256k1::Secp256k1;
-
     use super::*;
+    use primitives::NodeType;
+    use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
     fn can_be_built_using_a_builder() {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-
-        let secp = Secp256k1::new();
-        let mut rng = rand::thread_rng();
-        let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
 
         NodeConfigBuilder::default()
             .id(String::from("abcdefg"))
@@ -79,8 +94,6 @@ mod tests {
             .http_api_shutdown_timeout(None)
             .node_type(NodeType::Full)
             .bootstrap_node_addresses(vec![addr])
-            // .node_public_key(pubkey)
-            // .node_secret_key(secret_key)
             .build()
             .unwrap();
     }

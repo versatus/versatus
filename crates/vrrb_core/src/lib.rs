@@ -4,6 +4,7 @@ pub mod cache;
 pub mod claim;
 pub mod component;
 pub mod event_router;
+pub mod handler;
 pub mod keypair;
 pub mod handler;
 pub mod ledger;
