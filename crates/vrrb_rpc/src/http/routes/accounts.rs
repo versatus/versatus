@@ -27,6 +27,52 @@ async fn update_account() {
     todo!()
 }
 
+pub fn create_key_router() -> Router {
+    Router::new()
+        .route("/:id/:keys", get(get_keys))
+        .route("/:id", post(create_keys))
+        .layer(Extension(String::from("key route")))
+}
+
+
+async fn get_keys(Extension(state): Extension<String>) -> Json<Value> {
+    Json(json!({
+        "account": "dummy_account_status",
+        "state": state,
+        "keys": "dummy_keys",
+    }))
+}
+
+async fn create_keys(Extension(state): Extension<String>) -> Json<Value> {
+    //generate keys
+    todo!()
+}
+
+pub fn create_token_router() -> Router {
+    Router::new()
+        .route("/:id/:keys/:key/:tokens", get(get_tokens))
+        .route("/:id/:keys/:key/", post(create_tokens))
+        .route("/:id/:keys/:key/:tokens", put(update_tokens))
+        .layer(Extension(String::from("key route")))
+}
+
+async fn get_tokens(Extension(state): Extension<String>) -> Json<Value> {
+    todo!()
+}
+
+async fn create_tokens(Extension(state): Extension<String>) -> Json<Value> {
+    //adding token for the first time 
+    todo!()
+}
+
+//update balance of token
+async fn update_tokens(Extension(state): Extension<String>) -> Json<Value> {
+    todo!()
+}
+
+
+
+
 #[cfg(test)]
 mod tests {
     use axum::{
