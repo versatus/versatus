@@ -72,37 +72,46 @@ impl BlockHeader {
         let next_block_reward = Reward::genesis(miner);
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
-        let payload = format!(
-            "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            String::from_utf8(last_hash.clone()).unwrap(),
-            block_seed,
-            next_block_seed,
-            0,
-            timestamp,
-            txn_hash,
-            claim,
-            claim_map_hash,
-            block_reward,
-            next_block_reward,
-            neighbor_hash,
-        );
+        let mut payload = String::new();
+        if let Ok(str_last_hash) = String::from_utf8(last_hash.clone()){
+            let payload = format!(
+                "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
+                str_last_hash,
+                block_seed,
+                next_block_seed,
+                0,
+                timestamp,
+                txn_hash,
+                claim,
+                claim_map_hash,
+                block_reward,
+                next_block_reward,
+                neighbor_hash,
+            );
 
-        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
+        }
 
-        Ok(BlockHeader {
-            last_hash,
-            block_seed,
-            next_block_seed,
-            block_height: 0,
-            timestamp,
-            txn_hash,
-            claim,
-            claim_map_hash: None,
-            block_reward,
-            next_block_reward,
-            neighbor_hash: None,
-            signature,
-        })
+        dbg!("OMG THE PAYLOAD????", payload.clone());
+
+        if let Ok(signature) = BlockHeader::sign(&payload, secret_key){
+            Ok(BlockHeader {
+                last_hash,
+                block_seed,
+                next_block_seed,
+                block_height: 0,
+                timestamp,
+                txn_hash,
+                claim,
+                claim_map_hash: None,
+                block_reward,
+                next_block_reward,
+                neighbor_hash: None,
+                signature: signature.to_string(),
+            })
+        }
+        else{
+            Err(InvalidBlockErrorReason::InvalidBlockHeader)
+        }
     }
 
     pub fn new(
@@ -115,7 +124,7 @@ impl BlockHeader {
         secret_key: SecretKeyBytes,
         epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
-        threshold_signature: Option<RawSignature>
+        wrapped_threshold_signature: Option<RawSignature>
     ) -> Result<BlockHeader, InvalidBlockErrorReason> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -124,10 +133,14 @@ impl BlockHeader {
         //let mut rng = rand::thread_rng();
         let last_hash = last_block.hash;
         let block_seed = last_block.header.next_block_seed;
-        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.unwrap().clone()) {
+
+        let threshold_signature = wrapped_threshold_signature.ok_or(InvalidBlockErrorReason::InvalidBlockHeader);
+
+        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()?) {
             Ok(next_block_seed) => next_block_seed,
             Err(e) => return Err(e),
         };
+       
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -141,54 +154,68 @@ impl BlockHeader {
             next_block_reward = reward.clone();
         }
         let block_height = last_block.header.block_height + 1;
-        let payload = format!(
-            "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            String::from_utf8(last_hash.clone()).unwrap(),
-            block_seed,
-            next_block_seed,
-            block_height,
-            timestamp,
-            txn_hash,
-            claim,
-            claim_map_hash,
-            block_reward,
-            next_block_reward,
-            neighbor_hash,
-        );
 
+        let mut payload = String::new();
+
+        if let Ok(str_last_hash) =  String::from_utf8(last_hash.clone()){
+            let payload = format!(
+                "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
+                str_last_hash,
+                block_seed,
+                next_block_seed,
+                block_height,
+                timestamp,
+                txn_hash,
+                claim,
+                claim_map_hash,
+                block_reward,
+                next_block_reward,
+                neighbor_hash,
+            );
+        }
+        
         let signature = BlockHeader::sign(&payload, secret_key).unwrap().to_string();
 
-        Ok(BlockHeader {
-            last_hash,
-            block_seed,
-            next_block_seed,
-            block_height: last_block.header.block_height + 1,
-            timestamp,
-            txn_hash,
-            claim,
-            claim_map_hash,
-            block_reward,
-            next_block_reward,
-            neighbor_hash: None,
-            signature,
-        })
+        if let Ok(signature) =  BlockHeader::sign(&payload, secret_key){
+            Ok(BlockHeader {
+                last_hash,
+                block_seed,
+                next_block_seed,
+                block_height: last_block.header.block_height + 1,
+                timestamp,
+                txn_hash,
+                claim,
+                claim_map_hash,
+                block_reward,
+                next_block_reward,
+                neighbor_hash: None,
+                signature: signature.to_string(),
+            })   
+        } else {
+            Err(InvalidBlockErrorReason::InvalidBlockHeader)
+        }
+
+      
     }
 
     pub fn get_payload(&self) -> String {
-        format!(
-            "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            String::from_utf8(self.last_hash.clone()).unwrap(),
-            self.block_seed,
-            self.next_block_seed,
-            self.block_height,
-            self.timestamp,
-            self.txn_hash,
-            self.claim,
-            self.claim_map_hash,
-            self.block_reward,
-            self.next_block_reward,
-            self.neighbor_hash,
-        )
+        if let Ok(str_last_hash) = String::from_utf8(self.last_hash.clone()){
+            return format!(
+                "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
+                str_last_hash,
+                self.block_seed,
+                self.next_block_seed,
+                self.block_height,
+                self.timestamp,
+                self.txn_hash,
+                self.claim,
+                self.claim_map_hash,
+                self.block_reward,
+                self.next_block_reward,
+                self.neighbor_hash,
+            );
+        }
+        return String::new();
     }
 
     //TODO Option wrapper removed from threshiold_signature as waiting will be required before it can be passed in 
