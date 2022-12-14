@@ -6,7 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use block::header::BlockHeader;
+use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
 /// This module is for the creation and operation of a mining unit within a node
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
@@ -224,7 +224,7 @@ impl Miner {
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, i128) {
+    pub fn mine(&mut self) -> (Result<(Option<Block>, i128), InvalidBlockErrorReason>) {
         if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
             let claim_map_hash = digest(claim_map_str.as_bytes());
             if let Some(last_block) = self.last_block.clone() {
@@ -246,7 +246,7 @@ impl Miner {
                 return Block::mine(mine_args);
             }
         }
-        (None, 0)
+        Ok((None, 0))
     }
 
     /// Increases the nonce and calculates the new hash for all claims
