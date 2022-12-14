@@ -73,7 +73,7 @@ mod tests {
             .unwrap();
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
 
-        let mut last_block = last_block.0.unwrap();
+        let mut last_block = last_block.unwrap().0.unwrap();
         last_block.header.timestamp = timestamp;
 
         let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
@@ -94,7 +94,7 @@ mod tests {
 
         let block = Block::mine(mine_args);
 
-        assert!((block.0.unwrap().utility + last_block.utility) > 0);
+        assert!((block.unwrap().0.unwrap().utility + last_block.utility) > 0);
     }
 
     #[test]
@@ -141,12 +141,12 @@ mod tests {
             .unwrap();
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
 
-        let adjustment = last_block.1;
+        let adjustment = last_block.clone().unwrap().1;
         reward.new_epoch(adjustment);
 
         assert!(reward.valid_reward());
 
-        let mut last_block = last_block.0.unwrap();
+        let mut last_block = last_block.unwrap().0.unwrap();
         last_block.header.timestamp = timestamp;
         last_block.utility = 10;
 
@@ -167,8 +167,8 @@ mod tests {
         };
 
         let block = Block::mine(mine_args);
-        let adjustment_next_epoch = block.1;
-        let block_data = block.0.unwrap();
+        let adjustment_next_epoch = block.clone().unwrap().1;
+        let block_data = block.unwrap().0.unwrap();
 
         assert_eq!(
             adjustment_next_epoch,

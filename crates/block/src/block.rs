@@ -81,7 +81,6 @@ impl Block {
     // updated account state (if successful) or an error (if unsuccessful)
     pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Result<Block, InvalidBlockErrorReason> {
         // Create the genesis header
-
         let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner, RawSignature::default())?;
         // Create the genesis state hash
         // TODO: Replace with state trie root
@@ -402,7 +401,7 @@ impl Verifiable for Block {
         let mut genesis_state_hash = "".to_string();
 
         if let Ok(str_genesis_last_hash) = String::from_utf8(genesis_last_hash.clone()){
-            let genesis_state_hash = digest(
+            genesis_state_hash = digest(
                 format!(
                     "{},{}",
                     str_genesis_last_hash,
