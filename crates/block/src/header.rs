@@ -54,7 +54,7 @@ impl BlockHeader {
         let block_seed = seed;
         // Range should remain the same.
 
-        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()) {
+        let next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()) {
             Ok(next_block_seed) => next_block_seed,
             Err(e) => return Err(e),
         };
@@ -74,7 +74,7 @@ impl BlockHeader {
         let neighbor_hash: Option<String> = None;
         let mut payload = String::new();
         if let Ok(str_last_hash) = String::from_utf8(last_hash.clone()){
-            let payload = format!(
+            payload = format!(
                 "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
                 str_last_hash,
                 block_seed,
@@ -90,8 +90,6 @@ impl BlockHeader {
             );
 
         }
-
-        dbg!("OMG THE PAYLOAD????", payload.clone());
 
         if let Ok(signature) = BlockHeader::sign(&payload, secret_key){
             Ok(BlockHeader {
@@ -136,7 +134,7 @@ impl BlockHeader {
 
         let threshold_signature = wrapped_threshold_signature.ok_or(InvalidBlockErrorReason::InvalidBlockHeader);
 
-        let mut next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()?) {
+        let next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()?) {
             Ok(next_block_seed) => next_block_seed,
             Err(e) => return Err(e),
         };
@@ -158,7 +156,7 @@ impl BlockHeader {
         let mut payload = String::new();
 
         if let Ok(str_last_hash) =  String::from_utf8(last_hash.clone()){
-            let payload = format!(
+            payload = format!(
                 "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
                 str_last_hash,
                 block_seed,
@@ -174,8 +172,6 @@ impl BlockHeader {
             );
         }
         
-        let signature = BlockHeader::sign(&payload, secret_key).unwrap().to_string();
-
         if let Ok(signature) =  BlockHeader::sign(&payload, secret_key){
             Ok(BlockHeader {
                 last_hash,
