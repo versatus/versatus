@@ -4,11 +4,11 @@ use parity_wordlist::WORDS;
 use rand::seq::SliceRandom;
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_core::RngCore;
-use secp256k1::SecretKey;
 use vrf::{
     openssl::{CipherSuite, ECVRF},
     VRF,
 };
+use vrrb_core::keypair::KeyPair;
 
 use crate::vrng::VRNG;
 
@@ -35,7 +35,7 @@ impl std::error::Error for InvalidVVRF {}
 ///It does not include the secret key
 pub struct VVRF {
     pub vrf: ECVRF,
-    pub pubkey: Vec<u8>,
+    pub public_key: Vec<u8>,
     pub message: Vec<u8>,
     pub proof: [u8; 81],
     pub hash: [u8; 32],
@@ -155,14 +155,15 @@ impl VRNG for VVRF {
 impl VVRF {
     ///create new VVRF type by populating fields with return types
     /// of VVRF methods
-    pub fn new(message: &[u8], sk: SecretKey) -> VVRF {
+    pub fn new(message: &[u8], keypair: KeyPair) -> VVRF {
         let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
-        let pubkey = VVRF::generate_pubkey(&mut vrf, sk);
-        let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
+        let public_key = keypair.to_pbytes().unwrap();
+        let (proof, hash) =
+            VVRF::generate_seed(&mut vrf, message, keypair.to_bytes().unwrap().as_slice()).unwrap();
         let rng = ChaCha20Rng::from_seed(hash);
         VVRF {
             vrf,
-            pubkey,
+            public_key,
             message: message.to_vec(),
             proof,
             hash,
@@ -170,28 +171,18 @@ impl VVRF {
         }
     }
 
-    pub fn generate_secret_key() -> SecretKey {
-        SecretKey::new(&mut rand::thread_rng())
-    }
-
     ///get vrf from openssl struct ECVRF (eliptic curve vrf)
     fn generate_vrf(suite: CipherSuite) -> ECVRF {
         ECVRF::from_suite(suite).unwrap()
-    }
-
-    ///get pk from vrf crate
-    fn generate_pubkey(vrf: &mut ECVRF, secret_key: SecretKey) -> Vec<u8> {
-        // TODO: Is this unwrap neccesary?
-        vrf.derive_public_key(&secret_key.secret_bytes()).unwrap()
     }
 
     ///generate seed
     fn generate_seed(
         vrf: &mut ECVRF,
         message: &[u8],
-        secret_key: SecretKey,
+        secret_key: &[u8],
     ) -> Option<([u8; 81], [u8; 32])> {
-        if let Ok(pi) = vrf.prove(&secret_key.secret_bytes(), message) {
+        if let Ok(pi) = vrf.prove(&secret_key, message) {
             if let Ok(hash) = vrf.proof_to_hash(&pi) {
                 let mut proof_buff = [0u8; 81];
                 pi.iter().enumerate().for_each(|(i, v)| {
@@ -213,7 +204,10 @@ impl VVRF {
 
     ///check that hash and beta are equal to ensure hash(seed) is valid
     pub fn verify_seed(&mut self) -> Result<(), InvalidVVRF> {
-        if let Ok(beta) = self.vrf.verify(&self.pubkey, &self.proof, &self.message) {
+        if let Ok(beta) = self
+            .vrf
+            .verify(&self.public_key, &self.proof, &self.message)
+        {
             if self.hash.to_vec() != beta {
                 Err(InvalidVVRF::InvalidProofError)
             } else {
@@ -226,7 +220,7 @@ impl VVRF {
 
     ///getter functions
     pub fn get_pubkey(&self) -> Vec<u8> {
-        self.pubkey.clone()
+        self.public_key.clone()
     }
 
     pub fn get_message(&self) -> Vec<u8> {
