@@ -9,9 +9,10 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
+use secp256k1::ecdsa::Signature;
 // use pool::pool::Pool;
 // use state::state::NetworkState;
-use secp256k1::{Message, PublicKey, Secp256k1, Signature};
+use secp256k1::{Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use uuid::Uuid;
