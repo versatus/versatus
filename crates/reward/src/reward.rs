@@ -139,7 +139,7 @@ impl Accountable for Reward {
     }
 
     fn get_amount(&self) -> u128 {
-        self.amount as u128
+        self.amount
     }
 
     fn get_category(&self) -> Option<Self::Category> {

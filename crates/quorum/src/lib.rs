@@ -8,9 +8,8 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use secp256k1::{self, Secp256k1};
     use sha256::digest;
-    use vrrb_core::claim::Claim;
+    use vrrb_core::{claim::Claim, keypair::KeyPair};
 
     use crate::{
         election::Election,
@@ -29,22 +28,16 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            
+            let keypair = KeyPair::random();
+            let public_key=keypair.miner_kp.1.serialize().to_vec();
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
         });
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -69,20 +62,14 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let keypair = KeyPair::random();
+            let public_key= keypair.miner_kp.1;
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -103,21 +90,14 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let keypair = KeyPair::random();
+            let public_key= keypair.miner_kp.1;
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -136,21 +116,14 @@ mod tests {
     fn invalid_election_block_height() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..3).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let keypair = KeyPair::random();
+            let public_key= keypair.miner_kp.1;
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -173,21 +146,13 @@ mod tests {
     fn invalid_election_block_timestamp() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..20).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let keypair = KeyPair::random();
+            let public_key= keypair.miner_kp.1;
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
-
             dummy_claims.push(claim);
         });
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -209,21 +174,13 @@ mod tests {
     fn elect_quorum() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..25).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
+            let keypair = KeyPair::random();
+            let public_key= keypair.miner_kp.1;
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
-
             dummy_claims.push(claim);
         });
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -265,12 +222,8 @@ mod tests {
         let mut dummy_claims2: Vec<Claim> = Vec::new();
 
         (0..3).for_each(|i| {
-            let secp = Secp256k1::new();
-
-            let mut rng = rand::thread_rng();
-
-            let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+            let keypair = KeyPair::random();
+            let public_key= keypair.miner_kp.1;
             let claim: Claim = Claim::new(
                 public_key.to_string(),
                 TEST_ADDR.to_string().clone(),
@@ -282,12 +235,8 @@ mod tests {
             dummy_claims2.push(claim.clone());
         });
 
-        let secp = Secp256k1::new();
-
-        let mut rng = rand::thread_rng();
-
-        let (_secret_key, public_key) = secp.generate_keypair(&mut rng);
-
+        let keypair = KeyPair::random();
+        let public_key= keypair.miner_kp.1;
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();

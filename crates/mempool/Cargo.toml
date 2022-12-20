@@ -14,7 +14,6 @@ state = { path = "../state" }
 left-right = "0.11.5"
 indexmap = "1.9.1"
 fxhash = "0.2.1"
-secp256k1 = { version = "0.24.0", features = ["rand"] }
 sha256 = "1.0.2"
 bytebuffer = "0.2.1"
 ritelinked = { version = "0.3.2", features = ['serde'] }

@@ -19,7 +19,6 @@ use lr_trie::LeftRightTrie;
 use patriecia::db::MemoryDB;
 use primitives::types::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey, StopSignal};
 use rand::{thread_rng, Rng};
-use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use state::NetworkState;
 use telemetry::{error, info, Instrument};
@@ -28,6 +27,7 @@ use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedS
 use trecho::vm::Cpu;
 use uuid::Uuid;
 use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+use vrrb_core::keypair::KeyPair;
 use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
@@ -52,17 +52,7 @@ pub struct Node {
     /// Index of the node in the network
     pub idx: NodeIdx,
 
-    /// Every node needs to have a secret key to sign messages, blocks, tx, etc.
-    /// for authenticity
-    //TODO: Discuss whether we need this here or whether it's redundant.
-    pub secret_key: SecretKey,
-
-    /// Every node needs to have a public key to have its messages, blocks, tx,
-    /// etc, signatures validated by other nodes
-    //TODOL: Discuss whether this is needed here.
-    pub pubkey: String,
-    pub public_key: PublicKey,
-
+    pub keypair:KeyPair,
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
@@ -100,16 +90,6 @@ pub struct Node {
 impl Node {
     /// Creates and returns a Node instance
     pub fn new(config: vrrb_config::NodeConfig) -> Node {
-        let secp = Secp256k1::new();
-        let mut rng = rand::thread_rng();
-        let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
-        let vm = trecho::vm::Cpu::new();
-
-        //TODO: use SecretKey from threshold crypto crate for MasterNode
-        //TODO: Discussion :Generation/Serializing/Deserialzing of secret key to be
-        // moved to primitive/utils module
-        let mut secret_key_encoded = Vec::new();
-
         let http_api_server_config = HttpApiServerConfig {
             address: config.http_api_address.to_string(),
             api_title: config.http_api_title.clone(),
@@ -124,9 +104,7 @@ impl Node {
             id: config.id.clone(),
             idx: config.idx.clone(),
             node_type: config.node_type.clone(),
-            secret_key: secret_key_encoded,
-            pubkey: pubkey.to_string(),
-            public_key: pubkey.to_string().into_bytes(),
+            keypair:KeyPair::random(),
             is_bootsrap: config.bootstrap,
             bootstrap_node_addresses,
             running_status: RuntimeModuleState::Stopped,

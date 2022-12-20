@@ -170,7 +170,7 @@ impl Quorum {
             .map(|claim| {
                 (
                     claim.get_pointer(self.quorum_seed as u128).unwrap(),
-                    &claim.pubkey,
+                    &claim.public_key,
                 )
             })
             .collect();

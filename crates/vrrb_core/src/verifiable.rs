@@ -15,7 +15,7 @@ pub trait Verifiable {
         debendencies: &Self::Dependencies,
     ) -> Result<bool, Self::Error>;
 
-    fn valid_genesis(&self, dependencies: &Self::Dependencies) -> Result<bool, Self::Error> {
+    fn valid_genesis(&self, _dependencies: &Self::Dependencies) -> Result<bool, Self::Error> {
         Ok(true)
     }
 }

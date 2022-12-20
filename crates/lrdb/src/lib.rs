@@ -9,19 +9,14 @@ pub use vrrb_db::*;
 mod tests {
 
     use std::thread;
-
-    use rand::{rngs::StdRng, SeedableRng};
-    use secp256k1::{generate_keypair, PublicKey};
-
+    use vrrb_core::keypair::{KeyPair, PublicKeys};
     use crate::vrrb_db::*;
 
-    fn new_random_keys(n: usize) -> Vec<PublicKey> {
-        let mut rng = StdRng::from_entropy();
-        let mut res: Vec<PublicKey> = vec![];
-
+    fn new_random_keys(n: usize) -> Vec<PublicKeys> {
+        let mut res: Vec<PublicKeys> = vec![];
         for _ in 0..n {
-            let (_, pubkey) = generate_keypair(&mut rng);
-            res.push(pubkey);
+            let keypair = KeyPair::random();
+            res.push((keypair.miner_kp.1, keypair.validator_kp.1));
         }
         res
     }
@@ -50,7 +45,6 @@ mod tests {
         _ = account.update_field(AccountField::Credits(100));
 
         let mut vdb = VrrbDb::new();
-
         if let Err(e) = vdb.insert(keys[0], account) {
             panic!("Failed to insert account with commitment: {:?}", e)
         }
@@ -524,6 +518,6 @@ mod tests {
             }
         });
         thread::sleep(Duration::from_millis(1000));
-        assert_eq!(read_handle.len(), 10);
+        assert_eq!(read_handle.len(), 9);
     }
 }
