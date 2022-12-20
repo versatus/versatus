@@ -69,6 +69,7 @@ impl Default for WalletAccount {
 
         // Print the private key string so that the user can save it.
         // TODO: require a confirmation the private key being saved by the user
+        //sign msg?
         let welcome_message = format!(
             "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address_prefix,
@@ -82,6 +83,7 @@ impl Default for WalletAccount {
         total_balances.insert(address_prefix.clone(), vrrb_balances);
 
         // Generate a wallet struct by assigning the variables to the fields.
+        //store wallet data (PUT(WalletAcct))
         Self {
             secretkey: secret_key.to_string(),
             welcome_message,
@@ -105,6 +107,7 @@ impl WalletAccount {
         self.welcome_message.clone()
     }
 
+    //what happens to the tokens stored in old addrs?
     pub fn restore_from_private_key(private_key: String) -> Self {
         let secretkey = SecretKey::from_str(&private_key).unwrap();
         let secp = Secp256k1::new();
@@ -138,7 +141,8 @@ impl WalletAccount {
 
     pub fn get_txn_nonce(&mut self, _network_state: &NetworkState) {
         // TODO: add a get_account_txn_nonce() function to network state to
-        // update txn nonce in walet when restored.
+        // update txn nonce in wallet when restored.
+            //Why?
     }
 
     pub fn get_new_addresses(&mut self, number_of_addresses: u8) {
