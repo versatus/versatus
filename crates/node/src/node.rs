@@ -109,7 +109,7 @@ impl Node {
             bootstrap_node_addresses,
             running_status: RuntimeModuleState::Stopped,
             data_dir: config.data_dir().clone(),
-            vm,
+            vm:trecho::vm::Cpu::new(),
             http_api_server_config,
         }
     }
