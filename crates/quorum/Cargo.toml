@@ -16,3 +16,4 @@ rand = { version = "0.6", features = ["std"] }
 sha256 = "1.0.2"
 format-bytes = "0.3.0"
 thread_local = "1.1.4"
+hex = "*"
