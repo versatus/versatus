@@ -518,6 +518,6 @@ mod tests {
             }
         });
         thread::sleep(Duration::from_millis(1000));
-        assert_eq!(read_handle.len(), 9);
+        assert_eq!(read_handle.len(), 10);
     }
 }
