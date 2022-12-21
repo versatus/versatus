@@ -46,8 +46,8 @@ pub struct WalletAccount {
 impl Default for WalletAccount {
     fn default() -> Self {
         let kp = KeyPair::random();
-        let secret_key = kp.miner_kp.0;
-        let public_key = kp.miner_kp.1;
+        let secret_key = kp.get_miner_secret_key();
+        let public_key = kp.get_miner_public_key();
         // Generate 100 addresses by hashing a universally unique IDs + secret_key +
         // public_key
         let mut address_bytes = public_key.to_string().as_bytes().to_vec();
@@ -251,7 +251,7 @@ impl WalletAccount {
             &amount,
             &self.nonce
         );
-        let signature = KeyPair::edsca_sign(payload.as_bytes(), self.secret_key.clone()).unwrap();
+        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), self.secret_key.clone()).unwrap();
         let uid_payload = format!("{},{},{}", &payload, Uuid::new_v4(), &signature);
 
         Ok(Txn {

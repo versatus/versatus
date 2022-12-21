@@ -26,7 +26,7 @@ mod tests {
 
         (0..3).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1.serialize().to_vec();
+            let public_key = keypair.get_miner_public_key().serialize().to_vec();
             let claim: Claim =
                 Claim::new(hex::encode(public_key), TEST_ADDR.to_string(), i as u128);
 
@@ -34,7 +34,7 @@ mod tests {
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -60,13 +60,13 @@ mod tests {
 
         (0..3).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1;
+            let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
 
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
@@ -88,13 +88,13 @@ mod tests {
 
         (0..3).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1;
+            let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -114,13 +114,13 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..3).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1;
+            let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -144,12 +144,12 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..20).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1;
+            let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -172,12 +172,12 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..25).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1;
+            let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();
@@ -221,7 +221,7 @@ mod tests {
 
         (0..3).for_each(|i| {
             let keypair = KeyPair::random();
-            let public_key = keypair.miner_kp.1;
+            let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(
                 public_key.to_string(),
                 TEST_ADDR.to_string().clone(),
@@ -234,7 +234,7 @@ mod tests {
         });
 
         let keypair = KeyPair::random();
-        let public_key = keypair.miner_kp.1;
+        let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
         public_key.hash(&mut hasher);
         let pubkey_hash = hasher.finish();

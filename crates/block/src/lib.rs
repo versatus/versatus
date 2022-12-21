@@ -19,7 +19,11 @@ mod tests {
     #[test]
     fn test_genesis_block_utility() {
         let keypair = KeyPair::random();
-        let claim = Claim::new(keypair.miner_kp.1.to_string(), "address".to_string(), 1);
+        let claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            1,
+        );
         let genesis_block_opt =
             Block::genesis(claim, keypair.miner_kp.0.secret_bytes().to_vec(), None);
         assert!(genesis_block_opt.is_some());
@@ -30,12 +34,23 @@ mod tests {
     #[test]
     fn test_block_utility() {
         let keypair = KeyPair::random();
-        let claim = Claim::new(keypair.miner_kp.1.to_string(), "address".to_string(), 1);
-        let genesis_block_opt =
-            Block::genesis(claim, keypair.miner_kp.0.secret_bytes().to_vec(), None);
+        let claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            1,
+        );
+        let genesis_block_opt = Block::genesis(
+            claim,
+            keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            None,
+        );
         let keypair_1 = KeyPair::random();
         let keypair_2 = KeyPair::random();
-        let last_block_claim = Claim::new(keypair.miner_kp.1.to_string(), "address".to_string(), 2);
+        let last_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
         let mut genesis_block = genesis_block_opt.unwrap();
         let start = std::time::SystemTime::now();
         let start = start
@@ -67,7 +82,11 @@ mod tests {
         let timestamp = start.duration_since(UNIX_EPOCH).unwrap().as_nanos();
         let mut last_block = last_block.0.unwrap();
         last_block.header.timestamp = timestamp;
-        let new_block_claim = Claim::new(keypair.miner_kp.1.to_string(), "address".to_string(), 2);
+        let new_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
         let mine_args = MineArgs {
             claim: new_block_claim.clone(),
             last_block: last_block.clone(),
@@ -90,12 +109,23 @@ mod tests {
     #[test]
     fn test_block_adjustment_reward() {
         let keypair = KeyPair::random();
-        let claim = Claim::new(keypair.miner_kp.1.to_string(), "address".to_string(), 1);
-        let genesis_block_opt =
-            Block::genesis(claim, keypair.miner_kp.0.secret_bytes().to_vec(), None);
+        let claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            1,
+        );
+        let genesis_block_opt = Block::genesis(
+            claim,
+            keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            None,
+        );
         let keypair_1 = KeyPair::random();
         let keypair_2 = KeyPair::random();
-        let last_block_claim = Claim::new(keypair.miner_kp.1.to_string(), "address".to_string(), 2);
+        let last_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
 
         let mut genesis_block = genesis_block_opt.unwrap();
         let start = std::time::SystemTime::now();
@@ -138,7 +168,11 @@ mod tests {
         last_block.header.timestamp = timestamp;
         last_block.utility = 10;
 
-        let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
+        let new_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
 
         let mine_args = MineArgs {
             claim: new_block_claim,

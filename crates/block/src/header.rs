@@ -5,6 +5,7 @@ use std::{
     u64::MAX as u64MAX,
 };
 
+use primitives::types::SecretKeyBytes;
 use rand::Rng;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
@@ -74,7 +75,7 @@ impl BlockHeader {
             neighbor_hash,
         );
 
-        let signature = KeyPair::edsca_sign(payload.as_bytes(), secret_key).unwrap();
+        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
 
         BlockHeader {
             last_hash,
@@ -99,7 +100,7 @@ impl BlockHeader {
         txn_hash: String,
         claim_map_hash: Option<String>,
         neighbor_hash: Option<String>,
-        secret_key: Vec<u8>,
+        secret_key: SecretKeyBytes,
         epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> BlockHeader {
@@ -138,7 +139,7 @@ impl BlockHeader {
             next_block_reward,
             neighbor_hash,
         );
-        let signature = KeyPair::edsca_sign(payload.as_bytes(), secret_key).unwrap();
+        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
         BlockHeader {
             last_hash,
             block_nonce,

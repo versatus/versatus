@@ -17,7 +17,10 @@ use std::{
 
 use lr_trie::LeftRightTrie;
 use patriecia::db::MemoryDB;
-use primitives::types::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey, StopSignal};
+use primitives::types::{
+    node::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey},
+    StopSignal,
+};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use state::NetworkState;
@@ -26,8 +29,10 @@ use thiserror::Error;
 use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
 use trecho::vm::Cpu;
 use uuid::Uuid;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
-use vrrb_core::keypair::KeyPair;
+use vrrb_core::{
+    event_router::{DirectedEvent, Event, EventRouter, Topic},
+    keypair::KeyPair,
+};
 use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
@@ -52,7 +57,7 @@ pub struct Node {
     /// Index of the node in the network
     pub idx: NodeIdx,
 
-    pub keypair:KeyPair,
+    pub keypair: KeyPair,
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
@@ -104,12 +109,12 @@ impl Node {
             id: config.id.clone(),
             idx: config.idx.clone(),
             node_type: config.node_type.clone(),
-            keypair:KeyPair::random(),
+            keypair: KeyPair::random(),
             is_bootsrap: config.bootstrap,
             bootstrap_node_addresses,
             running_status: RuntimeModuleState::Stopped,
             data_dir: config.data_dir().clone(),
-            vm:trecho::vm::Cpu::new(),
+            vm: trecho::vm::Cpu::new(),
             http_api_server_config,
         }
     }

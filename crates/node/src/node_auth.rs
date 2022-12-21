@@ -4,6 +4,7 @@ use std::{
     net::SocketAddr,
     str::FromStr,
 };
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;

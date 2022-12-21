@@ -9,14 +9,16 @@ pub use vrrb_db::*;
 mod tests {
 
     use std::thread;
+
     use vrrb_core::keypair::{KeyPair, PublicKeys};
+
     use crate::vrrb_db::*;
 
     fn new_random_keys(n: usize) -> Vec<PublicKeys> {
         let mut res: Vec<PublicKeys> = vec![];
         for _ in 0..n {
             let keypair = KeyPair::random();
-            res.push((keypair.miner_kp.1, keypair.validator_kp.1));
+            res.push((keypair.get_miner_public_key().clone(), keypair.get_validator_public_key().clone()));
         }
         res
     }

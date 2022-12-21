@@ -16,6 +16,7 @@ use secp256k1::{Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use uuid::Uuid;
+use primitives::types::PublicKeyBytes;
 
 /// This module contains the basic structure of simple transaction
 use crate::accountable::Accountable;
@@ -37,7 +38,7 @@ pub struct Txn {
     pub txn_id: String,
     pub txn_timestamp: u128,
     pub sender_address: String,
-    pub sender_public_key: Vec<u8>,
+    pub sender_public_key: PublicKeyBytes,
     pub receiver_address: String,
     pub txn_token: Option<String>,
     pub txn_amount: u128,

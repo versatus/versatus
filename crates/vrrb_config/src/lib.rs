@@ -2,12 +2,12 @@ use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 #[derive(Debug, Clone)]
 pub struct NodeConfig {
-    pub id: primitives::types::NodeId,
-    pub idx: primitives::types::NodeIdx,
+    pub id: primitives::types::node::NodeId,
+    pub idx: primitives::types::node::NodeIdx,
     pub data_dir: PathBuf,
     pub db_path: PathBuf,
     pub gossip_address: SocketAddr,
-    pub node_type: primitives::types::NodeType,
+    pub node_type: primitives::types::node::NodeType,
     pub bootstrap: bool,
     pub bootstrap_node_addresses: Vec<SocketAddr>,
     pub http_api_address: SocketAddr,

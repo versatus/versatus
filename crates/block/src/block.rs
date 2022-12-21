@@ -3,7 +3,14 @@
 
 use std::fmt;
 
-use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
+use primitives::types::{
+    Epoch,
+    RawSignature,
+    SecretKeyBytes,
+    GENESIS_EPOCH,
+    SECOND,
+    VALIDATOR_THRESHOLD,
+};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
@@ -44,7 +51,7 @@ pub struct MineArgs<'a> {
     pub network_state: &'a NetworkState,
     pub neighbors: Option<Vec<BlockHeader>>,
     pub abandoned_claim: Option<Claim>,
-    pub secret_key: Vec<u8>,
+    pub secret_key: SecretKeyBytes,
     pub epoch: Epoch,
 }
 

@@ -274,8 +274,8 @@ impl VrrbDbReadHandle {
     /// ```
     /// use lrdb::{Account, AccountField, VrrbDb};
     /// let keypair = vrrb_core::keypair::KeyPair::random();
-    /// let pk_1 = keypair.miner_kp.1;
-    /// let pk_2 = keypair.validator_kp.1;
+    /// let pk_1 = keypair.get_miner_public_key().clone();
+    /// let pk_2 = keypair.get_validator_public_key().clone();
     /// let mut vdb = VrrbDb::new();
     ///
     /// let mut account = Account::new();
@@ -307,8 +307,14 @@ impl VrrbDbReadHandle {
     ///
     /// let keypair_1 = vrrb_core::keypair::KeyPair::random();
     /// let keypair_2 = vrrb_core::keypair::KeyPair::random();
-    /// let pk1 = (keypair_1.miner_kp.1, keypair_1.validator_kp.1);
-    /// let pk2 = (keypair_2.miner_kp.1, keypair_2.validator_kp.1);
+    /// let pk1 = (
+    ///     keypair_1.get_miner_public_key().clone(),
+    ///     keypair_1.get_validator_public_key().clone(),
+    /// );
+    /// let pk2 = (
+    ///     keypair_2.get_miner_public_key().clone(),
+    ///     keypair_2.get_validator_public_key().clone(),
+    /// );
     /// let mut vdb = VrrbDb::new();
     ///
     /// let mut account = Account::new();
@@ -436,8 +442,8 @@ impl VrrbDb {
     /// ```
     /// use lrdb::{Account, VrrbDb, VrrbDbError};
     /// let keypair = vrrb_core::keypair::KeyPair::random();
-    /// let pk_1 = keypair.miner_kp.1;
-    /// let pk_2 = keypair.validator_kp.1;
+    /// let pk_1 = keypair.get_miner_public_key().clone();
+    /// let pk_2 = keypair.get_validator_public_key().clone();
     ///
     /// let account = Account::new();
     /// let mut vdb = VrrbDb::new();
@@ -451,8 +457,8 @@ impl VrrbDb {
     /// ```
     /// use lrdb::{Account, VrrbDb, VrrbDbError};
     /// let keypair = vrrb_core::keypair::KeyPair::random();
-    /// let pk_1 = keypair.miner_kp.1;
-    /// let pk_2 = keypair.validator_kp.1;
+    /// let pk_1 = keypair.get_miner_public_key().clone();
+    /// let pk_2 = keypair.get_validator_public_key().clone();
     /// let mut account = Account::new();
     ///
     /// // That will fail, since nonce should be 0
@@ -520,10 +526,18 @@ impl VrrbDb {
     /// let keypair_1 = vrrb_core::keypair::KeyPair::random();
     /// let keypair_2 = vrrb_core::keypair::KeyPair::random();
     /// let keypair_3 = vrrb_core::keypair::KeyPair::random();
-    /// let key = (keypair_1.miner_kp.1, keypair_1.validator_kp.1);
-    /// let key1 = (keypair_2.miner_kp.1, keypair_2.validator_kp.1);
-    /// let key2 = (keypair_3.miner_kp.1, keypair_3.validator_kp.1);
-    ///
+    /// let key = (
+    ///     keypair_1.get_miner_public_key().clone(),
+    ///     keypair_1.get_validator_public_key().clone(),
+    /// );
+    /// let key1 = (
+    ///     keypair_2.get_miner_public_key().clone(),
+    ///     keypair_2.get_validator_public_key().clone(),
+    /// );
+    /// let key2 = (
+    ///     keypair_3.get_miner_public_key().clone(),
+    ///     keypair_3.get_validator_public_key().clone(),
+    /// );
     /// let mut account1 = Account::new();
     /// account1.update_field(AccountField::Credits(100));
     ///
@@ -563,12 +577,15 @@ impl VrrbDb {
     ///     let keypair_2 = vrrb_core::keypair::KeyPair::random();
     ///     let keypair_3 = vrrb_core::keypair::KeyPair::random();
     ///     let keypair_4 = vrrb_core::keypair::KeyPair::random();
-    ///     let key = (keypair_1.miner_kp.1,keypair_1.validator_kp.1);
-    ///     let key1 = (keypair_2.miner_kp.1,keypair_2.validator_kp.1);
-    ///     let key2 = (keypair_3.miner_kp.1,keypair_3.validator_kp.1);
-    ///     let key3 = (keypair_4.miner_kp.1,keypair_4.validator_kp.1);
-    ///     let mut vdb = VrrbDb::new();
-    ///    
+    /// let key = (keypair_1.get_miner_public_key().clone(),
+    /// keypair_1.get_validator_public_key().clone()); let key1 =
+    /// (keypair_2.get_miner_public_key().clone(),
+    /// keypair_2.get_validator_public_key().clone()); let key2 =
+    /// (keypair_3.get_miner_public_key().clone(),
+    /// keypair_3.get_validator_public_key().clone()); let key3 =
+    /// (keypair_4.get_miner_public_key().clone(),
+    /// keypair_4.get_validator_public_key().clone());     let mut vdb =
+    /// VrrbDb::new();    
     ///
     ///    let mut account = Account::new();
     ///    account.update_field(AccountField::Credits(123));
@@ -648,7 +665,10 @@ impl VrrbDb {
     /// ```
     /// use lrdb::{Account, AccountField, AccountFieldsUpdate, VrrbDb};
     /// let keypair_1 = vrrb_core::keypair::KeyPair::random();
-    /// let key = (keypair_1.miner_kp.1, keypair_1.validator_kp.1);
+    /// let key = (
+    ///     keypair_1.get_miner_public_key().clone(),
+    ///     keypair_1.get_validator_public_key().clone(),
+    /// );
     /// let mut vdb = VrrbDb::new();
     ///
     /// let mut account = Account::new();
@@ -708,10 +728,10 @@ impl VrrbDb {
     ///     let keypair_2 = vrrb_core::keypair::KeyPair::random();
     ///     let keypair_3 = vrrb_core::keypair::KeyPair::random();
     ///     let keypair_4 = vrrb_core::keypair::KeyPair::random();
-    ///     let key = (keypair_1.miner_kp.1,keypair_1.validator_kp.1);
-    ///     let key1 = (keypair_2.miner_kp.1,keypair_2.validator_kp.1);
-    ///     let key2 = (keypair_3.miner_kp.1,keypair_3.validator_kp.1);
-    ///     let key3 = (keypair_4.miner_kp.1,keypair_4.validator_kp.1);
+    /// let key = (keypair_1.get_miner_public_key().clone(), keypair_1.get_validator_public_key().clone());
+    /// let key1 = (keypair_2.get_miner_public_key().clone(), keypair_2.get_validator_public_key().clone());
+    /// let key2 = (keypair_3.get_miner_public_key().clone(), keypair_3.get_validator_public_key().clone());
+    /// let key3 = (keypair_4.get_miner_public_key().clone(), keypair_4.get_validator_public_key().clone());
     ///    let updates = vec![
     ///        AccountFieldsUpdate {
     ///            nonce: account.nonce + 1,
