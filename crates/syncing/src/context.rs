@@ -7,7 +7,7 @@ use std::{
 
 use clap::Parser;
 use config::{Config, File};
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 use rcrefcell::RcCell;
 use telemetry::{debug, error};
 use uuid::Uuid;
