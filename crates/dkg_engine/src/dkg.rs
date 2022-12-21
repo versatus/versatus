@@ -4,7 +4,7 @@ use hbbft::{
     crypto::{serde_impl::SerdeSecret, SecretKey},
     sync_key_gen::{PartOutcome, SyncKeyGen},
 };
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
