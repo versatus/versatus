@@ -11,7 +11,7 @@ name = "cli"
 path = "src/lib.rs"
 
 [dependencies]
-clap = { version = "3.2.20", features = ["derive"] }
+clap = { version = "4.0.29", features = ["derive"] }
 tokio = { version = "1.21.0", features = ["full"] }
 node = { path = "../node" }
 vrrb_config = { path = "../vrrb_config" }
