@@ -8,10 +8,9 @@ edition = "2021"
 [dependencies]
 evmap = "5.0.2"
 sha2 = "0.10.2"
-secp256k1 = { version = "0.24.0", features = ["global-context", "rand"] }
 serde = { version = "1.0.142", features = ["derive"] }
 thiserror = "1.0.32"
+vrrb_core={path="../vrrb_core"}
 
 [dev-dependencies]
 rand = "0.8.5"
-secp256k1 = { version = "0.24.0", features = ["global-context", "rand"] }

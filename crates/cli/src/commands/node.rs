@@ -1,8 +1,4 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-    time::Duration,
-};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use clap::{Parser, Subcommand};
 use node::Node;
@@ -19,10 +15,10 @@ pub struct RunOpts {
     pub dettached: bool,
 
     #[clap(short, long, value_parser)]
-    pub id: primitives::types::NodeId,
+    pub id: primitives::types::node::NodeId,
 
     #[clap(long, value_parser)]
-    pub idx: primitives::types::NodeIdx,
+    pub idx: primitives::types::node::NodeIdx,
 
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]

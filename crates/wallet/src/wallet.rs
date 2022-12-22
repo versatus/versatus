@@ -1,5 +1,6 @@
 //FEATURE TAG(S): Block, Chain & Syncing, Rewards, Develop SDK, Develop API for
 // Distributed Programs, Remote Procedure Calls.
+use std::error::Error;
 /// The wallet module contains very basic Wallet type and methods related to it.
 /// This will largely be replaced under the proposed protocol, however, for the
 /// prototype this version served its purpose
@@ -12,19 +13,16 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use ritelinked::LinkedHashMap;
-use secp256k1::{
-    key::{PublicKey, SecretKey},
-    Error,
-    Message,
-    Secp256k1,
-    Signature,
-};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
 use uuid::Uuid;
-use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn};
-
+use vrrb_core::{
+    accountable::Accountable,
+    claim::Claim,
+    keypair::{KeyPair, MinerSk as SecretKey},
+    txn::Txn,
+};
 const STARTING_BALANCE: u128 = 1000;
 
 /// The WalletAccount struct is the user/node wallet in which coins, tokens and
@@ -35,9 +33,9 @@ const STARTING_BALANCE: u128 = 1000;
 /// key, the message that was signed and the signature.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WalletAccount {
-    secretkey: String,
+    secret_key: Vec<u8>,
     welcome_message: String,
-    pub pubkey: String,
+    pub public_key: Vec<u8>,
     pub addresses: LinkedHashMap<u32, String>,
     pub total_balances: LinkedHashMap<String, LinkedHashMap<String, u128>>,
     pub available_balances: LinkedHashMap<String, LinkedHashMap<String, u128>>,
@@ -47,14 +45,9 @@ pub struct WalletAccount {
 
 impl Default for WalletAccount {
     fn default() -> Self {
-        // Initialize a new Secp256k1 context
-        let secp = Secp256k1::new();
-
-        // Generate a random number used to seed the new keypair for the wallet
-        // TODO: Instead of using the rng, use a mnemonic seed.
-        let mut rng = rand::thread_rng();
-        // Generate a new secret/public key pair using the random seed.
-        let (secret_key, public_key) = secp.generate_keypair(&mut rng);
+        let kp = KeyPair::random();
+        let secret_key = kp.get_miner_secret_key();
+        let public_key = kp.get_miner_public_key();
         // Generate 100 addresses by hashing a universally unique IDs + secret_key +
         // public_key
         let mut address_bytes = public_key.to_string().as_bytes().to_vec();
@@ -83,9 +76,9 @@ impl Default for WalletAccount {
 
         // Generate a wallet struct by assigning the variables to the fields.
         Self {
-            secretkey: secret_key.to_string(),
+            secret_key: secret_key.secret_bytes().to_vec(),
             welcome_message,
-            pubkey: public_key.to_string(),
+            public_key: public_key.serialize().to_vec(),
             addresses,
             total_balances: total_balances.clone(),
             available_balances: total_balances,
@@ -107,13 +100,11 @@ impl WalletAccount {
 
     pub fn restore_from_private_key(private_key: String) -> Self {
         let secretkey = SecretKey::from_str(&private_key).unwrap();
-        let secp = Secp256k1::new();
-        let pubkey = PublicKey::from_secret_key(&secp, &secretkey);
-
+        let pubkey = vrrb_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
         let mut wallet = WalletAccount {
-            secretkey: secretkey.to_string(),
+            secret_key: secretkey.secret_bytes().to_vec(),
             welcome_message: String::new(),
-            pubkey: pubkey.to_string(),
+            public_key: pubkey.serialize().to_vec(),
             addresses: LinkedHashMap::new(),
             total_balances: LinkedHashMap::new(),
             available_balances: LinkedHashMap::new(),
@@ -126,8 +117,8 @@ impl WalletAccount {
         let welcome_message = format!(
             "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:",
-            &wallet.secretkey,
-            &wallet.pubkey,
+            &wallet.secret_key,
+            &wallet.public_key,
             &wallet.addresses.get(&1).unwrap(),
         );
 
@@ -144,7 +135,7 @@ impl WalletAccount {
     pub fn get_new_addresses(&mut self, number_of_addresses: u8) {
         let mut counter = 1u8;
         (counter..=number_of_addresses).for_each(|n| {
-            let mut address_bytes = self.pubkey.as_bytes().to_vec();
+            let mut address_bytes = self.public_key.clone();
             address_bytes.push(n);
             // TODO: Is double hashing neccesary?
             let address = digest(digest(&*address_bytes).as_bytes());
@@ -212,53 +203,6 @@ impl WalletAccount {
         self.claims.clone()
     }
 
-    pub fn get_pubkey(&self) -> String {
-        self.pubkey.clone()
-    }
-
-    pub fn get_secretkey(&self) -> String {
-        self.secretkey.clone()
-    }
-
-    pub fn sign(&self, message: &str) -> Result<Signature, Error> {
-        let message_bytes = message.as_bytes().to_owned();
-        let mut buffer = ByteBuffer::new();
-        buffer.write_bytes(&message_bytes);
-        while buffer.len() < 32 {
-            buffer.write_u8(0);
-        }
-
-        let new_message = buffer.to_bytes();
-        let message_hash = blake3::hash(&new_message);
-        let message_hash = Message::from_slice(message_hash.as_bytes())?;
-        let secp = Secp256k1::new();
-        let sk = SecretKey::from_str(&self.secretkey).unwrap();
-        let sig = secp.sign(&message_hash, &sk);
-        Ok(sig)
-    }
-
-    /// Verify a signature with the signers public key, the message payload and
-    /// the signature.
-    pub fn verify(message: String, signature: Signature, pk: PublicKey) -> Result<bool, Error> {
-        let message_bytes = message.as_bytes().to_owned();
-
-        let mut buffer = ByteBuffer::new();
-        buffer.write_bytes(&message_bytes);
-        while buffer.len() < 32 {
-            buffer.write_u8(0);
-        }
-        let new_message = buffer.to_bytes();
-        let message_hash = blake3::hash(&new_message);
-        let message_hash = Message::from_slice(message_hash.as_bytes())?;
-        let secp = Secp256k1::new();
-        let valid = secp.verify(&message_hash, &signature, &pk);
-
-        match valid {
-            Ok(()) => Ok(true),
-            _ => Err(Error::IncorrectSignature),
-        }
-    }
-
     /// Checks if the local wallet has any transactions in the most recent block
     pub fn txns_in_block(&mut self, txns: &LinkedHashMap<String, Txn>) {
         let _my_txns = {
@@ -283,7 +227,7 @@ impl WalletAccount {
         address_number: u32,
         receiver: String,
         amount: u128,
-    ) -> Result<Txn, Error> {
+    ) -> Result<Txn, Box<dyn std::error::Error>> {
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -300,16 +244,21 @@ impl WalletAccount {
 
         let payload = format!(
             "{},{},{},{},{},{}",
-            &time, &sender_address, &self.pubkey, &receiver, &amount, &self.nonce
+            &time,
+            &sender_address,
+            &hex::encode(self.public_key.clone()),
+            &receiver,
+            &amount,
+            &self.nonce
         );
-        let signature = self.sign(&payload).unwrap();
+        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), self.secret_key.clone()).unwrap();
         let uid_payload = format!("{},{},{}", &payload, Uuid::new_v4(), &signature);
 
         Ok(Txn {
             txn_id: digest(uid_payload),
             txn_timestamp: time,
             sender_address: sender_address.to_string(),
-            sender_public_key: self.pubkey.clone(),
+            sender_public_key: self.public_key.clone(),
             receiver_address: receiver,
             txn_token: None,
             txn_amount: amount,
@@ -338,7 +287,12 @@ impl WalletAccount {
     pub fn generate_new_address(&mut self) {
         let uid = Uuid::new_v4().to_string();
         let address_number: u32 = self.addresses.len() as u32 + 1u32;
-        let payload = format!("{},{},{}", &address_number, &uid, &self.pubkey);
+        let payload = format!(
+            "{},{},{}",
+            &address_number,
+            &uid,
+            &hex::encode(self.public_key.clone())
+        );
         let address = digest(payload.as_bytes());
         self.addresses.insert(address_number, address);
     }
@@ -378,9 +332,9 @@ impl fmt::Display for WalletAccount {
 impl Clone for WalletAccount {
     fn clone(&self) -> WalletAccount {
         WalletAccount {
-            secretkey: self.secretkey.clone(),
+            secret_key: self.secret_key.clone(),
             welcome_message: self.welcome_message.clone(),
-            pubkey: self.pubkey.clone(),
+            public_key: self.public_key.clone(),
             addresses: self.addresses.clone(),
             total_balances: self.total_balances.clone(),
             available_balances: self.available_balances.clone(),

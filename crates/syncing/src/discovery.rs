@@ -7,7 +7,7 @@ use std::{
 use chrono::Utc;
 use futures::channel::mpsc;
 use futures_timer::Delay;
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 use telemetry::{debug, error, info};
 use tokio::net::UdpSocket;
 

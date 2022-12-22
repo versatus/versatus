@@ -4,7 +4,7 @@ use hbbft::{
     crypto::{serde_impl::SerdeSecret, SecretKey},
     sync_key_gen::{PartOutcome, SyncKeyGen},
 };
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
@@ -45,7 +45,7 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::InvalidNode);
         }
         // TODO code to import secret key from node info to be added
-        let secret_key_encoded = self.node_info.read().unwrap().secret_key.clone();
+        let secret_key_encoded = self.node_info.read().unwrap().keypair.to_bytes().unwrap().0;
 
         //This need to be moved to either primitive(Generics) module or Node module
 

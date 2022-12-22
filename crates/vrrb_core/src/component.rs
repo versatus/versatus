@@ -2,8 +2,6 @@
 // Masternode Signing, Masternode Election Node Reputation Scores, Block
 // Structure, Packet Processing, Message Processing, Message Allocating, Message
 // Caching
-use std::net::SocketAddr;
-
 use serde::{Deserialize, Serialize};
 
 /// Basic Command Constants

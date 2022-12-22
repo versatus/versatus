@@ -1,5 +1,6 @@
-use lru_time_cache::LruCache;
 use std::time::Duration;
+
+use lru_time_cache::LruCache;
 
 pub struct Cache<K, V> {
     pub limit: usize,
@@ -30,6 +31,7 @@ where
     pub fn contains(&self, key: &K) -> bool {
         self.cache.contains_key(key)
     }
+
     pub fn is_empty(&self) -> bool {
         self.cache.is_empty()
     }
@@ -42,7 +44,7 @@ where
         self.cache.len()
     }
 
-    pub fn remove(&mut self,key: &K){
+    pub fn remove(&mut self, key: &K) {
         self.cache.remove(key);
     }
 }
@@ -97,8 +99,7 @@ mod tests {
         }
         cache.push("Hello_str", Abc { _a: 1i16 });
         assert!(cache.contains(&"Hello_str"));
-        cache.remove(&"Hello_str"); 
+        cache.remove(&"Hello_str");
         assert!(!cache.contains(&"Hello_str"));
     }
 }
-

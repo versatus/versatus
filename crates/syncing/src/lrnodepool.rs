@@ -9,7 +9,7 @@ use std::{
 
 use chrono::Utc;
 use left_right::{Absorb, ReadHandle, WriteHandle};
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 use serde::{Deserialize, Serialize};
 
 use crate::{error::NodePoolError, MAX_CONNECTED_NODES};

@@ -1,8 +1,8 @@
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap};
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use crate::{Error, Result};
+use crate::Error;
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;

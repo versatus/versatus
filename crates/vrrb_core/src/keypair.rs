@@ -2,6 +2,7 @@ use std::{
     fs::OpenOptions,
     io::{Read, Write},
     path::Path,
+    str::FromStr,
 };
 
 use hbbft::crypto::{
@@ -9,12 +10,19 @@ use hbbft::crypto::{
     PublicKey as Validator_Pk,
     SecretKey as Validator_Sk,
 };
-use secp256k1::{PublicKey as Miner_Pk, Secp256k1, SecretKey as Miner_Sk};
-use thiserror::Error;
+use primitives::types::SecretKeyBytes;
+use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
 
+pub type MinerSk = secp256k1::SecretKey;
+pub type MinerPk = secp256k1::PublicKey;
+
+pub type SecretKeys = (MinerSk, Validator_Sk);
+pub type PublicKeys = (MinerPk, Validator_Pk);
+
+use thiserror::Error;
 #[derive(Debug, Clone)]
 pub struct KeyPair {
-    pub miner_kp: (Miner_Sk, Miner_Pk),
+    pub miner_kp: (MinerSk, MinerPk),
     pub validator_kp: (Validator_Sk, Validator_Pk),
 }
 
@@ -35,6 +43,10 @@ pub enum KeyPairError {
     InvalidPublicKey,
     #[error("Invalid signature ,details : {0}")]
     InvalidSignature(String),
+    #[error("ECDSA Signature Verification failed ,details : {0}")]
+    SignatureVerificationFailed(String),
+    #[error("Failed to de-serialize {0} key ")]
+    InvalidKey(String),
 }
 
 
@@ -61,9 +73,9 @@ impl KeyPair {
     /// Returns:
     ///
     /// A KeyPair struct
-    pub fn new(validator_sk: Validator_Sk, miner_sk: Miner_Sk) -> Self {
+    pub fn new(validator_sk: Validator_Sk, miner_sk: MinerSk) -> Self {
         let secp = Secp256k1::new();
-        let pk = Miner_Pk::from_secret_key(&secp, &miner_sk);
+        let pk = MinerPk::from_secret_key(&secp, &miner_sk);
         let validator_pk = validator_sk.public_key();
         KeyPair {
             miner_kp: (miner_sk, pk),
@@ -77,7 +89,7 @@ impl KeyPair {
         miner_key_bytes: &[u8],
     ) -> Result<KeyPair, KeyPairError> {
         let result = bincode::deserialize::<SerdeSecret<Validator_Sk>>(validator_key_bytes);
-        let miner_sk = if let Ok(miner_sk) = Miner_Sk::from_slice(miner_key_bytes) {
+        let miner_sk = if let Ok(miner_sk) = MinerSk::from_slice(miner_key_bytes) {
             miner_sk
         } else {
             return Err(KeyPairError::InvalidKeyPair);
@@ -85,7 +97,7 @@ impl KeyPair {
 
         match result {
             Ok(secret_key) => Ok(KeyPair::new(secret_key.0, miner_sk)),
-            Err(e) => Err(KeyPairError::InvalidKeyPair),
+            Err(_) => Err(KeyPairError::InvalidKeyPair),
         }
     }
 
@@ -99,8 +111,8 @@ impl KeyPair {
     }
 
     /// Returns this Miner `PublicKey` from byte array `key_bytes`.
-    pub fn from_miner_pk_bytes(key_bytes: &[u8]) -> Result<Miner_Pk, KeyPairError> {
-        match Miner_Pk::from_slice(key_bytes) {
+    pub fn from_miner_pk_bytes(key_bytes: &[u8]) -> Result<MinerPk, KeyPairError> {
+        match MinerPk::from_slice(key_bytes) {
             Ok(public_key) => Ok(public_key),
             Err(_) => Err(KeyPairError::InvalidPublicKey),
         }
@@ -137,16 +149,126 @@ impl KeyPair {
 
     /// Returns this Miner `PublicKey` as a byte array
     pub fn to_miner_pk_bytes(&self) -> Result<Vec<u8>, KeyPairError> {
-        Ok(self.miner_kp.1.serialize().to_vec())
+        Ok(self.get_miner_public_key().serialize().to_vec())
     }
 
     /// Gets this `Keypair`'s SecretKey
-    pub fn get_secret_key(&self) -> (&Validator_Sk, &Miner_Sk) {
+    pub fn get_secret_keys(&self) -> (&Validator_Sk, &MinerSk) {
         (&self.validator_kp.0, &self.miner_kp.0)
     }
 
-    pub fn get_public_key(&self) -> (&Validator_Pk, &Miner_Pk) {
+    /// > This function returns a tuple of references to the public keys of the
+    /// > validator and miner
+    pub fn get_public_keys(&self) -> (&Validator_Pk, &MinerPk) {
         (&self.validator_kp.1, &self.miner_kp.1)
+    }
+
+    /// > It takes a message and a secret key, and returns a signature
+    ///
+    /// Arguments:
+    ///
+    /// * `msg`: The message to sign.
+    /// * `secret_key`: The secret key of the account that will sign the
+    ///   message.
+    ///
+    /// Returns:
+    ///
+    /// A string of the signature
+    pub fn ecdsa_sign(msg: &[u8], secret_key: SecretKeyBytes) -> Result<String, KeyPairError> {
+        let secp = Secp256k1::new();
+        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg);
+        if let Ok(sk) = SecretKey::from_slice(secret_key.as_slice()) {
+            Ok(secp.sign_ecdsa(&msg, &sk).to_string())
+        } else {
+            Err(KeyPairError::InvalidKey(String::from("Secret")))
+        }
+    }
+
+    /// > This function takes a signature, a message, and a public key, and
+    /// > returns a boolean indicating
+    /// whether the signature is valid for the message and public key
+    ///
+    /// Arguments:
+    ///
+    /// * `signature`: The signature to verify
+    /// * `msg`: The message to be signed
+    /// * `pub_key`: The public key of the signer.
+    ///
+    /// Returns:
+    ///
+    /// A Result<(), KeyPairError>
+    pub fn verify_ecdsa_sign(
+        signature: String,
+        msg: &[u8],
+        pub_key: Vec<u8>,
+    ) -> Result<(), KeyPairError> {
+        if let Ok(pk) = secp256k1::PublicKey::from_slice(pub_key.as_slice()) {
+            let secp = Secp256k1::new();
+            let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg);
+            let sig_result = Signature::from_str(signature.as_str());
+            match sig_result {
+                Ok(sig) => {
+                    let status = secp.verify_ecdsa(&msg, &sig, &pk);
+                    match status {
+                        Ok(status) => Ok(status),
+                        Err(e) => Err(KeyPairError::SignatureVerificationFailed(e.to_string())),
+                    }
+                },
+                Err(e) => Err(KeyPairError::InvalidSignature(e.to_string())),
+            }
+        } else {
+            Err(KeyPairError::InvalidKey(String::from("Public")))
+        }
+    }
+
+    /// > This function takes a secret key and returns a public key
+    ///
+    /// Arguments:
+    ///
+    /// * `key`: MinerSk - The secret key of the miner
+    ///
+    /// Returns:
+    ///
+    /// The public key of the miner.
+    pub fn get_miner_public_key_from_secret_key(key: MinerSk) -> MinerPk {
+        let secp = Secp256k1::new();
+        MinerPk::from_secret_key(&secp, &key)
+    }
+
+    /// It returns the miner secret key.
+    ///
+    /// Returns:
+    ///
+    /// The miner secret key.
+    pub fn get_miner_secret_key(&self) -> &MinerSk {
+        &self.miner_kp.0
+    }
+
+    /// It returns the public key of the miner.
+    ///
+    /// Returns:
+    ///
+    /// The public key of the miner.
+    pub fn get_miner_public_key(&self) -> &MinerPk {
+        &self.miner_kp.1
+    }
+
+    /// > This function returns the secret key of the validator
+    ///
+    /// Returns:
+    ///
+    /// The validator secret key.
+    pub fn get_validator_secret_key(&self) -> &Validator_Sk {
+        &self.validator_kp.0
+    }
+
+    /// It returns the public key of the validator.
+    ///
+    /// Returns:
+    ///
+    /// The public key of the validator.
+    pub fn get_validator_public_key(&self) -> &Validator_Pk {
+        &self.validator_kp.1
     }
 }
 
@@ -323,7 +445,7 @@ mod tests {
             "{}/tmp/{}-{}",
             out_dir,
             name,
-            keypair.get_secret_key().0.reveal()
+            keypair.get_secret_keys().0.reveal()
         )
     }
 
@@ -343,7 +465,7 @@ mod tests {
         assert_eq!(
             read_keypair_file(&outfile)
                 .unwrap()
-                .get_public_key()
+                .get_public_keys()
                 .0
                 .to_bytes()
                 .to_vec()
@@ -353,7 +475,7 @@ mod tests {
         assert_eq!(
             read_keypair_file(&outfile)
                 .unwrap()
-                .get_public_key()
+                .get_public_keys()
                 .1
                 .serialize()
                 .len(),
@@ -367,10 +489,10 @@ mod tests {
         let deserialized_key =
             KeyPair::from_bytes(read_keypair.0.as_slice(), read_keypair.1.as_slice()).unwrap();
 
-        let validator_sk = deserialized_key.validator_kp.0.clone();
-        let validator_pk = deserialized_key.validator_kp.1.clone();
-        let miner_sk = deserialized_key.miner_kp.0.clone();
-        let miner_pk = deserialized_key.miner_kp.1.clone();
+        let validator_sk = deserialized_key.get_validator_secret_key();
+        let validator_pk = deserialized_key.get_validator_public_key();
+        let miner_sk = deserialized_key.get_miner_secret_key();
+        let miner_pk = deserialized_key.get_miner_public_key();
 
         assert_eq!(keypair.validator_kp.0.sign(msg), validator_sk.sign(msg));
         assert_eq!(validator_pk.verify(&validator_sk.sign(msg), msg), true);
@@ -390,6 +512,16 @@ mod tests {
         let miner_pbytes = deserialized_key.to_miner_pk_bytes().unwrap();
         let miner_pkey = KeyPair::from_miner_pk_bytes(&miner_pbytes).unwrap();
         assert!(secp.verify_ecdsa(&msg, &sig, &miner_pkey).is_ok());
+        let sig = KeyPair::ecdsa_sign(
+            "Hello VRRB".as_bytes(),
+            keypair.miner_kp.0.secret_bytes().to_vec(),
+        );
+        let status = KeyPair::verify_ecdsa_sign(
+            sig.unwrap(),
+            "Hello VRRB".as_bytes(),
+            keypair.miner_kp.1.serialize().to_vec(),
+        );
+        assert!(status.is_ok());
     }
 
 

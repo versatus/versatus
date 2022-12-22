@@ -20,7 +20,7 @@ pub struct InvalidClaimError {
 // TODO: Add staking to the claim.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claim {
-    pub pubkey: String,
+    pub public_key: String,
     pub address: String,
     pub hash: String,
     pub nonce: u128,
@@ -30,7 +30,7 @@ pub struct Claim {
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(pubkey: String, address: String, claim_nonce: u128) -> Claim {
+    pub fn new(public_key: String, address: String, claim_nonce: u128) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
         let iters = if let Some(n) = claim_nonce.checked_mul(10) {
@@ -39,7 +39,7 @@ impl Claim {
             claim_nonce
         };
 
-        let mut hash = pubkey.clone();
+        let mut hash = public_key.clone();
         // sequentially hash the public key the correct number of times
         // for the given nonce.
         (0..iters).for_each(|_| {
@@ -47,7 +47,7 @@ impl Claim {
         });
 
         Claim {
-            pubkey,
+            public_key,
             address,
             hash,
             nonce: claim_nonce,
@@ -158,7 +158,7 @@ impl Verifiable for Claim {
 // TODO: Add more methods that make sense for Ownable to Ownable
 impl Ownable for Claim {
     fn get_pubkey(&self) -> String {
-        self.pubkey.clone()
+        self.public_key.clone()
     }
 }
 
@@ -176,7 +176,7 @@ impl Nonceable for Claim {
             self.nonce
         };
 
-        let mut hash = self.pubkey.clone();
+        let mut hash = self.public_key.clone();
         (0..iters).for_each(|_| {
             hash = digest(hash.as_bytes());
         });

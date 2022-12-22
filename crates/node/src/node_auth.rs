@@ -5,7 +5,6 @@ use std::{
     str::FromStr,
 };
 
-use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;

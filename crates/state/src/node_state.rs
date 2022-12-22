@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::Account;
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
-use primitives::types::PublicKey;
+use primitives::types::node::PublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::{result::Result, types::StatePath, StateError};

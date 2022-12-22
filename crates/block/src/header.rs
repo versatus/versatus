@@ -1,24 +1,16 @@
 // FEATURE TAG(S): Block Structure, Rewards
 use std::{
-    str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
     u64::MAX as u64MAX,
 };
 
-use bytebuffer::ByteBuffer;
+use primitives::types::SecretKeyBytes;
 use rand::Rng;
 use reward::reward::Reward;
-use secp256k1::{
-    key::{PublicKey, SecretKey},
-    Error,
-    Message,
-    Secp256k1,
-    Signature,
-};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use vrrb_core::claim::Claim;
+use vrrb_core::{claim::Claim, keypair::KeyPair};
 
 use crate::{block::Block, NextEpochAdjustment};
 
@@ -46,7 +38,7 @@ impl BlockHeader {
     pub fn genesis(
         nonce: u64,
         claim: Claim,
-        secret_key: String,
+        secret_key: Vec<u8>,
         miner: Option<String>,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
@@ -83,7 +75,7 @@ impl BlockHeader {
             neighbor_hash,
         );
 
-        let signature = BlockHeader::sign(&payload, secret_key).unwrap().to_string();
+        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
 
         BlockHeader {
             last_hash,
@@ -108,7 +100,7 @@ impl BlockHeader {
         txn_hash: String,
         claim_map_hash: Option<String>,
         neighbor_hash: Option<String>,
-        secret_key: String,
+        secret_key: SecretKeyBytes,
         epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> BlockHeader {
@@ -147,9 +139,7 @@ impl BlockHeader {
             next_block_reward,
             neighbor_hash,
         );
-
-        let signature = BlockHeader::sign(&payload, secret_key).unwrap().to_string();
-
+        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
         BlockHeader {
             last_hash,
             block_nonce,
@@ -163,59 +153,6 @@ impl BlockHeader {
             next_block_reward,
             neighbor_hash: None,
             signature,
-        }
-    }
-
-    pub fn sign(message: &str, secret_key: String) -> Result<Signature, Error> {
-        let message_bytes = message.as_bytes().to_owned();
-        let mut buffer = ByteBuffer::new();
-        buffer.write_bytes(&message_bytes);
-        while buffer.len() < 32 {
-            buffer.write_u8(0);
-        }
-
-        let new_message = buffer.to_bytes();
-        let message_hash = blake3::hash(&new_message);
-        let message_hash = Message::from_slice(message_hash.as_bytes())?;
-        let secp = Secp256k1::new();
-        let sk = SecretKey::from_str(&secret_key).unwrap();
-        let sig = secp.sign(&message_hash, &sk);
-        Ok(sig)
-    }
-
-    // TODO: Additional Verification requirements
-    pub fn verify(&self) -> Result<bool, Error> {
-        let message_bytes = self.get_payload().as_bytes().to_vec();
-        let signature = {
-            if let Ok(signature) = Signature::from_str(&self.signature) {
-                signature
-            } else {
-                return Err(Error::InvalidSignature);
-            }
-        };
-
-        let pubkey = {
-            if let Ok(pubkey) = PublicKey::from_str(&self.claim.pubkey) {
-                pubkey
-            } else {
-                return Err(Error::InvalidPublicKey);
-            }
-        };
-
-        let mut buffer = ByteBuffer::new();
-        buffer.write_bytes(&message_bytes);
-        while buffer.len() < 32 {
-            buffer.write_u8(0);
-        }
-        let new_message = buffer.to_bytes();
-        let message_hash = blake3::hash(&new_message);
-        let message_hash = Message::from_slice(message_hash.as_bytes())?;
-        let secp = Secp256k1::new();
-        let valid = secp.verify(&message_hash, &signature, &pubkey);
-
-        match valid {
-            Ok(()) => Ok(true),
-            _ => Err(Error::IncorrectSignature),
         }
     }
 

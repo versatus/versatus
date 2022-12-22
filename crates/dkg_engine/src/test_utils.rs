@@ -9,7 +9,7 @@ use hbbft::{
     crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
     sync_key_gen::Ack,
 };
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 use vrrb_config::NodeConfig;
 
 use crate::{

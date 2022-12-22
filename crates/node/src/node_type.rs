@@ -1,1 +1,1 @@
-pub use primitives::types::NodeType;
+pub use primitives::types::node::NodeType;

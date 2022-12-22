@@ -3,7 +3,14 @@
 
 use std::fmt;
 
-use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
+use primitives::types::{
+    Epoch,
+    RawSignature,
+    SecretKeyBytes,
+    GENESIS_EPOCH,
+    SECOND,
+    VALIDATOR_THRESHOLD,
+};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
@@ -11,7 +18,13 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
-use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn, verifiable::Verifiable};
+use vrrb_core::{
+    accountable::Accountable,
+    claim::Claim,
+    keypair::KeyPair,
+    txn::Txn,
+    verifiable::Verifiable,
+};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -38,7 +51,7 @@ pub struct MineArgs<'a> {
     pub network_state: &'a NetworkState,
     pub neighbors: Option<Vec<BlockHeader>>,
     pub abandoned_claim: Option<Claim>,
-    pub signature: String,
+    pub secret_key: SecretKeyBytes,
     pub epoch: Epoch,
 }
 
@@ -75,7 +88,7 @@ pub struct Block {
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Option<Block> {
+    pub fn genesis(claim: Claim, secret_key: Vec<u8>, miner: Option<String>) -> Option<Block> {
         // Create the genesis header
         let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner);
         // Create the genesis state hash
@@ -91,7 +104,7 @@ impl Block {
 
         // Replace with claim trie
         let mut claims = LinkedHashMap::new();
-        claims.insert(claim.clone().pubkey, claim);
+        claims.insert(claim.clone().public_key, claim);
 
         #[cfg(mainnet)]
         let txns = genesis::generate_genesis_txns();
@@ -151,7 +164,7 @@ impl Block {
         let network_state = args.network_state;
         let neighbors = args.neighbors;
         let abandoned_claim = args.abandoned_claim;
-        let signature = args.signature;
+        let secret_key = args.secret_key;
         let epoch = args.epoch;
 
         // TODO: Replace with Tx Trie Root
@@ -176,16 +189,15 @@ impl Block {
             }
         };
 
-        let mut block_utility: i128 = 0;
         let utility_amount: i128 = txns.iter().map(|x| x.1.get_amount() as i128).sum();
         let mut adjustment_next_epoch = 0;
-        if epoch != last_block.epoch {
-            block_utility = utility_amount;
+        let block_utility = if epoch != last_block.epoch {
             adjustment_next_epoch =
                 Self::set_next_adjustment_epoch(&last_block, reward, utility_amount);
+            utility_amount
         } else {
-            block_utility = utility_amount + last_block.utility;
-        }
+            utility_amount + last_block.utility
+        };
 
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
@@ -196,7 +208,7 @@ impl Block {
             txn_hash,
             claim_map_hash,
             neighbors_hash,
-            signature,
+            secret_key,
             epoch == last_block.epoch,
             adjustment_next_epoch,
         );
@@ -414,7 +426,13 @@ impl Verifiable for Block {
             return Err(Self::Error::new(InvalidBlockErrorReason::InvalidClaim));
         }
 
-        if self.header.verify().is_err() {
+        if KeyPair::verify_ecdsa_sign(
+            self.header.signature.clone(),
+            self.header.get_payload().as_bytes(),
+            self.header.claim.public_key.as_bytes().to_vec(),
+        )
+        .is_err()
+        {
             return Err(Self::Error::new(
                 InvalidBlockErrorReason::InvalidBlockSignature,
             ));
