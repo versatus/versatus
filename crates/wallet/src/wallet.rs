@@ -15,7 +15,7 @@ use ritelinked::LinkedHashMap;
 use secp256k1::{
     key::{PublicKey, SecretKey},
     Error,
-    Message,
+    Message, 
     Secp256k1,
     Signature,
 };
@@ -24,6 +24,7 @@ use sha256::digest;
 use state::state::NetworkState;
 use uuid::Uuid;
 use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn};
+use vrrb_vrf::{VVRF, VRNG};
 
 const STARTING_BALANCE: u128 = 1000;
 
@@ -41,7 +42,8 @@ pub struct WalletAccount {
     pub addresses: LinkedHashMap<u32, String>,
     pub total_balances: LinkedHashMap<String, LinkedHashMap<String, u128>>,
     pub available_balances: LinkedHashMap<String, LinkedHashMap<String, u128>>,
-    pub claims: LinkedHashMap<u128, Claim>,
+    //pub claims: LinkedHashMap<u128, Claim>, *deprecated
+    pub claim: Claim,
     pub nonce: u128,
 }
 
@@ -82,6 +84,12 @@ impl Default for WalletAccount {
         vrrb_balances.insert("VRRB".to_string(), STARTING_BALANCE);
         total_balances.insert(address_prefix.clone(), vrrb_balances);
 
+        let zero_addr = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        let string_pubkey = pubkey.to_string();
+
+        //TODO turn String pk to PublicKey pk
+        let temp_claim = Claim::new(string_pubkey.clone(), zero_addr.to_owned(), 0);
+
         // Generate a wallet struct by assigning the variables to the fields.
         //store wallet data (PUT(WalletAcct))
         Self {
@@ -91,7 +99,7 @@ impl Default for WalletAccount {
             addresses,
             total_balances: total_balances.clone(),
             available_balances: total_balances,
-            claims: LinkedHashMap::new(),
+            claim: temp_claim,
             nonce: 0,
         }
     }
@@ -112,6 +120,16 @@ impl WalletAccount {
         let secretkey = SecretKey::from_str(&private_key).unwrap();
         let secp = Secp256k1::new();
         let pubkey = PublicKey::from_secret_key(&secp, &secretkey);
+        //default claim nonce to 0 and address 0x
+        //NOTE: this is a temporary claim that gets updated with an address post wallet creation 
+        //fxn returns after claim is updated
+        //TODO: randomly generate a nonce?
+
+        let zero_addr = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        let string_pubkey = pubkey.to_string();
+
+        //TODO turn String pk to PublicKey pk
+        let claim = Claim::new(string_pubkey.clone(), zero_addr.to_owned(), 0);
 
         let mut wallet = WalletAccount {
             secretkey: secretkey.to_string(),
@@ -120,11 +138,15 @@ impl WalletAccount {
             addresses: LinkedHashMap::new(),
             total_balances: LinkedHashMap::new(),
             available_balances: LinkedHashMap::new(),
-            claims: LinkedHashMap::new(),
+            claim: claim,
             nonce: 0,
         };
 
         wallet.get_new_addresses(1);
+
+         //make updated claim from first addr
+         //TODO decide if nonce needs to be random
+        let updated_claim = Claim::new(string_pubkey.clone(), wallet.addresses[&1].clone(), 0);
 
         let welcome_message = format!(
             "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
@@ -135,8 +157,7 @@ impl WalletAccount {
         );
 
         wallet.welcome_message = welcome_message;
-
-        wallet
+        wallet.claim = updated_claim;
     }
 
     pub fn get_txn_nonce(&mut self, _network_state: &NetworkState) {
@@ -208,12 +229,13 @@ impl WalletAccount {
         }
     }
 
-    pub fn n_claims_owned(&self) -> u128 {
-        self.claims.len() as u128
-    }
+    //should only be one
+    //pub fn n_claims_owned(&self) -> u128 {
+    //    self.claims.len() as u128
+    //}
 
-    pub fn get_claims(&self) -> LinkedHashMap<u128, Claim> {
-        self.claims.clone()
+    pub fn get_claim(&self) -> LinkedHashMap<u128, Claim> {
+        self.claim.clone()
     }
 
     pub fn get_pubkey(&self) -> String {
@@ -369,12 +391,10 @@ impl fmt::Display for WalletAccount {
             "Wallet(\n \
             address: {:?},\n \
             balances: {:?},\n \
-            available_balance: {:?},\n \
-            claims_owned: {}",
+            available_balance: {:?}",
             self.addresses,
             self.total_balances,
             self.available_balances,
-            self.claims.len()
         )
     }
 }
@@ -388,7 +408,7 @@ impl Clone for WalletAccount {
             addresses: self.addresses.clone(),
             total_balances: self.total_balances.clone(),
             available_balances: self.available_balances.clone(),
-            claims: self.claims.clone(),
+            claim: self.claim.clone(),
             nonce: self.nonce,
         }
     }

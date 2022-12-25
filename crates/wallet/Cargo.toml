@@ -22,4 +22,4 @@ strum = "0.21.0"
 strum_macros = "0.21.0"
 state = { path = "../state" }
 vrrb_core = { path = "../vrrb_core" }
-
+vrrb_vrf = {path = "../vrrb_vrf"}
