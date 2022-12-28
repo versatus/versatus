@@ -75,6 +75,7 @@ pub struct NewTxnArgs {
 
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
+        // TODO: change time unit from seconds to millis
         let timestamp = chrono::offset::Utc::now().timestamp();
 
         Self {
