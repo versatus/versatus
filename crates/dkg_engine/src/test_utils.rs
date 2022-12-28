@@ -9,7 +9,9 @@ use hbbft::{
     crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
     sync_key_gen::Ack,
 };
-use primitives::types::node::NodeType;
+use node::Node;
+use primitives::NodeType;
+use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
 
 use crate::{
@@ -61,7 +63,7 @@ pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16,
 /// Returns:
 ///
 /// A DkgEngine struct with a node_info field that is an Arc<RwLock<Node>>.
-pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEngine> {
+pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEngine> {
     let (sec_keys, pub_keys) = generate_key_sets(total_nodes);
     let mut dkg_instances = vec![];
     for i in 0..total_nodes {
@@ -71,23 +73,18 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
         // let (_, msg_receiver) = unbounded_channel::<(Packet,
         // std::net::SocketAddr)>(); let (msg_sender, _) = unbounded_channel();
 
-        dkg_instances.push(DkgEngine {
-            node_info: Arc::new(RwLock::new(node::Node::new(NodeConfig {
+        let (tx, rx) = unbounded_channel();
+
+        let node = Node::start(
+            &NodeConfig {
                 id: i.to_string(),
                 idx: i,
-                //
-                // secret_key: secret_key_encoded,
-                // pubkey: hex::encode(secret_key.public_key().to_bytes().as_slice()),
-                //
                 // TODO: re-enable once those fields are finalized
                 // message_cache: HashSet::default(),
                 // packet_storage: HashMap::default(),
-                // command_handler: generate_command_handler(),
-                // message_handler: MessageHandler::new(msg_sender, msg_receiver),
                 data_dir: PathBuf::from("bananas"),
                 db_path: PathBuf::from("bananas"),
-                gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
-                bootstrap: false,
+                udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
                 bootstrap_node_addresses: vec![SocketAddr::new(
                     IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
                     8080,
@@ -97,7 +94,19 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
                 http_api_title: "Node HTTP API".into(),
                 http_api_version: "1.0".into(),
                 http_api_shutdown_timeout: None,
-            }))),
+                raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+                preload_mock_state: false,
+                // node_secret_key: secret_key,
+                // node_public_key: secret_key.public_key(),
+                jsonrpc_server_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            },
+            rx,
+        )
+        .await
+        .unwrap();
+
+        dkg_instances.push(DkgEngine {
+            node_info: Arc::new(RwLock::new(node)),
             threshold_config: valid_threshold_config(),
             dkg_state: DkgState {
                 part_message_store: HashMap::new(),
@@ -114,8 +123,8 @@ pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEng
     dkg_instances
 }
 
-pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
-    let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
+    let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
     let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
     let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
     let mut dkg_engine_node2 = dkg_engines.pop().unwrap();

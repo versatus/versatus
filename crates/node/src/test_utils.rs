@@ -23,9 +23,9 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
     let main_bootstrap_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 10)), 8080);
 
-    let secp = Secp256k1::new();
-    let mut rng = rand::thread_rng();
-    let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
+    // let secp = Secp256k1::new();
+    // let mut rng = rand::thread_rng();
+    // let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
 
     let bootstrap_node_addresses = vec![
         main_bootstrap_addr,
@@ -47,8 +47,8 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .raptorq_gossip_address(raptorq_gossip_address)
         .udp_gossip_address(udp_gossip_address)
         .jsonrpc_server_address(jsonrpc_server_address)
-        .node_public_key(pubkey)
-        .node_secret_key(secret_key)
+        // .node_public_key(pubkey)
+        // .node_secret_key(secret_key)
         .build()
         .unwrap()
 }

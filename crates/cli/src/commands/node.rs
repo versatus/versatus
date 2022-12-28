@@ -17,10 +17,10 @@ pub struct RunOpts {
     pub dettached: bool,
 
     #[clap(short, long, value_parser)]
-    pub id: primitives::types::node::NodeId,
+    pub id: primitives::NodeId,
 
     #[clap(long, value_parser)]
-    pub idx: primitives::types::node::NodeIdx,
+    pub idx: primitives::NodeIdx,
 
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]
@@ -124,8 +124,6 @@ pub async fn run(args: RunOpts) -> Result<()> {
         udp_gossip_address,
         jsonrpc_server_address: http_api_address,
         preload_mock_state: false,
-        node_public_key: pubkey,
-        node_secret_key: secret_key,
     };
 
     if args.dettached {

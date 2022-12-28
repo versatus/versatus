@@ -30,9 +30,8 @@ pub struct NodeConfig {
     // let mut secret_key_encoded = Vec::new();
     //
     // TODO: replace keys with hhbft ones
-    pub node_public_key: PublicKey,
-    pub node_secret_key: SecretKey,
-
+    // pub node_public_key: PublicKey,
+    // pub node_secret_key: SecretKey,
     /// Address the node listens for JSON-RPC connections
     pub jsonrpc_server_address: SocketAddr,
 }
@@ -80,8 +79,8 @@ mod tests {
             .http_api_shutdown_timeout(None)
             .node_type(NodeType::Full)
             .bootstrap_node_addresses(vec![addr])
-            .node_public_key(pubkey)
-            .node_secret_key(secret_key)
+            // .node_public_key(pubkey)
+            // .node_secret_key(secret_key)
             .build()
             .unwrap();
     }

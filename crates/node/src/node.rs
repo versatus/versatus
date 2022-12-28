@@ -104,6 +104,9 @@ pub struct Node {
     control_rx: UnboundedReceiver<Event>,
     events_tx: UnboundedSender<DirectedEvent>,
 
+    // TODO: make this private
+    pub keypair: KeyPair,
+
     // NOTE: optional node components
     vm: Option<Cpu>,
     state_handle: Option<JoinHandle<Result<()>>>,
@@ -181,6 +184,7 @@ impl Node {
             events_tx,
             txn_validator_handle,
             miner_handle,
+            keypair: KeyPair::random(),
         })
     }
 
@@ -248,9 +252,19 @@ impl Node {
         self.config.idx
     }
 
+    #[deprecated(note = "use node_idx instead")]
+    pub fn get_node_idx(&self) -> u16 {
+        self.node_idx()
+    }
+
     /// Returns the node's type
     pub fn node_type(&self) -> NodeType {
         self.config.node_type
+    }
+
+    #[deprecated(note = "use node_type instead")]
+    pub fn get_node_type(&self) -> NodeType {
+        self.node_type()
     }
 
     pub fn is_bootsrap(&self) -> bool {

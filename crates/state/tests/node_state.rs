@@ -21,7 +21,12 @@ fn can_be_serialized_into_a_json_file() {
 
     fs::write(&state_backup_path, b"").unwrap();
 
-    let node_state = NodeState::new(state_backup_path.clone());
+    let node_state = NodeState::new(&state::NodeStateConfig {
+        path: state_backup_path.clone(),
+        serialized_state_filename: None,
+        serialized_mempool_filename: None,
+        serialized_confirmed_txns_filename: None,
+    });
 
     node_state.serialize_to_json().unwrap();
 
@@ -35,7 +40,12 @@ fn accounts_can_be_added() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}.json", generate_random_string()));
 
-    let mut node_state = NodeState::new(state_backup_path.clone());
+    let mut node_state = NodeState::new(&state::NodeStateConfig {
+        path: state_backup_path,
+        serialized_state_filename: None,
+        serialized_mempool_filename: None,
+        serialized_confirmed_txns_filename: None,
+    });
 
     node_state.add_account(
         b"my_mock_pkey".to_vec(),
@@ -113,7 +123,12 @@ fn accounts_can_be_retrieved() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}.json", generate_random_string()));
 
-    let mut node_state = NodeState::new(state_backup_path.clone());
+    let mut node_state = NodeState::new(&state::NodeStateConfig {
+        path: state_backup_path,
+        serialized_state_filename: None,
+        serialized_mempool_filename: None,
+        serialized_confirmed_txns_filename: None,
+    });
 
     node_state.add_account(
         b"my_mock_pkey".to_vec(),
@@ -150,7 +165,13 @@ fn can_be_restored_from_json_file() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}.json", generate_random_string()));
 
-    let node_state = NodeState::new(state_backup_path.clone());
+    let node_state = NodeState::new(&state::NodeStateConfig {
+        path: state_backup_path.clone(),
+        serialized_state_filename: None,
+        serialized_mempool_filename: None,
+        serialized_confirmed_txns_filename: None,
+    });
+
     node_state.serialize_to_json().unwrap();
 
     NodeState::restore(&state_backup_path).unwrap();
@@ -161,7 +182,12 @@ fn should_not_restore_state_from_invalid_paths() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}", generate_random_string()));
 
-    let node_state = NodeState::new(state_backup_path.clone());
+    let node_state = NodeState::new(&state::NodeStateConfig {
+        path: state_backup_path.clone(),
+        serialized_state_filename: None,
+        serialized_mempool_filename: None,
+        serialized_confirmed_txns_filename: None,
+    });
 
     node_state.serialize_to_json().unwrap();
 

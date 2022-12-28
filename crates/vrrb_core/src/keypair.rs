@@ -24,6 +24,9 @@ pub struct KeyPair {
     pub validator_kp: (Validator_Sk, Validator_Pk),
 }
 
+/// Alias for KeyPair, to avoid frustrations because of subtle typos
+pub type Keypair = KeyPair;
+
 #[derive(Error, Debug)]
 pub enum KeyPairError {
     #[error("Failed to deserialize the secret key from bytes")]
