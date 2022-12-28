@@ -5,6 +5,7 @@ pub struct StopSignal;
 
 type Hash = Vec<u8>;
 pub type TxHash = Hash;
+pub type PayloadHash = Hash;
 pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;
 pub type PeerId = Vec<u8>;
