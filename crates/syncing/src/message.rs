@@ -4,7 +4,7 @@ use std::{
 };
 
 use chrono::Utc;
-use primitives::types::node::NodeType;
+use primitives::NodeType;
 
 use crate::{context::NodeUpdateState, error::DiscovererError, MAX_CONNECTED_NODES};
 
