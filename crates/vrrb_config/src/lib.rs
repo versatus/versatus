@@ -1,27 +1,24 @@
 use derive_builder::Builder;
 use secp256k1::{PublicKey, SecretKey};
-// use hbbft::crypto::{PublicKey, SecretKey};
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 mod bootstrap;
 
-use bootstrap::BootstrapConfig;
-
 #[derive(Builder, Debug, Clone)]
 pub struct NodeConfig {
-    pub id: primitives::types::node::NodeId,
-    pub idx: primitives::types::node::NodeIdx,
+    pub id: primitives::NodeId,
+    pub idx: primitives::NodeIdx,
     pub data_dir: PathBuf,
     pub db_path: PathBuf,
     pub raptorq_gossip_address: SocketAddr,
     pub udp_gossip_address: SocketAddr,
-    pub node_type: primitives::types::NodeType,
+    pub node_type: primitives::NodeType,
     pub bootstrap_node_addresses: Vec<SocketAddr>,
     pub http_api_address: SocketAddr,
     pub http_api_title: String,
     pub http_api_version: String,
     pub http_api_shutdown_timeout: Option<Duration>,
-    //
+
     // TODO: refactor env-aware options
     #[builder(default = "false")]
     pub preload_mock_state: bool,
@@ -56,7 +53,7 @@ impl NodeConfig {
 mod tests {
     use std::net::{IpAddr, Ipv4Addr};
 
-    use primitives::types::NodeType;
+    use primitives::NodeType;
     use secp256k1::Secp256k1;
 
     use super::*;

@@ -6,11 +6,9 @@ use std::{
 };
 
 use hbbft::crypto::{
-    serde_impl::SerdeSecret,
-    PublicKey as Validator_Pk,
-    SecretKey as Validator_Sk,
+    serde_impl::SerdeSecret, PublicKey as Validator_Pk, SecretKey as Validator_Sk,
 };
-use primitives::types::SecretKeyBytes;
+use primitives::SecretKey as SecretKeyBytes;
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
 
 pub type MinerSk = secp256k1::SecretKey;
@@ -25,7 +23,6 @@ pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
     pub validator_kp: (Validator_Sk, Validator_Pk),
 }
-
 
 #[derive(Error, Debug)]
 pub enum KeyPairError {
@@ -49,6 +46,7 @@ pub enum KeyPairError {
     InvalidKey(String),
 }
 
+pub type Result<T> = std::result::Result<T, KeyPairError>;
 
 impl KeyPair {
     /// Constructs a new, random `Keypair` using thread_rng() which uses RNG
@@ -84,10 +82,7 @@ impl KeyPair {
     }
 
     /// Returns this `Keypair` as a byte array
-    pub fn from_bytes(
-        validator_key_bytes: &[u8],
-        miner_key_bytes: &[u8],
-    ) -> Result<KeyPair, KeyPairError> {
+    pub fn from_bytes(validator_key_bytes: &[u8], miner_key_bytes: &[u8]) -> Result<KeyPair> {
         let result = bincode::deserialize::<SerdeSecret<Validator_Sk>>(validator_key_bytes);
         let miner_sk = if let Ok(miner_sk) = MinerSk::from_slice(miner_key_bytes) {
             miner_sk
@@ -102,7 +97,7 @@ impl KeyPair {
     }
 
     /// Returns this Validator `PublicKey` from byte array `key_bytes`.
-    pub fn from_validator_pk_bytes(key_bytes: &[u8]) -> Result<Validator_Pk, KeyPairError> {
+    pub fn from_validator_pk_bytes(key_bytes: &[u8]) -> Result<Validator_Pk> {
         let result = bincode::deserialize::<Validator_Pk>(key_bytes);
         match result {
             Ok(public_key) => Ok(public_key),
@@ -111,7 +106,7 @@ impl KeyPair {
     }
 
     /// Returns this Miner `PublicKey` from byte array `key_bytes`.
-    pub fn from_miner_pk_bytes(key_bytes: &[u8]) -> Result<MinerPk, KeyPairError> {
+    pub fn from_miner_pk_bytes(key_bytes: &[u8]) -> Result<MinerPk> {
         match MinerPk::from_slice(key_bytes) {
             Ok(public_key) => Ok(public_key),
             Err(_) => Err(KeyPairError::InvalidPublicKey),
@@ -119,7 +114,7 @@ impl KeyPair {
     }
 
     /// Returns  Both Validator and Miner `Secret key` as a byte array
-    pub fn to_bytes(&self) -> Result<(Vec<u8>, Vec<u8>), KeyPairError> {
+    pub fn to_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
         let mut keys = (vec![], vec![]);
         match bincode::serialize(&SerdeSecret(self.validator_kp.0.clone())) {
             Ok(serialized_sk) => {
@@ -137,7 +132,7 @@ impl KeyPair {
     }
 
     /// Returns this Validator `PublicKey` as a byte array
-    pub fn to_validator_pk_bytes(&self) -> Result<Vec<u8>, KeyPairError> {
+    pub fn to_validator_pk_bytes(&self) -> Result<Vec<u8>> {
         match bincode::serialize(&self.validator_kp.1) {
             Ok(serialized_pk) => Ok(serialized_pk),
             Err(e) => Err(KeyPairError::SerializeKeyError(
@@ -148,7 +143,7 @@ impl KeyPair {
     }
 
     /// Returns this Miner `PublicKey` as a byte array
-    pub fn to_miner_pk_bytes(&self) -> Result<Vec<u8>, KeyPairError> {
+    pub fn to_miner_pk_bytes(&self) -> Result<Vec<u8>> {
         Ok(self.get_miner_public_key().serialize().to_vec())
     }
 
@@ -174,11 +169,21 @@ impl KeyPair {
     /// Returns:
     ///
     /// A string of the signature
-    pub fn ecdsa_sign(msg: &[u8], secret_key: SecretKeyBytes) -> Result<String, KeyPairError> {
+    pub fn ecdsa_sign(msg: &[u8], secret_key: SecretKeyBytes) -> Result<String> {
         let secp = Secp256k1::new();
         let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg);
         if let Ok(sk) = SecretKey::from_slice(secret_key.as_slice()) {
             Ok(secp.sign_ecdsa(&msg, &sk).to_string())
+        } else {
+            Err(KeyPairError::InvalidKey(String::from("Secret")))
+        }
+    }
+
+    pub fn ecdsa_signature(msg: &[u8], secret_key: &SecretKeyBytes) -> Result<Signature> {
+        let secp = Secp256k1::new();
+        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg);
+        if let Ok(sk) = SecretKey::from_slice(secret_key) {
+            Ok(secp.sign_ecdsa(&msg, &sk))
         } else {
             Err(KeyPairError::InvalidKey(String::from("Secret")))
         }
@@ -197,11 +202,7 @@ impl KeyPair {
     /// Returns:
     ///
     /// A Result<(), KeyPairError>
-    pub fn verify_ecdsa_sign(
-        signature: String,
-        msg: &[u8],
-        pub_key: Vec<u8>,
-    ) -> Result<(), KeyPairError> {
+    pub fn verify_ecdsa_sign(signature: String, msg: &[u8], pub_key: Vec<u8>) -> Result<()> {
         if let Ok(pk) = secp256k1::PublicKey::from_slice(pub_key.as_slice()) {
             let secp = Secp256k1::new();
             let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg);
@@ -272,7 +273,6 @@ impl KeyPair {
     }
 }
 
-
 /// Reads a Hex-encoded `Keypair` from a `Reader` implementor
 /// It reads a file, decodes the hex, and then creates a KeyPair from the bytes
 ///
@@ -284,7 +284,7 @@ impl KeyPair {
 /// Returns:
 ///
 /// A Result<KeyPair, KeyPairError>
-pub fn read_keypair<R: Read>(reader: &mut R) -> Result<KeyPair, KeyPairError> {
+pub fn read_keypair<R: Read>(reader: &mut R) -> Result<KeyPair> {
     let mut contents = String::new();
     match reader.read_to_string(&mut contents) {
         Ok(_) => {
@@ -331,13 +331,12 @@ fn get_key_bytes(miner_sk_content: &&str) -> Vec<u8> {
 /// Returns:
 ///
 /// A Result<KeyPair, KeyPairError>
-pub fn read_keypair_file<F: AsRef<Path>>(path: F) -> Result<KeyPair, KeyPairError> {
+pub fn read_keypair_file<F: AsRef<Path>>(path: F) -> Result<KeyPair> {
     match storage::read_file(path.as_ref()) {
         Ok(mut file) => read_keypair(&mut file),
         Err(e) => Err(KeyPairError::FailedToReadFromFile(e.to_string())),
     }
 }
-
 
 /// Writes a `Keypair` to a `Write` implementor with HEX-encoding
 /// It takes a `KeyPair` and a `Write`r, and writes the serialized `KeyPair` to
@@ -351,10 +350,7 @@ pub fn read_keypair_file<F: AsRef<Path>>(path: F) -> Result<KeyPair, KeyPairErro
 /// Returns:
 ///
 /// A Result<(String,String), KeyPairError>
-pub fn write_keypair<W: Write>(
-    keypair: &KeyPair,
-    writer: &mut W,
-) -> Result<(String, String), KeyPairError> {
+pub fn write_keypair<W: Write>(keypair: &KeyPair, writer: &mut W) -> Result<(String, String)> {
     let keypair_bytes = keypair.to_bytes()?;
     let serialized_validator_sk = hex::encode(keypair_bytes.0);
     let serialized_miner_sk = hex::encode(keypair_bytes.1);
@@ -378,7 +374,7 @@ pub fn write_keypair<W: Write>(
 pub fn write_keypair_file<F: AsRef<Path>>(
     keypair: &KeyPair,
     outfile: F,
-) -> Result<(String, String), KeyPairError> {
+) -> Result<(String, String)> {
     let outfile = outfile.as_ref();
     if let Some(outdir) = outfile.parent() {
         if let Err(_e) = storage::create_dir(outdir) {
@@ -411,7 +407,6 @@ pub fn write_keypair_file<F: AsRef<Path>>(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use secp256k1::Message;
@@ -425,7 +420,6 @@ mod tests {
         let result = KeyPair::from_bytes(serialized_sk.0.as_slice(), serialized_sk.1.as_slice());
         assert!(result.is_ok());
     }
-
 
     /// It creates a temporary file path for a given name, and returns it as a
     /// string
@@ -448,7 +442,6 @@ mod tests {
             keypair.get_secret_keys().0.reveal()
         )
     }
-
 
     #[test]
     fn test_write_keypair_file() {
@@ -523,7 +516,6 @@ mod tests {
         );
         assert!(status.is_ok());
     }
-
 
     #[test]
     fn test_write_keypair_file_overwrite_ok() {

@@ -1,6 +1,5 @@
 use bytes::Bytes;
-use primitives::types::{NodeType, PeerId};
-use serde::de::value::BytesDeserializer;
+use primitives::{NodeType, PeerId};
 use state::NodeStateReadHandle;
 use std::net::SocketAddr;
 use telemetry::info;

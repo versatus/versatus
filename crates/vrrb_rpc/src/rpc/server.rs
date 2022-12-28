@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use jsonrpsee::core::Error;
 use jsonrpsee::server::{ServerBuilder, SubscriptionSink};
 use jsonrpsee::types::SubscriptionResult;
-use primitives::types::NodeType;
+use primitives::NodeType;
 use state::NodeStateReadHandle;
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::event_router::{DirectedEvent, Event, Topic};

@@ -4,8 +4,7 @@ use std::{
     time::Duration,
 };
 
-use derive_builder::Builder;
-use primitives::types::NodeType;
+use primitives::NodeType;
 use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, NodeConfigBuilder};

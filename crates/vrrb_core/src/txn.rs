@@ -9,14 +9,13 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use primitives::types::PublicKey;
+use primitives::PublicKey;
 use secp256k1::ecdsa::Signature;
 use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sha256::digest;
 use uuid::Uuid;
-use primitives::types::PublicKeyBytes;
 
 /// This module contains the basic structure of simple transaction
 use crate::accountable::Accountable;
@@ -46,16 +45,19 @@ pub type TxToken = String;
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
     // TODO: Make all fields private
+    #[deprecated(note = "replaced by txn hash")]
+    pub txn_id: Uuid,
+
     pub timestamp: TxTimestamp,
     pub sender_address: String,
     pub sender_public_key: PublicKey,
     pub receiver_address: String,
-    pub token: Option<TxToken>,
-    pub amount: TxAmount,
+    token: Option<TxToken>,
+    amount: TxAmount,
     pub payload: Option<TxPayload>,
     pub signature: TxSignature,
-    pub validators: Option<HashMap<String, bool>>,
-    pub nonce: TxNonce,
+    validators: Option<HashMap<String, bool>>,
+    nonce: TxNonce,
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +78,7 @@ impl Txn {
         let timestamp = chrono::offset::Utc::now().timestamp();
 
         Self {
+            txn_id: Uuid::new_v4(),
             timestamp,
             sender_address: args.sender_address,
             sender_public_key: args.sender_public_key,
@@ -96,6 +99,7 @@ impl Txn {
         digest(encoded.as_slice())
     }
 
+    /// Encodes the transaction into a JSON-serialized byte vector
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(self).unwrap_or_default()
     }
@@ -119,9 +123,31 @@ impl Txn {
     pub fn is_null(&self) -> bool {
         self == &NULL_TXN
     }
+
+    pub fn amount(&self) -> TxAmount {
+        self.amount
+    }
+
+    /// Alias for amount()
+    pub fn get_amount(&self) -> TxAmount {
+        self.amount()
+    }
+
+    pub fn validators(&self) -> HashMap<String, bool> {
+        self.validators.clone().unwrap_or_default()
+    }
+
+    pub fn txn_id(&self) -> String {
+        self.txn_id.to_string()
+    }
+
+    pub fn payload(&self) -> String {
+        self.payload.clone().unwrap_or_default()
+    }
 }
 
 pub const NULL_TXN: Txn = Txn {
+    txn_id: Uuid::nil(),
     timestamp: 0,
     sender_address: String::new(),
     sender_public_key: vec![],
@@ -181,7 +207,7 @@ impl fmt::Display for Txn {
             signature: {:?}",
             self.timestamp,
             self.sender_address,
-            hex::encode(self.sender_public_key.clone()),
+            self.sender_public_key,
             self.receiver_address,
             self.token,
             self.amount,
@@ -216,5 +242,49 @@ impl Hash for Txn {
 impl PartialEq for Txn {
     fn eq(&self, other: &Self) -> bool {
         self.digest() == other.digest()
+    }
+}
+
+// NOTE: temporary impl
+// TODO: remove later
+impl Accountable for Txn {
+    type Category = ();
+
+    fn receivable(&self) -> String {
+        todo!()
+    }
+
+    fn payable(&self) -> Option<String> {
+        todo!()
+    }
+
+    fn get_amount(&self) -> u128 {
+        todo!()
+    }
+
+    fn get_category(&self) -> Option<Self::Category> {
+        todo!()
+    }
+}
+
+// NOTE: temporary impl
+// TODO: remove later
+impl Verifiable for Txn {
+    type Item = Txn;
+
+    type Dependencies = ();
+
+    type Error = TxnError;
+
+    fn verifiable(&self) -> bool {
+        true
+    }
+
+    fn valid(
+        &self,
+        item: &Self::Item,
+        debendencies: &Self::Dependencies,
+    ) -> Result<bool, Self::Error> {
+        Ok(true)
     }
 }

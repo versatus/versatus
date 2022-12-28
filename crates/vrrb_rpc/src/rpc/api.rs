@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use jsonrpsee::core::Error;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::SubscriptionResult;
-use primitives::types::{NodeType, PublicKey};
+use primitives::{NodeType, PublicKey};
 use serde::{Deserialize, Serialize};
 use state::NodeStateReadHandle;
 use vrrb_core::txn::{TxAmount, TxNonce, TxPayload, TxSignature, TxToken};

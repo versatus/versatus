@@ -8,7 +8,7 @@ use crate::{
 };
 
 use network::network::BroadcastEngine;
-use primitives::types::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
+use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
 
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
@@ -21,7 +21,10 @@ use tokio::{
 };
 use trecho::vm::Cpu;
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+use vrrb_core::{
+    event_router::{DirectedEvent, Event, EventRouter, Topic},
+    keypair::KeyPair,
+};
 use vrrb_rpc::{
     http::HttpApiServerConfig,
     rpc::{JsonRpcServer, JsonRpcServerConfig},

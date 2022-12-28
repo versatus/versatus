@@ -37,7 +37,7 @@ async fn can_add_txns_to_mempool() {
         .create_txn(CreateTxnArgs {
             sender_address: String::from("mock sender_address"),
             sender_public_key: vec![],
-            receiver_address: Some::from("mock receiver_address"),
+            receiver_address: String::from("mock receiver_address"),
             token: None,
             amount: 0,
             payload: None,

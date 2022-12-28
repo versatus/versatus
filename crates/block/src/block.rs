@@ -3,27 +3,20 @@
 
 use std::fmt;
 
-use primitives::types::{
-    Epoch,
-    RawSignature,
-    SecretKeyBytes,
-    GENESIS_EPOCH,
-    SECOND,
-    VALIDATOR_THRESHOLD,
+use primitives::{
+    Epoch, RawSignature, SecretKey as SecretKeyBytes, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD,
 };
+
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
+
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::state::NetworkState;
 use vrrb_core::{
-    accountable::Accountable,
-    claim::Claim,
-    keypair::KeyPair,
-    txn::Txn,
-    verifiable::Verifiable,
+    accountable::Accountable, claim::Claim, keypair::KeyPair, txn::Txn, verifiable::Verifiable,
 };
 
 #[cfg(mainnet)]
@@ -248,11 +241,12 @@ impl Block {
             adjustment_for_next_epoch: adjustment_next_epoch_opt,
         };
 
-        // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
-        let hash = hashable_state.hash(&block.txns, block.header.block_reward.clone());
-        block.hash = hash;
+        // TODO: Replace with state trie
+        // let hash = hashable_state.hash(&block.txns, block.header.block_reward.clone());
+        // block.hash = hash;
+
         (Some(block), adjustment_next_epoch)
     }
 
@@ -440,8 +434,8 @@ impl Verifiable for Block {
 
         let mut valid_data = true;
         self.txns.iter().for_each(|(_, txn)| {
-            let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
-            if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
+            let n_valid = txn.validators().iter().filter(|(_, &valid)| valid).count();
+            if (n_valid as f64 / txn.validators().len() as f64) < VALIDATOR_THRESHOLD {
                 valid_data = false;
             }
         });

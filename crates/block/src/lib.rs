@@ -12,7 +12,12 @@ mod tests {
     use reward::reward::Reward;
     use ritelinked::LinkedHashMap;
     use state::NetworkState;
-    use vrrb_core::{claim::Claim, keypair::KeyPair, txn::Txn};
+    use telemetry::log::kv::ToValue;
+    use vrrb_core::{
+        claim::Claim,
+        keypair::KeyPair,
+        txn::{NewTxnArgs, Txn},
+    };
 
     use crate::{header::BlockHeader, Block, MineArgs};
 
@@ -255,27 +260,22 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
         for i in 0..random_number {
-            let txn_amount: u128 = rng.gen_range(150, 1000);
+            let amount: u128 = rng.gen_range(150, 1000);
             let nonce: u128 = rng.gen_range(10, 100);
-            let time_stamp = (since_the_epoch.as_secs() * 1000
-                + since_the_epoch.subsec_nanos() as u64 / 1_000_000)
-                * 1000
-                * 1000;
+
             txns.insert(
                 i.to_string(),
-                Txn {
-                    txn_id: i.to_string(),
-                    txn_timestamp: time_stamp as u128,
+                Txn::new(NewTxnArgs {
                     sender_address: String::from("ABC"),
                     sender_public_key: String::from("ABC_PUB").as_bytes().to_vec(),
                     receiver_address: String::from("DEST"),
-                    txn_token: None,
-                    txn_amount,
-                    txn_payload: String::from("sample_payload"),
-                    txn_signature: String::from("signature"),
-                    validators: HashMap::default(),
+                    token: None,
+                    amount,
+                    payload: Some(String::from("sample_payload")),
+                    signature: vec![],
+                    validators: Some(HashMap::default()),
                     nonce,
-                },
+                }),
             );
         }
         txns

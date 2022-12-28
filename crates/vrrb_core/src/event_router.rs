@@ -1,6 +1,6 @@
 use crate::txn::Txn;
 use crate::{Error, Result};
-use primitives::types::{NodeType, PeerId};
+use primitives::{NodeType, PeerId};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::net::SocketAddr;
 use telemetry::{error, info};

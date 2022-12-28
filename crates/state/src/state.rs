@@ -147,6 +147,7 @@ impl<'de> NetworkState {
 
     /// Hashes the current credits, debits and reward state and returns a new
     /// `StateHash`
+    #[deprecated(note = "replaced by lr-trie and trie roots")]
     pub fn hash<A: Accountable, R: Accountable>(
         &mut self,
         txns: &LinkedHashMap<String, A>,
@@ -159,6 +160,7 @@ impl<'de> NetworkState {
             "{:?},{:?},{:?},{:?}",
             self.state_hash, credit_hash, debit_hash, reward_state_hash
         );
+
         let new_state_hash = digest(payload.as_bytes());
         new_state_hash
     }

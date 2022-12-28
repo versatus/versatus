@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use crate::packet::{NotCompleteError, Packet, Packetize};
-use primitives::types::{NodeType, PublicKey};
+use primitives::{NodeType, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use udp2p::node::peer_id::PeerId;
