@@ -23,7 +23,6 @@ blockchain = { path = "../blockchain" }
 vrrb_rpc = { path = "../vrrb_rpc" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
-udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 sha256 = "1.0.2"
 rand = { version = "0.6", features = ["std"] }
 bytebuffer = "0.2.1"
@@ -42,3 +41,4 @@ poem = "1.3.43"
 public-ip = "0.2.2"
 anyhow = "1.0.65"
 async-trait = "0.1.58"
+kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }

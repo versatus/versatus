@@ -4,7 +4,6 @@ use std::{net::SocketAddr, sync::mpsc::Sender};
 /// structures and the methods required to send commands to different parts of
 /// the system.
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use udp2p::protocol::protocol::Message;
 
 /// A Basic trait to be implemented on any type of handler so that they can have
 /// the basic allocation function

@@ -37,6 +37,7 @@ use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
 
 use crate::{
     result::{NodeError, Result},
+    swarm_module::{SwarmConfig, SwarmModule},
     NodeAuth,
     NodeType,
     RuntimeModule,
@@ -167,6 +168,7 @@ impl Node {
         event_router.add_topic(Topic::Control, Some(1));
         event_router.add_topic(Topic::State, Some(1));
         event_router.add_topic(Topic::Transactions, Some(100));
+        event_router.add_topic(Topic::Peers, Some(1000));
 
         let mut state_module = StateModule::new(StateModuleConfig {
             path: state_path,
@@ -177,6 +179,24 @@ impl Node {
 
         let state_handle = tokio::spawn(async move {
             state_module.start(&mut state_events_rx);
+        });
+
+        //To be added from the config
+        //To Check if this node is boostrap node if yes then pass Boostrap Node SocketAddr
+        let mut swarm_module = SwarmModule::new(
+            SwarmConfig {
+                port: 8080,
+                bootstrap_node: None,
+            },
+            None,
+            None,
+            events_tx.clone(),
+        );
+
+        let mut swarm_events_rx = event_router.subscribe(&Topic::Peers)?;
+
+        let swarm_handle = tokio::spawn(async move {
+            swarm_module.start(&mut swarm_events_rx);
         });
 
         let mut http_server_events_rx = event_router.subscribe(&Topic::Control)?;
@@ -217,6 +237,7 @@ impl Node {
 
         // TODO: await on all task handles here
         state_handle.await;
+        swarm_handle.await;
 
         telemetry::info!("Node shutdown complete");
 

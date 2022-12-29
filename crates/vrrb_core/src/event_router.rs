@@ -1,4 +1,8 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    net::SocketAddr,
+};
+use serde::{Deserialize, Serialize};
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -20,6 +24,23 @@ pub enum Event {
     /// Batch of validated txns
     TxnBatchValidated(Vec<u8>),
     BlockConfirmed(Vec<u8>),
+    /// New txn came from network, requires validation
+    AddPeer(Vec<u8>), //Vec<u8> will be deserialized to PeerInfo
+    RemovePeer(Vec<u8>), //Vec<u8> will be deserialized to PeerInfo
+}
+
+#[derive(Debug, Clone,Serialize,Deserialize)]
+pub struct PeerInfo {
+    pub peer_address: SocketAddr,
+    pub backpressure: u8,
+}
+impl PeerInfo {
+    pub fn new(peer_address: SocketAddr, backpressure: u8) -> Self {
+        Self {
+            peer_address,
+            backpressure,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -27,6 +48,7 @@ pub enum Event {
 pub enum Topic {
     Control,
     Transactions,
+    Peers,
     State,
 }
 
