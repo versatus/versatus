@@ -206,7 +206,7 @@ impl Miner {
     /// Generates a gensis block
     //TODO: Require a specific key to mine the genesis block so that only one node
     // controlled by the organization can mine it.
-    pub fn genesis(&mut self) -> Option<Block> {
+    pub fn genesis(&mut self) -> Option<Result<Block, InvalidBlockErrorReason>> {
         if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.pubkey) {
             return None;
         }
@@ -215,11 +215,7 @@ impl Miner {
         
         let genesis_block = Block::genesis(self.claim.clone(), self.secret_key.clone(), None);
 
-        if genesis_block.is_ok(){
-            Some(genesis_block.unwrap())
-        } else {
-            None
-        }
+        return Some(genesis_block);
     }
 
     /// Attempts to mine a block

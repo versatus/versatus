@@ -3,7 +3,6 @@ use std::{
     str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
-    u64::MAX as u64MAX,
 };
 
 use bytebuffer::ByteBuffer;
@@ -64,13 +63,13 @@ impl BlockHeader {
             Err(e) => return Err(e),
         };
 
-
-        //generate with VRF
-
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let timestamp: u128;
+        if let Ok(temp_timestamp) = SystemTime::now().duration_since(UNIX_EPOCH){
+            timestamp = temp_timestamp.as_nanos();
+        }
+        else{
+            return Err(InvalidBlockErrorReason::InvalidBlockHeader);
+        }
         let txn_hash = digest("Genesis_Txn_Hash".as_bytes());
         let block_reward = Reward::genesis(Some(claim.address.clone()));
         //TODO: Replace reward state
@@ -144,10 +143,12 @@ impl BlockHeader {
             Err(e) => return Err(e),
         };
        
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let timestamp: u128;
+        if let Ok(temp_timestamp) = SystemTime::now().duration_since(UNIX_EPOCH){
+            timestamp = temp_timestamp.as_nanos();
+        } else {
+            return Err(InvalidBlockErrorReason::InvalidBlockHeader);
+        }
         let mut block_reward = last_block.header.next_block_reward;
         block_reward.miner = Some(claim.clone().address);
 
