@@ -298,14 +298,20 @@ impl Block {
         self.to_string().as_bytes().to_vec()
     }
 
-    pub fn from_bytes(data: &[u8]) -> Block {
+    pub fn from_bytes(data: &[u8]) -> Result<Block, InvalidBlockErrorReason> {
         let mut buffer: Vec<u8> = vec![];
 
         data.iter().for_each(|x| buffer.push(*x));
 
-        let to_string = String::from_utf8(buffer).unwrap();
-
-        return serde_json::from_str::<Block>(&to_string).unwrap();
+        if let Ok(to_string) =  String::from_utf8(buffer){
+            if let Ok(block) = serde_json::from_str::<Block>(&to_string){
+                return Ok(block);
+            } else {
+                return Err(InvalidBlockErrorReason::General);
+            }
+        } else {
+            return Err(InvalidBlockErrorReason::General);
+        }
     }
 
     // TODO: Consider renaming to `serialize_to_string`
