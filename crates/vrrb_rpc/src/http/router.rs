@@ -4,7 +4,7 @@ use tower_http::trace::TraceLayer;
 use vrrb_core::event_router::Event;
 
 use crate::http::{
-    routes::{accounts, health},
+    routes::{wallet_accts, health},
     HttpApiRouterConfig,
 };
 
@@ -12,7 +12,7 @@ pub fn create_router(config: &HttpApiRouterConfig) -> Router {
     Router::new()
         .route("/", get(|| async { "index" }))
         .route("/health", get(health::health_check))
-        .nest("/accounts", accounts::create_account_router())
+        .nest("/accounts", wallet_accts::create_account_router())
         .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()))
 }
 

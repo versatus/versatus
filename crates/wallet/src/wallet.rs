@@ -24,7 +24,7 @@ use sha256::digest;
 use state::state::NetworkState;
 use uuid::Uuid;
 use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn};
-use vrrb_vrf::{VVRF, VRNG};
+use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
 
 const STARTING_BALANCE: u128 = 1000;
 
@@ -85,7 +85,7 @@ impl Default for WalletAccount {
         total_balances.insert(address_prefix.clone(), vrrb_balances);
 
         let zero_addr = "0x0000000000000000000000000000000000000000000000000000000000000000";
-        let string_pubkey = pubkey.to_string();
+        let string_pubkey = public_key.to_string();
 
         //TODO turn String pk to PublicKey pk
         let temp_claim = Claim::new(string_pubkey.clone(), zero_addr.to_owned(), 0);
@@ -158,6 +158,8 @@ impl WalletAccount {
 
         wallet.welcome_message = welcome_message;
         wallet.claim = updated_claim;
+
+        return wallet
     }
 
     pub fn get_txn_nonce(&mut self, _network_state: &NetworkState) {
@@ -234,7 +236,7 @@ impl WalletAccount {
     //    self.claims.len() as u128
     //}
 
-    pub fn get_claim(&self) -> LinkedHashMap<u128, Claim> {
+    pub fn get_claim(&self) -> Claim {
         self.claim.clone()
     }
 

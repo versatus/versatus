@@ -18,6 +18,7 @@ axum-server = { version = "0.4.4", features = ["tls-rustls"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["trace"] }
 hyper = { version = "0.14.23", features = ["full"] }
+wallet = { path = "../wallet" }
 
 [dev-dependencies]
 hyper = "0.14.23"
