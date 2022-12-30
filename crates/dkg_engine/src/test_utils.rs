@@ -99,6 +99,7 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
                 // node_secret_key: secret_key,
                 // node_public_key: secret_key.public_key(),
                 jsonrpc_server_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+                bootstrap_config: None,
             },
             rx,
         )

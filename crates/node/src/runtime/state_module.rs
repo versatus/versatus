@@ -1,14 +1,15 @@
-use std::path::PathBuf;
+use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::event_router::{DirectedEvent, Event, Topic};
 
-use crate::{result::Result, NodeError, RuntimeModule, RuntimeModuleState};
+use crate::{result::Result, NodeError, RuntimeModule};
 
 pub struct StateModuleConfig {
     pub node_state: NodeState,
@@ -18,7 +19,9 @@ pub struct StateModuleConfig {
 #[derive(Debug)]
 pub struct StateModule {
     state: NodeState,
-    running_status: RuntimeModuleState,
+    status: ActorState,
+    label: ActorLabel,
+    id: ActorId,
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
 }
 
@@ -29,13 +32,19 @@ impl StateModule {
     pub fn new(config: StateModuleConfig) -> Self {
         Self {
             state: config.node_state,
-            running_status: RuntimeModuleState::Stopped,
             events_tx: config.events_tx,
+            status: ActorState::Stopped,
+            label: String::from("State"),
+            id: uuid::Uuid::new_v4().to_string(),
         }
     }
 }
 
 impl StateModule {
+    fn name(&self) -> String {
+        String::from("State module")
+    }
+
     /// Produces a reader factory that can be used to generate read handles into
     /// the state tree.
     #[deprecated(note = "use self.read_handle instead")]
@@ -46,83 +55,71 @@ impl StateModule {
     pub fn read_handle(&self) -> NodeStateReadHandle {
         self.state.read_handle()
     }
-
-    fn decode_event(&mut self, event: std::result::Result<Event, TryRecvError>) -> Event {
-        match event {
-            Ok(cmd) => cmd,
-            Err(err) => match err {
-                TryRecvError::Closed => {
-                    telemetry::error!("The events channel for event router has been closed.");
-                    Event::Stop
-                },
-
-                TryRecvError::Lagged(u64) => {
-                    telemetry::error!("Receiver lagged behind");
-                    Event::NoOp
-                },
-                _ => Event::NoOp,
-            },
-            _ => Event::NoOp,
-        }
-    }
-
-    fn process_event(&mut self, event: Event) {
-        match event {
-            Event::TxnCreated(_) => {
-                info!("Storing transaction in tx tree.");
-                self.events_tx
-                    .send((Topic::Transactions, Event::TxnCreated(vec![])))
-                    .unwrap();
-            },
-            Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
-        }
-    }
 }
 
 #[async_trait]
-impl RuntimeModule for StateModule {
-    fn name(&self) -> String {
-        String::from("State module")
+impl Handler<Event> for StateModule {
+    fn id(&self) -> ActorId {
+        self.id.clone()
     }
 
-    fn status(&self) -> RuntimeModuleState {
-        self.running_status.clone()
+    fn label(&self) -> ActorLabel {
+        self.name()
     }
 
-    async fn start(
-        &mut self,
-        events_rx: &mut tokio::sync::broadcast::Receiver<Event>,
-    ) -> Result<()> {
-        info!("{0} started", self.name());
+    fn status(&self) -> ActorState {
+        self.status.clone()
+    }
 
-        while let Ok(event) = events_rx.recv().await {
-            info!("{} received {event:?}", self.name());
+    fn set_status(&mut self, actor_status: ActorState) {
+        self.status = actor_status;
+    }
 
-            if event == Event::Stop {
-                info!("{0} received stop signal. Stopping", self.name());
+    fn on_stop(&self) {
+        info!(
+            "{}-{} received stop signal. Stopping",
+            self.name(),
+            self.label()
+        );
+    }
 
-                self.running_status = RuntimeModuleState::Terminating;
-
+    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
+        match event {
+            Event::Stop => {
                 // TODO: fix
                 // self.state
                 //     .serialize_to_json()
                 //     .map_err(|err| NodeError::Other(err.to_string()))?;
+                return Ok(ActorState::Stopped);
+            },
 
-                break;
-            }
+            Event::NewTxnCreated(txn) => {
+                info!("Storing transaction in mempool for validation");
 
-            self.process_event(event);
+                let txn_hash = txn.digest_bytes();
+
+                self.state.add_txn_to_mempool(txn);
+
+                self.events_tx
+                    .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+            Event::NoOp => {},
+            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
         }
 
-        Ok(())
+        Ok(ActorState::Running)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::env;
-    use vrrb_core::event_router::{DirectedEvent, Event};
+    use theater::ActorImpl;
+    use vrrb_core::{
+        event_router::{DirectedEvent, Event},
+        txn::NULL_TXN,
+    };
 
     use super::*;
 
@@ -146,16 +143,18 @@ mod tests {
             node_state,
         });
 
+        let mut state_module = ActorImpl::new(state_module);
+
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
 
-        assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
+        assert_eq!(state_module.status(), ActorState::Stopped);
 
         let handle = tokio::spawn(async move {
             state_module.start(&mut ctrl_rx).await.unwrap();
-            assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
+            assert_eq!(state_module.status(), ActorState::Terminating);
         });
 
-        ctrl_tx.send(Event::Stop).unwrap();
+        ctrl_tx.send(Event::Stop.into()).unwrap();
 
         handle.await.unwrap();
     }
@@ -180,16 +179,17 @@ mod tests {
             node_state,
         });
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(1);
+        let mut state_module = ActorImpl::new(state_module);
 
-        assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+
+        assert_eq!(state_module.status(), ActorState::Stopped);
 
         let handle = tokio::spawn(async move {
             state_module.start(&mut ctrl_rx).await.unwrap();
-            assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
         });
 
-        ctrl_tx.send(Event::TxnCreated(vec![])).unwrap();
+        ctrl_tx.send(Event::NewTxnCreated(NULL_TXN)).unwrap();
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();
@@ -215,20 +215,23 @@ mod tests {
             node_state,
         });
 
+        let mut state_module = ActorImpl::new(state_module);
+
         let events_handle = tokio::spawn(async move {
             events_rx.recv().await.unwrap();
         });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
 
-        assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
+        assert_eq!(state_module.status(), ActorState::Stopped);
 
         let handle = tokio::spawn(async move {
             state_module.start(&mut ctrl_rx).await.unwrap();
-            assert_eq!(state_module.status(), RuntimeModuleState::Stopped);
         });
 
-        ctrl_tx.send(Event::TxnCreated(vec![])).unwrap();
+        // TODO: implement all state && validation ops
+
+        ctrl_tx.send(Event::NewTxnCreated(NULL_TXN)).unwrap();
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();

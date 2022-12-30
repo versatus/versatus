@@ -35,7 +35,12 @@ impl RpcServer for RpcServerImpl {
     }
 
     async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error> {
-        todo!()
+        let values = self.state_handle_factory.mempool_values().map_err(|err| {
+            telemetry::error!("could not generate a mempool snapshot: {err}");
+            Error::Custom(err.to_string())
+        })?;
+
+        Ok(values)
     }
 
     async fn get_node_type(&self) -> Result<NodeType, Error> {

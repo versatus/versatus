@@ -8,6 +8,7 @@ use lrdb::Account;
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::PublicKey;
 use serde::{Deserialize, Serialize};
+use vrrb_core::txn::Txn;
 
 use crate::{result::Result, types::StatePath, StateError};
 
@@ -29,8 +30,15 @@ pub struct NodeStateConfig {
 pub struct NodeState {
     /// Path to database
     pub path: StatePath,
+
+    /// VRRB world state. it contains the accounts tree
     state_trie: LeftRightTrie<MemoryDB>,
+
+    /// Confirmed transactions
     tx_trie: LeftRightTrie<MemoryDB>,
+
+    /// Unconfirmed transactions
+    mempool: LeftRightTrie<MemoryDB>,
 }
 
 impl Clone for NodeState {
@@ -39,6 +47,7 @@ impl Clone for NodeState {
             path: self.path.clone(),
             state_trie: self.state_trie.clone(),
             tx_trie: self.tx_trie.clone(),
+            mempool: self.tx_trie.clone(),
         }
     }
 }
@@ -46,6 +55,7 @@ impl Clone for NodeState {
 impl From<NodeStateValues> for NodeState {
     fn from(node_state_values: NodeStateValues) -> Self {
         let mut state_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
+        let mut tx_trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
 
         let mapped_state = node_state_values
             .state
@@ -55,10 +65,19 @@ impl From<NodeStateValues> for NodeState {
 
         state_trie.extend(mapped_state);
 
+        let mapped_txns = node_state_values
+            .txns
+            .into_iter()
+            .map(|(key, acc)| (key, acc))
+            .collect();
+
+        tx_trie.extend(mapped_txns);
+
         Self {
             path: PathBuf::new(),
             state_trie,
-            tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+            tx_trie,
+            mempool: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
         }
     }
 }
@@ -97,12 +116,34 @@ impl NodeStateValues {
 #[derive(Debug, Clone)]
 pub struct NodeStateReadHandle {
     state_handle_factory: ReadHandleFactory<InnerTrie<MemoryDB>>,
+    tx_handle_factory: ReadHandleFactory<InnerTrie<MemoryDB>>,
+    mempool_handle_factory: ReadHandleFactory<InnerTrie<MemoryDB>>,
 }
 
 impl NodeStateReadHandle {
     /// Returns a copy of all values stored within the state trie
     pub fn values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         self.state_handle_factory
+            .handle()
+            .enter()
+            .map(|guard| guard.values())
+            .unwrap_or_else(|| Ok(vec![]))
+            .map_err(|err| StateError::Other(err.to_string()))
+    }
+
+    /// Returns a copy of all values stored within the mempool trie
+    pub fn mempool_values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        self.mempool_handle_factory
+            .handle()
+            .enter()
+            .map(|guard| guard.values())
+            .unwrap_or_else(|| Ok(vec![]))
+            .map_err(|err| StateError::Other(err.to_string()))
+    }
+
+    /// Returns a copy of all values stored within the confirmed transactions trie
+    pub fn confirmed_txn_values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        self.tx_handle_factory
             .handle()
             .enter()
             .map(|guard| guard.values())
@@ -121,14 +162,21 @@ impl NodeState {
 
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
-        let backing_db = Arc::new(mem_db);
-        let mut state_trie = LeftRightTrie::new(backing_db.clone());
-        let tx_trie = LeftRightTrie::new(backing_db);
+
+        let state_backing_db = Arc::new(mem_db.clone());
+        let state_trie = LeftRightTrie::new(state_backing_db);
+
+        let tx_backing_db = Arc::new(mem_db.clone());
+        let tx_trie = LeftRightTrie::new(tx_backing_db);
+
+        let mempool_backing_db = Arc::new(mem_db);
+        let mempool = LeftRightTrie::new(mempool_backing_db);
 
         Self {
             path,
             state_trie,
             tx_trie,
+            mempool,
         }
     }
 
@@ -192,9 +240,13 @@ impl NodeState {
 
     pub fn read_handle(&self) -> NodeStateReadHandle {
         let state_handle_factory = self.state_trie.factory();
+        let tx_handle_factory = self.tx_trie.factory();
+        let mempool_handle_factory = self.mempool.factory();
 
         NodeStateReadHandle {
             state_handle_factory,
+            tx_handle_factory,
+            mempool_handle_factory,
         }
     }
 
@@ -253,5 +305,20 @@ impl NodeState {
     /// Removes an account from the current state tree.
     pub fn remove_account(&mut self, _key: PublicKey) {
         todo!()
+    }
+
+    /// Adds a transaction to mempool.
+    pub fn add_txn_to_mempool(&mut self, txn: Txn) {
+        self.mempool.add(txn.digest_bytes(), txn);
+    }
+
+    /// Removes a transaction to mempool.
+    pub fn remove_txn_from_mempool(&mut self, txn: Txn) {
+        self.mempool.add(txn.digest_bytes(), txn);
+    }
+
+    /// Adds a transaction to the confirmed transactions store.
+    pub fn add_txn_to_confirmed_trie(&mut self, txn: Txn) {
+        self.tx_trie.add(txn.digest_bytes(), txn);
     }
 }

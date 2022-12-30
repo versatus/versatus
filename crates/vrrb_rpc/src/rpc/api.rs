@@ -1,18 +1,14 @@
-use std::net::SocketAddr;
-
-use async_trait::async_trait;
 use jsonrpsee::core::Error;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::SubscriptionResult;
 use primitives::{NodeType, PublicKey};
 use serde::{Deserialize, Serialize};
-use state::NodeStateReadHandle;
 use vrrb_core::txn::{TxAmount, TxNonce, TxPayload, TxSignature, TxToken};
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
 pub type FullStateSnapshot = Vec<(Vec<u8>, Vec<u8>)>;
-pub type FullMempoolSnapshot = Vec<u8>;
+pub type FullMempoolSnapshot = Vec<(Vec<u8>, Vec<u8>)>;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateTxnArgs {

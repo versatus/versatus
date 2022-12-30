@@ -1,5 +1,7 @@
 use std::{hash::Hash, time::SystemTime};
 
+// TODO: replace evmap with lr_trie so the db can be used to store state data
+
 /// Struct representing the LeftRight Database.
 ///
 /// `ReadHandleFactory` provides a way of creating new ReadHandles to the

@@ -100,6 +100,11 @@ impl Txn {
         digest(encoded.as_slice())
     }
 
+    /// Produces a SHA 256 hash vector of bytes of the transaction
+    pub fn digest_bytes(&self) -> Vec<u8> {
+        self.digest().as_bytes().to_vec()
+    }
+
     /// Encodes the transaction into a JSON-serialized byte vector
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(self).unwrap_or_default()

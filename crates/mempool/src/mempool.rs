@@ -16,6 +16,8 @@ use super::error::MempoolError;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
+//TODO: simplify mempool
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct TxnRecord {
     pub txn_id: String,

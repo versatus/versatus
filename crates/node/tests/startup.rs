@@ -10,37 +10,17 @@ use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
 #[tokio::test]
-async fn node_runtime_starts_and_stops() {
+#[should_panic(expected = "failed to signal join intent to any bootstrap node")]
+async fn node_cant_start_if_no_known_boostrap_nodes_are_provided() {
     let node_config = create_mock_full_node_config();
 
-    let (ctrl_tx_1, ctrl_rx_1) = unbounded_channel::<Event>();
-    let (ctrl_tx_2, ctrl_rx_2) = unbounded_channel::<Event>();
+    let (_, ctrl_rx_1) = unbounded_channel::<Event>();
 
     let vrrb_node_1 = Node::start(&node_config, ctrl_rx_1).await.unwrap();
-    let vrrb_node_2 = Node::start(&node_config, ctrl_rx_2).await.unwrap();
 
     assert_eq!(vrrb_node_1.status(), RuntimeModuleState::Stopped);
-    assert_eq!(vrrb_node_2.status(), RuntimeModuleState::Stopped);
 
-    let client = create_client(vrrb_node_1.jsonrpc_server_address())
-        .await
-        .unwrap();
-
-    let handle_1 = tokio::spawn(async move {
-        vrrb_node_1.wait().await.unwrap();
-    });
-
-    let handle_2 = tokio::spawn(async move {
-        vrrb_node_2.wait().await.unwrap();
-    });
-
-    ctrl_tx_1.send(Event::Stop).unwrap();
-    ctrl_tx_2.send(Event::Stop).unwrap();
-
-    assert_eq!(client.get_full_state().await.unwrap(), vec![]);
-
-    handle_1.await.unwrap();
-    handle_2.await.unwrap();
+    vrrb_node_1.wait().await.unwrap();
 }
 
 #[tokio::test]
