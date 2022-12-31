@@ -14,6 +14,7 @@ pub type AccountUpdateFails = Vec<(
 
 /// Stores information about given account.
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[deprecated(note = "replaced by vrrb_core::account::Account")]
 pub struct Account {
     pub hash: String,
     pub nonce: Nonce,
