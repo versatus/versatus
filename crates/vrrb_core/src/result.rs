@@ -1,4 +1,4 @@
-pub type Result<T> = anyhow::Result<T>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
