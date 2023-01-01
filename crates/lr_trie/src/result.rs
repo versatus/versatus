@@ -19,6 +19,4 @@ pub enum LeftRightTrieError {
 
     #[error("{0}")]
     Other(String),
-    // #[error("{0}")]
-    // TrieError(#[from] TrieError),
 }
