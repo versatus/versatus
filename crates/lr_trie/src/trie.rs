@@ -37,13 +37,6 @@ where
         }
     }
 
-    // pub fn handle(&self) -> InnerTrie<D> {
-    //     self.read_handle
-    //         .enter()
-    //         .map(|guard| guard.clone())
-    //         .unwrap_or_default()
-    // }
-
     fn handle(&self) -> InnerTrieWrapper<D> {
         let read_handle = self
             .read_handle
