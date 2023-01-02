@@ -5,7 +5,7 @@ use std::{
 };
 
 use hbbft::{
-    crypto::{PublicKey, PublicKeySet, SecretKey, SecretKeyShare},
+    crypto::{PublicKey, PublicKeySet, SecretKeyShare},
     sync_key_gen::{Ack, Part, SyncKeyGen},
 };
 use node::Node;
@@ -76,8 +76,6 @@ pub struct DkgState {
     pub sync_key_gen: Option<SyncKeyGen<u16>>,
 
     pub random_number_gen: Option<OsRng>,
-
-    pub secret_key: SecretKey,
 }
 
 /// List of all possible errors related to synchronous dkg generation .
@@ -93,6 +91,8 @@ pub enum DkgError {
     NotEnoughPartsCompleted,
     #[error("Not enough ack messages received")]
     NotEnoughAckMsgsReceived,
+    #[error("Partial Committment not generated")]
+    PartCommitmentNotGenerated,
     #[error("Partial Committment missing for node with index {0}")]
     PartMsgMissingForNode(u16),
     #[error("Partial Message already acknowledge for node with index {0}")]
@@ -123,7 +123,6 @@ pub enum DkgResult {
 
 impl DkgEngine {
     pub fn new(node_info: Arc<RwLock<Node>>, threshold_config: ThresholdConfig) -> DkgEngine {
-        let secret_key: SecretKey = rand::random();
         DkgEngine {
             node_info,
             threshold_config,
@@ -135,8 +134,11 @@ impl DkgEngine {
                 secret_key_share: None,
                 sync_key_gen: None,
                 random_number_gen: None,
-                secret_key,
             },
         }
+    }
+
+    pub fn add_peer_public_key(&mut self, node_id: NodeID, public_key: PublicKey) {
+        self.dkg_state.peer_public_keys.insert(node_id, public_key);
     }
 }
