@@ -10,7 +10,9 @@ evmap = "5.0.2"
 sha2 = "0.10.2"
 serde = { version = "1.0.142", features = ["derive"] }
 thiserror = "1.0.32"
-vrrb_core={path="../vrrb_core"}
+vrrb_core ={ path="../vrrb_core"}
+lr_trie ={ path="../lr_trie"}
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 
 [dev-dependencies]
 rand = "0.8.5"
