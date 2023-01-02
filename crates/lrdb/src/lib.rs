@@ -1,21 +1,16 @@
 mod lrdb;
 pub mod result;
 mod state_db;
-mod vrrb_db;
 
 pub use lrdb::*;
 pub use state_db::*;
-pub use vrrb_db::*;
 
 #[cfg(test)]
 mod tests {
 
     use std::thread;
-
     use vrrb_core::account::Account;
     use vrrb_core::keypair::{KeyPair, PublicKeys};
-
-    use crate::vrrb_db::*;
 
     // fn new_random_keys(n: usize) -> Vec<PublicKeys> {
     //     let mut res: Vec<PublicKeys> = vec![];

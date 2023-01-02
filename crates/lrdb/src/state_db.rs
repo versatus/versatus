@@ -10,7 +10,7 @@ use vrrb_core::account::{Account, UpdateArgs};
 /// A SHA-256 hash of the miner and validator public key values for a given account
 pub type PublicKeysHash = Vec<u8>;
 
-pub type FailedAccountUpdates<'a> = Vec<(&'a PublicKeysHash, Vec<UpdateArgs>, Result<()>)>;
+pub type FailedAccountUpdates = Vec<(PublicKeysHash, Vec<UpdateArgs>, Result<()>)>;
 
 pub struct StateDb<'a> {
     trie: LeftRightTrie<'a, PublicKeysHash, Account, MemoryDB>,
@@ -216,10 +216,8 @@ impl<'a> StateDb<'a> {
             let mut fail: (bool, Result<()>) = (false, Ok(()));
             let mut final_account = Account::new();
 
-            // TODO: refactor the lines below
-            let mut account_result = self.read_handle().get(k);
+            let account_result = self.read_handle().get(k);
 
-            // match self.read_handle().get(k) {
             match account_result {
                 Ok(mut account) => {
                     for update in v.as_slice() {
@@ -238,11 +236,10 @@ impl<'a> StateDb<'a> {
             }
 
             if fail.0 {
-                failed.push((k, v, fail.1));
+                failed.push((k.to_owned(), v, fail.1));
             } else {
                 // TODO: implement an update method on underlying lr trie
                 self.trie.insert(k, final_account);
-                // self.trie.update(k, final_account);
             };
         });
 
