@@ -17,14 +17,6 @@ pub struct StateDb<'a> {
     last_refresh: std::time::SystemTime,
 }
 
-// DONE
-// TODO: implement serialization and deserialization ops on the wrapper
-// TODO: rename generic trie and wrapper simply lr trie
-// TODO: replace statedb internals with newly refactored, generic lr trie
-//
-// TODO
-// TODO: refactor other data structures to use bincode instead
-
 impl<'a> Default for StateDb<'a> {
     fn default() -> Self {
         let trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
