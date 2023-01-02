@@ -37,7 +37,7 @@ where
         }
     }
 
-    fn handle(&self) -> InnerTrieWrapper<D> {
+    pub fn handle(&self) -> InnerTrieWrapper<D> {
         let read_handle = self
             .read_handle
             .enter()
@@ -72,13 +72,8 @@ where
         self.write_handle.publish();
     }
 
-    #[deprecated(note = "replaced by insert")]
-    pub fn add(&mut self, key: K, value: V) {
-        self.insert(key, value)
-    }
-
-    pub fn insert(&mut self, key: K, value: V) {
-        self.insert_uncommitted(key, value);
+    pub fn insert(&mut self, key: &K, value: V) {
+        self.insert_uncommitted(&key, value);
         self.publish();
     }
 
@@ -87,14 +82,9 @@ where
         self.publish();
     }
 
-    #[deprecated(note = "replaced by insert_uncommitted")]
-    pub fn add_uncommitted(&mut self, key: K, value: V) {
-        self.insert_uncommitted(key, value)
-    }
-
-    pub fn insert_uncommitted(&mut self, key: K, value: V) {
+    pub fn insert_uncommitted(&mut self, key: &K, value: V) {
         //TODO: revisit the serializer used to store things on the trie
-        let key = bincode::serialize(&key).unwrap_or_default();
+        let key = bincode::serialize(key).unwrap_or_default();
         let value = bincode::serialize(&value).unwrap_or_default();
         self.write_handle.append(Operation::Add(key, value));
     }
@@ -192,7 +182,7 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
-        trie.insert("abcdefg", CustomValue { data: 100 });
+        trie.insert(&"abcdefg", CustomValue { data: 100 });
 
         let value: CustomValue = trie.handle().get(&String::from("abcdefg")).unwrap();
 
@@ -204,9 +194,9 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
-        trie.insert("abcdefg", CustomValue { data: 12345 });
-        trie.insert("hijkl", CustomValue { data: 678910 });
-        trie.insert("mnopq", CustomValue { data: 1112131415 });
+        trie.insert(&"abcdefg", CustomValue { data: 12345 });
+        trie.insert(&"hijkl", CustomValue { data: 678910 });
+        trie.insert(&"mnopq", CustomValue { data: 1112131415 });
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
