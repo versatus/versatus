@@ -82,13 +82,13 @@ impl<'a> StateDb<'a> {
     fn batch_insert_uncommited(
         &mut self,
         inserts: Vec<(&PublicKeysHash, Account)>,
-    ) -> Option<Vec<(&PublicKeysHash, Account, LeftRightDbError)>> {
-        let mut failed_inserts: Vec<(&PublicKeysHash, Account, LeftRightDbError)> = vec![];
+    ) -> Option<Vec<(PublicKeysHash, Account, LeftRightDbError)>> {
+        let mut failed_inserts: Vec<(PublicKeysHash, Account, LeftRightDbError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
             if let Err(e) = self.insert_uncommited(k, v.clone()) {
-                failed_inserts.push((k, v.clone(), e));
+                failed_inserts.push((k.to_vec(), v.clone(), e));
             }
         });
 
@@ -107,7 +107,7 @@ impl<'a> StateDb<'a> {
     pub fn batch_insert(
         &mut self,
         inserts: Vec<(&PublicKeysHash, Account)>,
-    ) -> Option<Vec<(&PublicKeysHash, Account, LeftRightDbError)>> {
+    ) -> Option<Vec<(PublicKeysHash, Account, LeftRightDbError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit_changes();
         failed_inserts
@@ -144,16 +144,16 @@ impl<'a> StateDb<'a> {
 
     /// Updates a given account if it exists within the store
     fn update_uncommited(&mut self, key: &PublicKeysHash, update: UpdateArgs) -> Result<()> {
-        let account = self
+        let mut account = self
             .read_handle()
             .get(key)
             .map_err(|err| LeftRightDbError::Other(err.to_string()))?;
 
-        let update_result = account
+        account
             .update(update)
             .map_err(|err| LeftRightDbError::Other(err.to_string()))?;
 
-        Ok(update_result)
+        Ok(())
     }
 
     /// Updates an Account in the database under given PublicKey
