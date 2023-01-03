@@ -1,7 +1,9 @@
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use clap::{Parser, Subcommand};
+use hbbft::crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey};
 use node::Node;
+use secp256k1::{rand, Secp256k1};
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
 use vrrb_core::event_router::Event;
@@ -15,10 +17,10 @@ pub struct RunOpts {
     pub dettached: bool,
 
     #[clap(short, long, value_parser)]
-    pub id: primitives::types::node::NodeId,
+    pub id: primitives::NodeId,
 
     #[clap(long, value_parser)]
-    pub idx: primitives::types::node::NodeIdx,
+    pub idx: primitives::NodeIdx,
 
     /// Defines the type of node created by this program
     #[clap(short = 't', long, value_parser, default_value = "full")]
@@ -31,7 +33,10 @@ pub struct RunOpts {
     pub db_path: PathBuf,
 
     #[clap(long, value_parser)]
-    pub gossip_address: SocketAddr,
+    pub udp_gossip_address: SocketAddr,
+
+    #[clap(long, value_parser)]
+    pub raptorq_gossip_address: SocketAddr,
 
     #[clap(long, value_parser)]
     pub http_api_address: SocketAddr,
@@ -90,12 +95,19 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let bootstrap = args.bootstrap;
     let bootstrap_node_addresses = args.bootstrap_node_addresses;
 
-    let gossip_address = args.gossip_address;
+    let udp_gossip_address = args.udp_gossip_address;
+    let raptorq_gossip_address = args.raptorq_gossip_address;
+
     let http_api_address = args.http_api_address;
 
     let http_api_title = args.http_api_title;
     let http_api_version = args.http_api_version;
     let http_api_shutdown_timeout = Some(Duration::from_secs(5));
+
+    // TODO: refactor key reads
+    let secp = Secp256k1::new();
+    let mut rng = rand::thread_rng();
+    let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
 
     let node_config = NodeConfig {
         id,
@@ -103,13 +115,15 @@ pub async fn run(args: RunOpts) -> Result<()> {
         data_dir,
         node_type,
         db_path,
-        gossip_address,
-        bootstrap,
         bootstrap_node_addresses,
         http_api_address,
         http_api_title,
         http_api_version,
         http_api_shutdown_timeout,
+        raptorq_gossip_address,
+        udp_gossip_address,
+        jsonrpc_server_address: http_api_address,
+        preload_mock_state: false,
     };
 
     if args.dettached {
@@ -123,13 +137,17 @@ pub async fn run(args: RunOpts) -> Result<()> {
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
     let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
-    let mut vrrb_node = Node::new(node_config);
+    let vrrb_node = Node::start(&node_config, ctrl_rx)
+        .await
+        .map_err(|err| CliError::Other(String::from("failed to listen for ctrl+c")))?;
 
-    telemetry::info!("running node in blocking mode");
+    let node_type = vrrb_node.node_type();
+
+    telemetry::info!("running {node_type:?} node in blocking mode");
 
     let node_handle = tokio::spawn(async move {
         // NOTE: starts the main node service
-        vrrb_node.start(&mut ctrl_rx).await
+        vrrb_node.wait().await
     });
 
     tokio::signal::ctrl_c()
@@ -142,7 +160,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 
     node_handle
         .await
-        .map_err(|_| CliError::Other(String::from("failed to join node task handle")))??;
+        .map_err(|_| CliError::Other(String::from("failed to join node task handle")))?;
 
     Ok(())
 }

@@ -23,6 +23,7 @@ use vrrb_core::{
     keypair::{KeyPair, MinerSk as SecretKey},
     txn::Txn,
 };
+
 const STARTING_BALANCE: u128 = 1000;
 
 /// The WalletAccount struct is the user/node wallet in which coins, tokens and
@@ -66,6 +67,7 @@ impl Default for WalletAccount {
             "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address_prefix,
         );
+
         let mut addresses = LinkedHashMap::new();
         addresses.insert(1, address_prefix.clone());
 
@@ -210,8 +212,12 @@ impl WalletAccount {
             self.addresses.iter().for_each(|(_, address)| {
                 let mut cloned_data = txns.clone();
                 cloned_data.retain(|_, txn| {
-                    txn.receivable() == address.clone() || txn.payable() == Some(address.clone())
+                    true
+
+                    // TODO: re-enable this
+                    // txn.receivable() == address.clone() || txn.payable() == Some(address.clone())
                 });
+
                 if !cloned_data.is_empty() {
                     some_txn = true;
                 }
@@ -251,22 +257,25 @@ impl WalletAccount {
             &amount,
             &self.nonce
         );
-        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), self.secret_key.clone()).unwrap();
-        let uid_payload = format!("{},{},{}", &payload, Uuid::new_v4(), &signature);
 
-        Ok(Txn {
-            txn_id: digest(uid_payload),
-            txn_timestamp: time,
+        let signature = KeyPair::ecdsa_signature(payload.as_bytes(), &self.secret_key)?
+            .to_string()
+            .as_bytes()
+            .to_vec();
+
+        let txn = Txn::new(vrrb_core::txn::NewTxnArgs {
             sender_address: sender_address.to_string(),
             sender_public_key: self.public_key.clone(),
             receiver_address: receiver,
-            txn_token: None,
-            txn_amount: amount,
-            txn_payload: payload,
-            txn_signature: signature.to_string(),
-            validators: HashMap::new(),
+            token: None,
+            amount,
+            payload: Some(payload),
+            signature,
+            validators: Some(HashMap::new()),
             nonce: self.nonce,
-        })
+        });
+
+        Ok(txn)
     }
 
     /// Gets the local address of a wallet given an address number (naive HD

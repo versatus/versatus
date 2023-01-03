@@ -4,15 +4,17 @@ use std::{
     u32::MAX as u32MAX,
 };
 
-use bytebuffer::ByteBuffer;
 use primitives::types::RawSignature;
+use primitives::SerializedSecretKey as SecretKeyBytes;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use vrrb_core::claim::Claim;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::{block::Block, NextEpochAdjustment, invalid::InvalidBlockErrorReason, invalid::InvalidBlockError};
+use crate::{
+    block::Block, invalid::InvalidBlockError, invalid::InvalidBlockErrorReason, NextEpochAdjustment,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
@@ -35,14 +37,13 @@ pub struct BlockHeader {
 }
 
 impl BlockHeader {
-
     //TODO: miners needs to wait on threshold signature before passing to this fxn
     pub fn genesis(
         seed: u64,
         claim: Claim,
         secret_key: Vec<u8>,
         miner: Option<String>,
-        threshold_signature: RawSignature
+        threshold_signature: RawSignature,
     ) -> Result<BlockHeader, InvalidBlockErrorReason> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -53,16 +54,16 @@ impl BlockHeader {
         let block_seed = seed;
         // Range should remain the same.
 
-        let next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()) {
-            Ok(next_block_seed) => next_block_seed,
-            Err(e) => return Err(e),
-        };
+        let next_block_seed =
+            match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()) {
+                Ok(next_block_seed) => next_block_seed,
+                Err(e) => return Err(e),
+            };
 
         let timestamp: u128;
-        if let Ok(temp_timestamp) = SystemTime::now().duration_since(UNIX_EPOCH){
+        if let Ok(temp_timestamp) = SystemTime::now().duration_since(UNIX_EPOCH) {
             timestamp = temp_timestamp.as_nanos();
-        }
-        else{
+        } else {
             return Err(InvalidBlockErrorReason::InvalidBlockHeader);
         }
         let txn_hash = digest("Genesis_Txn_Hash".as_bytes());
@@ -72,7 +73,7 @@ impl BlockHeader {
         let claim_map_hash: Option<String> = None;
         let neighbor_hash: Option<String> = None;
         let mut payload = String::new();
-        if let Ok(str_last_hash) = String::from_utf8(last_hash.clone()){
+        if let Ok(str_last_hash) = String::from_utf8(last_hash.clone()) {
             payload = format!(
                 "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
                 str_last_hash,
@@ -87,10 +88,9 @@ impl BlockHeader {
                 next_block_reward,
                 neighbor_hash,
             );
-
         }
 
-        if let Ok(signature) = BlockHeader::sign(&payload, secret_key){
+        if let Ok(signature) = BlockHeader::sign(&payload, secret_key) {
             Ok(BlockHeader {
                 last_hash,
                 block_seed,
@@ -105,8 +105,7 @@ impl BlockHeader {
                 neighbor_hash: None,
                 signature: signature.to_string(),
             })
-        }
-        else{
+        } else {
             Err(InvalidBlockErrorReason::InvalidBlockHeader)
         }
     }
@@ -121,7 +120,7 @@ impl BlockHeader {
         secret_key: SecretKeyBytes,
         epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
-        wrapped_threshold_signature: Option<RawSignature>
+        wrapped_threshold_signature: Option<RawSignature>,
     ) -> Result<BlockHeader, InvalidBlockErrorReason> {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
@@ -131,15 +130,17 @@ impl BlockHeader {
         let last_hash = last_block.hash;
         let block_seed = last_block.header.next_block_seed;
 
-        let threshold_signature = wrapped_threshold_signature.ok_or(InvalidBlockErrorReason::InvalidBlockHeader);
+        let threshold_signature =
+            wrapped_threshold_signature.ok_or(InvalidBlockErrorReason::InvalidBlockHeader);
 
-        let next_block_seed = match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()?) {
-            Ok(next_block_seed) => next_block_seed,
-            Err(e) => return Err(e),
-        };
-       
+        let next_block_seed =
+            match Self::generate_next_block_seed(last_hash.clone(), threshold_signature.clone()?) {
+                Ok(next_block_seed) => next_block_seed,
+                Err(e) => return Err(e),
+            };
+
         let timestamp: u128;
-        if let Ok(temp_timestamp) = SystemTime::now().duration_since(UNIX_EPOCH){
+        if let Ok(temp_timestamp) = SystemTime::now().duration_since(UNIX_EPOCH) {
             timestamp = temp_timestamp.as_nanos();
         } else {
             return Err(InvalidBlockErrorReason::InvalidBlockHeader);
@@ -156,7 +157,7 @@ impl BlockHeader {
 
         let mut payload = String::new();
 
-        if let Ok(str_last_hash) =  String::from_utf8(last_hash.clone()){
+        if let Ok(str_last_hash) = String::from_utf8(last_hash.clone()) {
             payload = format!(
                 "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
                 str_last_hash,
@@ -172,8 +173,8 @@ impl BlockHeader {
                 neighbor_hash,
             );
         }
-        
-        if let Ok(signature) =  BlockHeader::sign(&payload, secret_key){
+
+        if let Ok(signature) = BlockHeader::sign(&payload, secret_key) {
             Ok(BlockHeader {
                 last_hash,
                 block_seed,
@@ -187,14 +188,14 @@ impl BlockHeader {
                 next_block_reward,
                 neighbor_hash: None,
                 signature: signature.to_string(),
-            })   
+            })
         } else {
             Err(InvalidBlockErrorReason::InvalidBlockHeader)
         }
     }
 
     pub fn get_payload(&self) -> String {
-        if let Ok(str_last_hash) = String::from_utf8(self.last_hash.clone()){
+        if let Ok(str_last_hash) = String::from_utf8(self.last_hash.clone()) {
             return format!(
                 "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
                 str_last_hash,
@@ -213,10 +214,17 @@ impl BlockHeader {
         return String::new();
     }
 
-    //TODO Option wrapper removed from threshiold_signature as waiting will be required before it can be passed in 
-    pub fn generate_next_block_seed(last_hash: Vec<u8>, threshold_sig: RawSignature) -> Result<u64, InvalidBlockErrorReason>{
+    //TODO Option wrapper removed from threshiold_signature as waiting will be required before it can be passed in
+    pub fn generate_next_block_seed(
+        last_hash: Vec<u8>,
+        threshold_sig: RawSignature,
+    ) -> Result<u64, InvalidBlockErrorReason> {
         let sk = VVRF::generate_secret_key();
-        let msg: Vec<u8> = last_hash.iter().cloned().chain(threshold_sig.iter().cloned()).collect();
+        let msg: Vec<u8> = last_hash
+            .iter()
+            .cloned()
+            .chain(threshold_sig.iter().cloned())
+            .collect();
         let mut vvrf = VVRF::new(&msg, sk);
 
         if VVRF::verify_seed(&mut vvrf).is_err() {

@@ -1,11 +1,9 @@
-use std::str::FromStr;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+
 pub type NodeId = String;
 pub type NodeIdx = u16;
 pub type NodeIdentifier = String;
-pub type SecretKey = Vec<u8>;
-pub type PublicKey = Vec<u8>;
-
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
@@ -13,8 +11,7 @@ pub enum Error {
     Other(String),
 }
 
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
 #[serde(try_from = "String")]

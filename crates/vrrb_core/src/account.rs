@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use primitives::{AccountKeypair, PublicKey, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -40,12 +41,6 @@ impl PartialOrd for UpdateArgs {
 }
 
 pub type AccountNonce = u32;
-// pub type AccountFieldsUpdates = Vec<(PublicKeys, AccountFieldsUpdate)>;
-// pub type AccountUpdateFails = Vec<(
-//     PublicKeys,
-//     Vec<AccountFieldsUpdate>,
-//     Result<(), Error>,
-// )>;
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Account {
@@ -55,11 +50,12 @@ pub struct Account {
     pub debits: u128,
     pub storage: Option<String>,
     pub code: Option<String>,
+    pub pubkey: SerializedPublicKey,
 }
 
 impl Account {
     /// Returns new, empty account.
-    pub fn new() -> Account {
+    pub fn new(pubkey: secp256k1::PublicKey) -> Account {
         let nonce = 0u32;
         let credits = 0u128;
         let debits = 0u128;
@@ -70,9 +66,10 @@ impl Account {
         hasher.update(nonce.to_be_bytes());
         hasher.update(credits.to_be_bytes());
         hasher.update(debits.to_be_bytes());
+
         let hash = format!("{:x}", hasher.finalize());
 
-        dbg!(&hash);
+        let pubkey = pubkey.serialize().to_vec();
 
         Account {
             hash,
@@ -81,6 +78,7 @@ impl Account {
             debits,
             storage,
             code,
+            pubkey,
         }
     }
 
@@ -197,11 +195,16 @@ impl Account {
 
 #[cfg(test)]
 mod tests {
+    use primitives::generate_account_keypair;
+
     use super::*;
 
     #[test]
     fn should_create_account() {
-        let account = Account::new();
+        let (_, pk) = generate_account_keypair();
+
+        let account = Account::new(pk);
+
         assert_eq!(account.nonce, 0);
     }
 }

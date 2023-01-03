@@ -20,9 +20,7 @@ mod tests {
 
     use crate::{
         mempool_processor::{
-            MempoolControlMsg,
-            MempoolTxnProcessor,
-            MempoolTxnProcessorError,
+            MempoolControlMsg, MempoolTxnProcessor, MempoolTxnProcessorError,
             MempoolTxnProcessorState,
         },
         validator_unit::ValidatorUnit,
@@ -35,19 +33,17 @@ mod tests {
     }
 
     fn random_txn(rng: &mut StdRng) -> Txn {
-        Txn {
-            txn_id: random_string(rng),
-            txn_timestamp: 0,
+        Txn::new(NewTxnArgs {
             sender_address: random_string(rng),
             sender_public_key: random_string(rng).as_bytes().to_vec(),
             receiver_address: random_string(rng),
-            txn_token: None,
-            txn_amount: 0,
-            txn_payload: random_string(rng),
-            txn_signature: random_string(rng),
-            validators: HashMap::<String, bool>::new(),
+            token: None,
+            amount: 0,
+            payload: Some(random_string(rng)),
+            signature: random_string(rng).as_bytes().to_vec(),
+            validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-        }
+        })
     }
 
     #[test]

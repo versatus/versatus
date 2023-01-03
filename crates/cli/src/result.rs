@@ -15,7 +15,7 @@ pub enum CliError {
     Storage(#[from] storage::StorageError),
 
     #[error("primitive error: {0}")]
-    Primitive(#[from] primitives::types::node::Error),
+    Primitive(#[from] primitives::Error),
 
     #[error("{0}")]
     Other(String),

@@ -17,3 +17,8 @@ fxhash = "0.2.1"
 sha256 = "1.0.2"
 bytebuffer = "0.2.1"
 ritelinked = { version = "0.3.2", features = ['serde'] }
+chrono = "0.4.23"
+rand = "0.8.5"
+
+[dev-dependencies]
+rand = "0.8.5"
