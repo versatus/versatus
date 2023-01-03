@@ -1,3 +1,5 @@
+use secp256k1::rand::rngs::OsRng;
+use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default)]
@@ -9,8 +11,22 @@ pub type PayloadHash = Hash;
 pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;
 pub type PeerId = Vec<u8>;
-pub type SecretKey = Vec<u8>;
-pub type PublicKey = Vec<u8>;
+
+/// Represents a byte slice produced from an instance of secp256k1::SecretKey
+pub type SerializedSecretKey = Vec<u8>;
+
+/// Represents a byte slice produced from an instance of secp256k1::PublicKey
+pub type SerializedPublicKey = Vec<u8>;
+
+pub type PublicKey = secp256k1::PublicKey;
+pub type SecretKey = secp256k1::SecretKey;
+
+pub type AccountKeypair = (secp256k1::SecretKey, secp256k1::PublicKey);
+
+pub fn generate_account_keypair() -> AccountKeypair {
+    let secp = Secp256k1::new();
+    secp.generate_keypair(&mut OsRng)
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SignatureType {

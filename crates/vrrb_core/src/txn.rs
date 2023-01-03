@@ -9,7 +9,7 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use primitives::PublicKey;
+use primitives::{PublicKey, SerializedPublicKey};
 use secp256k1::ecdsa::Signature;
 use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
@@ -50,7 +50,7 @@ pub struct Txn {
 
     pub timestamp: TxTimestamp,
     pub sender_address: String,
-    pub sender_public_key: PublicKey,
+    pub sender_public_key: SerializedPublicKey,
     pub receiver_address: String,
     token: Option<TxToken>,
     amount: TxAmount,
@@ -63,7 +63,7 @@ pub struct Txn {
 #[derive(Debug, Clone)]
 pub struct NewTxnArgs {
     pub sender_address: String,
-    pub sender_public_key: PublicKey,
+    pub sender_public_key: SerializedPublicKey,
     pub receiver_address: String,
     pub token: Option<TxToken>,
     pub amount: TxAmount,

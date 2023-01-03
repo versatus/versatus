@@ -3,6 +3,7 @@ use crate::Result;
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
 use patriecia::inner::TrieIterator;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -121,6 +122,22 @@ where
             .commit()
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
+
+    // pub fn entries<'a, K, V>(&self) -> HashMap<K, V>
+    // where
+    //     K: Serialize + Deserialize<'a> + std::hash::Hash + Default + Eq + PartialEq,
+    //     V: Serialize + Deserialize<'a> + Default,
+    // {
+    //     let mut map = HashMap::new();
+    //     for (k, v) in self.inner.iter() {
+    //         let key = bincode::deserialize(&k).unwrap_or_default();
+    //         let value = bincode::deserialize(&v).unwrap_or_default();
+    //
+    //         map.insert(key, value);
+    //     }
+    //
+    //     map
+    // }
 
     pub fn iter(&self) -> TrieIterator<D> {
         self.inner.iter()

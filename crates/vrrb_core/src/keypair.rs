@@ -8,7 +8,7 @@ use std::{
 use hbbft::crypto::{
     serde_impl::SerdeSecret, PublicKey as Validator_Pk, SecretKey as Validator_Sk,
 };
-use primitives::SecretKey as SecretKeyBytes;
+use primitives::SerializedSecretKey as SecretKeyBytes;
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
 
 pub type MinerSk = secp256k1::SecretKey;
