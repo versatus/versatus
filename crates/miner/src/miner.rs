@@ -6,12 +6,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use block::header::BlockHeader;
+use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
 /// This module is for the creation and operation of a mining unit within a node
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
-use block::{block::Block, MineArgs};
+use block::{block::Block, MineArgs, invalid::InvalidBlockError};
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
@@ -204,18 +204,21 @@ impl Miner {
     /// Generates a gensis block
     //TODO: Require a specific key to mine the genesis block so that only one node
     // controlled by the organization can mine it.
-    pub fn genesis(&mut self) -> Option<Block> {
-        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.public_key) {
+    pub fn genesis(&mut self) -> Option<Result<Block, InvalidBlockErrorReason>> {
+        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.pubkey) {
             return None;
         }
         self.claim_map
-            .insert(self.claim.public_key.clone(), self.claim.clone());
-        Block::genesis(self.claim.clone(), self.secret_key.clone().as_bytes().to_vec(), None)
+            .insert(self.claim.pubkey.clone(), self.claim.clone());
+        
+        let genesis_block = Block::genesis(self.claim.clone(), self.secret_key.clone(), None);
+
+        return Some(genesis_block);
     }
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, i128) {
+    pub fn mine(&mut self) -> (Result<(Option<Block>, i128), InvalidBlockErrorReason>) {
         if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
             let claim_map_hash = digest(claim_map_str.as_bytes());
             if let Some(last_block) = self.last_block.clone() {
@@ -237,7 +240,7 @@ impl Miner {
                 return Block::mine(mine_args);
             }
         }
-        (None, 0)
+        Ok((None, 0))
     }
 
     /// Increases the nonce and calculates the new hash for all claims

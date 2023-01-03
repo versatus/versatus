@@ -29,6 +29,35 @@ async fn update_account() {
     todo!()
 }
 
+async fn create_key_router() {
+    todo!()
+}
+
+async fn create_token_router() {
+    todo!()
+}
+
+async fn get_key() {
+    todo!()
+}
+
+async fn create_token() {
+    todo!()
+}
+
+async fn update_token() {
+    todo!()
+}
+
+async fn get_token() {
+    todo!()
+}
+
+async fn delete_token() {
+    todo!()
+}
+
+
 #[cfg(test)]
 mod tests {
     use axum::{

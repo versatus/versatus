@@ -30,6 +30,8 @@ pub enum InvalidBlockErrorReason {
     #[error("invalid block signature")]
     InvalidBlockSignature,
     #[error("general invalid block error")]
+    InvalidBlockHeader,
+    #[error("invalid block header")]
     General,
 }
 
@@ -60,6 +62,20 @@ impl InvalidBlockErrorReason {
             Self::InvalidClaimPointers => "invalid claim pointers",
             Self::InvalidBlockSignature => "invalid block signature",
             Self::NotTallestChain => "blockchain proposed is shorter than local chain",
+            InvalidBlockErrorReason::NotTallestChain => todo!(),
+            InvalidBlockErrorReason::BlockOutOfSequence => todo!(),
+            InvalidBlockErrorReason::InvalidClaim => todo!(),
+            InvalidBlockErrorReason::InvalidLastHash => todo!(),
+            InvalidBlockErrorReason::InvalidStateHash => todo!(),
+            InvalidBlockErrorReason::InvalidBlockHeight => todo!(),
+            InvalidBlockErrorReason::InvalidBlockNonce => todo!(),
+            InvalidBlockErrorReason::InvalidBlockReward => todo!(),
+            InvalidBlockErrorReason::InvalidTxns => todo!(),
+            InvalidBlockErrorReason::InvalidClaimPointers => todo!(),
+            InvalidBlockErrorReason::InvalidNextBlockReward => todo!(),
+            InvalidBlockErrorReason::InvalidBlockSignature => todo!(),
+            InvalidBlockErrorReason::InvalidBlockHeader => todo!(),
+            InvalidBlockErrorReason::General => todo!(),
         }
     }
 
