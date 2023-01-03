@@ -1,20 +1,16 @@
 use std::{
     result::Result as StdResult,
-    str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use bytebuffer::ByteBuffer;
 use left_right::ReadHandle;
 use lr_trie::{GetDeserialized, LeftRightTrieError};
 use lrdb::Account;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
-#[allow(deprecated)]
-use secp256k1::{
-    Signature, {Message, PublicKey, Secp256k1},
+use vrrb_core::{
+    keypair::{KeyPair, MinerPk},
+    txn::Txn,
 };
-
-use vrrb_core::txn::Txn;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -57,42 +53,15 @@ impl<D: Database> TxnValidator<D> {
         }
     }
 
-    /// Verifies Txn signature.
-    // TODO, to be moved to a common utility crate
-    #[allow(deprecated)]
-    pub fn verify_signature(&self, txn: &Txn) -> Result<()> {
-        match Signature::from_str(txn.txn_signature.as_str()) {
-            Ok(signature) => match PublicKey::from_str(txn.sender_public_key.as_str()) {
-                Ok(pk) => {
-                    let payload_bytes = txn.txn_payload.as_bytes().to_owned();
-
-                    let mut payload_buffer = ByteBuffer::new();
-                    payload_buffer.write_bytes(&payload_bytes);
-                    while payload_buffer.len() < 32 {
-                        payload_buffer.write_u8(0);
-                    }
-
-                    let new_payload = payload_buffer.to_bytes();
-                    let payload_hash = blake3::hash(&new_payload);
-
-                    match Message::from_slice(payload_hash.as_bytes()) {
-                        Ok(message_hash) => Secp256k1::new()
-                            .verify(&message_hash, &signature, &pk)
-                            .map_err(|_| TxnValidatorError::TxnSignatureIncorrect),
-                        Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
-                    }
-                },
-                Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
-            },
-            Err(_) => Err(TxnValidatorError::TxnSignatureIncorrect),
-        }
-    }
-
     /// Txn signature validator.
     pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
         if !txn.txn_signature.is_empty() {
-            self.verify_signature(txn)
-                .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
+            KeyPair::verify_ecdsa_sign(
+                txn.txn_signature.clone(),
+                txn.txn_payload.as_bytes(),
+                txn.sender_public_key.clone(),
+            )
+            .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
         } else {
             Err(TxnValidatorError::TxnSignatureIncorrect)
         }
@@ -101,7 +70,7 @@ impl<D: Database> TxnValidator<D> {
     /// Txn public key validator
     pub fn validate_public_key(&self, txn: &Txn) -> Result<()> {
         if !txn.sender_public_key.is_empty() {
-            match PublicKey::from_str(txn.sender_public_key.as_str()) {
+            match MinerPk::from_slice(&txn.sender_public_key) {
                 Ok(_) => Ok(()),
                 Err(_) => Err(TxnValidatorError::SenderPublicKeyIncorrect),
             }

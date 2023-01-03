@@ -1,0 +1,14 @@
+[package]
+name = "job_pool"
+version = "0.1.0"
+readme = "README.md"
+edition = "2021"
+
+[dependencies]
+crossbeam-channel = "0.5.6"
+once_cell = "1.16.0"
+waker-fn = "1.1.0"
+uuid = {version="1.2.2",features = [ "v4"]}
+concurrent-queue = "2.0.0"
+thiserror = "1.0.32"
+vrrb_core = { path = "../vrrb_core" }

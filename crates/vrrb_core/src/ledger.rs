@@ -1,8 +1,7 @@
-use crate::claim::Claim;
-use crate::nonceable::Nonceable;
-use crate::ownable::Ownable;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
+
+use crate::{claim::Claim, nonceable::Nonceable, ownable::Ownable};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Ledger<C: Clone + Ownable + Nonceable + Serialize> {

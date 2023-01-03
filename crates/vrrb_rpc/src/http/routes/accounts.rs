@@ -1,6 +1,8 @@
 use axum::{
     routing::{get, post, put, Route},
-    Extension, Json, Router,
+    Extension,
+    Json,
+    Router,
 };
 use serde_json::{json, Value};
 
@@ -62,8 +64,7 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
-    use tower::Service;
-    use tower::ServiceExt;
+    use tower::{Service, ServiceExt};
 
     use super::*;
 

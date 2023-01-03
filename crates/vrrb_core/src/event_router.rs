@@ -1,6 +1,8 @@
-use crate::{Error, Result};
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap};
+
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+
+use crate::Error;
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -216,4 +218,76 @@ mod tests {
         assert_eq!(validator_event_rx.recv().await.unwrap(), Event::Stop);
         assert_eq!(miner_event_rx.recv().await.unwrap(), Event::Stop);
     }
+}
+
+/// Command represents the vocabulary of available RPC-style interactions with
+/// VRRB node internal components. Commands are meant to be issued by a command
+/// router that controls node runtime modules.
+//TODO: Review all the commands and determine which ones are needed, which can be changed
+#[deprecated(note = "use Event instead")]
+#[derive(Debug, Clone)]
+pub enum Command {
+    //TODO: Replace standard types with custom types for better readability
+    // and to help engineers understand what the hell these items are.
+    SendTxn(u32, String, u128), // address number, receiver address, amount
+    ProcessTxn(Vec<u8>),
+    ProcessTxnValidator(Vec<u8>),
+    ConfirmedBlock(Vec<u8>),
+    PendingBlock(Vec<u8>, String),
+    InvalidBlock(Vec<u8>),
+    ProcessClaim(Vec<u8>),
+    CheckStateUpdateStatus((u128, Vec<u8>, u128)),
+    StateUpdateCompleted(Vec<u8>),
+    StoreStateDbChunk(Vec<u8>, Vec<u8>, u32, u32),
+    SendState(String, u128),
+    // SendMessage(SocketAddr, Message),
+    GetBalance(u32),
+    SendGenesis(String),
+    SendStateComponents(String, Vec<u8>, String),
+    GetStateComponents(String, Vec<u8>, String),
+    RequestedComponents(String, Vec<u8>, String, String),
+    // StoreStateComponents(Vec<u8>, ComponentTypes),
+    StoreChild(Vec<u8>),
+    StoreParent(Vec<u8>),
+    StoreGenesis(Vec<u8>),
+    StoreLedger(Vec<u8>),
+    StoreNetworkState(Vec<u8>),
+    // StateUpdateComponents(Vec<u8>, ComponentTypes),
+    UpdateLastBlock(Vec<u8>),
+    ClaimAbandoned(String, Vec<u8>),
+    SlashClaims(Vec<String>),
+    UpdateAppMiner(Vec<u8>),
+    UpdateAppBlockchain(Vec<u8>),
+    UpdateAppMessageCache(Vec<u8>),
+    UpdateAppWallet(Vec<u8>),
+    Publish(Vec<u8>),
+    Gossip(Vec<u8>),
+    AddNewPeer(String, String),
+    AddKnownPeers(Vec<u8>),
+    AddExplicitPeer(String, String),
+    // ProcessPacket((Packet, SocketAddr)),
+    Bootstrap(String, String),
+    SendPing(String),
+    ReturnPong(Vec<u8>, String),
+    InitHandshake(String),
+    ReciprocateHandshake(String, String, String),
+    CompleteHandshake(String, String, String),
+    ProcessAck(String, u32, String),
+    CleanInbox(String),
+    CheckAbandoned,
+    StartMiner,
+    GetHeight,
+    MineBlock,
+    MineGenesis,
+    StopMine,
+    GetState,
+    ProcessBacklog,
+    SendAddress,
+    NonceUp,
+    InitDKG,
+    SendPartMessage(Vec<u8>),
+    SendAckMessage(Vec<u8>),
+    PublicKeySetSync,
+    Stop,
+    NoOp,
 }

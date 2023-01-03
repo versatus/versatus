@@ -1,5 +1,4 @@
-use std::{env, fs, path::PathBuf};
-
+use std::{env, fs,fs::File, path::{PathBuf, Path}};
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("{0}")]
@@ -49,18 +48,14 @@ pub fn get_vrrb_data_dir() -> Result<PathBuf> {
 /// Initializes the node specific data directory.
 pub fn create_node_data_dir() -> Result<PathBuf> {
     let path = get_node_data_dir()?;
-
     fs::create_dir_all(&path)?;
-
     Ok(path)
 }
 
 /// Retrieves the node's data directory path.
 pub fn get_node_data_dir() -> Result<PathBuf> {
     let mut vrrb_data_dir = get_vrrb_data_dir()?;
-
     vrrb_data_dir.push("node");
-
     Ok(vrrb_data_dir)
 }
 
@@ -104,6 +99,23 @@ impl Storage for FileSystemStorageDriver {
         todo!()
     }
 }
+
+
+pub fn read_file<F: AsRef<Path>>(path: F)->Result<File> {
+     match File::open(path.as_ref()){
+        Ok(file)=>Ok(file),
+        Err(e)=>Err(StorageError::Io(e))
+     }
+}
+
+pub fn create_dir<F: AsRef<Path>>(outdir: F)->Result<()> {
+    match fs::create_dir_all(outdir){
+        Ok(_)=>Ok(()),
+        Err(e)=>Err(StorageError::Io(e))
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {

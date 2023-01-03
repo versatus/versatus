@@ -1,24 +1,33 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
+use std::fmt;
+
+use primitives::types::{
+    Epoch,
+    RawSignature,
+    SecretKeyBytes,
+    GENESIS_EPOCH,
+    SECOND,
+    VALIDATOR_THRESHOLD,
+};
+#[cfg(mainnet)]
+use reward::reward::GENESIS_REWARD;
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::{digest, digest_bytes};
 use state::state::NetworkState;
-use std::fmt;
-use vrrb_core::accountable::Accountable;
-use vrrb_core::claim::Claim;
-use vrrb_core::txn::Txn;
-use vrrb_core::verifiable::Verifiable;
+use vrrb_core::{
+    accountable::Accountable,
+    claim::Claim,
+    keypair::KeyPair,
+    txn::Txn,
+    verifiable::Verifiable,
+};
 
 #[cfg(mainnet)]
 use crate::genesis;
-
-#[cfg(mainnet)]
-use reward::reward::GENESIS_REWARD;
-
 use crate::{
     header::BlockHeader,
     invalid::{InvalidBlockError, InvalidBlockErrorReason},
@@ -42,7 +51,7 @@ pub struct MineArgs<'a> {
     pub network_state: &'a NetworkState,
     pub neighbors: Option<Vec<BlockHeader>>,
     pub abandoned_claim: Option<Claim>,
-    pub signature: String,
+    pub secret_key: SecretKeyBytes,
     pub epoch: Epoch,
 }
 
@@ -101,7 +110,7 @@ impl Block {
     
         // Replace with claim trie
         let mut claims = LinkedHashMap::new();
-        claims.insert(claim.clone().pubkey, claim);
+        claims.insert(claim.clone().public_key, claim);
 
         #[cfg(mainnet)]
         let txns = genesis::generate_genesis_txns();
@@ -161,7 +170,7 @@ impl Block {
         let network_state = args.network_state;
         let neighbors = args.neighbors;
         let abandoned_claim = args.abandoned_claim;
-        let signature = args.signature;
+        let secret_key = args.secret_key;
         let epoch = args.epoch;
 
         // TODO: Replace with Tx Trie Root
@@ -186,16 +195,15 @@ impl Block {
             }
         };
 
-        let mut block_utility: i128 = 0;
         let utility_amount: i128 = txns.iter().map(|x| x.1.get_amount() as i128).sum();
         let mut adjustment_next_epoch = 0;
-        if epoch != last_block.epoch {
-            block_utility = utility_amount;
+        let block_utility = if epoch != last_block.epoch {
             adjustment_next_epoch =
                 Self::set_next_adjustment_epoch(&last_block, reward, utility_amount);
+            utility_amount
         } else {
-            block_utility = utility_amount + last_block.utility;
-        }
+            utility_amount + last_block.utility
+        };
 
         // TODO: Fix after replacing neighbors and tx hash/claim hash with respective
         // Trie Roots
@@ -206,7 +214,7 @@ impl Block {
             txn_hash,
             claim_map_hash,
             neighbors_hash,
-            signature,
+            secret_key,
             epoch == last_block.epoch,
             adjustment_next_epoch,
             Some(vec![0; 5]),
@@ -256,15 +264,17 @@ impl Block {
         return Ok((Some(block), adjustment_next_epoch));
     }
 
-    /// If the utility amount is greater than the last block's utility, then the next adjustment epoch
-    /// is the utility amount times the gross utility percentage. Otherwise, the next adjustment epoch
-    /// is the utility amount times the negative gross utility percentage
+    /// If the utility amount is greater than the last block's utility, then the
+    /// next adjustment epoch is the utility amount times the gross utility
+    /// percentage. Otherwise, the next adjustment epoch is the utility
+    /// amount times the negative gross utility percentage
     ///
     /// Arguments:
     ///
     /// * `last_block`: The last block in the chain.
     /// * `reward`: The reward for the current epoch.
-    /// * `utility_amount`: The amount of utility that was generated in the last epoch.
+    /// * `utility_amount`: The amount of utility that was generated in the last
+    ///   epoch.
     ///
     /// Returns:
     ///
@@ -437,7 +447,13 @@ impl Verifiable for Block {
             return Err(Self::Error::new(InvalidBlockErrorReason::InvalidClaim));
         }
 
-        if self.header.verify().is_err() {
+        if KeyPair::verify_ecdsa_sign(
+            self.header.signature.clone(),
+            self.header.get_payload().as_bytes(),
+            self.header.claim.public_key.as_bytes().to_vec(),
+        )
+        .is_err()
+        {
             return Err(Self::Error::new(
                 InvalidBlockErrorReason::InvalidBlockSignature,
             ));

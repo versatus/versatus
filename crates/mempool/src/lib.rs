@@ -1,7 +1,8 @@
 pub mod error;
 pub mod mempool;
 
-// TODO: remove deprecated modules after consolidating their internals into mempool
+// TODO: remove deprecated modules after consolidating their internals into
+// mempool
 #[deprecated(note = "use mempool::Mempool instead")]
 pub mod ev_mem_pool;
 #[deprecated(note = "use mempool::Mempool instead")]
@@ -15,7 +16,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use vrrb_core::txn::Txn;
+    use vrrb_core::{keypair::KeyPair, txn::Txn};
 
     use crate::mempool::{LeftRightMemPoolDB, TxnStatus};
 
@@ -27,6 +28,7 @@ mod tests {
 
     #[test]
     fn add_a_single_txn() {
+        let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -36,7 +38,7 @@ mod tests {
             txn_id: String::from("1"),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("bbb1"),
             txn_token: None,
             txn_amount: 0,
@@ -62,6 +64,7 @@ mod tests {
 
     #[test]
     fn add_twice_same_txn() {
+        let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -71,7 +74,7 @@ mod tests {
             txn_id: String::from("1"),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("bbb1"),
             txn_token: None,
             txn_amount: 0,
@@ -109,6 +112,7 @@ mod tests {
 
     #[test]
     fn add_two_different_txn() {
+        let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -118,7 +122,7 @@ mod tests {
             txn_id: String::from("1"),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("bbb1"),
             txn_token: None,
             txn_amount: 0,
@@ -132,7 +136,7 @@ mod tests {
             txn_id: String::from("2"),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("ccc1"),
             txn_token: None,
             txn_amount: 0,
@@ -165,6 +169,7 @@ mod tests {
 
     #[test]
     fn add_and_retrieve_txn() {
+        let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -179,7 +184,7 @@ mod tests {
             txn_id: txn_id.clone(),
             txn_timestamp: now,
             sender_address: sender_address.clone(),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: receiver_address.clone(),
             txn_token: None,
             txn_amount,
@@ -225,6 +230,7 @@ mod tests {
 
     #[test]
     fn add_batch_of_transactions() {
+        let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
         let now = SystemTime::now()
@@ -242,7 +248,7 @@ mod tests {
                 txn_id: format!("{n}", n = n),
                 txn_timestamp: now + n,
                 sender_address: sender_address.clone(),
-                sender_public_key: String::from("RSA"),
+                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
                 receiver_address: receiver_address.clone(),
                 txn_token: None,
                 txn_amount: txn_amount + n,
@@ -283,6 +289,7 @@ mod tests {
 
     #[test]
     fn remove_single_txn_by_id() {
+        let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -292,7 +299,7 @@ mod tests {
             txn_id: String::from("1"),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("bbb1"),
             txn_token: None,
             txn_amount: 0,
@@ -308,7 +315,7 @@ mod tests {
             txn_id: txn2_id.clone(),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("ccc1"),
             txn_token: None,
             txn_amount: 0,
@@ -350,6 +357,7 @@ mod tests {
 
     #[test]
     fn remove_single_txn() {
+        let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -359,7 +367,7 @@ mod tests {
             txn_id: String::from("1"),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("bbb1"),
             txn_token: None,
             txn_amount: 0,
@@ -375,7 +383,7 @@ mod tests {
             txn_id: txn2_id.clone(),
             txn_timestamp: now,
             sender_address: String::from("aaa1"),
-            sender_public_key: String::from("RSA"),
+            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("ccc1"),
             txn_token: None,
             txn_amount: 0,
@@ -417,6 +425,7 @@ mod tests {
 
     #[test]
     fn remove_txn_batch() {
+        let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
         let now = SystemTime::now()
@@ -434,7 +443,7 @@ mod tests {
                 txn_id: format!("{n}", n = n),
                 txn_timestamp: now + n,
                 sender_address: sender_address.clone(),
-                sender_public_key: String::from("RSA"),
+                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
                 receiver_address: receiver_address.clone(),
                 txn_token: None,
                 txn_amount: txn_amount + n,
@@ -470,8 +479,8 @@ mod tests {
 
     #[test]
     fn batch_write_and_parallel_reads() {
+        let keypair = KeyPair::random();
         let txn_id_max = 11;
-
         let mut lrmpooldb = LeftRightMemPoolDB::new();
         let mut txns = HashSet::<Txn>::new();
 
@@ -489,7 +498,7 @@ mod tests {
                 txn_id: format!("{n}", n = n),
                 txn_timestamp: now + n,
                 sender_address: sender_address.clone(),
-                sender_public_key: String::from("RSA"),
+                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
                 receiver_address: receiver_address.clone(),
                 txn_token: None,
                 txn_amount: txn_amount + n,

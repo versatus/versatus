@@ -4,33 +4,24 @@
 
 pub mod vrng;
 pub mod vvrf;
-//use crate::vrrb_vrf;
-
-///root module
 
 #[cfg(test)]
 mod tests {
     use parity_wordlist::WORDS;
-    use secp256k1::SecretKey;
     use vrf::{
         openssl::{CipherSuite, ECVRF},
         VRF,
     };
+    use vrrb_core::keypair::KeyPair;
 
     use crate::{vrng::VRNG, vvrf::VVRF};
 
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-
-    #[test]
     fn same_seed_equals_same_random_8() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
-        let mut vvrf2: VVRF = VVRF::new(message, sk);
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
+        let mut vvrf2: VVRF = VVRF::new(message, &kp);
         let rn1 = vvrf1.generate_u8();
         let rn2 = vvrf2.generate_u8();
         println!("{:?}", rn1);
@@ -38,12 +29,13 @@ mod tests {
         assert_eq!(rn1, rn2);
     }
 
+
     #[test]
     fn same_seed_equals_same_random_u16() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
-        let mut vvrf2: VVRF = VVRF::new(message, sk);
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
+        let mut vvrf2: VVRF = VVRF::new(message, &kp);
         let rn1 = vvrf1.generate_u16();
         let rn2 = vvrf2.generate_u16();
         println!("{:?}", rn1);
@@ -53,10 +45,10 @@ mod tests {
 
     #[test]
     fn same_seed_equals_same_random_32() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
-        let mut vvrf2: VVRF = VVRF::new(message, sk);
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
+        let mut vvrf2: VVRF = VVRF::new(message, &kp);
         let rn1 = vvrf1.generate_u32();
         let rn2 = vvrf2.generate_u32();
         println!("{:?}", rn1);
@@ -65,10 +57,10 @@ mod tests {
     }
     #[test]
     fn same_seed_equals_same_random_u64() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
-        let mut vvrf2: VVRF = VVRF::new(message, sk);
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
+        let mut vvrf2: VVRF = VVRF::new(message, &kp);
         let rn1 = vvrf1.generate_u64();
         let rn2 = vvrf2.generate_u64();
         println!("{:?}", rn1);
@@ -78,10 +70,10 @@ mod tests {
 
     #[test]
     fn same_seed_equals_same_random_u128() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
-        let mut vvrf2: VVRF = VVRF::new(message, sk);
+        let kp = KeyPair::random();
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
+        let mut vvrf2: VVRF = VVRF::new(message, &kp);
         let rn1 = vvrf1.generate_u128();
         let rn2 = vvrf2.generate_u128();
         println!("{:?}", rn1);
@@ -91,9 +83,9 @@ mod tests {
 
     #[test]
     fn hash_is_verifiable() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let vvrf: VVRF = VVRF::new(message, sk);
+        let vvrf: VVRF = VVRF::new(message, &kp);
         let mut vrf = ECVRF::from_suite(CipherSuite::SECP256K1_SHA256_TAI).unwrap();
         let beta = vrf
             .verify(&vvrf.get_pubkey(), &vvrf.get_proof(), &vvrf.get_message())
@@ -104,25 +96,25 @@ mod tests {
 
     #[test]
     fn generates_word_from_lib() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf: VVRF = VVRF::new(message, sk);
+        let mut vvrf: VVRF = VVRF::new(message, &kp);
         assert!(WORDS.contains(&(vvrf.generate_word()).as_str()));
     }
 
     #[test]
     fn generates_right_num_words() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
         assert_eq!((vvrf1.generate_words(7)).len(), 7);
     }
 
     #[test]
     fn generates_rng_in_range() {
-        let sk = SecretKey::new(&mut rand::thread_rng());
+        let kp = KeyPair::random();
         let message = b"test";
-        let mut vvrf1: VVRF = VVRF::new(message, sk);
+        let mut vvrf1: VVRF = VVRF::new(message, &kp);
         let rn = vvrf1.generate_u8_in_range(10, 100);
         assert!(10 <= rn && rn <= 100);
     }

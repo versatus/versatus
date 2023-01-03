@@ -17,13 +17,12 @@ node = { path = "../node" }
 vrrb_config = { path = "../vrrb_config" }
 primitives = { path = "../primitives" }
 telemetry = { path = "../telemetry" }
-commands = { path = "../commands" }
 storage = { path = "../storage" }
 anyhow = "1.0.64"
 tracing = "0.1.36"
 thiserror = "1.0.34"
 uuid = { version = "0.8.0", features = ["serde", "v4"] }
-vrrb_core = {path = "../vrrb_core"}
+vrrb_core = { path = "../vrrb_core" }
 
 [dev-dependencies]
 assert_cmd = "2.0.4"

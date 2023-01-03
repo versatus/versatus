@@ -1,7 +1,7 @@
 use std::u32::MAX as u32MAX;
 
 use thiserror::Error;
-use vrrb_core::claim::Claim;
+use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::election::Election;
@@ -32,6 +32,7 @@ pub struct Quorum {
     pub quorum_pk: String,
     pub election_block_height: u128,
     pub election_timestamp: u128,
+    pub keypair: KeyPair,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -50,13 +51,11 @@ impl Election for Quorum {
 
     ///a miner calls this fxn to generate a u64 seed for the election using the
     /// vrrb_vrf crate
-    fn generate_seed(payload: Self::Payload) -> Result<Seed, InvalidQuorum> {
+    fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, InvalidQuorum> {
         if !Quorum::check_payload_validity(payload.1, payload.0) {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
-
-        let sk = VVRF::generate_secret_key();
-        let mut vvrf = VVRF::new((payload.2).as_bytes(), sk);
+        let mut vvrf = VVRF::new((payload.2).as_bytes(), &kp);
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
             return Err(InvalidQuorum::InvalidSeedError());
@@ -87,12 +86,46 @@ impl Election for Quorum {
 
         Ok(elected_quorum)
     }
+
+    fn nonce_claims_and_new_seed(
+        &mut self,
+        claims: Vec<Claim>,
+        kp: KeyPair,
+    ) -> Result<Vec<Claim>, InvalidQuorum> {
+        let seed = match Quorum::generate_seed(
+            (
+                self.election_timestamp,
+                self.election_block_height,
+                self.quorum_pk.clone(),
+            ),
+            kp,
+        ) {
+            Ok(seed) => seed,
+            Err(e) => return Err(e),
+        };
+        self.quorum_seed = seed;
+
+        let mut nonce_up_claims = Vec::new();
+
+
+        for claim in claims {
+            let mut nonce_up_claim = claim;
+            nonce_up_claim.nonce += 1;
+            nonce_up_claims.push(nonce_up_claim);
+        }
+        Ok(nonce_up_claims)
+    }
 }
 
 impl Quorum {
     ///makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
-    pub fn new(seed: u64, timestamp: u128, height: u128) -> Result<Quorum, InvalidQuorum> {
+    pub fn new(
+        seed: u64,
+        timestamp: u128,
+        height: u128,
+        kp: KeyPair,
+    ) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::check_payload_validity(height, timestamp) {
             Err(InvalidQuorum::InvalidChildBlockError())
         } else {
@@ -102,6 +135,7 @@ impl Quorum {
                 quorum_pk: String::new(),
                 election_block_height: height,
                 election_timestamp: timestamp,
+                keypair: kp,
             })
         }
     }
@@ -145,12 +179,13 @@ impl Quorum {
             .map(|claim| {
                 (
                     claim.get_pointer(self.quorum_seed as u128).unwrap(),
-                    &claim.pubkey,
+                    &claim.public_key,
                 )
             })
             .collect();
 
-        if claim_tuples.len() < 20 {
+
+        if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
         }
 

@@ -5,7 +5,7 @@ use std::{
 
 use chrono::Utc;
 use futures::{future, StreamExt};
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 use queues::{CircularBuffer, IsQueue};
 use telemetry::{debug, error, info};
 

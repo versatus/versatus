@@ -22,7 +22,8 @@ help:
 	$(Q)echo "make run               - Runs main executable"
 	$(Q)echo "make exe               - Builds main executable"
 	$(Q)echo "make test              - Tests all crates"
-	$(Q)echo "make lint              - Runs formatter"
+	$(Q)echo "make lint              - Runs clippy and formatter"
+	$(Q)echo "make fmt               - Runs formatter"
 	$(Q)echo "make bench             - Benchmarks all crates"
 	$(Q)echo "make watch             - Runs main executable in hot-reloading mode for development"
 	$(Q)echo "make clean             - Deletes binaries and documentation."
@@ -43,6 +44,10 @@ test:
 lint:
 	$(Q)sh infra/scripts/run_lints.sh
 	$(Q)echo "--- Ran all lints and formatters"
+
+fmt:
+	$(Q)cargo +nightly fmt --all 
+	$(Q)echo "--- Ran formatter"
 
 watch: 
 	$(Q)sh infra/scripts/watch.sh

@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use reward::reward::Reward;
 
 pub type StateGenesisBlock = Option<Vec<u8>>;

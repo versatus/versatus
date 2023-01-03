@@ -8,13 +8,11 @@ pub use crate::block::*;
 mod tests {
     use std::{collections::HashMap, time::UNIX_EPOCH};
 
-    use rand::{thread_rng, Rng};
+    use rand::Rng;
     use reward::reward::Reward;
     use ritelinked::LinkedHashMap;
-    use secp256k1::Secp256k1;
     use state::NetworkState;
-    use vrrb_core::claim::Claim;
-    use vrrb_core::txn::Txn;
+    use vrrb_core::{claim::Claim, keypair::KeyPair, txn::Txn};
 
     use crate::{header::BlockHeader, Block, MineArgs};
 
@@ -31,16 +29,24 @@ mod tests {
 
     #[test]
     fn test_block_utility() {
-        let secp = Secp256k1::new();
-        let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
-        let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());
-
-        let (secret_key_2, _) = secp.generate_keypair(&mut thread_rng());
-
-        let last_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
-
+        let keypair = KeyPair::random();
+        let claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            1,
+        );
+        let genesis_block_opt = Block::genesis(
+            claim,
+            keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            None,
+        );
+        let keypair_1 = KeyPair::random();
+        let keypair_2 = KeyPair::random();
+        let last_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
         let mut genesis_block = genesis_block_opt.unwrap();
         let start = std::time::SystemTime::now();
         let start = start
@@ -62,12 +68,10 @@ mod tests {
             network_state: &NetworkState::default(),
             neighbors: Some(block_headers.clone()),
             abandoned_claim: None,
-            signature: secret_key_1.to_string(),
+            secret_key: keypair_1.miner_kp.0.secret_bytes().to_vec(),
             epoch: 1,
         };
-
         let last_block = Block::mine(mine_args);
-
         let start = start
             .checked_sub(std::time::Duration::from_secs(3))
             .unwrap();
@@ -75,11 +79,13 @@ mod tests {
 
         let mut last_block = last_block.unwrap().0.unwrap();
         last_block.header.timestamp = timestamp;
-
-        let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
-
+        let new_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
         let mine_args = MineArgs {
-            claim: last_block_claim.clone(),
+            claim: new_block_claim.clone(),
             last_block: last_block.clone(),
             txns: get_txns(),
             claims: get_claims(),
@@ -88,7 +94,7 @@ mod tests {
             network_state: &NetworkState::default(),
             neighbors: Some(block_headers.clone()),
             abandoned_claim: None,
-            signature: secret_key_2.to_string(),
+            secret_key: keypair_2.miner_kp.0.secret_bytes().to_vec(),
             epoch: 1,
         };
 
@@ -99,15 +105,24 @@ mod tests {
 
     #[test]
     fn test_block_adjustment_reward() {
-        let secp = Secp256k1::new();
-        let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
-        let (secret_key_1, _) = secp.generate_keypair(&mut thread_rng());
-
-        let (secret_key_2, _) = secp.generate_keypair(&mut thread_rng());
-
-        let last_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
+        let keypair = KeyPair::random();
+        let claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            1,
+        );
+        let genesis_block_opt = Block::genesis(
+            claim,
+            keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            None,
+        );
+        let keypair_1 = KeyPair::random();
+        let keypair_2 = KeyPair::random();
+        let last_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
 
         let mut genesis_block = genesis_block_opt.unwrap();
         let start = std::time::SystemTime::now();
@@ -130,7 +145,7 @@ mod tests {
             network_state: &NetworkState::default(),
             neighbors: Some(block_headers),
             abandoned_claim: None,
-            signature: secret_key_1.to_string(),
+            secret_key: keypair_1.miner_kp.0.secret_bytes().to_vec(),
             epoch: 0,
         };
 
@@ -150,7 +165,11 @@ mod tests {
         last_block.header.timestamp = timestamp;
         last_block.utility = 10;
 
-        let new_block_claim = Claim::new("pubkey".to_string(), "address".to_string(), 2);
+        let new_block_claim = Claim::new(
+            keypair.get_miner_public_key().to_string(),
+            "address".to_string(),
+            2,
+        );
 
         let mine_args = MineArgs {
             claim: new_block_claim,
@@ -162,7 +181,7 @@ mod tests {
             network_state: &NetworkState::default(),
             neighbors: None,
             abandoned_claim: None,
-            signature: secret_key_2.to_string(),
+            secret_key: keypair_2.miner_kp.0.secret_bytes().to_vec(),
             epoch: 1,
         };
 
@@ -198,7 +217,7 @@ mod tests {
             timestamp,
             txn_hash: "".to_string(),
             claim: Claim {
-                pubkey: "".to_string(),
+                public_key: "".to_string(),
                 address: "".to_string(),
                 hash: "".to_string(),
                 nonce: 0,
@@ -245,7 +264,7 @@ mod tests {
                     txn_id: i.to_string(),
                     txn_timestamp: time_stamp as u128,
                     sender_address: String::from("ABC"),
-                    sender_public_key: String::from("ABC_PUB"),
+                    sender_public_key: String::from("ABC_PUB").as_bytes().to_vec(),
                     receiver_address: String::from("DEST"),
                     txn_token: None,
                     txn_amount,
@@ -267,7 +286,7 @@ mod tests {
             claims.insert(
                 i.to_string(),
                 Claim {
-                    pubkey: "PUB_KEY".to_string(),
+                    public_key: "PUB_KEY".to_string(),
                     address: "Address".to_string(),
                     hash: "Data".to_string(),
                     nonce: i as u128,

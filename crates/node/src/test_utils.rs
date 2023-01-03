@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use primitives::types::NodeType;
+use primitives::types::node::NodeType;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
 

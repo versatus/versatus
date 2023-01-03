@@ -20,7 +20,9 @@ mod tests {
 
     use crate::{
         mempool_processor::{
-            MempoolControlMsg, MempoolTxnProcessor, MempoolTxnProcessorError,
+            MempoolControlMsg,
+            MempoolTxnProcessor,
+            MempoolTxnProcessorError,
             MempoolTxnProcessorState,
         },
         validator_unit::ValidatorUnit,
@@ -37,7 +39,7 @@ mod tests {
             txn_id: random_string(rng),
             txn_timestamp: 0,
             sender_address: random_string(rng),
-            sender_public_key: random_string(rng),
+            sender_public_key: random_string(rng).as_bytes().to_vec(),
             receiver_address: random_string(rng),
             txn_token: None,
             txn_amount: 0,

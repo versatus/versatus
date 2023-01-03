@@ -1,4 +1,3 @@
-pub mod decay;
 pub mod reward;
 
 #[cfg(test)]

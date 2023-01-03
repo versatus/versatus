@@ -10,7 +10,6 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::unbounded;
 use futures::{stream::FuturesUnordered, StreamExt};
-use messages::message::Message;
 use qp2p::{
     Config,
     Connection,
@@ -25,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use tokio::net::UdpSocket;
 
 use crate::{
+    message::Message,
     packet::{
         generate_batch_id,
         packet_forwarder,
@@ -394,9 +394,8 @@ mod tests {
     };
 
     use bytes::Bytes;
-    use messages::message::Message;
 
-    use crate::network::BroadcastEngine;
+    use crate::{message::Message, network::BroadcastEngine};
 
     #[tokio::test]
     async fn test_successful_connection() {

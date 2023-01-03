@@ -106,7 +106,8 @@ impl RuntimeModule for StateModule {
 #[cfg(test)]
 mod tests {
     use std::{
-        env, io,
+        env,
+        io,
         net::{IpAddr, Ipv4Addr, SocketAddr},
         os,
         path::PathBuf,
@@ -114,7 +115,6 @@ mod tests {
         sync::Arc,
     };
 
-    use commands::command::Command;
     use state::node_state;
     use telemetry::TelemetrySubscriber;
     use uuid::Uuid;

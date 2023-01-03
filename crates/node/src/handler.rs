@@ -3,7 +3,6 @@ use std::{net::SocketAddr, sync::mpsc::Sender};
 /// This module is the primary allocator in the system, it contains the data
 /// structures and the methods required to send commands to different parts of
 /// the system.
-use commands::command::Command;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use udp2p::protocol::protocol::Message;
 

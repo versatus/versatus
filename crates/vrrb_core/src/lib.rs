@@ -1,7 +1,10 @@
 pub mod account;
 pub mod accountable;
+pub mod cache;
 pub mod claim;
+pub mod component;
 pub mod event_router;
+pub mod keypair;
 pub mod ledger;
 pub mod nonceable;
 pub mod ownable;

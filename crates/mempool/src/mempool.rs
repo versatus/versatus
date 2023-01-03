@@ -224,14 +224,14 @@ impl LeftRightMemPoolDB {
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use vrrb_core::txn::Txn;
-    ///
+    /// let keypair = vrrb_core::keypair::KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     ///
     /// let txn = Txn {
     ///     txn_id: String::from("1"),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
@@ -264,8 +264,8 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::txn::Txn;
-    ///
+    /// use vrrb_core::{keypair, keypair::KeyPair, txn::Txn};
+    /// let keypair = KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
@@ -274,7 +274,7 @@ impl LeftRightMemPoolDB {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
@@ -340,8 +340,8 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::txn::Txn;
-    ///
+    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
+    /// let keypair = KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     ///
@@ -349,7 +349,7 @@ impl LeftRightMemPoolDB {
     ///     txn_id: String::from("1"),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
@@ -388,8 +388,8 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::txn::Txn;
-    ///
+    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
+    /// let keypair = KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
@@ -398,7 +398,7 @@ impl LeftRightMemPoolDB {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
@@ -439,8 +439,8 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::txn::Txn;
-    ///
+    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
+    /// let keypair = KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let txn_id = String::from("1");
     ///
@@ -448,7 +448,7 @@ impl LeftRightMemPoolDB {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
@@ -485,8 +485,8 @@ impl LeftRightMemPoolDB {
     /// use std::collections::{HashMap, HashSet};
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::txn::Txn;
-    ///
+    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
+    /// let keypair = KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
@@ -495,7 +495,7 @@ impl LeftRightMemPoolDB {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
@@ -573,7 +573,7 @@ impl LeftRightMemPoolDB {
     ///
     /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
     /// use vrrb_core::txn::Txn;
-    ///
+    /// let keypair = vrrb_core::keypair::KeyPair::random();
     /// let mut lrmempooldb = LeftRightMemPoolDB::new();
     /// let mut txns = HashSet::<Txn>::new();
     /// let txn_id = String::from("1");
@@ -582,7 +582,7 @@ impl LeftRightMemPoolDB {
     ///     txn_id: txn_id.clone(),
     ///     txn_timestamp: 0,
     ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: String::from("RSA"),
+    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
     ///     receiver_address: String::from("bbb1"),
     ///     txn_token: None,
     ///     txn_amount: 0,
