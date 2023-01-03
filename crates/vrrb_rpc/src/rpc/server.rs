@@ -26,10 +26,7 @@ pub struct RpcServerImpl {
 #[async_trait]
 impl RpcServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
-        let values = self.state_handle_factory.values().map_err(|err| {
-            telemetry::error!("could not generate a state snapshot: {err}");
-            Error::Custom(err.to_string())
-        })?;
+        let values = self.state_handle_factory.values();
 
         Ok(values)
     }

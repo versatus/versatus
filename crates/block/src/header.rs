@@ -4,8 +4,8 @@ use std::{
     u32::MAX as u32MAX,
 };
 
-use bytebuffer::ByteBuffer;
 use primitives::types::RawSignature;
+use primitives::SerializedSecretKey as SecretKeyBytes;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
 use sha256::digest;

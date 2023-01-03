@@ -3,9 +3,8 @@
 
 use std::fmt;
 
-use primitives::types::{
-    Epoch, RawSignature, SecretKeyBytes, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD,
-};
+use primitives::types::{Epoch, RawSignature, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD};
+use primitives::SerializedSecretKey as SecretKeyBytes;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
@@ -462,8 +461,8 @@ impl Verifiable for Block {
 
         let mut valid_data = true;
         self.txns.iter().for_each(|(_, txn)| {
-            let n_valid = txn.validators.iter().filter(|(_, &valid)| valid).count();
-            if (n_valid as f64 / txn.validators.len() as f64) < VALIDATOR_THRESHOLD {
+            let n_valid = txn.validators().iter().filter(|(_, &valid)| valid).count();
+            if (n_valid as f64 / txn.validators().len() as f64) < VALIDATOR_THRESHOLD {
                 valid_data = false;
             }
         });
