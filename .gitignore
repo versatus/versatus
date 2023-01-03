@@ -14,3 +14,4 @@ target
 run/
 
 crates/hbbft
+tmp_key
