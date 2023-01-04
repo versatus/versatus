@@ -3,16 +3,16 @@ use std::{collections::HashMap, sync::Arc, time::SystemTime};
 use crate::result::{LeftRightDbError, Result};
 use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::SerializedPublicKey;
+use primitives::SerializedPublicKeyString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vrrb_core::account::{Account, UpdateArgs};
 
-pub type FailedAccountUpdates = Vec<(SerializedPublicKey, Vec<UpdateArgs>, Result<()>)>;
+pub type FailedAccountUpdates = Vec<(SerializedPublicKeyString, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
 pub struct StateDb<'a> {
-    trie: LeftRightTrie<'a, SerializedPublicKey, Account, MemoryDB>,
+    trie: LeftRightTrie<'a, SerializedPublicKeyString, Account, MemoryDB>,
     last_refresh: std::time::SystemTime,
 }
 
@@ -49,7 +49,11 @@ impl<'a> StateDb<'a> {
     }
 
     // Maybe initialize is better name for that?
-    fn insert_uncommited(&mut self, key: SerializedPublicKey, account: Account) -> Result<()> {
+    fn insert_uncommited(
+        &mut self,
+        key: SerializedPublicKeyString,
+        account: Account,
+    ) -> Result<()> {
         if account.debits != 0 {
             return Err(LeftRightDbError::Other(
                 "cannot insert account with debit".to_string(),
@@ -68,7 +72,7 @@ impl<'a> StateDb<'a> {
     }
 
     /// Inserts new account into StateDb.
-    pub fn insert(&mut self, key: SerializedPublicKey, account: Account) -> Result<()> {
+    pub fn insert(&mut self, key: SerializedPublicKeyString, account: Account) -> Result<()> {
         self.insert_uncommited(key, account)?;
         self.commit_changes();
         Ok(())
@@ -80,14 +84,15 @@ impl<'a> StateDb<'a> {
     // inserted
     fn batch_insert_uncommited(
         &mut self,
-        inserts: Vec<(SerializedPublicKey, Account)>,
-    ) -> Option<Vec<(SerializedPublicKey, Account, LeftRightDbError)>> {
-        let mut failed_inserts: Vec<(SerializedPublicKey, Account, LeftRightDbError)> = vec![];
+        inserts: Vec<(SerializedPublicKeyString, Account)>,
+    ) -> Option<Vec<(SerializedPublicKeyString, Account, LeftRightDbError)>> {
+        let mut failed_inserts: Vec<(SerializedPublicKeyString, Account, LeftRightDbError)> =
+            vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
-            if let Err(e) = self.insert_uncommited(k.to_vec(), v.clone()) {
-                failed_inserts.push((k.to_vec(), v.clone(), e));
+            if let Err(e) = self.insert_uncommited(k.to_string(), v.clone()) {
+                failed_inserts.push((k.to_string(), v.clone(), e));
             }
         });
 
@@ -105,8 +110,8 @@ impl<'a> StateDb<'a> {
     /// Otherwise returns vector of (key, account_to_be_inserted, error).
     pub fn batch_insert(
         &mut self,
-        inserts: Vec<(SerializedPublicKey, Account)>,
-    ) -> Option<Vec<(SerializedPublicKey, Account, LeftRightDbError)>> {
+        inserts: Vec<(SerializedPublicKeyString, Account)>,
+    ) -> Option<Vec<(SerializedPublicKeyString, Account, LeftRightDbError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit_changes();
         failed_inserts
@@ -123,7 +128,7 @@ impl<'a> StateDb<'a> {
         self.trie.entries().iter().for_each(|(key, value)| {
             let account = value.to_owned();
             if filter(&account) {
-                subdb.insert_uncommited(key.to_vec(), account);
+                subdb.insert_uncommited(key.to_string(), account);
             }
         });
 
@@ -142,7 +147,11 @@ impl<'a> StateDb<'a> {
     }
 
     /// Updates a given account if it exists within the store
-    fn update_uncommited(&mut self, key: SerializedPublicKey, update: UpdateArgs) -> Result<()> {
+    fn update_uncommited(
+        &mut self,
+        key: SerializedPublicKeyString,
+        update: UpdateArgs,
+    ) -> Result<()> {
         let mut account = self
             .read_handle()
             .get(&key)
@@ -158,7 +167,7 @@ impl<'a> StateDb<'a> {
     /// Updates an Account in the database under given PublicKey
     ///
     /// If succesful commits the change. Otherwise returns an error.
-    pub fn update(&mut self, key: SerializedPublicKey, update: UpdateArgs) -> Result<()> {
+    pub fn update(&mut self, key: SerializedPublicKeyString, update: UpdateArgs) -> Result<()> {
         self.update_uncommited(key, update)?;
         self.commit_changes();
         Ok(())
@@ -179,7 +188,7 @@ impl<'a> StateDb<'a> {
     /// account, and error that prevented the update.
     pub fn batch_update(
         &mut self,
-        mut updates: Vec<(SerializedPublicKey, UpdateArgs)>,
+        mut updates: Vec<(SerializedPublicKeyString, UpdateArgs)>,
     ) -> Option<FailedAccountUpdates> {
         // Store and return all failures as (PublicKey, AllPushedUpdates, Error)
         // This way caller is provided with all info -> They know which accounts were
@@ -194,7 +203,7 @@ impl<'a> StateDb<'a> {
 
         // We'll segregate the batch of updates by key (since it's possible that in
         // provided Vec there is a chance that not every PublicKey is unique)
-        let mut update_batches = HashMap::<&SerializedPublicKey, Vec<UpdateArgs>>::new();
+        let mut update_batches = HashMap::<&SerializedPublicKeyString, Vec<UpdateArgs>>::new();
 
         updates.iter().for_each(|update| {
             if let Some(vec_of_updates) = update_batches.get_mut(&update.0) {
@@ -257,7 +266,7 @@ impl<'a> StateDb<'a> {
         self.trie.root()
     }
 
-    pub fn extend(&mut self, accounts: Vec<(SerializedPublicKey, Account)>) {
+    pub fn extend(&mut self, accounts: Vec<(SerializedPublicKeyString, Account)>) {
         self.trie.extend(accounts)
     }
 
@@ -276,7 +285,7 @@ pub struct StateDbReadHandle {
 impl StateDbReadHandle {
     /// Returns `Some(Account)` if an account exist under given PublicKey.
     /// Otherwise returns `None`.
-    pub fn get(&self, key: &SerializedPublicKey) -> Result<Account> {
+    pub fn get(&self, key: &SerializedPublicKeyString) -> Result<Account> {
         self.inner
             .get(key)
             .map_err(|err| LeftRightDbError::Other(err.to_string()))
@@ -288,8 +297,8 @@ impl StateDbReadHandle {
     /// Some(account) or None if account was not found.
     pub fn batch_get(
         &self,
-        keys: Vec<SerializedPublicKey>,
-    ) -> HashMap<SerializedPublicKey, Option<Account>> {
+        keys: Vec<SerializedPublicKeyString>,
+    ) -> HashMap<SerializedPublicKeyString, Option<Account>> {
         let mut accounts = HashMap::new();
 
         keys.iter().for_each(|key| {
@@ -300,7 +309,7 @@ impl StateDbReadHandle {
         accounts
     }
 
-    pub fn entries(&self) -> HashMap<SerializedPublicKey, Account> {
+    pub fn entries(&self) -> HashMap<SerializedPublicKeyString, Account> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
             .iter()

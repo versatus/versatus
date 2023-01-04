@@ -18,6 +18,9 @@ pub type SerializedSecretKey = Vec<u8>;
 /// Represents a byte slice produced from an instance of secp256k1::PublicKey
 pub type SerializedPublicKey = Vec<u8>;
 
+/// Represents a String produced from an instance of secp256k1::PublicKey
+pub type SerializedPublicKeyString = String;
+
 pub type PublicKey = secp256k1::PublicKey;
 pub type SecretKey = secp256k1::SecretKey;
 

@@ -47,31 +47,35 @@ fn accounts_can_be_added() {
         serialized_confirmed_txns_filename: None,
     });
 
-    node_state.add_account(
-        b"my_mock_pkey".to_vec(),
-        Account {
-            hash: String::from(""),
-            nonce: 1234456,
-            credits: 0,
-            debits: 0,
-            storage: None,
-            code: None,
-            pubkey: vec![],
-        },
-    );
+    node_state
+        .insert_account(
+            "my_mock_pkey".to_string(),
+            Account {
+                hash: String::from(""),
+                nonce: 0,
+                credits: 0,
+                debits: 0,
+                storage: None,
+                code: None,
+                pubkey: vec![],
+            },
+        )
+        .unwrap();
 
-    node_state.add_account(
-        b"my_mock_pkey_2".to_vec(),
-        Account {
-            hash: String::from(""),
-            nonce: 1234456,
-            credits: 0,
-            debits: 0,
-            storage: None,
-            code: None,
-            pubkey: vec![],
-        },
-    );
+    node_state
+        .insert_account(
+            "my_mock_pkey_2".to_string(),
+            Account {
+                hash: String::from(""),
+                nonce: 0,
+                credits: 0,
+                debits: 0,
+                storage: None,
+                code: None,
+                pubkey: vec![],
+            },
+        )
+        .unwrap();
 
     node_state.serialize_to_json().unwrap();
 
@@ -81,10 +85,10 @@ fn accounts_can_be_added() {
 
     node_state.extend_accounts(vec![
         (
-            b"my_mock_pkey_3".to_vec(),
+            "my_mock_pkey_3".to_string(),
             Account {
                 hash: String::from(""),
-                nonce: 1234456,
+                nonce: 0,
                 credits: 0,
                 debits: 0,
                 storage: None,
@@ -93,10 +97,10 @@ fn accounts_can_be_added() {
             },
         ),
         (
-            b"my_mock_pkey_4".to_vec(),
+            "my_mock_pkey_4".to_string(),
             Account {
                 hash: String::from(""),
-                nonce: 1234456,
+                nonce: 0,
                 credits: 0,
                 debits: 0,
                 storage: None,
@@ -105,10 +109,10 @@ fn accounts_can_be_added() {
             },
         ),
         (
-            b"my_mock_pkey_5".to_vec(),
+            "my_mock_pkey_5".to_string(),
             Account {
                 hash: String::from(""),
-                nonce: 1234456,
+                nonce: 0,
                 credits: 0,
                 debits: 0,
                 storage: None,
@@ -135,8 +139,8 @@ fn accounts_can_be_retrieved() {
         serialized_confirmed_txns_filename: None,
     });
 
-    node_state.add_account(
-        b"my_mock_pkey".to_vec(),
+    node_state.insert_account(
+        "my_mock_pkey".to_string(),
         Account {
             hash: String::from(""),
             nonce: 1234456,
@@ -148,8 +152,8 @@ fn accounts_can_be_retrieved() {
         },
     );
 
-    node_state.add_account(
-        b"my_mock_pkey_2".to_vec(),
+    node_state.insert_account(
+        "my_mock_pkey_2".to_string(),
         Account {
             hash: String::from(""),
             nonce: 1234456,
@@ -163,8 +167,10 @@ fn accounts_can_be_retrieved() {
 
     node_state.serialize_to_json().unwrap();
 
-    node_state.get_account(&b"my_mock_pkey".to_vec()).unwrap();
-    node_state.get_account(&b"my_mock_pkey_2".to_vec()).unwrap();
+    node_state.get_account(&"my_mock_pkey".to_string()).unwrap();
+    node_state
+        .get_account(&"my_mock_pkey_2".to_string())
+        .unwrap();
 }
 
 #[test]
