@@ -1,8 +1,8 @@
 use bytes::Bytes;
 use primitives::{NodeType, PeerId};
 use state::NodeStateReadHandle;
-use std::net::SocketAddr;
-use telemetry::info;
+use std::{collections::HashSet, net::SocketAddr};
+use telemetry::{error, info};
 use tokio::{
     sync::{
         broadcast::error::{RecvError, TryRecvError},
@@ -101,12 +101,12 @@ impl BroadcastModule {
             Ok(cmd) => cmd,
             Err(err) => match err {
                 TryRecvError::Closed => {
-                    telemetry::error!("the events channel has been closed.");
+                    error!("the events channel has been closed.");
                     Event::Stop
                 },
 
                 TryRecvError::Lagged(u64) => {
-                    telemetry::error!("receiver lagged behind");
+                    error!("receiver lagged behind");
                     Event::NoOp
                 },
                 _ => Event::NoOp,
@@ -244,13 +244,38 @@ impl BroadcastEngineController {
             return_receipt: 0,
         };
 
-        for addr in bootstrap_node_addrs {
-            self.engine.send_data_via_quic(msg.clone(), addr).await?;
+        let mut successes = HashSet::new();
 
-            info!("sent address to bootstrap node {addr}");
+        for addr in bootstrap_node_addrs {
+            match self.engine.send_data_via_quic(msg.clone(), addr).await {
+                Ok(bcast_result) => {
+                    info!("sent address to bootstrap node {addr}");
+                    telemetry::debug!("result: {bcast_result:?}");
+
+                    successes.insert(addr);
+                },
+                Err(err) => {
+                    error!("failed to signal join intent to node {addr}: {err}");
+                },
+            };
         }
 
-        info!("published join intent to all known bootstrap nodes");
+        if successes.is_empty() {
+            let err = NodeError::Other(String::from(
+                "failed to signal join intent to any bootstrap node",
+            ));
+
+            error!("{}", err);
+
+            return Err(err);
+        }
+
+        info!(
+            "published join intent to {} known bootstrap nodes",
+            successes.len()
+        );
+
+        telemetry::debug!("bootstrap nodes signaled: {:?}", successes);
 
         Ok(())
     }
@@ -270,7 +295,7 @@ impl BroadcastEngineController {
             let body: MessageBody = message.data.into();
 
             if let Err(err) = tx.send(body.into()).await {
-                telemetry::error!("failed to forward data received from network: {err}");
+                error!("failed to forward data received from network: {err}");
             }
         }
 

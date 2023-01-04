@@ -53,6 +53,7 @@ jsonrpsee = { version = "0.16.2", features = [
     "ws-client",
 ] }
 bytes = "1.3.0"
+theater = {git= "https://github.com/vrrb-io/theater"}
 
 [dev-dependencies]
 reqwest = "0.11.13"

@@ -3,9 +3,9 @@
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
-use lrdb::{StateDb, StateDbReadHandleFactory};
+use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
-use primitives::{node, PublicKey, SerializedPublicKey, TxHash};
+use primitives::{node, PublicKey, SerializedPublicKey, SerializedPublicKeyString, TxHash};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
 use vrrb_core::{
@@ -35,7 +35,7 @@ pub struct NodeState {
     pub path: StatePath,
     // TODO: change lifetime parameter once refactoring is complete
     state_db: StateDb<'static>,
-    tx_trie: LeftRightTrie<'static, TxHash, Txn, MemoryDB>,
+    txn_db: TxnDb<'static>,
 }
 
 impl NodeState {
@@ -47,16 +47,17 @@ impl NodeState {
         }
 
         let mut state_db = StateDb::new();
+        let mut txn_db = TxnDb::new();
 
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
-        let tx_trie = LeftRightTrie::new(backing_db);
+        // let tx_trie = LeftRightTrie::new(backing_db);
 
         Self {
             path,
             state_db,
-            tx_trie,
+            txn_db,
         }
     }
 
@@ -133,34 +134,45 @@ impl NodeState {
     }
 
     /// Returns a mappig of public keys and accounts.
-    pub fn entries(&self) -> HashMap<SerializedPublicKey, Account> {
+    pub fn entries(&self) -> HashMap<SerializedPublicKeyString, Account> {
         self.state_db.read_handle().entries()
     }
 
     /// Retrieves an account entry from the current state tree.
-    pub fn get_account(&mut self, key: &SerializedPublicKey) -> Result<Account> {
+    pub fn get_account(&mut self, key: &SerializedPublicKeyString) -> Result<Account> {
         let account = self.state_db.read_handle().get(key).unwrap_or_default();
 
         Ok(account)
     }
 
     /// Adds an account to current state tree.
-    pub fn add_account(&mut self, key: SerializedPublicKey, account: Account) {
-        self.state_db.insert(key, account);
+    #[deprecated]
+    pub fn add_account(&mut self, key: SerializedPublicKeyString, account: Account) -> Result<()> {
+        self.insert_account(key, account)
     }
 
     /// Inserts an account to current state tree.
-    pub fn insert_account(&mut self, key: SerializedPublicKey, account: Account) {
-        self.state_db.insert(key, account);
+    pub fn insert_account(
+        &mut self,
+        key: SerializedPublicKeyString,
+        account: Account,
+    ) -> Result<()> {
+        self.state_db
+            .insert(key, account)
+            .map_err(|err| StateError::Other(err.to_string()))
     }
 
     /// Adds multiplpe accounts to current state tree.
-    pub fn extend_accounts(&mut self, accounts: Vec<(SerializedPublicKey, Account)>) {
+    pub fn extend_accounts(&mut self, accounts: Vec<(SerializedPublicKeyString, Account)>) {
         self.state_db.extend(accounts);
     }
 
     /// Updates an account on the current state tree.
-    pub fn update_account(&mut self, key: SerializedPublicKey, account: Account) -> Result<()> {
+    pub fn update_account(
+        &mut self,
+        key: SerializedPublicKeyString,
+        account: Account,
+    ) -> Result<()> {
         self.state_db
             .update(
                 key,
@@ -185,7 +197,7 @@ impl Clone for NodeState {
     fn clone(&self) -> NodeState {
         NodeState {
             path: self.path.clone(),
-            tx_trie: self.tx_trie.clone(),
+            txn_db: self.txn_db.clone(),
             state_db: self.state_db.clone(),
         }
     }
@@ -194,6 +206,7 @@ impl Clone for NodeState {
 impl From<NodeStateValues> for NodeState {
     fn from(node_state_values: NodeStateValues) -> Self {
         let mut state_db = StateDb::new();
+        let mut txn_db = TxnDb::new();
 
         let mapped_state = node_state_values
             .state
@@ -206,7 +219,7 @@ impl From<NodeStateValues> for NodeState {
         Self {
             path: PathBuf::new(),
             state_db,
-            tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+            txn_db,
         }
     }
 }
@@ -214,7 +227,7 @@ impl From<NodeStateValues> for NodeState {
 #[derive(Debug, Serialize, Deserialize)]
 struct NodeStateValues {
     pub txns: HashMap<TxHash, Txn>,
-    pub state: HashMap<SerializedPublicKey, Account>,
+    pub state: HashMap<SerializedPublicKeyString, Account>,
 }
 
 impl From<&NodeState> for NodeStateValues {
@@ -243,7 +256,7 @@ pub struct NodeStateReadHandle {
 
 impl NodeStateReadHandle {
     /// Returns a copy of all values stored within the state trie
-    pub fn values(&self) -> HashMap<SerializedPublicKey, Account> {
+    pub fn values(&self) -> HashMap<SerializedPublicKeyString, Account> {
         self.state_handle_factory.handle().entries()
     }
 }

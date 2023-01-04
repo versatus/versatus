@@ -42,7 +42,7 @@ pub type TxToken = String;
 //TODO: Discuss how to best package this to minimize the size of it/compress it
 //TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
 //signature of validators in.
-#[derive(Clone, Debug, Serialize, Deserialize, Eq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Eq)]
 pub struct Txn {
     // TODO: Make all fields private
     #[deprecated(note = "replaced by txn hash")]
@@ -60,7 +60,7 @@ pub struct Txn {
     nonce: TxNonce,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NewTxnArgs {
     pub sender_address: String,
     pub sender_public_key: SerializedPublicKey,

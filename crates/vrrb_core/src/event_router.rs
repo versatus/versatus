@@ -1,6 +1,7 @@
 use crate::txn::Txn;
 use crate::{Error, Result};
-use primitives::{NodeType, PeerId};
+use primitives::{NodeType, PeerId, TxHash};
+use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::net::SocketAddr;
 use telemetry::{error, info};
@@ -10,7 +11,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
     pub address: SocketAddr,
     pub node_type: NodeType,
@@ -21,17 +22,21 @@ pub struct PeerData {
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
 // once definitions of those are moved into primitives.
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Event {
+    #[default]
     NoOp,
     Stop,
     /// New txn came from network, requires validation
+    #[deprecated(note = "replaced by NewTxnCreated")]
     TxnCreated(Vec<u8>),
+    /// New txn came from network, requires validation
     NewTxnCreated(Txn),
     /// Single txn validated
     TxnValidated(Vec<u8>),
     /// Batch of validated txns
     TxnBatchValidated(Vec<u8>),
+    TxnAddedToMempool(TxHash),
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),
     ClaimProcessed(Vec<u8>),
@@ -99,8 +104,30 @@ pub enum Event {
     // SendPartMessage(Vec<u8>),
     // SendAckMessage(Vec<u8>),
     // PublicKeySetSync,
-    // Stop,
-    // NoOp,
+}
+
+impl From<&theater::Message> for Event {
+    fn from(msg: &theater::Message) -> Self {
+        serde_json::from_slice(&msg.data).unwrap_or_default()
+    }
+}
+
+impl From<theater::Message> for Event {
+    fn from(msg: theater::Message) -> Self {
+        serde_json::from_slice(&msg.data).unwrap_or_default()
+    }
+}
+
+impl From<Vec<u8>> for Event {
+    fn from(data: Vec<u8>) -> Self {
+        serde_json::from_slice(&data).unwrap_or_default()
+    }
+}
+
+impl From<Event> for Vec<u8> {
+    fn from(evt: Event) -> Self {
+        serde_json::to_vec(&evt).unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
