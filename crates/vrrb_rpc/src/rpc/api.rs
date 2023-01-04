@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use jsonrpsee::core::Error;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::SubscriptionResult;
-use primitives::{NodeType, PublicKey, SerializedPublicKey};
+use primitives::{NodeType, PublicKey, SerializedPublicKey, SerializedPublicKeyString};
 use serde::{Deserialize, Serialize};
 use state::NodeStateReadHandle;
 use vrrb_core::{
@@ -14,7 +14,7 @@ use vrrb_core::{
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
-pub type FullStateSnapshot = HashMap<SerializedPublicKey, Account>;
+pub type FullStateSnapshot = HashMap<SerializedPublicKeyString, Account>;
 pub type FullMempoolSnapshot = Vec<u8>;
 
 #[derive(Serialize, Deserialize)]
