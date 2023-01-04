@@ -12,7 +12,12 @@ mod tests {
     use reward::reward::Reward;
     use ritelinked::LinkedHashMap;
     use state::NetworkState;
-    use vrrb_core::{claim::Claim, keypair::KeyPair, txn::Txn};
+    use uuid::Uuid;
+    use vrrb_core::{
+        claim::Claim,
+        keypair::KeyPair,
+        txn::{NewTxnArgs, Txn},
+    };
 
     use crate::{header::BlockHeader, Block, MineArgs};
 
@@ -261,22 +266,20 @@ mod tests {
                 + since_the_epoch.subsec_nanos() as u64 / 1_000_000)
                 * 1000
                 * 1000;
-            txns.insert(
-                i.to_string(),
-                Txn {
-                    txn_id: i.to_string(),
-                    txn_timestamp: time_stamp as u128,
-                    sender_address: String::from("ABC"),
-                    sender_public_key: String::from("ABC_PUB").as_bytes().to_vec(),
-                    receiver_address: String::from("DEST"),
-                    txn_token: None,
-                    txn_amount,
-                    txn_payload: String::from("sample_payload"),
-                    txn_signature: String::from("signature"),
-                    validators: HashMap::default(),
-                    nonce,
-                },
-            );
+
+            let txn = Txn::new(NewTxnArgs {
+                sender_address: String::from("ABC"),
+                sender_public_key: String::from("ABC_PUB").as_bytes().to_vec(),
+                receiver_address: String::from("DEST"),
+                token: None,
+                amount: txn_amount,
+                payload: Some(String::from("sample_payload")),
+                signature: String::from("signature").as_bytes().to_vec(),
+                validators: Some(HashMap::default()),
+                nonce,
+            });
+
+            txns.insert(i.to_string(), txn);
         }
         txns
     }
