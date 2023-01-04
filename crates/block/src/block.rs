@@ -133,20 +133,7 @@ impl Block {
     /// The mine method is used to generate a new block (and an updated account
     /// state with the reward set to the miner wallet's balance), this will
     /// also update the network state with a new confirmed state.
-    pub fn mine(
-        args: MineArgs,
-        // claim: Claim,      // The claim entitling the miner to mine the block.
-        // last_block: Block, // The last block, which contains the current block reward.
-        // txns: LinkedHashMap<String, Txn>,
-        // claims: LinkedHashMap<String, Claim>,
-        // claim_map_hash: Option<String>,
-        // reward: &mut Reward,
-        // network_state: &NetworkState,
-        // neighbors: Option<Vec<BlockHeader>>,
-        // abandoned_claim: Option<Claim>,
-        // signature: String,
-        // epoch: Epoch,
-    ) -> (Option<Block>, NextEpochAdjustment) {
+    pub fn mine(args: MineArgs) -> (Option<Block>, NextEpochAdjustment) {
         let claim = args.claim;
         let last_block = args.last_block;
         let txns = args.txns;

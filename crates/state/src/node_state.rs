@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
-use lrdb::{StateDb, StateDbReadHandleFactory};
+use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{node, PublicKey, SerializedPublicKey, TxHash};
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ pub struct NodeState {
     pub path: StatePath,
     // TODO: change lifetime parameter once refactoring is complete
     state_db: StateDb<'static>,
-    tx_trie: LeftRightTrie<'static, TxHash, Txn, MemoryDB>,
+    txn_db: TxnDb<'static>,
 }
 
 impl NodeState {
@@ -47,16 +47,17 @@ impl NodeState {
         }
 
         let mut state_db = StateDb::new();
+        let mut txn_db = TxnDb::new();
 
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
-        let tx_trie = LeftRightTrie::new(backing_db);
+        // let tx_trie = LeftRightTrie::new(backing_db);
 
         Self {
             path,
             state_db,
-            tx_trie,
+            txn_db,
         }
     }
 
@@ -185,7 +186,7 @@ impl Clone for NodeState {
     fn clone(&self) -> NodeState {
         NodeState {
             path: self.path.clone(),
-            tx_trie: self.tx_trie.clone(),
+            txn_db: self.txn_db.clone(),
             state_db: self.state_db.clone(),
         }
     }
@@ -194,6 +195,7 @@ impl Clone for NodeState {
 impl From<NodeStateValues> for NodeState {
     fn from(node_state_values: NodeStateValues) -> Self {
         let mut state_db = StateDb::new();
+        let mut txn_db = TxnDb::new();
 
         let mapped_state = node_state_values
             .state
@@ -206,7 +208,7 @@ impl From<NodeStateValues> for NodeState {
         Self {
             path: PathBuf::new(),
             state_db,
-            tx_trie: LeftRightTrie::new(Arc::new(MemoryDB::new(true))),
+            txn_db,
         }
     }
 }
