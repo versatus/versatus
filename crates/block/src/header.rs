@@ -1,4 +1,5 @@
 // FEATURE TAG(S): Block Structure, Rewards
+#![allow(unused_imports)]
 use std::{
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
@@ -9,6 +10,7 @@ use primitives::SerializedSecretKey as SecretKeyBytes;
 use rand::Rng;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
+use secp256k1::{hashes::{sha256 as s256, Hash}, Message};
 use sha256::digest;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 
@@ -26,12 +28,11 @@ pub struct BlockHeader {
     pub block_height: u128,
     pub timestamp: u128,
     pub txn_hash: String,
-    pub claim: Claim,
-    pub claim_map_hash: Option<String>,
+    pub miner_claim: Claim,
+    pub claim_list_hash: String,
     pub block_reward: Reward,
     pub next_block_reward: Reward,
-    pub neighbor_hash: Option<String>,
-    pub signature: String,
+    pub miner_signature: String,
 }
 
 impl BlockHeader {
@@ -94,13 +95,14 @@ impl BlockHeader {
     }
 
     pub fn new(
-        last_block: Block,
+        last_block: ConvergenceBlock,
+        ref_hashes: Vec<String>,
+        round: u128,
         reward: &mut Reward,
-        claim: Claim,
-        txn_hash: String,
-        claim_map_hash: Option<String>,
-        neighbor_hash: Option<String>,
+        miner_claim: Claim,
         secret_key: SecretKeyBytes,
+        txn_hash: String,
+        claim_list_hash: String,
         epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> BlockHeader {
@@ -117,13 +119,16 @@ impl BlockHeader {
             .unwrap()
             .as_nanos();
         let mut block_reward = last_block.header.next_block_reward;
-        block_reward.miner = Some(claim.clone().address);
 
-        let mut next_block_reward = reward.clone();
+        block_reward.miner = Some(miner_claim.clone().address);
+
+        let mut next_block_reward = block_reward.clone();
+
         if epoch_change {
             reward.new_epoch(adjustment_next_epoch);
             next_block_reward = reward.clone();
         }
+
         let block_height = last_block.header.block_height + 1;
         let payload = format!(
             "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
