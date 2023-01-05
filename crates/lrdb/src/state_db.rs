@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
 use crate::result::{LeftRightDbError, Result};
-use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
+use lr_trie::{InnerTrieWrapper, LeftRightTrie, H256};
+use patriecia::db::MemoryDB;
 use primitives::SerializedPublicKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -260,12 +260,6 @@ impl<'a> StateDb<'a> {
     pub fn extend(&mut self, accounts: Vec<(SerializedPublicKey, Account)>) {
         self.trie.extend(accounts)
     }
-
-    pub fn factory(&self) -> StateDbReadHandleFactory {
-        let inner = self.trie.factory();
-
-        StateDbReadHandleFactory { inner }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -324,22 +318,7 @@ impl StateDbReadHandle {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StateDbReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<MemoryDB>>,
-}
-
-impl StateDbReadHandleFactory {
-    pub fn handle(&self) -> StateDbReadHandle {
-        let handle = self
-            .inner
-            .handle()
-            .enter()
-            .map(|guard| guard.clone())
-            .unwrap_or_default();
-
-        let inner = InnerTrieWrapper::new(handle);
-
-        StateDbReadHandle { inner }
-    }
+    // inner: InnerTrieWrapper<MemoryDB>,
 }
