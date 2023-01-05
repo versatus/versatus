@@ -7,7 +7,7 @@ use std::{
 
 use clap::Parser;
 use config::{Config, File};
-use primitives::NodeType;
+use primitives::types::node::NodeType;
 use rcrefcell::RcCell;
 use telemetry::{debug, error};
 use uuid::Uuid;
@@ -67,6 +67,7 @@ impl BrokerAddr {
         };
 
         let local_port = port.parse::<u16>().unwrap_or(9000);
+
 
         BrokerAddr {
             local_ip,

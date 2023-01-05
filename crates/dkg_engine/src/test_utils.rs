@@ -6,12 +6,10 @@ use std::{
 };
 
 use hbbft::{
-    crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
+    crypto::PublicKey,
     sync_key_gen::Ack,
 };
-use node::Node;
-use primitives::NodeType;
-use tokio::sync::mpsc::unbounded_channel;
+use primitives::types::node::{NodeIdx, NodeType};
 use vrrb_config::NodeConfig;
 
 use crate::{
@@ -33,21 +31,6 @@ pub fn invalid_threshold_config() -> ThresholdConfig {
     }
 }
 
-/// It generates a vector of secret keys and a map of public keys
-///
-/// Arguments:
-///
-/// * `no_of_nodes`: The number of nodes in the network.
-pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16, PublicKey>) {
-    let sec_keys: Vec<SecretKey> = (0..number_of_nodes).map(|_| rand::random()).collect();
-    let pub_keys = sec_keys
-        .iter()
-        .map(SecretKey::public_key)
-        .enumerate()
-        .map(|(x, y)| (x as u16, y))
-        .collect();
-    (sec_keys, pub_keys)
-}
 
 /// It generates a DKG engine with a random secret key, a set of public keys,
 /// and a command handler
@@ -63,28 +46,18 @@ pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<u16,
 /// Returns:
 ///
 /// A DkgEngine struct with a node_info field that is an Arc<RwLock<Node>>.
-pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEngine> {
-    let (sec_keys, pub_keys) = generate_key_sets(total_nodes);
+pub fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEngine> {
     let mut dkg_instances = vec![];
+    let peer_public_keys = BTreeMap::new();
     for i in 0..total_nodes {
-        let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
-        let _secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
-
-        // let (_, msg_receiver) = unbounded_channel::<(Packet,
-        // std::net::SocketAddr)>(); let (msg_sender, _) = unbounded_channel();
-
-        let (tx, rx) = unbounded_channel();
-
-        let node = Node::start(
-            &NodeConfig {
+        dkg_instances.push(DkgEngine {
+            node_info: Arc::new(RwLock::new(node::Node::new(NodeConfig {
                 id: i.to_string(),
                 idx: i,
-                // TODO: re-enable once those fields are finalized
-                // message_cache: HashSet::default(),
-                // packet_storage: HashMap::default(),
                 data_dir: PathBuf::from("bananas"),
                 db_path: PathBuf::from("bananas"),
-                udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080),
+                bootstrap: false,
                 bootstrap_node_addresses: vec![SocketAddr::new(
                     IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
                     8080,
@@ -94,25 +67,12 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
                 http_api_title: "Node HTTP API".into(),
                 http_api_version: "1.0".into(),
                 http_api_shutdown_timeout: None,
-                raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
-                preload_mock_state: false,
-                // node_secret_key: secret_key,
-                // node_public_key: secret_key.public_key(),
-                jsonrpc_server_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
-                bootstrap_config: None,
-            },
-            rx,
-        )
-        .await
-        .unwrap();
-
-        dkg_instances.push(DkgEngine {
-            node_info: Arc::new(RwLock::new(node)),
+            }))),
             threshold_config: valid_threshold_config(),
             dkg_state: DkgState {
                 part_message_store: HashMap::new(),
                 ack_message_store: HashMap::new(),
-                peer_public_keys: pub_keys.clone(),
+                peer_public_keys: peer_public_keys.clone(),
                 public_key_set: None,
                 secret_key_share: None,
                 sync_key_gen: None,
@@ -120,11 +80,26 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
             },
         });
     }
-    dkg_instances
+    let keys: Vec<(NodeIdx, PublicKey)> = dkg_instances
+        .iter()
+        .map(|x| {
+            let node = x.node_info.read().unwrap();
+            (node.idx, node.keypair.validator_kp.1)
+        })
+        .collect();
+
+    let mut new_dkg_instances = vec![];
+    for mut dkg_engine in dkg_instances {
+        for key in &keys {
+            dkg_engine.add_peer_public_key(key.0, key.1);
+        }
+        new_dkg_instances.push(dkg_engine);
+    }
+    new_dkg_instances
 }
 
-pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
-    let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+pub fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
+    let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
     let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
     let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
     let mut dkg_engine_node2 = dkg_engines.pop().unwrap();

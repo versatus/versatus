@@ -5,7 +5,7 @@ use job_pool::{
     pool::{JobPool, State},
 };
 use once_cell::sync::Lazy;
-use primitives::PeerId as PeerID;
+use primitives::types::PeerID;
 use vrrb_core::cache::Cache;
 
 pub struct JobScheduler {

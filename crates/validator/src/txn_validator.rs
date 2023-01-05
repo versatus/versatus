@@ -55,13 +55,10 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn signature validator.
     pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
-        if !txn.signature.is_empty() {
+        if !txn.txn_signature.is_empty() {
             KeyPair::verify_ecdsa_sign(
-                // TODO: revisit this verification
-                format!("{:?}", txn.signature),
-                // String::from_slice(&txn.signature),
-                // txn.signature.clone(),
-                txn.payload().as_bytes(),
+                txn.txn_signature.clone(),
+                txn.txn_payload.as_bytes(),
                 txn.sender_public_key.clone(),
             )
             .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
@@ -110,13 +107,16 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn timestamp validator
     pub fn validate_timestamp(&self, txn: &Txn) -> Result<()> {
-        let timestamp = chrono::offset::Utc::now().timestamp();
-
-        // let timestamp = duration.as_nanos();
-        if txn.timestamp > 0 && txn.timestamp < timestamp {
-            return Ok(());
-        } else {
-            Err(TxnValidatorError::TxnTimestampIncorrect)
+        match SystemTime::now().duration_since(UNIX_EPOCH) {
+            Ok(duration) => {
+                let timestamp = duration.as_nanos();
+                if txn.txn_timestamp > 0 && txn.txn_timestamp < timestamp {
+                    Ok(())
+                } else {
+                    Err(TxnValidatorError::TxnTimestampIncorrect)
+                }
+            },
+            Err(_) => Err(TxnValidatorError::TimestampError),
         }
     }
 
@@ -129,7 +129,7 @@ impl<D: Database> TxnValidator<D> {
         match data {
             Ok(account) => {
                 if (account.credits - account.debits)
-                    .checked_sub(txn.amount())
+                    .checked_sub(txn.txn_amount)
                     .is_none()
                 {
                     return Err(TxnValidatorError::TxnAmountIncorrect);

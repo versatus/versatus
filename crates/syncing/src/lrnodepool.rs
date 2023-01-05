@@ -9,7 +9,7 @@ use std::{
 
 use chrono::Utc;
 use left_right::{Absorb, ReadHandle, WriteHandle};
-use primitives::NodeType;
+use primitives::types::node::NodeType;
 use serde::{Deserialize, Serialize};
 
 use crate::{error::NodePoolError, MAX_CONNECTED_NODES};
@@ -116,6 +116,7 @@ pub type NodeAddrMap<'m> = HashMap<NodeKey<'m>, NodeAddr<'m>>;
 pub struct NodePool<'m> {
     pub nodes: NodeAddrMap<'m>,
 }
+
 
 /// All the map operations.
 // TODO, fix the compiler

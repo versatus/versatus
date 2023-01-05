@@ -9,4 +9,4 @@ edition = "2021"
 thiserror = "1.0.37"
 serde = { version = "1.0.145", features = ["derive"] }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-secp256k1 = { version = "0.25.0", features = ["rand", "bitcoin_hashes"] }
+secp256k1 = { version = "0.25.0", features = ["rand", "bitcoin_hashes", "global-context"] }

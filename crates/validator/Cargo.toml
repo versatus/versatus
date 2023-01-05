@@ -19,7 +19,6 @@ blake3 = "0.3.8"
 bincode = "1.3.3"
 lrdb = { path = "../lrdb" }
 vrrb_core = { path = "../vrrb_core" }
-chrono = "0.4.22"
 
 [dev-dependencies]
 rand = "0.8.5"

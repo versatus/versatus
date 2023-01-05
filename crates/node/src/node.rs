@@ -1,357 +1,253 @@
-use std::{net::SocketAddr, path::PathBuf};
-
-use crate::{
-    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
-    mining_module,
-    result::{NodeError, Result},
-    validator_module, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
-};
-
-use network::network::BroadcastEngine;
-use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
-
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
-use telemetry::info;
-use theater::{Actor, ActorImpl};
-use tokio::{
+use std::{
+    borrow::BorrowMut,
+    collections::{HashMap, HashSet},
+    env::args,
+    fs,
+    io::{Read, Write},
+    net::{AddrParseError, SocketAddr, SocketAddrV4, SocketAddrV6, UdpSocket},
+    path::PathBuf,
+    rc::Rc,
+    str::FromStr,
     sync::{
-        broadcast::Receiver,
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+        mpsc::{channel, Receiver, Sender},
+        Arc,
     },
-    task::JoinHandle,
+    time::{Duration, Instant},
 };
+
+use lr_trie::LeftRightTrie;
+use patriecia::db::MemoryDB;
+use primitives::types::{
+    node::{NodeId, NodeIdentifier, NodeIdx, PublicKey, SecretKey},
+    StopSignal,
+};
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
+use state::NetworkState;
+use telemetry::{error, info, Instrument};
+use thiserror::Error;
+use tokio::sync::mpsc::{self, error::TryRecvError, UnboundedReceiver, UnboundedSender};
 use trecho::vm::Cpu;
-use vrrb_config::NodeConfig;
+use uuid::Uuid;
 use vrrb_core::{
     event_router::{DirectedEvent, Event, EventRouter, Topic},
     keypair::KeyPair,
 };
-use vrrb_rpc::{
-    http::HttpApiServerConfig,
-    rpc::{JsonRpcServer, JsonRpcServerConfig},
+use vrrb_rpc::http::{HttpApiServer, HttpApiServerConfig};
+
+use crate::{
+    result::{NodeError, Result},
+    NodeAuth,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
+    StateModuleConfig,
 };
 
-const NUMBER_OF_NETWORK_PACKETS: usize = 32;
+pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
 #[derive(Debug)]
 pub struct Node {
-    config: NodeConfig,
+    /// Every node needs a unique ID to identify it as a member of the network.
+    pub id: NodeIdentifier,
 
-    // NOTE: core node features
-    event_router_handle: JoinHandle<()>,
-    running_status: RuntimeModuleState,
-    control_rx: UnboundedReceiver<Event>,
-    events_tx: UnboundedSender<DirectedEvent>,
+    /// Index of the node in the network
+    pub idx: NodeIdx,
 
-    // TODO: make this private
     pub keypair: KeyPair,
+    /// The type of the node, used for custom impl's based on the type the
+    /// capabilities may vary.
+    //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
+    //TODO: Create different custom structs for different kinds of nodes with different
+    // authorization so that we can have custom impl blocks based on the type.
+    pub node_type: NodeType,
 
-    // NOTE: optional node components
-    vm: Option<Cpu>,
-    state_handle: Option<JoinHandle<Result<()>>>,
-    gossip_handle: Option<JoinHandle<Result<()>>>,
-    miner_handle: Option<JoinHandle<Result<()>>>,
-    txn_validator_handle: Option<JoinHandle<Result<()>>>,
-    jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
+    /// Directory used to persist all VRRB node information to disk
+    data_dir: PathBuf,
+
+    /// Whether the current node is a bootstrap node or not
+    is_bootsrap: bool,
+
+    /// The address of the bootstrap node(s), used for peer discovery and
+    /// initial state sync
+    bootstrap_node_addresses: Vec<SocketAddr>,
+
+    /// VRRB world state. it contains the accounts tree
+    // state: LeftRightTrie<MemoryDB>,
+
+    /// Confirmed transactions
+    // txns: LeftRightTrie<MemoryDB>,
+
+    /// Unconfirmed transactions
+    // mempool: LeftRightTrie<MemoryDB>,
+
+    // validator_unit: Option<i32>,
+    running_status: RuntimeModuleState,
+
+    vm: Cpu,
+
+    http_api_server_config: HttpApiServerConfig,
 }
 
 impl Node {
-    /// Initializes and returns a new Node instance
-    pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
-        // Copy the original config to avoid overriding the original
-        let mut config = config.clone();
-        let vm = Some(trecho::vm::Cpu::new());
+    /// Creates and returns a Node instance
+    pub fn new(config: vrrb_config::NodeConfig) -> Node {
+        let http_api_server_config = HttpApiServerConfig {
+            address: config.http_api_address.to_string(),
+            api_title: config.http_api_title.clone(),
+            api_version: config.http_api_version.clone(),
+            server_timeout: config.http_api_shutdown_timeout.clone(),
+            tls_config: None,
+        };
 
-        let (events_tx, mut events_rx) = unbounded_channel::<DirectedEvent>();
+        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
 
-        let mut event_router = Self::setup_event_routing_system();
-
-        let (state_read_handle, state_handle) = Self::setup_state_store(
-            &config,
-            events_tx.clone(),
-            event_router.subscribe(&Topic::State)?,
-        )
-        .await?;
-
-        let (gossip_handle, gossip_addr) = Self::setup_gossip_network(
-            &config,
-            events_tx.clone(),
-            event_router.subscribe(&Topic::Network)?,
-            state_read_handle.clone(),
-        )
-        .await?;
-
-        config.udp_gossip_address = gossip_addr;
-
-        let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = Self::setup_rpc_api_server(
-            &config,
-            events_tx.clone(),
-            // event_router.subscribe(&Topic::Network)?,
-            state_read_handle.clone(),
-        )
-        .await?;
-
-        config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
-
-        // TODO: make nodes start with some preconfigured state
-        // TODO: make nodes send each other said state with raprtor q
-
-        let txn_validator_handle = Self::setup_validation_module(
-            events_tx.clone(),
-            event_router.subscribe(&Topic::Transactions)?,
-        )?;
-
-        let miner_handle = Self::setup_mining_module(
-            //
-            events_tx.clone(),
-            event_router.subscribe(&Topic::Transactions)?,
-        )?;
-
-        // TODO: report error from handle
-        let event_router_handle =
-            tokio::spawn(async move { event_router.start(&mut events_rx).await });
-
-        Ok(Self {
-            config,
-            event_router_handle,
-            state_handle,
-            jsonrpc_server_handle,
-            gossip_handle,
-            running_status: RuntimeModuleState::Stopped,
-            vm,
-            control_rx,
-            events_tx,
-            txn_validator_handle,
-            miner_handle,
+        Self {
+            id: config.id.clone(),
+            idx: config.idx.clone(),
+            node_type: config.node_type.clone(),
             keypair: KeyPair::random(),
-        })
-    }
-
-    pub async fn wait(mut self) -> anyhow::Result<()> {
-        // TODO: notify bootstrap nodes that this node is joining the network so they can add it to
-        // their peer list
-
-        self.running_status = RuntimeModuleState::Running;
-
-        // NOTE: wait for stop signal
-        self.control_rx
-            .recv()
-            .await
-            .ok_or_else(|| NodeError::Other(String::from("failed to receive control signal")))?;
-
-        info!("node received stop signal");
-
-        self.events_tx.send((Topic::Control, Event::Stop))?;
-
-        if let Some(handle) = self.state_handle {
-            handle.await??;
-            info!("shutdown complete for state management module ");
+            is_bootsrap: config.bootstrap,
+            bootstrap_node_addresses,
+            running_status: RuntimeModuleState::Stopped,
+            data_dir: config.data_dir().clone(),
+            vm: trecho::vm::Cpu::new(),
+            http_api_server_config,
         }
-
-        if let Some(handle) = self.miner_handle {
-            handle.await??;
-            info!("shutdown complete for mining module ");
-        }
-
-        if let Some(handle) = self.gossip_handle {
-            handle.await??;
-            info!("shutdown complete for gossip module");
-        }
-
-        if let Some(handle) = self.txn_validator_handle {
-            handle.await??;
-            info!("shutdown complete for mining module ");
-        }
-
-        if let Some(handle) = self.jsonrpc_server_handle {
-            handle.await??;
-            info!("rpc server shut down");
-        }
-
-        self.event_router_handle.await?;
-
-        info!("node shutdown complete");
-
-        self.running_status = RuntimeModuleState::Stopped;
-
-        Ok(())
     }
 
-    pub async fn config(&self) -> NodeConfig {
-        self.config.clone()
+    /// Returns a string representation of the node id
+    pub fn get_id(&self) -> String {
+        self.id.clone()
     }
 
-    /// Returns a string representation of the Node id
-    pub fn id(&self) -> String {
-        self.config.id.clone()
-    }
-
-    /// Returns the idx of the Node
-    pub fn node_idx(&self) -> u16 {
-        self.config.idx
-    }
-
-    #[deprecated(note = "use node_idx instead")]
-    pub fn get_node_idx(&self) -> u16 {
-        self.node_idx()
-    }
-
-    /// Returns the node's type
-    pub fn node_type(&self) -> NodeType {
-        self.config.node_type
-    }
-
-    #[deprecated(note = "use node_type instead")]
+    /// Returns the type of the node
     pub fn get_node_type(&self) -> NodeType {
-        self.node_type()
+        self.node_type.clone()
+    }
+
+    /// Returns the idx of the node
+    pub fn get_node_idx(&self) -> u16 {
+        self.idx
     }
 
     pub fn is_bootsrap(&self) -> bool {
-        matches!(self.node_type(), NodeType::Bootstrap)
+        self.is_bootsrap
     }
 
     pub fn status(&self) -> RuntimeModuleState {
         self.running_status.clone()
     }
 
-    pub fn keypair(&self) -> KeyPair {
-        self.keypair.clone()
+    fn set_status(&mut self, status: RuntimeModuleState) {
+        self.running_status = status;
     }
 
-    pub fn udp_gossip_address(&self) -> SocketAddr {
-        self.config.udp_gossip_address
+    fn teardown(&mut self) {
+        self.running_status = RuntimeModuleState::Stopped;
     }
 
-    pub fn raprtorq_gossip_address(&self) -> SocketAddr {
-        self.config.raptorq_gossip_address
-    }
+    /// Main node setup and execution entrypoint, called only by applications
+    /// that intend to run VRRB nodes
+    #[telemetry::instrument]
+    pub async fn start(&mut self, control_rx: &mut UnboundedReceiver<Event>) -> Result<()> {
+        // TODO: replace memorydb with real backing db later
+        let mem_db = MemoryDB::new(true);
+        let backing_db = Arc::new(mem_db);
+        let lr_trie = LeftRightTrie::new(backing_db);
+        let state_path = "".into();
 
-    pub fn bootstrap_node_addresses(&self) -> Vec<SocketAddr> {
-        self.config.bootstrap_node_addresses.clone()
-    }
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-    pub fn jsonrpc_server_address(&self) -> SocketAddr {
-        self.config.jsonrpc_server_address
-    }
-
-    fn setup_event_routing_system() -> EventRouter {
         let mut event_router = EventRouter::new();
+
         event_router.add_topic(Topic::Control, Some(1));
         event_router.add_topic(Topic::State, Some(1));
         event_router.add_topic(Topic::Transactions, Some(100));
-        event_router.add_topic(Topic::Network, Some(100));
-
-        event_router
-    }
-
-    async fn setup_gossip_network(
-        config: &NodeConfig,
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut network_events_rx: Receiver<Event>,
-        state_handle_factory: NodeStateReadHandle,
-        // ) -> Result<(JoinHandle<()>, SocketAddr)> {
-    ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
-
-        let mut broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
-            events_tx: events_tx.clone(),
-            state_handle_factory,
-            bootstrap_node_addresses,
-            udp_gossip_address_port: config.udp_gossip_address.port(),
-            raptorq_gossip_address_port: config.raptorq_gossip_address.port(),
-            node_type: config.node_type,
-            node_id: config.id.as_bytes().to_vec(),
-        })
-        .await?;
-
-        let addr = broadcast_module.local_addr();
-
-        let broadcast_handle =
-            tokio::spawn(async move { broadcast_module.start(&mut network_events_rx).await });
-
-        Ok((Some(broadcast_handle), addr))
-    }
-
-    async fn setup_state_store(
-        config: &NodeConfig,
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut state_events_rx: Receiver<Event>,
-    ) -> Result<(NodeStateReadHandle, Option<JoinHandle<Result<()>>>)> {
-        // TODO: restore state if exists
-
-        let node_state_config = NodeStateConfig {
-            path: config.data_dir().to_path_buf(),
-
-            // TODO: read these from config
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
-
-        let node_state = NodeState::new(&node_state_config);
 
         let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
+            path: state_path,
+            events_tx: events_tx.clone(),
         });
 
-        let state_read_handle = state_module.read_handle();
-
-        let mut state_module_actor = ActorImpl::new(state_module);
+        let mut state_events_rx = event_router.subscribe(&Topic::State)?;
 
         let state_handle = tokio::spawn(async move {
-            state_module_actor
-                .start(&mut state_events_rx)
-                .await
-                .map_err(|err| NodeError::Other(err.to_string()))
+            state_module.start(&mut state_events_rx);
         });
 
-        Ok((state_read_handle, Some(state_handle)))
-    }
+        let mut http_server_events_rx = event_router.subscribe(&Topic::Control)?;
 
-    async fn setup_rpc_api_server(
-        config: &NodeConfig,
-        events_tx: UnboundedSender<DirectedEvent>,
-        state_read_handle: NodeStateReadHandle,
-    ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-        let jsonrpc_server_config = JsonRpcServerConfig {
-            address: config.jsonrpc_server_address,
-            state_handle_factory: state_read_handle,
-            node_type: config.node_type,
-            events_tx,
-        };
+        let http_api_server =
+            HttpApiServer::new(self.http_api_server_config.clone()).map_err(|err| {
+                NodeError::Other(format!("Unable to create API server. Reason: {}", err))
+            })?;
 
-        let resolved_jsonrpc_server_addr = JsonRpcServer::run(&jsonrpc_server_config)
+        // TODO: report error from handle
+        let router_handle = tokio::spawn(async move { event_router.start(&mut events_rx).await });
+
+        let http_server_handle = tokio::spawn(async move {
+            let address = http_api_server.address();
+
+            telemetry::info!("HTTP server listening at {address:?}");
+
+            http_api_server.start(&mut http_server_events_rx).await;
+        });
+
+        self.set_status(RuntimeModuleState::Running);
+
+        // NOTE: wait for stop signal
+        control_rx
+            .recv()
             .await
-            .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
+            .ok_or(NodeError::Other(String::from(
+                "failed receive control signal",
+            )))?;
 
-        let jsonrpc_server_handle = Some(tokio::spawn(async { Ok(()) }));
+        telemetry::info!("Received stop event");
 
-        Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
+        events_tx
+            .send((Topic::Control, Event::Stop))
+            .unwrap_or_default();
+
+        self.teardown();
+
+        // TODO: await on all task handles here
+        state_handle.await;
+
+        telemetry::info!("Node shutdown complete");
+
+        Ok(())
     }
+}
 
-    fn setup_validation_module(
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut validator_events_rx: Receiver<Event>,
-    ) -> Result<Option<JoinHandle<Result<()>>>> {
-        let mut module = validator_module::ValidatorModule::new();
+#[cfg(test)]
+mod tests {
 
-        let txn_validator_handle =
-            tokio::spawn(async move { module.start(&mut validator_events_rx).await });
+    use std::{
+        env,
+        net::{IpAddr, Ipv4Addr},
+    };
 
-        Ok(Some(txn_validator_handle))
-    }
+    use vrrb_config::NodeConfig;
 
-    fn setup_mining_module(
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut miner_events_rx: Receiver<Event>,
-    ) -> Result<Option<JoinHandle<Result<()>>>> {
-        let mut module = mining_module::MiningModule::new();
+    use super::*;
+    use crate::test_utils::create_mock_full_node_config;
 
-        let miner_handle = tokio::spawn(async move { module.start(&mut miner_events_rx).await });
+    #[test]
+    fn node_teardown_updates_node_status() {
+        let node_config = create_mock_full_node_config();
 
-        Ok(Some(miner_handle))
+        let mut vrrb_node = Node::new(node_config);
+        assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
+
+        vrrb_node.running_status = RuntimeModuleState::Running;
+        assert_eq!(vrrb_node.status(), RuntimeModuleState::Running);
+
+        vrrb_node.teardown();
+        assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     }
 }

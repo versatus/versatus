@@ -10,33 +10,34 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
 use state::state::NetworkState;
-use vrrb_core::txn::{TxTimestamp, Txn};
+use vrrb_core::txn::Txn;
 
 use super::error::MempoolError;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
-//TODO: simplify mempool
-
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct TxnRecord {
     pub txn_id: String,
     pub txn: String,
-    pub txn_timestamp: TxTimestamp,
-    pub txn_added_timestamp: TxTimestamp,
-    pub txn_validated_timestamp: TxTimestamp,
-    pub txn_rejected_timestamp: TxTimestamp,
-    pub txn_deleted_timestamp: TxTimestamp,
+    pub txn_timestamp: u128,
+    pub txn_added_timestamp: u128,
+    pub txn_validated_timestamp: u128,
+    pub txn_rejected_timestamp: u128,
+    pub txn_deleted_timestamp: u128,
 }
 
 impl TxnRecord {
     pub fn new(txn: &Txn) -> TxnRecord {
-        let timestamp = chrono::offset::Utc::now().timestamp();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("The system time seems to be set to be earlier than 1970-01-01 00:00:00 UTC")
+            .as_nanos();
 
         TxnRecord {
-            txn_id: txn.digest().clone(),
+            txn_id: txn.txn_id.clone(),
             txn: txn.to_string(),
-            txn_timestamp: txn.timestamp,
+            txn_timestamp: txn.txn_timestamp,
             txn_added_timestamp: timestamp,
             ..Default::default()
         }
@@ -526,9 +527,7 @@ impl LeftRightMemPoolDB {
             self.write
                 .append(MempoolOp::Remove(TxnRecord::new(t), txns_status.clone()));
         });
-
         self.publish();
-
         Ok(())
     }
 
@@ -539,9 +538,8 @@ impl LeftRightMemPoolDB {
     }
 
     /// Was the Txn validated ? And when ?
-    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        // if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
-        if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.digest()) {
+    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<u128> {
+        if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
             Ok(txn_record_validated.txn_validated_timestamp)
         } else {
             Err(MempoolError::TransactionMissing)
@@ -549,9 +547,8 @@ impl LeftRightMemPoolDB {
     }
 
     /// Was the Txn rejected ? And when ?
-    pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        // if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
-        if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.digest()) {
+    pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<u128> {
+        if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
             Ok(txn_record_rejected.txn_rejected_timestamp)
         } else {
             Err(MempoolError::TransactionMissing)

@@ -7,8 +7,8 @@ use std::{
 
 use dkg_engine::types::{config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
-use primitives::NodeIdx;
-use primitives::{PayloadHash as Hash, RawSignature, SignatureType};
+use primitives::types::{Hash, RawSignature, SignatureType};
+use primitives::types::node::NodeIdx;
 
 use crate::types::{SignerError, SignerResult};
 
@@ -329,10 +329,9 @@ mod tests {
         types::SignerError,
     };
 
-    #[tokio::test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
-    async fn successful_test_generation_partial_signature() {
-        let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
+    #[test]
+    fn successful_test_generation_partial_signature() {
+        let dkg_engine_node = generate_dkg_engine_with_states().pop().unwrap();
         let message = "This is test message";
         let sig_provider = SignatureProvider {
             dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
@@ -348,10 +347,9 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
-    async fn failed_test_generation_partial_signature() {
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
+    #[test]
+    fn failed_test_generation_partial_signature() {
+        let mut dkg_engines = generate_dkg_engine_with_states();
         let mut dkg_engine_node = dkg_engines.pop().unwrap();
         let message = "This is test message";
         dkg_engine_node.dkg_state.secret_key_share = None;
@@ -369,10 +367,9 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
-    async fn successful_test_generation_quorum_signature() {
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
+    #[test]
+    fn successful_test_generation_quorum_signature() {
+        let mut dkg_engines = generate_dkg_engine_with_states();
         let mut sig_shares = BTreeMap::new();
         let message = "This is test message";
         let mut i: u16 = 3;
@@ -402,10 +399,9 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
-    async fn successful_verification_partial_signature() {
-        let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
+    #[test]
+    fn successful_verification_partial_signature() {
+        let dkg_engine_node = generate_dkg_engine_with_states().pop().unwrap();
         let message = "This is test message";
         let sig_provider = SignatureProvider {
             dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
@@ -431,11 +427,10 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
-    async fn successful_verification_threshold_signature() {
+    #[test]
+    fn successful_verification_threshold_signature() {
         let message = "This is test message";
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
+        let mut dkg_engines = generate_dkg_engine_with_states();
         let mut sig_shares = BTreeMap::new();
         let mut i: u16 = 3;
         while !dkg_engines.is_empty() {
@@ -472,12 +467,11 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    #[ignore = "temporarily broken because of changes in both node and dkg"]
-    async fn failed_verification_threshold_signature() {
+    #[test]
+    fn failed_verification_threshold_signature() {
         let message = "This is test message";
 
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
+        let mut dkg_engines = generate_dkg_engine_with_states();
         let dkg_engine_node = dkg_engines.pop().unwrap();
 
         let sig_provider = SignatureProvider {

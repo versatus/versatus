@@ -37,7 +37,7 @@ use udp2p::{
 use vrrb_core::event_router::Event;
 use wallet::wallet::WalletAccount;
 
-use crate::{result::Result, RuntimeModule, RuntimeModuleState};
+use crate::{node_auth::NodeAuth, result::Result, RuntimeModule, RuntimeModuleState};
 
 type Port = usize;
 

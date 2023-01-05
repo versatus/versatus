@@ -1,7 +1,6 @@
 use crate::txn::Txn;
 use crate::{Error, Result};
-use primitives::{NodeType, PeerId, TxHash};
-use serde::{Deserialize, Serialize};
+use primitives::{NodeType, PeerId};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::net::SocketAddr;
 use telemetry::{error, info};
@@ -11,7 +10,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PeerData {
     pub address: SocketAddr,
     pub node_type: NodeType,
@@ -30,7 +29,6 @@ pub enum Event {
     /// New txn came from network, requires validation
     #[deprecated(note = "replaced by NewTxnCreated")]
     TxnCreated(Vec<u8>),
-    /// New txn came from network, requires validation
     NewTxnCreated(Txn),
     /// Single txn validated
     TxnValidated(Vec<u8>),
@@ -104,30 +102,8 @@ pub enum Event {
     // SendPartMessage(Vec<u8>),
     // SendAckMessage(Vec<u8>),
     // PublicKeySetSync,
-}
-
-impl From<&theater::Message> for Event {
-    fn from(msg: &theater::Message) -> Self {
-        serde_json::from_slice(&msg.data).unwrap_or_default()
-    }
-}
-
-impl From<theater::Message> for Event {
-    fn from(msg: theater::Message) -> Self {
-        serde_json::from_slice(&msg.data).unwrap_or_default()
-    }
-}
-
-impl From<Vec<u8>> for Event {
-    fn from(data: Vec<u8>) -> Self {
-        serde_json::from_slice(&data).unwrap_or_default()
-    }
-}
-
-impl From<Event> for Vec<u8> {
-    fn from(evt: Event) -> Self {
-        serde_json::to_vec(&evt).unwrap_or_default()
-    }
+    // Stop,
+    // NoOp,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

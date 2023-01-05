@@ -18,7 +18,7 @@ pub struct InvalidClaimError {
 /// calculate whether or not you are an entitled miner, and to share with
 /// network
 // TODO: Add staking to the claim.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Claim {
     pub public_key: String,
     pub address: String,
@@ -30,7 +30,11 @@ pub struct Claim {
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(public_key: String, address: String, claim_nonce: u128) -> Claim {
+    pub fn new(
+        public_key: String, 
+        address: String, 
+        claim_nonce: u128
+    ) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
         let iters = if let Some(n) = claim_nonce.checked_mul(10) {

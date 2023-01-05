@@ -1,88 +1,48 @@
-use async_trait::async_trait;
-use std::result::Result as StdResult;
-use telemetry::info;
-use tokio::sync::broadcast::{error::TryRecvError, Receiver};
+use tokio::sync::mpsc::error::TryRecvError;
 use vrrb_core::event_router::Event;
 
 use crate::{result::Result, RuntimeModule, RuntimeModuleState};
 
 pub struct MiningModule {
-    running_status: RuntimeModuleState,
+    //
 }
 
 impl MiningModule {
     pub fn new() -> Self {
-        Self {
-            running_status: RuntimeModuleState::Stopped,
-        }
+        Self {}
     }
 }
 
-#[async_trait]
 impl RuntimeModule for MiningModule {
     fn name(&self) -> String {
         String::from("State module")
     }
 
     fn status(&self) -> RuntimeModuleState {
-        self.running_status.clone()
+        todo!()
     }
 
-    async fn start(&mut self, events_rx: &mut Receiver<Event>) -> Result<()> {
-        info!("{0} started", self.name());
-
-        while let Ok(event) = events_rx.recv().await {
-            info!("{} received {event:?}", self.name());
-
-            if event == Event::Stop {
-                info!("{0} received stop signal. Stopping", self.name());
-
-                self.running_status = RuntimeModuleState::Terminating;
-
-                break;
+    fn start(
+        &mut self,
+        control_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Event>,
+    ) -> Result<()> {
+        // TODO: rethink this loop
+        loop {
+            match control_rx.try_recv() {
+                Ok(sig) => {
+                    telemetry::info!("Received stop signal");
+                    break;
+                },
+                Err(err) if err == TryRecvError::Disconnected => {
+                    telemetry::warn!("Failed to process stop signal. Reason: {0}", err);
+                    telemetry::warn!("{} shutting down", self.name());
+                    break;
+                },
+                _ => {},
             }
-
-            self.process_event(event);
         }
-
-        self.running_status = RuntimeModuleState::Stopped;
 
         Ok(())
-    }
-}
-
-impl MiningModule {
-    fn decode_event(&mut self, event: StdResult<Event, TryRecvError>) -> Event {
-        match event {
-            Ok(cmd) => cmd,
-            Err(err) => match err {
-                TryRecvError::Closed => {
-                    telemetry::error!("the events channel has been closed.");
-                    Event::Stop
-                },
-
-                TryRecvError::Lagged(u64) => {
-                    telemetry::error!("receiver lagged behind");
-                    Event::NoOp
-                },
-                _ => Event::NoOp,
-            },
-            _ => Event::NoOp,
-        }
-    }
-
-    fn process_event(&mut self, event: Event) {
-        match event {
-            Event::BlockConfirmed(_) => {
-                // do something
-            },
-
-            // Event::PeerRequestedStateSync(_) => {
-            //     // do something
-            // },
-            Event::NoOp => {},
-            _ => telemetry::warn!("unrecognized command received: {:?}", event),
-        }
     }
 }
 

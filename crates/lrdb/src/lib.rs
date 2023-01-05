@@ -1,11 +1,9 @@
 mod lrdb;
 pub mod result;
 mod state_db;
-mod txn_db;
 
-pub use crate::lrdb::*;
+pub use lrdb::*;
 pub use state_db::*;
-pub use txn_db::*;
 
 #[cfg(test)]
 mod tests {
