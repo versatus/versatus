@@ -9,17 +9,20 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use primitives::{PublicKey, SerializedPublicKey};
+use primitives::{ByteSlice, ByteVec, PublicKey, SerializedPublicKey};
 use secp256k1::ecdsa::Signature;
 use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use sha256::digest;
 use uuid::Uuid;
 
 /// This module contains the basic structure of simple transaction
-use crate::accountable::Accountable;
-use crate::verifiable::Verifiable;
+use crate::{
+    accountable::Accountable,
+    helpers::gen_sha256_digest_string,
+    serde_helpers::{decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary},
+};
+use crate::{serde_helpers::encode_to_json, verifiable::Verifiable};
 
 /// A simple custom error type
 #[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]
@@ -97,16 +100,21 @@ impl Txn {
     pub fn digest(&self) -> String {
         let encoded = self.encode();
 
-        digest(encoded.as_slice())
+        gen_sha256_digest_string(encoded.as_slice())
+    }
+
+    /// Serializes the transation into a byte array
+    pub fn encode(&self) -> Vec<u8> {
+        encode_to_binary(self).unwrap_or_default()
     }
 
     /// Encodes the transaction into a JSON-serialized byte vector
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(self).unwrap_or_default()
+    pub fn encode_to_json(&self) -> Vec<u8> {
+        encode_to_json(self).unwrap_or_default()
     }
 
     #[deprecated(note = "use encode instead")]
-    pub fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> ByteVec {
         let as_string = serde_json::to_string(self).unwrap();
         as_string.as_bytes().to_vec()
     }
@@ -114,11 +122,6 @@ impl Txn {
     #[deprecated(note = "rely on the from trait implementation instead")]
     pub fn from_bytes(data: &[u8]) -> Txn {
         Self::from(data)
-    }
-
-    #[deprecated(note = "rely on the from trait implementation instead")]
-    pub fn from_string(string: &str) -> Txn {
-        Self::from(string)
     }
 
     pub fn is_null(&self) -> bool {
@@ -145,6 +148,22 @@ impl Txn {
     pub fn payload(&self) -> String {
         self.payload.clone().unwrap_or_default()
     }
+
+    fn from_byte_slice(data: ByteSlice) -> Self {
+        if let Ok(result) = decode_from_json_byte_slice::<Self>(data) {
+            return result;
+        }
+
+        if let Ok(result) = decode_from_binary_byte_slice::<Self>(data) {
+            return result;
+        }
+
+        NULL_TXN
+    }
+
+    fn from_string(data: &str) -> Txn {
+        Txn::from_str(data).unwrap_or(NULL_TXN)
+    }
 }
 
 pub const NULL_TXN: Txn = Txn {
@@ -163,19 +182,19 @@ pub const NULL_TXN: Txn = Txn {
 
 impl From<String> for Txn {
     fn from(data: String) -> Self {
-        data.parse().unwrap_or(NULL_TXN)
+        Self::from(data.as_str())
     }
 }
 
 impl From<Vec<u8>> for Txn {
     fn from(data: Vec<u8>) -> Self {
-        serde_json::from_slice::<Txn>(&data).unwrap_or(NULL_TXN)
+        Txn::from_byte_slice(&data)
     }
 }
 
 impl From<&[u8]> for Txn {
     fn from(data: &[u8]) -> Self {
-        serde_json::from_slice::<Txn>(data).unwrap_or(NULL_TXN)
+        Txn::from_byte_slice(data)
     }
 }
 
@@ -190,7 +209,7 @@ impl FromStr for Txn {
 
 impl From<&str> for Txn {
     fn from(data: &str) -> Self {
-        data.parse().unwrap_or(NULL_TXN)
+        Self::from_string(data)
     }
 }
 

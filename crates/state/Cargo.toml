@@ -13,6 +13,7 @@ serde_json = "1.0.64"
 hex = "*"
 serde = { version = "1.0.101", features = ["derive"] }
 lrdb = { path = "../lrdb" }
+mempool = { path = "../mempool" }
 reward = { path = "../reward" }
 lr_trie = { path = "../lr_trie" }
 primitives = { path = "../primitives" }
