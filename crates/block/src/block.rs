@@ -30,6 +30,7 @@ use vrrb_core::{
 use secp256k1::{hashes::{sha256 as s256, Hash}, Message};
 use sha256::digest;
 use utils::{create_payload, hash_data};
+use bulldag::{graph::BullDag, index::Index, vertex::{Vertex, Direction}};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -56,12 +57,16 @@ pub type QuorumId = String;
 pub type QuorumPubkey = String;
 pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TxnId, Conflict>;
+ 
+
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Certificate {
     pub signature: String,
-    pub inauguartion: Option<QuorumPubkeys> 
+    pub inauguartion: Option<QuorumPubkeys>,
+    pub root_hash: String,
+    pub next_root_hash: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -153,7 +158,7 @@ impl ConvergenceBlock {
             &proposals, 
             args.last_block.header.next_block_seed.into()
         );
-
+        
         // Consolidate transactions after resolving conflicts.
         let txns: ConsolidatedTxns = resolved_txns.iter().map(|block| {
             let txn_list = block.txns.iter().map(|(id, _)| {
@@ -269,9 +274,15 @@ impl ConvergenceBlock {
         
         // calculate the pointer sums for all propsers and save into a vector 
         // of thruples with the claim, ref_hash and pointer sum
-        let mut pointer_sums: Vec<(Claim, RefHash, Option<u128>)> = proposers.iter().map(|(claim, ref_hash)| {
-            (claim.clone(), ref_hash.to_string(), claim.get_pointer(seed)) 
-        }).collect();
+        let mut pointer_sums: Vec<(Claim, RefHash, Option<u128>)> = {
+            proposers.iter().map(|(claim, ref_hash)| {
+
+                (claim.clone(), 
+                 ref_hash.to_string(), 
+                 claim.get_pointer(seed)) 
+
+            }).collect()
+        };
 
         // Sort all the pointer sums
         pointer_sums.sort_by(|a, b| {
@@ -340,11 +351,87 @@ impl ConvergenceBlock {
 
     }
 
+    fn get_source_blocks(
+        block: &ProposalBlock, 
+        chain: BullDag<Block, String>
+    ) -> Vec<ConvergenceBlock> {
+        // TODO: Handle the case where the reference block is the genesis block
+        let source = block.ref_block.clone();
+        let source_vtx: Option<&Vertex<Block, String>> = chain.get_vertex(source);
+        // Get every block between current proposal and proposals source;
+        // if the source exists
+        let source_refs: Vec<String> = match source_vtx {
+            Some(vtx) => {
+                chain.trace(&vtx, Direction::Reference) 
+            },
+            None => { vec![] }
+        };
+
+        let mut ref_vertices: Vec<Option<&Vertex<Block, String>>> = {
+            source_refs.iter().map(|idx| {
+                chain.get_vertex(idx.to_string())
+            }).collect()
+        };
+
+        let mut stack = vec![];
+
+        ref_vertices.iter().for_each(|opt| {
+            if let Some(vtx) = opt {
+                match vtx.get_data() {
+                    Block::Convergence { block } => stack.push(block),
+                    _ => {/*IGNORE*/}
+                }
+            }
+        });
+
+        return stack
+    }
+
+    fn resolve_conflicts_prev_rounds(
+        round: u128,
+        proposals: &Vec<ProposalBlock>, 
+        prev_blocks: &Vec<ConvergenceBlock>
+    ) {
+        let mut proposals = proposals.clone();
+        // Flatten consolidated transactions from all previous blocks
+        let mut removals: LinkedHashSet<&TxnId> = {
+
+            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks.iter().map(|block| {
+                let block_set: Vec<&LinkedHashSet<TxnId>> = {
+                    block.txns.iter().map(|(_, txn_id_set)| {
+                        txn_id_set
+                    }).collect()
+                };
+
+                block_set.into_iter().flatten().collect()
+            }).collect();
+
+            sets.into_iter().flatten().collect()
+        };
+        
+        proposals.retain(|block| { block.round != round });
+
+        let resolved: Vec<ProposalBlock> = proposals.iter_mut().map(|block| {
+
+            let mut resolved_block = block.clone();
+
+            resolved_block.txns.retain(|id, _| {
+                !&removals.contains(id)
+            });
+
+            resolved_block
+        }).collect();
+        
+    }
+
     fn identify_conflicts(
         proposals: &Vec<ProposalBlock>
     ) -> HashMap<TxnId, Conflict> {
+
         let mut conflicts: ConflictList = HashMap::new();
+
         proposals.iter().for_each(|block| {
+
             let mut txn_iter = block.txns.iter();
             
             let mut proposer = HashSet::new();
@@ -374,6 +461,16 @@ impl ConvergenceBlock {
 
     pub fn append_certificate(&mut self, cert: Certificate) {
        self.certificate = Some(cert); 
+    }
+
+    pub fn txn_id_set(&self) -> LinkedHashSet<&TxnId> {
+        let sets: Vec<&LinkedHashSet<TxnId>> = self.txns.iter().map(
+            |(ref_hash, set)| {
+                set 
+            }
+        ).collect();
+
+        sets.into_iter().flatten().collect()
     }
 }
 
@@ -443,6 +540,43 @@ impl ProposalBlock {
             signature,
         }
     }
+
+    pub fn is_current_round(&self, round: u128) -> bool {
+        self.round == round
+    }
+
+    pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {
+        let sets: Vec<LinkedHashSet<&TxnId>> = {
+            prev_blocks.iter().map(|block| {
+                block.txn_id_set()
+            }).collect()
+        };
+        
+        let prev_block_set: LinkedHashSet<&TxnId> = {
+            sets.into_iter().flatten().collect()
+        }; 
+       
+        let curr_txns = self.txns.clone();
+
+        let curr_set: LinkedHashSet<&TxnId> = {
+            curr_txns.iter().map(|(id, _)| {
+                id
+            }).collect()
+        };
+        
+        let prev_confirmed: LinkedHashSet<TxnId> = {
+            let intersection = curr_set.intersection(&prev_block_set);
+            intersection.into_iter().map(|id| { id.to_string() }).collect()
+        };
+        
+        self.txns.retain(|id, txn| { prev_confirmed.contains(id) });
+    }
+
+    fn txn_id_set(&self) -> LinkedHashSet<TxnId> {
+        self.txns.iter().map(|(id, _)| {
+            id.clone()
+        }).collect()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -456,6 +590,29 @@ pub enum Block {
     },
     Genesis {
         block: GenesisBlock
+    }
+}
+
+impl Block {
+    pub fn is_convergence(&self) -> bool {
+        match self {
+            Block::Convergence { .. } => return true,
+            _ => return false
+        }
+    }
+
+    pub fn is_proposal(&self) -> bool {
+        match self {
+            Block::Proposal { .. } => return true,
+            _ => return false
+        }
+    }
+
+    pub fn is_genesis(&self) -> bool {
+        match self {
+            Block::Genesis { .. } => return true,
+            _ => return false
+        }
     }
 }
 

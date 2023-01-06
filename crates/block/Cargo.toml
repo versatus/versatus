@@ -5,6 +5,8 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+
 [dependencies]
 sha256 = "1.0.2"
 rand = { version = "0.6", features = ["std"] }
@@ -23,3 +25,4 @@ primitives = { path = "../primitives" }
 vrrb_core = { path = "../vrrb_core" }
 telemetry = { path = "../telemetry" }
 utils = { path = "../utils" }
+bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
