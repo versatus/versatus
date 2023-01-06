@@ -66,7 +66,7 @@ pub struct Certificate {
     pub signature: String,
     pub inauguartion: Option<QuorumPubkeys>,
     pub root_hash: String,
-    pub next_root_hash: String,
+    pub next_root_hash: String
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -152,11 +152,14 @@ impl ConvergenceBlock {
     pub fn mine(
         args: MineArgs,
         proposals: &Vec<ProposalBlock>,
+        chain: &BullDag<Block, String>
     ) -> ConvergenceBlock {
         // identify and resolve all the conflicting txns between proposal blocks
         let resolved_txns = ConvergenceBlock::resolve_conflicts(
             &proposals, 
-            args.last_block.header.next_block_seed.into()
+            args.last_block.header.next_block_seed.into(),
+            args.round.clone(),
+            chain
         );
         
         // Consolidate transactions after resolving conflicts.
@@ -260,15 +263,36 @@ impl ConvergenceBlock {
     // and there is no winner in current round. 
     fn resolve_conflicts(
         proposals: &Vec<ProposalBlock>,
-        seed: u128 
+        seed: u128,
+        round: u128,
+        chain: &BullDag<Block, String>
     ) -> Vec<ProposalBlock> {
-       
+
+        // First, get any/all proposal blocks that are not from current round 
+        let (curr, prev) = {
+            let (mut left, mut right) = (Vec::new(), Vec::new());
+            for block in proposals {
+                if block.is_current_round(round) {
+                    left.push(block.clone());
+                } else {
+                    right.push(block.clone());
+                }
+            }
+
+            (left, right)
+        };
+
+        // Next get all the prev_round conflicts resolved 
+        let prev_resolved = ConvergenceBlock::resolve_conflicts_prev_rounds(
+            round, &prev, chain
+        );
+
         // Identify all conflicts
-        let mut conflicts = ConvergenceBlock::identify_conflicts(proposals);
+        let mut conflicts = ConvergenceBlock::identify_conflicts(&curr);
 
         // create a vector of proposers with the claim and the proposal block 
         // hash.
-        let proposers: Vec<(Claim, RefHash)> = proposals.iter().map(|block| {
+        let proposers: Vec<(Claim, RefHash)> = curr.iter().map(|block| {
             (block.from.clone(), block.hash.clone())
         }).collect();
         
@@ -312,9 +336,9 @@ impl ConvergenceBlock {
             conflict.winner = Some(winner); 
         });
 
-        let mut proposals = proposals.clone();
+        let mut curr_resolved = curr.clone();
         // Iterate, mutable t hrough the proposal blocks
-        proposals.iter_mut().for_each(|block| {
+        curr_resolved.iter_mut().for_each(|block| {
             // Clone conflicts into a mutable variable
             let mut local_conflicts = conflicts.clone();
 
@@ -345,19 +369,23 @@ impl ConvergenceBlock {
                 !removals.contains(id)
             });
         });
+        
+        // combine prev_resolved and curr_resolved
+        curr_resolved.extend(prev_resolved);
 
         // return proposal blocks with conflict resolution complete
-        proposals.clone()
-
+        curr_resolved.clone()
     }
 
     fn get_source_blocks(
         block: &ProposalBlock, 
-        chain: BullDag<Block, String>
+        chain: &BullDag<Block, String>
     ) -> Vec<ConvergenceBlock> {
+
         // TODO: Handle the case where the reference block is the genesis block
         let source = block.ref_block.clone();
         let source_vtx: Option<&Vertex<Block, String>> = chain.get_vertex(source);
+
         // Get every block between current proposal and proposals source;
         // if the source exists
         let source_refs: Vec<String> = match source_vtx {
@@ -366,15 +394,29 @@ impl ConvergenceBlock {
             },
             None => { vec![] }
         };
-
+        
+        // Get all the vertices corresponding to the references to the 
+        // proposal blocks source. This will include other proposal blocks 
+        // between the ProposalBlock's source and the current round. 
+        // Will need to filter to only retain the convergence blocks 
         let mut ref_vertices: Vec<Option<&Vertex<Block, String>>> = {
             source_refs.iter().map(|idx| {
                 chain.get_vertex(idx.to_string())
             }).collect()
         };
 
+        // Initialize a stack to save ConvergenceBlock vertices to 
+        // This will where all the ConvergenceBlocks between the 
+        // Source of ProposalBlock and the current round will be stored 
+        // and returned to check for conflicts.
         let mut stack = vec![];
-
+        
+        // Iterate through the ref_vertices vector
+        // Check whether the ref_vertex is Some or None 
+        // If it is Some, get the data from the Vertex and 
+        // match the Block variant
+        // If the block variant is a convergence block add it to the stack 
+        // otherwise ignore it 
         ref_vertices.iter().for_each(|opt| {
             if let Some(vtx) = opt {
                 match vtx.get_data() {
@@ -390,22 +432,35 @@ impl ConvergenceBlock {
     fn resolve_conflicts_prev_rounds(
         round: u128,
         proposals: &Vec<ProposalBlock>, 
-        prev_blocks: &Vec<ConvergenceBlock>
-    ) {
+        chain: &BullDag<Block, String>
+    ) -> Vec<ProposalBlock> {
+        let mut prev_blocks: Vec<ConvergenceBlock> = {
+            let nested: Vec<Vec<ConvergenceBlock>> = proposals.iter().map(
+                |prop_block| {
+                    ConvergenceBlock::get_source_blocks(prop_block, chain)
+                }
+            ).collect(); 
+
+            nested.into_iter().flatten().collect()
+        };
+        
         let mut proposals = proposals.clone();
+
         // Flatten consolidated transactions from all previous blocks
         let mut removals: LinkedHashSet<&TxnId> = {
-
-            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks.iter().map(|block| {
-                let block_set: Vec<&LinkedHashSet<TxnId>> = {
-                    block.txns.iter().map(|(_, txn_id_set)| {
-                        txn_id_set
-                    }).collect()
+            // Get nested sets of all previous blocks
+            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks.iter().map(
+                |block| {
+                    let block_set: Vec<&LinkedHashSet<TxnId>> = {
+                        block.txns.iter().map(|(_, txn_id_set)| {
+                            txn_id_set
+                        }
+                    ).collect()
                 };
-
                 block_set.into_iter().flatten().collect()
             }).collect();
 
+            // Flatten the nested sets
             sets.into_iter().flatten().collect()
         };
         
@@ -421,6 +476,8 @@ impl ConvergenceBlock {
 
             resolved_block
         }).collect();
+
+        resolved
         
     }
 
@@ -628,7 +685,6 @@ impl fmt::Display for ConvergenceBlock {
 }
 
 //TODO: impl fmt::Display for ProposalBlock & GenesisBlock
-
 impl From<ConvergenceBlock> for Block {
     fn from(item: ConvergenceBlock) -> Block {
         return Block::Convergence { block: item }
