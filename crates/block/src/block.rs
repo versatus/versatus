@@ -23,7 +23,6 @@ use primitives::{
 };
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -40,18 +39,6 @@ use vrrb_core::{
     txn::Txn,
     verifiable::Verifiable,
 };
-
-use bulldag::{
-    graph::BullDag,
-    index::Index,
-    vertex::{Direction, Vertex},
-};
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
-use sha256::digest;
-use utils::{create_payload, hash_data};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -80,6 +67,17 @@ pub type QuorumPubkey = String;
 pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TxnId, Conflict>;
 
+pub trait InnerBlock {
+
+    type Header;
+    type RewardType;
+
+    fn get_header(&self) -> Self::Header;
+    fn get_next_block_seed(&self) -> u64; 
+    fn get_next_block_reward(&self) -> Self::RewardType;
+    
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Certificate {
@@ -106,8 +104,18 @@ impl GenesisBlock {
         claim_list: ClaimList,
     ) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
+        let seed = 0;
+        let round = 0;
+        let epoch = 0;
 
-        let header = BlockHeader::genesis(0, 0, claim.clone(), secret_key, claim_list_hash);
+        let header = BlockHeader::genesis(
+            seed, 
+            round, 
+            epoch, 
+            claim.clone(), 
+            secret_key, 
+            claim_list_hash
+        );
 
         let block_hash = hash_data!(
             header.ref_hashes,
@@ -164,14 +172,22 @@ impl ConvergenceBlock {
         args: MineArgs,
         proposals: &Vec<ProposalBlock>,
         chain: &BullDag<Block, String>,
-    ) -> ConvergenceBlock {
+    ) -> Option<ConvergenceBlock> {
+        
         // identify and resolve all the conflicting txns between proposal blocks
-        let resolved_txns = ConvergenceBlock::resolve_conflicts(
-            &proposals,
-            args.last_block.header.next_block_seed.into(),
-            args.round.clone(),
-            chain,
-        );
+        let resolved_txns = {
+            match args.last_block {
+                Block::Convergence { ref block } => {
+                    ConvergenceBlock::resolve_conflicts(
+                        &proposals,
+                        block.header.next_block_seed.into(),
+                        args.round.clone(),
+                        chain,
+                    )
+                }
+                _ => proposals.clone()
+            }
+        };
 
         // Consolidate transactions after resolving conflicts.
         let txns: ConsolidatedTxns = resolved_txns
@@ -191,7 +207,7 @@ impl ConvergenceBlock {
                 let claim_hashes: LinkedHashSet<ClaimHash> = block
                     .claims
                     .iter()
-                    .map(|(claim_hash, claim)| claim_hash.clone())
+                    .map(|(claim_hash, _)| claim_hash.clone())
                     .collect();
 
                 (block.hash.clone(), claim_hashes)
@@ -214,15 +230,17 @@ impl ConvergenceBlock {
         // next epoch adjustment
         let adjustment_next_epoch = 0;
 
-        // Get the current round
-        let round = args.round;
-
         // Check whether this block is the epoch changing block
         let epoch_change = {
-            if last_block.header.block_height % EPOCH_BLOCK as u128 == 0 {
-                true
-            } else {
-                false
+            match last_block {
+                Block::Convergence { ref block } => {
+                    if block.header.block_height % EPOCH_BLOCK as u128 == 0 {
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => { false }
             }
         };
 
@@ -237,9 +255,8 @@ impl ConvergenceBlock {
 
         // Get the block header for the current block
         let header = BlockHeader::new(
-            last_block,
+            last_block.clone(),
             ref_hashes,
-            round,
             &mut reward,
             claim,
             secret_key,
@@ -249,34 +266,38 @@ impl ConvergenceBlock {
             adjustment_next_epoch,
         );
 
-        // Hash all the header data to get the blockhash
-        let block_hash = hash_data!(
-            header.ref_hashes,
-            header.round,
-            header.block_seed,
-            header.next_block_seed,
-            header.block_height,
-            header.timestamp,
-            header.txn_hash,
-            header.miner_claim,
-            header.claim_list_hash,
-            header.block_reward,
-            header.next_block_reward,
-            header.miner_signature
-        );
+        if let Some(head) = header {
 
-        // Return the ConvergenceBlock
-        ConvergenceBlock {
-            header,
-            txns,
-            claims,
-            hash: block_hash,
-            certificate: None,
+            // Hash all the header data to get the blockhash
+            let block_hash = hash_data!(
+                head.ref_hashes,
+                head.round,
+                head.block_seed,
+                head.next_block_seed,
+                head.block_height,
+                head.timestamp,
+                head.txn_hash,
+                head.miner_claim,
+                head.claim_list_hash,
+                head.block_reward,
+                head.next_block_reward,
+                head.miner_signature
+            );
+
+            // Return the ConvergenceBlock
+            Some(ConvergenceBlock {
+                header: head,
+                txns,
+                claims,
+                hash: block_hash,
+                certificate: None,
+            })
+        } else {
+            None
         }
     }
 
-
-    // TODO: Check that conflicts with previous convergence block are removed
+    // Check that conflicts with previous convergence block are removed
     // and there is no winner in current round.
     fn resolve_conflicts(
         proposals: &Vec<ProposalBlock>,
@@ -299,7 +320,11 @@ impl ConvergenceBlock {
         };
 
         // Next get all the prev_round conflicts resolved
-        let prev_resolved = ConvergenceBlock::resolve_conflicts_prev_rounds(round, &prev, chain);
+        let prev_resolved = ConvergenceBlock::resolve_conflicts_prev_rounds(
+            round, 
+            &prev, 
+            chain
+        );
 
         // Identify all conflicts
         let mut conflicts = ConvergenceBlock::identify_conflicts(&curr);
@@ -331,12 +356,12 @@ impl ConvergenceBlock {
         });
 
         // Iterate, mutably through all the conflicts identified
-        conflicts.iter_mut().for_each(|(id, conflict)| {
+        conflicts.iter_mut().for_each(|(_, conflict)| {
             // clone the pointers sums
             let mut local_pointers = pointer_sums.clone();
 
             // retain only the pointer sum related to the current conflict
-            local_pointers.retain(|(claim, ref_hash, pointer_sum)| {
+            local_pointers.retain(|(claim, ref_hash, _)| {
                 conflict
                     .proposers
                     .contains(&(claim.clone(), ref_hash.clone()))
@@ -357,7 +382,7 @@ impl ConvergenceBlock {
             let mut local_conflicts = conflicts.clone();
 
             // retain only the conflicts that relate to current proposal block
-            local_conflicts.retain(|id, conflict| block.txns.contains_key(id));
+            local_conflicts.retain(|id, _| block.txns.contains_key(id));
 
             // convert filtered conflicts into an iterator
             let mut conflict_iter = local_conflicts.iter();
@@ -408,7 +433,7 @@ impl ConvergenceBlock {
         // proposal blocks source. This will include other proposal blocks
         // between the ProposalBlock's source and the current round.
         // Will need to filter to only retain the convergence blocks
-        let mut ref_vertices: Vec<Option<&Vertex<Block, String>>> = {
+        let ref_vertices: Vec<Option<&Vertex<Block, String>>> = {
             source_refs
                 .iter()
                 .map(|idx| chain.get_vertex(idx.to_string()))
@@ -444,7 +469,7 @@ impl ConvergenceBlock {
         proposals: &Vec<ProposalBlock>,
         chain: &BullDag<Block, String>,
     ) -> Vec<ProposalBlock> {
-        let mut prev_blocks: Vec<ConvergenceBlock> = {
+        let prev_blocks: Vec<ConvergenceBlock> = {
             let nested: Vec<Vec<ConvergenceBlock>> = proposals
                 .iter()
                 .map(|prop_block| ConvergenceBlock::get_source_blocks(prop_block, chain))
@@ -456,7 +481,7 @@ impl ConvergenceBlock {
         let mut proposals = proposals.clone();
 
         // Flatten consolidated transactions from all previous blocks
-        let mut removals: LinkedHashSet<&TxnId> = {
+        let removals: LinkedHashSet<&TxnId> = {
             // Get nested sets of all previous blocks
             let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks
                 .iter()
@@ -543,12 +568,11 @@ pub struct Conflict {
 
 pub struct MineArgs<'a> {
     pub claim: Claim,
-    pub last_block: ConvergenceBlock,
+    pub last_block: Block,
     pub txns: LinkedHashMap<String, Txn>,
     pub claims: LinkedHashMap<String, Claim>,
-    pub claim_map_hash: Option<String>,
+    pub claim_list_hash: Option<String>,
     pub reward: &'a mut Reward,
-    pub neighbors: Option<Vec<BlockHeader>>,
     pub abandoned_claim: Option<Claim>,
     pub secret_key: SecretKeyBytes,
     pub epoch: Epoch,
@@ -579,9 +603,7 @@ impl ProposalBlock {
         secret_key: SecretKeyBytes,
     ) -> ProposalBlock {
         let payload = create_payload!(round, epoch, txns, claims, from);
-
         let signature = secret_key.sign_ecdsa(payload).to_string();
-
         let hash = hash_data!(round, epoch, txns, claims, from, signature);
 
         ProposalBlock {
@@ -683,3 +705,41 @@ impl From<GenesisBlock> for Block {
         return Block::Genesis { block: item };
     }
 }
+
+impl InnerBlock for ConvergenceBlock {
+
+    type Header = BlockHeader;
+    type RewardType = Reward;
+
+    fn get_header(&self) -> Self::Header {
+        self.header.clone()
+    }
+
+    fn get_next_block_seed(&self) -> u64 {
+        self.get_header().next_block_seed
+    }
+
+    fn get_next_block_reward(&self) -> Self::RewardType {
+        self.get_header().next_block_reward
+    }
+}
+
+impl InnerBlock for GenesisBlock {
+    
+    type Header = BlockHeader;
+    type RewardType = Reward;
+
+    fn get_header(&self) -> Self::Header {
+        self.header.clone()
+    }
+
+    fn get_next_block_seed(&self) -> u64 {
+        self.get_header().next_block_seed
+    }
+
+    fn get_next_block_reward(&self) -> Self::RewardType {
+        self.get_header().next_block_reward
+    }
+}
+
+

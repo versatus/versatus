@@ -6,7 +6,7 @@ use std::{
     u64::MAX as u64MAX,
 };
 
-use primitives::SecretKey as SecretKeyBytes;
+use primitives::{SecretKey as SecretKeyBytes, Epoch};
 use rand::Rng;
 use reward::reward::Reward;
 use secp256k1::{
@@ -15,21 +15,29 @@ use secp256k1::{
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use utils::{create_payload, hash_data};
+use utils::{create_payload, hash_data, timestamp};
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 
-use crate::{block::Block, ConvergenceBlock, NextEpochAdjustment};
+use crate::{
+    block::Block, 
+    ConvergenceBlock, 
+    InnerBlock, 
+    GenesisBlock,
+    ProposalBlock,
+    NextEpochAdjustment
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
     // TODO: Replace tx hash with tx trie root???
     // TODO: Replace claim hash with claim trie root???
     pub ref_hashes: Vec<String>,
+    pub epoch: Epoch,
     pub round: u128,
     pub block_seed: u64,
     pub next_block_seed: u64,
     pub block_height: u128,
-    pub timestamp: u128,
+    pub timestamp: i64,
     pub txn_hash: String,
     pub miner_claim: Claim,
     pub claim_list_hash: String,
@@ -42,6 +50,7 @@ impl BlockHeader {
     pub fn genesis(
         seed: u64,
         round: u128,
+        epoch: Epoch,
         miner_claim: Claim,
         secret_key: SecretKeyBytes,
         claim_list_hash: String,
@@ -55,92 +64,18 @@ impl BlockHeader {
 
         // Range should remain the same.
         let next_block_seed: u64 = rng.gen_range(u32MAX as u64, u64MAX);
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let timestamp = timestamp!(); 
 
         let txn_hash = hash_data!("Genesis_Txn_Hash");
         let block_reward = Reward::genesis(Some(miner_claim.address.clone()));
-
+        let block_height = 0;
         let next_block_reward = Reward::default();
 
         let payload = create_payload!(
             ref_hashes,
-            seed,
-            next_block_seed,
-            0,
-            timestamp,
-            txn_hash,
-            miner_claim,
-            claim_list_hash,
-            block_reward,
-            next_block_reward
-        );
-
-        let miner_signature = secret_key.sign_ecdsa(payload).to_string();
-
-        BlockHeader {
-            ref_hashes,
             round,
-            block_seed: 0,
-            next_block_seed,
-            block_height: 0,
-            timestamp,
-            txn_hash,
-            miner_claim,
-            claim_list_hash,
-            block_reward,
-            next_block_reward,
-            miner_signature,
-        }
-    }
-
-    pub fn new(
-        last_block: ConvergenceBlock,
-        ref_hashes: Vec<String>,
-        round: u128,
-        reward: &mut Reward,
-        miner_claim: Claim,
-        secret_key: SecretKeyBytes,
-        txn_hash: String,
-        claim_list_hash: String,
-        epoch_change: bool,
-        adjustment_next_epoch: NextEpochAdjustment,
-    ) -> BlockHeader {
-        //TODO: Replace rand::thread_rng() with VPRNG
-        //TODO: Determine data fields to be used as message in VPRNG, must be
-        // known/revealed within block but cannot be predictable or gameable.
-        // Leading candidates are some combination of last_hash and last_block_seed
-        let mut rng = rand::thread_rng();
-
-        let block_seed = last_block.header.next_block_seed;
-
-        let next_block_seed: u64 = rng.gen_range(0, u64MAX);
-
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        let mut block_reward = last_block.header.next_block_reward;
-
-        block_reward.miner = Some(miner_claim.clone().address);
-
-        let mut next_block_reward = block_reward.clone();
-
-        if epoch_change {
-            reward.new_epoch(adjustment_next_epoch);
-            next_block_reward = reward.clone();
-        }
-
-        let block_height = last_block.header.block_height + 1;
-
-        next_block_reward.current_block = reward.current_block + 1;
-
-        let payload = create_payload!(
-            ref_hashes,
-            block_seed,
+            epoch,
+            seed,
             next_block_seed,
             block_height,
             timestamp,
@@ -156,9 +91,10 @@ impl BlockHeader {
         BlockHeader {
             ref_hashes,
             round,
-            block_seed,
+            epoch,
+            block_seed: 0,
             next_block_seed,
-            block_height: last_block.header.block_height + 1,
+            block_height: 0,
             timestamp,
             txn_hash,
             miner_claim,
@@ -167,6 +103,92 @@ impl BlockHeader {
             next_block_reward,
             miner_signature,
         }
+    }
+
+    pub fn new(
+        last_block: Block,
+        ref_hashes: Vec<String>,
+        reward: &mut Reward,
+        miner_claim: Claim,
+        secret_key: SecretKeyBytes,
+        txn_hash: String,
+        claim_list_hash: String,
+        epoch_change: bool,
+        adjustment_next_epoch: NextEpochAdjustment,
+    ) -> Option<BlockHeader> {
+        //TODO: Replace rand::thread_rng() with VPRNG
+        //TODO: Determine data fields to be used as message in VPRNG, must be
+        // known/revealed within block but cannot be predictable or gameable.
+        // Leading candidates are some combination of last_hash and last_block_seed
+        
+        let last_block: &dyn InnerBlock<Header=BlockHeader, RewardType=Reward> = {
+            match last_block {
+                Block::Convergence { ref block } =>  {
+                    block
+                }
+                Block::Genesis { ref block } => {
+                    block
+                }
+                _ => return None
+            }
+        };
+
+        let mut rng = rand::thread_rng();
+        let block_seed = last_block.get_next_block_seed();
+        let next_block_seed: u64 = rng.gen_range(0, u64MAX);
+        let timestamp = timestamp!();
+        let mut block_reward = last_block.get_next_block_reward();
+
+        block_reward.miner = Some(miner_claim.clone().address);
+
+        let mut next_block_reward = block_reward.clone();
+        let mut epoch = last_block.get_header().epoch;
+        let round = last_block.get_header().round + 1;
+
+        if epoch_change { 
+            reward.new_epoch(adjustment_next_epoch);
+            next_block_reward = reward.clone();
+            epoch += 1;
+        }
+
+        let block_height = last_block.get_header().block_height + 1;
+
+        next_block_reward.current_block = reward.current_block + 1;
+
+        let payload = create_payload!(
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height,
+            timestamp,
+            txn_hash,
+            miner_claim,
+            claim_list_hash,
+            block_reward,
+            next_block_reward
+        );
+
+        let miner_signature = secret_key.sign_ecdsa(payload).to_string();
+        
+        let block_header = BlockHeader {
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height: last_block.get_header().block_height + 1,
+            timestamp,
+            txn_hash,
+            miner_claim,
+            claim_list_hash,
+            block_reward,
+            next_block_reward,
+            miner_signature,
+        };
+
+        Some(block_header)
     }
 
     pub fn get_payload(&self) -> Message {
