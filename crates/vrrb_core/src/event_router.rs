@@ -27,7 +27,7 @@ pub struct PeerData {
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
 // once definitions of those are moved into primitives.
-#[derive(Default, Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     #[default]
     NoOp,
