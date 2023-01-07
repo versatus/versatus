@@ -1,9 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use async_trait::async_trait;
-use jsonrpsee::core::Error;
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::types::SubscriptionResult;
+use jsonrpsee::{core::Error, proc_macros::rpc, types::SubscriptionResult};
 use primitives::{NodeType, PublicKey, SerializedPublicKey, SerializedPublicKeyString};
 use serde::{Deserialize, Serialize};
 use state::NodeStateReadHandle;

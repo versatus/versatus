@@ -1,7 +1,8 @@
-use crate::Operation;
 use left_right::Absorb;
 pub use left_right::ReadHandleFactory;
 use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+
+use crate::Operation;
 
 impl<D> Absorb<Operation> for InnerTrie<D>
 where

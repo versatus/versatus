@@ -7,8 +7,7 @@ use std::{
 
 use dkg_engine::types::{config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
-use primitives::NodeIdx;
-use primitives::{PayloadHash as Hash, RawSignature, SignatureType};
+use primitives::{NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
 
 use crate::types::{SignerError, SignerResult};
 

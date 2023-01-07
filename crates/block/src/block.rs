@@ -1,21 +1,44 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 #![allow(unused_imports)]
-use primitives::{
-    Epoch, RawSignature, SecretKey as SecretKeyBytes, GENESIS_EPOCH, SECOND, VALIDATOR_THRESHOLD,
-};
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
-use std::fmt;
 
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt,
+};
+
+use bulldag::{
+    graph::BullDag,
+    index::Index,
+    vertex::{Direction, Vertex},
+};
+use primitives::{
+    types::SecretKey as SecretKeyBytes,
+    Epoch,
+    RawSignature,
+    GENESIS_EPOCH,
+    SECOND,
+    VALIDATOR_THRESHOLD,
+};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 
 use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use serde::{Deserialize, Serialize};
+use sha256::digest;
+use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable, claim::Claim, keypair::KeyPair, txn::Txn, verifiable::Verifiable,
+    accountable::Accountable,
+    claim::Claim,
+    keypair::KeyPair,
+    txn::Txn,
+    verifiable::Verifiable,
 };
 
 use bulldag::{
@@ -80,7 +103,6 @@ impl GenesisBlock {
     pub fn mine_genesis(
         claim: Claim,
         secret_key: SecretKeyBytes,
-        miner_pubkey: String,
         claim_list: ClaimList,
     ) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
@@ -252,6 +274,7 @@ impl ConvergenceBlock {
             certificate: None,
         }
     }
+
 
     // TODO: Check that conflicts with previous convergence block are removed
     // and there is no winner in current round.

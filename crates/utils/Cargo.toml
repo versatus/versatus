@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 secp256k1 = { version = "0.25.0", features = ["rand", "bitcoin-hashes"] }
 sha256 = "1.0.2"
+chrono = "0.4.23"

@@ -1,5 +1,8 @@
-use secp256k1::hashes::{sha256 as s256, Hash};
-use secp256k1::Message;
+#![allow(unused_imports)]
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use sha256::digest;
 
 #[macro_export]

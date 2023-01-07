@@ -1,15 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use crate::{
-    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
-    mining_module,
-    result::{NodeError, Result},
-    validator_module, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
-};
-
 use network::network::BroadcastEngine;
 use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
-
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
@@ -29,6 +21,18 @@ use vrrb_core::{
 use vrrb_rpc::{
     http::HttpApiServerConfig,
     rpc::{JsonRpcServer, JsonRpcServerConfig},
+};
+
+use crate::{
+    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    mining_module,
+    result::{NodeError, Result},
+    validator_module,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
+    StateModuleConfig,
 };
 
 const NUMBER_OF_NETWORK_PACKETS: usize = 32;
@@ -130,8 +134,8 @@ impl Node {
     }
 
     pub async fn wait(mut self) -> anyhow::Result<()> {
-        // TODO: notify bootstrap nodes that this node is joining the network so they can add it to
-        // their peer list
+        // TODO: notify bootstrap nodes that this node is joining the network so they
+        // can add it to their peer list
 
         self.running_status = RuntimeModuleState::Running;
 

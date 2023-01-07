@@ -1,10 +1,9 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, result::Result as StdResult};
 
 use async_trait::async_trait;
 use state::{state::NetworkState, NodeState};
-use std::result::Result as StdResult;
 use telemetry::info;
-use tokio::sync::{broadcast::error::TryRecvError, broadcast::Receiver};
+use tokio::sync::broadcast::{error::TryRecvError, Receiver};
 use validator::validator_unit::ValidatorUnit;
 use vrrb_core::event_router::{Event, Topic};
 

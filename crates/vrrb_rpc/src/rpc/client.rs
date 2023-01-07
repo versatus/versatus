@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 
+use jsonrpsee::{core::client::Client, ws_client::WsClientBuilder};
+
 use crate::ApiError;
-use jsonrpsee::core::client::Client;
-use jsonrpsee::ws_client::WsClientBuilder;
 
 pub async fn create_client(server_url: SocketAddr) -> crate::Result<Client> {
     let jsonrpc_url = format!("ws://{}", server_url);
