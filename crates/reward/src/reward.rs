@@ -127,6 +127,18 @@ impl Reward {
     }
 }
 
+impl Default for Reward {
+    fn default() -> Reward {
+        Reward {
+            current_block: 0,
+            epoch: 0,
+            next_epoch_block: NUMBER_OF_BLOCKS_PER_EPOCH,
+            miner: None,
+            amount: BASELINE_REWARD,
+        }
+    }
+}
+
 impl Accountable for Reward {
     type Category = String;
 
