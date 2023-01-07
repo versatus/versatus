@@ -288,12 +288,33 @@ impl LeftRightMempool {
     /// Was the Txn validated ? And when ?
     // TODO: rethink validated txn storage
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        match self.get(&txn.digest()) {
-            Some(found) if matches!(found.status, TxnStatus::Validated) => {
-                Ok(found.validated_timestamp)
-            },
-            _ => Err(MempoolError::TransactionNotFound(txn.digest())),
+        // if let Some(txn_record_validated) =
+        // self.get_txn_record_validated(&txn.txn_id) {
+        if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.digest()) {
+            Ok(txn_record_validated.txn_validated_timestamp)
+        } else {
+            Err(MempoolError::TransactionMissing)
         }
+    }
+
+    /// Was the Txn rejected ? And when ?
+    pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<TxTimestamp> {
+        // if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id)
+        // {
+        if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.digest()) {
+            Ok(txn_record_rejected.txn_rejected_timestamp)
+        } else {
+            Err(MempoolError::TransactionMissing)
+        }
+    }
+
+    /// Purge rejected transactions.
+    pub fn purge_txn_rejected(&mut self) -> Result<()> {
+        if let Some(mut map) = self.get() {
+            map.rejected.clear()
+        }
+
+        Ok(())
     }
 
     /// Retrieves actual size of the mempooldb.

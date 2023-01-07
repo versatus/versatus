@@ -249,6 +249,7 @@ impl<'a> StateDb<'a> {
             } else {
                 // TODO: implement an update method on underlying lr trie
                 self.trie.insert(k.to_owned(), final_account);
+                self.trie.insert(k, final_account);
             };
         });
 

@@ -29,3 +29,4 @@ sha2 = "0.10.2"
 chrono = "0.4.23"
 async-trait = "0.1.58"
 theater = { git = "https://github.com/vrrb-io/theater" }
+utils = { path = "../utils" }

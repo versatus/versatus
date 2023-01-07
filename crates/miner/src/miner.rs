@@ -10,8 +10,7 @@ use std::{
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
-use block::{block::Block, invalid::InvalidBlockError, MineArgs};
-use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
+use block::{block::Block, GenesisBlock, MineArgs};
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
@@ -209,16 +208,17 @@ impl Miner {
             return None;
         }
         self.claim_map
-            .insert(self.claim.pubkey.clone(), self.claim.clone());
-
-        let genesis_block = Block::genesis(self.claim.clone(), self.secret_key.clone(), None);
-
-        return Some(genesis_block);
+            .insert(self.claim.public_key.clone(), self.claim.clone());
+        GenesisBlock::mine_genesis(
+            self.claim.clone(),
+            self.secret_key.clone().as_bytes().to_vec(),
+            None,
+        )
     }
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Result<(Option<Block>, i128), InvalidBlockErrorReason>) {
+    pub fn mine(&mut self, next_epoch_adjustment: i128) -> (Option<Block>, i128) {
         if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
             let claim_map_hash = digest(claim_map_str.as_bytes());
             if let Some(last_block) = self.last_block.clone() {
@@ -227,14 +227,13 @@ impl Miner {
                     last_block,
                     txns: self.clone().txn_pool.confirmed,
                     claims: self.clone().claim_pool.confirmed,
-
-                    claim_map_hash: Some(claim_map_hash),
+                    claim_list_hash: Some(claim_map_hash),
                     reward: &mut self.clone().reward,
-                    network_state: &self.clone().network_state,
-                    neighbors: self.clone().neighbors,
                     abandoned_claim: self.abandoned_claim.clone(),
                     secret_key: self.secret_key.as_bytes().to_vec(),
                     epoch: self.epoch,
+                    round: last_block.round + 1,
+                    next_epoch_adjustment,
                 };
 
                 return Block::mine(mine_args);
