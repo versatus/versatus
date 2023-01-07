@@ -6,7 +6,6 @@ pub mod component;
 pub mod event_router;
 pub mod handler;
 pub mod keypair;
-pub mod handler;
 pub mod ledger;
 pub mod nonceable;
 pub mod ownable;

@@ -6,7 +6,9 @@ use std::{
 };
 
 use hbbft::crypto::{
-    serde_impl::SerdeSecret, PublicKey as Validator_Pk, SecretKey as Validator_Sk,
+    serde_impl::SerdeSecret,
+    PublicKey as Validator_Pk,
+    SecretKey as Validator_Sk,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};

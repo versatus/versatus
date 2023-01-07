@@ -30,11 +30,7 @@ pub struct Claim {
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(
-        public_key: String, 
-        address: String, 
-        claim_nonce: u128
-    ) -> Claim {
+    pub fn new(public_key: String, address: String, claim_nonce: u128) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
         let iters = if let Some(n) = claim_nonce.checked_mul(10) {

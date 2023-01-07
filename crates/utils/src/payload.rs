@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
-use secp256k1::Message;
-use secp256k1::hashes::{sha256 as s256, Hash};
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use sha256::digest;
 
 #[macro_export]
@@ -19,7 +21,7 @@ macro_rules! create_payload {
 #[macro_export]
 macro_rules! hash_data {
     ($($x:expr),*) => {{
-        
+
         let mut payload = String::new();
 
         $(

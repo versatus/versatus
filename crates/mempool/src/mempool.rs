@@ -540,7 +540,8 @@ impl LeftRightMemPoolDB {
 
     /// Was the Txn validated ? And when ?
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        // if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
+        // if let Some(txn_record_validated) =
+        // self.get_txn_record_validated(&txn.txn_id) {
         if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.digest()) {
             Ok(txn_record_validated.txn_validated_timestamp)
         } else {
@@ -550,7 +551,8 @@ impl LeftRightMemPoolDB {
 
     /// Was the Txn rejected ? And when ?
     pub fn is_txn_rejected(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        // if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id) {
+        // if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.txn_id)
+        // {
         if let Some(txn_record_rejected) = self.get_txn_record_rejected(&txn.digest()) {
             Ok(txn_record_rejected.txn_rejected_timestamp)
         } else {

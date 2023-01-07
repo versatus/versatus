@@ -1,5 +1,4 @@
-use secp256k1::rand::rngs::OsRng;
-use secp256k1::Secp256k1;
+use secp256k1::{rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default)]

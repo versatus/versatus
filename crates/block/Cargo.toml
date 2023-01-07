@@ -20,9 +20,10 @@ hex = "*"
 thiserror = "1.0"
 ritelinked = { version = "0.3.2", features = ['serde'] }
 reward = { path = "../reward" }
-# state = { path = "../state" }
 primitives = { path = "../primitives" }
 vrrb_core = { path = "../vrrb_core" }
 telemetry = { path = "../telemetry" }
 utils = { path = "../utils" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
+sha2 = "0.10.6"
+chrono = "0.4.23"

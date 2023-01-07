@@ -134,7 +134,7 @@ impl Default for Reward {
             epoch: 0,
             next_epoch_block: NUMBER_OF_BLOCKS_PER_EPOCH,
             miner: None,
-            amount: BASELINE_REWARD
+            amount: BASELINE_REWARD,
         }
     }
 }

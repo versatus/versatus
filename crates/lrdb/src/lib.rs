@@ -3,17 +3,20 @@ pub mod result;
 mod state_db;
 mod txn_db;
 
-pub use crate::lrdb::*;
 pub use state_db::*;
 pub use txn_db::*;
+
+pub use crate::lrdb::*;
 
 #[cfg(test)]
 mod tests {
 
     use std::thread;
-    use vrrb_core::account::Account;
-    use vrrb_core::keypair::{KeyPair, PublicKeys};
 
+    use vrrb_core::{
+        account::Account,
+        keypair::{KeyPair, PublicKeys},
+    };
     // fn new_random_keys(n: usize) -> Vec<PublicKeys> {
     //     let mut res: Vec<PublicKeys> = vec![];
     //     for _ in 0..n {
@@ -204,8 +207,8 @@ mod tests {
     //         (keys[3], record3),
     //     ]);
     //
-    //     let filtered = vdb.retain(|acc| acc.credits >= 300 && acc.credits < 500);
-    //     // filtered.r.handle().for_each(|key, value| {
+    //     let filtered = vdb.retain(|acc| acc.credits >= 300 && acc.credits <
+    // 500);     // filtered.r.handle().for_each(|key, value| {
     //     //     let account = *value[0].clone();
     //     //     assert_eq!(*key, keys[2]);
     //     //     assert_eq!(account, record2);
@@ -512,10 +515,10 @@ mod tests {
     //             if let Err(e) = vdb.insert(keys[i], Account::new()) {
     //                 panic!("{:?}", e);
     //             };
-    //             println!("{:?} {}", vdb.read_handle().get(keys[i]), vdb.len());
-    //             print!(
-    //                 "\nWrite at: {:?}\n Added account: {:?} \n Accounts in db: {}",
-    //                 vdb.last_refresh(),
+    //             println!("{:?} {}", vdb.read_handle().get(keys[i]),
+    // vdb.len());             print!(
+    //                 "\nWrite at: {:?}\n Added account: {:?} \n Accounts in
+    // db: {}",                 vdb.last_refresh(),
     //                 vdb.read_handle().get(keys[i]),
     //                 vdb.len()
     //             );
