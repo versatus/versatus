@@ -1,17 +1,18 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::HashMap};
 
 use primitives::{AccountKeypair, PublicKey, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{Error, Result};
+use crate::{Error, Result, token::Token};
 
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum AccountField {
-    Credits(u128),
-    Debits(u128),
+    //address, token contract addr, balance update
+    Token((String, String, i128)),
+    Addresses(HashMap<String, HashMap<String, Token>>),
     Storage(Option<String>),
     Code(Option<String>),
 }
@@ -20,25 +21,24 @@ pub enum AccountField {
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct UpdateArgs {
     pub nonce: u32,
-    pub credits: Option<u128>,
-    pub debits: Option<u128>,
+    pub addresses: Option<HashMap<String, HashMap<String, Token>>>,
     pub storage: Option<Option<String>>,
     pub code: Option<Option<String>>,
 }
 
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
 // be properly scheduled.
-impl Ord for UpdateArgs {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.nonce.cmp(&other.nonce)
-    }
-}
+//impl Ord for UpdateArgs {
+//    fn cmp(&self, other: &Self) -> Ordering {
+//        self.nonce.cmp(&other.nonce)
+//   }
+//}
 
-impl PartialOrd for UpdateArgs {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
+//impl PartialOrd for UpdateArgs {
+//    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+//        Some(self.cmp(other))
+//    }
+//}
 
 pub type AccountNonce = u32;
 
@@ -46,38 +46,36 @@ pub type AccountNonce = u32;
 pub struct Account {
     pub hash: String,
     pub nonce: AccountNonce,
-    pub credits: u128,
-    pub debits: u128,
     pub storage: Option<String>,
     pub code: Option<String>,
+    pub addresses: HashMap<String, HashMap<String, Token>>,
     pub pubkey: SerializedPublicKey,
 }
 
 impl Account {
     /// Returns new, empty account.
-    pub fn new(pubkey: secp256k1::PublicKey) -> Account {
+    pub fn new(pubkey: secp256k1::PublicKey, address: String) -> Account {
         let nonce = 0u32;
-        let credits = 0u128;
-        let debits = 0u128;
         let storage = None;
         let code = None;
 
         let mut hasher = Sha256::new();
         hasher.update(nonce.to_be_bytes());
-        hasher.update(credits.to_be_bytes());
-        hasher.update(debits.to_be_bytes());
 
         let hash = format!("{:x}", hasher.finalize());
 
         let pubkey = pubkey.serialize().to_vec();
+        let tokens = HashMap<String, Token>::new();
+        let addresses = HashMap<String, tokens>::new();
+        addresses.insert(address, tokens);
+
 
         Account {
             hash,
             nonce,
-            credits,
-            debits,
             storage,
             code,
+            addresses,
             pubkey,
         }
     }
@@ -86,8 +84,9 @@ impl Account {
     fn rehash(&mut self) {
         let mut hasher = Sha256::new();
         hasher.update(self.nonce.to_be_bytes());
-        hasher.update(self.credits.to_be_bytes());
-        hasher.update(self.debits.to_be_bytes());
+        //hash vrrb balance exclusively and add to hasher
+        //first token stored is vrrb token, first address stored is account address; "main" address
+        hasher.update(self.addresses["first"]["vrrb"].available_balance.to_be_bytes());
 
         if let Some(storage) = &self.storage {
             hasher.update(storage.as_bytes());
@@ -117,21 +116,15 @@ impl Account {
     /// calculations. Returns error if update fails.
     fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<()> {
         match value {
-            AccountField::Credits(credits) => match self.credits.checked_add(credits) {
-                Some(new_amount) => self.credits = new_amount,
-                None => return Err(Error::Other(format!("failed to update {value:?}"))),
+            AccountField::Token(token) => 
+                if self.addresses.contains_key(&token.0) && self.addresses[&token.0].contains_key(&token.1){
+                    self.addresses[&token.0][&token.1].update_balance(token.2);
+                } else {
+                 return Err(Error::Other(format!("failed to update {value:?}")))
+                }
+            AccountField::Addresses(addresses) => {
+                self.addresses = addresses;
             },
-            AccountField::Debits(debits) => match self.debits.checked_add(debits) {
-                Some(new_amount) => {
-                    if self.credits >= new_amount {
-                        self.debits = new_amount
-                    } else {
-                        return Err(Error::Other(format!("failed to update {value:?}")));
-                    }
-                },
-                None => return Err(Error::Other(format!("failed to update {value:?}"))),
-            },
-
             // Should the storage be impossible to delete?
             AccountField::Storage(storage) => {
                 self.storage = storage;
@@ -170,11 +163,8 @@ impl Account {
                 args.nonce, self.nonce
             )));
         }
-        if let Some(credits_update) = args.credits {
-            self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
-        }
-        if let Some(debits_update) = args.debits {
-            self.update_single_field_no_hash(AccountField::Debits(debits_update))?;
+        if let Some(addresses_update) = args.addresses {
+            self.update_single_field_no_hash(AccountField::Addresses(addresses_update))?;
         }
         if let Some(code_update) = args.code {
             self.update_single_field_no_hash(AccountField::Code(code_update))?;
@@ -202,9 +192,7 @@ mod tests {
     #[test]
     fn should_create_account() {
         let (_, pk) = generate_account_keypair();
-
         let account = Account::new(pk);
-
         assert_eq!(account.nonce, 0);
     }
 }

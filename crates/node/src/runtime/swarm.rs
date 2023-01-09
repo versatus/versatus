@@ -35,7 +35,7 @@ use udp2p::{
     utils::utils::ByteRep,
 };
 use vrrb_core::event_router::Event;
-use wallet::wallet::WalletAccount;
+use wallet::wallet::Wallet;
 
 use crate::{result::Result, RuntimeModule, RuntimeModuleState};
 

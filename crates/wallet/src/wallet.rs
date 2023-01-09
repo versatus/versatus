@@ -26,25 +26,23 @@ use vrrb_core::{
 
 const STARTING_BALANCE: u128 = 1000;
 
-/// The WalletAccount struct is the user/node wallet in which coins, tokens and
-/// contracts are held. The WalletAccount has a private/public keypair
+/// The Wallet struct is the user/node wallet in which coins, tokens and
+/// contracts are held. The Wallet has a private/public keypair
 /// phrase are used to restore the Wallet. The private key is
 /// also used to sign transactions, claims and mined blocks for network
 /// validation. Private key signatures can be verified with the wallet's public
 /// key, the message that was signed and the signature.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WalletAccount {
+pub struct Wallet{
     secret_key: Vec<u8>,
     welcome_message: String,
     pub public_key: Vec<u8>,
-    pub addresses: LinkedHashMap<u32, String>,
-    pub total_balances: LinkedHashMap<String, LinkedHashMap<String, u128>>,
-    pub available_balances: LinkedHashMap<String, LinkedHashMap<String, u128>>,
-    pub claims: LinkedHashMap<u128, Claim>,
+    pub account: Account,
+    pub claim: Claim,
     pub nonce: u128,
 }
 
-impl Default for WalletAccount {
+impl Default for Wallet {
     fn default() -> Self {
         let kp = KeyPair::random();
         let secret_key = kp.get_miner_secret_key();
@@ -68,29 +66,25 @@ impl Default for WalletAccount {
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address_prefix,
         );
 
-        let mut addresses = LinkedHashMap::new();
-        addresses.insert(1, address_prefix.clone());
+        //addrs need to be added to Account struct
+    
 
-        let mut total_balances = LinkedHashMap::new();
-        let mut vrrb_balances = LinkedHashMap::new();
-        vrrb_balances.insert("VRRB".to_string(), STARTING_BALANCE);
-        total_balances.insert(address_prefix.clone(), vrrb_balances);
+        let account = Account::new(public_key, address_prefix);
 
+    
         // Generate a wallet struct by assigning the variables to the fields.
         Self {
             secret_key: secret_key.secret_bytes().to_vec(),
             welcome_message,
             public_key: public_key.serialize().to_vec(),
-            addresses,
-            total_balances: total_balances.clone(),
-            available_balances: total_balances,
-            claims: LinkedHashMap::new(),
+            account,
+            claim: Claim::new(public_key, address_prefix, 0),
             nonce: 0,
         }
     }
 }
 
-impl WalletAccount {
+impl Wallet {
     /// Initiate a new wallet.
     pub fn new() -> Self {
         Self::default()
@@ -103,7 +97,7 @@ impl WalletAccount {
     pub fn restore_from_private_key(private_key: String) -> Self {
         let secretkey = SecretKey::from_str(&private_key).unwrap();
         let pubkey = vrrb_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
-        let mut wallet = WalletAccount {
+        let mut wallet = Wallet {
             secret_key: secretkey.secret_bytes().to_vec(),
             welcome_message: String::new(),
             public_key: pubkey.serialize().to_vec(),
@@ -313,15 +307,15 @@ impl WalletAccount {
     }
 
     /// Deserializes a wallet from a byte array
-    pub fn from_bytes(data: &[u8]) -> WalletAccount {
+    pub fn from_bytes(data: &[u8]) -> Wallet {
         let mut buffer: Vec<u8> = vec![];
         data.iter().for_each(|x| buffer.push(*x));
         let to_string = String::from_utf8(buffer).unwrap();
-        serde_json::from_str::<WalletAccount>(&to_string).unwrap()
+        serde_json::from_str::<Wallet>(&to_string).unwrap()
     }
 }
 
-impl fmt::Display for WalletAccount {
+impl fmt::Display for Wallet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -338,9 +332,9 @@ impl fmt::Display for WalletAccount {
     }
 }
 
-impl Clone for WalletAccount {
-    fn clone(&self) -> WalletAccount {
-        WalletAccount {
+impl Clone for Wallet {
+    fn clone(&self) -> Wallet {
+        Wallet {
             secret_key: self.secret_key.clone(),
             welcome_message: self.welcome_message.clone(),
             public_key: self.public_key.clone(),
