@@ -1,5 +1,4 @@
 pub mod error;
-// pub mod ev_mempool;
 pub mod mempool;
 
 // #[cfg(test)]
