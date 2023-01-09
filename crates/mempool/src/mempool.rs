@@ -8,7 +8,7 @@ use std::{
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use primitives::{TxHash, TxHashString};
+use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
 use vrrb_core::txn::{TxTimestamp, Txn};
 
@@ -32,13 +32,14 @@ pub struct TxnRecord {
 
 impl TxnRecord {
     pub fn new(txn: Txn) -> TxnRecord {
-        let timestamp = chrono::offset::Utc::now().timestamp();
+        let added_timestamp = chrono::offset::Utc::now().timestamp();
+        let timestamp = txn.timestamp;
 
         TxnRecord {
             txn_id: txn.digest(),
             txn,
-            timestamp: txn.timestamp,
-            added_timestamp: timestamp,
+            timestamp,
+            added_timestamp,
             ..Default::default()
         }
     }
@@ -104,19 +105,20 @@ impl Absorb<MempoolOp> for Mempool {
 }
 
 pub trait FetchFiltered {
-    fn fetch_pending<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
+    fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
     where
         F: FnMut(&String, &mut TxnRecord) -> bool;
 }
 
 impl FetchFiltered for ReadHandle<Mempool> {
-    fn fetch_pending<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
+    fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
     where
         F: FnMut(&String, &mut TxnRecord) -> bool,
     {
         if let Some(map) = self.enter().map(|guard| guard.clone()) {
-            let mut result = map.pending;
+            let mut result = map.pool;
             result.retain(f);
+
             let mut returned = Vec::<TxnRecord>::new();
             for (_, v) in &result {
                 returned.push(v.clone());
@@ -175,11 +177,6 @@ impl LeftRightMempoolDB {
         self.insert(txn)
     }
 
-    // TODO: refactor mempool to
-    // adapt to the new op type
-    // filter by txn status
-    // pass tests
-
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
         let mut txn_record = TxnRecord::new(txn);
 
@@ -207,38 +204,6 @@ impl LeftRightMempoolDB {
 
     /// Adds a batch of new transaction, makes sure that each is unique in db.
     /// Pushes to ReadHandle after processing of the entire batch.
-    ///
-    /// # Examples
-    /// ```
-    /// use std::collections::{HashMap, HashSet};
-    ///
-    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
-    /// let keypair = KeyPair::random();
-    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    ///
-    /// txns.insert(Txn {
-    ///     txn_id: String::from("1"),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
-    ///
-    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///     Ok(_) => {},
-    ///     Err(_) => {},
-    /// };
-    ///
-    /// assert_eq!(1, lrmempooldb.size().0);
-    /// ```
     pub fn add_txn_batch(&mut self, txn_batch: HashSet<Txn>, txns_status: TxnStatus) -> Result<()> {
         self.extend(txn_batch)
     }
@@ -252,47 +217,17 @@ impl LeftRightMempoolDB {
         Ok(())
     }
 
+    pub fn extend_with_records(&mut self, record_batch: HashSet<TxnRecord>) -> Result<()> {
+        record_batch.into_iter().for_each(|t| {
+            self.write.append(MempoolOp::Add(t));
+        });
+
+        self.publish();
+        Ok(())
+    }
+
     /// Removes a single transaction identified by id, makes sure it exists in
     /// db. Pushes to the ReadHandle.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::{HashMap, HashSet};
-    ///
-    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
-    /// let keypair = KeyPair::random();
-    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
-    ///
-    /// txns.insert(Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
-    ///
-    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///     Ok(_) => {},
-    ///     Err(_) => {},
-    /// };
-    ///
-    /// match lrmempooldb.remove_txn_by_id(txn_id.clone()) {
-    ///     Ok(_) => {},
-    ///     Err(_) => {},
-    /// };
-    ///
-    /// assert_eq!(0, lrmempooldb.size().0);
-    /// ```
     #[deprecated]
     pub fn remove_txn_by_id(&mut self, txn_hash: TxHashString) -> Result<()> {
         self.remove(&txn_hash)
@@ -300,43 +235,7 @@ impl LeftRightMempoolDB {
 
     /// Removes a single transaction identified by itself, makes sure it exists
     /// in db. Pushes to the ReadHandle.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::{HashMap, HashSet};
-    ///
-    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::{keypair::KeyPair, txn::Txn};
-    /// let keypair = KeyPair::random();
-    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let txn_id = String::from("1");
-    ///
-    /// let txn = Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// };
-    ///
-    /// match lrmempooldb.add_txn(&txn, TxnStatus::Pending) {
-    ///     Ok(_) => {},
-    ///     Err(_) => {},
-    /// };
-    /// match lrmempooldb.remove_txn(&txn, TxnStatus::Pending) {
-    ///     Ok(_) => {},
-    ///     Err(_) => {},
-    /// };
-    ///
-    /// assert_eq!(0, lrmempooldb.size().0);
-    /// ```
+    #[deprecated]
     pub fn remove_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
         self.remove(&txn.digest())
     }
@@ -365,50 +264,17 @@ impl LeftRightMempoolDB {
     }
 
     /// Was the Txn validated ? And when ?
+    // TODO: rethink validated txn storage
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        // if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.txn_id) {
-        if let Some(txn_record_validated) = self.get_txn_record_validated(&txn.digest()) {
-            Ok(txn_record_validated.txn_validated_timestamp)
-        } else {
-            Err(MempoolError::TransactionMissing)
+        match self.get(&txn.digest()) {
+            Some(found) if matches!(found.status, TxnStatus::Validated) => {
+                Ok(found.validated_timestamp)
+            },
+            _ => Err(MempoolError::TransactionNotFound(txn.digest())),
         }
     }
 
     /// Retrieves actual size of the mempooldb.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::collections::{HashMap, HashSet};
-    ///
-    /// use mempool::mempool::{LeftRightMemPoolDB, TxnStatus};
-    /// use vrrb_core::txn::Txn;
-    /// let keypair = vrrb_core::keypair::KeyPair::random();
-    /// let mut lrmempooldb = LeftRightMemPoolDB::new();
-    /// let mut txns = HashSet::<Txn>::new();
-    /// let txn_id = String::from("1");
-    ///
-    /// txns.insert(Txn {
-    ///     txn_id: txn_id.clone(),
-    ///     txn_timestamp: 0,
-    ///     sender_address: String::from("aaa1"),
-    ///     sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
-    ///     receiver_address: String::from("bbb1"),
-    ///     txn_token: None,
-    ///     txn_amount: 0,
-    ///     txn_payload: String::from("x"),
-    ///     txn_signature: String::from("x"),
-    ///     validators: HashMap::<String, bool>::new(),
-    ///     nonce: 0,
-    /// });
-    ///
-    /// match lrmempooldb.add_txn_batch(&txns, TxnStatus::Pending) {
-    ///     Ok(_) => {},
-    ///     Err(_) => {},
-    /// };
-    ///
-    /// assert_eq!(1, lrmempooldb.size().0);
-    /// ```
     pub fn size(&self) -> usize {
         self.pool().len()
     }
@@ -419,28 +285,14 @@ impl LeftRightMempoolDB {
     }
 }
 
-impl From<Mempool> for LeftRightMempoolDB {
-    fn from(pool: Mempool) -> Self {
+impl From<PoolType> for LeftRightMempoolDB {
+    fn from(pool: PoolType) -> Self {
         let (write, read) = left_right::new::<Mempool, MempoolOp>();
-        let mut mempool_db = Self {
-            // read: self.read.clone(),
-            read,
-            write,
-        };
+        let mut mempool_db = Self { read, write };
 
-        let pending_values = pool.pending.values();
-        let rejected_values = pool.rejected.values();
-        let validated_values = pool.validated.values();
+        let records = pool.values().cloned().collect::<HashSet<TxnRecord>>();
 
-        let pending_set = pending_values
-            .map(|(_, v)| v)
-            .collect::<HashSet<TxnRecord>>();
-
-        // let pending_set = HashSet::from(pool.pending.values());
-        let rejected_set = HashSet::from(pool.rejected.values());
-        let validated_set = HashSet::from(pool.validated.values());
-
-        mempool_db.add_txn_batch(pending_set);
+        mempool_db.extend_with_records(records).unwrap_or_default();
 
         mempool_db
     }
@@ -448,6 +300,6 @@ impl From<Mempool> for LeftRightMempoolDB {
 
 impl Clone for LeftRightMempoolDB {
     fn clone(&self) -> Self {
-        Self::from(self.mempool())
+        Self::from(self.pool())
     }
 }
