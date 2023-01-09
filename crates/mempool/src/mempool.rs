@@ -76,6 +76,16 @@ impl Default for Mempool {
     }
 }
 
+impl Mempool {
+    pub fn len(&self) -> usize {
+        self.pool.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pool.is_empty()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolOp {
     Add(TxnRecord),
@@ -126,20 +136,20 @@ impl FetchFiltered for ReadHandle<Mempool> {
 }
 
 #[derive(Debug)]
-pub struct LeftRightMempoolDB {
+pub struct LeftRightMempool {
     pub read: ReadHandle<Mempool>,
     pub write: WriteHandle<Mempool, MempoolOp>,
 }
 
-impl Default for LeftRightMempoolDB {
+impl Default for LeftRightMempool {
     fn default() -> Self {
         let (write, read) = left_right::new::<Mempool, MempoolOp>();
 
-        LeftRightMempoolDB { read, write }
+        LeftRightMempool { read, write }
     }
 }
 
-impl LeftRightMempoolDB {
+impl LeftRightMempool {
     /// Creates new Mempool DB
     pub fn new() -> Self {
         Self::default()
@@ -168,8 +178,9 @@ impl LeftRightMempoolDB {
 
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
-    pub fn add_txn(&mut self, txn: Txn, status: TxnStatus) -> Result<()> {
-        self.insert(txn)
+    #[deprecated(note = "use Self::insert instead")]
+    pub fn add_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+        self.insert(txn.to_owned())
     }
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
@@ -199,8 +210,13 @@ impl LeftRightMempoolDB {
 
     /// Adds a batch of new transaction, makes sure that each is unique in db.
     /// Pushes to ReadHandle after processing of the entire batch.
-    pub fn add_txn_batch(&mut self, txn_batch: HashSet<Txn>, txns_status: TxnStatus) -> Result<()> {
-        self.extend(txn_batch)
+    #[deprecated(note = "use extend instead")]
+    pub fn add_txn_batch(
+        &mut self,
+        txn_batch: &HashSet<Txn>,
+        txns_status: TxnStatus,
+    ) -> Result<()> {
+        self.extend(txn_batch.clone())
     }
 
     pub fn extend(&mut self, txn_batch: HashSet<Txn>) -> Result<()> {
@@ -244,13 +260,24 @@ impl LeftRightMempoolDB {
 
     /// Removes a batch of transactions, makes sure that each is unique in db.
     /// Pushes to ReadHandle after processing of the entire batch.
+    #[deprecated]
     pub fn remove_txn_batch(
         &mut self,
-        txn_batch: HashSet<TxHashString>,
+        txn_batch: &HashSet<Txn>,
         txns_status: TxnStatus,
     ) -> Result<()> {
-        txn_batch.into_iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t));
+        txn_batch.iter().for_each(|t| {
+            self.write.append(MempoolOp::Remove(t.digest()));
+        });
+
+        self.publish();
+
+        Ok(())
+    }
+
+    pub fn remove_txns(&mut self, txn_batch: &HashSet<TxHashString>) -> Result<()> {
+        txn_batch.iter().for_each(|t| {
+            self.write.append(MempoolOp::Remove(t.to_string()));
         });
 
         self.publish();
@@ -280,7 +307,7 @@ impl LeftRightMempoolDB {
     }
 }
 
-impl From<PoolType> for LeftRightMempoolDB {
+impl From<PoolType> for LeftRightMempool {
     fn from(pool: PoolType) -> Self {
         let (write, read) = left_right::new::<Mempool, MempoolOp>();
         let mut mempool_db = Self { read, write };
@@ -293,7 +320,7 @@ impl From<PoolType> for LeftRightMempoolDB {
     }
 }
 
-impl Clone for LeftRightMempoolDB {
+impl Clone for LeftRightMempool {
     fn clone(&self) -> Self {
         Self::from(self.pool())
     }
