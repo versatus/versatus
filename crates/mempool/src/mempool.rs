@@ -1,9 +1,4 @@
-use std::{
-    collections::HashSet,
-    hash::Hash,
-    result::Result as StdResult,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashSet, hash::Hash, result::Result as StdResult};
 
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
