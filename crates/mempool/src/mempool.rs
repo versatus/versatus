@@ -94,6 +94,8 @@ pub enum MempoolOp {
 
 impl Absorb<MempoolOp> for Mempool {
     fn absorb_first(&mut self, op: &mut MempoolOp, _: &Self) {
+        let txn_id = "9b6219bfefb10b913b3e0022f704f0fa0354a278ebf531889f9eb323bc699084".to_string();
+
         match op {
             MempoolOp::Add(record) => {
                 self.pool.insert(record.txn_id.clone(), record.clone());
