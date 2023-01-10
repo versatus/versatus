@@ -234,7 +234,7 @@ impl Miner {
                     secret_key: self.secret_key.as_bytes().to_vec(),
                     epoch: self.epoch,
                     round: last_block.round + 1,
-                    next_epoch_adjustment 
+                    next_epoch_adjustment,
                 };
 
                 return Block::mine(mine_args);
