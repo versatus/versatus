@@ -11,4 +11,10 @@ pub type Result<T> = std::result::Result<T, ApiError>;
 pub enum ApiError {
     #[error("jsonrpsee error: {0}")]
     JsonRpseeError(#[from] RpseeError),
+
+    #[error("invalid address provided: {0}")]
+    InvalidAddr(SocketAddr),
+
+    #[error("{0}")]
+    Other(String),
 }

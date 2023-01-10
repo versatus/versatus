@@ -39,7 +39,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -73,7 +73,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -116,7 +116,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let txn2 = Txn::new(NewTxnArgs {
@@ -128,7 +128,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -169,7 +169,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let txn_id = txn.digest();
@@ -234,7 +234,7 @@ mod tests {
                 payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: Some(vec![]),
+                signature: vec![],
             });
 
             txns.insert(txn);
@@ -290,7 +290,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let txn2 = Txn::new(NewTxnArgs {
@@ -302,7 +302,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let txn2_id = txn2.digest();
@@ -354,7 +354,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let txn2 = Txn::new(NewTxnArgs {
@@ -366,7 +366,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: Some(vec![]),
+            signature: vec![],
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -424,7 +424,7 @@ mod tests {
                 payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: Some(vec![]),
+                signature: vec![],
             });
 
             txns.insert(txn);
@@ -475,7 +475,7 @@ mod tests {
                 payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: Some(vec![]),
+                signature: vec![],
             });
 
             txns.insert(txn);

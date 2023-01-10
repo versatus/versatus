@@ -1,5 +1,4 @@
 // FEATURE TAG(S): Block Structure, Rewards
-#![allow(unused_imports)]
 use std::{
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,

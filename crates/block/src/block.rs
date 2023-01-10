@@ -1,6 +1,5 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
-#![allow(unused_imports)]
 
 use std::{
     cmp::Ordering,

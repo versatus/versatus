@@ -77,7 +77,7 @@ pub struct NewTxnArgs {
     pub token: Option<TxToken>,
     pub amount: TxAmount,
     pub payload: Option<TxPayload>,
-    pub signature: Option<TxSignature>,
+    pub signature: TxSignature,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
 }
@@ -96,7 +96,7 @@ impl Txn {
             token: args.token,
             amount: args.amount,
             payload: args.payload,
-            signature: args.signature,
+            signature: Some(args.signature),
             validators: args.validators,
             nonce: args.nonce,
         }

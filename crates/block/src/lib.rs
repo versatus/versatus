@@ -5,7 +5,6 @@ pub mod invalid;
 pub use crate::block::*;
 
 pub(crate) mod helpers {
-    #![allow(unused)]
     use bulldag::{
         edge::Edge,
         graph::BullDag,
@@ -70,7 +69,7 @@ pub(crate) mod helpers {
                     token,
                     amount,
                     payload: None,
-                    signature: None,
+                    signature: vec![],
                     validators: None,
                     nonce: n.clone() as u128,
                 };
