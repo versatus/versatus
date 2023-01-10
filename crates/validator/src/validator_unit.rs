@@ -124,15 +124,15 @@ impl Core {
         // that channel                 match control_receiver.recv() {
         //                     Ok(msg) => match msg {
         //                         CoreControlMsg::Stop => state =
-        // CoreState::Inactive,                         
-        // CoreControlMsg::NewToProcess(amount) => {                    
-        // state = CoreState::Processing(amount)                        
+        // CoreState::Inactive,
+        // CoreControlMsg::NewToProcess(amount) => {
+        // state = CoreState::Processing(amount)
         // },                         _ => {
         //                             // Propagating the error to core error
         // receiver                             send_core_err_msg(
         //                                 id,
         //                                 &error_sender,
-        //                                 
+        //
         // CoreError::InvalidMsgForCurrentState(msg, state.clone()),
         //                             );
         //                             // Any error in core will result in it
@@ -147,11 +147,11 @@ impl Core {
         //                         // That though means, that it'd be moved out
         // of the ValidatorUnit                         // struct,
         // meaning that the whole                         // validator
-        // unit has been dropped                         
+        // unit has been dropped
         // send_core_err_msg(                             id,
         //                             &error_sender,
-        //                             
-        // CoreError::FailedToReadFromControlChannel(err),              
+        //
+        // CoreError::FailedToReadFromControlChannel(err),
         // );                         // Error = State::Inactive
         //                         state = CoreState::Inactive
         //                     },
@@ -167,7 +167,7 @@ impl Core {
         //                             send_core_err_msg(
         //                                 id,
         //                                 &error_sender,
-        //                                 
+        //
         // CoreError::InvalidMsgForCurrentState(msg, state.clone()),
         //                             );
         //
@@ -179,8 +179,8 @@ impl Core {
         //                         send_core_err_msg(
         //                             id,
         //                             &error_sender,
-        //                             
-        // CoreError::FailedToReadFromControlChannel(err),              
+        //
+        // CoreError::FailedToReadFromControlChannel(err),
         // );                     },
         //                 }
         //             },
@@ -219,8 +219,8 @@ impl Core {
         //                     send_core_err_msg(
         //                         id,
         //                         &error_sender,
-        //                         
-        // CoreError::MempoolControlChannelUnreachable(err),            
+        //
+        // CoreError::MempoolControlChannelUnreachable(err),
         // );                     state = CoreState::Inactive;
         //                 } else {
         //                     // Finished processing, ready for new batch
