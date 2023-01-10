@@ -36,7 +36,6 @@ members = [
     "crates/vrrb_config",
     "crates/vrrb_rpc",
     "crates/block",
-    "crates/blockchain",
     "crates/miner",
     "crates/state",
     "crates/wallet",

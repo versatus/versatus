@@ -19,7 +19,6 @@ wallet = { path = "../wallet" }
 state = { path = "../state" }
 validator = { path = "../validator" }
 reward = { path = "../reward" }
-blockchain = { path = "../blockchain" }
 vrrb_rpc = { path = "../vrrb_rpc" }
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
