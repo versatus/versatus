@@ -26,6 +26,7 @@ primitives = { path = "../primitives" }
 vrrb_core = { path = "../vrrb_core" }
 telemetry = { path = "../telemetry" }
 utils = { path = "../utils" }
+vrrb_vrf = { path = "../vrrb_vrf" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 sha2 = "0.10.6"
 chrono = "0.4.23"

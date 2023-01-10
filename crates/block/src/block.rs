@@ -75,7 +75,8 @@ pub trait InnerBlock {
     fn get_header(&self) -> Self::Header;
     fn get_next_block_seed(&self) -> u64; 
     fn get_next_block_reward(&self) -> Self::RewardType;
-    
+    fn is_genesis(&self) -> bool;
+    fn get_hash(&self) -> String; 
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -182,10 +183,18 @@ impl ConvergenceBlock {
                         &proposals,
                         block.header.next_block_seed.into(),
                         args.round.clone(),
-                        chain,
+                        chain
+                    )
+                },
+                Block::Genesis { ref block } => {
+                    ConvergenceBlock::resolve_conflicts(
+                        &proposals, 
+                        block.header.next_block_seed.into(), 
+                        args.round.clone(), 
+                        chain
                     )
                 }
-                _ => proposals.clone()
+                _ => return None 
             }
         };
 
@@ -220,30 +229,13 @@ impl ConvergenceBlock {
         // Get the miner claim
         let claim = args.claim;
 
-        // Get the block reward
-        let mut reward = args.reward;
-
         // Get the miner secret key
         let secret_key = args.secret_key;
 
         // TODO: Calculate the rolling utility and the rolling
         // next epoch adjustment
-        let adjustment_next_epoch = 0;
-
-        // Check whether this block is the epoch changing block
-        let epoch_change = {
-            match last_block {
-                Block::Convergence { ref block } => {
-                    if block.header.block_height % EPOCH_BLOCK as u128 == 0 {
-                        true
-                    } else {
-                        false
-                    }
-                }
-                _ => { false }
-            }
-        };
-
+        let adjustment_next_epoch = args.next_epoch_adjustment;
+        
         // Get all the proposal block hashes
         let ref_hashes = proposals.iter().map(|b| b.hash.clone()).collect();
 
@@ -257,12 +249,10 @@ impl ConvergenceBlock {
         let header = BlockHeader::new(
             last_block.clone(),
             ref_hashes,
-            &mut reward,
             claim,
             secret_key,
             txn_hash,
             claim_list_hash,
-            epoch_change,
             adjustment_next_epoch,
         );
 
@@ -519,14 +509,12 @@ impl ConvergenceBlock {
 
     fn identify_conflicts(proposals: &Vec<ProposalBlock>) -> HashMap<TxnId, Conflict> {
         let mut conflicts: ConflictList = HashMap::new();
-
         proposals.iter().for_each(|block| {
             let mut txn_iter = block.txns.iter();
-
             let mut proposer = HashSet::new();
             proposer.insert((block.from.clone(), block.hash.clone()));
 
-            while let Some((id, txn)) = txn_iter.next() {
+            while let Some((id, _)) = txn_iter.next() {
                 let conflict = Conflict {
                     txn_id: id.to_string(),
                     proposers: proposer.clone(),
@@ -542,7 +530,7 @@ impl ConvergenceBlock {
             }
         });
 
-        conflicts.retain(|id, conflict| conflict.proposers.len() > 1);
+        conflicts.retain(|_, conflict| conflict.proposers.len() > 1);
         conflicts
     }
 
@@ -552,7 +540,7 @@ impl ConvergenceBlock {
 
     pub fn txn_id_set(&self) -> LinkedHashSet<&TxnId> {
         let sets: Vec<&LinkedHashSet<TxnId>> =
-            self.txns.iter().map(|(ref_hash, set)| set).collect();
+            self.txns.iter().map(|(_, set)| set).collect();
 
         sets.into_iter().flatten().collect()
     }
@@ -572,11 +560,13 @@ pub struct MineArgs<'a> {
     pub txns: LinkedHashMap<String, Txn>,
     pub claims: LinkedHashMap<String, Claim>,
     pub claim_list_hash: Option<String>,
+    #[deprecated(note = "will be removed, unnecessary as last block needed to mine and contains next block reward")]
     pub reward: &'a mut Reward,
     pub abandoned_claim: Option<Claim>,
     pub secret_key: SecretKeyBytes,
     pub epoch: Epoch,
     pub round: u128,
+    pub next_epoch_adjustment: i128
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -637,10 +627,10 @@ impl ProposalBlock {
             intersection.into_iter().map(|id| id.to_string()).collect()
         };
 
-        self.txns.retain(|id, txn| prev_confirmed.contains(id));
+        self.txns.retain(|id, _| prev_confirmed.contains(id));
     }
 
-    fn txn_id_set(&self) -> LinkedHashSet<TxnId> {
+    pub fn txn_id_set(&self) -> LinkedHashSet<TxnId> {
         self.txns.iter().map(|(id, _)| id.clone()).collect()
     }
 }
@@ -722,6 +712,14 @@ impl InnerBlock for ConvergenceBlock {
     fn get_next_block_reward(&self) -> Self::RewardType {
         self.get_header().next_block_reward
     }
+
+    fn is_genesis(&self) -> bool {
+        false
+    }
+
+    fn get_hash(&self) -> String {
+        self.hash.clone()
+    }
 }
 
 impl InnerBlock for GenesisBlock {
@@ -739,6 +737,14 @@ impl InnerBlock for GenesisBlock {
 
     fn get_next_block_reward(&self) -> Self::RewardType {
         self.get_header().next_block_reward
+    }
+
+    fn is_genesis(&self) -> bool {
+        true
+    }
+
+    fn get_hash(&self) -> String {
+        self.hash.clone()
     }
 }
 

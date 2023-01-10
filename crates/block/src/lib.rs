@@ -121,8 +121,6 @@ pub(crate) mod helpers {
         epoch: u128,
     ) -> ProposalBlock { 
         let (sk, pk) = create_keypair();
-        let round = 0;
-        let epoch = 0;
         let txns = create_txns(n_tx).collect();
         let claims = create_claims(n_claims).collect();
         let hclaim = create_claim(&pk, &create_address(&pk), &1);
@@ -201,7 +199,83 @@ pub(crate) mod helpers {
             abandoned_claim: None,
             secret_key: msk,
             epoch,
-            round
+            round,
+            next_epoch_adjustment: 0
+        };
+
+        ConvergenceBlock::mine(
+            mine_args,
+            proposals,
+            chain
+        ) 
+    }
+
+    pub(crate) fn mine_convergence_block_epoch_change(
+        proposals: &Vec<ProposalBlock>,
+        chain: &BullDag<Block, String>,
+        last_block: &Block,
+        next_epoch_adjustment: i128
+    ) -> Option<ConvergenceBlock> {
+
+        let (msk, mpk) = create_keypair();
+        let maddr = create_address(&mpk);
+        let miner_claim = create_claim(&mpk, &maddr, &1); 
+        let txns = create_txns(30).collect();
+        let claims = create_claims(5).collect();
+        let claim_list_hash = Some(hash_data!(claims));
+        
+        let mut reward = {
+            match last_block {
+                Block::Convergence { ref block } => {
+                    block.header.next_block_reward.clone()
+                }
+                Block::Genesis { ref block } => {
+                    block.header.next_block_reward.clone()
+                }
+                _ => return None
+            }
+        };
+
+        let epoch = {
+            match last_block {
+                Block::Convergence { ref block } => {
+                    if block.header.block_height % EPOCH_BLOCK as u128 == 0 {
+                        block.header.epoch + 1
+                    } else {
+                        block.header.epoch
+                    }
+                }
+                Block::Genesis { ref block } => {
+                    0
+                }
+                _ => return None
+            }
+        };
+
+        let round = {
+            match last_block {
+                Block::Convergence { ref block } => {
+                    block.header.round + 1
+                }
+                Block::Genesis { .. } => {
+                    1
+                }
+                _ => return None
+            }
+        };
+        
+        let mine_args = MineArgs {
+            claim: miner_claim,
+            last_block: last_block.clone(),
+            txns,
+            claims,
+            claim_list_hash,
+            reward: &mut reward,
+            abandoned_claim: None,
+            secret_key: msk,
+            epoch,
+            round,
+            next_epoch_adjustment,
         };
 
         ConvergenceBlock::mine(
@@ -216,6 +290,7 @@ pub(crate) mod helpers {
 mod tests {
     #![allow(unused_imports)]
     use std::{collections::HashMap, str::FromStr, time::UNIX_EPOCH};
+    use ritelinked::LinkedHashSet;
     use bulldag::{
         graph::BullDag,
         vertex::{
@@ -234,8 +309,8 @@ mod tests {
         Message,
         PublicKey,
     };
-
-    use utils::create_payload;
+    use sha256::digest;
+    use utils::{create_payload, hash_data};
     use vrrb_core::{
         claim::Claim,
         keypair::KeyPair,
@@ -369,27 +444,503 @@ mod tests {
         }
     }
 
-    #[ignore]
     #[test]
-    fn test_create_convergence_block_conflicts() {
-        todo!()
+    fn test_resolve_conflicts_curr_round() {
+        // Create a large transaction map
+        let genesis = mine_genesis();
+        if let Some(gblock) = genesis {
+            let ref_hash = gblock.hash.clone();
+            let round = gblock.header.round.clone() + 1;
+            let epoch = gblock.header.epoch.clone();
+
+            let mut prop1 = build_proposal_block(
+                &ref_hash,
+                30,
+                10,
+                round,
+                epoch
+            ); 
+
+            let mut prop2 = build_proposal_block(
+                &ref_hash,
+                40,
+                5,
+                round,
+                epoch
+            );
+
+            let txns: HashMap<String, Txn> = create_txns(5).collect();
+            prop1.txns.extend(txns.clone());
+            prop2.txns.extend(txns.clone());
+            
+            let proposals = vec![prop1.clone(), prop2.clone()];
+            
+            let mut chain: BullDag<Block, String> = BullDag::new();
+
+            let gvtx = Vertex::new(
+                Block::Genesis { block: gblock.clone() }, 
+                gblock.hash.clone() 
+            ); 
+
+            let p1vtx = Vertex::new(
+                Block::Proposal { block: prop1.clone() },
+                prop1.hash.clone()
+            );
+
+            let p2vtx = Vertex::new(
+                Block::Proposal { block: prop2.clone() },
+                prop2.hash.clone()
+            );
+
+            let edges = vec![
+                (&gvtx, &p1vtx),
+                (&gvtx, &p2vtx)
+            ];
+
+            chain.extend_from_edges(
+                edges
+            );
+
+            let c_block = mine_convergence_block(
+                &proposals,
+                &chain,
+                Block::Genesis { block: gblock }
+            );
+
+            if let Some(cb) = c_block {
+                let sig = cb.header.miner_signature;
+                let sig = Signature::from_str(&sig).unwrap();
+
+                let payload = create_payload!(
+                    cb.header.ref_hashes,
+                    cb.header.round,
+                    cb.header.epoch,
+                    cb.header.block_seed,
+                    cb.header.next_block_seed,
+                    cb.header.block_height,
+                    cb.header.timestamp,
+                    cb.header.txn_hash,
+                    cb.header.miner_claim,
+                    cb.header.claim_list_hash,
+                    cb.header.block_reward,
+                    cb.header.next_block_reward
+                );
+
+                let mpk = cb.header.miner_claim.public_key;
+                let mpk = PublicKey::from_str(&mpk).unwrap();
+
+                let verify = sig.verify(&payload, &mpk);
+
+                assert!(verify.is_ok());
+
+                let total_w_duplicates = { 
+                    prop1.txns.keys().len() + prop2.txns.keys().len()
+                };
+
+                assert!(total_w_duplicates > cb.txns.len());
+
+                // Get the winner of the PoC election between proposer 1 and 2
+                let mut proposer_ps = vec![
+                    (prop1.hash, 
+                     prop1.from.get_pointer(cb.header.block_seed as u128)),
+                    (prop2.hash, 
+                     prop2.from.get_pointer(cb.header.block_seed as u128))
+                ];
+
+                // The first will be the winner
+                proposer_ps.sort_unstable_by(|(_, a_pointer), (_, b_pointer)| {
+                    match (a_pointer, b_pointer) {
+                        (Some(x), Some(y)) => x.cmp(y),
+                        (None, Some(_)) => std::cmp::Ordering::Greater,
+                        (Some(_), None) => std::cmp::Ordering::Less,
+                        (None, None) => std::cmp::Ordering::Equal
+                    }
+                });
+                let winner = proposer_ps[0].0.clone();
+                let mut resolved_conflicts = cb.txns.clone();
+                resolved_conflicts.retain(|_, set| {
+                    let conflicts = txns.keys().cloned().collect();
+                    let intersection: LinkedHashSet<&String> = set.intersection(
+                        &conflicts
+                    ).collect();
+                    intersection.len() > 0
+                });
+
+                let key: Vec<String> = resolved_conflicts.keys().cloned().collect();
+                assert!(key.len() == 1);
+                assert_eq!(key[0], winner);
+            }
+        } else {
+            panic!("A ConvergenceBlock should be produced")
+        }
     }
 
-    #[ignore]
     #[test]
-    fn test_resolve_conflicts_valid() {
-        todo!()
+    fn test_resolve_conflicts_prev_rounds() {
+        let genesis = mine_genesis();
+        if let Some(gblock) = genesis {
+            let ref_hash = gblock.hash.clone();
+            let round = gblock.header.round.clone() + 1;
+            let epoch = gblock.header.epoch.clone();
+
+            let mut prop1 = build_proposal_block(
+                &ref_hash,
+                30,
+                10,
+                round,
+                epoch
+            ); 
+
+            let mut prop2 = build_proposal_block(
+                &ref_hash,
+                40,
+                5,
+                round,
+                epoch
+            );
+
+            let txns: HashMap<String, Txn> = create_txns(5).collect();
+            prop1.txns.extend(txns.clone());
+            
+            let proposals = vec![prop1.clone(), prop2.clone()];
+            
+            let mut chain: BullDag<Block, String> = BullDag::new();
+
+            let gvtx = Vertex::new(
+                Block::Genesis { block: gblock.clone() }, 
+                gblock.hash.clone() 
+            ); 
+
+            let p1vtx = Vertex::new(
+                Block::Proposal { block: prop1.clone() },
+                prop1.hash.clone()
+            );
+
+            let p2vtx = Vertex::new(
+                Block::Proposal { block: prop2.clone() },
+                prop2.hash.clone()
+            );
+
+            let edges = vec![
+                (&gvtx, &p1vtx),
+                (&gvtx, &p2vtx)
+            ];
+
+            chain.extend_from_edges(
+                edges
+            );
+
+            let c_block_1 = mine_convergence_block(
+                &proposals,
+                &chain,
+                Block::Genesis { block: gblock.clone() }
+            );
+
+            let cb1 = c_block_1.unwrap();
+
+            let cb1vtx = Vertex::new(
+                Block::Convergence { block: cb1.clone() },
+                cb1.hash.clone()
+            );
+
+            let edges = vec![
+                (&p1vtx, &cb1vtx),
+                (&p2vtx, &cb1vtx),
+            ]; 
+
+            chain.extend_from_edges(
+                edges
+            );
+
+            let mut prop3 = build_proposal_block(
+                &ref_hash, 20, 10, round, epoch
+            );  
+
+            prop3.txns.extend(txns.clone());
+            
+            let c_block_2 = mine_convergence_block(
+                &vec![prop3.clone()], 
+                &chain, 
+                Block::Genesis { block: gblock.clone() }
+            );
+
+            let cb2 = {
+
+                let cb = c_block_2.unwrap();
+                let sig = cb.header.miner_signature.clone();
+                let sig = Signature::from_str(&sig).unwrap();
+    
+                let payload = create_payload!(
+                    cb.header.ref_hashes,
+                    cb.header.round,
+                    cb.header.epoch,
+                    cb.header.block_seed,
+                    cb.header.next_block_seed,
+                    cb.header.block_height,
+                    cb.header.timestamp,
+                    cb.header.txn_hash,
+                    cb.header.miner_claim,
+                    cb.header.claim_list_hash,
+                    cb.header.block_reward,
+                    cb.header.next_block_reward
+                );
+    
+                let mpk = cb.header.miner_claim.public_key.clone();
+                let mpk = PublicKey::from_str(&mpk).unwrap();
+
+                let verify = sig.verify(&payload, &mpk);
+    
+                assert!(verify.is_ok());
+    
+                let total_w_duplicates = { 
+                    prop3.txns.keys().len()
+                };
+    
+                assert!(total_w_duplicates > cb.txns.len());
+    
+                cb 
+            };
+
+            let p3vtx = Vertex::new(
+                Block::Proposal { block: prop3.clone() },
+                prop3.hash.clone()
+            );
+
+            let cb2vtx = Vertex::new(
+                Block::Convergence { block: cb2.clone() },
+                cb2.hash.clone()
+            );
+
+            let edges = vec![
+                (&gvtx, &p3vtx),
+                (&p3vtx, &cb2vtx),
+            ];
+
+            chain.extend_from_edges(edges);
+
+        }
     }
 
-    #[ignore]
     #[test]
     fn test_epoch_change() {
-        todo!()
+        let (msk1, mpk1) = create_keypair();
+        let addr = create_address(&mpk1); 
+        let ref_hashes = vec!["abcdef".to_string()];
+        let epoch = 0;
+        let round = 29_999_998;
+        let block_seed = 34_989_333;
+        let next_block_seed = 839_999_843;
+        let block_height = 29_999_998;
+        let timestamp = utils::timestamp!();
+        let txn_hash = "abcdef01234567890".to_string();
+        let miner_claim = create_claim(&mpk1, &addr, &1);
+        let claim_list_hash = "01234567890abcdef".to_string();
+        let mut block_reward = Reward::default();
+        block_reward.current_block = block_height;
+        let next_block_reward = block_reward.clone();
+
+        let payload = create_payload!(
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height,
+            timestamp,
+            txn_hash,
+            miner_claim,
+            claim_list_hash,
+            block_reward,
+            next_block_reward
+        );
+
+        let miner_signature = msk1.sign_ecdsa(payload).to_string();
+
+        let header = BlockHeader {
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height,
+            timestamp,
+            txn_hash,
+            miner_claim,
+            claim_list_hash,
+            block_reward,
+            next_block_reward,
+            miner_signature
+        };
+
+        let txns = LinkedHashMap::new();
+        let claims = LinkedHashMap::new();
+        let block_hash = hash_data!(
+            header.ref_hashes,
+            header.round,
+            header.epoch,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+            header.miner_signature
+        );
+
+        let cb1 = ConvergenceBlock {
+            header,
+            txns,
+            claims,
+            hash: block_hash,
+            certificate: None,
+        };
+
+        let mut chain: BullDag<Block, String> = BullDag::new();
+        
+        let prop1 = build_proposal_block(
+            &cb1.hash.clone(), 
+            5, 
+            5, 
+            30_000_000, 
+            0
+        );
+        let cb1vtx = Vertex::new(
+            Block::Convergence { block: cb1.clone() },
+            cb1.hash.clone()
+        );
+
+        let p1vtx = Vertex::new(
+            Block::Proposal { block: prop1.clone() },
+            prop1.hash.clone()
+        );
+
+        let edges = vec![(&cb1vtx, &p1vtx)];
+
+        chain.extend_from_edges(edges);
+
+        let cb2 = mine_convergence_block_epoch_change(
+            &vec![prop1.clone()], 
+            &chain, 
+            &Block::Convergence { block: cb1.clone() },
+            0
+        ).unwrap();
+        
+        assert_eq!(cb2.header.next_block_reward.epoch, 1);
+        assert_eq!(cb2.header.next_block_reward.next_epoch_block, 60_000_000);
+
     }
 
-    #[ignore]
     #[test]
     fn test_utility_adjustment() {
-        todo!()
+        let (msk1, mpk1) = create_keypair();
+        let addr = create_address(&mpk1); 
+        let ref_hashes = vec!["abcdef".to_string()];
+        let epoch = 0;
+        let round = 29_999_998;
+        let block_seed = 34_989_333;
+        let next_block_seed = 839_999_843;
+        let block_height = 29_999_998;
+        let timestamp = utils::timestamp!();
+        let txn_hash = "abcdef01234567890".to_string();
+        let miner_claim = create_claim(&mpk1, &addr, &1);
+        let claim_list_hash = "01234567890abcdef".to_string();
+        let mut block_reward = Reward::default();
+        block_reward.current_block = block_height;
+        let next_block_reward = block_reward.clone();
+
+        let payload = create_payload!(
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height,
+            timestamp,
+            txn_hash,
+            miner_claim,
+            claim_list_hash,
+            block_reward,
+            next_block_reward
+        );
+
+        let miner_signature = msk1.sign_ecdsa(payload).to_string();
+
+        let header = BlockHeader {
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height,
+            timestamp,
+            txn_hash,
+            miner_claim,
+            claim_list_hash,
+            block_reward,
+            next_block_reward,
+            miner_signature
+        };
+
+        let txns = LinkedHashMap::new();
+        let claims = LinkedHashMap::new();
+        let block_hash = hash_data!(
+            header.ref_hashes,
+            header.round,
+            header.epoch,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+            header.miner_signature
+        );
+
+        let cb1 = ConvergenceBlock {
+            header,
+            txns,
+            claims,
+            hash: block_hash,
+            certificate: None,
+        };
+
+        let mut chain: BullDag<Block, String> = BullDag::new();
+        
+        let prop1 = build_proposal_block(
+            &cb1.hash.clone(), 
+            5, 
+            5, 
+            30_000_000, 
+            0
+        );
+        let cb1vtx = Vertex::new(
+            Block::Convergence { block: cb1.clone() },
+            cb1.hash.clone()
+        );
+
+        let p1vtx = Vertex::new(
+            Block::Proposal { block: prop1.clone() },
+            prop1.hash.clone()
+        );
+
+        let edges = vec![(&cb1vtx, &p1vtx)];
+
+        chain.extend_from_edges(edges);
+
+        let cb2 = mine_convergence_block_epoch_change(
+            &vec![prop1.clone()], 
+            &chain, 
+            &Block::Convergence { block: cb1.clone() }, 
+            (4 * 30_000_000) as i128
+        ).unwrap();
+
+        assert_eq!(cb2.header.next_block_reward.amount, 24);
+        
     }
 }

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data, timestamp};
 use vrrb_core::{claim::Claim, keypair::KeyPair};
-
+use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
 use crate::{
     block::Block, 
     ConvergenceBlock, 
@@ -59,13 +59,28 @@ impl BlockHeader {
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
-        let mut rng = rand::thread_rng();
-        let ref_hashes = vec![hash_data!("Genesis_Last_Hash")];
+        let ref_hashes = vec![hash_data!("Genesis_Ref_Hash")];
+        let message = {
+            hash_data!(
+                ref_hashes, 
+                hash_data!(
+                    "Genesis_Last_Hash"
+                )
+            ).as_bytes().to_vec()
+        };
+        
+        let mut vrf = VVRF::new(
+            &message, 
+            &secret_key.secret_bytes()
+                        .to_vec()
+        );
 
-        // Range should remain the same.
-        let next_block_seed: u64 = rng.gen_range(u32MAX as u64, u64MAX);
+        let next_block_seed = vrf.generate_u64_in_range(
+            u32::MAX as u64, 
+            u64::MAX
+        );
+
         let timestamp = timestamp!(); 
-
         let txn_hash = hash_data!("Genesis_Txn_Hash");
         let block_reward = Reward::genesis(Some(miner_claim.address.clone()));
         let block_height = 0;
@@ -108,19 +123,14 @@ impl BlockHeader {
     pub fn new(
         last_block: Block,
         ref_hashes: Vec<String>,
-        reward: &mut Reward,
         miner_claim: Claim,
         secret_key: SecretKeyBytes,
         txn_hash: String,
         claim_list_hash: String,
-        epoch_change: bool,
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> Option<BlockHeader> {
-        //TODO: Replace rand::thread_rng() with VPRNG
-        //TODO: Determine data fields to be used as message in VPRNG, must be
-        // known/revealed within block but cannot be predictable or gameable.
-        // Leading candidates are some combination of last_hash and last_block_seed
-        
+       
+        // Get the last block
         let last_block: &dyn InnerBlock<Header=BlockHeader, RewardType=Reward> = {
             match last_block {
                 Block::Convergence { ref block } =>  {
@@ -133,27 +143,47 @@ impl BlockHeader {
             }
         };
 
-        let mut rng = rand::thread_rng();
+        // Get the current block seed, which is last_block.next_block_seed;
         let block_seed = last_block.get_next_block_seed();
-        let next_block_seed: u64 = rng.gen_range(0, u64MAX);
-        let timestamp = timestamp!();
-        let mut block_reward = last_block.get_next_block_reward();
 
-        block_reward.miner = Some(miner_claim.clone().address);
-
-        let mut next_block_reward = block_reward.clone();
-        let mut epoch = last_block.get_header().epoch;
-        let round = last_block.get_header().round + 1;
-
-        if epoch_change { 
-            reward.new_epoch(adjustment_next_epoch);
-            next_block_reward = reward.clone();
-            epoch += 1;
-        }
-
+        // Get block height
         let block_height = last_block.get_header().block_height + 1;
 
-        next_block_reward.current_block = reward.current_block + 1;
+        // get the message; TODO: replace ref_hashes with 
+        // last_block.certificate
+        let message = {
+            let hash = hash_data!(last_block.get_hash(), ref_hashes);
+            hash.as_bytes().to_vec()
+        };
+
+        // Generate next_block_seed
+        let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
+        let next_block_seed = vrf.generate_u64_in_range(
+            u32::MAX as u64, 
+            u64::MAX
+        );
+
+        // generate timestamp
+        let timestamp = timestamp!();
+
+        // Get current block reward, which is last_block.next_block_reward
+        let mut block_reward = last_block.get_next_block_reward();
+        block_reward.current_block = block_height; 
+
+        // Create the next block reward, which is a clone of the current 
+        // reward, unless there's an epoch change
+        let next_block_reward = block_reward.generate_next_reward(
+            adjustment_next_epoch
+        );
+
+        // Append the miner to the current block reward
+        block_reward.miner = Some(miner_claim.clone().address);
+
+        // Get current epoch which is the same as last epoch unless it's an 
+        // epoch change block.
+        let epoch = last_block.get_header().epoch;
+        // Get the reward for current block which is last_block.round + 1
+        let round = last_block.get_header().round + 1;
 
         let payload = create_payload!(
             ref_hashes,
