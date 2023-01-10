@@ -1,5 +1,6 @@
 pub mod error;
 pub mod mempool;
+pub use mempool::*;
 
 #[cfg(test)]
 mod tests {
