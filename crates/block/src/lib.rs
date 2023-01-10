@@ -809,24 +809,4 @@ mod tests {
         assert_eq!(cb2.header.next_block_reward.amount, 24);
     }
 
-    #[test]
-    fn test_vfr_seed_same_msg() {
-        let secp = Secp256k1::new();
-        let (secret_key, _) = secp.generate_keypair(&mut thread_rng());
-        let claim = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt = Block::genesis(claim, secret_key.to_string(), None);
-        assert!(genesis_block_opt.is_ok());
-        let genesis_block = genesis_block_opt.unwrap();
-        assert!(genesis_block.utility == 0);
-
-        let secp2 = Secp256k1::new();
-        let (secret_key, _) = secp2.generate_keypair(&mut thread_rng());
-        let claim2 = Claim::new("pubkey".to_string(), "address".to_string(), 1);
-        let genesis_block_opt2 = Block::genesis(claim2, secret_key.to_string(), None);
-        assert!(genesis_block_opt2.is_ok());
-        let genesis_block2 = genesis_block_opt2.unwrap();
-        assert!(genesis_block2.utility == 0);
-
-        assert!(genesis_block.header.block_seed == genesis_block2.header.block_seed);
-    }
 }

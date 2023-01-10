@@ -240,36 +240,33 @@ impl ConvergenceBlock {
             txn_hash,
             claim_list_hash,
             adjustment_next_epoch,
+        )?;
+
+       
+            // Hash all the header data to get the blockhash
+        let block_hash = hash_data!(
+            header.ref_hashes,
+            header.round,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+            header.miner_signature
         );
 
-        if let Some(head) = header {
-            // Hash all the header data to get the blockhash
-            let block_hash = hash_data!(
-                head.ref_hashes,
-                head.round,
-                head.block_seed,
-                head.next_block_seed,
-                head.block_height,
-                head.timestamp,
-                head.txn_hash,
-                head.miner_claim,
-                head.claim_list_hash,
-                head.block_reward,
-                head.next_block_reward,
-                head.miner_signature
-            );
-
-            // Return the ConvergenceBlock
-            Some(ConvergenceBlock {
-                header: head,
-                txns,
-                claims,
-                hash: block_hash,
-                certificate: None,
-            })
-        } else {
-            None
-        }
+        // Return the ConvergenceBlock
+        Some(ConvergenceBlock {
+            header,
+            txns,
+            claims,
+            hash: block_hash,
+            certificate: None,
+        })
     }
 
     // Check that conflicts with previous convergence block are removed
