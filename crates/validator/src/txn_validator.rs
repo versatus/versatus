@@ -55,7 +55,8 @@ impl<D: Database> TxnValidator<D> {
 
     /// Txn signature validator.
     pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
-        if !txn.signature.is_empty() {
+        let txn_signature = txn.signature.clone().unwrap_or_default();
+        if !txn_signature.is_empty() {
             KeyPair::verify_ecdsa_sign(
                 // TODO: revisit this verification
                 format!("{:?}", txn.signature),

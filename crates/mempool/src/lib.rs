@@ -1,5 +1,7 @@
 pub mod error;
 pub mod mempool;
+// TODO: merge pool w Mempool later on
+pub mod pool;
 pub use mempool::*;
 
 #[cfg(test)]

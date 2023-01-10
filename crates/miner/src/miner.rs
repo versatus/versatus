@@ -1,3 +1,7 @@
+/// This module is for the creation and operation of a mining unit within a node
+/// in the network The miner is the primary way that data replication across all
+/// nodes occur The mining of blocks can be thought of as incremental
+/// checkpoints in the state.
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
     collections::HashMap,
@@ -6,11 +10,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-/// This module is for the creation and operation of a mining unit within a node
-/// in the network The miner is the primary way that data replication across all
-/// nodes occur The mining of blocks can be thought of as incremental
-/// checkpoints in the state.
 use block::{block::Block, GenesisBlock, MineArgs};
+use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
+//
+// TODO: replace Pool with LeftRightMempool if suitable
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
