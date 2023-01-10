@@ -96,7 +96,7 @@ impl Handler<Event> for StateModule {
             Event::NewTxnCreated(txn) => {
                 info!("Storing transaction in mempool for validation");
 
-                let txn_hash = txn.digest_bytes();
+                let txn_hash = txn.digest();
 
                 self.state.add_txn_to_mempool(txn);
 

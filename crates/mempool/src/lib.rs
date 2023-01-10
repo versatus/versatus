@@ -1,12 +1,6 @@
 pub mod error;
 pub mod mempool;
-
-// TODO: remove deprecated modules after consolidating their internals into
-// mempool
-#[deprecated(note = "use mempool::Mempool instead")]
-pub mod ev_mem_pool;
-#[deprecated(note = "use mempool::Mempool instead")]
-pub mod pool;
+pub use mempool::*;
 
 #[cfg(test)]
 mod tests {
@@ -24,12 +18,12 @@ mod tests {
         txn::{NewTxnArgs, Txn},
     };
 
-    use crate::mempool::{LeftRightMemPoolDB, TxnStatus};
+    use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
 
     #[test]
     fn creates_new_lrmempooldb() {
-        let lrmpooldb = LeftRightMemPoolDB::new();
-        assert_eq!(0, lrmpooldb.size().0);
+        let lrmpooldb = LeftRightMempool::new();
+        assert_eq!(0, lrmpooldb.size());
     }
 
     #[test]
@@ -48,18 +42,18 @@ mod tests {
             signature: vec![],
         });
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
         match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
             },
         };
 
-        assert_eq!(1, mpooldb.size().0);
+        assert_eq!(1, mpooldb.size());
     }
 
     #[test]
@@ -82,11 +76,11 @@ mod tests {
             signature: vec![],
         });
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
 
         match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -95,14 +89,14 @@ mod tests {
 
         match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
         };
 
-        assert_eq!(1, mpooldb.size().0);
+        assert_eq!(1, mpooldb.size());
     }
 
     #[test]
@@ -137,11 +131,11 @@ mod tests {
             signature: vec![],
         });
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
 
         match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -150,7 +144,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(2, mpooldb.size().0);
+                assert_eq!(2, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -171,19 +165,19 @@ mod tests {
             sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
             receiver_address: String::from("bbb1"),
             token: None,
-            amount: 0,
+            amount: txn_amount,
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: vec![],
         });
 
-        let txn_id = txn.txn_id();
+        let txn_id = txn.digest();
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
         match mpooldb.add_txn(&txn, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
@@ -193,8 +187,8 @@ mod tests {
         let now = chrono::offset::Utc::now().timestamp();
 
         // Test single Txn retrieval
-        if let Some(txn_retrieved) = mpooldb.get_txn(&txn.txn_id().clone()) {
-            assert_eq!(txn_retrieved.txn_id(), txn_id);
+        if let Some(txn_retrieved) = mpooldb.get_txn(&txn.digest().clone()) {
+            assert_eq!(txn_retrieved.digest(), txn_id);
             assert_eq!(txn_retrieved.timestamp, now);
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
@@ -204,9 +198,9 @@ mod tests {
         }
 
         // Test TxnRecord retrieval
-        if let Some(txn_rec_retrieved) = mpooldb.get_txn_record(&txn.txn_id().clone()) {
-            let txn_retrieved = Txn::from_string(&txn_rec_retrieved.txn);
-            assert_eq!(txn_retrieved.txn_id(), txn_id);
+        if let Some(txn_rec_retrieved) = mpooldb.get(&txn.digest()) {
+            let txn_retrieved = txn_rec_retrieved.txn;
+            assert_eq!(txn_retrieved.digest(), txn_id);
             assert_eq!(txn_retrieved.timestamp, now);
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
@@ -226,7 +220,6 @@ mod tests {
             .unwrap()
             .as_nanos();
 
-        // let txn_id = String::from("1");
         let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
@@ -244,15 +237,14 @@ mod tests {
                 signature: vec![],
             });
 
-            let txn_ser = txn.to_string();
-
-            txns.insert(Txn::from_string(&txn_ser));
+            txns.insert(txn);
         }
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
-        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
+        let mut mpooldb = LeftRightMempool::new();
+
+        match mpooldb.extend(txns.clone()) {
             Ok(_) => {
-                assert_eq!(100, mpooldb.size().0);
+                assert_eq!(100, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
@@ -260,10 +252,19 @@ mod tests {
         };
 
         let index = thread_rng().gen_range(0..txns.len());
-        let test_txn_id = txns.iter().nth(index).unwrap().clone().txn_id();
-        let test_txn_amount = txns.iter().nth(index).unwrap().clone().amount();
 
-        if let Some(txn_retrieved) = mpooldb.get_txn(&test_txn_id) {
+        let map_values = mpooldb.pool();
+        let map_values = map_values
+            .values()
+            .map(|v| v.to_owned())
+            .collect::<Vec<TxnRecord>>();
+
+        let record = map_values.get(index).unwrap().to_owned();
+
+        let txn_id = record.txn_id;
+        let test_txn_amount = record.txn.amount();
+
+        if let Some(txn_retrieved) = mpooldb.get_txn(&txn_id) {
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
             assert_eq!(txn_retrieved.amount(), test_txn_amount);
@@ -304,13 +305,13 @@ mod tests {
             signature: vec![],
         });
 
-        let txn2_id = txn2.txn_id();
+        let txn2_id = txn2.digest();
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
 
         match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -319,7 +320,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(2, mpooldb.size().0);
+                assert_eq!(2, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -328,7 +329,7 @@ mod tests {
 
         match mpooldb.remove_txn_by_id(txn2_id.clone()) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -368,11 +369,11 @@ mod tests {
             signature: vec![],
         });
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
 
         match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
@@ -381,7 +382,7 @@ mod tests {
 
         match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(2, mpooldb.size().0);
+                assert_eq!(2, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -390,7 +391,7 @@ mod tests {
 
         match mpooldb.remove_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(1, mpooldb.size().0);
+                assert_eq!(1, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
@@ -426,15 +427,13 @@ mod tests {
                 signature: vec![],
             });
 
-            let txn_ser = txn.to_string();
-
-            txns.insert(Txn::from_string(&txn_ser));
+            txns.insert(txn);
         }
 
-        let mut mpooldb = LeftRightMemPoolDB::new();
+        let mut mpooldb = LeftRightMempool::new();
         match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(100, mpooldb.size().0);
+                assert_eq!(100, mpooldb.size());
             },
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
@@ -442,7 +441,7 @@ mod tests {
         };
         match mpooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(0, mpooldb.size().0);
+                assert_eq!(0, mpooldb.size());
             },
             Err(_) => {
                 panic!("Removing transactions was unsuccesful !");
@@ -454,7 +453,7 @@ mod tests {
     fn batch_write_and_parallel_reads() {
         let keypair = KeyPair::random();
         let txn_id_max = 11;
-        let mut lrmpooldb = LeftRightMemPoolDB::new();
+        let mut lrmpooldb = LeftRightMempool::new();
         let mut txns = HashSet::<Txn>::new();
 
         let now = SystemTime::now()
@@ -484,7 +483,7 @@ mod tests {
 
         match lrmpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
-                assert_eq!(txn_id_max - 1, lrmpooldb.size().0);
+                assert_eq!(txn_id_max - 1, lrmpooldb.size());
             },
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
@@ -501,7 +500,7 @@ mod tests {
 
                     match read_hdl.enter().map(|guard| guard.clone()) {
                         Some(m) => {
-                            assert_eq!(m.pending.len(), txn_id_max - 1);
+                            assert_eq!(m.len(), txn_id_max - 1);
                         },
                         None => {
                             panic!("No mempool !");
