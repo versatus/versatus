@@ -1,13 +1,12 @@
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
+use crate::result::{LeftRightDbError, Result};
 use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::SerializedPublicKeyString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vrrb_core::account::{Account, UpdateArgs};
-
-use crate::result::{LeftRightDbError, Result};
 
 pub type FailedAccountUpdates = Vec<(SerializedPublicKeyString, Vec<UpdateArgs>, Result<()>)>;
 
@@ -249,7 +248,6 @@ impl<'a> StateDb<'a> {
             } else {
                 // TODO: implement an update method on underlying lr trie
                 self.trie.insert(k.to_owned(), final_account);
-                self.trie.insert(k, final_account);
             };
         });
 

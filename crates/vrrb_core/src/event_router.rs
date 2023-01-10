@@ -3,7 +3,7 @@ use std::{
     net::SocketAddr,
 };
 
-use primitives::{NodeType, PeerId, TxHash};
+use primitives::{NodeType, PeerId, TxHash, TxHashString};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{

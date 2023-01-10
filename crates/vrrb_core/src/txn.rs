@@ -1,4 +1,3 @@
-#![allow(unused_imports, dead_code)]
 use std::{
     collections::HashMap,
     fmt,
@@ -9,7 +8,10 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use primitives::types::{PublicKey, SerializedPublicKey};
+use primitives::{
+    types::{PublicKey, SerializedPublicKey},
+    ByteSlice, ByteVec, SecretKey,
+};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -178,7 +180,23 @@ impl Txn {
         self.payload = Some(payload);
     }
 
-    pub fn sign(&mut self, sk: &secp256k1::SecretKey) {
+    fn from_byte_slice(data: ByteSlice) -> Self {
+        if let Ok(result) = decode_from_json_byte_slice::<Self>(data) {
+            return result;
+        }
+
+        if let Ok(result) = decode_from_binary_byte_slice::<Self>(data) {
+            return result;
+        }
+
+        NULL_TXN
+    }
+
+    fn from_string(data: &str) -> Txn {
+        Txn::from_str(data).unwrap_or(NULL_TXN)
+    }
+
+    pub fn sign(&mut self, sk: &SecretKey) {
         if let Some(payload) = self.payload.clone() {
             let message = Message::from_slice(payload.as_bytes());
             match message {
