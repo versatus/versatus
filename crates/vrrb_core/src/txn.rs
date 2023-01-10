@@ -1,4 +1,3 @@
-#![allow(unused_imports, dead_code)]
 use std::{
     collections::HashMap,
     fmt,
@@ -9,10 +8,17 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use primitives::{ByteSlice, ByteVec, PublicKey, SerializedPublicKey};
+use primitives::{
+    types::{PublicKey, SerializedPublicKey},
+    ByteSlice,
+    ByteVec,
+    SecretKey,
+};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use sha256::digest;
+use utils::{create_payload, hash_data, timestamp};
 use uuid::Uuid;
 
 /// This module contains the basic structure of simple transaction
@@ -34,6 +40,9 @@ pub type TxNonce = u128;
 pub type TxTimestamp = i64;
 pub type TxAmount = u128;
 pub type TxSignature = Vec<u8>;
+
+//TODO: Replace with `secp256k1::Message` struct or guarantee
+//that it is a stringified version of `secp256k1::Message`
 pub type TxPayload = String;
 
 // TODO: replace with a generic token struct
@@ -57,9 +66,9 @@ pub struct Txn {
     token: Option<TxToken>,
     amount: TxAmount,
     pub payload: Option<TxPayload>,
-    pub signature: TxSignature,
-    validators: Option<HashMap<String, bool>>,
-    nonce: TxNonce,
+    pub signature: Option<TxSignature>,
+    pub validators: Option<HashMap<String, bool>>,
+    pub nonce: TxNonce,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -78,7 +87,7 @@ pub struct NewTxnArgs {
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
         // TODO: change time unit from seconds to millis
-        let timestamp = chrono::offset::Utc::now().timestamp();
+        let timestamp = timestamp!();
 
         Self {
             txn_id: Uuid::new_v4(),
@@ -89,7 +98,7 @@ impl Txn {
             token: args.token,
             amount: args.amount,
             payload: args.payload,
-            signature: args.signature,
+            signature: Some(args.signature),
             validators: args.validators,
             nonce: args.nonce,
         }
@@ -136,6 +145,18 @@ impl Txn {
         self.amount()
     }
 
+    pub fn token(&self) -> Option<TxToken> {
+        self.token.clone()
+    }
+
+    pub fn set_token(&mut self, token: TxToken) {
+        self.token = Some(token);
+    }
+
+    pub fn set_amount(&mut self, amount: u128) {
+        self.amount = amount;
+    }
+
     pub fn validators(&self) -> HashMap<String, bool> {
         self.validators.clone().unwrap_or_default()
     }
@@ -146,6 +167,19 @@ impl Txn {
 
     pub fn payload(&self) -> String {
         self.payload.clone().unwrap_or_default()
+    }
+
+    pub fn build_payload(&mut self) {
+        let payload = hash_data!(
+            self.sender_address.clone(),
+            self.sender_public_key.clone(),
+            self.receiver_address.clone(),
+            self.token.clone(),
+            self.amount.clone(),
+            self.nonce.clone()
+        );
+
+        self.payload = Some(payload);
     }
 
     fn from_byte_slice(data: ByteSlice) -> Self {
@@ -163,6 +197,22 @@ impl Txn {
     fn from_string(data: &str) -> Txn {
         Txn::from_str(data).unwrap_or(NULL_TXN)
     }
+
+    pub fn sign(&mut self, sk: &SecretKey) {
+        if let Some(payload) = self.payload.clone() {
+            let message = Message::from_slice(payload.as_bytes());
+            match message {
+                Ok(msg) => {
+                    let sig = sk.sign_ecdsa(msg);
+                    self.signature = Some(sig.to_string().as_bytes().to_vec());
+                },
+                _ => { /*TODO return Result<(), SignatureError>*/ },
+            }
+        } else {
+            self.build_payload();
+            self.sign(&sk);
+        }
+    }
 }
 
 pub const NULL_TXN: Txn = Txn {
@@ -174,7 +224,7 @@ pub const NULL_TXN: Txn = Txn {
     token: None,
     amount: 0,
     payload: None,
-    signature: vec![],
+    signature: None,
     validators: None,
     nonce: 0,
 };

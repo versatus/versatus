@@ -216,7 +216,6 @@ impl<T> Future for Task<T> {
     }
 }
 
-
 /// A `Job` is a future that will be polled by a `JobPoller`.
 ///
 /// The `is_future` field is a boolean that indicates whether the `Job` is a

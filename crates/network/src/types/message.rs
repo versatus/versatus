@@ -152,7 +152,6 @@ impl StateBlock {
 impl AsMessage for MessageType {
     fn into_message(self, return_receipt: u8) -> Message {
         let id = Uuid::new_v4();
-
         Message {
             id,
             source: None,
@@ -162,7 +161,6 @@ impl AsMessage for MessageType {
         }
     }
 }
-
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.
 //TODO: Convert the Vec<u8> and u8's into custom types that are more

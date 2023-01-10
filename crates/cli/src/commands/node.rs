@@ -124,6 +124,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
         udp_gossip_address,
         jsonrpc_server_address: http_api_address,
         preload_mock_state: false,
+        bootstrap_config: None,
     };
 
     if args.dettached {

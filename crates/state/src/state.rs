@@ -167,7 +167,6 @@ impl<'de> NetworkState {
             "{:?},{:?},{:?},{:?}",
             self.state_hash, credit_hash, debit_hash, reward_state_hash
         );
-
         let new_state_hash = digest(payload.as_bytes());
         new_state_hash
     }

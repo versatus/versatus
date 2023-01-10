@@ -13,16 +13,14 @@ mod tests {
     };
 
     use lr_trie::LeftRightTrie;
-    use mempool::mempool::LeftRightMemPoolDB;
+    use mempool::LeftRightMempool as LeftRightMemPoolDB;
     use patriecia::db::MemoryDB;
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use vrrb_core::txn::*;
 
     use crate::{
         mempool_processor::{
-            MempoolControlMsg,
-            MempoolTxnProcessor,
-            MempoolTxnProcessorError,
+            MempoolControlMsg, MempoolTxnProcessor, MempoolTxnProcessorError,
             MempoolTxnProcessorState,
         },
         validator_unit::ValidatorUnit,
