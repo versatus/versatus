@@ -1,12 +1,12 @@
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
 
-use crate::packet::{NotCompleteError, Packet, Packetize};
 use primitives::{NodeType, PublicKey};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
 use vrrb_core::event_router::{Event, PeerData};
+
+use crate::packet::{NotCompleteError, Packet, Packetize};
 
 pub type MessageId = Uuid;
 pub type MessageContents = Vec<u8>;

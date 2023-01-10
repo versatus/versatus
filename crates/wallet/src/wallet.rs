@@ -215,7 +215,8 @@ impl WalletAccount {
                     true
 
                     // TODO: re-enable this
-                    // txn.receivable() == address.clone() || txn.payable() == Some(address.clone())
+                    // txn.receivable() == address.clone() || txn.payable() ==
+                    // Some(address.clone())
                 });
 
                 if !cloned_data.is_empty() {

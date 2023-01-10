@@ -1,12 +1,17 @@
-use crate::txn::Txn;
-use crate::{Error, Result};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    net::SocketAddr,
+};
+
 use primitives::{NodeType, PeerId, TxHash, TxHashString};
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::Entry, HashMap, HashSet};
-use std::net::SocketAddr;
 use telemetry::{error, info};
-use tokio::sync::broadcast::{self, Sender};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::{
+    broadcast::{self, Sender},
+    mpsc::{UnboundedReceiver, UnboundedSender},
+};
+
+use crate::{txn::Txn, Error, Result};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -179,7 +184,8 @@ impl EventRouter {
         }
     }
 
-    /// Starts the event router, distributing all incomming events to all subscribers
+    /// Starts the event router, distributing all incomming events to all
+    /// subscribers
     pub async fn start(&mut self, event_rx: &mut UnboundedReceiver<DirectedEvent>) {
         while let Some((topic, event)) = event_rx.recv().await {
             if event == Event::Stop {

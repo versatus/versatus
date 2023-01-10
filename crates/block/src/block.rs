@@ -1,8 +1,14 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
+use std::fmt;
+
 use primitives::types::{
-    Epoch, RawSignature, SerializedSecretKey as SecretKeyBytes, GENESIS_EPOCH, SECOND,
+    Epoch,
+    RawSignature,
+    SerializedSecretKey as SecretKeyBytes,
+    GENESIS_EPOCH,
+    SECOND,
     VALIDATOR_THRESHOLD,
 };
 #[cfg(mainnet)]
@@ -12,11 +18,7 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::{digest, digest_bytes};
 use state::state::NetworkState;
-use std::fmt;
-use vrrb_core::accountable::Accountable;
-use vrrb_core::claim::Claim;
-use vrrb_core::txn::Txn;
-use vrrb_core::verifiable::Verifiable;
+use vrrb_core::{accountable::Accountable, claim::Claim, txn::Txn, verifiable::Verifiable};
 
 #[cfg(mainnet)]
 use crate::genesis;

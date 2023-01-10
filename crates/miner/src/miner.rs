@@ -6,12 +6,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
 /// This module is for the creation and operation of a mining unit within a node
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
-use block::{block::Block, MineArgs, invalid::InvalidBlockError};
+use block::{block::Block, invalid::InvalidBlockError, MineArgs};
+use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
@@ -210,7 +210,7 @@ impl Miner {
         }
         self.claim_map
             .insert(self.claim.pubkey.clone(), self.claim.clone());
-        
+
         let genesis_block = Block::genesis(self.claim.clone(), self.secret_key.clone(), None);
 
         return Some(genesis_block);

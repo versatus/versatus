@@ -103,16 +103,16 @@ impl Core {
         // TODO: temporarily commented to fix compilation issues
         todo!()
 
-        // // Cannot move self to thread so we need to copy values that will be used
-        // let mut state = CoreState::Ready;
+        // // Cannot move self to thread so we need to copy values that will be
+        // used let mut state = CoreState::Ready;
         // let id = self.id;
         // let mempool_read_handle = mempool_read_handle.clone();
         // let mempool_processor_sender = mempool_processor_sender.clone();
         // let error_sender = self.error_sender.clone();
         //
-        // let txn_validator = TxnValidator::new(state_read_handle_factory.handle());
-        // // Spawnin the core's thread
-        // let join_handle = thread::spawn(move || {
+        // let txn_validator =
+        // TxnValidator::new(state_read_handle_factory.handle()); // Spawnin
+        // the core's thread let join_handle = thread::spawn(move || {
         //     // Entering the main state loop
         //     loop {
         //         match state {
@@ -120,37 +120,39 @@ impl Core {
         //             CoreState::Ready => {
         //                 // Fetch msg. If msg::stop - stop and wait for resume
         //                 // if msg::NewToProcess - start processing the batch
-        //                 // Blocking since we wait for next instruction on that channel
-        //                 match control_receiver.recv() {
+        //                 // Blocking since we wait for next instruction on
+        // that channel                 match control_receiver.recv() {
         //                     Ok(msg) => match msg {
-        //                         CoreControlMsg::Stop => state = CoreState::Inactive,
-        //                         CoreControlMsg::NewToProcess(amount) => {
-        //                             state = CoreState::Processing(amount)
-        //                         },
-        //                         _ => {
-        //                             // Propagating the error to core error receiver
-        //                             send_core_err_msg(
+        //                         CoreControlMsg::Stop => state =
+        // CoreState::Inactive,                         
+        // CoreControlMsg::NewToProcess(amount) => {                    
+        // state = CoreState::Processing(amount)                        
+        // },                         _ => {
+        //                             // Propagating the error to core error
+        // receiver                             send_core_err_msg(
         //                                 id,
         //                                 &error_sender,
-        //                                 CoreError::InvalidMsgForCurrentState(msg, state.clone()),
+        //                                 
+        // CoreError::InvalidMsgForCurrentState(msg, state.clone()),
         //                             );
-        //                             // Any error in core will result in it turning into inactive
-        //                             state = CoreState::Inactive;
-        //                         },
+        //                             // Any error in core will result in it
+        // turning into inactive                             state =
+        // CoreState::Inactive;                         },
         //                     },
         //                     Err(err) => {
-        //                         // This should never happen, unless somehow the channels is dropped
-        //                         // Since it can't be moved out of core struct, that'd mean that the
+        //                         // This should never happen, unless somehow
+        // the channels is dropped                         // Since it
+        // can't be moved out of core struct, that'd mean that the
         //                         // whole struct is dropped
-        //                         // That though means, that it'd be moved out of the ValidatorUnit
-        //                         // struct, meaning that the whole
-        //                         // validator unit has been dropped
-        //                         send_core_err_msg(
-        //                             id,
+        //                         // That though means, that it'd be moved out
+        // of the ValidatorUnit                         // struct,
+        // meaning that the whole                         // validator
+        // unit has been dropped                         
+        // send_core_err_msg(                             id,
         //                             &error_sender,
-        //                             CoreError::FailedToReadFromControlChannel(err),
-        //                         );
-        //                         // Error = State::Inactive
+        //                             
+        // CoreError::FailedToReadFromControlChannel(err),              
+        // );                         // Error = State::Inactive
         //                         state = CoreState::Inactive
         //                     },
         //                 }
@@ -160,12 +162,13 @@ impl Core {
         //                 // Using blocking channel recv to idle while inactive
         //                 match control_receiver.recv() {
         //                     Ok(msg) => match msg {
-        //                         CoreControlMsg::Start => state = CoreState::Ready,
-        //                         _ => {
+        //                         CoreControlMsg::Start => state =
+        // CoreState::Ready,                         _ => {
         //                             send_core_err_msg(
         //                                 id,
         //                                 &error_sender,
-        //                                 CoreError::InvalidMsgForCurrentState(msg, state.clone()),
+        //                                 
+        // CoreError::InvalidMsgForCurrentState(msg, state.clone()),
         //                             );
         //
         //                             // No need to set the state here, as the
@@ -176,9 +179,9 @@ impl Core {
         //                         send_core_err_msg(
         //                             id,
         //                             &error_sender,
-        //                             CoreError::FailedToReadFromControlChannel(err),
-        //                         );
-        //                     },
+        //                             
+        // CoreError::FailedToReadFromControlChannel(err),              
+        // );                     },
         //                 }
         //             },
         //             CoreState::Processing(amount) => {
@@ -206,18 +209,19 @@ impl Core {
         //                     }
         //                 }
         //
-        //                 // Failure in sending validated txns to mempool processor will result in
-        //                 // core going inactive That means though that the
-        //                 // channel has been closed, meaning that mempool_processor is down
+        //                 // Failure in sending validated txns to mempool
+        // processor will result in                 // core going
+        // inactive That means though that the                 //
+        // channel has been closed, meaning that mempool_processor is down
         //                 if let Err(err) = mempool_processor_sender
         //                     .send(MempoolControlMsg::NewValidated(validated))
         //                 {
         //                     send_core_err_msg(
         //                         id,
         //                         &error_sender,
-        //                         CoreError::MempoolControlChannelUnreachable(err),
-        //                     );
-        //                     state = CoreState::Inactive;
+        //                         
+        // CoreError::MempoolControlChannelUnreachable(err),            
+        // );                     state = CoreState::Inactive;
         //                 } else {
         //                     // Finished processing, ready for new batch
         //                     state = CoreState::Ready;

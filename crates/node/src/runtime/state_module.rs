@@ -115,6 +115,7 @@ impl Handler<Event> for StateModule {
 #[cfg(test)]
 mod tests {
     use std::env;
+
     use theater::ActorImpl;
     use vrrb_core::{
         event_router::{DirectedEvent, Event},
