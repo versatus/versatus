@@ -10,8 +10,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use block::{block::Block, GenesisBlock, MineArgs};
-use block::{header::BlockHeader, invalid::InvalidBlockErrorReason};
+use block::{
+    block::Block,
+    header::BlockHeader,
+    invalid::InvalidBlockErrorReason,
+    GenesisBlock,
+    MineArgs,
+};
 //
 // TODO: replace Pool with LeftRightMempool if suitable
 use mempool::pool::{Pool, PoolKind};

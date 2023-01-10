@@ -13,7 +13,11 @@ use bulldag::{
     vertex::{Direction, Vertex},
 };
 use primitives::{
-    types::SecretKey as SecretKeyBytes, Epoch, RawSignature, GENESIS_EPOCH, SECOND,
+    types::SecretKey as SecretKeyBytes,
+    Epoch,
+    RawSignature,
+    GENESIS_EPOCH,
+    SECOND,
     VALIDATOR_THRESHOLD,
 };
 #[cfg(mainnet)]
@@ -28,7 +32,11 @@ use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable, claim::Claim, keypair::KeyPair, txn::Txn, verifiable::Verifiable,
+    accountable::Accountable,
+    claim::Claim,
+    keypair::KeyPair,
+    txn::Txn,
+    verifiable::Verifiable,
 };
 
 #[cfg(mainnet)]
@@ -242,8 +250,7 @@ impl ConvergenceBlock {
             adjustment_next_epoch,
         )?;
 
-       
-            // Hash all the header data to get the blockhash
+        // Hash all the header data to get the blockhash
         let block_hash = hash_data!(
             header.ref_hashes,
             header.round,

@@ -105,7 +105,6 @@ impl Storage for FileSystemStorageDriver {
     }
 }
 
-
 pub fn read_file<F: AsRef<Path>>(path: F) -> Result<File> {
     match File::open(path.as_ref()) {
         Ok(file) => Ok(file),
@@ -119,7 +118,6 @@ pub fn create_dir<F: AsRef<Path>>(outdir: F) -> Result<()> {
         Err(e) => Err(StorageError::Io(e)),
     }
 }
-
 
 #[cfg(test)]
 mod tests {

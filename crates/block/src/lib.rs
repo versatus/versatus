@@ -21,7 +21,13 @@ pub(crate) mod helpers {
     };
 
     use crate::{
-        Block, ConvergenceBlock, GenesisBlock, InnerBlock, MineArgs, ProposalBlock, EPOCH_BLOCK,
+        Block,
+        ConvergenceBlock,
+        GenesisBlock,
+        InnerBlock,
+        MineArgs,
+        ProposalBlock,
+        EPOCH_BLOCK,
     };
 
     type Address = String;
@@ -245,7 +251,8 @@ mod tests {
     use secp256k1::{
         ecdsa::Signature,
         hashes::{sha256 as s256, Hash},
-        Message, PublicKey,
+        Message,
+        PublicKey,
     };
     use sha256::digest;
     use utils::{create_payload, hash_data};
@@ -256,7 +263,13 @@ mod tests {
     };
 
     use crate::{
-        header::BlockHeader, helpers::*, Block, Conflict, ConvergenceBlock, GenesisBlock, MineArgs,
+        header::BlockHeader,
+        helpers::*,
+        Block,
+        Conflict,
+        ConvergenceBlock,
+        GenesisBlock,
+        MineArgs,
         ProposalBlock,
     };
 
@@ -808,5 +821,4 @@ mod tests {
 
         assert_eq!(cb2.header.next_block_reward.amount, 24);
     }
-
 }

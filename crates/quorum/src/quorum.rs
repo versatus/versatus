@@ -107,7 +107,6 @@ impl Election for Quorum {
 
         let mut nonce_up_claims = Vec::new();
 
-
         for claim in claims {
             let mut nonce_up_claim = claim;
             nonce_up_claim.nonce += 1;
@@ -183,7 +182,6 @@ impl Quorum {
                 )
             })
             .collect();
-
 
         if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));

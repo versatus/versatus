@@ -58,7 +58,6 @@ impl BackPressure {
 
 static NUM_CPU_CORES: Lazy<usize> = Lazy::new(|| num_cpus::get().max(32));
 
-
 impl JobScheduler {
     pub fn add_peer_back_pressure(&mut self, peer_id: PeerID, back_pressure: f32) {
         self.peers_back_pressure.push(peer_id, back_pressure);
@@ -194,7 +193,6 @@ mod tests {
     use rand::Rng;
 
     use super::*;
-
 
     #[test]
     /// The function creates a job scheduler with two peers, and then pushes 300

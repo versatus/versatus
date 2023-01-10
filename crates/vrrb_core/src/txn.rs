@@ -10,7 +10,9 @@ use std::{
 use bytebuffer::ByteBuffer;
 use primitives::{
     types::{PublicKey, SerializedPublicKey},
-    ByteSlice, ByteVec, SecretKey,
+    ByteSlice,
+    ByteVec,
+    SecretKey,
 };
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};

@@ -30,7 +30,6 @@ mod tests {
         assert_eq!(rn1, rn2);
     }
 
-
     #[test]
     fn same_seed_equals_same_random_u16() {
         let kp = KeyPair::random();
