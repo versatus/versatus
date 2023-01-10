@@ -36,7 +36,7 @@ use crate::genesis;
 use crate::{
     genesis,
     header::BlockHeader,
-    invalid::{InvalidBlockError, InvalidBlockErrorReason},
+    invalid::{BlockError, InvalidBlockErrorReason},
 };
 
 pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
@@ -240,8 +240,7 @@ impl ConvergenceBlock {
             txn_hash,
             claim_list_hash,
             adjustment_next_epoch,
-            Some(vec![0; 5]),
-        )?;
+        );
 
         if let Some(head) = header {
             // Hash all the header data to get the blockhash
