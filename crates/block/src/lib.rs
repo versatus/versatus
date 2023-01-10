@@ -320,5 +320,4 @@ mod tests {
 
         assert!(genesis_block.header.block_seed == genesis_block2.header.block_seed);
     }
-
 }

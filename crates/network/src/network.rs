@@ -11,7 +11,12 @@ use bytes::Bytes;
 use crossbeam_channel::unbounded;
 use futures::{stream::FuturesUnordered, StreamExt};
 use qp2p::{
-    Config, Connection, ConnectionIncoming, Endpoint, EndpointError, IncomingConnections,
+    Config,
+    Connection,
+    ConnectionIncoming,
+    Endpoint,
+    EndpointError,
+    IncomingConnections,
     RetryConfig,
 };
 use raptorq::Decoder;
@@ -21,8 +26,14 @@ use tokio::net::UdpSocket;
 use crate::{
     message::Message,
     packet::{
-        generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
-        BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
+        generate_batch_id,
+        packet_forwarder,
+        reassemble_packets,
+        recv_mmsg,
+        split_into_packets,
+        BATCH_ID_SIZE,
+        MTU_SIZE,
+        NUM_RCVMMSGS,
     },
     types::config::{BroadCastError, BroadCastResult},
 };

@@ -12,8 +12,15 @@ use vrrb_core::accountable::Accountable;
 use vrrb_core::{claim::Claim, ledger::Ledger, nonceable::Nonceable, ownable::Ownable};
 
 use crate::types::{
-    CreditsHash, CreditsRoot, DebitsHash, DebitsRoot, LedgerBytes, StateHash, StatePath,
-    StateRewardState, StateRoot,
+    CreditsHash,
+    CreditsRoot,
+    DebitsHash,
+    DebitsRoot,
+    LedgerBytes,
+    StateHash,
+    StatePath,
+    StateRewardState,
+    StateRoot,
 };
 
 /// The Network State struct, contains basic information required to determine

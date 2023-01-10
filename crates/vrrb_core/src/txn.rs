@@ -10,8 +10,7 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use primitives::{ByteSlice, ByteVec, PublicKey, SerializedPublicKey};
-use secp256k1::ecdsa::Signature;
-use secp256k1::{Message, Secp256k1};
+use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use uuid::Uuid;
@@ -290,11 +289,9 @@ impl Accountable for Txn {
 // NOTE: temporary impl
 // TODO: remove later
 impl Verifiable for Txn {
-    type Item = Txn;
-
     type Dependencies = ();
-
     type Error = TxnError;
+    type Item = Txn;
 
     fn verifiable(&self) -> bool {
         true

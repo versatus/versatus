@@ -10,9 +10,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use rand::thread_rng;
-    use rand::Rng;
-
+    use rand::{thread_rng, Rng};
     use vrrb_core::{
         keypair::KeyPair,
         txn::{NewTxnArgs, Txn},

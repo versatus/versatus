@@ -1,12 +1,11 @@
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
-use crate::result::Result;
 use lr_trie::{InnerTrieWrapper, LeftRightTrie};
 use patriecia::db::MemoryDB;
 use primitives::TxHash;
 use vrrb_core::txn::Txn;
 
-use crate::result::LeftRightDbError;
+use crate::result::{LeftRightDbError, Result};
 
 #[derive(Debug, Clone)]
 pub struct TxnDb<'a> {

@@ -1,4 +1,9 @@
-use std::{env, fs,fs::File, path::{PathBuf, Path}};
+use std::{
+    env,
+    fs,
+    fs::File,
+    path::{Path, PathBuf},
+};
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("{0}")]
@@ -101,20 +106,19 @@ impl Storage for FileSystemStorageDriver {
 }
 
 
-pub fn read_file<F: AsRef<Path>>(path: F)->Result<File> {
-     match File::open(path.as_ref()){
-        Ok(file)=>Ok(file),
-        Err(e)=>Err(StorageError::Io(e))
-     }
-}
-
-pub fn create_dir<F: AsRef<Path>>(outdir: F)->Result<()> {
-    match fs::create_dir_all(outdir){
-        Ok(_)=>Ok(()),
-        Err(e)=>Err(StorageError::Io(e))
+pub fn read_file<F: AsRef<Path>>(path: F) -> Result<File> {
+    match File::open(path.as_ref()) {
+        Ok(file) => Ok(file),
+        Err(e) => Err(StorageError::Io(e)),
     }
 }
 
+pub fn create_dir<F: AsRef<Path>>(outdir: F) -> Result<()> {
+    match fs::create_dir_all(outdir) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(StorageError::Io(e)),
+    }
+}
 
 
 #[cfg(test)]

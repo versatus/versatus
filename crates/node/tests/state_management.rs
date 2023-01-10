@@ -6,10 +6,13 @@ use std::{
 use jsonrpsee::{core::client::Subscription, ws_client::WsClientBuilder};
 use node::{
     test_utils::{
-        create_mock_bootstrap_node_config, create_mock_full_node_config,
+        create_mock_bootstrap_node_config,
+        create_mock_full_node_config,
         create_mock_full_node_config_with_bootstrap,
     },
-    Node, NodeType, RuntimeModuleState,
+    Node,
+    NodeType,
+    RuntimeModuleState,
 };
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::event_router::Event;
