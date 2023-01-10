@@ -5,12 +5,13 @@ use std::{
 
 use left_right::ReadHandle;
 use lr_trie::{GetDeserialized, LeftRightTrieError};
-use lrdb::Account;
+use lrdb;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
 use vrrb_core::{
     keypair::{KeyPair, MinerPk},
     txn::Txn,
 };
+use vrrb_core::account::Account;
 
 type Result<T> = StdResult<T, TxnValidatorError>;
 

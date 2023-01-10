@@ -13,7 +13,10 @@ pub trait Election {
     ///runs the election
     fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error>;
     ///re-make seed and nonce up claims to run a new election in case of
-    /// electoin failure
+    /// election failure
+    fn run_harvester_election() -> Result<Self::Ballot, Self::Error>;
+    fn run_farmer_election() -> Result<Self::Ballot, Self::Error>;
+
     fn nonce_claims_and_new_seed(
         &mut self,
         claims: Self::Ballot,

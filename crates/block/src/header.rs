@@ -6,10 +6,11 @@ use std::{
 
 use bytebuffer::ByteBuffer;
 use primitives::types::RawSignature;
+use primitives::SerializedSecretKey as SecretKeyBytes;
 use reward::reward::Reward;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use vrrb_core::claim::Claim;
+use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::{block::Block, NextEpochAdjustment, invalid::InvalidBlockErrorReason, invalid::InvalidBlockError};
@@ -87,10 +88,11 @@ impl BlockHeader {
                 next_block_reward,
                 neighbor_hash,
             );
-
         }
 
-        if let Ok(signature) = BlockHeader::sign(&payload, secret_key){
+        let payload_bytes = payload.as_bytes();
+        
+        if let Ok(signature) =  KeyPair::ecdsa_signature(payload_bytes, &secret_key){
             Ok(BlockHeader {
                 last_hash,
                 block_seed,
@@ -99,14 +101,13 @@ impl BlockHeader {
                 timestamp,
                 txn_hash,
                 claim,
-                claim_map_hash: None,
+                claim_map_hash,
                 block_reward,
                 next_block_reward,
                 neighbor_hash: None,
                 signature: signature.to_string(),
-            })
-        }
-        else{
+            })   
+        } else {
             Err(InvalidBlockErrorReason::InvalidBlockHeader)
         }
     }
@@ -173,7 +174,9 @@ impl BlockHeader {
             );
         }
         
-        if let Ok(signature) =  BlockHeader::sign(&payload, secret_key){
+        let payload_bytes = payload.as_bytes();
+        
+        if let Ok(signature) =  KeyPair::ecdsa_signature(payload_bytes, &secret_key){
             Ok(BlockHeader {
                 last_hash,
                 block_seed,
@@ -191,8 +194,6 @@ impl BlockHeader {
         } else {
             Err(InvalidBlockErrorReason::InvalidBlockHeader)
         }
-
-      
     }
 
     pub fn get_payload(&self) -> String {
@@ -217,9 +218,9 @@ impl BlockHeader {
 
     //TODO Option wrapper removed from threshiold_signature as waiting will be required before it can be passed in 
     pub fn generate_next_block_seed(last_hash: Vec<u8>, threshold_sig: RawSignature) -> Result<u64, InvalidBlockErrorReason>{
-        let sk = VVRF::generate_secret_key();
+        let sk = KeyPair::random();
         let msg: Vec<u8> = last_hash.iter().cloned().chain(threshold_sig.iter().cloned()).collect();
-        let mut vvrf = VVRF::new(&msg, sk);
+        let mut vvrf = VVRF::new(&msg, &sk);
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
             return Err(InvalidBlockErrorReason::InvalidBlockHeader);

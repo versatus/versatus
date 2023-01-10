@@ -205,14 +205,15 @@ impl Miner {
     //TODO: Require a specific key to mine the genesis block so that only one node
     // controlled by the organization can mine it.
     pub fn genesis(&mut self) -> Option<Result<Block, InvalidBlockErrorReason>> {
-        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.pubkey) {
+        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.public_key) {
             return None;
         }
         self.claim_map
-            .insert(self.claim.pubkey.clone(), self.claim.clone());
+            .insert(self.claim.public_key.clone(), self.claim.clone());
         
-        let genesis_block = Block::genesis(self.claim.clone(), self.secret_key.clone(), None);
-
+        let bytes_secret_key = self.secret_key.as_bytes().to_owned();
+        
+        let genesis_block = Block::genesis(self.claim.clone(), bytes_secret_key, None);
         return Some(genesis_block);
     }
 

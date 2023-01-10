@@ -1,8 +1,6 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use std::fmt;
-
 use primitives::types::{
     Epoch, RawSignature, SerializedSecretKey as SecretKeyBytes, GENESIS_EPOCH, SECOND,
     VALIDATOR_THRESHOLD,
@@ -19,6 +17,7 @@ use vrrb_core::accountable::Accountable;
 use vrrb_core::claim::Claim;
 use vrrb_core::txn::Txn;
 use vrrb_core::verifiable::Verifiable;
+use vrrb_core::keypair::KeyPair;
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -82,7 +81,7 @@ pub struct Block {
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Result<Block, InvalidBlockErrorReason> {
+    pub fn genesis(claim: Claim, secret_key: Vec<u8>, miner: Option<String>) -> Result<Block, InvalidBlockErrorReason> {
         // Create the genesis header
         let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner, RawSignature::default())?;
         // Create the genesis state hash

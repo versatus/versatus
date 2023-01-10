@@ -25,7 +25,10 @@ pub enum InvalidQuorum {
     NoSeedError(),
 }
 
+//one struct, two traits or a marker/unit struct to designate it and generic w quorum trait
+//they use distinct methods
 ///Quorum struct which is created and modified when an election is run
+//add a bool?
 pub struct Quorum {
     pub quorum_seed: u64,
     pub master_pubkeys: Vec<String>,
@@ -70,6 +73,25 @@ impl Election for Quorum {
 
     ///master nodes run elections to determine the next master node quorum
     fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
+        if self.election_block_height == 0 || self.election_timestamp == 0 {
+            return Err(InvalidQuorum::InvalidChildBlockError());
+        }
+
+        let eligible_claims = match Quorum::get_eligible_claims(ballot) {
+            Ok(eligible_claims) => eligible_claims,
+            Err(e) => return Err(e),
+        };
+
+        let elected_quorum = match self.get_final_quorum(eligible_claims) {
+            Ok(elected_quorum) => elected_quorum,
+            Err(e) => return Err(e),
+        };
+
+        Ok(elected_quorum)
+    }
+
+    ///master nodes run elections to determine the next master node quorum
+    fn run_harvester_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
         if self.election_block_height == 0 || self.election_timestamp == 0 {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
