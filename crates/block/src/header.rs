@@ -6,7 +6,7 @@ use std::{
     u64::MAX as u64MAX,
 };
 
-use primitives::{SecretKey as SecretKeyBytes, Epoch};
+use primitives::{Epoch, SecretKey as SecretKeyBytes};
 use rand::Rng;
 use reward::reward::Reward;
 use secp256k1::{
@@ -17,14 +17,15 @@ use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data, timestamp};
 use vrrb_core::{claim::Claim, keypair::KeyPair};
-use vrrb_vrf::{vvrf::VVRF, vrng::VRNG};
+use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
+
 use crate::{
-    block::Block, 
-    ConvergenceBlock, 
-    InnerBlock, 
+    block::Block,
+    ConvergenceBlock,
     GenesisBlock,
+    InnerBlock,
+    NextEpochAdjustment,
     ProposalBlock,
-    NextEpochAdjustment
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,26 +62,16 @@ impl BlockHeader {
         // Leading candidates are some combination of last_hash and last_block_seed
         let ref_hashes = vec![hash_data!("Genesis_Ref_Hash")];
         let message = {
-            hash_data!(
-                ref_hashes, 
-                hash_data!(
-                    "Genesis_Last_Hash"
-                )
-            ).as_bytes().to_vec()
+            hash_data!(ref_hashes, hash_data!("Genesis_Last_Hash"))
+                .as_bytes()
+                .to_vec()
         };
-        
-        let mut vrf = VVRF::new(
-            &message, 
-            &secret_key.secret_bytes()
-                        .to_vec()
-        );
 
-        let next_block_seed = vrf.generate_u64_in_range(
-            u32::MAX as u64, 
-            u64::MAX
-        );
+        let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
 
-        let timestamp = timestamp!(); 
+        let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
+
+        let timestamp = timestamp!();
         let txn_hash = hash_data!("Genesis_Txn_Hash");
         let block_reward = Reward::genesis(Some(miner_claim.address.clone()));
         let block_height = 0;
@@ -129,17 +120,12 @@ impl BlockHeader {
         claim_list_hash: String,
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> Option<BlockHeader> {
-       
         // Get the last block
-        let last_block: &dyn InnerBlock<Header=BlockHeader, RewardType=Reward> = {
+        let last_block: &dyn InnerBlock<Header = BlockHeader, RewardType = Reward> = {
             match last_block {
-                Block::Convergence { ref block } =>  {
-                    block
-                }
-                Block::Genesis { ref block } => {
-                    block
-                }
-                _ => return None
+                Block::Convergence { ref block } => block,
+                Block::Genesis { ref block } => block,
+                _ => return None,
             }
         };
 
@@ -149,7 +135,7 @@ impl BlockHeader {
         // Get block height
         let block_height = last_block.get_header().block_height + 1;
 
-        // get the message; TODO: replace ref_hashes with 
+        // get the message; TODO: replace ref_hashes with
         // last_block.certificate
         let message = {
             let hash = hash_data!(last_block.get_hash(), ref_hashes);
@@ -158,28 +144,23 @@ impl BlockHeader {
 
         // Generate next_block_seed
         let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
-        let next_block_seed = vrf.generate_u64_in_range(
-            u32::MAX as u64, 
-            u64::MAX
-        );
+        let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 
         // generate timestamp
         let timestamp = timestamp!();
 
         // Get current block reward, which is last_block.next_block_reward
         let mut block_reward = last_block.get_next_block_reward();
-        block_reward.current_block = block_height; 
+        block_reward.current_block = block_height;
 
-        // Create the next block reward, which is a clone of the current 
+        // Create the next block reward, which is a clone of the current
         // reward, unless there's an epoch change
-        let next_block_reward = block_reward.generate_next_reward(
-            adjustment_next_epoch
-        );
+        let next_block_reward = block_reward.generate_next_reward(adjustment_next_epoch);
 
         // Append the miner to the current block reward
         block_reward.miner = Some(miner_claim.clone().address);
 
-        // Get current epoch which is the same as last epoch unless it's an 
+        // Get current epoch which is the same as last epoch unless it's an
         // epoch change block.
         let epoch = last_block.get_header().epoch;
         // Get the reward for current block which is last_block.round + 1
@@ -201,7 +182,7 @@ impl BlockHeader {
         );
 
         let miner_signature = secret_key.sign_ecdsa(payload).to_string();
-        
+
         let block_header = BlockHeader {
             ref_hashes,
             round,

@@ -60,38 +60,36 @@ impl Reward {
         }
     }
 
-    pub fn generate_next_reward(
-        &self, 
-        adjustment_to_next_epoch: i128
-    ) -> Reward {
+    pub fn generate_next_reward(&self, adjustment_to_next_epoch: i128) -> Reward {
         let rem = (self.current_block + 1) % NUMBER_OF_BLOCKS_PER_EPOCH as u128;
         if rem == 0 {
             let nr_epoch = self.epoch + 1;
             let nr_next_epoch_block = self.next_epoch_block + NUMBER_OF_BLOCKS_PER_EPOCH;
             let mut nr_amount = {
-                (self.amount as i128 + (adjustment_to_next_epoch / 
-                 NUMBER_OF_BLOCKS_PER_EPOCH as i128)) as u128
+                (self.amount as i128
+                    + (adjustment_to_next_epoch / NUMBER_OF_BLOCKS_PER_EPOCH as i128))
+                    as u128
             };
 
             if nr_amount < MIN_BASELINE_REWARD {
                 nr_amount = MIN_BASELINE_REWARD;
             } else if nr_amount > MAX_BASELINE_REWARD {
-                nr_amount = MAX_BASELINE_REWARD; 
-            } 
+                nr_amount = MAX_BASELINE_REWARD;
+            }
 
             return Reward {
                 current_block: self.current_block,
                 epoch: nr_epoch,
                 next_epoch_block: nr_next_epoch_block,
                 miner: None,
-                amount: nr_amount
-            }
+                amount: nr_amount,
+            };
         } else {
             self.clone()
         }
     }
-    
 
+    #[deprecated("Replace update with generate_next_reward")]
     pub fn update(&mut self, adjustment_to_next_epoch: i128) {
         self.new_epoch(adjustment_to_next_epoch);
     }
@@ -109,6 +107,7 @@ impl Reward {
     ///
     /// * `adjustment_to_next_epoch`: The amount of adjustment to the next
     ///   epoch.
+    #[deprecated("Deprecated as a result of self.update() method being deprecated")]
     pub fn new_epoch(&mut self, adjustment_to_next_epoch: i128) {
         self.epoch += 1;
 

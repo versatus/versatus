@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use parity_wordlist::WORDS;
+use primitives::types::SerializedSecretKey as SecretKeyBytes;
 use rand::seq::SliceRandom;
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_core::RngCore;
@@ -9,7 +10,6 @@ use vrf::{
     VRF,
 };
 use vrrb_core::keypair::KeyPair;
-use primitives::types::SerializedSecretKey as SecretKeyBytes;
 
 use crate::vrng::VRNG;
 
@@ -158,9 +158,7 @@ impl VVRF {
     /// of VVRF methods
     pub fn new(message: &[u8], sk: &SecretKeyBytes) -> VVRF {
         let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
-        let pubkey = VVRF::generate_pubkey(
-            &mut vrf, &sk
-        );
+        let pubkey = VVRF::generate_pubkey(&mut vrf, &sk);
         let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
         let rng = ChaCha20Rng::from_seed(hash);
         VVRF {
