@@ -4,7 +4,7 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
-use mempool::{LeftRightMempoolDB, Mempool, MempoolType};
+use mempool::{LeftRightMempool, Mempool, PoolType};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{
     node, ByteSlice, ByteVec, PublicKey, SerializedPublicKey, SerializedPublicKeyString, TxHash,
@@ -42,7 +42,7 @@ pub struct NodeState {
     // TODO: change lifetime parameter once refactoring is complete
     state_db: StateDb<'static>,
     txn_db: TxnDb<'static>,
-    mempool: LeftRightMempoolDB,
+    mempool: LeftRightMempool,
 }
 
 impl NodeState {
@@ -60,7 +60,7 @@ impl NodeState {
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
 
-        let mempool = LeftRightMempoolDB::new();
+        let mempool = LeftRightMempool::new();
 
         Self {
             path,
@@ -191,12 +191,14 @@ impl NodeState {
     }
 
     /// Removes an account from the current state tree.
-    pub fn remove_account(&mut self, key: SerializedPublicKey) {
+    pub fn remove_account(&mut self, key: SerializedPublicKey) -> Result<()> {
         todo!()
     }
 
-    pub fn insert_txn_to_mempool(&mut self, txn: Txn) {
-        self.mempool.into
+    pub fn insert_txn_to_mempool(&mut self, txn: Txn) -> Result<()> {
+        self.mempool
+            .insert(txn)
+            .map_err(|err| StateError::Other(err.to_string()))
     }
 }
 

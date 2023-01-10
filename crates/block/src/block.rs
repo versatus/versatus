@@ -1,8 +1,6 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use std::fmt;
-
 use primitives::types::{
     Epoch, RawSignature, SerializedSecretKey as SecretKeyBytes, GENESIS_EPOCH, SECOND,
     VALIDATOR_THRESHOLD,
@@ -82,13 +80,18 @@ pub struct Block {
 impl Block {
     // Returns a result with either a tuple containing the genesis block and the
     // updated account state (if successful) or an error (if unsuccessful)
-    pub fn genesis(claim: Claim, secret_key: String, miner: Option<String>) -> Result<Block, InvalidBlockErrorReason> {
+    pub fn genesis(
+        claim: Claim,
+        secret_key: String,
+        miner: Option<String>,
+    ) -> Result<Block, InvalidBlockErrorReason> {
         // Create the genesis header
-        let header = BlockHeader::genesis(0, claim.clone(), secret_key, miner, RawSignature::default())?;
+        let header =
+            BlockHeader::genesis(0, claim.clone(), secret_key, miner, RawSignature::default())?;
         // Create the genesis state hash
         // TODO: Replace with state trie root
         let mut state_hash = "".to_string();
-        if let Ok(str_last_hash) = String::from_utf8(header.clone().last_hash){
+        if let Ok(str_last_hash) = String::from_utf8(header.clone().last_hash) {
             state_hash = digest(
                 format!(
                     "{},{}",
@@ -100,8 +103,7 @@ impl Block {
         } else {
             return Err(InvalidBlockErrorReason::InvalidBlockHeader);
         }
-        
-    
+
         // Replace with claim trie
         let mut claims = LinkedHashMap::new();
         claims.insert(claim.clone().public_key, claim);
@@ -218,8 +220,12 @@ impl Block {
         // mechanism may serve the purpose better, or whether simply sequencing proposed
         // blocks and allowing validator network to determine how much time
         // between blocks has passed.
-       
-        if let Some(time) = header.clone().timestamp.checked_sub(last_block.header.timestamp) {
+
+        if let Some(time) = header
+            .clone()
+            .timestamp
+            .checked_sub(last_block.header.timestamp)
+        {
             if (time / SECOND) < 1 {
                 return Ok((None, 0i128));
             }
@@ -253,7 +259,9 @@ impl Block {
         // TODO: Replace with state trie
         let mut hashable_state = network_state.clone();
 
-        let hash = digest(hashable_state.hash(&block.txns, block.header.block_reward.clone())).as_bytes().to_vec();
+        let hash = digest(hashable_state.hash(&block.txns, block.header.block_reward.clone()))
+            .as_bytes()
+            .to_vec();
         block.hash = hash;
         return Ok((Some(block), adjustment_next_epoch));
     }
@@ -303,8 +311,8 @@ impl Block {
 
         data.iter().for_each(|x| buffer.push(*x));
 
-        if let Ok(to_string) =  String::from_utf8(buffer){
-            if let Ok(block) = serde_json::from_str::<Block>(&to_string){
+        if let Ok(to_string) = String::from_utf8(buffer) {
+            if let Ok(block) = serde_json::from_str::<Block>(&to_string) {
                 return Ok(block);
             } else {
                 return Err(InvalidBlockErrorReason::General);
@@ -410,7 +418,7 @@ impl Verifiable for Block {
 
         let mut genesis_state_hash = "".to_string();
 
-        if let Ok(str_genesis_last_hash) = String::from_utf8(genesis_last_hash.clone()){
+        if let Ok(str_genesis_last_hash) = String::from_utf8(genesis_last_hash.clone()) {
             genesis_state_hash = digest(
                 format!(
                     "{},{}",
