@@ -31,10 +31,12 @@ impl<'a> From<ByteSlice<'a>> for Digest {
 
 type Hash = Vec<u8>;
 
-#[deprecated(note = "use TxnHash instead")]
+// NOTE: will be replaced by TxnHash eventually
 pub type TxHash = Hash;
 
 pub const TXN_DIGEST_LENGTH: usize = 32;
+/// WIP structure that represents a transaction ID within VRRB, it has some useful utility methods
+/// attached to it
 pub struct TxnHash([u8; TXN_DIGEST_LENGTH]);
 
 impl From<ByteVec> for TxnHash {
