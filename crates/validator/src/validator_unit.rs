@@ -100,134 +100,138 @@ impl Core {
         state_read_handle_factory: &ReadHandleFactory<InnerTrie<D>>,
         amount_of_cores: u8,
     ) {
-        // Cannot move self to thread so we need to copy values that will be used
-        let mut state = CoreState::Ready;
-        let id = self.id;
-        let mempool_read_handle = mempool_read_handle.clone();
-        let mempool_processor_sender = mempool_processor_sender.clone();
-        let error_sender = self.error_sender.clone();
+        // TODO: temporarily commented to fix compilation issues
+        todo!()
 
-        let txn_validator = TxnValidator::new(state_read_handle_factory.handle());
-        // Spawnin the core's thread
-        let join_handle = thread::spawn(move || {
-            // Entering the main state loop
-            loop {
-                match state {
-                    // When core is ready for new txns to validate
-                    CoreState::Ready => {
-                        // Fetch msg. If msg::stop - stop and wait for resume
-                        // if msg::NewToProcess - start processing the batch
-                        // Blocking since we wait for next instruction on that channel
-                        match control_receiver.recv() {
-                            Ok(msg) => match msg {
-                                CoreControlMsg::Stop => state = CoreState::Inactive,
-                                CoreControlMsg::NewToProcess(amount) => {
-                                    state = CoreState::Processing(amount)
-                                },
-                                _ => {
-                                    // Propagating the error to core error receiver
-                                    send_core_err_msg(
-                                        id,
-                                        &error_sender,
-                                        CoreError::InvalidMsgForCurrentState(msg, state.clone()),
-                                    );
-                                    // Any error in core will result in it turning into inactive
-                                    state = CoreState::Inactive;
-                                },
-                            },
-                            Err(err) => {
-                                // This should never happen, unless somehow the channels is dropped
-                                // Since it can't be moved out of core struct, that'd mean that the
-                                // whole struct is dropped
-                                // That though means, that it'd be moved out of the ValidatorUnit
-                                // struct, meaning that the whole
-                                // validator unit has been dropped
-                                send_core_err_msg(
-                                    id,
-                                    &error_sender,
-                                    CoreError::FailedToReadFromControlChannel(err),
-                                );
-                                // Error = State::Inactive
-                                state = CoreState::Inactive
-                            },
-                        }
-                    },
-                    CoreState::Inactive => {
-                        // wait for activation
-                        // Using blocking channel recv to idle while inactive
-                        match control_receiver.recv() {
-                            Ok(msg) => match msg {
-                                CoreControlMsg::Start => state = CoreState::Ready,
-                                _ => {
-                                    send_core_err_msg(
-                                        id,
-                                        &error_sender,
-                                        CoreError::InvalidMsgForCurrentState(msg, state.clone()),
-                                    );
-
-                                    // No need to set the state here, as the
-                                    // core is already stopped
-                                },
-                            },
-                            Err(err) => {
-                                send_core_err_msg(
-                                    id,
-                                    &error_sender,
-                                    CoreError::FailedToReadFromControlChannel(err),
-                                );
-                            },
-                        }
-                    },
-                    CoreState::Processing(amount) => {
-                        // Get batch of `amount` txns matching this core.id
-                        let batch: Vec<TxnRecord> = mempool_read_handle
-                            .fetch_pending(amount, |_, v| {
-                                v.txn_id.as_bytes()[0] % amount_of_cores == id
-                            });
-                        let mut validated = HashSet::<(Txn, bool)>::new();
-
-                        // Group the txns by their validity
-                        for txn_record in batch {
-                            let txn = Txn::from_string(&txn_record.txn);
-                            match txn_validator.validate(&txn) {
-                                Ok(_) => {
-                                    println!("Validitto");
-                                    validated.insert((txn, true));
-                                },
-                                Err(_) => {
-                                    validated.insert((txn, false));
-                                    // Should we send error?
-                                    // send_core_err_msg(id, &error_sender,
-                                    // err);
-                                },
-                            }
-                        }
-
-                        // Failure in sending validated txns to mempool processor will result in
-                        // core going inactive That means though that the
-                        // channel has been closed, meaning that mempool_processor is down
-                        if let Err(err) = mempool_processor_sender
-                            .send(MempoolControlMsg::NewValidated(validated))
-                        {
-                            send_core_err_msg(
-                                id,
-                                &error_sender,
-                                CoreError::MempoolControlChannelUnreachable(err),
-                            );
-                            state = CoreState::Inactive;
-                        } else {
-                            // Finished processing, ready for new batch
-                            state = CoreState::Ready;
-                        }
-                    },
-                }
-            }
-        });
-
-        // Spawned the thread, time to update the join handle
-        self.join_handle = Some(join_handle);
+        // // Cannot move self to thread so we need to copy values that will be used
+        // let mut state = CoreState::Ready;
+        // let id = self.id;
+        // let mempool_read_handle = mempool_read_handle.clone();
+        // let mempool_processor_sender = mempool_processor_sender.clone();
+        // let error_sender = self.error_sender.clone();
+        //
+        // let txn_validator = TxnValidator::new(state_read_handle_factory.handle());
+        // // Spawnin the core's thread
+        // let join_handle = thread::spawn(move || {
+        //     // Entering the main state loop
+        //     loop {
+        //         match state {
+        //             // When core is ready for new txns to validate
+        //             CoreState::Ready => {
+        //                 // Fetch msg. If msg::stop - stop and wait for resume
+        //                 // if msg::NewToProcess - start processing the batch
+        //                 // Blocking since we wait for next instruction on that channel
+        //                 match control_receiver.recv() {
+        //                     Ok(msg) => match msg {
+        //                         CoreControlMsg::Stop => state = CoreState::Inactive,
+        //                         CoreControlMsg::NewToProcess(amount) => {
+        //                             state = CoreState::Processing(amount)
+        //                         },
+        //                         _ => {
+        //                             // Propagating the error to core error receiver
+        //                             send_core_err_msg(
+        //                                 id,
+        //                                 &error_sender,
+        //                                 CoreError::InvalidMsgForCurrentState(msg, state.clone()),
+        //                             );
+        //                             // Any error in core will result in it turning into inactive
+        //                             state = CoreState::Inactive;
+        //                         },
+        //                     },
+        //                     Err(err) => {
+        //                         // This should never happen, unless somehow the channels is dropped
+        //                         // Since it can't be moved out of core struct, that'd mean that the
+        //                         // whole struct is dropped
+        //                         // That though means, that it'd be moved out of the ValidatorUnit
+        //                         // struct, meaning that the whole
+        //                         // validator unit has been dropped
+        //                         send_core_err_msg(
+        //                             id,
+        //                             &error_sender,
+        //                             CoreError::FailedToReadFromControlChannel(err),
+        //                         );
+        //                         // Error = State::Inactive
+        //                         state = CoreState::Inactive
+        //                     },
+        //                 }
+        //             },
+        //             CoreState::Inactive => {
+        //                 // wait for activation
+        //                 // Using blocking channel recv to idle while inactive
+        //                 match control_receiver.recv() {
+        //                     Ok(msg) => match msg {
+        //                         CoreControlMsg::Start => state = CoreState::Ready,
+        //                         _ => {
+        //                             send_core_err_msg(
+        //                                 id,
+        //                                 &error_sender,
+        //                                 CoreError::InvalidMsgForCurrentState(msg, state.clone()),
+        //                             );
+        //
+        //                             // No need to set the state here, as the
+        //                             // core is already stopped
+        //                         },
+        //                     },
+        //                     Err(err) => {
+        //                         send_core_err_msg(
+        //                             id,
+        //                             &error_sender,
+        //                             CoreError::FailedToReadFromControlChannel(err),
+        //                         );
+        //                     },
+        //                 }
+        //             },
+        //             CoreState::Processing(amount) => {
+        //                 // Get batch of `amount` txns matching this core.id
+        //                 let batch: Vec<TxnRecord> = mempool_read_handle.
+        //                 // .fetch_pending(amount, |_, v| {
+        //                 //     v.txn_id.as_bytes()[0] % amount_of_cores == id
+        //                 // });
+        //
+        //                 let mut validated = HashSet::<(Txn, bool)>::new();
+        //
+        //                 // Group the txns by their validity
+        //                 for txn_record in batch {
+        //                     let txn = txn_record.txn;
+        //                     match txn_validator.validate(&txn) {
+        //                         Ok(_) => {
+        //                             validated.insert((txn, true));
+        //                         },
+        //                         Err(_) => {
+        //                             validated.insert((txn, false));
+        //                             // Should we send error?
+        //                             // send_core_err_msg(id, &error_sender,
+        //                             // err);
+        //                         },
+        //                     }
+        //                 }
+        //
+        //                 // Failure in sending validated txns to mempool processor will result in
+        //                 // core going inactive That means though that the
+        //                 // channel has been closed, meaning that mempool_processor is down
+        //                 if let Err(err) = mempool_processor_sender
+        //                     .send(MempoolControlMsg::NewValidated(validated))
+        //                 {
+        //                     send_core_err_msg(
+        //                         id,
+        //                         &error_sender,
+        //                         CoreError::MempoolControlChannelUnreachable(err),
+        //                     );
+        //                     state = CoreState::Inactive;
+        //                 } else {
+        //                     // Finished processing, ready for new batch
+        //                     state = CoreState::Ready;
+        //                 }
+        //             },
+        //         }
+        //     }
+        // });
+        //
+        // // Spawned the thread, time to update the join handle
+        // self.join_handle = Some(join_handle);
     }
 }
+
 pub struct ValidatorUnit<D: Database> {
     pub cores: Vec<Core>,
     pub mempool_read_handle: ReadHandle<Mempool>,

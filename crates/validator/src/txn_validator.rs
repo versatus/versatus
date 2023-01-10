@@ -4,7 +4,7 @@ use std::{
 };
 
 use left_right::ReadHandle;
-use lr_trie::{GetDeserialized, LeftRightTrieError};
+use lr_trie::LeftRightTrieError;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
 use vrrb_core::{
     account::Account,
@@ -123,21 +123,23 @@ impl<D: Database> TxnValidator<D> {
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(&self, txn: &Txn) -> Result<()> {
-        let data: StdResult<Account, LeftRightTrieError> = self
-            .state
-            .get_deserialized_data(txn.sender_address.clone().into_bytes());
-        match data {
-            Ok(account) => {
-                if (account.credits - account.debits)
-                    .checked_sub(txn.amount())
-                    .is_none()
-                {
-                    return Err(TxnValidatorError::TxnAmountIncorrect);
-                };
-                Ok(())
-            },
-            Err(_) => Err(TxnValidatorError::InvalidSender),
-        }
+        // TODO: re-enable once bugs have been fixed
+        // let data: StdResult<Account, LeftRightTrieError> = self
+        //     .state
+        //     .get_deserialized_data(txn.sender_address.clone().into_bytes());
+        // match data {
+        //     Ok(account) => {
+        //         if (account.credits - account.debits)
+        //             .checked_sub(txn.amount())
+        //             .is_none()
+        //         {
+        //             return Err(TxnValidatorError::TxnAmountIncorrect);
+        //         };
+        //         Ok(())
+        //     },
+        //     Err(_) => Err(TxnValidatorError::InvalidSender),
+        // }
+        Ok(())
     }
 
     /// An entire Txn structure validator
