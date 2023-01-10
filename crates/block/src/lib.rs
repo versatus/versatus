@@ -69,18 +69,18 @@ pub(crate) mod helpers {
                 let amount = (n.pow(2)) as u128;
                 let nonce = 1u128;
                 let token = Some("VRRB".to_string());
-                let txn_args = NewTxnArgs { 
-                    sender_address: saddr, 
-                    sender_public_key: pk.serialize().to_vec(), 
-                    receiver_address: raddr, 
-                    token, 
-                    amount, 
-                    payload: None, 
-                    signature: None, 
-                    validators: None, 
-                    nonce: n.clone() as u128 
+                let txn_args = NewTxnArgs {
+                    sender_address: saddr,
+                    sender_public_key: pk.serialize().to_vec(),
+                    receiver_address: raddr,
+                    token,
+                    amount,
+                    payload: None,
+                    signature: None,
+                    validators: None,
+                    nonce: n.clone() as u128,
                 };
-                
+
                 let mut txn = Txn::new(txn_args);
 
                 txn.sign(&sk);

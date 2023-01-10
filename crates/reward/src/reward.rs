@@ -89,7 +89,7 @@ impl Reward {
         }
     }
 
-    #[deprecated("Replace update with generate_next_reward")]
+    #[deprecated(note = "replaced by generate_next_reward method")]
     pub fn update(&mut self, adjustment_to_next_epoch: i128) {
         self.new_epoch(adjustment_to_next_epoch);
     }
@@ -107,7 +107,7 @@ impl Reward {
     ///
     /// * `adjustment_to_next_epoch`: The amount of adjustment to the next
     ///   epoch.
-    #[deprecated("Deprecated as a result of self.update() method being deprecated")]
+    #[deprecated(note = "deprecated as a result of self.update() method being deprecated")]
     pub fn new_epoch(&mut self, adjustment_to_next_epoch: i128) {
         self.epoch += 1;
 
