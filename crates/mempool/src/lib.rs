@@ -10,7 +10,9 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use rand::{thread_rng, Rng};
+    use rand::thread_rng;
+    use rand::Rng;
+
     use vrrb_core::{
         keypair::KeyPair,
         txn::{NewTxnArgs, Txn},
@@ -153,6 +155,7 @@ mod tests {
     #[test]
     fn add_and_retrieve_txn() {
         let keypair = KeyPair::random();
+
         let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
