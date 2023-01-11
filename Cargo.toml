@@ -15,10 +15,10 @@ name = "vrrb"
 path = "crates/cli/src/main.rs"
 
 [dependencies]
-tokio = { version = "1.21.0", features = ["full"] }
-telemetry = { path = "crates/telemetry" }
-cli = { path = "crates/cli" }
-anyhow = "1.0.64"
+tokio = { workspace = true }
+telemetry = { workspace = true }
+cli = { workspace = true }
+anyhow = { workspace = true }
 
 [dev-dependencies.cargo-husky]
 version = "1"
@@ -57,3 +57,84 @@ members = [
     "crates/job_pool",
     "crates/job_scheduler",
 ]
+
+[workspace.dependencies]
+# NOTE: Internal crates 
+cli = { path = "crates/cli" }
+primitives = { path = "crates/primitives" }
+vrrb_core = { path = "crates/vrrb_core" }
+vrrb_config = { path = "crates/vrrb_config" }
+vrrb_rpc = { path = "crates/vrrb_rpc" }
+block = { path = "crates/block" }
+miner = { path = "crates/miner" }
+state = { path = "crates/state" }
+wallet = { path = "crates/wallet" }
+mempool = { path = "crates/mempool" }
+# NOTE: potentially deprecated
+vrrb_lib = { path = "crates/vrrb_lib" }
+# NOTE: potentially deprecated
+vrrb_cli = { path = "crates/vrrb_cli" }
+# NOTE: potentially deprecated
+vrrb_gui = { path = "crates/vrrb_gui" }
+vrrb_vrf = { path = "crates/vrrb_vrf" }
+network = { path = "crates/network" }
+node = { path = "crates/node" }
+storage = { path = "crates/storage" }
+syncing = { path = "crates/syncing" }
+quorum = { path = "crates/quorum" }
+lrdb = { path = "crates/lrdb" }
+lr_trie = { path = "crates/lr_trie" }
+dkg_engine = { path = "crates/dkg_engine" }
+telemetry = { path = "crates/telemetry" }
+signer = { path = "crates/signer" }
+job_pool = { path = "crates/job_pool" }
+job_scheduler = { path = "crates/job_scheduler" }
+validator = { path = "crates/validator" }
+reward = { path = "crates/reward" }
+
+# NOTE: Github crates
+patriecia = { git = "https://github.com/vrrb-io/patriecia" }
+trecho = { git = "https://github.com/vrrb-io/trecho" }
+udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
+theater = { git = "https://github.com/vrrb-io/theater" }
+hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
+
+# NOTE: External crates
+secp256k1 = { version = "0.25.0", features = [
+    "rand",
+    "bitcoin_hashes",
+    "global-context",
+] }
+
+sha256 = "1.0.2"
+rand = "0.8.5"
+bytebuffer = "0.2.1"
+serde_json = "1.0.64"
+serde = { version = "1.0.101", features = ["derive"] }
+blake3 = "0.3.8"
+pickledb = "0.5.1"
+tokio = { version = "1.21.0", features = ["full"] }
+hex = "*"
+thiserror = "1.0"
+ritelinked = { version = "0.3.2", features = ['serde'] }
+bincode = "1.3.3"
+uuid = { version = "1.2.1", features = ["v4", "serde"] }
+tracing = "0.1.36"
+poem = "1.3.43"
+public-ip = "0.2.2"
+anyhow = "1.0.65"
+async-trait = "0.1.58"
+derive_builder = "0.12.0"
+jsonrpsee = { version = "0.16.2", features = [
+    "macros",
+    "client-core",
+    "server-core",
+    "server",
+    "http-client",
+    "ws-client",
+] }
+bytes = "1.3.0"
+reqwest = "0.11.13"
+
+[dev-dependencies]
+reqwest.workspace = true
