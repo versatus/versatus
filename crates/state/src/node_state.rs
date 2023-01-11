@@ -7,13 +7,7 @@ use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
 use mempool::{LeftRightMempool, Mempool, PoolType};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{
-    node,
-    ByteSlice,
-    ByteVec,
-    PublicKey,
-    SerializedPublicKey,
-    SerializedPublicKeyString,
-    TxHash,
+    node, ByteSlice, ByteVec, PublicKey, SerializedPublicKey, SerializedPublicKeyString, TxHash,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
@@ -196,15 +190,22 @@ impl NodeState {
             .map_err(|err| StateError::Other(err.to_string()))
     }
 
-    /// Removes an account from the current state tree.
-    pub fn remove_account(&mut self, key: SerializedPublicKey) -> Result<()> {
-        todo!()
-    }
-
     pub fn insert_txn_to_mempool(&mut self, txn: Txn) -> Result<()> {
         self.mempool
             .insert(txn)
             .map_err(|err| StateError::Other(err.to_string()))
+    }
+
+    pub fn insert_confirmed_txn(&mut self, txn: Txn) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn remove_txn_from_mempool(&mut self, txn_hash: &TxHashString) -> Result<()> {
+        self.mempool
+            .remove(txn_hash)
+            .map_err(|err| StateError::Other(err.to_string()))?;
+
+        Ok(())
     }
 }
 

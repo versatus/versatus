@@ -10,9 +10,7 @@ use std::{
 use bytebuffer::ByteBuffer;
 use primitives::{
     types::{PublicKey, SerializedPublicKey},
-    ByteSlice,
-    ByteVec,
-    SecretKey,
+    ByteSlice, ByteVec, SecretKey,
 };
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
@@ -56,9 +54,8 @@ pub type TxToken = String;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Eq)]
 pub struct Txn {
     // TODO: Make all fields private
-    #[deprecated(note = "replaced by txn hash")]
-    pub txn_id: Uuid,
-
+    // #[deprecated(note = "replaced by txn hash")]
+    // pub txn_id: Uuid,
     pub timestamp: TxTimestamp,
     pub sender_address: String,
     pub sender_public_key: SerializedPublicKey,
@@ -90,7 +87,7 @@ impl Txn {
         let timestamp = timestamp!();
 
         Self {
-            txn_id: Uuid::new_v4(),
+            // txn_id: Uuid::new_v4(),
             timestamp,
             sender_address: args.sender_address,
             sender_public_key: args.sender_public_key,
@@ -162,7 +159,8 @@ impl Txn {
     }
 
     pub fn txn_id(&self) -> String {
-        self.txn_id.to_string()
+        // self.txn_id.to_string()
+        self.digest()
     }
 
     pub fn payload(&self) -> String {
@@ -216,7 +214,7 @@ impl Txn {
 }
 
 pub const NULL_TXN: Txn = Txn {
-    txn_id: Uuid::nil(),
+    // txn_id: Uuid::nil(),
     timestamp: 0,
     sender_address: String::new(),
     sender_public_key: vec![],
