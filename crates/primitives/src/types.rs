@@ -5,8 +5,58 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default)]
 pub struct StopSignal;
 
+pub type ByteVec = Vec<u8>;
+pub type ByteSlice<'a> = &'a [u8];
+
+pub const DIGEST_LENGTH: usize = 32;
+
+/// Represents a SHA-256 digest produced from any serializable data type
+pub struct Digest([u8; DIGEST_LENGTH]);
+
+impl From<ByteVec> for Digest {
+    fn from(byte_vec: ByteVec) -> Self {
+        let converted = byte_vec.try_into().unwrap_or_default();
+
+        Self(converted)
+    }
+}
+
+impl<'a> From<ByteSlice<'a>> for Digest {
+    fn from(byte_slice: ByteSlice) -> Self {
+        let converted = byte_slice.try_into().unwrap_or_default();
+
+        Self(converted)
+    }
+}
+
 type Hash = Vec<u8>;
+
+// NOTE: will be replaced by TxnHash eventually
 pub type TxHash = Hash;
+
+pub const TXN_DIGEST_LENGTH: usize = 32;
+/// WIP structure that represents a transaction ID within VRRB, it has some useful utility methods
+/// attached to it
+pub struct TxnHash([u8; TXN_DIGEST_LENGTH]);
+
+impl From<ByteVec> for TxnHash {
+    fn from(byte_vec: ByteVec) -> Self {
+        let converted = byte_vec.try_into().unwrap_or_default();
+
+        Self(converted)
+    }
+}
+
+impl<'a> From<ByteSlice<'a>> for TxnHash {
+    fn from(byte_slice: ByteSlice) -> Self {
+        let converted = byte_slice.try_into().unwrap_or_default();
+
+        Self(converted)
+    }
+}
+
+pub type TxHashString = String;
+
 pub type PayloadHash = Hash;
 pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;

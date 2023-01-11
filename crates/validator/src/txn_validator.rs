@@ -5,9 +5,9 @@ use std::{
 
 use left_right::ReadHandle;
 use lr_trie::{LeftRightTrieError};
-use lrdb;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
 use vrrb_core::{
+    account::Account,
     keypair::{KeyPair, MinerPk},
     txn::Txn,
 };

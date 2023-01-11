@@ -1,6 +1,6 @@
 use crate::txn::Txn;
 use crate::{Error, Result};
-use primitives::{NodeType, PeerId, TxHash};
+use primitives::{NodeType, PeerId, TxHash, TxHashString};
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::net::SocketAddr;
@@ -36,7 +36,7 @@ pub enum Event {
     TxnValidated(Vec<u8>),
     /// Batch of validated txns
     TxnBatchValidated(Vec<u8>),
-    TxnAddedToMempool(TxHash),
+    TxnAddedToMempool(TxHashString),
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),
     ClaimProcessed(Vec<u8>),
