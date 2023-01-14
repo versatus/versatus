@@ -19,6 +19,7 @@ use state::state::NetworkState;
 use uuid::Uuid;
 use vrrb_core::{
     accountable::Accountable,
+    account::Account,
     claim::Claim,
     keypair::{KeyPair, MinerSk as SecretKey},
     txn::Txn,
@@ -69,7 +70,7 @@ impl Default for Wallet {
         //addrs need to be added to Account struct
     
 
-        let account = Account::new(public_key, address_prefix);
+        let account = Account::new(public_key.to_owned(), address_prefix);
 
     
         // Generate a wallet struct by assigning the variables to the fields.
@@ -78,7 +79,7 @@ impl Default for Wallet {
             welcome_message,
             public_key: public_key.serialize().to_vec(),
             account,
-            claim: Claim::new(public_key, address_prefix, 0),
+            claim: Claim::new(public_key.to_string(), address_prefix, 0),
             nonce: 0,
         }
     }
@@ -89,6 +90,7 @@ impl Wallet {
     pub fn new() -> Self {
         Self::default()
     }
+    //when do we store the acct? store empty or non-empty
 
     pub fn get_welcome_message(&self) -> String {
         self.welcome_message.clone()
@@ -101,10 +103,8 @@ impl Wallet {
             secret_key: secretkey.secret_bytes().to_vec(),
             welcome_message: String::new(),
             public_key: pubkey.serialize().to_vec(),
-            addresses: LinkedHashMap::new(),
-            total_balances: LinkedHashMap::new(),
-            available_balances: LinkedHashMap::new(),
-            claims: LinkedHashMap::new(),
+            account: Account::new(public_key.to_owned(), String::new()),
+            claim: Claim::new(pubkey.to_string(), String::new(), 0),
             nonce: 0,
         };
 
@@ -115,7 +115,7 @@ impl Wallet {
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:",
             &wallet.secret_key,
             &wallet.public_key,
-            &wallet.addresses.get(&1).unwrap(),
+            &wallet.addresses[&1],
         );
 
         wallet.welcome_message = welcome_message;

@@ -134,12 +134,12 @@ impl NodeState {
     }
 
     /// Returns a mappig of public keys and accounts.
-    pub fn entries(&self) -> HashMap<SerializedPublicKeyString, Account> {
+    pub fn entries(&self) -> HashMap<Vec<u8>, Account> {
         self.state_db.read_handle().entries()
     }
 
     /// Retrieves an account entry from the current state tree.
-    pub fn get_account(&mut self, key: &SerializedPublicKeyString) -> Result<Account> {
+    pub fn get_account(&mut self, key: &SerializedPublicKey) -> Result<Account> {
         let account = self.state_db.read_handle().get(key).unwrap_or_default();
 
         Ok(account)
@@ -147,14 +147,14 @@ impl NodeState {
 
     /// Adds an account to current state tree.
     #[deprecated]
-    pub fn add_account(&mut self, key: SerializedPublicKeyString, account: Account) -> Result<()> {
+    pub fn add_account(&mut self, key: SerializedPublicKey, account: Account) -> Result<()> {
         self.insert_account(key, account)
     }
 
     /// Inserts an account to current state tree.
     pub fn insert_account(
         &mut self,
-        key: SerializedPublicKeyString,
+        key: SerializedPublicKey,
         account: Account,
     ) -> Result<()> {
         self.state_db
@@ -163,14 +163,14 @@ impl NodeState {
     }
 
     /// Adds multiplpe accounts to current state tree.
-    pub fn extend_accounts(&mut self, accounts: Vec<(SerializedPublicKeyString, Account)>) {
+    pub fn extend_accounts(&mut self, accounts: Vec<(SerializedPublicKey, Account)>) {
         self.state_db.extend(accounts);
     }
 
     /// Updates an account on the current state tree.
     pub fn update_account(
         &mut self,
-        key: SerializedPublicKeyString,
+        key: SerializedPublicKey,
         account: Account,
     ) -> Result<()> {
         self.state_db
@@ -178,8 +178,7 @@ impl NodeState {
                 key,
                 UpdateArgs {
                     nonce: account.nonce + 1,
-                    credits: Some(account.credits),
-                    debits: Some(account.debits),
+                    addresses: Some(account.addresses),
                     storage: Some(account.storage),
                     code: Some(account.code),
                 },
@@ -227,7 +226,7 @@ impl From<NodeStateValues> for NodeState {
 #[derive(Debug, Serialize, Deserialize)]
 struct NodeStateValues {
     pub txns: HashMap<TxHash, Txn>,
-    pub state: HashMap<SerializedPublicKeyString, Account>,
+    pub state: HashMap<SerializedPublicKey, Account>,
 }
 
 impl From<&NodeState> for NodeStateValues {
@@ -256,7 +255,7 @@ pub struct NodeStateReadHandle {
 
 impl NodeStateReadHandle {
     /// Returns a copy of all values stored within the state trie
-    pub fn values(&self) -> HashMap<SerializedPublicKeyString, Account> {
+    pub fn values(&self) -> HashMap<SerializedPublicKey, Account> {
         self.state_handle_factory.handle().entries()
     }
 }

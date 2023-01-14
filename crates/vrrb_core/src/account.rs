@@ -28,17 +28,17 @@ pub struct UpdateArgs {
 
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
 // be properly scheduled.
-//impl Ord for UpdateArgs {
-//    fn cmp(&self, other: &Self) -> Ordering {
-//        self.nonce.cmp(&other.nonce)
-//   }
-//}
+impl Ord for UpdateArgs {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.nonce.cmp(&other.nonce)
+   }
+}
 
-//impl PartialOrd for UpdateArgs {
-//    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-//        Some(self.cmp(other))
-//    }
-//}
+impl PartialOrd for UpdateArgs {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 pub type AccountNonce = u32;
 
@@ -65,8 +65,8 @@ impl Account {
         let hash = format!("{:x}", hasher.finalize());
 
         let pubkey = pubkey.serialize().to_vec();
-        let tokens = HashMap<String, Token>::new();
-        let addresses = HashMap<String, tokens>::new();
+        let tokens = HashMap::new();
+        let mut addresses = HashMap::new();
         addresses.insert(address, tokens);
 
 
@@ -78,6 +78,7 @@ impl Account {
             addresses,
             pubkey,
         }
+        //we want to store this account
     }
 
     /// Modifies accounts hash, recalculating it using account's fields.
@@ -115,12 +116,17 @@ impl Account {
     /// Used only in batch updates to improve speed by reducing unnecesary hash
     /// calculations. Returns error if update fails.
     fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<()> {
-        match value {
+        match value.clone() {
             AccountField::Token(token) => 
-                if self.addresses.contains_key(&token.0) && self.addresses[&token.0].contains_key(&token.1){
-                    self.addresses[&token.0][&token.1].update_balance(token.2);
+                if self.addresses.contains_key(&token.0.clone()) && self.addresses[&token.0.clone()].contains_key(&token.1.clone()){
+                    if let Some(val1) = self.addresses.get_mut(&token.0){
+                        if let Some(val2) = val1.get_mut(&token.1){
+                            val2.update_balance(token.2);
+                        }
+                    }
                 } else {
-                 return Err(Error::Other(format!("failed to update {value:?}")))
+                let val = value.clone();
+                 return Err(Error::Other(format!("failed to update {val:?}")))
                 }
             AccountField::Addresses(addresses) => {
                 self.addresses = addresses;

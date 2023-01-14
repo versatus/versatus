@@ -1,4 +1,8 @@
-#[derive(Debug, Derive, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
+use serde::{Deserialize, Serialize};
+use serde_json;
+
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Token {
     pub contract_address: String,
     pub available_balance: i128,

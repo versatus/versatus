@@ -311,7 +311,7 @@ impl Blockchain {
     /// chain is updating the state.
     pub fn stash_future_blocks(&mut self, block: &Block) {
         self.future_blocks
-            .insert(block.clone().header.last_hash, block.clone());
+            .insert(block.clone().header.last_hash.to_string(), block.clone());
     }
 
     /// Creates and sends (to transport layer channel for sending to
