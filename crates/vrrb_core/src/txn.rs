@@ -1,4 +1,3 @@
-#![allow(unused_imports, dead_code)]
 use std::{
     collections::HashMap,
     fmt,
@@ -9,17 +8,26 @@ use std::{
 };
 
 use bytebuffer::ByteBuffer;
-use primitives::{PublicKey, SerializedPublicKey};
-use secp256k1::ecdsa::Signature;
-use secp256k1::{Message, Secp256k1};
+use primitives::{
+    types::{PublicKey, SerializedPublicKey},
+    ByteSlice,
+    ByteVec,
+    SecretKey,
+};
+use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sha256::digest;
+use utils::{create_payload, hash_data, timestamp};
 use uuid::Uuid;
 
 /// This module contains the basic structure of simple transaction
-use crate::accountable::Accountable;
-use crate::verifiable::Verifiable;
+use crate::{
+    accountable::Accountable,
+    helpers::gen_sha256_digest_string,
+    serde_helpers::{decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary},
+};
+use crate::{serde_helpers::encode_to_json, verifiable::Verifiable};
 
 /// A simple custom error type
 #[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]
@@ -32,6 +40,9 @@ pub type TxNonce = u128;
 pub type TxTimestamp = i64;
 pub type TxAmount = u128;
 pub type TxSignature = Vec<u8>;
+
+//TODO: Replace with `secp256k1::Message` struct or guarantee
+//that it is a stringified version of `secp256k1::Message`
 pub type TxPayload = String;
 
 // TODO: replace with a generic token struct
@@ -55,9 +66,9 @@ pub struct Txn {
     token: Option<TxToken>,
     amount: TxAmount,
     pub payload: Option<TxPayload>,
-    pub signature: TxSignature,
-    validators: Option<HashMap<String, bool>>,
-    nonce: TxNonce,
+    pub signature: Option<TxSignature>,
+    pub validators: Option<HashMap<String, bool>>,
+    pub nonce: TxNonce,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -76,7 +87,7 @@ pub struct NewTxnArgs {
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
         // TODO: change time unit from seconds to millis
-        let timestamp = chrono::offset::Utc::now().timestamp();
+        let timestamp = timestamp!();
 
         Self {
             txn_id: Uuid::new_v4(),
@@ -87,7 +98,7 @@ impl Txn {
             token: args.token,
             amount: args.amount,
             payload: args.payload,
-            signature: args.signature,
+            signature: Some(args.signature),
             validators: args.validators,
             nonce: args.nonce,
         }
@@ -97,16 +108,21 @@ impl Txn {
     pub fn digest(&self) -> String {
         let encoded = self.encode();
 
-        digest(encoded.as_slice())
+        gen_sha256_digest_string(encoded.as_slice())
+    }
+
+    /// Serializes the transation into a byte array
+    pub fn encode(&self) -> Vec<u8> {
+        encode_to_binary(self).unwrap_or_default()
     }
 
     /// Encodes the transaction into a JSON-serialized byte vector
-    pub fn encode(&self) -> Vec<u8> {
-        serde_json::to_vec(self).unwrap_or_default()
+    pub fn encode_to_json(&self) -> Vec<u8> {
+        encode_to_json(self).unwrap_or_default()
     }
 
     #[deprecated(note = "use encode instead")]
-    pub fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> ByteVec {
         let as_string = serde_json::to_string(self).unwrap();
         as_string.as_bytes().to_vec()
     }
@@ -114,11 +130,6 @@ impl Txn {
     #[deprecated(note = "rely on the from trait implementation instead")]
     pub fn from_bytes(data: &[u8]) -> Txn {
         Self::from(data)
-    }
-
-    #[deprecated(note = "rely on the from trait implementation instead")]
-    pub fn from_string(string: &str) -> Txn {
-        Self::from(string)
     }
 
     pub fn is_null(&self) -> bool {
@@ -134,6 +145,18 @@ impl Txn {
         self.amount()
     }
 
+    pub fn token(&self) -> Option<TxToken> {
+        self.token.clone()
+    }
+
+    pub fn set_token(&mut self, token: TxToken) {
+        self.token = Some(token);
+    }
+
+    pub fn set_amount(&mut self, amount: u128) {
+        self.amount = amount;
+    }
+
     pub fn validators(&self) -> HashMap<String, bool> {
         self.validators.clone().unwrap_or_default()
     }
@@ -144,6 +167,51 @@ impl Txn {
 
     pub fn payload(&self) -> String {
         self.payload.clone().unwrap_or_default()
+    }
+
+    pub fn build_payload(&mut self) {
+        let payload = hash_data!(
+            self.sender_address.clone(),
+            self.sender_public_key.clone(),
+            self.receiver_address.clone(),
+            self.token.clone(),
+            self.amount.clone(),
+            self.nonce.clone()
+        );
+
+        self.payload = Some(payload);
+    }
+
+    fn from_byte_slice(data: ByteSlice) -> Self {
+        if let Ok(result) = decode_from_json_byte_slice::<Self>(data) {
+            return result;
+        }
+
+        if let Ok(result) = decode_from_binary_byte_slice::<Self>(data) {
+            return result;
+        }
+
+        NULL_TXN
+    }
+
+    fn from_string(data: &str) -> Txn {
+        Txn::from_str(data).unwrap_or(NULL_TXN)
+    }
+
+    pub fn sign(&mut self, sk: &SecretKey) {
+        if let Some(payload) = self.payload.clone() {
+            let message = Message::from_slice(payload.as_bytes());
+            match message {
+                Ok(msg) => {
+                    let sig = sk.sign_ecdsa(msg);
+                    self.signature = Some(sig.to_string().as_bytes().to_vec());
+                },
+                _ => { /*TODO return Result<(), SignatureError>*/ },
+            }
+        } else {
+            self.build_payload();
+            self.sign(&sk);
+        }
     }
 }
 
@@ -156,26 +224,26 @@ pub const NULL_TXN: Txn = Txn {
     token: None,
     amount: 0,
     payload: None,
-    signature: vec![],
+    signature: None,
     validators: None,
     nonce: 0,
 };
 
 impl From<String> for Txn {
     fn from(data: String) -> Self {
-        data.parse().unwrap_or(NULL_TXN)
+        Self::from(data.as_str())
     }
 }
 
 impl From<Vec<u8>> for Txn {
     fn from(data: Vec<u8>) -> Self {
-        serde_json::from_slice::<Txn>(&data).unwrap_or(NULL_TXN)
+        Txn::from_byte_slice(&data)
     }
 }
 
 impl From<&[u8]> for Txn {
     fn from(data: &[u8]) -> Self {
-        serde_json::from_slice::<Txn>(data).unwrap_or(NULL_TXN)
+        Txn::from_byte_slice(data)
     }
 }
 
@@ -190,7 +258,7 @@ impl FromStr for Txn {
 
 impl From<&str> for Txn {
     fn from(data: &str) -> Self {
-        data.parse().unwrap_or(NULL_TXN)
+        Self::from_string(data)
     }
 }
 
@@ -271,11 +339,9 @@ impl Accountable for Txn {
 // NOTE: temporary impl
 // TODO: remove later
 impl Verifiable for Txn {
-    type Item = Txn;
-
     type Dependencies = ();
-
     type Error = TxnError;
+    type Item = Txn;
 
     fn verifiable(&self) -> bool {
         true

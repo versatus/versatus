@@ -6,19 +6,23 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sha256 = "1.0.2"
-rand = { version = "0.6", features = ["std"] }
-uuid = { version = "0.8.0", features = ["serde", "v4"] }
-bytebuffer = "0.2.1"
-serde_json = "1.0.64"
-serde = { version = "1.0.101", features = ["derive"] }
-blake3 = "0.3.8"
-hex = "*"
-thiserror = "1.0"
-ritelinked = { version = "0.3.2", features = ['serde'] }
-reward = { path = "../reward" }
-state = { path = "../state" }
-primitives = { path = "../primitives" }
-vrrb_core = { path = "../vrrb_core" }
-telemetry = { path = "../telemetry" }
-vrrb_vrf = { path = "../vrrb_vrf" }
+sha256 = { workspace = true }
+rand = { workspace = true }
+uuid = { workspace = true }
+bytebuffer = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+blake3 = { workspace = true }
+secp256k1 = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
+ritelinked = { workspace = true }
+reward = { workspace = true }
+primitives = { workspace = true }
+vrrb_core = { workspace = true }
+telemetry = { workspace = true }
+utils = { workspace = true }
+vrrb_vrf = { workspace = true }
+bulldag = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }

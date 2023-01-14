@@ -1,26 +1,28 @@
+use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult};
+
+use async_trait::async_trait;
 use bytes::Bytes;
+use network::{
+    message::{Message, MessageBody},
+    network::BroadcastEngine,
+};
 use primitives::{NodeType, PeerId};
 use state::NodeStateReadHandle;
-use std::{collections::HashSet, net::SocketAddr};
 use telemetry::{error, info};
 use tokio::{
     sync::{
-        broadcast::error::{RecvError, TryRecvError},
+        broadcast::{
+            error::{RecvError, TryRecvError},
+            Receiver,
+        },
         mpsc::{channel, Receiver as MpscReceiver, Sender},
     },
     task::JoinHandle,
 };
 use uuid::Uuid;
+use vrrb_core::event_router::{DirectedEvent, Event};
 
 use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
-use async_trait::async_trait;
-use network::{
-    message::{Message, MessageBody},
-    network::BroadcastEngine,
-};
-use std::result::Result as StdResult;
-use tokio::sync::broadcast::Receiver;
-use vrrb_core::event_router::{DirectedEvent, Event};
 
 const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10;
 
@@ -140,7 +142,8 @@ impl BroadcastModule {
         }
     }
 
-    // fn handle_event_stream_input(&mut self, event: std::result::Result<Event, RecvError>) {
+    // fn handle_event_stream_input(&mut self, event: std::result::Result<Event,
+    // RecvError>) {
     fn handle_event_stream_input(&mut self, event: Event) {
         info!("{} received {event:?}", self.name());
 
@@ -180,9 +183,9 @@ impl RuntimeModule for BroadcastModule {
         // loop {
         //     tokio::select! {
         //         biased;
-        //         Ok(event) = events_rx.recv() => self.handle_event_stream_input(event),
-        //         Some(controller_event) = self.controller_rx.recv() => {
-        //             dbg!(controller_event);
+        //         Ok(event) = events_rx.recv() =>
+        // self.handle_event_stream_input(event),         Some(controller_event)
+        // = self.controller_rx.recv() => {             dbg!(controller_event);
         //         }
         //
         //     }

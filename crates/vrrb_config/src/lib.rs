@@ -1,7 +1,8 @@
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
+
 use bootstrap::BootstrapConfig;
 use derive_builder::Builder;
 use primitives::{NodeId, NodeIdx, NodeType};
-use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 mod bootstrap;
 
@@ -44,7 +45,8 @@ pub struct NodeConfig {
     /// Version meant to be displayed on API docs
     pub http_api_version: String,
 
-    /// Optional timeout to consider when shutting down the node's HTTP API server
+    /// Optional timeout to consider when shutting down the node's HTTP API
+    /// server
     pub http_api_shutdown_timeout: Option<Duration>,
 
     /// Address the node listens for JSON-RPC connections
@@ -72,9 +74,11 @@ impl NodeConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use primitives::NodeType;
     use std::net::{IpAddr, Ipv4Addr};
+
+    use primitives::NodeType;
+
+    use super::*;
 
     #[test]
     fn can_be_built_using_a_builder() {

@@ -1,6 +1,5 @@
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
-use crate::result::{LeftRightDbError, Result};
 use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::SerializedPublicKey;
@@ -8,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vrrb_core::account::{Account, UpdateArgs};
 
-pub type FailedAccountUpdates = Vec<(SerializedPublicKey, Vec<UpdateArgs>, Result<()>)>;
+use crate::result::{LeftRightDbError, Result};
+
+pub type FailedAccountUpdates = Vec<(SerializedPublicKeyString, Vec<UpdateArgs>, Result<()>)>;
+
 
 #[derive(Debug, Clone)]
 pub struct StateDb<'a> {

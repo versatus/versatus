@@ -57,7 +57,6 @@ async fn delete_token() {
     todo!()
 }
 
-
 #[cfg(test)]
 mod tests {
     use axum::{

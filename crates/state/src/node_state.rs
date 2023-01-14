@@ -4,12 +4,23 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
+use mempool::{LeftRightMempool, Mempool, PoolType};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
-use primitives::{node, PublicKey, SerializedPublicKey, SerializedPublicKeyString, TxHash};
+use primitives::{
+    node,
+    ByteSlice,
+    ByteVec,
+    PublicKey,
+    SerializedPublicKey,
+    SerializedPublicKeyString,
+    TxHash,
+    TxHashString,
+};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
 use vrrb_core::{
     account::{Account, UpdateArgs},
+    serde_helpers,
     txn::Txn,
 };
 
@@ -33,9 +44,11 @@ pub struct NodeStateConfig {
 pub struct NodeState {
     /// Path to database
     pub path: StatePath,
+
     // TODO: change lifetime parameter once refactoring is complete
     state_db: StateDb<'static>,
     txn_db: TxnDb<'static>,
+    mempool: LeftRightMempool,
 }
 
 impl NodeState {
@@ -52,12 +65,14 @@ impl NodeState {
         // TODO: replace memorydb with real backing db later
         let mem_db = MemoryDB::new(true);
         let backing_db = Arc::new(mem_db);
-        // let tx_trie = LeftRightTrie::new(backing_db);
+
+        let mempool = LeftRightMempool::new();
 
         Self {
             path,
             state_db,
             txn_db,
+            mempool,
         }
     }
 
@@ -150,7 +165,7 @@ impl NodeState {
     pub fn add_account(&mut self, key: SerializedPublicKey, account: Account) -> Result<()> {
         self.insert_account(key, account)
     }
-
+    
     /// Inserts an account to current state tree.
     pub fn insert_account(
         &mut self,
@@ -187,8 +202,14 @@ impl NodeState {
     }
 
     /// Removes an account from the current state tree.
-    pub fn remove_account(&mut self, key: SerializedPublicKey) {
+    pub fn remove_account(&mut self, key: SerializedPublicKey) -> Result<()> {
         todo!()
+    }
+
+    pub fn insert_txn_to_mempool(&mut self, txn: Txn) -> Result<()> {
+        self.mempool
+            .insert(txn)
+            .map_err(|err| StateError::Other(err.to_string()))
     }
 }
 
@@ -198,6 +219,7 @@ impl Clone for NodeState {
             path: self.path.clone(),
             txn_db: self.txn_db.clone(),
             state_db: self.state_db.clone(),
+            mempool: self.mempool.clone(),
         }
     }
 }
@@ -219,12 +241,14 @@ impl From<NodeStateValues> for NodeState {
             path: PathBuf::new(),
             state_db,
             txn_db,
+            mempool: todo!(),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct NodeStateValues {
+
     pub txns: HashMap<TxHash, Txn>,
     pub state: HashMap<SerializedPublicKey, Account>,
 }
@@ -240,11 +264,21 @@ impl From<&NodeState> for NodeStateValues {
 
 impl NodeStateValues {
     /// Converts a vector of bytes into a Network State or returns an error if
-    /// it's unable to
-    #[allow(dead_code)]
-    pub fn from_bytes(data: &[u8]) -> Result<NodeStateValues> {
-        serde_json::from_slice::<NodeStateValues>(data)
-            .map_err(|err| StateError::Other(err.to_string()))
+    /// it's unable to.
+    fn from_bytes(data: ByteSlice) -> Result<NodeStateValues> {
+        serde_helpers::decode_bytes(data).map_err(|err| StateError::Other(err.to_string()))
+    }
+}
+
+impl From<ByteVec> for NodeStateValues {
+    fn from(data: ByteVec) -> Self {
+        Self::from_bytes(&data).unwrap_or_default()
+    }
+}
+
+impl<'a> From<ByteSlice<'a>> for NodeStateValues {
+    fn from(data: ByteSlice) -> Self {
+        Self::from_bytes(data).unwrap_or_default()
     }
 }
 

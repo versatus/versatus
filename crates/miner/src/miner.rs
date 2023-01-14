@@ -1,3 +1,7 @@
+/// This module is for the creation and operation of a mining unit within a node
+/// in the network The miner is the primary way that data replication across all
+/// nodes occur The mining of blocks can be thought of as incremental
+/// checkpoints in the state.
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
     collections::HashMap,
@@ -6,12 +10,15 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use block::header::BlockHeader;
-/// This module is for the creation and operation of a mining unit within a node
-/// in the network The miner is the primary way that data replication across all
-/// nodes occur The mining of blocks can be thought of as incremental
-/// checkpoints in the state.
-use block::{block::Block, MineArgs};
+use block::{
+    block::Block,
+    header::BlockHeader,
+    invalid::InvalidBlockErrorReason,
+    GenesisBlock,
+    MineArgs,
+};
+//
+// TODO: replace Pool with LeftRightMempool if suitable
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
@@ -204,13 +211,13 @@ impl Miner {
     /// Generates a gensis block
     //TODO: Require a specific key to mine the genesis block so that only one node
     // controlled by the organization can mine it.
-    pub fn genesis(&mut self) -> Option<Block> {
-        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.public_key) {
+    pub fn genesis(&mut self) -> Option<Result<Block, InvalidBlockErrorReason>> {
+        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.pubkey) {
             return None;
         }
         self.claim_map
             .insert(self.claim.public_key.clone(), self.claim.clone());
-        Block::genesis(
+        GenesisBlock::mine_genesis(
             self.claim.clone(),
             self.secret_key.clone().as_bytes().to_vec(),
             None,
@@ -219,7 +226,7 @@ impl Miner {
 
     /// Attempts to mine a block
     //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self) -> (Option<Block>, i128) {
+    pub fn mine(&mut self, next_epoch_adjustment: i128) -> (Option<Block>, i128) {
         if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
             let claim_map_hash = digest(claim_map_str.as_bytes());
             if let Some(last_block) = self.last_block.clone() {
@@ -228,20 +235,19 @@ impl Miner {
                     last_block,
                     txns: self.clone().txn_pool.confirmed,
                     claims: self.clone().claim_pool.confirmed,
-
-                    claim_map_hash: Some(claim_map_hash),
+                    claim_list_hash: Some(claim_map_hash),
                     reward: &mut self.clone().reward,
-                    network_state: &self.clone().network_state,
-                    neighbors: self.clone().neighbors,
                     abandoned_claim: self.abandoned_claim.clone(),
                     secret_key: self.secret_key.as_bytes().to_vec(),
                     epoch: self.epoch,
+                    round: last_block.round + 1,
+                    next_epoch_adjustment,
                 };
 
                 return Block::mine(mine_args);
             }
         }
-        (None, 0)
+        Ok((None, 0))
     }
 
     /// Increases the nonce and calculates the new hash for all claims

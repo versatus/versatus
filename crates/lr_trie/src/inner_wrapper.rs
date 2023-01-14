@@ -1,14 +1,15 @@
-use crate::LeftRightTrieError;
-use crate::Result;
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
+
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
-use patriecia::inner::TrieIterator;
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+use patriecia::{
+    db::Database,
+    inner::{InnerTrie, TrieIterator},
+    trie::Trie,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::{LeftRightTrieError, Result};
 
 pub type Proof = Vec<u8>;
 
@@ -125,8 +126,8 @@ where
 
     // pub fn entries<'a, K, V>(&self) -> HashMap<K, V>
     // where
-    //     K: Serialize + Deserialize<'a> + std::hash::Hash + Default + Eq + PartialEq,
-    //     V: Serialize + Deserialize<'a> + Default,
+    //     K: Serialize + Deserialize<'a> + std::hash::Hash + Default + Eq +
+    // PartialEq,     V: Serialize + Deserialize<'a> + Default,
     // {
     //     let mut map = HashMap::new();
     //     for (k, v) in self.inner.iter() {

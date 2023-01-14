@@ -1,8 +1,11 @@
-use jsonrpsee::core::Error as RpseeError;
 use std::net::SocketAddr;
+
+use jsonrpsee::core::Error as RpseeError;
 
 pub mod http;
 pub mod rpc;
+
+pub type Result<T> = std::result::Result<T, ApiError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
@@ -15,5 +18,3 @@ pub enum ApiError {
     #[error("{0}")]
     Other(String),
 }
-
-pub type Result<T> = std::result::Result<T, ApiError>;

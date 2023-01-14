@@ -48,8 +48,10 @@ impl StateModule {
     /// Produces a reader factory that can be used to generate read handles into
     /// the state tree.
     #[deprecated(note = "use self.read_handle instead")]
+    //
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
-        self.state.factory()
+        // TODO: make this method return a custom factory
+        todo!()
     }
 
     pub fn read_handle(&self) -> NodeStateReadHandle {
@@ -96,9 +98,9 @@ impl Handler<Event> for StateModule {
             Event::NewTxnCreated(txn) => {
                 info!("Storing transaction in mempool for validation");
 
-                let txn_hash = txn.digest_bytes();
+                let txn_hash = txn.digest();
 
-                self.state.add_txn_to_mempool(txn);
+                self.state.insert_txn_to_mempool(txn);
 
                 self.events_tx
                     .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
@@ -115,6 +117,7 @@ impl Handler<Event> for StateModule {
 #[cfg(test)]
 mod tests {
     use std::env;
+
     use theater::ActorImpl;
     use vrrb_core::{
         event_router::{DirectedEvent, Event},

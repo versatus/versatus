@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use vrrb_core::verifiable::Verifiable;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[deprecated(note = "meant to be replaced with a Left-Right wrapped structure")]
 pub struct Pool<K: Serialize + Eq + Hash, V: Verifiable> {
     pub kind: PoolKind,
     pub pending: LinkedHashMap<K, V>,

@@ -2,174 +2,218 @@
 use std::{
     time::{SystemTime, UNIX_EPOCH},
     u32::MAX as u32MAX,
-    u64::MAX as u64MAX,
 };
 
-use primitives::SerializedSecretKey as SecretKeyBytes;
+use primitives::{Epoch, SecretKey as SecretKeyBytes};
 use rand::Rng;
 use reward::reward::Reward;
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
+use utils::{create_payload, hash_data, timestamp};
 use vrrb_core::{claim::Claim, keypair::KeyPair};
+use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::{block::Block, NextEpochAdjustment};
+use crate::{
+    block::Block,
+    ConvergenceBlock,
+    GenesisBlock,
+    InnerBlock,
+    NextEpochAdjustment,
+    ProposalBlock,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
-    // TODO: Rename block_nonce and next_block_nonce to block_seed and next_block_seed respectively
-    // TODO: Replace tx hash with tx trie root
-    // TODO: Replace claim hash with claim trie root
-    // TODO: Add certificate field for validation certification.
-    pub last_hash: String,
-    pub block_nonce: u64,
-    pub next_block_nonce: u64,
+    // TODO: Replace tx hash with tx trie root???
+    // TODO: Replace claim hash with claim trie root???
+    pub ref_hashes: Vec<String>,
+    pub epoch: Epoch,
+    pub round: u128,
+    pub block_seed: u64,
+    pub next_block_seed: u64,
     pub block_height: u128,
-    pub timestamp: u128,
+    pub timestamp: i64,
     pub txn_hash: String,
-    pub claim: Claim,
-    pub claim_map_hash: Option<String>,
+    pub miner_claim: Claim,
+    pub claim_list_hash: String,
     pub block_reward: Reward,
     pub next_block_reward: Reward,
-    pub neighbor_hash: Option<String>,
-    pub signature: String,
+    pub miner_signature: String,
 }
 
 impl BlockHeader {
+    //TODO: miners needs to wait on threshold signature before passing to this fxn
     pub fn genesis(
-        nonce: u64,
-        claim: Claim,
-        secret_key: Vec<u8>,
-        miner: Option<String>,
+        seed: u64,
+        round: u128,
+        epoch: Epoch,
+        miner_claim: Claim,
+        secret_key: SecretKeyBytes,
+        claim_list_hash: String,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
-        let mut rng = rand::thread_rng();
-        let last_hash = digest("Genesis_Last_Hash".as_bytes());
-        let block_nonce = nonce;
-        // Range should remain the same.
-        let next_block_nonce: u64 = rng.gen_range(u32MAX as u64, u64MAX);
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let txn_hash = digest("Genesis_Txn_Hash".as_bytes());
-        let block_reward = Reward::genesis(Some(claim.address.clone()));
-        //TODO: Replace reward state
-        let next_block_reward = Reward::genesis(miner);
-        let claim_map_hash: Option<String> = None;
-        let neighbor_hash: Option<String> = None;
-        let payload = format!(
-            "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            last_hash,
-            block_nonce,
-            next_block_nonce,
-            0,
+        let ref_hashes = vec![hash_data!("Genesis_Ref_Hash")];
+        let message = {
+            hash_data!(ref_hashes, hash_data!("Genesis_Last_Hash"))
+                .as_bytes()
+                .to_vec()
+        };
+
+        let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
+
+        let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
+
+        let timestamp = timestamp!();
+        let txn_hash = hash_data!("Genesis_Txn_Hash");
+        let block_reward = Reward::genesis(Some(miner_claim.address.clone()));
+        let block_height = 0;
+        let next_block_reward = Reward::default();
+
+        let payload = create_payload!(
+            ref_hashes,
+            round,
+            epoch,
+            seed,
+            next_block_seed,
+            block_height,
             timestamp,
             txn_hash,
-            claim,
-            claim_map_hash,
+            miner_claim,
+            claim_list_hash,
             block_reward,
-            next_block_reward,
-            neighbor_hash,
+            next_block_reward
         );
 
-        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
+        let miner_signature = secret_key.sign_ecdsa(payload).to_string();
 
         BlockHeader {
-            last_hash,
-            block_nonce,
-            next_block_nonce,
+            ref_hashes,
+            round,
+            epoch,
+            block_seed: 0,
+            next_block_seed,
             block_height: 0,
             timestamp,
             txn_hash,
-            claim,
-            claim_map_hash: None,
+            miner_claim,
+            claim_list_hash,
             block_reward,
             next_block_reward,
-            neighbor_hash: None,
-            signature,
+            miner_signature,
         }
     }
 
     pub fn new(
         last_block: Block,
-        reward: &mut Reward,
-        claim: Claim,
-        txn_hash: String,
-        claim_map_hash: Option<String>,
-        neighbor_hash: Option<String>,
+        ref_hashes: Vec<String>,
+        miner_claim: Claim,
         secret_key: SecretKeyBytes,
-        epoch_change: bool,
+        txn_hash: String,
+        claim_list_hash: String,
         adjustment_next_epoch: NextEpochAdjustment,
-    ) -> BlockHeader {
-        //TODO: Replace rand::thread_rng() with VPRNG
-        //TODO: Determine data fields to be used as message in VPRNG, must be
-        // known/revealed within block but cannot be predictable or gameable.
-        // Leading candidates are some combination of last_hash and last_block_seed
-        let mut rng = rand::thread_rng();
-        let last_hash = last_block.hash;
-        let block_nonce = last_block.header.next_block_nonce;
-        let next_block_nonce: u64 = rng.gen_range(0, u64MAX);
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let mut block_reward = last_block.header.next_block_reward;
-        block_reward.miner = Some(claim.clone().address);
+    ) -> Option<BlockHeader> {
+        // Get the last block
+        let last_block: &dyn InnerBlock<Header = BlockHeader, RewardType = Reward> = {
+            match last_block {
+                Block::Convergence { ref block } => block,
+                Block::Genesis { ref block } => block,
+                _ => return None,
+            }
+        };
 
-        let mut next_block_reward = reward.clone();
-        if epoch_change {
-            reward.new_epoch(adjustment_next_epoch);
-            next_block_reward = reward.clone();
-        }
-        let block_height = last_block.header.block_height + 1;
-        let payload = format!(
-            "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            last_hash,
-            block_nonce,
-            next_block_nonce,
+        // Get the current block seed, which is last_block.next_block_seed;
+        let block_seed = last_block.get_next_block_seed();
+
+        // Get block height
+        let block_height = last_block.get_header().block_height + 1;
+
+        // get the message; TODO: replace ref_hashes with
+        // last_block.certificate
+        let message = {
+            let hash = hash_data!(last_block.get_hash(), ref_hashes);
+            hash.as_bytes().to_vec()
+        };
+
+        // Generate next_block_seed
+        let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
+        let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
+
+        // generate timestamp
+        let timestamp = timestamp!();
+
+        // Get current block reward, which is last_block.next_block_reward
+        let mut block_reward = last_block.get_next_block_reward();
+        block_reward.current_block = block_height;
+
+        // Create the next block reward, which is a clone of the current
+        // reward, unless there's an epoch change
+        let next_block_reward = block_reward.generate_next_reward(adjustment_next_epoch);
+
+        // Append the miner to the current block reward
+        block_reward.miner = Some(miner_claim.clone().address);
+
+        // Get current epoch which is the same as last epoch unless it's an
+        // epoch change block.
+        let epoch = last_block.get_header().epoch;
+        // Get the reward for current block which is last_block.round + 1
+        let round = last_block.get_header().round + 1;
+
+        let payload = create_payload!(
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
             block_height,
             timestamp,
             txn_hash,
-            claim,
-            claim_map_hash,
+            miner_claim,
+            claim_list_hash,
             block_reward,
-            next_block_reward,
-            neighbor_hash,
+            next_block_reward
         );
-        let signature = KeyPair::ecdsa_sign(payload.as_bytes(), secret_key).unwrap();
-        BlockHeader {
-            last_hash,
-            block_nonce,
-            next_block_nonce,
-            block_height: last_block.header.block_height + 1,
+
+        let miner_signature = secret_key.sign_ecdsa(payload).to_string();
+
+        let block_header = BlockHeader {
+            ref_hashes,
+            round,
+            epoch,
+            block_seed,
+            next_block_seed,
+            block_height: last_block.get_header().block_height + 1,
             timestamp,
             txn_hash,
-            claim,
-            claim_map_hash,
+            miner_claim,
+            claim_list_hash,
             block_reward,
             next_block_reward,
-            neighbor_hash: None,
-            signature,
-        }
+            miner_signature,
+        };
+
+        Some(block_header)
     }
 
-    pub fn get_payload(&self) -> String {
-        format!(
-            "{},{},{},{},{},{},{:?},{:?},{:?},{:?},{:?}",
-            self.last_hash,
-            self.block_nonce,
-            self.next_block_nonce,
+    pub fn get_payload(&self) -> Message {
+        create_payload!(
+            self.ref_hashes,
+            self.block_seed,
+            self.next_block_seed,
             self.block_height,
             self.timestamp,
             self.txn_hash,
-            self.claim,
-            self.claim_map_hash,
+            self.miner_claim,
+            self.claim_list_hash,
             self.block_reward,
             self.next_block_reward,
-            self.neighbor_hash,
+            self.miner_signature
         )
     }
 
