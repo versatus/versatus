@@ -90,7 +90,6 @@ mod tests {
         assert!(cache.len() == 0);
     }
 
-
     #[test]
     fn test_remove_entry_cache() {
         let mut cache = Cache::new(10, 100);

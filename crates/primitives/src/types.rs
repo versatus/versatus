@@ -1,5 +1,4 @@
-use secp256k1::rand::rngs::OsRng;
-use secp256k1::Secp256k1;
+use secp256k1::{rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default)]
@@ -35,8 +34,8 @@ type Hash = Vec<u8>;
 pub type TxHash = Hash;
 
 pub const TXN_DIGEST_LENGTH: usize = 32;
-/// WIP structure that represents a transaction ID within VRRB, it has some useful utility methods
-/// attached to it
+/// WIP structure that represents a transaction ID within VRRB, it has some
+/// useful utility methods attached to it
 pub struct TxnHash([u8; TXN_DIGEST_LENGTH]);
 
 impl From<ByteVec> for TxnHash {

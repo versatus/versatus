@@ -5,7 +5,7 @@ use std::{
 
 use mempool::{
     error::MempoolError,
-    mempool::{LeftRightMemPoolDB, TxnStatus},
+    mempool::{LeftRightMempool as LeftRightMemPoolDB, TxnStatus},
 };
 use patriecia::db::Database;
 use vrrb_core::txn::Txn;
@@ -223,6 +223,7 @@ where
         }
     }
 }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolControlMsg {
     NewFromNetwork(HashSet<Txn>),

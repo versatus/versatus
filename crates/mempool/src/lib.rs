@@ -1,5 +1,7 @@
 pub mod error;
 pub mod mempool;
+// TODO: merge pool w Mempool later on
+pub mod pool;
 pub use mempool::*;
 
 #[cfg(test)]
@@ -10,9 +12,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use rand::thread_rng;
-    use rand::Rng;
-
+    use rand::{thread_rng, Rng};
     use vrrb_core::{
         keypair::KeyPair,
         txn::{NewTxnArgs, Txn},

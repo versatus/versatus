@@ -76,7 +76,6 @@ fn accounts_can_be_added() {
             },
         )
         .unwrap();
-
     node_state.serialize_to_json().unwrap();
 
     let entries = node_state.entries();

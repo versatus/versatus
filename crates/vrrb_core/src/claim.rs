@@ -18,7 +18,7 @@ pub struct InvalidClaimError {
 /// calculate whether or not you are an entitled miner, and to share with
 /// network
 // TODO: Add staking to the claim.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Claim {
     pub public_key: String,
     pub address: String,

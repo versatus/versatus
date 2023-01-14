@@ -1,6 +1,7 @@
-use crate::{Error, Result};
 use primitives::{ByteSlice, ByteVec};
 use serde::{Deserialize, Serialize};
+
+use crate::{Error, Result};
 
 pub fn encode_to_json<T: Serialize>(data: &T) -> Result<ByteVec> {
     serde_json::to_vec(data).map_err(|err| Error::Other(err.to_string()))

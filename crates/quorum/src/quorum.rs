@@ -58,7 +58,7 @@ impl Election for Quorum {
         if !Quorum::check_payload_validity(payload.1, payload.0) {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
-        let mut vvrf = VVRF::new((payload.2).as_bytes(), &kp);
+        let mut vvrf = VVRF::new((payload.2).as_bytes(), &kp.miner_kp.0.secret_bytes());
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
             return Err(InvalidQuorum::InvalidSeedError());
@@ -128,7 +128,6 @@ impl Election for Quorum {
         self.quorum_seed = seed;
 
         let mut nonce_up_claims = Vec::new();
-
 
         for claim in claims {
             let mut nonce_up_claim = claim;
@@ -205,7 +204,6 @@ impl Quorum {
                 )
             })
             .collect();
-
 
         if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));

@@ -1,12 +1,12 @@
 use std::{fmt::Debug, marker::PhantomData, sync::Arc};
 
-use crate::InnerTrieWrapper;
-use crate::Operation;
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
 use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
 use serde::{Deserialize, Serialize};
+
+use crate::{InnerTrieWrapper, Operation};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]

@@ -11,10 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{
-    error::PoolError,
-    poller::JobPoller,
-};
+use crate::{error::PoolError, poller::JobPoller};
 
 // Type that is returned after job is submitted to the pool
 pub struct Task<T> {
@@ -218,7 +215,6 @@ impl<T> Future for Task<T> {
         Poll::Pending
     }
 }
-
 
 /// A `Job` is a future that will be polled by a `JobPoller`.
 ///
