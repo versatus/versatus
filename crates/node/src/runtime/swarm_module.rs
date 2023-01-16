@@ -206,11 +206,12 @@ mod tests {
         );
 
         let node_key = swarm_module.node.node_data().id.0.clone();
+
+        let current_node_id = swarm_module.node.node_data().id.clone();
         let mut swarm_module = ActorImpl::new(swarm_module);
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(swarm_module.status(), ActorState::Stopped);
 
-        let current_node_id = swarm_module.handler.node.node_data().id.clone();
         let handle = tokio::spawn(async move {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
         });

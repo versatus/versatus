@@ -100,7 +100,6 @@ impl Handler<Event> for DkgModule {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::Stop => {
-                println!("MILA");
                 return Ok(ActorState::Stopped);
             },
             Event::DkgInitiate => {
@@ -350,28 +349,21 @@ mod tests {
             dkg_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(dkg_module.status(), ActorState::Terminating);
         });
-        ctrl_tx.send(Event::DkgInitiate).unwrap();//Ctrl_rx gets dropped here
+        ctrl_tx.send(Event::DkgInitiate).unwrap();//Ctrl_rx gets dropped her
         ctrl_tx.send(Event::AckPartCommitment(node_idx)).unwrap();
-       ctrl_tx.send(Event::Stop.into()).unwrap();
+        ctrl_tx.send(Event::Stop.into()).unwrap();
+        println!("Receiver Count i{:?}",ctrl_tx.receiver_count());
+
         let broadcast_handle=tokio::spawn(async move {
               loop{
                   let msg=broadcast_events_rx.recv().await.unwrap();
                   match msg{
                       (Topic::Network,Event::PartMessage(sender_id, part_committment_bytes)) => { ;
                           println!(   "part_message_event {:?}",ctrl_tx.receiver_count());
-                      let s=    ctrl_tx.clone().send(Event::AckPartCommitment(node_idx));
-                          match s{
-                              Ok(_)=>{},
-                              Err(err) =>{
-                                  println!("Error occurred {:?}",err.to_string());
-                              }
-                          }
-
 
                       },
                       (Topic::Network,Event::SendAck(current_node_idx,sender_id,ack_bytes))=>{
                           println!("CurrNode :{:? }, Sender {:?}, ack bytes :{:?}",current_node_idx,sender_id,ack_bytes);
-
                       },
                       _=>{
                           break;
@@ -380,9 +372,9 @@ mod tests {
               }
         });
 
-        broadcast_events_tx.send((Topic::Network,Event::Stop)).unwrap();
-
         handle.await.unwrap();
+        broadcast_events_tx.send((Topic::Network,Event::Stop)).unwrap();
         broadcast_handle.await.unwrap();
+
     }
 }
