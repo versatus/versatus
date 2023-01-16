@@ -2,7 +2,8 @@ pub mod error;
 pub mod mempool;
 // TODO: merge pool w Mempool later on
 pub mod pool;
-pub use mempool::*;
+pub use crate::mempool::Mempool;
+
 
 #[cfg(test)]
 mod tests {

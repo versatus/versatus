@@ -1,3 +1,5 @@
+extern crate core;
+
 mod node;
 mod node_type;
 pub mod result;

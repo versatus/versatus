@@ -4,6 +4,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default)]
 pub struct StopSignal;
 
+
+#[derive(Clone, Debug)]
+pub enum QuorumType {
+    Farmer,
+    Harvester,
+}
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
 

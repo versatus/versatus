@@ -100,6 +100,7 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
+kademlia-dht={git="https://github.com/vrrb-io/kademlia-dht-rs"}
 
 # NOTE: External crates
 secp256k1 = { version = "0.25.0", features = [

@@ -20,7 +20,9 @@ mod tests {
 
     use crate::{
         mempool_processor::{
-            MempoolControlMsg, MempoolTxnProcessor, MempoolTxnProcessorError,
+            MempoolControlMsg,
+            MempoolTxnProcessor,
+            MempoolTxnProcessorError,
             MempoolTxnProcessorState,
         },
         validator_unit::ValidatorUnit,

@@ -28,6 +28,7 @@ pub enum NodeType {
     Bootstrap = 4,
     Validator = 5,
     MasterNode = 6,
+    RPCNode = 7,
     Unknown = 100,
 }
 
@@ -43,6 +44,7 @@ impl FromStr for NodeType {
             "bootstrap" => Ok(NodeType::Bootstrap),
             "validator" => Ok(NodeType::Validator),
             "masternode" => Ok(NodeType::MasterNode),
+            "rpc" => Ok(NodeType::RPCNode),
             _ => Err(Error::Other("invalid node type".into())),
         }
     }
@@ -58,6 +60,7 @@ impl From<String> for NodeType {
             "bootstrap" => NodeType::Bootstrap,
             "validator" => NodeType::Validator,
             "masternode" => NodeType::MasterNode,
+            "rpc" => NodeType::RPCNode,
             _ => NodeType::Unknown,
         }
     }
@@ -73,6 +76,7 @@ impl From<usize> for NodeType {
             4 => NodeType::Bootstrap,
             5 => NodeType::Validator,
             6 => NodeType::MasterNode,
+            7 => NodeType::RPCNode,
             _ => NodeType::Unknown,
         }
     }

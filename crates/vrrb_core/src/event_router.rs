@@ -56,7 +56,12 @@ pub enum Event {
     PeerJoined(PeerData),
 
     /// Peer abandoned the network. Should be removed from the node's peer list
-    PeerLeft(SocketAddr),
+    PeerLeft(PeerData),
+
+    /// A Event to start the DKG process.
+    DkgInitiate,
+    /// A Event to start the DKG process.
+    PartMessage(u16, Vec<u8>),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),
