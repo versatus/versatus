@@ -48,6 +48,13 @@ pub type TxPayload = String;
 // TODO: replace with a generic token struct
 pub type TxToken = String;
 
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub enum TxnFee {
+    Slow, 
+    Fast, 
+    Instant
+}
+
 /// The basic transation structure.
 //TODO: Discuss the pieces of the Transaction structure that should stay and go
 //TODO: Discuss how to best package this to minimize the size of it/compress it
@@ -58,7 +65,7 @@ pub struct Txn {
     // TODO: Make all fields private
     #[deprecated(note = "replaced by txn hash")]
     pub txn_id: Uuid,
-
+    pub txn_fee: Option<TxnFee>,
     pub timestamp: TxTimestamp,
     pub sender_address: String,
     pub sender_public_key: SerializedPublicKey,
@@ -91,6 +98,7 @@ impl Txn {
 
         Self {
             txn_id: Uuid::new_v4(),
+            txn_fee: None,
             timestamp,
             sender_address: args.sender_address,
             sender_public_key: args.sender_public_key,
@@ -217,6 +225,7 @@ impl Txn {
 
 pub const NULL_TXN: Txn = Txn {
     txn_id: Uuid::nil(),
+    txn_fee: None,
     timestamp: 0,
     sender_address: String::new(),
     sender_public_key: vec![],

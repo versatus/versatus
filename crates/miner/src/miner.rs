@@ -206,6 +206,7 @@ impl Miner {
                 )
             )
         }
+        
     }
 
     /// Generates a gensis block
