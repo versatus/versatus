@@ -13,11 +13,7 @@ use bulldag::{
     vertex::{Direction, Vertex},
 };
 use primitives::{
-    types::SecretKey as SecretKeyBytes,
-    Epoch,
-    RawSignature,
-    GENESIS_EPOCH,
-    SECOND,
+    types::SecretKey as SecretKeyBytes, Epoch, RawSignature, GENESIS_EPOCH, SECOND,
     VALIDATOR_THRESHOLD,
 };
 #[cfg(mainnet)]
@@ -32,11 +28,7 @@ use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable,
-    claim::Claim,
-    keypair::KeyPair,
-    txn::Txn,
-    verifiable::Verifiable,
+    accountable::Accountable, claim::Claim, keypair::KeyPair, txn::Txn, verifiable::Verifiable,
 };
 
 #[cfg(mainnet)]
@@ -81,7 +73,7 @@ pub trait InnerBlock {
 #[repr(C)]
 pub struct Certificate {
     pub signature: String,
-    pub inauguartion: Option<QuorumPubkeys>,
+    pub inauguration: Option<QuorumPubkeys>,
     pub root_hash: String,
     pub next_root_hash: String,
 }
@@ -97,6 +89,14 @@ pub struct GenesisBlock {
 }
 
 impl GenesisBlock {
+    pub fn mine(
+        claim: Claim,
+        secret_key: SecretKeyBytes,
+        claim_list: ClaimList,
+    ) -> Option<GenesisBlock> {
+        Self::mine_genesis(claim, secret_key, claim_list)
+    }
+
     pub fn mine_genesis(
         claim: Claim,
         secret_key: SecretKeyBytes,

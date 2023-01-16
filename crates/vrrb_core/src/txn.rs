@@ -53,9 +53,6 @@ pub type TxToken = String;
 //signature of validators in.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Eq)]
 pub struct Txn {
-    // TODO: Make all fields private
-    // #[deprecated(note = "replaced by txn hash")]
-    // pub txn_id: Uuid,
     pub timestamp: TxTimestamp,
     pub sender_address: String,
     pub sender_public_key: SerializedPublicKey,
@@ -87,7 +84,6 @@ impl Txn {
         let timestamp = timestamp!();
 
         Self {
-            // txn_id: Uuid::new_v4(),
             timestamp,
             sender_address: args.sender_address,
             sender_public_key: args.sender_public_key,

@@ -1,4 +1,6 @@
-pub mod miner;
+pub mod _miner;
+pub use _miner::*;
+// pub mod miner;
 
 #[cfg(test)]
 mod tests {

@@ -13,7 +13,7 @@ use vrrb_core::{
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
 pub type FullStateSnapshot = HashMap<SerializedPublicKeyString, Account>;
-pub type FullMempoolSnapshot = Vec<u8>;
+pub type FullMempoolSnapshot = HashMap<SerializedPublicKeyString, Account>;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateTxnArgs {

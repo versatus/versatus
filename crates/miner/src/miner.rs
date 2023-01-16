@@ -11,22 +11,24 @@ use std::{
 };
 
 use block::{
-    block::Block,
-    header::BlockHeader,
-    invalid::InvalidBlockErrorReason,
-    GenesisBlock,
-    MineArgs,
+    block::Block, header::BlockHeader, invalid::InvalidBlockErrorReason, GenesisBlock, MineArgs,
 };
-//
+
 // TODO: replace Pool with LeftRightMempool if suitable
 use mempool::pool::{Pool, PoolKind};
 use primitives::types::Epoch;
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
+// use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use state::state::NetworkState;
-use vrrb_core::{claim::Claim, nonceable::Nonceable, txn::Txn};
+use state::{state::NetworkState, NodeStateReadHandle};
+use vrrb_core::{
+    claim::Claim,
+    keypair::{KeyPair, MinerSk},
+    nonceable::Nonceable,
+    txn::Txn,
+};
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
@@ -51,12 +53,18 @@ pub enum MinerStatus {
 
 /// A Basic error type to propagate in the event that there is no
 /// valid miner uner the proof of claim algorithm
-#[derive(Debug)]
-pub struct NoLowestPointerError(String);
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Eq)]
+pub enum MinerError {
+    #[error("no lowest pointer: {0}")]
+    NoLowestPointerError(String),
+
+    #[error("{0}")]
+    Other(String),
+}
 
 /// The miner struct contains all the data and methods needed to operate a
 /// mining unit and participate in the data replication process.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Miner {
     /// The miner must have a unique claim. This allows them to be included
     /// as a potential miner, and be elected as a miner in the event their
@@ -71,48 +79,54 @@ pub struct Miner {
     /// A map of all the claims in the network
     //TODO: Replace with a left-right custom data structure that will better enable efficient
     //maintenance and calculations.
-    pub claim_map: LinkedHashMap<String, Claim>,
-    /// A pool of pending transactions and their IDs
-    //TODO: Replace with Left-Right Mempool, and relative dependent data to include
-    // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
-    pub txn_pool: Pool<String, Txn>,
-    /// A pool of claims pending approval and acceptance into the network.
-    //TODO: Replace with left-right claim pool for more efficient maintenance,
-    // validation and calculation.
-    pub claim_pool: Pool<String, Claim>,
+    // pub claim_map: LinkedHashMap<String, Claim>,
+    // /// A pool of pending transactions and their IDs
+    // //TODO: Replace with Left-Right Mempool, and relative dependent data to include
+    // // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
+    // pub txn_pool: Pool<String, Txn>,
+    // /// A pool of claims pending approval and acceptance into the network.
+    // //TODO: Replace with left-right claim pool for more efficient maintenance,
+    // // validation and calculation.
+    // pub claim_pool: Pool<String, Claim>,
+
     /// The most recent block mined, confirmed and propogated throughout the
-    ///
     /// network
     pub last_block: Option<Block>,
+    pub previous_block: Option<Block>,
+
     /// The reward state (previous monetary policy), to track which reward
     /// categories are still available for production
     //TODO: Eliminate and replace with provable current reward amount data
-    pub reward: Reward,
+    // simply read the previous block's next block reward attribute
+    // pub reward: Reward,
     /// The current state of the network
     //TODO: Replace with ReadHandle in the Left-Right State Trie
     pub network_state: NetworkState,
+
+    pub state_reader: NodeStateReadHandle,
+
     /// Neighbor blocks
     //This can either be eliminated, or can include the 2nd and 3rd place finishers in the pointer
     // sum calculation and their proposed `BlockHeader`
     pub neighbors: Option<Vec<BlockHeader>>,
+
     //TODO: Eliminate
     pub current_nonce_timer: u128,
+
     /// The total number of miners in the network
     //TODO: Discuss whether this is needed or not
     pub n_miners: u128,
     /// A simple boolean field to denote whether the miner has been initialized
-    ///
     /// or not
     pub init: bool,
     /// An ordered map containing claims that were entitled to mine but took too
-    ///
     /// long
     pub abandoned_claim_counter: LinkedHashMap<String, Claim>,
     /// The claim of the most recent entitled miner in the event that they took
-    ///
     /// too long to propose a block
     //TODO: Discuss a better way to do this, and need to be able to include more than one claim.
     pub abandoned_claim: Option<Claim>,
+
     /// The secret key of the miner, used to sign blocks they propose to prove
     /// that the block was indeed proposed by the miner with the claim
     /// entitled to mine the given block at the given block height
@@ -124,16 +138,16 @@ pub struct Miner {
 impl Miner {
     /// Returns a miner that can be initialized later
     //TODO: Replace `start` with `new`, since this method does not actually "start"
-    //
     // the miner
-    pub fn start(
-        secret_key: String,
-        pubkey: String,
-        address: String,
-        reward: Reward,
-        network_state: NetworkState,
-        n_miners: u128,
-        epoch: Epoch,
+    pub fn new(
+        // secret_key: String,
+        // pubkey: String,
+        // address: String,
+        // reward: Reward,
+        // network_state: NetworkState,
+        // n_miners: u128,
+        // epoch: Epoch,
+        config: MinerConfig,
     ) -> Self {
         Miner {
             claim: Claim::new(pubkey, address, 1),
@@ -156,7 +170,6 @@ impl Miner {
     }
 
     /// Calculates the pointer sums and returns the lowest for a given block
-    ///
     /// seed.
     pub fn get_lowest_pointer(&mut self, block_seed: u128) -> Option<(String, u128)> {
         // Clones the local claim map for use in the algorithm
@@ -194,7 +207,6 @@ impl Miner {
     }
 
     /// Checks if the hash of the claim with the lowest pointer sum is the local
-    ///
     /// claim.
     pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
         if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
@@ -202,7 +214,7 @@ impl Miner {
         } else {
             Err(
                 Box::new(
-                    NoLowestPointerError("There is no valid pointer, all claims in claim map must increment their nonce by 1".to_string())
+                    MinerError::NoLowestPointerError("There is no valid pointer, all claims in claim map must increment their nonce by 1".to_string())
                 )
             )
         }
@@ -260,6 +272,7 @@ impl Miner {
             new_claim.nonce_up();
             new_claim_map.insert(pk.clone(), new_claim.clone());
         });
+
         self.claim_map = new_claim_map;
     }
 
@@ -340,7 +353,6 @@ impl Miner {
     }
 
     /// Abandons the claim of a miner that fails to proppose a block in the
-    ///
     /// proper amount of time.
     pub fn abandoned_claim(&mut self, hash: String) {
         self.claim_map.retain(|_, v| v.hash != hash);
@@ -351,64 +363,45 @@ impl Miner {
         self.current_nonce_timer = timestamp;
     }
 
-    /// Serializes the miner into a string
-    // TODO: Consider changing this to `serialize_to_string`
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
-    }
+    // /// Serializes the miner into a string
+    // // TODO: Consider changing this to `serialize_to_string`
+    // pub fn to_string(&self) -> String {
+    //     serde_json::to_string(&self).unwrap()
+    // }
 
-    /// Serializes the miner into a vector of bytes
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.to_string().as_bytes().to_vec()
-    }
+    // /// Serializes the miner into a vector of bytes
+    // pub fn as_bytes(&self) -> Vec<u8> {
+    //     self.to_string().as_bytes().to_vec()
+    // }
 
-    /// Deserializes a miner from a byte array
-    pub fn from_bytes(data: &[u8]) -> Miner {
-        serde_json::from_slice(data).unwrap()
-    }
+    // /// Deserializes a miner from a byte array
+    // pub fn from_bytes(data: &[u8]) -> Miner {
+    //     serde_json::from_slice(data).unwrap()
+    // }
+    //
+    // /// Deserializes a miner from a string slice
+    // pub fn from_string(data: &str) -> Miner {
+    //     serde_json::from_str(data).unwrap()
+    // }
 
-    /// Deserializes a miner from a string slice
-    pub fn from_string(data: &str) -> Miner {
-        serde_json::from_str(data).unwrap()
-    }
-
-    /// Returns a vetor of string representations of the field names of a miner
-    pub fn get_field_names(&self) -> Vec<String> {
-        vec![
-            "claim".to_string(),
-            "mining".to_string(),
-            "claim_map".to_string(),
-            "txn_pool".to_string(),
-            "claim_pool".to_string(),
-            "last_block".to_string(),
-            "reward_state".to_string(),
-            "network_state".to_string(),
-            "neighbors".to_string(),
-            "current_nonce_timer".to_string(),
-            "n_miners".to_string(),
-            "init".to_string(),
-            "abandoned_claim_counter".to_string(),
-            "abandoned_claim".to_string(),
-            "secret_key".to_string(),
-        ]
-    }
-}
-
-/// Required for `NoLowestPointerError` to be able to be used as an Error type
-///
-/// in the Result enum
-impl fmt::Display for NoLowestPointerError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// Required for `NoLowestPointerError` to be able to be used as an Error type
-///
-/// in the Result enum
-impl Error for NoLowestPointerError {
-    fn description(&self) -> &str {
-        &self.0
-    }
+    // /// Returns a vetor of string representations of the field names of a miner
+    // pub fn get_field_names(&self) -> Vec<String> {
+    //     vec![
+    //         "claim".to_string(),
+    //         "mining".to_string(),
+    //         "claim_map".to_string(),
+    //         "txn_pool".to_string(),
+    //         "claim_pool".to_string(),
+    //         "last_block".to_string(),
+    //         "reward_state".to_string(),
+    //         "network_state".to_string(),
+    //         "neighbors".to_string(),
+    //         "current_nonce_timer".to_string(),
+    //         "n_miners".to_string(),
+    //         "init".to_string(),
+    //         "abandoned_claim_counter".to_string(),
+    //         "abandoned_claim".to_string(),
+    //         "secret_key".to_string(),
+    //     ]
+    // }
 }

@@ -280,6 +280,8 @@ impl<'a> From<ByteSlice<'a>> for NodeStateValues {
 #[derive(Debug, Clone)]
 pub struct NodeStateReadHandle {
     state_handle_factory: StateDbReadHandleFactory,
+    // mempool_handle_factory: MempoolReadHandleFactory,
+    // confirmed_txn_handle_factory: StateDbReadHandleFactory,
 }
 
 impl NodeStateReadHandle {
