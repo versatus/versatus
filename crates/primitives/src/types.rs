@@ -4,8 +4,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default)]
 pub struct StopSignal;
 
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub enum QuorumType {
+    Farmer,
+    Harvester,
+}
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
+pub type FarmerQuorumThreshold = usize;
+pub type QuorumPublicKey = Vec<u8>;
 
 pub const DIGEST_LENGTH: usize = 32;
 
@@ -61,6 +69,7 @@ pub type PayloadHash = Hash;
 pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;
 pub type PeerId = Vec<u8>;
+pub type GroupPublicKey = Vec<u8>;
 
 /// Represents a byte slice produced from an instance of secp256k1::SecretKey
 pub type SerializedSecretKey = Vec<u8>;

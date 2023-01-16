@@ -45,6 +45,14 @@ derive_builder = { workspace = true }
 jsonrpsee = { workspace = true }
 bytes = { workspace = true }
 theater = { workspace = true }
+kademlia-dht= { workspace = true }
+dkg_engine= { workspace = true }
+hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
+mempool = { workspace = true }
+signer={workspace = true}
+indexmap = "1.9.1"
+raptorq = "1.7.0"
+crossbeam-channel = "0.5.6"
 
 [dev-dependencies]
 reqwest = { workspace = true }

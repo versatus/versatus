@@ -30,3 +30,4 @@ chrono = { workspace = true }
 async-trait = { workspace = true }
 theater = { workspace = true }
 utils = { workspace = true }
+cuckoofilter ={workspace = true}

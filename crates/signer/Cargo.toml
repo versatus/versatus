@@ -12,6 +12,5 @@ hbbft = {git = "https://github.com/vrrb-io/hbbft", branch = "master"}
 thiserror = "1.0.32"
 serde = "1.0.144"
 primitives = { path = "../primitives" }
-node = { path = "../node" }
 dkg_engine = { path = "../dkg_engine" }
 tokio = { version = "1.23.0", features = ["full"] }

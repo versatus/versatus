@@ -1,14 +1,11 @@
 pub mod config;
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::{Arc, RwLock},
-};
+use std::collections::{BTreeMap, HashMap};
 
 use hbbft::{
-    crypto::{PublicKey, PublicKeySet, SecretKeyShare},
+    crypto::{PublicKey, PublicKeySet, SecretKey, SecretKeyShare},
     sync_key_gen::{Ack, Part, SyncKeyGen},
 };
-use node::Node;
+use primitives::{NodeIdx, NodeType};
 use rand::rngs::OsRng;
 use thiserror::Error;
 
@@ -33,10 +30,14 @@ pub type SenderID = u16;
 /// properties:
 pub struct DkgEngine {
     /// To Get Info like Node Type and Node Idx
-    pub node_info: Arc<RwLock<Node>>,
+    pub node_idx: NodeIdx,
+
+    pub node_type: NodeType,
 
     /// For DKG (Can be extended for heirarchical DKG)
     pub threshold_config: ThresholdConfig,
+
+    pub secret_key: SecretKey,
 
     /// state information related to dkg process
     pub dkg_state: DkgState,
@@ -122,9 +123,16 @@ pub enum DkgResult {
 }
 
 impl DkgEngine {
-    pub fn new(node_info: Arc<RwLock<Node>>, threshold_config: ThresholdConfig) -> DkgEngine {
+    pub fn new(
+        node_idx: NodeIdx,
+        node_type: NodeType,
+        secret_key: SecretKey,
+        threshold_config: ThresholdConfig,
+    ) -> DkgEngine {
         DkgEngine {
-            node_info,
+            node_idx,
+            node_type,
+            secret_key,
             threshold_config,
             dkg_state: DkgState {
                 part_message_store: HashMap::new(),
@@ -140,5 +148,13 @@ impl DkgEngine {
 
     pub fn add_peer_public_key(&mut self, node_id: NodeID, public_key: PublicKey) {
         self.dkg_state.peer_public_keys.insert(node_id, public_key);
+    }
+
+    pub fn get_public_key(&self) -> PublicKey {
+        self.secret_key.public_key()
+    }
+
+    pub fn get_node_idx(&self) -> NodeIdx {
+        self.node_idx
     }
 }

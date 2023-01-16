@@ -60,6 +60,7 @@ pub struct Txn {
     pub signature: Option<TxSignature>,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
+    pub receiver_farmer_id: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -91,6 +92,7 @@ impl Txn {
             signature: Some(args.signature),
             validators: args.validators,
             nonce: args.nonce,
+            receiver_farmer_id: None,
         }
     }
 
@@ -218,6 +220,7 @@ pub const NULL_TXN: Txn = Txn {
     signature: None,
     validators: None,
     nonce: 0,
+    receiver_farmer_id: None,
 };
 
 impl From<String> for Txn {

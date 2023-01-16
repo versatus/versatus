@@ -1,5 +1,6 @@
 pub mod account;
 pub mod accountable;
+pub mod bloom;
 pub mod cache;
 pub mod claim;
 pub mod component;
