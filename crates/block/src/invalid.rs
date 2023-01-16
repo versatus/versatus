@@ -29,6 +29,8 @@ pub enum InvalidBlockErrorReason {
     InvalidNextBlockReward,
     #[error("invalid block signature")]
     InvalidBlockSignature,
+    #[error("too many txns in block")]
+    InvalidBlockSize,
     #[error("general invalid block error")]
     General,
 }

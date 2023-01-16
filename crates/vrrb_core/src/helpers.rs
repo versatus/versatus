@@ -1,6 +1,9 @@
 use primitives::{ByteVec, Digest};
+use ritelinked::LinkedHashMap;
 use sha2::Sha256;
 use sha256::Sha256Digest;
+
+use crate::txn::Txn;
 
 pub fn gen_sha256_digest_string<D: Sha256Digest>(data: D) -> String {
     sha256::digest(data)
@@ -15,4 +18,11 @@ macro_rules! is_enum_variant {
             false
         }
     };
+}
+
+pub fn size_of_txn_list(txns: &LinkedHashMap<String, Txn>) -> usize {
+    txns.iter()
+        .map(|(_, set)| set)
+        .map(|(txn)| std::mem::size_of_val(&txn))
+        .fold(0, |acc, item| acc + item)
 }

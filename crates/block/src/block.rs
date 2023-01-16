@@ -16,11 +16,7 @@ use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable,
-    claim::Claim,
-    keypair::KeyPair,
-    txn::Txn,
-    verifiable::Verifiable,
+    accountable::Accountable, claim::Claim, keypair::KeyPair, txn::Txn, verifiable::Verifiable,
 };
 
 #[cfg(mainnet)]
@@ -29,9 +25,7 @@ use crate::{
     genesis,
     header::BlockHeader,
     invalid::{BlockError, InvalidBlockErrorReason},
-    ConvergenceBlock,
-    GenesisBlock,
-    ProposalBlock,
+    ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 
 pub trait InnerBlock {
@@ -64,6 +58,31 @@ impl Block {
 
     pub fn is_genesis(&self) -> bool {
         matches!(self, Block::Genesis { .. })
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Block::Convergence { block } => block
+                .txns
+                .iter()
+                .map(|(_, set)| set)
+                .map(|(txn)| std::mem::size_of_val(&txn))
+                .fold(0, |acc, item| acc + item),
+
+            Block::Proposal { block } => block
+                .txns
+                .iter()
+                .map(|(_, set)| set)
+                .map(|(txn)| std::mem::size_of_val(&txn))
+                .fold(0, |acc, item| acc + item),
+
+            Block::Genesis { block } => block
+                .txns
+                .iter()
+                .map(|(_, set)| set)
+                .map(|(txn)| std::mem::size_of_val(&txn))
+                .fold(0, |acc, item| acc + item),
+        }
     }
 }
 

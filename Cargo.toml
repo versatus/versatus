@@ -105,6 +105,7 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
+kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
@@ -176,7 +177,7 @@ axum-server = { version = "0.4.4", features = ["tls-rustls"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["trace"] }
 hyper = { version = "0.14.23", features = ["full"] }
-
+cuckoofilter = "0.5.0"
 
 [dev-dependencies]
 reqwest.workspace = true

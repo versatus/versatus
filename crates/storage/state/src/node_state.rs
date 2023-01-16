@@ -4,7 +4,10 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
-use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory, PoolType};
+use mempool::{
+    mempool::{LeftRightMempool, MempoolReadHandleFactory, PoolType},
+    Mempool,
+};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{
     node,

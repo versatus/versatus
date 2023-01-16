@@ -8,6 +8,7 @@ use std::{
     collections::{BTreeSet, HashMap, HashSet},
     error::Error,
     fmt,
+    mem,
     ptr::addr_of,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -52,8 +53,10 @@ use vrrb_core::{
     txn::Txn,
 };
 
+use crate::result::MinerError;
+
 // TODO: replace Pool with LeftRightMempool if suitable
-use crate::result::Result;
+//use crate::result::{Result, MinerError};
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
@@ -144,7 +147,7 @@ impl Miner {
     }
 
     /// Facade method to mine the various available block types
-    pub fn mine(&mut self, args: MineArgs) -> Result<Block> {
+    pub fn mine(&mut self, args: MineArgs) -> Result<Block, MinerError> {
         let now = timestamp!();
         todo!()
     }
@@ -295,13 +298,21 @@ impl Miner {
         nonce: u128,
         // from: Claim,
         // secret_key: SecretKeyBytes,
-    ) -> ProposalBlock {
+    ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
         let from = self.generate_claim(nonce);
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = self.secret_key.sign_ecdsa(payload).to_string();
         let hash = hash_data!(round, epoch, txns, claims, from, signature);
 
-        ProposalBlock {
+        let mut total_txns_size = 0;
+        for (_, txn) in txns.iter() {
+            total_txns_size += mem::size_of::<Txn>();
+            if total_txns_size > 2000 {
+                InvalidBlockErrorReason::InvalidBlockSize;
+            }
+        }
+
+        Ok(ProposalBlock {
             ref_block,
             round,
             epoch,
@@ -310,7 +321,7 @@ impl Miner {
             hash,
             from,
             signature,
-        }
+        })
     }
 
     pub fn mine_genesis_block(&self, claim_list: ClaimList, nonce: u128) -> Option<GenesisBlock> {

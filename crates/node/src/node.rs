@@ -1,6 +1,7 @@
-use std::{net::SocketAddr, path::PathBuf};
+use std::{io::Read, net::SocketAddr, path::PathBuf, sync::mpsc::channel, thread};
 
-use network::network::BroadcastEngine;
+use crossbeam_channel::unbounded;
+use network::{message::Message, network::BroadcastEngine, packet, packet::RaptorBroadCastedData};
 use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
@@ -17,6 +18,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     event_router::{DirectedEvent, Event, EventRouter, Topic},
     keypair::KeyPair,
+    txn::Txn,
 };
 use vrrb_rpc::{
     http::HttpApiServerConfig,
@@ -24,18 +26,12 @@ use vrrb_rpc::{
 };
 
 use crate::{
+    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mining_module,
     result::{NodeError, Result},
-    validator_module,
-    NodeType,
-    RuntimeModule,
-    RuntimeModuleState,
-    StateModule,
-    StateModuleConfig,
+    validator_module, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
 };
-
-const NUMBER_OF_NETWORK_PACKETS: usize = 32;
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
@@ -85,13 +81,15 @@ impl Node {
         let mut gossip_handle = None;
 
         if !config.disable_networking {
-            let (new_gossip_handle, gossip_addr) = Self::setup_gossip_network(
-                &config,
-                events_tx.clone(),
-                event_router.subscribe(&Topic::Network)?,
-                state_read_handle.clone(),
-            )
-            .await?;
+            let (gossip_handle, broadcast_controller_handle, gossip_addr) =
+                Self::setup_gossip_network(
+                    &config,
+                    events_tx.clone(),
+                    event_router.subscribe(&Topic::Network)?,
+                    event_router.subscribe(&Topic::Network)?,
+                    state_read_handle.clone(),
+                )
+                .await?;
 
             gossip_handle = new_gossip_handle;
             config.udp_gossip_address = gossip_addr;
@@ -262,15 +260,16 @@ impl Node {
         config: &NodeConfig,
         events_tx: UnboundedSender<DirectedEvent>,
         mut network_events_rx: Receiver<Event>,
+        mut controller_events_rx: Receiver<Event>,
         state_handle_factory: NodeStateReadHandle,
-        // ) -> Result<(JoinHandle<()>, SocketAddr)> {
-    ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
-
-        let mut broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
+    ) -> Result<(
+        Option<JoinHandle<Result<()>>>,
+        Option<JoinHandle<Result<()>>>,
+        SocketAddr,
+    )> {
+        let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
             events_tx: events_tx.clone(),
             state_handle_factory,
-            bootstrap_node_addresses,
             udp_gossip_address_port: config.udp_gossip_address.port(),
             raptorq_gossip_address_port: config.raptorq_gossip_address.port(),
             node_type: config.node_type,
@@ -280,10 +279,38 @@ impl Node {
 
         let addr = broadcast_module.local_addr();
 
-        let broadcast_handle =
-            tokio::spawn(async move { broadcast_module.start(&mut network_events_rx).await });
+        let (controller_tx, controller_rx) =
+            tokio::sync::mpsc::channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
 
-        Ok((Some(broadcast_handle), addr))
+        let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
+            .await
+            .map_err(|err| {
+                NodeError::Other(format!("unable to setup broadcast engine: {}", err))
+            })?;
+
+        let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
+
+        // NOTE: starts the listening loop
+        let broadcast_controller_handle = tokio::spawn(async move {
+            bcast_controller
+                .listen(controller_tx, controller_events_rx)
+                .await
+        });
+
+        let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
+
+        let broadcast_handle = tokio::spawn(async move {
+            broadcast_module_actor
+                .start(&mut network_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
+
+        Ok((
+            Some(broadcast_handle),
+            Some(broadcast_controller_handle),
+            addr,
+        ))
     }
 
     async fn setup_state_store(

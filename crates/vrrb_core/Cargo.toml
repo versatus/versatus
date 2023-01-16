@@ -32,3 +32,4 @@ utils = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }
+cuckoofilter = { workspace = true }
