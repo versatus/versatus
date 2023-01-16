@@ -27,6 +27,7 @@ pub struct PeerData {
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
 // once definitions of those are moved into primitives.
+
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     #[default]
@@ -69,6 +70,12 @@ pub enum Event {
 
     /// A command to  send ack of Part message of sender by current Node.
     SendAck(u16, u16, Vec<u8>),
+
+    /// A command to handle all the acks received by the node.
+    HandleAllAcks,
+
+    /// Used to generate the public key set& Distrbuted Group Public Key for the node.
+    GenerateKeySet,
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),

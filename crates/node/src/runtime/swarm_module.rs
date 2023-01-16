@@ -10,8 +10,7 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::broadcast::error::TryRecvError;
 use tracing::error;
 use vrrb_core::event_router::{DirectedEvent, Event, Topic};
-
-use crate::{result::Result, NodeError, RuntimeModule};
+use crate::{result::Result, NodeError};
 
 type Port = usize;
 
