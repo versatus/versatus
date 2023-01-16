@@ -83,7 +83,6 @@ mod tests {
     #[test]
     fn can_be_built_using_a_builder() {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-
         NodeConfigBuilder::default()
             .id(String::from("abcdefg"))
             .idx(10)

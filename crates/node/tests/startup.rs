@@ -60,7 +60,6 @@ async fn node_can_join_network() {
     let (ctrl_tx_1, ctrl_rx_1) = unbounded_channel::<Event>();
 
     let bootstrap_node = Node::start(&node_config, bootstrap_ctrl_rx).await.unwrap();
-
     // NOTE: use quick for peer discovery
     let bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
 
