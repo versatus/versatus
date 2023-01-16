@@ -158,6 +158,7 @@ impl Handler<Event> for DkgModule {
                 return Ok(ActorState::Stopped);
             },
             Event::AckPartCommitment(sender_id) => {
+                println!("E {:?}", sender_id);
                 if self
                     .dkg_engine
                     .dkg_state
@@ -168,13 +169,20 @@ impl Handler<Event> for DkgModule {
                     match dkg_result {
                         Ok(status) => match status {
                             DkgResult::PartMessageAcknowledged => {
-                                if let Some(ack) =
-                                    self.dkg_engine.dkg_state.ack_message_store.get(&(sender_id,self.dkg_engine.node_idx))
+                                if let Some(ack) = self
+                                    .dkg_engine
+                                    .dkg_state
+                                    .ack_message_store
+                                    .get(&(sender_id, self.dkg_engine.node_idx))
                                 {
                                     if let Ok(ack_bytes) = bincode::serialize(&ack) {
                                         let _ = self.broadcast_events_tx.send((
                                             Topic::Network,
-                                            Event::SendAck(self.dkg_engine.node_idx,sender_id, ack_bytes),
+                                            Event::SendAck(
+                                                self.dkg_engine.node_idx,
+                                                sender_id,
+                                                ack_bytes,
+                                            ),
                                         ));
                                     }
                                 }
@@ -202,15 +210,21 @@ impl Handler<Event> for DkgModule {
 #[cfg(test)]
 mod tests {
     use std::{
+        borrow::{Borrow, BorrowMut},
         env,
         net::{IpAddr, Ipv4Addr},
+        sync::Arc,
         thread,
         time::Duration,
     };
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
 
+    use futures::future::FutureExt;
     use hbbft::crypto::SecretKey;
     use primitives::{NodeType, QuorumType::Farmer};
     use theater::ActorImpl;
+    use tokio::{spawn, sync::mpsc::UnboundedReceiver};
     use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
 
     use super::*;
@@ -327,54 +341,98 @@ mod tests {
             events_tx,
             broadcast_events_tx.clone(),
         );
+
         dkg_module
             .dkg_engine
             .add_peer_public_key(1, sec_key.public_key());
+
         dkg_module
             .dkg_engine
             .add_peer_public_key(2, SecretKey::random().public_key());
+
         dkg_module
             .dkg_engine
             .add_peer_public_key(3, SecretKey::random().public_key());
+
         dkg_module
             .dkg_engine
             .add_peer_public_key(4, SecretKey::random().public_key());
-        let node_idx=dkg_module.dkg_engine.node_idx;
+
+        let node_idx = dkg_module.dkg_engine.node_idx;
         let mut dkg_module = ActorImpl::new(dkg_module);
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(20);
 
         assert_eq!(dkg_module.status(), ActorState::Stopped);
+
         let handle = tokio::spawn(async move {
             dkg_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(dkg_module.status(), ActorState::Terminating);
         });
-        ctrl_tx.send(Event::DkgInitiate).unwrap();//Ctrl_rx gets dropped her
-        ctrl_tx.send(Event::AckPartCommitment(node_idx)).unwrap();
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-        println!("Receiver Count i{:?}",ctrl_tx.receiver_count());
 
-        let broadcast_handle=tokio::spawn(async move {
-              loop{
-                  let msg=broadcast_events_rx.recv().await.unwrap();
-                  match msg{
-                      (Topic::Network,Event::PartMessage(sender_id, part_committment_bytes)) => { ;
-                          println!(   "part_message_event {:?}",ctrl_tx.receiver_count());
+        ctrl_tx.send(Event::DkgInitiate).unwrap();
+        let task = spawn(async move {
+            let mut id = 0;
+            loop {
+                let msg = broadcast_events_rx.recv().await.unwrap();
+                match msg {
+                    (Topic::Network, Event::PartMessage(sender_id, part_committment_bytes)) => {
+                        id = sender_id;
+                        break;
+                    },
+                    _ => {
+                        break;
+                    },
+                };
+            }
 
-                      },
-                      (Topic::Network,Event::SendAck(current_node_idx,sender_id,ack_bytes))=>{
-                          println!("CurrNode :{:? }, Sender {:?}, ack bytes :{:?}",current_node_idx,sender_id,ack_bytes);
-                      },
-                      _=>{
-                          break;
-                      }
-                  }
-              }
+            return id;
         });
 
-        handle.await.unwrap();
-        broadcast_events_tx.send((Topic::Network,Event::Stop)).unwrap();
-        broadcast_handle.await.unwrap();
+        /*This fails
+       let msg = broadcast_events_rx.recv().await.unwrap();
+        let msg = broadcast_events_rx.recv().await.unwrap();
 
+        */
+        let data = task.then(|result| async move { result.unwrap() }).await;
+        assert!(data == 1);
+
+        dbg!("Receiver count {:?}", ctrl_tx.receiver_count());
+
+        ctrl_tx.send(Event::AckPartCommitment(1)).unwrap();
+
+        dbg!("Receiver count {:?}", ctrl_tx.receiver_count());
+
+
+        /*
+          let ack_handle = spawn( async  move{
+              let mut curr_id=0;
+              let mut sender_node_id=0;
+              let mut data=vec![];
+              loop {
+                  let msg = tmp.borrow_mut().recv().await.unwrap();
+                  println!("Message {:?}",msg);
+                  match msg {
+                      (Topic::Network, Event::SendAck(sender_id, node_id,ack_bytes)) => {
+                          curr_id=sender_id;
+                          sender_node_id=sender_id;
+                          data=ack_bytes;
+                          break;
+                      },
+                      _ => {
+                          break;
+                      },
+                  };
+              }
+
+              return (curr_id,sender_node_id,data);
+          });
+          println!("Receiver count {:?}",ctrl_tx.receiver_count());
+          ctrl_tx.send(Event::AckPartCommitment(data)).unwrap();
+
+          let data = ack_handle.then(|result| async move { result.unwrap() }).await;
+        //  assert!(data.2.len()>0);
+          */
+        handle.await.unwrap();
     }
 }

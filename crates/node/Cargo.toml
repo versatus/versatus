@@ -48,6 +48,6 @@ theater = { workspace = true }
 kademlia-dht= { workspace = true }
 dkg_engine= { workspace = true }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-
+futures = "0.3.25"
 [dev-dependencies]
 reqwest = { workspace = true }
