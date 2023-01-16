@@ -213,12 +213,12 @@ mod tests {
         borrow::{Borrow, BorrowMut},
         env,
         net::{IpAddr, Ipv4Addr},
+        pin::Pin,
         sync::Arc,
+        task::{Context, Poll},
         thread,
         time::Duration,
     };
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
 
     use futures::future::FutureExt;
     use hbbft::crypto::SecretKey;
@@ -390,10 +390,10 @@ mod tests {
         });
 
         /*This fails
-       let msg = broadcast_events_rx.recv().await.unwrap();
         let msg = broadcast_events_rx.recv().await.unwrap();
+         let msg = broadcast_events_rx.recv().await.unwrap();
 
-        */
+         */
         let data = task.then(|result| async move { result.unwrap() }).await;
         assert!(data == 1);
 

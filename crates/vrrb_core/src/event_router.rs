@@ -68,8 +68,7 @@ pub enum Event {
     PartMessage(u16, Vec<u8>),
 
     /// A command to  send ack of Part message of sender by current Node.
-    SendAck(u16,u16,Vec<u8>),
-
+    SendAck(u16, u16, Vec<u8>),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),
@@ -123,7 +122,6 @@ pub enum Event {
     // SendPartMessage(Vec<u8>),
     // SendAckMessage(Vec<u8>),
     // PublicKeySetSync,
-
 }
 
 impl From<&theater::Message> for Event {
