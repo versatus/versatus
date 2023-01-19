@@ -17,23 +17,18 @@ use block::{
     Conflict, ConflictList, ConsolidatedClaims, ConsolidatedTxns, ConvergenceBlock, GenesisBlock,
     ProposalBlock, RefHash, TxnId, TxnList,
 };
-
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
-
 use bulldag::{
     graph::BullDag,
     vertex::{Direction, Vertex},
 };
-
-// TODO: replace Pool with LeftRightMempool if suitable
-use crate::result::Result;
 use mempool::LeftRightMempool;
 use primitives::{types::Epoch, Address, PublicKey, SecretKey, SerializedSecretKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use state::{state::NetworkState, NodeStateReadHandle};
@@ -44,6 +39,9 @@ use vrrb_core::{
     nonceable::Nonceable,
     txn::Txn,
 };
+
+// TODO: replace Pool with LeftRightMempool if suitable
+use crate::result::Result;
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
@@ -638,22 +636,3 @@ impl Miner {
         return stack;
     }
 }
-
-// Miner {
-//     claim: Claim::new(pubkey, address, 1),
-//     mining: false,
-//     claim_map: LinkedHashMap::new(),
-//     txn_pool: Pool::new(PoolKind::Txn),
-//     claim_pool: Pool::new(PoolKind::Claim),
-//     last_block: None,
-//     reward,
-//     network_state,
-//     neighbors: None,
-//     current_nonce_timer: 0,
-//     n_miners,
-//     init: false,
-//     abandoned_claim_counter: LinkedHashMap::new(),
-//     abandoned_claim: None,
-//     secret_key,
-//     epoch,
-// }

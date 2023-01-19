@@ -362,46 +362,4 @@ impl Miner {
             .as_nanos();
         self.current_nonce_timer = timestamp;
     }
-
-    // /// Serializes the miner into a string
-    // // TODO: Consider changing this to `serialize_to_string`
-    // pub fn to_string(&self) -> String {
-    //     serde_json::to_string(&self).unwrap()
-    // }
-
-    // /// Serializes the miner into a vector of bytes
-    // pub fn as_bytes(&self) -> Vec<u8> {
-    //     self.to_string().as_bytes().to_vec()
-    // }
-
-    // /// Deserializes a miner from a byte array
-    // pub fn from_bytes(data: &[u8]) -> Miner {
-    //     serde_json::from_slice(data).unwrap()
-    // }
-    //
-    // /// Deserializes a miner from a string slice
-    // pub fn from_string(data: &str) -> Miner {
-    //     serde_json::from_str(data).unwrap()
-    // }
-
-    // /// Returns a vetor of string representations of the field names of a miner
-    // pub fn get_field_names(&self) -> Vec<String> {
-    //     vec![
-    //         "claim".to_string(),
-    //         "mining".to_string(),
-    //         "claim_map".to_string(),
-    //         "txn_pool".to_string(),
-    //         "claim_pool".to_string(),
-    //         "last_block".to_string(),
-    //         "reward_state".to_string(),
-    //         "network_state".to_string(),
-    //         "neighbors".to_string(),
-    //         "current_nonce_timer".to_string(),
-    //         "n_miners".to_string(),
-    //         "init".to_string(),
-    //         "abandoned_claim_counter".to_string(),
-    //         "abandoned_claim".to_string(),
-    //         "secret_key".to_string(),
-    //     ]
-    // }
 }

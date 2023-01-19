@@ -12,7 +12,12 @@ use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::{
-    block::Block, ConvergenceBlock, GenesisBlock, InnerBlock, NextEpochAdjustment, ProposalBlock,
+    block::Block,
+    ConvergenceBlock,
+    GenesisBlock,
+    InnerBlock,
+    NextEpochAdjustment,
+    ProposalBlock,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
