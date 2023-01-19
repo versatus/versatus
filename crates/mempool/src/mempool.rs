@@ -55,6 +55,7 @@ pub type PoolType = IndexMap<TxHashString, TxnRecord, FxBuildHasher>;
 pub enum TxnStatus {
     #[default]
     Pending,
+    Valdating,
     Validated,
     Rejected,
 }
@@ -65,7 +66,7 @@ pub struct Mempool {
     pool: PoolType,
 }
 
-pub const DEFAULT_INITIAL_MEMPOOL_CAPACITY: usize = 100;
+pub const DEFAULT_INITIAL_MEMPOOL_CAPACITY: usize = 10000;
 
 impl Default for Mempool {
     fn default() -> Self {
@@ -215,6 +216,28 @@ impl LeftRightMempool {
         }
 
         self.pool().get(txn_hash).cloned()
+    }
+
+    /// It fetches the transactions from the pool and returns them.
+    ///
+    /// Arguments:
+    ///
+    /// * `num_of_txns`: The number of transactions to fetch from the pool.
+    ///
+    /// Returns:
+    ///
+    /// A vector of tuples of type (TxHashString, TxnRecord)
+    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TxHashString, TxnRecord)> {
+        let mut txns_records = vec![];
+        for i in 0..num_of_txns {
+            if i == self.pool().len() {
+                break;
+            }
+            if let Some(txn_data) = self.pool().pop() {
+                txns_records.push(txn_data);
+            }
+        }
+        txns_records
     }
 
     /// Adds a batch of new transaction, makes sure that each is unique in db.

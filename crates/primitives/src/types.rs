@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct StopSignal;
 
 
-#[derive(Clone, Debug)]
+#[derive(Serialize,Deserialize,Hash,Clone, Debug,Eq,PartialEq)]
 pub enum QuorumType {
     Farmer,
     Harvester,
@@ -66,6 +66,7 @@ pub type PayloadHash = Hash;
 pub type BlockHash = Hash;
 pub type RawSignature = Vec<u8>;
 pub type PeerId = Vec<u8>;
+pub type GroupPublicKey = Vec<u8>;
 
 /// Represents a byte slice produced from an instance of secp256k1::SecretKey
 pub type SerializedSecretKey = Vec<u8>;

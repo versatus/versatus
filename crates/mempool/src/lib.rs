@@ -500,7 +500,7 @@ mod tests {
                     let read_hdl = mpool_hdl.handle();
 
                     match read_hdl.enter().map(|guard| guard.clone()) {
-                        Some(m) => {
+                        Some(mut m) => {
                             assert_eq!(m.len(), txn_id_max - 1);
                         },
                         None => {
@@ -512,5 +512,52 @@ mod tests {
             .for_each(|handle| {
                 handle.join().unwrap();
             });
+    }
+
+
+    #[test]
+    fn fetch_n_txns() {
+        let keypair = KeyPair::random();
+        let txn_id_max = 11;
+        let mut lrmpooldb = LeftRightMempool::new();
+        let mut txns = HashSet::<Txn>::new();
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+
+        let sender_address = String::from("aaa1");
+        let receiver_address = String::from("bbb1");
+        let txn_amount: u128 = 1010101;
+
+        for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
+            let txn = Txn::new(NewTxnArgs {
+                sender_address: String::from("aaa1"),
+                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+                receiver_address: receiver_address.clone(),
+                token: None,
+                amount: txn_amount + n,
+                payload: Some(String::from("x")),
+                validators: Some(HashMap::<String, bool>::new()),
+                nonce: 0,
+                signature: vec![],
+            });
+
+            txns.insert(txn);
+        }
+
+        let copied = txns.clone();
+        match lrmpooldb.extend(txns) {
+            Ok(_) => {
+                assert_eq!(txn_id_max - 1, lrmpooldb.size());
+            },
+            Err(_) => {
+                panic!("Adding transactions was unsuccesful !");
+            },
+        };
+
+        let fetched_txns = lrmpooldb.fetch_txns(txn_id_max);
+        assert_eq!(fetched_txns.len(), txn_id_max - 1);
     }
 }

@@ -3,7 +3,7 @@ use std::{
     net::SocketAddr,
 };
 
-use primitives::{NodeType, PeerId, TxHash, TxHashString};
+use primitives::{NodeType, PeerId, QuorumType, RawSignature, TxHash, TxHashString};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
@@ -27,6 +27,17 @@ pub struct PeerData {
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
 // once definitions of those are moved into primitives.
+
+#[derive(Debug, Deserialize, Serialize,Hash, Clone, PartialEq, Eq)]
+pub struct Vote {
+    /// The identity of the voter.
+    pub farmer_id: Vec<u8>,
+    /// Partial Signature
+    pub signature: RawSignature,
+    pub txn: Txn,
+    pub quorum_public_key: Vec<u8>,
+}
+
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Event {
@@ -74,8 +85,13 @@ pub enum Event {
     /// A command to handle all the acks received by the node.
     HandleAllAcks,
 
-    /// Used to generate the public key set& Distrbuted Group Public Key for the node.
+    /// Used to generate the public key set& Distrbuted Group Public Key for the
+    /// node.
     GenerateKeySet,
+
+    Farm,
+
+    Vote(Vote,QuorumType),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),
