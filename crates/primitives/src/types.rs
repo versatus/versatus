@@ -1,4 +1,4 @@
-use secp256k1::{rand::rngs::OsRng, Secp256k1};
+use secp256k1::{hashes::sha256, rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default)]
@@ -72,6 +72,7 @@ pub type SerializedPublicKeyString = String;
 
 pub type PublicKey = secp256k1::PublicKey;
 pub type SecretKey = secp256k1::SecretKey;
+pub type Signature = secp256k1::ecdsa::Signature;
 
 pub type AccountKeypair = (secp256k1::SecretKey, secp256k1::PublicKey);
 
@@ -79,6 +80,9 @@ pub fn generate_account_keypair() -> AccountKeypair {
     let secp = Secp256k1::new();
     secp.generate_keypair(&mut OsRng)
 }
+
+/// Represents a secp256k1 public key, hashed with sha256::digest
+pub type Address = String;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum SignatureType {
@@ -112,3 +116,6 @@ pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
+
+pub const NUMBER_OF_NETWORK_PACKETS: usize = 32;
+pub const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";

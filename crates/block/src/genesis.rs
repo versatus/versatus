@@ -1,59 +1,93 @@
+use primitives::types::SecretKey as SecretKeyBytes;
+
+#[cfg(mainnet)]
+use reward::reward::GENESIS_REWARD;
 use ritelinked::LinkedHashMap;
-use vesting::VestingConfig;
-use vrrb_core::txn::Txn;
+use secp256k1::{hashes::Hash, SecretKey};
+use serde::{Deserialize, Serialize};
+use sha256::digest;
+use utils::{create_payload, hash_data};
+use vrrb_core::claim::Claim;
 
-// 50% after one year, then monthly for 12 months
-const EMPLOYEE_VESTING: VestingConfig = VestingConfig {
-    cliff_fraction: 0.5f64,
-    cliff_years: 1f64,
-    unlocks: 12,
-    unlock_years: 1f64,
-};
+#[cfg(mainnet)]
+use crate::genesis;
+use crate::{header::BlockHeader, BlockHash, Certificate, ClaimList, TxnList};
 
-// 25% after half year, then monthly for 18  months
-const INVESTOR_VESTING: VestingConfig = VestingConfig {
-    cliff_fraction: 0.25f64,
-    cliff_years: 0.75f64,
-    unlocks: 18,
-    unlock_years: 1.5f64,
-};
-
-const EMPLOYEESS: [&str; 2] = [
-    "6pME5t7fLGubJjcn4L4ncN7DZs7tWPHU4FoYV4Cv3vGa",
-    "3ki3QpPM2cGE3X5MZm6L4NcMdrp7R9vVeE2PEE427uqa",
-];
-
-const INVESTORS: [&str; 2] = [
-    "C5dz418Wf5cKeGKCUBN7AUTRcGK9wcRknEfVbjSyAMZm",
-    "5TAgthC5PLYBP3JSvjjfnd1jkY1VLrC78p4T4MucHFE",
-];
-
-// TODO: replace that mock module, when vesting contract is written
-mod vesting {
-    use vrrb_core::txn::Txn;
-
-    pub struct VestingConfig {
-        pub cliff_fraction: f64,
-        pub cliff_years: f64,
-        pub unlocks: usize,
-        pub unlock_years: f64,
-    }
-
-    #[allow(clippy::diverging_sub_expression)]
-    pub fn create_vesting(_target: &str, _config: VestingConfig) -> (String, Txn) {
-        todo!()
-    }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct GenesisBlock {
+    pub header: BlockHeader,
+    pub txns: TxnList,
+    pub claims: ClaimList,
+    pub hash: BlockHash,
+    pub certificate: Option<Certificate>,
 }
 
-pub fn generate_genesis_txns() -> LinkedHashMap<String, Txn> {
-    let mut genesis_txns: LinkedHashMap<String, Txn> = LinkedHashMap::new();
-    for employee in EMPLOYEESS {
-        let vesting_txn = vesting::create_vesting(employee, EMPLOYEE_VESTING);
-        genesis_txns.insert(vesting_txn.0, vesting_txn.1);
-    }
-    for investor in INVESTORS {
-        let vesting_txn = vesting::create_vesting(investor, INVESTOR_VESTING);
-        genesis_txns.insert(vesting_txn.0, vesting_txn.1);
-    }
-    genesis_txns
+impl GenesisBlock {
+    // pub fn mine(
+    //     claim: Claim,
+    //     secret_key: SecretKeyBytes,
+    //     claim_list: ClaimList,
+    // ) -> Option<GenesisBlock> {
+    //     Self::mine_genesis(claim, secret_key, claim_list)
+    // }
+
+    // pub fn mine_genesis(
+    //     claim: Claim,
+    //     secret_key: SecretKey,
+    //     claim_list: ClaimList,
+    // ) -> Option<GenesisBlock> {
+    //     let claim_list_hash = hash_data!(claim_list);
+    //     let seed = 0;
+    //     let round = 0;
+    //     let epoch = 0;
+    //
+    //     let header = BlockHeader::genesis(
+    //         seed,
+    //         round,
+    //         epoch,
+    //         claim.clone(),
+    //         secret_key,
+    //         claim_list_hash,
+    //     );
+    //
+    //     let block_hash = hash_data!(
+    //         header.ref_hashes,
+    //         header.round,
+    //         header.block_seed,
+    //         header.next_block_seed,
+    //         header.block_height,
+    //         header.timestamp,
+    //         header.txn_hash,
+    //         header.miner_claim,
+    //         header.claim_list_hash,
+    //         header.block_reward,
+    //         header.next_block_reward,
+    //         header.miner_signature
+    //     );
+    //
+    //     let mut claims = LinkedHashMap::new();
+    //     claims.insert(claim.clone().public_key, claim);
+    //
+    //     #[cfg(mainnet)]
+    //     let txns = genesis::generate_genesis_txns();
+    //
+    //     // TODO: Genesis block on local/testnet should generate either a
+    //     // faucet for tokens, or fill some initial accounts so that testing
+    //     // can be executed
+    //
+    //     #[cfg(not(mainnet))]
+    //     let txns = LinkedHashMap::new();
+    //     let header = header;
+    //
+    //     let genesis = GenesisBlock {
+    //         header,
+    //         txns,
+    //         claims,
+    //         hash: block_hash,
+    //         certificate: None,
+    //     };
+    //
+    //     Some(genesis)
+    // }
 }

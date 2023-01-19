@@ -1,96 +1,42 @@
-/// This module is for the creation and operation of a mining unit within a node
-/// in the network The miner is the primary way that data replication across all
-/// nodes occur The mining of blocks can be thought of as incremental
-/// checkpoints in the state.
-//FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashMap, HashSet},
-    error::Error,
+    collections::{HashMap, HashSet},
     fmt,
-    ptr::addr_of,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-use block::{
-    block::Block, header::BlockHeader, invalid::InvalidBlockErrorReason, ClaimHash, ClaimList,
-    Conflict, ConflictList, ConsolidatedClaims, ConsolidatedTxns, ConvergenceBlock, GenesisBlock,
-    ProposalBlock, RefHash, TxnId, TxnList,
-};
-
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
 };
 
 use bulldag::{
     graph::BullDag,
+    index::Index,
     vertex::{Direction, Vertex},
 };
-
-// TODO: replace Pool with LeftRightMempool if suitable
-use crate::result::Result;
-use mempool::LeftRightMempool;
-use primitives::{types::Epoch, Address, PublicKey, SecretKey, SerializedSecretKey, Signature};
-use reward::reward::Reward;
+use primitives::{
+    types::SecretKey as SecretKeyBytes, Epoch, RawSignature, GENESIS_EPOCH, SECOND,
+    VALIDATOR_THRESHOLD,
+};
+#[cfg(mainnet)]
+use reward::reward::GENESIS_REWARD;
+use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use state::{state::NetworkState, NodeStateReadHandle};
-use utils::{create_payload, hash_data, timestamp};
+use utils::{create_payload, hash_data};
 use vrrb_core::{
-    claim::Claim,
-    keypair::{KeyPair, MinerPk, MinerSk},
-    nonceable::Nonceable,
-    txn::Txn,
+    accountable::Accountable, claim::Claim, keypair::KeyPair, txn::Txn, verifiable::Verifiable,
 };
 
-pub const VALIDATOR_THRESHOLD: f64 = 0.60;
-pub const NANO: u128 = 1;
-pub const MICRO: u128 = NANO * 1000;
-pub const MILLI: u128 = MICRO * 1000;
-pub const SECOND: u128 = MILLI * 1000;
-
-// TODO: Consider moving that to genesis_config.yaml
-const GENESIS_ALLOWED_MINERS: [&str; 2] = [
-    "82104DeE06aa223eC9574a8b2De4fB440630c300",
-    "F4ccb23f9A2b10b165965e2a4555EC25615c29BE",
-];
-
-/// A basic enum to inform the system whether the current
-/// status of the local mining unit.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum MinerStatus {
-    Mining,
-    Waiting,
-    Processing,
-}
-
-#[derive(Debug)]
-pub struct MinerConfig {
-    pub secret_key: MinerSk,
-    pub public_key: MinerPk,
-    pub address: String,
-    //
-    // pub pubkey: String,
-    // pub reward: Reward,
-    // pub state_handle: NodeStateReadHandle,
-    // pub state_handle_factory: NodeStateReadHandle,
-    // pub n_miners: u128,
-    // pub epoch: Epoch,
-}
-
-#[derive(Debug, Clone)]
-pub struct Miner {
-    secret_key: MinerSk,
-    public_key: MinerPk,
-    address: String,
-    // state_handle_factory: NodeStateReadHandle,
-
-    // pub pubkey: String,
-    // pub reward: Reward,
-    // pub state_handle: NodeStateReadHandle,
-}
+#[cfg(mainnet)]
+use crate::genesis;
+use crate::{
+    genesis,
+    header::BlockHeader,
+    invalid::{BlockError, InvalidBlockErrorReason},
+    Block, BlockHash, Certificate, ClaimHash, Conflict, ConflictList, ConsolidatedClaims,
+    ConsolidatedTxns, GenesisBlock, ProposalBlock, RefHash, TxnId,
+};
 
 pub struct MineArgs<'a> {
     pub claim: Claim,
@@ -103,69 +49,24 @@ pub struct MineArgs<'a> {
     )]
     pub reward: &'a mut Reward,
     pub abandoned_claim: Option<Claim>,
-    pub secret_key: SecretKey,
+    pub secret_key: SecretKeyBytes,
     pub epoch: Epoch,
     pub round: u128,
     pub next_epoch_adjustment: i128,
 }
 
-impl Miner {
-    pub fn new(config: MinerConfig) -> Self {
-        Miner {
-            secret_key: config.secret_key,
-            public_key: config.public_key,
-            address: hash_data!(&config.public_key),
-            // state_handle_factory: config.state_handle_factory,
-        }
-    }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[repr(C)]
+pub struct ConvergenceBlock {
+    pub header: BlockHeader,
+    pub txns: ConsolidatedTxns,
+    pub claims: ConsolidatedClaims,
+    pub hash: BlockHash,
+    pub certificate: Option<Certificate>,
+}
 
-    pub fn address(&self) -> Address {
-        self.address.clone()
-    }
-
-    pub fn public_key(&self) -> PublicKey {
-        self.public_key.clone()
-    }
-
-    pub fn generate_claim(&self, nonce: u128) -> Claim {
-        Claim::new(self.public_key().to_string(), self.address(), nonce)
-    }
-
-    pub fn sign_message(&self, msg: Message) -> Signature {
-        self.secret_key.sign_ecdsa(msg)
-    }
-
-    /// Facade method to mine the various available block types
-    pub fn mine(&mut self, args: MineArgs) -> Result<Block> {
-        let now = timestamp!();
-
-        todo!()
-
-        // if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
-        //     let claim_map_hash = digest(claim_map_str.as_bytes());
-        //     if let Some(last_block) = self.last_block.clone() {
-        //         let mine_args = MineArgs {
-        //             claim: self.clone().claim,
-        //             last_block,
-        //             txns: self.clone().txn_pool.confirmed,
-        //             claims: self.clone().claim_pool.confirmed,
-        //             claim_list_hash: Some(claim_map_hash),
-        //             reward: &mut self.clone().reward,
-        //             abandoned_claim: self.abandoned_claim.clone(),
-        //             secret_key: self.secret_key.as_bytes().to_vec(),
-        //             epoch: self.epoch,
-        //             round: last_block.round + 1,
-        //             next_epoch_adjustment,
-        //         };
-        //
-        //         return Block::mine(mine_args);
-        //     }
-        // }
-        // Ok((None, 0))
-    }
-
-    pub fn mine_convergence_block(
-        &self,
+impl ConvergenceBlock {
+    pub fn mine(
         args: MineArgs,
         proposals: &Vec<ProposalBlock>,
         chain: &BullDag<Block, String>,
@@ -173,13 +74,13 @@ impl Miner {
         // identify and resolve all the conflicting txns between proposal blocks
         let resolved_txns = {
             match args.last_block {
-                Block::Convergence { ref block } => self.resolve_conflicts(
+                Block::Convergence { ref block } => ConvergenceBlock::resolve_conflicts(
                     &proposals,
                     block.header.next_block_seed.into(),
                     args.round.clone(),
                     chain,
                 ),
-                Block::Genesis { ref block } => self.resolve_conflicts(
+                Block::Genesis { ref block } => ConvergenceBlock::resolve_conflicts(
                     &proposals,
                     block.header.next_block_seed.into(),
                     args.round.clone(),
@@ -273,128 +174,9 @@ impl Miner {
         })
     }
 
-    pub fn mine_proposal_block(
-        &self,
-        ref_block: RefHash,
-        round: u128,
-        epoch: Epoch,
-        txns: TxnList,
-        claims: ClaimList,
-        from: Claim,
-    ) -> ProposalBlock {
-        let payload = create_payload!(round, epoch, txns, claims, from);
-
-        let signature = self.secret_key.sign_ecdsa(payload).to_string();
-
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
-
-        ProposalBlock {
-            ref_block,
-            round,
-            epoch,
-            txns,
-            claims,
-            hash,
-            from,
-            signature,
-        }
-    }
-
-    pub fn build_proposal_block(
-        &self,
-        ref_block: RefHash,
-        round: u128,
-        epoch: Epoch,
-        txns: TxnList,
-        claims: ClaimList,
-        nonce: u128,
-        // from: Claim,
-        // secret_key: SecretKeyBytes,
-    ) -> ProposalBlock {
-        let from = self.generate_claim(nonce);
-        let payload = create_payload!(round, epoch, txns, claims, from);
-        let signature = self.secret_key.sign_ecdsa(payload).to_string();
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
-
-        ProposalBlock {
-            ref_block,
-            round,
-            epoch,
-            txns,
-            claims,
-            hash,
-            from,
-            signature,
-        }
-    }
-
-    pub fn mine_genesis_block(&self, claim_list: ClaimList, nonce: u128) -> Option<GenesisBlock> {
-        let claim_list_hash = hash_data!(claim_list);
-        let seed = 0;
-        let round = 0;
-        let epoch = 0;
-
-        let claim = self.generate_claim(nonce);
-
-        let header = BlockHeader::genesis(
-            seed,
-            round,
-            epoch,
-            claim.clone(),
-            self.secret_key.clone(),
-            claim_list_hash,
-        );
-
-        let block_hash = hash_data!(
-            header.ref_hashes,
-            header.round,
-            header.block_seed,
-            header.next_block_seed,
-            header.block_height,
-            header.timestamp,
-            header.txn_hash,
-            header.miner_claim,
-            header.claim_list_hash,
-            header.block_reward,
-            header.next_block_reward,
-            header.miner_signature
-        );
-
-        let mut claims = LinkedHashMap::new();
-        claims.insert(claim.clone().public_key, claim);
-
-        #[cfg(mainnet)]
-        let txns = genesis::generate_genesis_txns();
-
-        // TODO: Genesis block on local/testnet should generate either a
-        // faucet for tokens, or fill some initial accounts so that testing
-        // can be executed
-
-        #[cfg(not(mainnet))]
-        let txns = LinkedHashMap::new();
-        let header = header;
-
-        let genesis = GenesisBlock {
-            header,
-            txns,
-            claims,
-            hash: block_hash,
-            certificate: None,
-        };
-
-        Some(genesis)
-    }
-
-    /// Gets a local current timestamp
-    pub fn get_timestamp(&self) -> u128 {
-        todo!()
-        // utils::timestamp!()
-    }
-
     // Check that conflicts with previous convergence block are removed
     // and there is no winner in current round.
     fn resolve_conflicts(
-        &self,
         proposals: &Vec<ProposalBlock>,
         seed: u128,
         round: u128,
@@ -415,10 +197,10 @@ impl Miner {
         };
 
         // Next get all the prev_round conflicts resolved
-        let prev_resolved = self.resolve_conflicts_prev_rounds(round, &prev, chain);
+        let prev_resolved = ConvergenceBlock::resolve_conflicts_prev_rounds(round, &prev, chain);
 
         // Identify all conflicts
-        let mut conflicts = self.identify_conflicts(&curr);
+        let mut conflicts = ConvergenceBlock::identify_conflicts(&curr);
 
         // create a vector of proposers with the claim and the proposal block
         // hash.
@@ -503,90 +285,7 @@ impl Miner {
         curr_resolved.clone()
     }
 
-    fn resolve_conflicts_prev_rounds(
-        &self,
-        round: u128,
-        proposals: &Vec<ProposalBlock>,
-        chain: &BullDag<Block, String>,
-    ) -> Vec<ProposalBlock> {
-        let prev_blocks: Vec<ConvergenceBlock> = {
-            let nested: Vec<Vec<ConvergenceBlock>> = proposals
-                .iter()
-                .map(|prop_block| self.get_source_blocks(prop_block, chain))
-                .collect();
-
-            nested.into_iter().flatten().collect()
-        };
-
-        let mut proposals = proposals.clone();
-
-        // Flatten consolidated transactions from all previous blocks
-        let removals: LinkedHashSet<&TxnId> = {
-            // Get nested sets of all previous blocks
-            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks
-                .iter()
-                .map(|block| {
-                    let block_set: Vec<&LinkedHashSet<TxnId>> = {
-                        block
-                            .txns
-                            .iter()
-                            .map(|(_, txn_id_set)| txn_id_set)
-                            .collect()
-                    };
-                    block_set.into_iter().flatten().collect()
-                })
-                .collect();
-
-            // Flatten the nested sets
-            sets.into_iter().flatten().collect()
-        };
-
-        proposals.retain(|block| block.round != round);
-
-        let resolved: Vec<ProposalBlock> = proposals
-            .iter_mut()
-            .map(|block| {
-                let mut resolved_block = block.clone();
-
-                resolved_block.txns.retain(|id, _| !&removals.contains(id));
-
-                resolved_block
-            })
-            .collect();
-
-        resolved
-    }
-
-    fn identify_conflicts(&self, proposals: &Vec<ProposalBlock>) -> HashMap<TxnId, Conflict> {
-        let mut conflicts: ConflictList = HashMap::new();
-        proposals.iter().for_each(|block| {
-            let mut txn_iter = block.txns.iter();
-            let mut proposer = HashSet::new();
-
-            proposer.insert((block.from.clone(), block.hash.clone()));
-
-            while let Some((id, _)) = txn_iter.next() {
-                let conflict = Conflict {
-                    txn_id: id.to_string(),
-                    proposers: proposer.clone(),
-                    winner: None,
-                };
-
-                conflicts
-                    .entry(id.to_string())
-                    .and_modify(|e| {
-                        e.proposers.insert((block.from.clone(), block.hash.clone()));
-                    })
-                    .or_insert(conflict);
-            }
-        });
-
-        conflicts.retain(|_, conflict| conflict.proposers.len() > 1);
-        conflicts
-    }
-
     fn get_source_blocks(
-        &self,
         block: &ProposalBlock,
         chain: &BullDag<Block, String>,
     ) -> Vec<ConvergenceBlock> {
@@ -637,23 +336,94 @@ impl Miner {
 
         return stack;
     }
-}
 
-// Miner {
-//     claim: Claim::new(pubkey, address, 1),
-//     mining: false,
-//     claim_map: LinkedHashMap::new(),
-//     txn_pool: Pool::new(PoolKind::Txn),
-//     claim_pool: Pool::new(PoolKind::Claim),
-//     last_block: None,
-//     reward,
-//     network_state,
-//     neighbors: None,
-//     current_nonce_timer: 0,
-//     n_miners,
-//     init: false,
-//     abandoned_claim_counter: LinkedHashMap::new(),
-//     abandoned_claim: None,
-//     secret_key,
-//     epoch,
-// }
+    fn resolve_conflicts_prev_rounds(
+        round: u128,
+        proposals: &Vec<ProposalBlock>,
+        chain: &BullDag<Block, String>,
+    ) -> Vec<ProposalBlock> {
+        let prev_blocks: Vec<ConvergenceBlock> = {
+            let nested: Vec<Vec<ConvergenceBlock>> = proposals
+                .iter()
+                .map(|prop_block| ConvergenceBlock::get_source_blocks(prop_block, chain))
+                .collect();
+
+            nested.into_iter().flatten().collect()
+        };
+
+        let mut proposals = proposals.clone();
+
+        // Flatten consolidated transactions from all previous blocks
+        let removals: LinkedHashSet<&TxnId> = {
+            // Get nested sets of all previous blocks
+            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks
+                .iter()
+                .map(|block| {
+                    let block_set: Vec<&LinkedHashSet<TxnId>> = {
+                        block
+                            .txns
+                            .iter()
+                            .map(|(_, txn_id_set)| txn_id_set)
+                            .collect()
+                    };
+                    block_set.into_iter().flatten().collect()
+                })
+                .collect();
+
+            // Flatten the nested sets
+            sets.into_iter().flatten().collect()
+        };
+
+        proposals.retain(|block| block.round != round);
+
+        let resolved: Vec<ProposalBlock> = proposals
+            .iter_mut()
+            .map(|block| {
+                let mut resolved_block = block.clone();
+
+                resolved_block.txns.retain(|id, _| !&removals.contains(id));
+
+                resolved_block
+            })
+            .collect();
+
+        resolved
+    }
+
+    fn identify_conflicts(proposals: &Vec<ProposalBlock>) -> HashMap<TxnId, Conflict> {
+        let mut conflicts: ConflictList = HashMap::new();
+        proposals.iter().for_each(|block| {
+            let mut txn_iter = block.txns.iter();
+            let mut proposer = HashSet::new();
+            proposer.insert((block.from.clone(), block.hash.clone()));
+
+            while let Some((id, _)) = txn_iter.next() {
+                let conflict = Conflict {
+                    txn_id: id.to_string(),
+                    proposers: proposer.clone(),
+                    winner: None,
+                };
+
+                conflicts
+                    .entry(id.to_string())
+                    .and_modify(|e| {
+                        e.proposers.insert((block.from.clone(), block.hash.clone()));
+                    })
+                    .or_insert(conflict);
+            }
+        });
+
+        conflicts.retain(|_, conflict| conflict.proposers.len() > 1);
+        conflicts
+    }
+
+    pub fn append_certificate(&mut self, cert: Certificate) {
+        self.certificate = Some(cert);
+    }
+
+    pub fn txn_id_set(&self) -> LinkedHashSet<&TxnId> {
+        let sets: Vec<&LinkedHashSet<TxnId>> = self.txns.iter().map(|(_, set)| set).collect();
+
+        sets.into_iter().flatten().collect()
+    }
+}
