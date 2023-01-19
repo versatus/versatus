@@ -87,10 +87,11 @@ impl Account {
     /// Modifies accounts hash, recalculating it using account's fields.
     fn rehash(&mut self) {
         let mut hasher = Sha256::new();
-        hasher.update(self.nonce.to_be_bytes());
-        //hash vrrb balance exclusively and add to hasher
-        //first token stored is vrrb token, first address stored is account address; "main" address
-        hasher.update(self.addresses["first"]["vrrb"].available_balance.to_be_bytes());
+        //hash account nonce with the debits, credits of the vrrb token in the first acct address (wallet's pubkey)
+        hasher.update(self.nonce.to_be_bytes()); 
+        let pubkey_string = String::from_utf8(self.pubkey)?;
+
+        hasher.update(self.addresses[pubkey_string]["vrrb"].available_balance.to_be_bytes());
 
         if let Some(storage) = &self.storage {
             hasher.update(storage.as_bytes());
@@ -145,16 +146,6 @@ impl Account {
             },
         }
         Ok(())
-    }
-
-    /// Updates single field of the struct. Doesn't update the nonce.
-    /// Before trying to update account in database with this account, nonce
-    /// should be bumped. Finaly recalculates and updates the hash. Might
-    /// return an error.
-    pub fn update_field(&mut self, update: AccountField) -> Result<()> {
-        let res = self.update_single_field_no_hash(update);
-        self.rehash();
-        res
     }
 
     /// Updates all fields of the account struct accoring to supplied

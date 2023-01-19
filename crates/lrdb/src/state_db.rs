@@ -9,7 +9,7 @@ use vrrb_core::account::{Account, UpdateArgs};
 
 use crate::result::{LeftRightDbError, Result};
 
-pub type FailedAccountUpdates = Vec<(SerializedPublicKeyString, Vec<UpdateArgs>, Result<()>)>;
+pub type FailedAccountUpdates = Vec<(SerializedPublicKey, Vec<UpdateArgs>, Result<()>)>;
 
 
 #[derive(Debug, Clone)]

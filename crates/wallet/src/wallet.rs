@@ -124,8 +124,8 @@ impl Wallet {
     }
 
     pub fn get_txn_nonce(&mut self, _network_state: &NetworkState) {
-        // TODO: add a get_account_txn_nonce() function to network state to
-        // update txn nonce in walet when restored.
+        // TODO: add a get_wallet_txn_nonce() function to network state to
+        // update txn nonce in wallet when restored.
     }
 
     pub fn get_new_addresses(&mut self, number_of_addresses: u8) {
@@ -142,8 +142,8 @@ impl Wallet {
         })
     }
 
-    pub fn get_wallet_addresses(&self) -> LinkedHashMap<u32, String> {
-        self.addresses.clone()
+    pub fn get_wallet_addresses(&self) -> Vec<&String> {
+        return self.account.addresses.keys().clone().collect();
     }
 
     pub fn render_balances(&self) -> LinkedHashMap<String, LinkedHashMap<String, u128>> {
@@ -166,7 +166,7 @@ impl Wallet {
     pub fn get_balances(&self, network_state: NetworkState) -> LinkedHashMap<String, u128> {
         let mut balance_map = LinkedHashMap::new();
 
-        self.addresses.iter().for_each(|(_, address)| {
+        self.account.addresses.iter().for_each(|(address,_)| {
             let balance = network_state.get_balance(address);
             balance_map.insert(address.clone(), balance);
         });
@@ -191,19 +191,15 @@ impl Wallet {
         }
     }
 
-    pub fn n_claims_owned(&self) -> u128 {
-        self.claims.len() as u128
-    }
-
-    pub fn get_claims(&self) -> LinkedHashMap<u128, Claim> {
-        self.claims.clone()
+    pub fn get_claim(&self) -> Claim {
+        self.claim.clone()
     }
 
     /// Checks if the local wallet has any transactions in the most recent block
     pub fn txns_in_block(&mut self, txns: &LinkedHashMap<String, Txn>) {
         let _my_txns = {
             let mut some_txn = false;
-            self.addresses.iter().for_each(|(_, address)| {
+            self.account.addresses.iter().for_each(|(address, _)| {
                 let mut cloned_data = txns.clone();
                 cloned_data.retain(|_, txn| {
                     true
@@ -225,23 +221,15 @@ impl Wallet {
     /// Error if the local wallet cannot create a Txn for whatever reason
     pub fn send_txn(
         &mut self,
-        address_number: u32,
+        sender_address: String,
         receiver: String,
+        token: String,
         amount: u128,
     ) -> Result<Txn, Box<dyn std::error::Error>> {
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let sender_address = {
-            if let Some(addr) = self.addresses.get(&address_number) {
-                addr
-            } else {
-                let n_new_addresses = address_number as usize - self.addresses.len();
-                self.get_new_addresses(n_new_addresses as u8);
-                self.addresses.get(&address_number).unwrap()
-            }
-        };
 
         let payload = format!(
             "{},{},{},{},{},{}",
@@ -273,24 +261,16 @@ impl Wallet {
         Ok(txn)
     }
 
-    /// Gets the local address of a wallet given an address number (naive HD
-    /// wallet)
-    pub fn get_address(&mut self, address_number: u32) -> String {
-        if let Some(address) = self.addresses.get(&address_number) {
-            address.to_string()
-        } else {
-            while self.addresses.len() < address_number as usize {
-                self.generate_new_address()
-            }
-            self.get_address(address_number)
-        }
+    /// Gets the local addresses of a wallet (naive HD wallet)
+    pub fn get_addresses(&mut self) -> Vec<String> {
+        self.account.addresses.keys().cloned().collect()
     }
 
     /// Generates a new address for the wallet based on the public key and a
     /// unique ID
     pub fn generate_new_address(&mut self) {
         let uid = Uuid::new_v4().to_string();
-        let address_number: u32 = self.addresses.len() as u32 + 1u32;
+        let address_number: u32 = self.account.addresses.len() as u32 + 1u32;
         let payload = format!(
             "{},{},{}",
             &address_number,
@@ -298,7 +278,7 @@ impl Wallet {
             &hex::encode(self.public_key.clone())
         );
         let address = digest(payload.as_bytes());
-        self.addresses.insert(address_number, address);
+        self.account.addresses.insert(address, HashMap::new());
     }
 
     /// Serializes the wallet into a vector of bytes.
@@ -317,18 +297,15 @@ impl Wallet {
 }
 
 impl fmt::Display for Wallet {
+    
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "Wallet(\n \
-            address: {:?},\n \
-            balances: {:?},\n \
-            available_balance: {:?},\n \
-            claims_owned: {}",
-            self.addresses,
-            self.total_balances,
-            self.available_balances,
-            self.claims.len()
+            pubkey: {:?},\n \
+            addresses: {:?}",
+            self,self.public_key,
+            self.account.addresses.keys().clone().collect(),
         )
     }
 }
@@ -339,10 +316,8 @@ impl Clone for Wallet {
             secret_key: self.secret_key.clone(),
             welcome_message: self.welcome_message.clone(),
             public_key: self.public_key.clone(),
-            addresses: self.addresses.clone(),
-            total_balances: self.total_balances.clone(),
-            available_balances: self.available_balances.clone(),
-            claims: self.claims.clone(),
+            account: self.account.clone(),
+            claim: self.claim.clone(),
             nonce: self.nonce,
         }
     }

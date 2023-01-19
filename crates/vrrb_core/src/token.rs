@@ -11,7 +11,7 @@ pub struct Token {
 
 impl Token {
 
-    pub fn new_token(contract_address: String, available_balance: i128, total_balance: i128) -> Token {
+    pub fn new_token_type(contract_address: String, available_balance: i128, total_balance: i128) -> Token {
 
         Token {
             contract_address,

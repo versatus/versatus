@@ -12,7 +12,7 @@ use vrrb_core::{
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
-pub type FullStateSnapshot = HashMap<SerializedPublicKeyString, Account>;
+pub type FullStateSnapshot = HashMap<SerializedPublicKey, Account>;
 pub type FullMempoolSnapshot = Vec<u8>;
 
 #[derive(Serialize, Deserialize)]
