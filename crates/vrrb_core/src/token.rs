@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 
 #[derive(Debug)]
 pub enum TokenError {
@@ -16,7 +15,7 @@ impl Display for TokenError {
 
 impl std::error::Error for TokenError {}
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq, Digest)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Token {
     pub contract_address: String,
     pub available_balance: i128,
@@ -24,11 +23,14 @@ pub struct Token {
 }
 
 impl Token {
-
     //used for adding a token to an account's addr
     //new addresses instantiated with VRRB token
     //TODO: figure out genesis configuration (VRRB token is an account)
-    pub fn new_token(contract_address: String, available_balance: i128, total_balance: i128) -> Token {
+    pub fn new_token(
+        contract_address: String,
+        available_balance: i128,
+        total_balance: i128,
+    ) -> Token {
         Token {
             contract_address,
             available_balance,
@@ -48,4 +50,3 @@ impl Token {
         Ok(())
     }
 }
-

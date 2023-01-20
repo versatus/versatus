@@ -7,8 +7,7 @@ use primitives::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{Error, Result, token::Token};
-
+use crate::{token::Token, Error, Result};
 
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.
@@ -35,7 +34,7 @@ pub struct UpdateArgs {
 impl Ord for UpdateArgs {
     fn cmp(&self, other: &Self) -> Ordering {
         self.nonce.cmp(&other.nonce)
-   }
+    }
 }
 
 impl PartialOrd for UpdateArgs {
@@ -58,7 +57,7 @@ pub struct Account {
 
 impl Account {
     /// Returns new, empty account.
-    pub fn new(pubkey: secp256k1::PublicKey) -> Result<Account, > {
+    pub fn new(pubkey: secp256k1::PublicKey) -> Result<Account> {
         let nonce = 0u32;
         let storage = None;
         let code = None;
@@ -68,25 +67,32 @@ impl Account {
 
         let hash = format!("{:x}", hasher.finalize());
 
-        let pubkey = pubkey.serialize().to_vec();
-        let tokens = HashMap::new();
-        let mut addresses = HashMap::new();
-        let vrrb_token = Token::new("vrrb".to_string(), 0, 0);
+        let pubkey_string = pubkey.to_string();
+        let pubkey_bytes = pubkey.serialize().to_vec();
 
-        if let Ok(pubkey_string) = String::from_utf8(pubkey.clone()){
-            addresses.insert(pubkey, tokens);
-            Ok(Account {
-                hash,
-                nonce,
-                storage,
-                code,
-                addresses,
-                pubkey,
-            })
-        } else {
-            //add error handling
-            panic!("AAAAH")
-        }
+        // let pubkey = pubkey.serialize().to_vec();
+
+        let tokens = HashMap::new();
+
+        let mut addresses = HashMap::new();
+
+        let vrrb_token = Token::new_token("vrrb".to_string(), 0, 0);
+
+        // if let Ok(pubkey_string) = String::from_utf8(pubkey.clone()) {
+        addresses.insert(pubkey_string, tokens);
+
+        Ok(Account {
+            hash,
+            nonce,
+            storage,
+            code,
+            addresses,
+            pubkey: pubkey_bytes,
+        })
+        // } else {
+        //     //add error handling
+        //     panic!("AAAAH")
+        // }
         //we want to store this account
     }
 
@@ -95,10 +101,14 @@ impl Account {
     fn rehash(&mut self) {
         let mut hasher = Sha256::new();
         //hash account nonce with the available balance of the vrrb token in the first acct address (wallet's pubkey)
-        hasher.update(self.nonce.to_be_bytes()); 
+        hasher.update(self.nonce.to_be_bytes());
 
-        if let Ok(pubkey_string) = String::from_utf8(self.pubkey.clone()){
-            hasher.update(self.addresses[&pubkey_string]["vrrb"].available_balance.to_be_bytes());
+        if let Ok(pubkey_string) = String::from_utf8(self.pubkey.clone()) {
+            hasher.update(
+                self.addresses[&pubkey_string]["vrrb"]
+                    .available_balance
+                    .to_be_bytes(),
+            );
 
             if let Some(storage) = &self.storage {
                 hasher.update(storage.as_bytes());
@@ -108,7 +118,7 @@ impl Account {
                 hasher.update(code.as_bytes());
             }
             self.hash = format!("{:x}", hasher.finalize());
-        } 
+        }
     }
 
     // TODO: do those safely
@@ -129,17 +139,20 @@ impl Account {
     /// calculations. Returns error if update fails.
     fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<()> {
         match value.clone() {
-            AccountField::Token(token) => 
-                if self.addresses.contains_key(&token.0.clone()) && self.addresses[&token.0.clone()].contains_key(&token.1.clone()){
-                    if let Some(val1) = self.addresses.get_mut(&token.0){
-                        if let Some(val2) = val1.get_mut(&token.1){
+            AccountField::Token(token) => {
+                if self.addresses.contains_key(&token.0.clone())
+                    && self.addresses[&token.0.clone()].contains_key(&token.1.clone())
+                {
+                    if let Some(val1) = self.addresses.get_mut(&token.0) {
+                        if let Some(val2) = val1.get_mut(&token.1) {
                             val2.update_balance(token.2);
                         }
                     }
                 } else {
-                let val = value.clone();
-                 return Err(Error::Other(format!("failed to update {val:?}")))
+                    let val = value.clone();
+                    return Err(Error::Other(format!("failed to update {val:?}")));
                 }
+            },
             AccountField::Addresses(addresses) => {
                 self.addresses = addresses;
             },
@@ -200,7 +213,7 @@ mod tests {
     #[test]
     fn should_create_account() {
         let (_, pk) = generate_account_keypair();
-        let account = Account::new(pk);
+        let account = Account::new(pk).unwrap();
         assert_eq!(account.nonce, 0);
     }
 }
