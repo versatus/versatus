@@ -10,7 +10,6 @@ use vrrb_core::{
     account::Account,
     keypair::{KeyPair, MinerPk},
     txn::Txn,
-    account::Account,
 };
 
 type Result<T> = StdResult<T, TxnValidatorError>;

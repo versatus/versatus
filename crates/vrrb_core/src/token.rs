@@ -1,8 +1,22 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
-use serde_json;
+use sha2::Digest;
 
+#[derive(Debug)]
+pub enum TokenError {
+    InsufficientFundsError,
+}
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
+impl Display for TokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Insufficient funds")
+    }
+}
+
+impl std::error::Error for TokenError {}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq, Digest)]
 pub struct Token {
     pub contract_address: String,
     pub available_balance: i128,
@@ -11,8 +25,10 @@ pub struct Token {
 
 impl Token {
 
-    pub fn new_token_type(contract_address: String, available_balance: i128, total_balance: i128) -> Token {
-
+    //used for adding a token to an account's addr
+    //new addresses instantiated with VRRB token
+    //TODO: figure out genesis configuration (VRRB token is an account)
+    pub fn new_token(contract_address: String, available_balance: i128, total_balance: i128) -> Token {
         Token {
             contract_address,
             available_balance,
@@ -20,14 +36,16 @@ impl Token {
         }
     }
 
-    pub fn update_balance(&mut self, amount: i128) -> () {
+    pub fn update_balance(&mut self, amount: i128) -> Result<(), TokenError> {
         if self.available_balance + amount < 0 {
             //add error handling
-            panic!("Insufficient funds");
+            TokenError::InsufficientFundsError;
         }
         self.available_balance + amount;
         //TODO: total balance needs to wait for txn confirmation
         self.total_balance + amount;
+
+        Ok(())
     }
 }
 

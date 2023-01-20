@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{Error, Result, token::Token};
 
+
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -57,7 +58,7 @@ pub struct Account {
 
 impl Account {
     /// Returns new, empty account.
-    pub fn new(pubkey: secp256k1::PublicKey, address: String) -> Account {
+    pub fn new(pubkey: secp256k1::PublicKey) -> Result<Account, > {
         let nonce = 0u32;
         let storage = None;
         let code = None;
@@ -70,37 +71,44 @@ impl Account {
         let pubkey = pubkey.serialize().to_vec();
         let tokens = HashMap::new();
         let mut addresses = HashMap::new();
-        addresses.insert(address, tokens);
+        let vrrb_token = Token::new("vrrb".to_string(), 0, 0);
 
-
-        Account {
-            hash,
-            nonce,
-            storage,
-            code,
-            addresses,
-            pubkey,
+        if let Ok(pubkey_string) = String::from_utf8(pubkey.clone()){
+            addresses.insert(pubkey, tokens);
+            Ok(Account {
+                hash,
+                nonce,
+                storage,
+                code,
+                addresses,
+                pubkey,
+            })
+        } else {
+            //add error handling
+            panic!("AAAAH")
         }
         //we want to store this account
     }
 
     /// Modifies accounts hash, recalculating it using account's fields.
+    /// //TODO: will need to be made into Result type for key vec to Str conversion
     fn rehash(&mut self) {
         let mut hasher = Sha256::new();
-        //hash account nonce with the debits, credits of the vrrb token in the first acct address (wallet's pubkey)
+        //hash account nonce with the available balance of the vrrb token in the first acct address (wallet's pubkey)
         hasher.update(self.nonce.to_be_bytes()); 
-        let pubkey_string = String::from_utf8(self.pubkey)?;
 
-        hasher.update(self.addresses[pubkey_string]["vrrb"].available_balance.to_be_bytes());
+        if let Ok(pubkey_string) = String::from_utf8(self.pubkey.clone()){
+            hasher.update(self.addresses[&pubkey_string]["vrrb"].available_balance.to_be_bytes());
 
-        if let Some(storage) = &self.storage {
-            hasher.update(storage.as_bytes());
-        }
+            if let Some(storage) = &self.storage {
+                hasher.update(storage.as_bytes());
+            }
 
-        if let Some(code) = &self.code {
-            hasher.update(code.as_bytes());
-        }
-        self.hash = format!("{:x}", hasher.finalize());
+            if let Some(code) = &self.code {
+                hasher.update(code.as_bytes());
+            }
+            self.hash = format!("{:x}", hasher.finalize());
+        } 
     }
 
     // TODO: do those safely
