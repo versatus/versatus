@@ -79,7 +79,7 @@ pub struct Miner {
     /// A map of all the claims in the network
     //TODO: Replace with a left-right custom data structure that will better enable efficient
     //maintenance and calculations.
-    // pub claim_map: LinkedHashMap<String, Claim>,
+    pub claim_map: LinkedHashMap<String, Claim>,
     // /// A pool of pending transactions and their IDs
     // //TODO: Replace with Left-Right Mempool, and relative dependent data to include
     // // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
@@ -88,7 +88,6 @@ pub struct Miner {
     // //TODO: Replace with left-right claim pool for more efficient maintenance,
     // // validation and calculation.
     // pub claim_pool: Pool<String, Claim>,
-
     /// The most recent block mined, confirmed and propogated throughout the
     /// network
     pub last_block: Option<Block>,

@@ -1,12 +1,12 @@
 pub mod miner;
 pub mod result;
 pub use crate::miner::*;
-mod miner_v1;
+// mod miner_v1;
 
 /// Legacy miner implementation
 #[deprecated(note = "use v2 instead")]
 pub mod v1 {
-    pub use crate::miner_v1::*;
+    // pub use crate::miner_v1::*;
 }
 
 pub mod v2 {
