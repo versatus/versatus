@@ -1,8 +1,9 @@
 pub mod error;
 pub mod mempool;
+
 // TODO: merge pool w Mempool later on
 pub mod pool;
-pub use mempool::*;
+pub use crate::mempool::*;
 
 #[cfg(test)]
 mod tests {
@@ -497,15 +498,7 @@ mod tests {
 
                 std::thread::spawn(move || {
                     let read_hdl = mpool_hdl.handle();
-
-                    match read_hdl.enter().map(|guard| guard.clone()) {
-                        Some(m) => {
-                            assert_eq!(m.len(), txn_id_max - 1);
-                        },
-                        None => {
-                            panic!("No mempool !");
-                        },
-                    };
+                    assert_eq!(read_hdl.len(), txn_id_max - 1);
                 })
             })
             .for_each(|handle| {
