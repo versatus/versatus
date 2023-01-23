@@ -15,7 +15,7 @@ use crate::{token::Token, Error, Result};
 pub enum AccountField {
     //address, token contract addr, balance update
     Token((String, String, i128)),
-    Addresses(HashMap<String, HashMap<String, Token>>),
+    Addresses(Vec<String>),
     Storage(Option<String>),
     Code(Option<String>),
 }
@@ -24,7 +24,8 @@ pub enum AccountField {
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct UpdateArgs {
     pub nonce: u32,
-    pub addresses: Option<HashMap<String, HashMap<String, Token>>>,
+    //pub addresses: Option<HashMap<String, HashMap<String, Token>>>,
+    pub addresses: Option<Vec<String>>,
     pub storage: Option<Option<String>>,
     pub code: Option<Option<String>>,
 }
@@ -154,7 +155,16 @@ impl Account {
                 }
             },
             AccountField::Addresses(addresses) => {
-                self.addresses = addresses;
+                for addr in addresses.clone(){
+                    if !self.addresses.contains_key(&addr){
+                        self.addresses.insert(addr, HashMap::new());
+                    }
+                }
+                for (key, value) in self.addresses.clone() {
+                    if !addresses.contains(&key){
+                        self.addresses.remove(&key);
+                    }
+                }
             },
             // Should the storage be impossible to delete?
             AccountField::Storage(storage) => {
@@ -185,6 +195,10 @@ impl Account {
             )));
         }
         if let Some(addresses_update) = args.addresses {
+            //let mut addrs = Vec::new();
+            // for (key, value) in addresses_update{
+            //     addrs.push(key);
+            // }
             self.update_single_field_no_hash(AccountField::Addresses(addresses_update))?;
         }
         if let Some(code_update) = args.code {

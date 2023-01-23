@@ -188,12 +188,16 @@ impl NodeState {
         key: SerializedPublicKey,
         account: Account,
     ) -> Result<()> {
+        let mut addrs = Vec::new();
+        for (key, value) in account.addresses{
+            addrs.push(key);
+        }
         self.state_db
             .update(
                 key,
                 UpdateArgs {
                     nonce: account.nonce + 1,
-                    addresses: Some(account.addresses),
+                    addresses: Some(addrs),
                     storage: Some(account.storage),
                     code: Some(account.code),
                 },

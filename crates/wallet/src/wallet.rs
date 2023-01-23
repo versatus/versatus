@@ -19,7 +19,7 @@ use state::state::NetworkState;
 use uuid::Uuid;
 use vrrb_core::{
     accountable::Accountable,
-    account::Account,
+    account::{Account, UpdateArgs},
     claim::Claim,
     keypair::{KeyPair, MinerSk as SecretKey},
     txn::Txn,
@@ -70,18 +70,22 @@ impl Default for Wallet {
         //addrs need to be added to Account struct
     
 
-        let account = Account::new(public_key.to_owned(), address_prefix);
+        if let Ok(account) = Account::new(public_key.to_owned()){
+            return Self {
+                secret_key: secret_key.secret_bytes().to_vec(),
+                welcome_message,
+                public_key: public_key.serialize().to_vec(),
+                account,
+                claim: Claim::new(public_key.to_string(), address_prefix, 0),
+                nonce: 0,
+            }
+        } else {
+            todo!()
+        }
 
     
         // Generate a wallet struct by assigning the variables to the fields.
-        Self {
-            secret_key: secret_key.secret_bytes().to_vec(),
-            welcome_message,
-            public_key: public_key.serialize().to_vec(),
-            account,
-            claim: Claim::new(public_key.to_string(), address_prefix, 0),
-            nonce: 0,
-        }
+        
     }
 }
 
@@ -96,14 +100,15 @@ impl Wallet {
         self.welcome_message.clone()
     }
 
-    pub fn restore_from_private_key(private_key: String) -> Self {
+    pub fn restore_from_private_key(private_key: String) -> Result<Self, ()> {
         let secretkey = SecretKey::from_str(&private_key).unwrap();
         let pubkey = vrrb_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
+        
         let mut wallet = Wallet {
             secret_key: secretkey.secret_bytes().to_vec(),
             welcome_message: String::new(),
             public_key: pubkey.serialize().to_vec(),
-            account: Account::new(public_key.to_owned(), String::new()),
+            account: Account::new(pubkey.to_owned())?,
             claim: Claim::new(pubkey.to_string(), String::new(), 0),
             nonce: 0,
         };
@@ -111,16 +116,15 @@ impl Wallet {
         wallet.get_new_addresses(1);
 
         let welcome_message = format!(
-            "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
+            "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\n",
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:",
             &wallet.secret_key,
             &wallet.public_key,
-            &wallet.addresses[&1],
         );
 
         wallet.welcome_message = welcome_message;
 
-        wallet
+        Ok(wallet)
     }
 
     pub fn get_txn_nonce(&mut self, _network_state: &NetworkState) {
@@ -130,6 +134,7 @@ impl Wallet {
 
     pub fn get_new_addresses(&mut self, number_of_addresses: u8) {
         let mut counter = 1u8;
+        let new_addrs = Vec::new();
         (counter..=number_of_addresses).for_each(|n| {
             let mut address_bytes = self.public_key.clone();
             address_bytes.push(n);
@@ -137,59 +142,68 @@ impl Wallet {
             let address = digest(digest(&*address_bytes).as_bytes());
             let mut address_prefix: String = "0x192".to_string();
             address_prefix.push_str(&address);
-            self.addresses.insert(n as u32, address_prefix);
+            new_addrs.push(address_prefix.clone());
             counter += 1
-        })
+        });
+        self.account.update(UpdateArgs{nonce: (self.nonce + 1) as u32, addresses: Some(new_addrs), storage: None, code: None });
     }
 
     pub fn get_wallet_addresses(&self) -> Vec<&String> {
         return self.account.addresses.keys().clone().collect();
     }
 
-    pub fn render_balances(&self) -> LinkedHashMap<String, LinkedHashMap<String, u128>> {
-        self.total_balances.clone()
+    fn render_balance(&self, addr: String, token: String) -> i128 {
+        return self.account.addresses[&addr][&token].available_balance.clone();
     }
 
-    pub fn update_balances(&mut self, network_state: NetworkState) {
-        let mut balance_map = LinkedHashMap::new();
-        self.get_balances(network_state)
-            .iter()
-            .for_each(|(address, balance)| {
-                let mut vrrb_map = LinkedHashMap::new();
-                vrrb_map.insert("VRRB".to_string(), *balance);
-                balance_map.insert(address.clone(), vrrb_map);
-            });
-
-        self.total_balances = balance_map;
-    }
-
-    pub fn get_balances(&self, network_state: NetworkState) -> LinkedHashMap<String, u128> {
-        let mut balance_map = LinkedHashMap::new();
-
-        self.account.addresses.iter().for_each(|(address,_)| {
-            let balance = network_state.get_balance(address);
-            balance_map.insert(address.clone(), balance);
+    pub fn render_balances_by_addr(&self, addr: String) -> HashMap<String, i128> {
+        let mut balances = HashMap::new();
+        self.account.addresses[&addr].iter().for_each(|(token_addr, token)| {
+            balances.insert(token_addr.clone(), token.available_balance.clone());
         });
-
-        balance_map
+        return balances;
     }
 
-    pub fn get_address_balance(
-        &mut self,
-        network_state: NetworkState,
-        address_number: u32,
-    ) -> Option<u128> {
-        self.update_balances(network_state);
-        if let Some(address) = self.addresses.get(&address_number) {
-            if let Some(entry) = self.total_balances.get(&address.clone()) {
-                entry.get("VRRB").copied()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
+    // pub fn update_balances(&mut self, network_state: NetworkState) {
+    //     let mut balance_map = LinkedHashMap::new();
+    //     self.get_balances(network_state)
+    //         .iter()
+    //         .for_each(|(address, balance)| {
+    //             let mut vrrb_map = LinkedHashMap::new();
+    //             vrrb_map.insert("VRRB".to_string(), *balance);
+    //             balance_map.insert(address.clone(), vrrb_map);
+    //         });
+
+    //     self.total_balances = balance_map;
+    // }
+
+    // pub fn get_balances(&self, network_state: NetworkState) -> LinkedHashMap<String, u128> {
+    //     let mut balance_map = LinkedHashMap::new();
+
+    //     self.account.addresses.iter().for_each(|(address,_)| {
+    //         let balance = network_state.get_balance(address);
+    //         balance_map.insert(address.clone(), balance);
+    //     });
+
+    //     balance_map
+    // }
+
+    // pub fn get_address_balance(
+    //     &mut self,
+    //     network_state: NetworkState,
+    //     address_number: u32,
+    // ) -> Option<u128> {
+    //     self.update_balances(network_state);
+    //     if let Some(address) = self.addresses.get(&address_number) {
+    //         if let Some(entry) = self.total_balances.get(&address.clone()) {
+    //             entry.get("VRRB").copied()
+    //         } else {
+    //             None
+    //         }
+    //     } else {
+    //         None
+    //     }
+    // }
 
     pub fn get_claim(&self) -> Claim {
         self.claim.clone()
@@ -304,8 +318,8 @@ impl fmt::Display for Wallet {
             "Wallet(\n \
             pubkey: {:?},\n \
             addresses: {:?}",
-            self,self.public_key,
-            self.account.addresses.keys().clone().collect(),
+            self.public_key,
+            self.account.addresses.keys().clone(),
         )
     }
 }
