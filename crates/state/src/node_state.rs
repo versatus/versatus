@@ -4,7 +4,7 @@ use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use lr_trie::{Key, LeftRightTrie, ReadHandleFactory, H256};
 use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
-use mempool::{LeftRightMempool, Mempool, PoolType};
+use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory, PoolType};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{
     node, ByteSlice, ByteVec, PublicKey, SerializedPublicKey, SerializedPublicKeyString, TxHash,
@@ -130,9 +130,11 @@ impl NodeState {
 
     pub fn read_handle(&self) -> NodeStateReadHandle {
         let state_handle_factory = self.state_db_factory();
+        let mempool_handle_factory = self.mempool_handle_factory();
 
         NodeStateReadHandle {
             state_handle_factory,
+            mempool_handle_factory,
         }
     }
 
@@ -140,6 +142,12 @@ impl NodeState {
     /// the state tree.
     pub fn state_db_factory(&self) -> StateDbReadHandleFactory {
         self.state_db.factory()
+    }
+
+    /// Produces a reader factory that can be used to generate read handles into
+    /// the node's mempool.
+    pub fn mempool_handle_factory(&self) -> MempoolReadHandleFactory {
+        self.mempool.factory()
     }
 
     /// Returns a mappig of public keys and accounts.
@@ -280,13 +288,16 @@ impl<'a> From<ByteSlice<'a>> for NodeStateValues {
 #[derive(Debug, Clone)]
 pub struct NodeStateReadHandle {
     state_handle_factory: StateDbReadHandleFactory,
-    // mempool_handle_factory: MempoolReadHandleFactory,
-    // confirmed_txn_handle_factory: StateDbReadHandleFactory,
+    mempool_handle_factory: MempoolReadHandleFactory,
 }
 
 impl NodeStateReadHandle {
     /// Returns a copy of all values stored within the state trie
     pub fn values(&self) -> HashMap<SerializedPublicKeyString, Account> {
         self.state_handle_factory.handle().entries()
+    }
+
+    pub fn mempool_values(&self) -> Vec<Txn> {
+        self.mempool_handle_factory.values()
     }
 }
