@@ -5,13 +5,15 @@ use serde::{Deserialize, Serialize};
 pub struct StopSignal;
 
 
-#[derive(Serialize,Deserialize,Hash,Clone, Debug,Eq,PartialEq)]
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
 pub enum QuorumType {
     Farmer,
     Harvester,
 }
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
+pub type FarmerQuorumThreshold = usize;
+pub type QuorumPublicKey = Vec<u8>;
 
 pub const DIGEST_LENGTH: usize = 32;
 

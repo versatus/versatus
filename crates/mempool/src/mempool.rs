@@ -9,7 +9,10 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
-use vrrb_core::txn::{TxTimestamp, Txn};
+use vrrb_core::{
+    event_router::Vote,
+    txn::{TxTimestamp, Txn},
+};
 
 use super::error::MempoolError;
 
@@ -195,7 +198,6 @@ impl LeftRightMempool {
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
         let mut txn_record = TxnRecord::new(txn);
-
         self.write.append(MempoolOp::Add(txn_record)).publish();
         Ok(())
     }

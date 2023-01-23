@@ -1,7 +1,9 @@
 use std::sync::Arc;
-
-use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
+use hbbft::{
+    sync_key_gen::{PartOutcome, SyncKeyGen},
+};
 use primitives::NodeType;
+use rand::{rngs::OsRng};
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
@@ -41,41 +43,44 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::InvalidNode);
         }
         let secret_key = self.secret_key.clone();
-        if let Ok(mut rng) = rand::rngs::OsRng::new() {
-            let (sync_key_gen, opt_part) = SyncKeyGen::new(
-                self.node_idx,
-                secret_key,
-                Arc::new(self.dkg_state.peer_public_keys.clone()),
-                threshold,
-                &mut rng,
-            )
-            .unwrap_or_else(|_| {
-                panic!(
-                    "Error :{:?}",
-                    DkgError::SyncKeyGenError(format!(
-                        "Failed to create `SyncKeyGen` instance for node #{:?}",
-                        self.node_idx
-                    ))
-                )
-            });
-            if let Some(part_committment) = opt_part {
-                self.dkg_state.random_number_gen = Some(rng.clone());
-                self.dkg_state
-                    .part_message_store
-                    .insert(self.node_idx, part_committment.clone());
-                self.dkg_state.sync_key_gen = Some(sync_key_gen);
-                //part_commitment has to be multicasted to all LLMQ Peers
-                Ok(DkgResult::PartMessageGenerated(
+        match OsRng::new() {
+            Ok(mut rng) => {
+                let (sync_key_gen, opt_part) = SyncKeyGen::new(
                     self.node_idx,
-                    part_committment,
-                ))
-            } else {
-                Err(DkgError::PartCommitmentNotGenerated)
-            }
-        } else {
-            Err(DkgError::Unknown(String::from(
-                "Failed to generate random number",
-            )))
+                    secret_key,
+                    Arc::new(self.dkg_state.peer_public_keys.clone()),
+                    threshold,
+                    &mut rng,
+                )
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Error :{:?}",
+                        DkgError::SyncKeyGenError(format!(
+                            "Failed to create `SyncKeyGen` instance for node #{:?}",
+                            self.node_idx
+                        ))
+                    )
+                });
+                if let Some(part_committment) = opt_part {
+                    self.dkg_state.random_number_gen = Some(rng.clone());
+                    self.dkg_state
+                        .part_message_store
+                        .insert(self.node_idx, part_committment.clone());
+                    self.dkg_state.sync_key_gen = Some(sync_key_gen);
+                    //part_commitment has to be multicasted to all LLMQ Peers
+                    Ok(DkgResult::PartMessageGenerated(
+                        self.node_idx,
+                        part_committment,
+                    ))
+                } else {
+                    Err(DkgError::PartCommitmentNotGenerated)
+                }
+            },
+            Err(e) => Err(DkgError::Unknown(format!(
+                "{} {}",
+                String::from("Failed to generate random number {:?}",),
+                e
+            ))),
         }
     }
 
@@ -150,11 +155,11 @@ impl DkgGenerator for DkgEngine {
                         },
                     },
                     Err(_) => {
-                        let mut id = sender_id.0.to_string();
-                        #[allow(clippy::single_char_add_str)]
-                        id.push_str(" ");
-                        id.push_str(&sender_id.1.to_string());
-                        return Err(DkgError::InvalidAckMessage(id));
+                        return Err(DkgError::InvalidAckMessage(format!(
+                            "{} {}",
+                            sender_id.0.to_string(),
+                            &sender_id.1.to_string()
+                        )));
                     },
                 }
             }
@@ -171,15 +176,23 @@ impl DkgGenerator for DkgEngine {
             if !synckey_gen.is_ready() {
                 return Err(DkgError::NotEnoughPartsCompleted);
             }
-            let (pks, sks) = synckey_gen.generate().unwrap_or_else(|_| {
-                panic!(
-                    "Failed to create `PublicKeySet` and `SecretKeyShare` for node #{}",
-                    self.node_idx
-                )
-            });
-            self.dkg_state.public_key_set = Some(pks);
-            self.dkg_state.secret_key_share = sks;
-            Ok(DkgResult::KeySetsGenerated)
+            let keys = synckey_gen.generate();
+            match keys {
+                Ok(key) => {
+                    let (pks, sks) = (key.0, key.1);
+                    self.dkg_state.public_key_set = Some(pks);
+                    self.dkg_state.secret_key_share = sks;
+                    Ok(DkgResult::KeySetsGenerated)
+                },
+                Err(e) => {
+                    return Err(DkgError::Unknown(format!(
+                        "{}, Node ID {}, Error: {}",
+                        String::from("Failed to create `PublicKeySet` and `SecretKeyShare`"),
+                        self.node_idx,
+                        e.to_string()
+                    )));
+                },
+            }
         } else {
             Err(DkgError::SyncKeyGenInstanceNotCreated)
         }

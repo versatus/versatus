@@ -3,7 +3,17 @@ use std::{
     net::SocketAddr,
 };
 
-use primitives::{NodeType, PeerId, QuorumType, RawSignature, TxHash, TxHashString};
+use primitives::{
+    FarmerQuorumThreshold,
+    NodeIdx,
+    NodeType,
+    PeerId,
+    QuorumPublicKey,
+    QuorumType,
+    RawSignature,
+    TxHash,
+    TxHashString,
+};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
@@ -28,14 +38,36 @@ pub struct PeerData {
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
 // once definitions of those are moved into primitives.
 
-#[derive(Debug, Deserialize, Serialize,Hash, Clone, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct Vote {
     /// The identity of the voter.
     pub farmer_id: Vec<u8>,
+    pub farmer_node_id: NodeIdx,
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
     pub quorum_public_key: Vec<u8>,
+    pub quorum_threshold: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct VoteReceipt {
+    /// The identity of the voter.
+    pub farmer_id: Vec<u8>,
+    pub farmer_node_id: NodeIdx,
+    /// Partial Signature
+    pub signature: RawSignature,
+}
+
+
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct QuorumCertifiedTxn {
+    sender_farmer_id: Vec<u8>,
+    /// All valid vote receipts
+    votes: Vec<VoteReceipt>,
+    txn: Txn,
+    /// Threshold Signature
+    signature: RawSignature,
 }
 
 
@@ -91,7 +123,11 @@ pub enum Event {
 
     Farm,
 
-    Vote(Vote,QuorumType),
+    Vote(Vote, QuorumType, FarmerQuorumThreshold),
+    PullQuorumCertifiedTxns(usize),
+    QuorumCertifiedTxns(QuorumCertifiedTxn),
+
+    ConfirmedTxns(Vec<(String, QuorumPublicKey)>),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),
@@ -244,6 +280,22 @@ impl EventRouter {
     }
 }
 
+
+impl QuorumCertifiedTxn {
+    pub fn new(
+        sender_farmer_id: Vec<u8>,
+        votes: Vec<VoteReceipt>,
+        txn: Txn,
+        signature: RawSignature,
+    ) -> QuorumCertifiedTxn {
+        QuorumCertifiedTxn {
+            sender_farmer_id,
+            votes,
+            txn,
+            signature,
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
 
