@@ -35,7 +35,9 @@ impl RpcServer for RpcServerImpl {
     }
 
     async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error> {
-        todo!()
+        let values = self.state_handle_factory.mempool_values();
+
+        Ok(values)
     }
 
     async fn get_node_type(&self) -> Result<NodeType, Error> {

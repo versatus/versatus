@@ -1,4 +1,8 @@
-use std::{collections::HashSet, hash::Hash, result::Result as StdResult};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    result::Result as StdResult,
+};
 
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
@@ -10,8 +14,6 @@ use vrrb_core::txn::{TxTimestamp, Txn};
 use super::error::MempoolError;
 
 pub type Result<T> = StdResult<T, MempoolError>;
-
-//TODO: simplify mempool
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct TxnRecord {
@@ -171,10 +173,17 @@ impl LeftRightMempool {
         self.read.enter().map(|guard| guard.clone())
     }
 
-    /// Returns a new ReadHandleFactory, to simplify multithread access.
-    pub fn factory(&self) -> ReadHandleFactory<Mempool> {
-        self.read.factory()
+    /// Returns a new MempoolReadHandleFactory, to simplify multithread access.
+    pub fn factory(&self) -> MempoolReadHandleFactory {
+        let factory = self.read.factory();
+
+        MempoolReadHandleFactory { factory }
     }
+
+    /// Returns a new ReadHandleFactory, to simplify multithread access.
+    // pub fn factory(&self) -> ReadHandleFactory<Mempool> {
+    //     self.read.factory()
+    // }
 
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
@@ -323,5 +332,40 @@ impl From<PoolType> for LeftRightMempool {
 impl Clone for LeftRightMempool {
     fn clone(&self) -> Self {
         Self::from(self.pool())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MempoolReadHandleFactory {
+    factory: ReadHandleFactory<Mempool>,
+}
+
+impl MempoolReadHandleFactory {
+    pub fn handle(&self) -> PoolType {
+        self.factory
+            .handle()
+            .enter()
+            .map(|guard| guard.clone())
+            .unwrap_or_default()
+            .pool
+            .clone()
+    }
+
+    /// Returns a hash map of all the key value pairs within the mempool
+    pub fn entries(&self) -> HashMap<TxHashString, TxnRecord> {
+        self.handle()
+            .values()
+            .cloned()
+            .map(|record| (record.txn_id.clone(), record))
+            .collect()
+    }
+
+    /// Returns a vector of all transactions within the mempool
+    pub fn values(&self) -> Vec<Txn> {
+        self.handle()
+            .values()
+            .cloned()
+            .map(|record| (record.txn))
+            .collect()
     }
 }

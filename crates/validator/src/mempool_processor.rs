@@ -25,6 +25,7 @@ pub enum MempoolTxnProcessorState {
     Active,
     Inactive,
 }
+
 pub struct MempoolTxnProcessor<D>
 where
     D: Database,
@@ -107,7 +108,7 @@ where
                                     for txn in &txns {
                                         // Add txns with valid txn_id to the pending mempool
                                         if !txn.txn_id().is_empty() {
-                                            amount_of_txns[(txn.txn_id.as_bytes()[0]
+                                            amount_of_txns[(txn.txn_id().as_bytes()[0]
                                                 % amount_of_cores as u8)
                                                 as usize] += 1;
                                         }

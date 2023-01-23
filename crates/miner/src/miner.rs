@@ -4,29 +4,44 @@
 /// checkpoints in the state.
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
-    collections::HashMap,
+    cmp::Ordering,
+    collections::{BTreeSet, HashMap, HashSet},
     error::Error,
     fmt,
+    ptr::addr_of,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use block::{
-    block::Block,
-    header::BlockHeader,
-    invalid::InvalidBlockErrorReason,
-    GenesisBlock,
-    MineArgs,
+    block::Block, header::BlockHeader, invalid::InvalidBlockErrorReason, ClaimHash, ClaimList,
+    Conflict, ConflictList, ConsolidatedClaims, ConsolidatedTxns, ConvergenceBlock, GenesisBlock,
+    ProposalBlock, RefHash, TxnId, TxnList,
 };
-//
-// TODO: replace Pool with LeftRightMempool if suitable
-use mempool::pool::{Pool, PoolKind};
-use primitives::types::Epoch;
+use bulldag::{
+    graph::BullDag,
+    vertex::{Direction, Vertex},
+};
+use mempool::LeftRightMempool;
+use primitives::{types::Epoch, Address, PublicKey, SecretKey, SerializedSecretKey, Signature};
 use reward::reward::Reward;
-use ritelinked::LinkedHashMap;
+use ritelinked::{LinkedHashMap, LinkedHashSet};
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
+};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use state::state::NetworkState;
-use vrrb_core::{claim::Claim, nonceable::Nonceable, txn::Txn};
+use state::{state::NetworkState, NodeStateReadHandle};
+use utils::{create_payload, hash_data, timestamp};
+use vrrb_core::{
+    claim::Claim,
+    keypair::{KeyPair, MinerPk, MinerSk},
+    nonceable::Nonceable,
+    txn::Txn,
+};
+
+// TODO: replace Pool with LeftRightMempool if suitable
+use crate::result::Result;
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
@@ -49,366 +64,575 @@ pub enum MinerStatus {
     Processing,
 }
 
-/// A Basic error type to propagate in the event that there is no
-/// valid miner uner the proof of claim algorithm
 #[derive(Debug)]
-pub struct NoLowestPointerError(String);
+pub struct MinerConfig {
+    pub secret_key: MinerSk,
+    pub public_key: MinerPk,
+    pub address: String,
+    //
+    // pub pubkey: String,
+    // pub reward: Reward,
+    // pub state_handle: NodeStateReadHandle,
+    // pub state_handle_factory: NodeStateReadHandle,
+    // pub n_miners: u128,
+    // pub epoch: Epoch,
+}
 
-/// The miner struct contains all the data and methods needed to operate a
-/// mining unit and participate in the data replication process.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Miner {
-    /// The miner must have a unique claim. This allows them to be included
-    /// as a potential miner, and be elected as a miner in the event their
-    /// claim returns the lowest pointer sum for a given block seed.
-    pub claim: Claim,
-    /// A simple status boolean to inform the local system whether the local
-    /// mining unit is mining or dealing with a state update or some other
-    /// blocking operation that would prevent them from being able to mine a
-    /// block
-    //TODO: Replace with `MinerStatus` to allow for custom `impl` for different states
-    pub mining: bool,
-    /// A map of all the claims in the network
-    //TODO: Replace with a left-right custom data structure that will better enable efficient
-    //maintenance and calculations.
-    pub claim_map: LinkedHashMap<String, Claim>,
-    /// A pool of pending transactions and their IDs
-    //TODO: Replace with Left-Right Mempool, and relative dependent data to include
-    // if a given tx requires inclusion in a block (Non-Simple Value Transfer Tx's)
-    pub txn_pool: Pool<String, Txn>,
-    /// A pool of claims pending approval and acceptance into the network.
-    //TODO: Replace with left-right claim pool for more efficient maintenance,
-    // validation and calculation.
-    pub claim_pool: Pool<String, Claim>,
-    /// The most recent block mined, confirmed and propogated throughout the
-    ///
-    /// network
-    pub last_block: Option<Block>,
-    /// The reward state (previous monetary policy), to track which reward
-    /// categories are still available for production
-    //TODO: Eliminate and replace with provable current reward amount data
-    pub reward: Reward,
-    /// The current state of the network
-    //TODO: Replace with ReadHandle in the Left-Right State Trie
-    pub network_state: NetworkState,
-    /// Neighbor blocks
-    //This can either be eliminated, or can include the 2nd and 3rd place finishers in the pointer
-    // sum calculation and their proposed `BlockHeader`
-    pub neighbors: Option<Vec<BlockHeader>>,
-    //TODO: Eliminate
-    pub current_nonce_timer: u128,
-    /// The total number of miners in the network
-    //TODO: Discuss whether this is needed or not
-    pub n_miners: u128,
-    /// A simple boolean field to denote whether the miner has been initialized
-    ///
-    /// or not
-    pub init: bool,
-    /// An ordered map containing claims that were entitled to mine but took too
-    ///
-    /// long
-    pub abandoned_claim_counter: LinkedHashMap<String, Claim>,
-    /// The claim of the most recent entitled miner in the event that they took
-    ///
-    /// too long to propose a block
-    //TODO: Discuss a better way to do this, and need to be able to include more than one claim.
-    pub abandoned_claim: Option<Claim>,
-    /// The secret key of the miner, used to sign blocks they propose to prove
-    /// that the block was indeed proposed by the miner with the claim
-    /// entitled to mine the given block at the given block height
-    secret_key: String,
+    secret_key: MinerSk,
+    public_key: MinerPk,
+    address: String,
+    // state_handle_factory: NodeStateReadHandle,
 
-    epoch: Epoch,
+    // pub pubkey: String,
+    // pub reward: Reward,
+    // pub state_handle: NodeStateReadHandle,
+}
+
+pub struct MineArgs<'a> {
+    pub claim: Claim,
+    pub last_block: Block,
+    pub txns: LinkedHashMap<String, Txn>,
+    pub claims: LinkedHashMap<String, Claim>,
+    pub claim_list_hash: Option<String>,
+    #[deprecated(
+        note = "will be removed, unnecessary as last block needed to mine and contains next block reward"
+    )]
+    pub reward: &'a mut Reward,
+    pub abandoned_claim: Option<Claim>,
+    pub secret_key: SecretKey,
+    pub epoch: Epoch,
+    pub round: u128,
+    pub next_epoch_adjustment: i128,
 }
 
 impl Miner {
-    /// Returns a miner that can be initialized later
-    //TODO: Replace `start` with `new`, since this method does not actually "start"
-    //
-    // the miner
-    pub fn start(
-        secret_key: String,
-        pubkey: String,
-        address: String,
-        reward: Reward,
-        network_state: NetworkState,
-        n_miners: u128,
-        epoch: Epoch,
-    ) -> Self {
+    pub fn new(config: MinerConfig) -> Self {
         Miner {
-            claim: Claim::new(pubkey, address, 1),
-            mining: false,
-            claim_map: LinkedHashMap::new(),
-            txn_pool: Pool::new(PoolKind::Txn),
-            claim_pool: Pool::new(PoolKind::Claim),
-            last_block: None,
-            reward,
-            network_state,
-            neighbors: None,
-            current_nonce_timer: 0,
-            n_miners,
-            init: false,
-            abandoned_claim_counter: LinkedHashMap::new(),
-            abandoned_claim: None,
-            secret_key,
-            epoch,
+            secret_key: config.secret_key,
+            public_key: config.public_key,
+            address: hash_data!(&config.public_key),
+            // state_handle_factory: config.state_handle_factory,
         }
     }
 
-    /// Calculates the pointer sums and returns the lowest for a given block
-    ///
-    /// seed.
-    pub fn get_lowest_pointer(&mut self, block_seed: u128) -> Option<(String, u128)> {
-        // Clones the local claim map for use in the algorithm
-        let claim_map = self.claim_map.clone();
+    pub fn address(&self) -> Address {
+        self.address.clone()
+    }
 
-        // Calculates the pointers for every claim, for the given block seed, in the map
-        // and collects them into a vector of tuples containing the claim hash and the
+    pub fn public_key(&self) -> PublicKey {
+        self.public_key.clone()
+    }
+
+    pub fn generate_claim(&self, nonce: u128) -> Claim {
+        Claim::new(self.public_key().to_string(), self.address(), nonce)
+    }
+
+    pub fn sign_message(&self, msg: Message) -> Signature {
+        self.secret_key.sign_ecdsa(msg)
+    }
+
+    /// Facade method to mine the various available block types
+    pub fn mine(&mut self, args: MineArgs) -> Result<Block> {
+        let now = timestamp!();
+
+        todo!()
+
+        // if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
+        //     let claim_map_hash = digest(claim_map_str.as_bytes());
+        //     if let Some(last_block) = self.last_block.clone() {
+        //         let mine_args = MineArgs {
+        //             claim: self.clone().claim,
+        //             last_block,
+        //             txns: self.clone().txn_pool.confirmed,
+        //             claims: self.clone().claim_pool.confirmed,
+        //             claim_list_hash: Some(claim_map_hash),
+        //             reward: &mut self.clone().reward,
+        //             abandoned_claim: self.abandoned_claim.clone(),
+        //             secret_key: self.secret_key.as_bytes().to_vec(),
+        //             epoch: self.epoch,
+        //             round: last_block.round + 1,
+        //             next_epoch_adjustment,
+        //         };
         //
-        // pointer sum
-        let mut pointers = claim_map
-            .iter()
-            .map(|(_, claim)| (claim.clone().hash, claim.clone().get_pointer(block_seed)))
-            .collect::<Vec<_>>();
-
-        // Retains only the pointers that have Some(value) in the 2nd field of the tuple
-        // `.get_pointer(block_seed)` returns an Option<u128>, and can return the None
-        // variant in the event that the pointer sum contains integer overflows
-        // OR in the event that not ever
-        pointers.retain(|(_, v)| !v.is_none());
-
-        // unwraps all the pointer sum values.
-        //TODO: make this more efficient, this is a wasted operation
-        let mut base_pointers = pointers
-            .iter()
-            .map(|(k, v)| (k.clone(), v.unwrap()))
-            .collect::<Vec<_>>();
-
-        // check if there's a minimum, and return the key of the lowest
-        if let Some(min) = base_pointers.clone().iter().min_by_key(|(_, v)| v) {
-            base_pointers.retain(|(_, v)| *v == min.1);
-            Some(base_pointers[0].clone())
-        } else {
-            None
-        }
+        //         return Block::mine(mine_args);
+        //     }
+        // }
+        // Ok((None, 0))
     }
 
-    /// Checks if the hash of the claim with the lowest pointer sum is the local
-    ///
-    /// claim.
-    pub fn check_my_claim(&mut self, nonce: u128) -> Result<bool, Box<dyn Error>> {
-        if let Some((hash, _)) = self.clone().get_lowest_pointer(nonce) {
-            Ok(hash == self.clone().claim.hash)
-        } else {
-            Err(
-                Box::new(
-                    NoLowestPointerError("There is no valid pointer, all claims in claim map must increment their nonce by 1".to_string())
-                )
-            )
-        }
-    }
-
-    /// Generates a gensis block
-    //TODO: Require a specific key to mine the genesis block so that only one node
-    // controlled by the organization can mine it.
-    pub fn genesis(&mut self) -> Option<Result<Block, InvalidBlockErrorReason>> {
-        if !GENESIS_ALLOWED_MINERS.contains(&&*self.claim.pubkey) {
-            return None;
-        }
-        self.claim_map
-            .insert(self.claim.public_key.clone(), self.claim.clone());
-        GenesisBlock::mine_genesis(
-            self.claim.clone(),
-            self.secret_key.clone().as_bytes().to_vec(),
-            None,
-        )
-    }
-
-    /// Attempts to mine a block
-    //TODO: Require more stringent checks to see if the block is able to be mined.
-    pub fn mine(&mut self, next_epoch_adjustment: i128) -> (Option<Block>, i128) {
-        if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
-            let claim_map_hash = digest(claim_map_str.as_bytes());
-            if let Some(last_block) = self.last_block.clone() {
-                let mine_args = MineArgs {
-                    claim: self.clone().claim,
-                    last_block,
-                    txns: self.clone().txn_pool.confirmed,
-                    claims: self.clone().claim_pool.confirmed,
-                    claim_list_hash: Some(claim_map_hash),
-                    reward: &mut self.clone().reward,
-                    abandoned_claim: self.abandoned_claim.clone(),
-                    secret_key: self.secret_key.as_bytes().to_vec(),
-                    epoch: self.epoch,
-                    round: last_block.round + 1,
-                    next_epoch_adjustment,
-                };
-
-                return Block::mine(mine_args);
-            }
-        }
-        Ok((None, 0))
-    }
-
-    /// Increases the nonce and calculates the new hash for all claims
-    /// This only occurs in the event that no claims return valid pointer sums.
-    pub fn nonce_up(&mut self) {
-        self.claim.nonce_up();
-        let mut new_claim_map = LinkedHashMap::new();
-        self.claim_map.clone().iter().for_each(|(pk, claim)| {
-            let mut new_claim = claim.clone();
-            new_claim.nonce_up();
-            new_claim_map.insert(pk.clone(), new_claim.clone());
-        });
-        self.claim_map = new_claim_map;
-    }
-
-    /// Checks if the transaction has been confirmed
-    //TODO: Either eliminate and replace, each miner should retain only
-    // transactions that have be pre-validated i.e. they should only have the
-    // "confirmed side" of the Mempool.
-    pub fn check_confirmed(&mut self, txn_id: String) {
-        let mut validators = {
-            if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
-                txn.validators()
-            } else {
-                HashMap::new()
+    pub fn mine_convergence_block(
+        &self,
+        args: MineArgs,
+        proposals: &Vec<ProposalBlock>,
+        chain: &BullDag<Block, String>,
+    ) -> Option<ConvergenceBlock> {
+        // identify and resolve all the conflicting txns between proposal blocks
+        let resolved_txns = {
+            match args.last_block {
+                Block::Convergence { ref block } => self.resolve_conflicts(
+                    &proposals,
+                    block.header.next_block_seed.into(),
+                    args.round.clone(),
+                    chain,
+                ),
+                Block::Genesis { ref block } => self.resolve_conflicts(
+                    &proposals,
+                    block.header.next_block_seed.into(),
+                    args.round.clone(),
+                    chain,
+                ),
+                _ => return None,
             }
         };
 
-        validators.retain(|_, v| *v);
-        if validators.len() as f64 / (self.claim_map.len() - 1) as f64 > VALIDATOR_THRESHOLD {
-            if let Some((k, v)) = self.txn_pool.pending.remove_entry(&txn_id) {
-                self.txn_pool.confirmed.insert(k, v);
-            }
+        // Consolidate transactions after resolving conflicts.
+        let txns: ConsolidatedTxns = resolved_txns
+            .iter()
+            .map(|block| {
+                let txn_list = block.txns.iter().map(|(id, _)| id.clone()).collect();
+
+                (block.hash.clone(), txn_list)
+            })
+            .collect();
+
+        //TODO: resolve claim conflicts. This is less important because it
+        //cannot lead to double spend
+        let claims: ConsolidatedClaims = proposals
+            .iter()
+            .map(|block| {
+                let claim_hashes: LinkedHashSet<ClaimHash> = block
+                    .claims
+                    .iter()
+                    .map(|(claim_hash, _)| claim_hash.clone())
+                    .collect();
+
+                (block.hash.clone(), claim_hashes)
+            })
+            .collect();
+
+        // Get the convergence block from the last round
+        let last_block = args.last_block;
+
+        // Get the miner claim
+        let claim = args.claim;
+
+        // Get the miner secret key
+        let secret_key = args.secret_key;
+
+        // TODO: Calculate the rolling utility and the rolling
+        // next epoch adjustment
+        let adjustment_next_epoch = args.next_epoch_adjustment;
+
+        // Get all the proposal block hashes
+        let ref_hashes = proposals.iter().map(|b| b.hash.clone()).collect();
+
+        // Hash the conflict resolved transactions
+        let txn_hash = hash_data!(txns);
+
+        // Hash the claims
+        let claim_list_hash = hash_data!(claims);
+
+        // Get the block header for the current block
+        let header = BlockHeader::new(
+            last_block.clone(),
+            ref_hashes,
+            claim,
+            secret_key,
+            txn_hash,
+            claim_list_hash,
+            adjustment_next_epoch,
+        )?;
+
+        // Hash all the header data to get the blockhash
+        let block_hash = hash_data!(
+            header.ref_hashes,
+            header.round,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+            header.miner_signature
+        );
+
+        // Return the ConvergenceBlock
+        Some(ConvergenceBlock {
+            header,
+            txns,
+            claims,
+            hash: block_hash,
+            certificate: None,
+        })
+    }
+
+    pub fn mine_proposal_block(
+        &self,
+        ref_block: RefHash,
+        round: u128,
+        epoch: Epoch,
+        txns: TxnList,
+        claims: ClaimList,
+        from: Claim,
+    ) -> ProposalBlock {
+        let payload = create_payload!(round, epoch, txns, claims, from);
+
+        let signature = self.secret_key.sign_ecdsa(payload).to_string();
+
+        let hash = hash_data!(round, epoch, txns, claims, from, signature);
+
+        ProposalBlock {
+            ref_block,
+            round,
+            epoch,
+            txns,
+            claims,
+            hash,
+            from,
+            signature,
         }
     }
 
-    /// Checks if the transaction has been rejected
-    //TODO: Either eliminate and replace. Each miner should retain only
-    // transactions that have bee pre-validated, i.e. they should only have the
-    // "confirmed side" of the Mempool
-    pub fn check_rejected(&self, txn_id: String) -> Option<Vec<String>> {
-        let mut validators = {
-            if let Some(txn) = self.txn_pool.pending.get(&txn_id) {
-                txn.validators().clone()
-            } else {
-                HashMap::new()
-            }
+    pub fn build_proposal_block(
+        &self,
+        ref_block: RefHash,
+        round: u128,
+        epoch: Epoch,
+        txns: TxnList,
+        claims: ClaimList,
+        nonce: u128,
+        // from: Claim,
+        // secret_key: SecretKeyBytes,
+    ) -> ProposalBlock {
+        let from = self.generate_claim(nonce);
+        let payload = create_payload!(round, epoch, txns, claims, from);
+        let signature = self.secret_key.sign_ecdsa(payload).to_string();
+        let hash = hash_data!(round, epoch, txns, claims, from, signature);
+
+        ProposalBlock {
+            ref_block,
+            round,
+            epoch,
+            txns,
+            claims,
+            hash,
+            from,
+            signature,
+        }
+    }
+
+    pub fn mine_genesis_block(&self, claim_list: ClaimList, nonce: u128) -> Option<GenesisBlock> {
+        let claim_list_hash = hash_data!(claim_list);
+        let seed = 0;
+        let round = 0;
+        let epoch = 0;
+
+        let claim = self.generate_claim(nonce);
+
+        let header = BlockHeader::genesis(
+            seed,
+            round,
+            epoch,
+            claim.clone(),
+            self.secret_key.clone(),
+            claim_list_hash,
+        );
+
+        let block_hash = hash_data!(
+            header.ref_hashes,
+            header.round,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+            header.miner_signature
+        );
+
+        let mut claims = LinkedHashMap::new();
+        claims.insert(claim.clone().public_key, claim);
+
+        #[cfg(mainnet)]
+        let txns = genesis::generate_genesis_txns();
+
+        // TODO: Genesis block on local/testnet should generate either a
+        // faucet for tokens, or fill some initial accounts so that testing
+        // can be executed
+
+        #[cfg(not(mainnet))]
+        let txns = LinkedHashMap::new();
+        let header = header;
+
+        let genesis = GenesisBlock {
+            header,
+            txns,
+            claims,
+            hash: block_hash,
+            certificate: None,
         };
 
-        let mut rejected = validators.clone();
-        rejected.retain(|_, v| !*v);
-        validators.retain(|_, v| *v);
-
-        if rejected.len() as f64 / self.claim_map.len() as f64 > 1.0 - VALIDATOR_THRESHOLD {
-            let slash_claims = validators.keys().map(|k| k.to_string()).collect::<Vec<_>>();
-            Some(slash_claims)
-        } else {
-            None
-        }
-    }
-
-    /// Turns a claim into an ineligible claim in the event a miner proposes an
-    /// invalid block or tries to spam the network.
-    //TODO: Need much stricter penalty, as this miner can still send messages. The
-    // transport layer should reject further messages from this node.
-    pub fn slash_claim(&mut self, pubkey: String) {
-        if let Some(claim) = self.claim_map.get_mut(&pubkey) {
-            claim.eligible = false;
-        }
-    }
-
-    /// Checks how much time has passed since the entitled miner has not
-    ///
-    /// proposed a block
-    pub fn check_time_elapsed(&self) -> u128 {
-        let timestamp = self.get_timestamp();
-        if let Some(time) = timestamp.checked_sub(self.current_nonce_timer) {
-            time / SECOND
-        } else {
-            0u128
-        }
+        Some(genesis)
     }
 
     /// Gets a local current timestamp
     pub fn get_timestamp(&self) -> u128 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
+        todo!()
+        // utils::timestamp!()
     }
 
-    /// Abandons the claim of a miner that fails to proppose a block in the
-    ///
-    /// proper amount of time.
-    pub fn abandoned_claim(&mut self, hash: String) {
-        self.claim_map.retain(|_, v| v.hash != hash);
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        self.current_nonce_timer = timestamp;
+    // Check that conflicts with previous convergence block are removed
+    // and there is no winner in current round.
+    fn resolve_conflicts(
+        &self,
+        proposals: &Vec<ProposalBlock>,
+        seed: u128,
+        round: u128,
+        chain: &BullDag<Block, String>,
+    ) -> Vec<ProposalBlock> {
+        // First, get any/all proposal blocks that are not from current round
+        let (curr, prev) = {
+            let (mut left, mut right) = (Vec::new(), Vec::new());
+            for block in proposals {
+                if block.is_current_round(round) {
+                    left.push(block.clone());
+                } else {
+                    right.push(block.clone());
+                }
+            }
+
+            (left, right)
+        };
+
+        // Next get all the prev_round conflicts resolved
+        let prev_resolved = self.resolve_conflicts_prev_rounds(round, &prev, chain);
+
+        // Identify all conflicts
+        let mut conflicts = self.identify_conflicts(&curr);
+
+        // create a vector of proposers with the claim and the proposal block
+        // hash.
+        let proposers: Vec<(Claim, RefHash)> = curr
+            .iter()
+            .map(|block| (block.from.clone(), block.hash.clone()))
+            .collect();
+
+        // calculate the pointer sums for all propsers and save into a vector
+        // of thruples with the claim, ref_hash and pointer sum
+        let mut pointer_sums: Vec<(Claim, RefHash, Option<u128>)> = {
+            proposers
+                .iter()
+                .map(|(claim, ref_hash)| {
+                    (claim.clone(), ref_hash.to_string(), claim.get_pointer(seed))
+                })
+                .collect()
+        };
+
+        // Sort all the pointer sums
+        pointer_sums.sort_by(|a, b| match (a.2, b.2) {
+            (Some(x), Some(y)) => x.cmp(&y),
+            (None, Some(_)) => Ordering::Greater,
+            (Some(_), None) => Ordering::Less,
+            (None, None) => Ordering::Equal,
+        });
+
+        // Iterate, mutably through all the conflicts identified
+        conflicts.iter_mut().for_each(|(_, conflict)| {
+            // clone the pointers sums
+            let mut local_pointers = pointer_sums.clone();
+
+            // retain only the pointer sum related to the current conflict
+            local_pointers.retain(|(claim, ref_hash, _)| {
+                conflict
+                    .proposers
+                    .contains(&(claim.clone(), ref_hash.clone()))
+            });
+
+            // select the first pointer sum and extract the proposal block
+            // hash from the pointer sum
+            let winner = local_pointers[0].1.clone();
+
+            // save it as the conflict winner
+            conflict.winner = Some(winner);
+        });
+
+        let mut curr_resolved = curr.clone();
+        // Iterate, mutable t hrough the proposal blocks
+        curr_resolved.iter_mut().for_each(|block| {
+            // Clone conflicts into a mutable variable
+            let mut local_conflicts = conflicts.clone();
+
+            // retain only the conflicts that relate to current proposal block
+            local_conflicts.retain(|id, _| block.txns.contains_key(id));
+
+            // convert filtered conflicts into an iterator
+            let mut conflict_iter = local_conflicts.iter();
+
+            // initialize a hashset to save transactions that current block
+            // proposer lost conflict resolution.
+            let mut removals = HashSet::new();
+
+            // loop through all the conflicts related to current block
+            // and check if the winner is the current block hash
+            while let Some((id, conflict)) = conflict_iter.next() {
+                if Some(block.hash.clone()) != conflict.winner {
+                    // if it does insert into removals, otherwise ignore
+                    removals.insert(id.to_string());
+                }
+            }
+
+            // remove transactions for which current block lost conflict
+            // resolution from the current block
+            block.txns.retain(|id, _| !removals.contains(id));
+        });
+
+        // combine prev_resolved and curr_resolved
+        curr_resolved.extend(prev_resolved);
+
+        // return proposal blocks with conflict resolution complete
+        curr_resolved.clone()
     }
 
-    /// Serializes the miner into a string
-    // TODO: Consider changing this to `serialize_to_string`
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+    fn resolve_conflicts_prev_rounds(
+        &self,
+        round: u128,
+        proposals: &Vec<ProposalBlock>,
+        chain: &BullDag<Block, String>,
+    ) -> Vec<ProposalBlock> {
+        let prev_blocks: Vec<ConvergenceBlock> = {
+            let nested: Vec<Vec<ConvergenceBlock>> = proposals
+                .iter()
+                .map(|prop_block| self.get_source_blocks(prop_block, chain))
+                .collect();
+
+            nested.into_iter().flatten().collect()
+        };
+
+        let mut proposals = proposals.clone();
+
+        // Flatten consolidated transactions from all previous blocks
+        let removals: LinkedHashSet<&TxnId> = {
+            // Get nested sets of all previous blocks
+            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks
+                .iter()
+                .map(|block| {
+                    let block_set: Vec<&LinkedHashSet<TxnId>> = {
+                        block
+                            .txns
+                            .iter()
+                            .map(|(_, txn_id_set)| txn_id_set)
+                            .collect()
+                    };
+                    block_set.into_iter().flatten().collect()
+                })
+                .collect();
+
+            // Flatten the nested sets
+            sets.into_iter().flatten().collect()
+        };
+
+        proposals.retain(|block| block.round != round);
+
+        let resolved: Vec<ProposalBlock> = proposals
+            .iter_mut()
+            .map(|block| {
+                let mut resolved_block = block.clone();
+
+                resolved_block.txns.retain(|id, _| !&removals.contains(id));
+
+                resolved_block
+            })
+            .collect();
+
+        resolved
     }
 
-    /// Serializes the miner into a vector of bytes
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.to_string().as_bytes().to_vec()
+    fn identify_conflicts(&self, proposals: &Vec<ProposalBlock>) -> HashMap<TxnId, Conflict> {
+        let mut conflicts: ConflictList = HashMap::new();
+        proposals.iter().for_each(|block| {
+            let mut txn_iter = block.txns.iter();
+            let mut proposer = HashSet::new();
+
+            proposer.insert((block.from.clone(), block.hash.clone()));
+
+            while let Some((id, _)) = txn_iter.next() {
+                let conflict = Conflict {
+                    txn_id: id.to_string(),
+                    proposers: proposer.clone(),
+                    winner: None,
+                };
+
+                conflicts
+                    .entry(id.to_string())
+                    .and_modify(|e| {
+                        e.proposers.insert((block.from.clone(), block.hash.clone()));
+                    })
+                    .or_insert(conflict);
+            }
+        });
+
+        conflicts.retain(|_, conflict| conflict.proposers.len() > 1);
+        conflicts
     }
 
-    /// Deserializes a miner from a byte array
-    pub fn from_bytes(data: &[u8]) -> Miner {
-        serde_json::from_slice(data).unwrap()
-    }
+    fn get_source_blocks(
+        &self,
+        block: &ProposalBlock,
+        chain: &BullDag<Block, String>,
+    ) -> Vec<ConvergenceBlock> {
+        // TODO: Handle the case where the reference block is the genesis block
+        let source = block.ref_block.clone();
+        let source_vtx: Option<&Vertex<Block, String>> = chain.get_vertex(source);
 
-    /// Deserializes a miner from a string slice
-    pub fn from_string(data: &str) -> Miner {
-        serde_json::from_str(data).unwrap()
-    }
+        // Get every block between current proposal and proposals source;
+        // if the source exists
+        let source_refs: Vec<String> = match source_vtx {
+            Some(vtx) => chain.trace(&vtx, Direction::Reference),
+            None => {
+                vec![]
+            },
+        };
 
-    /// Returns a vetor of string representations of the field names of a miner
-    pub fn get_field_names(&self) -> Vec<String> {
-        vec![
-            "claim".to_string(),
-            "mining".to_string(),
-            "claim_map".to_string(),
-            "txn_pool".to_string(),
-            "claim_pool".to_string(),
-            "last_block".to_string(),
-            "reward_state".to_string(),
-            "network_state".to_string(),
-            "neighbors".to_string(),
-            "current_nonce_timer".to_string(),
-            "n_miners".to_string(),
-            "init".to_string(),
-            "abandoned_claim_counter".to_string(),
-            "abandoned_claim".to_string(),
-            "secret_key".to_string(),
-        ]
-    }
-}
+        // Get all the vertices corresponding to the references to the
+        // proposal blocks source. This will include other proposal blocks
+        // between the ProposalBlock's source and the current round.
+        // Will need to filter to only retain the convergence blocks
+        let ref_vertices: Vec<Option<&Vertex<Block, String>>> = {
+            source_refs
+                .iter()
+                .map(|idx| chain.get_vertex(idx.to_string()))
+                .collect()
+        };
 
-/// Required for `NoLowestPointerError` to be able to be used as an Error type
-///
-/// in the Result enum
-impl fmt::Display for NoLowestPointerError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+        // Initialize a stack to save ConvergenceBlock vertices to
+        // This will where all the ConvergenceBlocks between the
+        // Source of ProposalBlock and the current round will be stored
+        // and returned to check for conflicts.
+        let mut stack = vec![];
 
-/// Required for `NoLowestPointerError` to be able to be used as an Error type
-///
-/// in the Result enum
-impl Error for NoLowestPointerError {
-    fn description(&self) -> &str {
-        &self.0
+        // Iterate through the ref_vertices vector
+        // Check whether the ref_vertex is Some or None
+        // If it is Some, get the data from the Vertex and
+        // match the Block variant
+        // If the block variant is a convergence block add it to the stack
+        // otherwise ignore it
+        ref_vertices.iter().for_each(|opt| {
+            if let Some(vtx) = opt {
+                match vtx.get_data() {
+                    Block::Convergence { block } => stack.push(block),
+                    _ => { /*IGNORE*/ },
+                }
+            }
+        });
+
+        return stack;
     }
 }

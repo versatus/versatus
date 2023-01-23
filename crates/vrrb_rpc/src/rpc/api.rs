@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 use state::NodeStateReadHandle;
 use vrrb_core::{
     account::Account,
-    txn::{TxAmount, TxNonce, TxPayload, TxSignature, TxToken},
+    txn::{TxAmount, TxNonce, TxPayload, TxSignature, TxToken, Txn},
 };
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
 pub type FullStateSnapshot = HashMap<SerializedPublicKeyString, Account>;
-pub type FullMempoolSnapshot = Vec<u8>;
+pub type FullMempoolSnapshot = Vec<Txn>;
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateTxnArgs {
