@@ -6,7 +6,6 @@ use std::{
 use left_right::ReadHandle;
 use lr_trie::LeftRightTrieError;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
-use rand::distributions::uniform::SampleBorrow;
 use vrrb_core::{
     account::Account,
     keypair::{KeyPair, MinerPk},
@@ -157,24 +156,12 @@ impl<D: Database> TxnValidator<D> {
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
+
+    //build UpdateArgs struct
     pub fn validate(&self, txn: &Txn) -> Result<()> {
         //needs new wallet impl
-        if let Ok(_validated)= self.validate_structure(txn) {
-            match txn.txn_fee {
-                Slow => {
-                    txn.sender_address.update(-0.01, "vrrb".to_string());
-                }
-                Fast => {
-                    txn.sender_address.update(-0.05, "vrrb".to_string());
-                }
-                Instant => {
-                    txn.sender_address.update(-0.1, "vrrb".to_string());
-                }
-            }
-            //TODO! implement fee payment
-            return Ok(());
-        } else {
-            Err(TxnValidatorError::InvalidSender)
-        }
+        Ok(if let Ok(_validated)= self.validate_structure(txn) {
+            todo!();
+        })
     }
 }

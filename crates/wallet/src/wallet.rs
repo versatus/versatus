@@ -67,25 +67,16 @@ impl Default for Wallet {
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address_prefix,
         );
 
-        //addrs need to be added to Account struct
-    
+        let account = Account::new(public_key.to_owned());
 
-        if let Ok(account) = Account::new(public_key.to_owned()){
-            return Self {
-                secret_key: secret_key.secret_bytes().to_vec(),
-                welcome_message,
-                public_key: public_key.serialize().to_vec(),
-                account,
-                claim: Claim::new(public_key.to_string(), address_prefix, 0),
-                nonce: 0,
-            }
-        } else {
-            todo!()
-        }
-
-    
-        // Generate a wallet struct by assigning the variables to the fields.
-        
+        return Self {
+            secret_key: secret_key.secret_bytes().to_vec(),
+            welcome_message,
+            public_key: public_key.serialize().to_vec(),
+            account,
+            claim: Claim::new(public_key.to_string(), address_prefix, 0),
+            nonce: 0,
+        };
     }
 }
 
@@ -108,7 +99,7 @@ impl Wallet {
             secret_key: secretkey.secret_bytes().to_vec(),
             welcome_message: String::new(),
             public_key: pubkey.serialize().to_vec(),
-            account: Account::new(pubkey.to_owned())?,
+            account: Account::new(pubkey.to_owned()),
             claim: Claim::new(pubkey.to_string(), String::new(), 0),
             nonce: 0,
         };
@@ -134,7 +125,7 @@ impl Wallet {
 
     pub fn get_new_addresses(&mut self, number_of_addresses: u8) {
         let mut counter = 1u8;
-        let new_addrs = Vec::new();
+        let mut new_addrs = Vec::new();
         (counter..=number_of_addresses).for_each(|n| {
             let mut address_bytes = self.public_key.clone();
             address_bytes.push(n);

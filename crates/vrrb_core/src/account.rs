@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{token::Token, Error, Result};
 
+
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -58,7 +59,7 @@ pub struct Account {
 
 impl Account {
     /// Returns new, empty account.
-    pub fn new(pubkey: secp256k1::PublicKey) -> Result<Account> {
+    pub fn new(pubkey: secp256k1::PublicKey) -> Account {
         let nonce = 0u32;
         let storage = None;
         let code = None;
@@ -82,19 +83,15 @@ impl Account {
         // if let Ok(pubkey_string) = String::from_utf8(pubkey.clone()) {
         addresses.insert(pubkey_string, tokens);
 
-        Ok(Account {
+        Account {
             hash,
             nonce,
             storage,
             code,
             addresses,
             pubkey: pubkey_bytes,
-        })
-        // } else {
-        //     //add error handling
-        //     panic!("AAAAH")
-        // }
-        //we want to store this account
+        }
+        
     }
 
     /// Modifies accounts hash, recalculating it using account's fields.
