@@ -48,7 +48,7 @@ pub struct FarmerHarvesterModule {
     clear_filter_rx: tokio::sync::mpsc::UnboundedReceiver<DirectedEvent>,
 }
 
-pub const PULL_TXN_BATCH_SIZE: usize = 100  ;
+pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 impl FarmerHarvesterModule {
     pub fn new(

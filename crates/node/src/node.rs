@@ -83,7 +83,6 @@ impl Node {
         .await?;
 
         config.udp_gossip_address = gossip_addr;
-
         let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = Self::setup_rpc_api_server(
             &config,
             events_tx.clone(),
@@ -111,7 +110,6 @@ impl Node {
         // TODO: report error from handle
         let event_router_handle =
             tokio::spawn(async move { event_router.start(&mut events_rx).await });
-
         Ok(Self {
             config,
             event_router_handle,
@@ -257,7 +255,6 @@ impl Node {
         let mut broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
             events_tx: events_tx.clone(),
             state_handle_factory,
-            bootstrap_node_addresses,
             udp_gossip_address_port: config.udp_gossip_address.port(),
             raptorq_gossip_address_port: config.raptorq_gossip_address.port(),
             node_type: config.node_type,

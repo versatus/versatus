@@ -28,10 +28,8 @@ const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10;
 
 pub struct BroadcastModuleConfig {
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-    // pub engine: BroadcastEngine,
     pub node_type: NodeType,
     pub state_handle_factory: NodeStateReadHandle,
-    pub bootstrap_node_addresses: Vec<SocketAddr>,
     pub udp_gossip_address_port: u16,
     pub raptorq_gossip_address_port: u16,
     pub node_id: PeerId,
@@ -43,7 +41,6 @@ pub struct BroadcastModule {
     running_status: RuntimeModuleState,
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     state_handle_factory: NodeStateReadHandle,
-    bootstrap_node_addresses: Vec<SocketAddr>,
     broadcast_handle: JoinHandle<Result<()>>,
     addr: SocketAddr,
     controller_rx: MpscReceiver<Event>,
@@ -60,19 +57,11 @@ impl BroadcastModule {
         .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {}", err)))?;
 
         let addr = broadcast_engine.local_addr();
-        let bootstrap_node_addrs = config.bootstrap_node_addresses.clone();
-        let should_broadcast_join_intent = !matches!(config.node_type, NodeType::Bootstrap);
 
         let (tx, controller_rx) =
             tokio::sync::mpsc::channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
 
         let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
-
-        if should_broadcast_join_intent {
-            bcast_controller
-                .broadcast_join_intent(bootstrap_node_addrs, config.node_type, config.node_id)
-                .await?;
-        }
 
         // NOTE: starts the listening loop
         let broadcast_handle = tokio::spawn(async move {
@@ -85,7 +74,6 @@ impl BroadcastModule {
             events_tx: config.events_tx,
             running_status: RuntimeModuleState::Stopped,
             state_handle_factory: config.state_handle_factory,
-            bootstrap_node_addresses: config.bootstrap_node_addresses,
             broadcast_handle,
             addr,
             controller_rx,
@@ -226,62 +214,6 @@ impl BroadcastEngineController {
         Self { engine, addr }
     }
 
-    pub async fn broadcast_join_intent(
-        &self,
-        bootstrap_node_addrs: Vec<SocketAddr>,
-        node_type: NodeType,
-        node_id: PeerId,
-    ) -> Result<()> {
-        let body = MessageBody::AddPeer {
-            peer_id: node_id,
-            socket_addr: self.addr,
-            node_type,
-        };
-
-        let msg = Message {
-            id: Uuid::new_v4(),
-            source: None,
-            // TODO: update types to avoid double serialization
-            data: body.into(),
-            sequence_number: None,
-            return_receipt: 0,
-        };
-
-        let mut successes = HashSet::new();
-
-        for addr in bootstrap_node_addrs {
-            match self.engine.send_data_via_quic(msg.clone(), addr).await {
-                Ok(bcast_result) => {
-                    info!("sent address to bootstrap node {addr}");
-                    telemetry::debug!("result: {bcast_result:?}");
-
-                    successes.insert(addr);
-                },
-                Err(err) => {
-                    error!("failed to signal join intent to node {addr}: {err}");
-                },
-            };
-        }
-
-        if successes.is_empty() {
-            let err = NodeError::Other(String::from(
-                "failed to signal join intent to any bootstrap node",
-            ));
-
-            error!("{}", err);
-
-            return Err(err);
-        }
-
-        info!(
-            "published join intent to {} known bootstrap nodes",
-            successes.len()
-        );
-
-        telemetry::debug!("bootstrap nodes signaled: {:?}", successes);
-
-        Ok(())
-    }
 
     pub async fn listen(&mut self, tx: Sender<Event>) -> Result<()> {
         let listener = self.engine.get_incomming_connections();

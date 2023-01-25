@@ -7,7 +7,6 @@ use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
 use mempool::{
     mempool::{LeftRightMempool, MempoolReadHandleFactory, PoolType},
     Mempool,
-    MempoolReadHandleFactory,
 };
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{

@@ -12,19 +12,6 @@ use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
-#[tokio::test]
-#[should_panic(expected = "failed to signal join intent to any bootstrap node")]
-async fn node_cant_start_if_no_known_boostrap_nodes_are_provided() {
-    let node_config = create_mock_full_node_config();
-
-    let (_, ctrl_rx_1) = unbounded_channel::<Event>();
-
-    let vrrb_node_1 = Node::start(&node_config, ctrl_rx_1).await.unwrap();
-
-    assert_eq!(vrrb_node_1.status(), RuntimeModuleState::Stopped);
-
-    vrrb_node_1.wait().await.unwrap();
-}
 
 #[tokio::test]
 async fn node_can_start_as_a_bootstrap_node() {

@@ -10,6 +10,7 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::broadcast::error::TryRecvError;
 use tracing::error;
 use vrrb_core::event_router::{DirectedEvent, Event, Topic};
+
 use crate::{result::Result, NodeError};
 
 type Port = usize;
@@ -135,6 +136,7 @@ mod tests {
 
     use primitives::NodeType;
     use theater::ActorImpl;
+    use tracing::log::kv::Source;
     use udp2p::protocol::protocol::Peer;
     use vrrb_core::{
         event_router::{DirectedEvent, Event, PeerData},
@@ -223,5 +225,68 @@ mod tests {
         assert_eq!(nodes.get(0).unwrap().id, current_node_id);
         ctrl_tx.send(Event::Stop).unwrap();
         handle.await.unwrap();
+    }
+
+
+    #[tokio::test]
+    async fn swarm_runtime_test_unreachable_peers() {
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let mut bootstrap_swarm_module = SwarmModule::new(
+            SwarmModuleConfig {
+                port: 6061,
+                bootstrap_node: None,
+            },
+            None,
+            None,
+            events_tx,
+        );
+        let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
+        let (ctrl_boot_strap_tx, mut ctrl_boot_strap_rx) =
+            tokio::sync::broadcast::channel::<Event>(10);
+        assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
+
+        let (events_node_tx, events_node_rx) =
+            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let mut swarm_module = SwarmModule::new(
+            SwarmModuleConfig {
+                port: 6069,
+                bootstrap_node: Some(BootStrapNodeDetails {
+                    addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 6061),
+                    key: hex::encode(key.clone()),
+                }),
+            },
+            None,
+            None,
+            events_node_tx,
+        );
+        let current_node_id = swarm_module.node.node_data().id.clone();
+        let mut swarm_module = ActorImpl::new(swarm_module);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        assert_eq!(swarm_module.status(), ActorState::Stopped);
+
+        let handle = tokio::spawn(async move {
+            swarm_module.start(&mut ctrl_rx).await.unwrap();
+        });
+
+
+        let s = bootstrap_swarm_module.node.rpc_ping(&NodeData {
+            ip: "127.0.0.1".to_string(),
+            port: "6063".to_string(),
+            addr: "127.0.0.1:6069".to_string(),
+            id: current_node_id,
+        });
+        assert!(s.is_some());
+        ctrl_tx.send(Event::Stop).unwrap();
+        handle.await.unwrap();
+
+
+        let s = bootstrap_swarm_module.node.rpc_ping(&NodeData {
+            ip: "127.0.0.1".to_string(),
+            port: "6063".to_string(),
+            addr: "127.0.0.1:6064".to_string(),
+            id: current_node_id,
+        });
+
+        assert!(s.is_none());
     }
 }
