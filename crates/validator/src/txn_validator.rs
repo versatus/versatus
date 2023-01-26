@@ -14,7 +14,7 @@ use vrrb_core::{
     txn::Txn,
 };
 
-type Result<T> = StdResult<T, TxnValidatorError>;
+pub type Result<T> = StdResult<T, TxnValidatorError>;
 
 pub const ADDRESS_PREFIX: &str = "0x192";
 
@@ -24,7 +24,7 @@ pub enum TxnFees {
     Instant,
 }
 
-#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq, Hash)]
 pub enum TxnValidatorError {
     #[error("invalid sender")]
     InvalidSender,
@@ -87,12 +87,30 @@ impl StateSnapshot {
 }
 
 #[derive(Debug, Clone)]
+// TODO: make validator configurable
 pub struct TxnValidator {}
 
 impl TxnValidator {
     /// Creates a new Txn validator
     pub fn new() -> TxnValidator {
         TxnValidator {}
+    }
+
+    /// An entire Txn validator
+    // TODO: include fees and signature threshold.
+    pub fn validate(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
+        self.validate_structure(state_snapshot, txn)
+    }
+
+    /// An entire Txn structure validator
+    pub fn validate_structure(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
+        self.validate_amount(state_snapshot, txn)
+            .and_then(|_| self.validate_public_key(txn))
+            .and_then(|_| self.validate_sender_address(txn))
+            .and_then(|_| self.validate_receiver_address(txn))
+            .and_then(|_| self.validate_signature(txn))
+            .and_then(|_| self.validate_amount(state_snapshot, txn))
+            .and_then(|_| self.validate_timestamp(txn))
     }
 
     /// Txn signature validator.
@@ -182,22 +200,5 @@ impl TxnValidator {
         };
 
         Ok(())
-    }
-
-    /// An entire Txn structure validator
-    pub fn validate_structure(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
-        self.validate_amount(state_snapshot, txn)
-            .and_then(|_| self.validate_public_key(txn))
-            .and_then(|_| self.validate_sender_address(txn))
-            .and_then(|_| self.validate_receiver_address(txn))
-            .and_then(|_| self.validate_signature(txn))
-            .and_then(|_| self.validate_amount(state_snapshot, txn))
-            .and_then(|_| self.validate_timestamp(txn))
-    }
-
-    /// An entire Txn validator
-    // TODO: include fees and signature threshold.
-    pub fn validate(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
-        self.validate_structure(state_snapshot, txn)
     }
 }

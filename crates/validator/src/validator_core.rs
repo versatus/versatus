@@ -9,10 +9,7 @@ use mempool::mempool::{FetchFiltered, *};
 use patriecia::{db::Database, inner::InnerTrie};
 use vrrb_core::txn::*;
 
-use crate::{
-    mempool_processor::MempoolControlMsg,
-    txn_validator::{StateSnapshot, TxnValidator},
-};
+use crate::txn_validator::{StateSnapshot, TxnValidator};
 
 /// Enum containing all messages related to controling the Core thread's
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,7 +37,6 @@ pub enum CoreState {
 pub enum CoreError {
     InvalidMsgForCurrentState(CoreControlMsg, CoreState),
     FailedToReadFromControlChannel(RecvError),
-    MempoolControlChannelUnreachable(SendError<MempoolControlMsg>),
 }
 
 /// Struct containing all variables relevant for controlling and managing the
@@ -48,7 +44,7 @@ pub enum CoreError {
 /// State holds current CoreState
 /// Control sender is channel ready to receive CoreControlMsg allowing control
 /// over the thread state
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Core {
     id: CoreId,
     validator: TxnValidator,
@@ -62,7 +58,8 @@ impl Core {
     /// * `id` ID to assign to that core
     /// * `error_sender` Sender end of the channel, used by the core to
     ///   propagate it's errors to main thread
-    // pub fn new<D: Database>(id: CoreId, error_sender: Sender<(CoreId, CoreError)>) -> Self {
+    // pub fn new<D: Database>(id: CoreId, error_sender: Sender<(CoreId,
+    // CoreError)>) -> Self {
     pub fn new(id: CoreId, validator: TxnValidator) -> Self {
         Self { id, validator }
     }
@@ -75,20 +72,21 @@ impl Core {
         &self,
         state_snapshot: &StateSnapshot,
         batch: Vec<Txn>,
-    ) -> HashSet<(Txn, bool)> {
+    ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
+        // ) -> HashSet<(Txn, bool)> {
         batch
             .into_iter()
             .map(|txn| match self.validator.validate(state_snapshot, &txn) {
-                Ok(_) => (txn, true),
+                Ok(_) => (txn, Ok(())),
                 Err(err) => {
                     telemetry::error!("{err:?}");
 
-                    (txn, false)
+                    (txn, Err(err))
                     // Should we send error?
                     // send_core_err_msg(id, &error_sender,
                     // err);
                 },
             })
-            .collect::<HashSet<(Txn, bool)>>()
+            .collect::<HashSet<(Txn, crate::txn_validator::Result<()>)>>()
     }
 }
