@@ -1,10 +1,8 @@
 use std::{path::PathBuf, result::Result as StdResult};
 
 use async_trait::async_trait;
-use state::{state::NetworkState, NodeState};
 use telemetry::info;
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
-use validator::validator_unit::ValidatorUnit;
 use vrrb_core::event_router::{Event, Topic};
 
 use crate::{result::Result, NodeError, RuntimeModule, RuntimeModuleState};
@@ -19,7 +17,6 @@ pub struct ValidatorModule {
 impl ValidatorModule {
     pub fn new() -> Self {
         Self {
-            // validator: ValidatorUnit::new(),
             running_status: RuntimeModuleState::Stopped,
         }
     }
@@ -83,9 +80,6 @@ impl ValidatorModule {
             Event::BlockConfirmed(_) => {
                 // do something
             },
-            // Event::PeerRequestedStateSync(_) => {
-            //     // do something
-            // },
             Event::NoOp => {},
             _ => telemetry::warn!("unrecognized command received: {:?}", event),
         }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
-use primitives::types::node::NodeType;
+use primitives::NodeType;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
