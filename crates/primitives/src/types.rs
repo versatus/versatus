@@ -36,6 +36,7 @@ pub type TxHash = Hash;
 pub const TXN_DIGEST_LENGTH: usize = 32;
 /// WIP structure that represents a transaction ID within VRRB, it has some
 /// useful utility methods attached to it
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct TxnHash([u8; TXN_DIGEST_LENGTH]);
 
 impl From<ByteVec> for TxnHash {
@@ -73,6 +74,22 @@ pub type SerializedPublicKeyString = String;
 pub type PublicKey = secp256k1::PublicKey;
 pub type SecretKey = secp256k1::SecretKey;
 pub type Signature = secp256k1::ecdsa::Signature;
+
+/// Represents an account's public key serialized to bytes
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AccountAddress(PublicKey);
+
+impl AccountAddress {
+    pub fn new(public_key: PublicKey) -> Self {
+        Self(public_key)
+    }
+}
+
+impl std::fmt::Display for AccountAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0.to_string())
+    }
+}
 
 pub type AccountKeypair = (secp256k1::SecretKey, secp256k1::PublicKey);
 
