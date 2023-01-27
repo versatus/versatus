@@ -9,6 +9,7 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use primitives::AccountKeypair;
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use vrrb_core::txn::*;
 
@@ -54,7 +55,18 @@ mod tests {
             accounts: HashMap::new(),
         };
 
-        let target = batch.iter().cloned().map(|txn| (txn, false)).collect();
+        let target = batch
+            .iter()
+            .cloned()
+            .map(|txn| {
+                let account = txn.sender_address.clone();
+                let err = Err(crate::txn_validator::TxnValidatorError::AccountNotFound(
+                    account,
+                ));
+
+                (txn, err)
+            })
+            .collect();
 
         let validated = valcore_manager.validate(&state_snapshot, batch);
         assert_eq!(validated, target);
