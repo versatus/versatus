@@ -693,6 +693,7 @@ pub(crate) mod test_helpers {
                     validators: None,
                     nonce: n.clone() as u128,
                 };
+                let total_txns_size = 0;
 
                 let mut txn = Txn::new(txn_args);
 
@@ -722,8 +723,10 @@ pub(crate) mod test_helpers {
         round: u128,
         epoch: u128,
     ) -> ProposalBlock {
+        //require that n_tx doesn't overflow block size'
         let (sk, pk) = create_keypair();
         let txns = create_txns(n_tx).collect();
+
         let nonce = 1;
 
         let claims = create_claims(n_claims).collect();
