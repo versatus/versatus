@@ -78,6 +78,27 @@ mod tests {
     }
 
     #[test]
+    fn test_create_proposal_block_over_size_limit() {
+        let genesis = mine_genesis().unwrap();
+        let proposal = build_proposal_block(&genesis.hash, 30, 10, 0, 0);
+
+        let payload = create_payload!(
+            proposal.round,
+            proposal.epoch,
+            proposal.txns,
+            proposal.claims,
+            proposal.from
+        );
+
+        let h_pk = proposal.from.public_key;
+        let h_pk = PublicKey::from_str(&h_pk).unwrap();
+        let sig = proposal.signature;
+        let sig = Signature::from_str(&sig).unwrap();
+        let verify = sig.verify(&payload, &h_pk);
+        assert!(verify.is_ok())
+    }
+
+    #[test]
     fn test_create_convergence_block_no_conflicts() {
         let genesis = mine_genesis();
         if let Some(gblock) = genesis {
@@ -613,7 +634,7 @@ mod tests {
 }
 
 pub(crate) mod test_helpers {
-    use block::{Block, ConvergenceBlock, GenesisBlock, ProposalBlock, EPOCH_BLOCK};
+    use block::{Block, ConvergenceBlock, GenesisBlock, ProposalBlock, EPOCH_BLOCK, invalid::InvalidBlockErrorReason};
     use bulldag::graph::BullDag;
     use primitives::{
         types::{PublicKey, SecretKey},
@@ -722,8 +743,8 @@ pub(crate) mod test_helpers {
         n_claims: usize,
         round: u128,
         epoch: u128,
-    ) -> ProposalBlock {
-        //require that n_tx doesn't overflow block size'
+    ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
+        
         let (sk, pk) = create_keypair();
         let txns = create_txns(n_tx).collect();
 
@@ -893,10 +914,6 @@ pub(crate) mod test_helpers {
 //         header::BlockHeader, helpers::*, Block, Conflict, ConvergenceBlock,
 // GenesisBlock, MineArgs,         ProposalBlock,
 //     };
-//
-//
-//
-//
 // }
 //
 // pub(crate) mod helpers {

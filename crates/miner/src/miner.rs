@@ -33,7 +33,7 @@ use bulldag::{
     graph::BullDag,
     vertex::{Direction, Vertex},
 };
-use mempool::LeftRightMempool;
+//use mempool::LeftRightMempool;
 use primitives::{types::Epoch, Address, PublicKey, SecretKey, SerializedSecretKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -52,8 +52,10 @@ use vrrb_core::{
     txn::Txn,
 };
 
+use crate::result::MinerError;
+
 // TODO: replace Pool with LeftRightMempool if suitable
-use crate::result::Result;
+//use crate::result::{Result, MinerError};
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
@@ -146,7 +148,7 @@ impl Miner {
     }
 
     /// Facade method to mine the various available block types
-    pub fn mine(&mut self, args: MineArgs) -> Result<Block> {
+    pub fn mine(&mut self, args: MineArgs) -> Result<Block, MinerError> {
         let now = timestamp!();
 
         todo!()
@@ -320,7 +322,7 @@ impl Miner {
         nonce: u128,
         // from: Claim,
         // secret_key: SecretKeyBytes,
-    ) -> Result<ProposalBlock,InvalidBlockErrorReason> {
+    ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
         let from = self.generate_claim(nonce);
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = self.secret_key.sign_ecdsa(payload).to_string();
