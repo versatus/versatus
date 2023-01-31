@@ -10,7 +10,6 @@ set -e
 # Formats the code for consistency
 echo 'Formatting...'
 # cargo +nightly fmt --all 
-
 cargo +nightly clippy --fix --allow-dirty --allow-staged -- -D clippy::all
 
 
