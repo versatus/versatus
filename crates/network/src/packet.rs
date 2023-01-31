@@ -12,12 +12,16 @@ use std::{
     sync::Arc,
 };
 
+use block::Block;
 use crossbeam_channel::{Receiver, Sender};
 use futures::future::try_join_all;
+use log::error;
 use rand::{distributions::Alphanumeric, thread_rng, Rng, RngCore};
 use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use tokio::net::UdpSocket;
+use vrrb_core::txn::Txn;
+
 
 /// Maximum over-the-wire size of a Transaction
 ///   1280 is IPv6 minimum MTU
@@ -32,6 +36,9 @@ const PACKET_SNO: usize = 4;
 
 const FLAGS: usize = 1;
 
+///Index at which actual payload starts.
+const DECODER_DATA_INDEX: usize = 40;
+
 ///How many packets to recieve from socket in single system call
 pub(crate) const NUM_RCVMMSGS: usize = 32;
 
@@ -40,6 +47,14 @@ pub(crate) const NUM_RCVMMSGS: usize = 32;
 ///   True payload size ,or the size of single packet that will be written to or
 /// read from socket
 const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 - 8;
+
+
+/// Below is the type that shall be used to broadcast RaptorQ Data
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RaptorBroadCastedData {
+    Txn(Txn),
+    Block(Block),
+}
 
 /// It takes a batch id, a sequence number, and a payload, and returns a packet
 ///
@@ -51,7 +66,7 @@ const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 -
 /// Returns:
 ///
 /// A vector of bytes
-pub fn create_packet(batch_id: [u8; BATCH_ID_SIZE], payload: Vec<u8>) -> Vec<u8> {
+pub fn create_packet(symbol_size: u16, batch_id: [u8; BATCH_ID_SIZE], payload: Vec<u8>) -> Vec<u8> {
     let mut mtu: Vec<u8> = vec![];
 
     // empty byte for raptor coding length
@@ -62,13 +77,15 @@ pub fn create_packet(batch_id: [u8; BATCH_ID_SIZE], payload: Vec<u8>) -> Vec<u8>
     mtu.push(1_u8);
 
     //Size of Payload
-    mtu.extend(payload.len().to_ne_bytes());
+
+    mtu.extend((payload.len() as u32).to_le_bytes());
+
+    mtu.extend(symbol_size.to_le_bytes());
 
     for id in batch_id {
         mtu.push(id);
     }
     mtu.extend_from_slice(&payload);
-
     mtu
 }
 
@@ -89,8 +106,8 @@ pub fn split_into_packets(
     let packet_holder = encode_into_packets(full_list, erasure_count);
 
     let mut headered_packets: Vec<Vec<u8>> = vec![];
-    for (_, ep) in packet_holder.into_iter().enumerate() {
-        headered_packets.push(create_packet(batch_id, ep))
+    for (_, ep) in packet_holder.1.into_iter().enumerate() {
+        headered_packets.push(create_packet(packet_holder.0, batch_id, ep))
     }
     telemetry::debug!("Packets len {:?}", headered_packets.len());
     headered_packets
@@ -109,14 +126,19 @@ pub fn split_into_packets(
 /// Returns:
 ///
 /// A vector of vectors of bytes.
-pub fn encode_into_packets(unencoded_packet_list: &[u8], erasure_count: u32) -> Vec<Vec<u8>> {
+pub fn encode_into_packets(
+    unencoded_packet_list: &[u8],
+    erasure_count: u32,
+) -> (u16, Vec<Vec<u8>>) {
     let encoder = Encoder::with_defaults(unencoded_packet_list, (PAYLOAD_SIZE) as u16);
+    println!("encoder :{:?}", encoder.get_config().symbol_size());
+
     let packets: Vec<Vec<u8>> = encoder
         .get_encoded_packets(erasure_count)
         .iter()
         .map(|packet| packet.serialize())
         .collect();
-    packets
+    (encoder.get_config().symbol_size(), packets)
 }
 
 /// It takes a packet and returns the batch id
@@ -135,7 +157,7 @@ pub fn encode_into_packets(unencoded_packet_list: &[u8], erasure_count: u32) -> 
 pub fn get_batch_id(packet: &[u8; 1280]) -> [u8; BATCH_ID_SIZE] {
     let mut batch_id: [u8; BATCH_ID_SIZE] = [0; BATCH_ID_SIZE];
     let mut chunk_no: usize = 0;
-    for i in 6..(BATCH_ID_SIZE + 3) {
+    for i in 10..(BATCH_ID_SIZE + 10) {
         batch_id[chunk_no] = packet[i];
         chunk_no += 1;
     }
@@ -155,11 +177,18 @@ pub fn get_batch_id(packet: &[u8; 1280]) -> [u8; BATCH_ID_SIZE] {
 /// Returns:
 ///
 /// The length of the payload in bytes.
-pub fn get_payload_length(packet: &[u8; 1280]) -> i32 {
+pub fn get_payload_length(packet: &[u8; 1280]) -> u32 {
     let mut payload_len_bytes: [u8; 4] = [0; 4];
 
     payload_len_bytes[..4].copy_from_slice(&packet[2..6]);
-    i32::from_ne_bytes(payload_len_bytes)
+    u32::from_le_bytes(payload_len_bytes)
+}
+
+
+pub fn get_symbol_size(packet: &[u8; 1280]) -> u16 {
+    let mut symbol_size_bytes: [u8; 2] = [0; 2];
+    symbol_size_bytes[..2].copy_from_slice(&packet[6..8]);
+    u16::from_le_bytes(symbol_size_bytes)
 }
 
 /// > Generate a random 32 byte batch id
@@ -254,7 +283,7 @@ pub fn reassemble_packets(
     batch_id_hashset: &mut HashSet<[u8; BATCH_ID_SIZE]>,
     decoder_hash: &mut HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)>,
     forwarder: Sender<Vec<u8>>,
-    batch_send: Sender<(String, Vec<u8>)>,
+    batch_send: Sender<RaptorBroadCastedData>,
 ) {
     loop {
         let mut received_packet = match receiver.recv() {
@@ -265,17 +294,20 @@ pub fn reassemble_packets(
         };
 
         let batch_id = get_batch_id(&received_packet.0);
+
         if batch_id_hashset.contains(&batch_id) {
             continue;
         }
         let payload_length = get_payload_length(&received_packet.0);
+        let symbol_size = get_symbol_size(&received_packet.0);
         // This is to check if the packet is a forwarder packet. If it is, it forwards
         // the packet to the `forwarder` channel. Since packet is shared across
         // nodes with forward flag as 1
         if let Some(forward_flag) = received_packet.0.get_mut(1) {
             if *forward_flag == 1 {
                 *forward_flag = 0;
-                let _ = forwarder.try_send(received_packet.0[0..received_packet.1].to_vec());
+                let _ = forwarder
+                    .try_send(received_packet.0[DECODER_DATA_INDEX..received_packet.1].to_vec());
             }
         }
 
@@ -284,15 +316,25 @@ pub fn reassemble_packets(
                 *num_packets += 1;
                 // Decoding the packet.
                 let result = decoder.decode(EncodingPacket::deserialize(
-                    &received_packet.0[38_usize..received_packet.1],
+                    &received_packet.0[40_usize..received_packet.1],
                 ));
                 if result.is_some() {}
                 if let Some(result_bytes) = result {
                     batch_id_hashset.insert(batch_id);
                     if let Ok(batch_id_str) = str::from_utf8(&batch_id) {
                         let batch_id_str = String::from(batch_id_str);
-                        let msg = (batch_id_str, result_bytes);
-                        let _ = batch_send.send(msg);
+                        let mut msg = (batch_id_str, result_bytes);
+                        if let Ok(data) = String::from_utf8(msg.1.clone()) {
+                            let data = data.trim_end_matches('\0').to_string().replace("\\", "");
+                            match serde_json::from_str::<RaptorBroadCastedData>(&data) {
+                                Ok(data) => {
+                                    let _ = batch_send.send(data);
+                                },
+                                Err(e) => {
+                                    error!("Error occured while unmarshalling  :{:?}", e.to_string());
+                                },
+                            }
+                        }
                         decoder_hash.remove(&batch_id);
                     }
                 }
@@ -305,7 +347,7 @@ pub fn reassemble_packets(
                         1_usize,
                         Decoder::new(ObjectTransmissionInformation::new(
                             payload_length as u64,
-                            1176,
+                            symbol_size as u16,
                             1,
                             1,
                             8,
@@ -331,7 +373,7 @@ pub fn reassemble_packets(
 //#[cfg(not(target_os = "linux"))]
 pub async fn recv_mmsg(
     socket: &UdpSocket,
-    packets: &mut [[u8; 1280]; NUM_RCVMMSGS],
+    packets: &mut [[u8; 1280]],
 ) -> Result<Vec<(usize, usize, SocketAddr)>> {
     let mut received = Vec::new();
     let count = std::cmp::min(NUM_RCVMMSGS, packets.len());
@@ -379,6 +421,7 @@ pub async fn packet_forwarder(
             let nodes = nodes_ips_except_self.clone();
             match forwarder_channel_receive.recv() {
                 Ok(packet) => {
+                    println!("Received Forwarded packet ");
                     let mut broadcast_futures: Vec<_> = vec![];
                     for addr in nodes {
                         let pack = packet.clone();
