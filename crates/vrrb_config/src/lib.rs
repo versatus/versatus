@@ -103,6 +103,7 @@ mod tests {
             .node_type(NodeType::Full)
             .bootstrap_node_addresses(vec![addr])
             .keypair(keypair)
+            .bootstrap_config(None)
             .build()
             .unwrap();
     }

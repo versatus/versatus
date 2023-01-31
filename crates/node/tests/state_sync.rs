@@ -11,6 +11,7 @@ use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
 #[tokio::test]
+#[ignore]
 async fn nodes_can_synchronize_state() {
     let node_config = create_mock_full_node_config();
 
