@@ -331,7 +331,10 @@ pub fn reassemble_packets(
                                     let _ = batch_send.send(data);
                                 },
                                 Err(e) => {
-                                    error!("Error occured while unmarshalling  :{:?}", e.to_string());
+                                    error!(
+                                        "Error occured while unmarshalling  :{:?}",
+                                        e.to_string()
+                                    );
                                 },
                             }
                         }

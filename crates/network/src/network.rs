@@ -1,15 +1,14 @@
 use std::{
     borrow::BorrowMut,
     collections::{HashMap, HashSet},
-    net::{Ipv6Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
-use std::net::{IpAddr, Ipv4Addr};
 
 use bytes::Bytes;
-use crossbeam_channel::{Sender, unbounded};
+use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
 use qp2p::{
     Config,
@@ -22,8 +21,8 @@ use qp2p::{
 };
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use tokio::net::UdpSocket;
 use telemetry::{info, tracing};
+use tokio::net::UdpSocket;
 
 use crate::{
     message::Message,
@@ -33,13 +32,13 @@ use crate::{
         reassemble_packets,
         recv_mmsg,
         split_into_packets,
+        RaptorBroadCastedData,
         BATCH_ID_SIZE,
         MTU_SIZE,
         NUM_RCVMMSGS,
     },
     types::config::{BroadCastError, BroadCastResult},
 };
-use crate::packet::RaptorBroadCastedData;
 
 type BroadCastStatus = Result<BroadCastResult, BroadCastError>;
 
@@ -139,7 +138,6 @@ impl BroadcastEngine {
         }
         Ok(BroadCastResult::ConnectionEstablished)
     }
-
 
     pub async fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
         if let Ok(mut peers) = self.raptor_list.lock() {
@@ -256,16 +254,16 @@ impl BroadcastEngine {
 
     pub async fn unreliable_broadcast(
         &self,
-        data:Vec<u8>,
+        data: Vec<u8>,
         erasure_count: u32,
-        port:u16
+        port: u16,
     ) -> BroadCastStatus {
         println!("Broadcasting to Port {:?}", port);
         let batch_id = generate_batch_id();
         let chunks = split_into_packets(&data, batch_id, erasure_count);
         if let Ok(udp_socket) = UdpSocket::bind(SocketAddr::new(
-            std::net::IpAddr ::V4(Ipv4Addr::new(127,0,0,1)),
-            port
+            std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            port,
         ))
         .await
         {
@@ -321,13 +319,17 @@ impl BroadcastEngine {
     ///
     /// a future that resolves to a result. The result is either an error or a
     /// unit.
-    pub async fn process_received_packets(&self, port: u16, batch_sender: Sender<RaptorBroadCastedData>) -> Result<(), BroadCastError> {
-
+    pub async fn process_received_packets(
+        &self,
+        port: u16,
+        batch_sender: Sender<RaptorBroadCastedData>,
+    ) -> Result<(), BroadCastError> {
         if let Ok(sock_recv) = UdpSocket::bind(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             port,
         ))
-        .await{
+        .await
+        {
             info!("Listening on {}", port);
             let buf = [0; MTU_SIZE];
             let (reassembler_channel_send, reassembler_channel_receive) = unbounded();

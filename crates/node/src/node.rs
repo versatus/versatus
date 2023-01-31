@@ -1,6 +1,7 @@
-use std::{net::SocketAddr, path::PathBuf};
+use std::{io::Read, net::SocketAddr, path::PathBuf, thread};
 
-use network::network::BroadcastEngine;
+use crossbeam_channel::unbounded;
+use network::{message::Message, network::BroadcastEngine, packet, packet::RaptorBroadCastedData};
 use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
@@ -17,6 +18,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     event_router::{DirectedEvent, Event, EventRouter, Topic},
     keypair::KeyPair,
+    txn::Txn,
 };
 use vrrb_rpc::{
     http::HttpApiServerConfig,
@@ -27,7 +29,12 @@ use crate::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mining_module,
     result::{NodeError, Result},
-    validator_module, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
+    validator_module,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
+    StateModuleConfig,
 };
 
 const NUMBER_OF_NETWORK_PACKETS: usize = 32;
@@ -106,6 +113,63 @@ impl Node {
             events_tx.clone(),
             event_router.subscribe(&Topic::Transactions)?,
         )?;
+
+
+        info!("Testing RAPTOR Q");
+        {
+            let mut b1 = BroadcastEngine::new(config.raptorq_gossip_address.port(), 10)
+                .await
+                .unwrap();
+
+            let c = b1
+                .add_raptor_peers(vec![
+                    "127.0.0.1:5002".parse().unwrap(),
+                    "127.0.0.1:5003".parse().unwrap(),
+                    "127.0.0.1:5004".parse().unwrap(),
+                ])
+                .await;
+
+            if config.raptorq_gossip_address.port() == 5001 {
+                let d = read_file(PathBuf::from(
+                    "/Users/vinay10949/Projects/vrrb/crates/node/src/t.txt",
+                ));
+                if let Ok(data) = String::from_utf8(d) {
+                    let data = data.trim_end_matches('\0').to_string().replace("\\", "");
+                    let txn: Txn = serde_json::from_str(&data).unwrap();
+                    let data = RaptorBroadCastedData::Txn(txn);
+                    let data = serde_json::to_string(&data).unwrap();
+                    let broadcast_status = b1
+                        .unreliable_broadcast(
+                            data.as_bytes().to_vec(),
+                            3000,
+                            config.raptorq_gossip_address.port(),
+                        )
+                        .await;
+                    info!("Broadcasting Status :{:?}", broadcast_status);
+                }
+            } else {
+                let (batch_sender, batch_receiver) = unbounded::<RaptorBroadCastedData>();
+                thread::spawn(move || loop {
+                    if let Ok(data) = batch_receiver.recv() {
+                        info!("Txn Received {:?}", data);
+                    }
+                });
+                let _ = b1
+                    .process_received_packets(config.raptorq_gossip_address.port(), batch_sender)
+                    .await;
+            }
+        }
+
+        pub fn read_file(file_path: PathBuf) -> Vec<u8> {
+            let metadata = std::fs::metadata(&file_path).expect("unable to read metadata");
+            let mut buffer = vec![0; metadata.len() as usize];
+            std::fs::File::open(file_path)
+                .unwrap()
+                .read_exact(&mut buffer)
+                .expect("buffer overflow");
+            buffer
+        }
+
 
         // TODO: report error from handle
         let event_router_handle =
@@ -250,8 +314,6 @@ impl Node {
         state_handle_factory: NodeStateReadHandle,
         // ) -> Result<(JoinHandle<()>, SocketAddr)> {
     ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
-
         let mut broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
             events_tx: events_tx.clone(),
             state_handle_factory,
