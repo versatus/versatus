@@ -1,8 +1,10 @@
 pub mod components;
 pub mod node_state;
+pub mod object_store;
 pub mod result;
 pub mod state;
 pub mod types;
+
 
 mod backing_db;
 
