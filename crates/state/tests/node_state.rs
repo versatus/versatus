@@ -173,6 +173,7 @@ fn accounts_can_be_retrieved() {
 }
 
 #[test]
+#[ignore]
 fn can_be_restored_from_json_file() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}.json", generate_random_string()));

@@ -4,9 +4,13 @@ use clap::{Parser, Subcommand};
 use hbbft::crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey};
 use node::Node;
 use secp256k1::{rand, Secp256k1};
+use telemetry::{error, info};
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::Event;
+use vrrb_core::{
+    event_router::Event,
+    keypair::{self, read_keypair_file, write_keypair_file, Keypair},
+};
 
 use crate::result::{CliError, Result};
 
@@ -109,6 +113,22 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let mut rng = rand::thread_rng();
     let (secret_key, pubkey) = secp.generate_keypair(&mut rng);
 
+    let keypair_file_path = PathBuf::from(&data_dir).join("keypair");
+
+    let keypair = match read_keypair_file(&keypair_file_path) {
+        Ok(keypair) => keypair,
+        Err(err) => {
+            error!("Failed to read keypair file: {}", err);
+            info!("Generating new keypair");
+            let keypair = Keypair::random();
+
+            write_keypair_file(&keypair, &keypair_file_path)
+                .map_err(|err| CliError::Other(format!("Failed to write keypair file: {}", err)))?;
+
+            keypair
+        },
+    };
+
     let node_config = NodeConfig {
         id,
         idx,
@@ -125,6 +145,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
         jsonrpc_server_address: http_api_address,
         preload_mock_state: false,
         bootstrap_config: None,
+        keypair,
     };
 
     if args.dettached {
@@ -144,7 +165,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 
     let node_type = vrrb_node.node_type();
 
-    telemetry::info!("running {node_type:?} node in blocking mode");
+    info!("running {node_type:?} node in blocking mode");
 
     let node_handle = tokio::spawn(async move {
         // NOTE: starts the main node service
@@ -163,12 +184,14 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
         .await
         .map_err(|_| CliError::Other(String::from("failed to join node task handle")))?;
 
+    info!("node stopped");
+
     Ok(())
 }
 
 #[telemetry::instrument]
 async fn run_dettached(node_config: NodeConfig) -> Result<()> {
-    telemetry::info!("running node in dettached mode");
+    info!("running node in dettached mode");
     // start child process, run node within it
     Ok(())
 }

@@ -8,7 +8,8 @@
 set -e
 
 # Formats the code for consistency
-echo '+cargo +nightly fmt --all'
-cargo +nightly fmt --all 
+echo 'Formatting...'
+# cargo +nightly fmt --all 
+cargo +nightly clippy --fix --allow-dirty --allow-staged -- -D clippy::all
 
 

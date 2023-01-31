@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derive_builder = "0.12.0"
-primitives = { path = "../primitives" }
-hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-rand = "0.8.5"
-secp256k1 = { version = "0.24.0", features = ["global-context", "rand"] }
+derive_builder = { workspace = true }
+primitives = { workspace = true }
+hbbft = { workspace = true }
+rand = { workspace = true }
+vrrb_core = { workspace = true }
+secp256k1 = { workspace = true }
