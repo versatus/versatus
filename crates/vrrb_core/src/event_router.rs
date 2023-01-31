@@ -67,6 +67,7 @@ pub enum Event {
     // SendState(String, u128),
     // SendMessage(SocketAddr, Message),
     // GetBalance(u32),
+    GetAccount(String),
     // SendGenesis(String),
     // SendStateComponents(String, Vec<u8>, String),
     // GetStateComponents(String, Vec<u8>, String),

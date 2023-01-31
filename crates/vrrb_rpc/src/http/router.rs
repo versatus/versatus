@@ -16,6 +16,8 @@ pub fn create_router(config: &HttpApiRouterConfig) -> Router {
         .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()))
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use std::net::SocketAddr;
