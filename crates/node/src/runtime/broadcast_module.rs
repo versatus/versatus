@@ -24,7 +24,7 @@ use vrrb_core::event_router::{DirectedEvent, Event};
 
 use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
 
-const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10;
+const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10000;
 
 pub struct BroadcastModuleConfig {
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
@@ -37,7 +37,6 @@ pub struct BroadcastModuleConfig {
 
 // TODO: rename to GossipNetworkModule
 pub struct BroadcastModule {
-    // engine: BroadcastEngine,
     running_status: RuntimeModuleState,
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     state_handle_factory: NodeStateReadHandle,
@@ -48,25 +47,21 @@ pub struct BroadcastModule {
 
 impl BroadcastModule {
     pub async fn new(config: BroadcastModuleConfig) -> Result<Self> {
-        let mut broadcast_engine = BroadcastEngine::new(
-            config.udp_gossip_address_port,
-            config.raptorq_gossip_address_port,
-            32,
-        )
-        .await
-        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {}", err)))?;
+        let mut broadcast_engine = BroadcastEngine::new(config.udp_gossip_address_port, 32)
+            .await
+            .map_err(|err| {
+                NodeError::Other(format!("unable to setup broadcast engine: {}", err))
+            })?;
 
         let addr = broadcast_engine.local_addr();
 
-        let (tx, controller_rx) =
-            tokio::sync::mpsc::channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
+        let (tx, controller_rx) = channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
 
         let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
 
         // NOTE: starts the listening loop
         let broadcast_handle = tokio::spawn(async move {
             let tx = tx.clone();
-
             bcast_controller.listen(tx).await
         });
 
@@ -125,7 +120,10 @@ impl BroadcastModule {
             // Event::PeerRequestedStateSync(_) => {
             //     // do something
             // },
-            Event::NoOp => {},
+            Event::NoOp => {
+
+            },
+
             _ => telemetry::warn!("unrecognized command received: {:?}", event),
         }
     }
@@ -189,7 +187,6 @@ impl RuntimeModule for BroadcastModule {
                 if !self.broadcast_handle.is_finished() {
                     self.broadcast_handle.abort();
                 }
-
                 break;
             }
 
@@ -213,7 +210,6 @@ impl BroadcastEngineController {
         let addr = engine.local_addr();
         Self { engine, addr }
     }
-
 
     pub async fn listen(&mut self, tx: Sender<Event>) -> Result<()> {
         let listener = self.engine.get_incomming_connections();
