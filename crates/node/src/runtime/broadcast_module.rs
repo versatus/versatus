@@ -120,9 +120,7 @@ impl BroadcastModule {
             // Event::PeerRequestedStateSync(_) => {
             //     // do something
             // },
-            Event::NoOp => {
-
-            },
+            Event::NoOp => {},
 
             _ => telemetry::warn!("unrecognized command received: {:?}", event),
         }

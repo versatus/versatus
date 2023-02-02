@@ -8,8 +8,9 @@ use std::{
     collections::{BTreeSet, HashMap, HashSet},
     error::Error,
     fmt,
+    mem,
     ptr::addr_of,
-    time::{SystemTime, UNIX_EPOCH}, mem,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use block::{

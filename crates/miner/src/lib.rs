@@ -15,7 +15,7 @@ pub mod v2 {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, str::FromStr, mem};
+    use std::{collections::HashMap, mem, str::FromStr};
 
     use block::{header::BlockHeader, Block, ConvergenceBlock};
     use bulldag::{graph::BullDag, vertex::Vertex};
@@ -93,9 +93,13 @@ mod tests {
             let round = gblock.header.round.clone() + 1;
             let epoch = gblock.header.epoch.clone();
 
-            let prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch).unwrap().clone();
+            let prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch)
+                .unwrap()
+                .clone();
 
-            let prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch).unwrap().clone();
+            let prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch)
+                .unwrap()
+                .clone();
 
             let proposals = vec![prop1.clone(), prop2.clone()];
 
@@ -169,9 +173,13 @@ mod tests {
             let round = gblock.header.round + 1;
             let epoch = gblock.header.epoch;
 
-            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch).unwrap().clone();
+            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch)
+                .unwrap()
+                .clone();
 
-            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch).unwrap().clone();
+            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch)
+                .unwrap()
+                .clone();
 
             let txns: HashMap<String, Txn> = create_txns(5).collect();
             prop1.txns.extend(txns.clone());
@@ -286,9 +294,13 @@ mod tests {
             let round = gblock.header.round.clone() + 1;
             let epoch = gblock.header.epoch.clone();
 
-            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch).unwrap().clone();
+            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch)
+                .unwrap()
+                .clone();
 
-            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch).unwrap().clone();
+            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch)
+                .unwrap()
+                .clone();
 
             let txns: HashMap<String, Txn> = create_txns(5).collect();
             prop1.txns.extend(txns.clone());
@@ -338,7 +350,9 @@ mod tests {
 
             chain.extend_from_edges(edges);
 
-            let mut prop3 = build_proposal_block(&ref_hash, 20, 10, round, epoch).unwrap().clone();
+            let mut prop3 = build_proposal_block(&ref_hash, 20, 10, round, epoch)
+                .unwrap()
+                .clone();
 
             prop3.txns.extend(txns.clone());
 
@@ -482,7 +496,9 @@ mod tests {
 
         let mut chain: BullDag<Block, String> = BullDag::new();
 
-        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0).unwrap().clone();
+        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0)
+            .unwrap()
+            .clone();
 
         let cb1vtx = Vertex::new(Block::Convergence { block: cb1.clone() }, cb1.hash.clone());
 
@@ -594,7 +610,9 @@ mod tests {
 
         let mut chain: BullDag<Block, String> = BullDag::new();
 
-        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0).unwrap().clone();
+        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0)
+            .unwrap()
+            .clone();
         let cb1vtx = Vertex::new(Block::Convergence { block: cb1.clone() }, cb1.hash.clone());
 
         let p1vtx = Vertex::new(
@@ -623,7 +641,15 @@ mod tests {
 pub(crate) mod test_helpers {
     use std::mem;
 
-    use block::{Block, ConvergenceBlock, GenesisBlock, ProposalBlock, EPOCH_BLOCK, invalid::InvalidBlockErrorReason, TxnList};
+    use block::{
+        invalid::InvalidBlockErrorReason,
+        Block,
+        ConvergenceBlock,
+        GenesisBlock,
+        ProposalBlock,
+        TxnList,
+        EPOCH_BLOCK,
+    };
     use bulldag::graph::BullDag;
     use primitives::{
         types::{PublicKey, SecretKey},
@@ -709,7 +735,7 @@ pub(crate) mod test_helpers {
                 txn.sign(&sk);
 
                 let txn_hash = hash_data!(&txn);
-                
+
                 (txn_hash, txn)
             })
             .into_iter()
@@ -733,7 +759,6 @@ pub(crate) mod test_helpers {
         round: u128,
         epoch: u128,
     ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
-        
         let (sk, pk) = create_keypair();
         let txns: TxnList = create_txns(n_tx).collect();
 
@@ -745,7 +770,8 @@ pub(crate) mod test_helpers {
 
         let miner = create_miner();
 
-        let prop_block = miner.build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims, nonce);
+        let prop_block =
+            miner.build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims, nonce);
 
         let mut total_txns_size = 0;
         for (_, txn) in txns.iter() {

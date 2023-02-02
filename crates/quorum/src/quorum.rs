@@ -55,7 +55,10 @@ impl Election for Quorum {
         if !Quorum::check_payload_validity(payload.1, payload.0) {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
-        let mut vvrf = VVRF::new((payload.2).as_bytes(), &kp.miner_kp.0.secret_bytes().to_vec());
+        let mut vvrf = VVRF::new(
+            (payload.2).as_bytes(),
+            &kp.miner_kp.0.secret_bytes().to_vec(),
+        );
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
             return Err(InvalidQuorum::InvalidSeedError());
