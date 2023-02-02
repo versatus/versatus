@@ -38,8 +38,6 @@ use crate::{
     StateModuleConfig,
 };
 
-const NUMBER_OF_NETWORK_PACKETS: usize = 32;
-
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
 #[derive(Debug)]
