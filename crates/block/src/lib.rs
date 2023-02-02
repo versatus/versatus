@@ -9,5 +9,10 @@ pub mod vesting;
 mod types;
 
 pub use crate::{
-    block::*, convergence_block::*, genesis::*, proposal_block::*, types::*, vesting::*,
+    block::*,
+    convergence_block::*,
+    genesis::*,
+    proposal_block::*,
+    types::*,
+    vesting::*,
 };

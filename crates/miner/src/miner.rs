@@ -13,9 +13,21 @@ use std::{
 };
 
 use block::{
-    block::Block, header::BlockHeader, invalid::InvalidBlockErrorReason, ClaimHash, ClaimList,
-    Conflict, ConflictList, ConsolidatedClaims, ConsolidatedTxns, ConvergenceBlock, GenesisBlock,
-    ProposalBlock, RefHash, TxnId, TxnList,
+    block::Block,
+    header::BlockHeader,
+    invalid::InvalidBlockErrorReason,
+    ClaimHash,
+    ClaimList,
+    Conflict,
+    ConflictList,
+    ConsolidatedClaims,
+    ConsolidatedTxns,
+    ConvergenceBlock,
+    GenesisBlock,
+    ProposalBlock,
+    RefHash,
+    TxnId,
+    TxnList,
 };
 use bulldag::{
     graph::BullDag,

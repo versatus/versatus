@@ -3,21 +3,18 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
     str::FromStr,
-    sync::{Arc, Mutex},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
-use bytebuffer::ByteBuffer;
 use primitives::{
     types::{PublicKey, SerializedPublicKey},
-    ByteSlice, ByteVec, SecretKey,
+    ByteSlice,
+    ByteVec,
+    SecretKey,
 };
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use sha256::digest;
 use utils::{create_payload, hash_data, timestamp};
-use uuid::Uuid;
 
 /// This module contains the basic structure of simple transaction
 use crate::{
