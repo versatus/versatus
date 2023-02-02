@@ -20,13 +20,9 @@ telemetry = { workspace = true }
 cli = { workspace = true }
 anyhow = { workspace = true }
 
-# [dev-dependencies.cargo-husky]
-# version = "1"
-# features = ["user-hooks"]
-
 [package.metadata.cargo-udeps.ignore]
-normal = ["cargo-husky"]
-development = ["cargo-husky"]
+normal = ["rusty-hook"]
+development = ["rusty-hook"]
 
 [workspace]
 members = [

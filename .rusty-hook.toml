@@ -1,6 +1,5 @@
 [hooks]
-pre-commit = "cargo +nightly fmt --all -- --check"
-post-commit = "echo formatted all files"
+pre-commit = "sh ./infra/scripts/pre-commit.sh"
 pre-push = "cargo t --all"
 
 [logging]
