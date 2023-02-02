@@ -119,6 +119,7 @@ impl Node {
         // TODO: report error from handle
         let event_router_handle =
             tokio::spawn(async move { event_router.start(&mut events_rx).await });
+
         Ok(Self {
             config,
             event_router_handle,
@@ -258,7 +259,11 @@ impl Node {
         mut network_events_rx: Receiver<Event>,
         mut controller_events_rx: Receiver<Event>,
         state_handle_factory: NodeStateReadHandle,
-    ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+    ) -> Result<(
+        Option<JoinHandle<Result<()>>>,
+        Option<JoinHandle<Result<()>>>,
+        SocketAddr,
+    )> {
         let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
             events_tx: events_tx.clone(),
             state_handle_factory,
@@ -298,7 +303,11 @@ impl Node {
                 .map_err(|err| NodeError::Other(err.to_string()))
         });
 
-        Ok((Some(broadcast_handle), addr))
+        Ok((
+            Some(broadcast_handle),
+            Some(broadcast_controller_handle),
+            addr,
+        ))
     }
 
     async fn setup_state_store(
