@@ -8,7 +8,7 @@ use poem::http::status;
 use tokio::sync::mpsc::unbounded_channel;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::Event;
+use vrrb_core::{event_router::Event, keypair::Keypair};
 
 #[tokio::test]
 async fn node_runtime_starts_and_stops() {
@@ -44,7 +44,9 @@ async fn node_runtime_starts_and_stops() {
         http_api_version: "1.0".into(),
         http_api_shutdown_timeout: None,
         bootstrap_config: None,
+        keypair: Keypair::random(),
     };
+
     let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
     let mut vrrb_node = Node::start(&node_config, ctrl_rx).await.unwrap();
 
