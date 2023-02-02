@@ -27,7 +27,12 @@ use crate::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mining_module,
     result::{NodeError, Result},
-    validator_module, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
+    validator_module,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
+    StateModuleConfig,
 };
 
 const NUMBER_OF_NETWORK_PACKETS: usize = 32;

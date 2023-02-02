@@ -1,7 +1,8 @@
-use crate::StateError;
 use patriecia::db::Database;
 use primitives::DEFAULT_VRRB_DATA_DIR_PATH;
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
+
+use crate::StateError;
 
 #[derive(Debug)]
 pub struct StateBackingDatabase {

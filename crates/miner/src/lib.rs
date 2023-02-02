@@ -24,7 +24,8 @@ mod tests {
     use ritelinked::{LinkedHashMap, LinkedHashSet};
     use secp256k1::{
         hashes::{sha256 as s256, Hash},
-        rand, Message,
+        rand,
+        Message,
     };
     use sha256::digest;
     use utils::{create_payload, hash_data};
@@ -36,10 +37,17 @@ mod tests {
     use super::test_helpers::create_txns;
     use crate::{
         test_helpers::{
-            build_proposal_block, create_claim, create_keypair, create_miner,
-            mine_convergence_block, mine_convergence_block_epoch_change, mine_genesis,
+            build_proposal_block,
+            create_claim,
+            create_keypair,
+            create_miner,
+            mine_convergence_block,
+            mine_convergence_block_epoch_change,
+            mine_genesis,
         },
-        MineArgs, Miner, MinerConfig,
+        MineArgs,
+        Miner,
+        MinerConfig,
     };
 
     #[test]

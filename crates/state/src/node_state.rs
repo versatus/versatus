@@ -7,7 +7,13 @@ use lrdb::{StateDb, StateDbReadHandleFactory, TxnDb};
 use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory, PoolType};
 use patriecia::{db::MemoryDB, inner::InnerTrie, trie::Trie};
 use primitives::{
-    node, ByteSlice, ByteVec, PublicKey, SerializedPublicKey, SerializedPublicKeyString, TxHash,
+    node,
+    ByteSlice,
+    ByteVec,
+    PublicKey,
+    SerializedPublicKey,
+    SerializedPublicKeyString,
+    TxHash,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
