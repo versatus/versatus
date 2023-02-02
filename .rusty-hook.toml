@@ -1,0 +1,7 @@
+[hooks]
+pre-commit = "cargo +nightly fmt --all -- --check"
+post-commit = "echo formatted all files"
+pre-push = "cargo t --all"
+
+[logging]
+verbose = true
