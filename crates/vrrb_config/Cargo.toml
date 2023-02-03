@@ -12,3 +12,5 @@ hbbft = { workspace = true }
 rand = { workspace = true }
 vrrb_core = { workspace = true }
 secp256k1 = { workspace = true }
+config = { workspace = true }
+serde = { workspace = true }

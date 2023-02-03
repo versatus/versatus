@@ -20,6 +20,10 @@ pub struct RunOpts {
     #[clap(short, long, action)]
     pub dettached: bool,
 
+    ///Shows debugging config information
+    #[clap(long, action, default_value = "false")]
+    pub debug_config: bool,
+
     #[clap(short, long, value_parser)]
     pub id: primitives::NodeId,
 
@@ -58,10 +62,6 @@ pub struct RunOpts {
     /// API version shown in swagger docs
     #[clap(long, value_parser)]
     pub http_api_version: String,
-    //
-    // /// API shutdown timeout
-    // #[clap(long)]
-    // pub http_api_shutdown_timeout: Option<Duration>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -69,12 +69,19 @@ pub enum NodeCmd {
     /// Run a node with the provided configuration
     Run(RunOpts),
 
+    /// Prints currrent node configuration
+    Info,
+
     /// Stops any currently running node if any
     Stop,
 }
 
 #[derive(Parser, Debug)]
 pub struct NodeOpts {
+    /// Sets a custom config file
+    #[clap(short, long, value_parser, value_name = "FILE")]
+    pub config: Option<PathBuf>,
+
     #[clap(subcommand)]
     pub subcommand: NodeCmd,
 }
@@ -83,29 +90,53 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
     let sub_cmd = args.subcommand;
 
     match sub_cmd {
-        NodeCmd::Run(opts) => run(opts).await,
+        NodeCmd::Run(opts) => run(opts, args.config).await,
+        NodeCmd::Info => {
+            if let Some(config_file_path) = args.config {
+                let node_config = read_node_config_from_file(config_file_path)?;
+
+                dbg!(node_config);
+            }
+
+            Ok(())
+        },
         _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
     }
 }
 
+pub fn read_node_config_from_file(config_file_path: PathBuf) -> Result<NodeConfig> {
+    let path_str = config_file_path.to_str().unwrap_or_default();
+
+    let node_config = NodeConfig::from_file(path_str)
+        .map_err(|err| CliError::Other(format!("Failed to read config file: {}", err)))?;
+
+    Ok(node_config)
+}
+
 /// Configures and runs a VRRB Node
-pub async fn run(args: RunOpts) -> Result<()> {
+pub async fn run(args: RunOpts, config_file_path: Option<PathBuf>) -> Result<()> {
+    let mut base_node_config = NodeConfig::default();
+
+    if let Some(config_file_path) = config_file_path {
+        base_node_config = read_node_config_from_file(config_file_path)?;
+    }
+
     // TODO: get these from proper config
     let id = Uuid::new_v4().to_simple().to_string();
-    let idx = args.idx;
-    let node_type = args.node_type.parse()?;
+    // let idx = args.idx;
+    // let node_type = args.node_type.parse()?;
     let data_dir = storage::get_node_data_dir()?;
-    let db_path = args.db_path;
-    let bootstrap = args.bootstrap;
-    let bootstrap_node_addresses = args.bootstrap_node_addresses;
+    // let db_path = args.db_path;
+    // let bootstrap = args.bootstrap;
+    // let bootstrap_node_addresses = args.bootstrap_node_addresses;
 
-    let udp_gossip_address = args.udp_gossip_address;
-    let raptorq_gossip_address = args.raptorq_gossip_address;
+    // let udp_gossip_address = args.udp_gossip_address;
+    // let raptorq_gossip_address = args.raptorq_gossip_address;
 
-    let http_api_address = args.http_api_address;
+    // let http_api_address = args.http_api_address;
 
-    let http_api_title = args.http_api_title;
-    let http_api_version = args.http_api_version;
+    // let http_api_title = args.http_api_title;
+    // let http_api_version = args.http_api_version;
     let http_api_shutdown_timeout = Some(Duration::from_secs(5));
 
     // TODO: refactor key reads
@@ -131,22 +162,15 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
     let node_config = NodeConfig {
         id,
-        idx,
         data_dir,
-        node_type,
-        db_path,
-        bootstrap_node_addresses,
-        http_api_address,
-        http_api_title,
-        http_api_version,
-        http_api_shutdown_timeout,
-        raptorq_gossip_address,
-        udp_gossip_address,
-        jsonrpc_server_address: http_api_address,
-        preload_mock_state: false,
-        bootstrap_config: None,
         keypair,
+        http_api_shutdown_timeout,
+        ..base_node_config
     };
+
+    if args.debug_config {
+        dbg!(&node_config);
+    }
 
     if args.dettached {
         run_dettached(node_config).await

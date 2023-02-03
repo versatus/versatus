@@ -1,9 +1,10 @@
 use clap::Parser;
 
 mod cli;
+pub mod result;
+
 pub(crate) use crate::cli::*;
 pub(crate) mod commands;
-pub mod result;
 
 #[telemetry::instrument]
 pub async fn run() -> anyhow::Result<()> {

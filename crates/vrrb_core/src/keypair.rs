@@ -12,6 +12,8 @@ use hbbft::crypto::{
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
+use serde::Deserialize;
+use thiserror::Error;
 
 pub type MinerSk = secp256k1::SecretKey;
 pub type MinerPk = secp256k1::PublicKey;
@@ -19,8 +21,8 @@ pub type MinerPk = secp256k1::PublicKey;
 pub type SecretKeys = (MinerSk, Validator_Sk);
 pub type PublicKeys = (MinerPk, Validator_Pk);
 
-use thiserror::Error;
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
     pub validator_kp: (Validator_Sk, Validator_Pk),

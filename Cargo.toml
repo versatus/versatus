@@ -97,12 +97,12 @@ theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 
-# NOTE: External crates
 secp256k1 = { version = "0.25.0", features = [
     "rand",
+    "serde",
     "bitcoin_hashes",
     "global-context",
-] }
+] } # NOTE: External crates
 sha256 = "1.1.1"
 rand = { version = "0.8.5", features = ["std"] }
 bytebuffer = "0.2.1"
@@ -138,6 +138,7 @@ lru_time_cache = "0.11.11"
 rocksdb = "0.19.0"
 rayon = "1.6.1"
 rusty-hook = "0.11.2"
+config = "0.13.3"
 
 [dev-dependencies]
 reqwest.workspace = true
