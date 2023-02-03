@@ -1,7 +1,7 @@
 use std::{hash::Hash, net::SocketAddr, path::PathBuf};
 
 use async_trait::async_trait;
-use kademlia_dht::{Key, Node, NodeData};
+use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
@@ -26,7 +26,7 @@ pub struct BootStrapNodeDetails {
 
 #[derive(Clone)]
 pub struct SwarmModule {
-    pub node: Node,
+    pub node: KademliaNode,
     is_bootstrap_node: bool,
     refresh_interval: Option<u64>,
     ping_interval: Option<u64>,
@@ -59,14 +59,14 @@ impl SwarmModule {
                 key,
             );
             is_bootstrap_node = true;
-            Node::new(
+            KademliaNode::new(
                 "127.0.0.1",
                 config.port.to_string().as_str(),
                 Some(bootstrap_node_data),
             )
         } else {
             //boostrap Node creation
-            Node::new("127.0.0.1", config.port.to_string().as_str(), None)
+            KademliaNode::new("127.0.0.1", config.port.to_string().as_str(), None)
         };
         Self {
             node,
@@ -185,6 +185,7 @@ mod tests {
             None,
             events_tx,
         );
+
         let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
         let (ctrl_boot_strap_tx, mut ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
@@ -193,6 +194,7 @@ mod tests {
 
         let (events_node_tx, events_node_rx) =
             tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+
         let mut swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 port: 6062,
@@ -259,6 +261,7 @@ mod tests {
             None,
             events_node_tx,
         );
+
         let current_node_id = swarm_module.node.node_data().id.clone();
         let mut swarm_module = ActorImpl::new(swarm_module);
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
@@ -275,6 +278,7 @@ mod tests {
             addr: "127.0.0.1:6069".to_string(),
             id: current_node_id,
         });
+
         assert!(s.is_some());
         ctrl_tx.send(Event::Stop).unwrap();
         handle.await.unwrap();
