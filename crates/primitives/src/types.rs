@@ -136,3 +136,4 @@ pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 pub const NUMBER_OF_NETWORK_PACKETS: usize = 32;
 pub const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";
+pub const DEFAULT_VRRB_DB_PATH: &str = ".vrrb/node/node.db";

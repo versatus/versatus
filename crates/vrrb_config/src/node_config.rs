@@ -5,10 +5,10 @@ use std::{
     time::Duration,
 };
 
-use config::{Config, ConfigError, File};
 use derive_builder::Builder;
 use primitives::{NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
+use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
 use crate::bootstrap::BootstrapConfig;
@@ -70,14 +70,6 @@ pub struct NodeConfig {
 }
 
 impl NodeConfig {
-    pub fn from_file(config_path: &str) -> Result<Self, ConfigError> {
-        let s = Config::builder()
-            .add_source(File::with_name(config_path))
-            .build()?;
-
-        Ok(s.try_deserialize().unwrap_or_default())
-    }
-
     pub fn db_path(&self) -> &PathBuf {
         // TODO: refactor to Option and check if present and return configured db path
         // or default path within vrrb's data dir
@@ -87,7 +79,39 @@ impl NodeConfig {
     pub fn data_dir(&self) -> &PathBuf {
         &self.data_dir
     }
+
+    pub fn merge(&self, other: NodeConfig) -> Self {
+        dbg!(&other.id, &self.id);
+
+        let id = if other.id.is_empty() {
+            self.id.clone()
+        } else {
+            other.id
+        };
+
+
+        Self {
+            id,
+            idx: self.idx,
+            data_dir: self.data_dir.clone(),
+            db_path: self.db_path.clone(),
+            raptorq_gossip_address: self.raptorq_gossip_address,
+            udp_gossip_address: self.udp_gossip_address,
+            node_type: self.node_type,
+            bootstrap_node_addresses: self.bootstrap_node_addresses.clone(),
+            http_api_address: self.http_api_address,
+            http_api_title: self.http_api_title.clone(),
+            http_api_version: self.http_api_version.clone(),
+            http_api_shutdown_timeout: self.http_api_shutdown_timeout,
+            jsonrpc_server_address: self.jsonrpc_server_address,
+            preload_mock_state: self.preload_mock_state,
+            bootstrap_config: self.bootstrap_config.clone(),
+            keypair: self.keypair.clone(),
+            ..other
+        }
+    }
 }
+
 
 impl Default for NodeConfig {
     fn default() -> Self {
@@ -95,7 +119,7 @@ impl Default for NodeConfig {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
         Self {
-            id: NodeId::default(),
+            id: Uuid::new_v4().to_string(),
             idx: NodeIdx::default(),
             data_dir: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH),
             db_path: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH)

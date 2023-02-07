@@ -1,7 +1,6 @@
 use std::{env, net::SocketAddr, path::PathBuf, time::Duration};
 
 use bootstrap::BootstrapConfig;
-use config::{Config, ConfigError, Environment, File};
 use derive_builder::Builder;
 use primitives::{NodeId, NodeIdx, NodeType};
 use serde::Deserialize;

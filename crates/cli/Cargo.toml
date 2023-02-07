@@ -21,11 +21,14 @@ storage = { path = "../storage" }
 anyhow = "1.0.64"
 tracing = "0.1.36"
 thiserror = "1.0.34"
-uuid = { version = "0.8.0", features = ["serde", "v4"] }
-vrrb_core = { path = "../vrrb_core" }
-hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-sha256 = "1.0.2"
+# uuid = { version = "0.8.0", features = ["serde", "v4"] }
+uuid = { workspace = true }
+vrrb_core = { workspace = true }
+hbbft = { workspace = true }
+sha256 = { workspace = true }
 secp256k1 = { version = "0.24.0", features = ["global-context", "rand"] }
+serde = { workspace = true }
+config = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = "2.0.4"

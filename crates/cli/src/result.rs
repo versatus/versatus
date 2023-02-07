@@ -5,6 +5,9 @@ pub enum CliError {
     #[error("invalid command {0} provided")]
     InvalidCommand(String),
 
+    #[error("no subcommand provided")]
+    NoSubcommand,
+
     #[error("unable to setup telemetry subscriber: {0}")]
     Telemetry(#[from] telemetry::TelemetryError),
 
