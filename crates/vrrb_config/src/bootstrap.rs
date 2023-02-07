@@ -1,4 +1,6 @@
-#[derive(Debug, Default, Clone)]
+use serde::Deserialize;
+
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct BootstrapConfig {
     //
 }
