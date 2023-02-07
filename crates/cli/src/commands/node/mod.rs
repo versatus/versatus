@@ -172,7 +172,7 @@ impl RunOpts {
             .add_source(File::with_name(config_path))
             .build()?;
 
-        Ok(s.try_deserialize().unwrap())
+        Ok(s.try_deserialize().unwrap_or_default())
     }
 
     pub fn merge(&self, other: &Self) -> Self {
