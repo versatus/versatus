@@ -6,7 +6,6 @@ pub fn gen_sha256_digest_string<D: Sha256Digest>(data: D) -> String {
     sha256::digest(data)
 }
 
-
 #[macro_export]
 macro_rules! is_enum_variant {
     ($v:expr, $p:pat) => {
