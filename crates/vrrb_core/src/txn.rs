@@ -6,7 +6,7 @@ use std::{
 };
 
 use primitives::{
-    types::{PublicKey, SerializedPublicKey},
+    {PublicKey, SerializedPublicKey},
     ByteSlice,
     ByteVec,
     SecretKey,

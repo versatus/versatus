@@ -34,7 +34,7 @@ use bulldag::{
     vertex::{Direction, Vertex},
 };
 use mempool::LeftRightMempool;
-use primitives::{types::Epoch, Address, PublicKey, SecretKey, SerializedSecretKey, Signature};
+use primitives::{Address, Epoch, PublicKey, SecretKey, SerializedSecretKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{

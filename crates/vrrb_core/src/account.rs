@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use primitives::{
-    types::{PublicKey, SerializedPublicKey},
+    {PublicKey, SerializedPublicKey},
     AccountKeypair,
 };
 use serde::{Deserialize, Serialize};
