@@ -7,7 +7,7 @@ use std::{
 use left_right::ReadHandle;
 use lr_trie::LeftRightTrieError;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
-use primitives::types::AccountAddress;
+use primitives::Address as AccountAddress;
 use vrrb_core::{
     account::Account,
     keypair::{KeyPair, MinerPk},

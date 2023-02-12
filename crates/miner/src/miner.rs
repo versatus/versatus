@@ -34,7 +34,7 @@ use bulldag::{
     vertex::{Direction, Vertex},
 };
 use mempool::LeftRightMempool;
-use primitives::{types::Epoch, Address, PublicKey, SecretKey, SerializedSecretKey, Signature};
+use primitives::{Address, Epoch, PublicKey, SecretKey, SerializedSecretKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -81,25 +81,13 @@ pub struct MinerConfig {
     pub secret_key: MinerSk,
     pub public_key: MinerPk,
     pub address: String,
-    //
-    // pub pubkey: String,
-    // pub reward: Reward,
-    // pub state_handle: NodeStateReadHandle,
-    // pub state_handle_factory: NodeStateReadHandle,
-    // pub n_miners: u128,
-    // pub epoch: Epoch,
 }
 
 #[derive(Debug, Clone)]
 pub struct Miner {
     secret_key: MinerSk,
     public_key: MinerPk,
-    address: String,
-    // state_handle_factory: NodeStateReadHandle,
-
-    // pub pubkey: String,
-    // pub reward: Reward,
-    // pub state_handle: NodeStateReadHandle,
+    address: Address,
 }
 
 pub struct MineArgs<'a> {
@@ -124,8 +112,7 @@ impl Miner {
         Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
-            address: hash_data!(&config.public_key),
-            // state_handle_factory: config.state_handle_factory,
+            address: Address::new(config.public_key.clone()),
         }
     }
 
@@ -138,7 +125,11 @@ impl Miner {
     }
 
     pub fn generate_claim(&self, nonce: u128) -> Claim {
-        Claim::new(self.public_key().to_string(), self.address(), nonce)
+        Claim::new(
+            self.public_key().to_string(),
+            self.address().to_string(),
+            nonce,
+        )
     }
 
     pub fn sign_message(&self, msg: Message) -> Signature {

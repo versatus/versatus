@@ -1,4 +1,4 @@
-use primitives::{types::SecretKey as SecretKeyBytes, Epoch};
+use primitives::{Epoch, SecretKey as SecretKeyBytes};
 use ritelinked::LinkedHashSet;
 use secp256k1::{
     hashes::{sha256 as s256, Hash},

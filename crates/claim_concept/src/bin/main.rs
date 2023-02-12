@@ -1,9 +1,9 @@
-use secp256k1::{Secp256k1};
+use std::{u32::MAX as u32MAX, u64::MAX as u64MAX};
+
+use claim::claim::Claim;
 use rand::prelude::*;
 use ritelinked::LinkedHashMap;
-use claim::claim::Claim;
-use std::u32::{MAX as u32MAX};
-use std::u64::{MAX as u64MAX};
+use secp256k1::Secp256k1;
 fn main() {
     let mut rng = rand::thread_rng();
     let claims = generate_100000_claims();
@@ -15,14 +15,17 @@ fn main() {
 }
 
 pub fn calculate_pointers(claim_map: LinkedHashMap<String, Claim>, nonce: u128) {
-
-    let mut pointers = claim_map.iter().map(|(pk, claim)| {
-        return (pk.clone(), claim.get_pointer(nonce))
-    }).collect::<Vec<_>>();
+    let mut pointers = claim_map
+        .iter()
+        .map(|(pk, claim)| return (pk.clone(), claim.get_pointer(nonce)))
+        .collect::<Vec<_>>();
     pointers.retain(|(_, v)| !v.is_none());
-    let mut raw_pointers = pointers.iter().map(|(k, v)| {
-        return (k.clone(), v.unwrap());
-    }).collect::<Vec<_>>();
+    let mut raw_pointers = pointers
+        .iter()
+        .map(|(k, v)| {
+            return (k.clone(), v.unwrap());
+        })
+        .collect::<Vec<_>>();
     let min = raw_pointers.iter().min_by_key(|(_, v)| v).unwrap().1;
     raw_pointers.retain(|(_, v)| *v == min);
     println!("{}", raw_pointers.len());
