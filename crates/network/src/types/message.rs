@@ -245,7 +245,7 @@ pub enum MessageBody {
     },
     AddPeer {
         // pub_key: PublicKey,
-        peer_id: primitives::PeerId,
+        peer_id: primitives::types::PeerId,
         socket_addr: SocketAddr,
         node_type: NodeType,
     },

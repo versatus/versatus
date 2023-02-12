@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thiserror = { workspace = true }
-serde = { workspace = true }
-hbbft = { workspace = true }
-secp256k1 = { workspace = true }
+thiserror = "1.0.37"
+serde = { version = "1.0.145", features = ["derive"] }
+hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
+secp256k1 = { version = "0.25.0", features = ["rand", "bitcoin_hashes"] }

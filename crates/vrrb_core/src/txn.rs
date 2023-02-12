@@ -5,7 +5,12 @@ use std::{
     str::FromStr,
 };
 
-use primitives::{ByteSlice, ByteVec, PublicKey, SecretKey, SerializedPublicKey};
+use primitives::{
+    types::{PublicKey, SerializedPublicKey},
+    ByteSlice,
+    ByteVec,
+    SecretKey,
+};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest;

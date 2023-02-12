@@ -10,6 +10,7 @@ pub struct Claim {
 
 
 impl Claim {
+
     pub fn new(pubkey: String, claim_nonce: u128) -> Claim {
         let iters = if let Some(n) = claim_nonce.checked_mul(10) {
             n
@@ -23,7 +24,7 @@ impl Claim {
         });
 
         Claim {
-            hash,
+            hash: hash,
             pointer: None,
             start: None,
         }
