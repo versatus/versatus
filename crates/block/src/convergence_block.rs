@@ -10,9 +10,9 @@ use bulldag::{
     vertex::{Direction, Vertex},
 };
 use primitives::{
+    types::SecretKey as SecretKeyBytes,
     Epoch,
     RawSignature,
-    SecretKey as SecretKeyBytes,
     GENESIS_EPOCH,
     SECOND,
     VALIDATOR_THRESHOLD,

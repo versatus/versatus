@@ -1,4 +1,4 @@
-use primitives::SecretKey as SecretKeyBytes;
+use primitives::types::SecretKey as SecretKeyBytes;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::LinkedHashMap;

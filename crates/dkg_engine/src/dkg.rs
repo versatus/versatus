@@ -219,7 +219,7 @@ mod tests {
 
     use hbbft::sync_key_gen::Ack;
     use node::NodeType;
-    use vrrb_core::is_enum_variant;
+    use primitives::is_enum_variant;
 
     use super::DkgGenerator;
     use crate::{

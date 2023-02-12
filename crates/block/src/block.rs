@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use primitives::{Epoch, SecretKey as SecretKeyBytes};
+use primitives::{types::SecretKey as SecretKeyBytes, Epoch};
 use reward::reward::Reward;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;

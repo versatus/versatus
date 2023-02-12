@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use parity_wordlist::WORDS;
-use primitives::{ByteSlice, SerializedSecretKey as SecretKeyBytes};
+use primitives::{types::SerializedSecretKey as SecretKeyBytes, ByteSlice};
 use rand::seq::SliceRandom;
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_core::RngCore;
