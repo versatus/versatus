@@ -11,12 +11,15 @@ use std::{
 };
 
 use block::{
-    block::Block, header::BlockHeader, invalid::InvalidBlockErrorReason, GenesisBlock, MineArgs,
+    block::Block,
+    header::BlockHeader,
+    invalid::InvalidBlockErrorReason,
+    GenesisBlock,
+    MineArgs,
 };
-
 // TODO: replace Pool with LeftRightMempool if suitable
 use mempool::pool::{Pool, PoolKind};
-use primitives::types::Epoch;
+use primitives::Epoch;
 use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 // use ritelinked::LinkedHashMap;

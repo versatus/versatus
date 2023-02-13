@@ -8,10 +8,11 @@ edition = "2021"
 doctest = false
 
 [dependencies]
-hbbft = {git = "https://github.com/vrrb-io/hbbft", branch = "master"} 
-thiserror = "1.0.32"
-serde = "1.0.144"
-primitives = { path = "../primitives" }
-node = { path = "../node" }
-dkg_engine = { path = "../dkg_engine" }
-tokio = { version = "1.23.0", features = ["full"] }
+hbbft = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+primitives = { workspace = true }
+node = { workspace = true }
+dkg_engine = { workspace = true }
+tokio = { workspace = true }
+vrrb_core = { workspace = true }
