@@ -94,12 +94,7 @@ pub struct MinerConfig {
 pub struct Miner {
     secret_key: MinerSk,
     public_key: MinerPk,
-    address: String,
-    // state_handle_factory: NodeStateReadHandle,
-
-    // pub pubkey: String,
-    // pub reward: Reward,
-    // pub state_handle: NodeStateReadHandle,
+    address: Address,
 }
 
 pub struct MineArgs<'a> {
@@ -124,8 +119,7 @@ impl Miner {
         Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
-            address: hash_data!(&config.public_key),
-            // state_handle_factory: config.state_handle_factory,
+            address: Address::new(config.public_key.clone()),
         }
     }
 
@@ -138,7 +132,11 @@ impl Miner {
     }
 
     pub fn generate_claim(&self, nonce: u128) -> Claim {
-        Claim::new(self.public_key().to_string(), self.address(), nonce)
+        Claim::new(
+            self.public_key().to_string(),
+            self.address().to_string(),
+            nonce,
+        )
     }
 
     pub fn sign_message(&self, msg: Message) -> Signature {
@@ -148,30 +146,7 @@ impl Miner {
     /// Facade method to mine the various available block types
     pub fn mine(&mut self, args: MineArgs) -> Result<Block> {
         let now = timestamp!();
-
         todo!()
-
-        // if let Ok(claim_map_str) = serde_json::to_string(&self.claim_map) {
-        //     let claim_map_hash = digest(claim_map_str.as_bytes());
-        //     if let Some(last_block) = self.last_block.clone() {
-        //         let mine_args = MineArgs {
-        //             claim: self.clone().claim,
-        //             last_block,
-        //             txns: self.clone().txn_pool.confirmed,
-        //             claims: self.clone().claim_pool.confirmed,
-        //             claim_list_hash: Some(claim_map_hash),
-        //             reward: &mut self.clone().reward,
-        //             abandoned_claim: self.abandoned_claim.clone(),
-        //             secret_key: self.secret_key.as_bytes().to_vec(),
-        //             epoch: self.epoch,
-        //             round: last_block.round + 1,
-        //             next_epoch_adjustment,
-        //         };
-        //
-        //         return Block::mine(mine_args);
-        //     }
-        // }
-        // Ok((None, 0))
     }
 
     pub fn mine_convergence_block(

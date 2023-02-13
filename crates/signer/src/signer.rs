@@ -321,7 +321,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     use dkg_engine::{test_utils::generate_dkg_engine_with_states, types::config::ThresholdConfig};
-    use primitives::{is_enum_variant, types::SignatureType};
+    use primitives::SignatureType;
+    use vrrb_core::is_enum_variant;
 
     use crate::{
         signer::{SignatureProvider, Signer},

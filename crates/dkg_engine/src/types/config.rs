@@ -47,8 +47,7 @@ impl ThresholdConfig {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    use primitives::is_enum_variant;
+    use vrrb_core::is_enum_variant;
 
     use crate::{
         test_utils::{invalid_threshold_config, valid_threshold_config},

@@ -517,7 +517,7 @@ mod tests {
         let timestamp = utils::timestamp!();
         let txn_hash = "abcdef01234567890".to_string();
 
-        let miner_claim = create_claim(&mpk1, &addr, 1);
+        let miner_claim = create_claim(&mpk1, &addr.to_string(), 1);
 
         let claim_list_hash = "01234567890abcdef".to_string();
 
@@ -615,10 +615,7 @@ mod tests {
 pub(crate) mod test_helpers {
     use block::{Block, ConvergenceBlock, GenesisBlock, ProposalBlock, EPOCH_BLOCK};
     use bulldag::graph::BullDag;
-    use primitives::{
-        types::{PublicKey, SecretKey},
-        Address,
-    };
+    use primitives::{Address, PublicKey, SecretKey};
     use sha256::digest;
     use utils::hash_data;
     use vrrb_core::{
@@ -632,7 +629,7 @@ pub(crate) mod test_helpers {
     pub(crate) fn create_miner() -> Miner {
         let (secret_key, public_key) = create_keypair();
 
-        let address = create_address(&public_key);
+        let address = create_address(&public_key).to_string();
 
         let config = MinerConfig {
             secret_key,
@@ -649,7 +646,7 @@ pub(crate) mod test_helpers {
     }
 
     pub(crate) fn create_address(pubkey: &PublicKey) -> Address {
-        hash_data!(pubkey.to_string())
+        Address::new(pubkey.clone())
     }
 
     pub(crate) fn create_claim(pk: &PublicKey, addr: &str, nonce: u128) -> Claim {
@@ -683,7 +680,7 @@ pub(crate) mod test_helpers {
                 let nonce = 1u128;
                 let token = Some("VRRB".to_string());
                 let txn_args = NewTxnArgs {
-                    sender_address: saddr,
+                    sender_address: saddr.to_string(),
                     sender_public_key: pk.serialize().to_vec(),
                     receiver_address: raddr,
                     token,
@@ -709,7 +706,7 @@ pub(crate) mod test_helpers {
             .map(|_| {
                 let (_, pk) = create_keypair();
                 let addr = create_address(&pk);
-                let claim = create_claim(&pk, &addr, 1);
+                let claim = create_claim(&pk, &addr.to_string(), 1);
                 (claim.hash.clone(), claim)
             })
             .into_iter()
@@ -727,7 +724,7 @@ pub(crate) mod test_helpers {
         let nonce = 1;
 
         let claims = create_claims(n_claims).collect();
-        let hclaim = create_claim(&pk, &create_address(&pk), 1);
+        let hclaim = create_claim(&pk, &create_address(&pk).to_string(), 1);
 
         let miner = create_miner();
 
@@ -740,7 +737,7 @@ pub(crate) mod test_helpers {
         last_block: Block,
     ) -> Option<ConvergenceBlock> {
         let (msk, mpk) = create_keypair();
-        let maddr = create_address(&mpk);
+        let maddr = create_address(&mpk).to_string();
         let miner_claim = create_claim(&mpk, &maddr, 1);
         let txns = create_txns(30).collect();
         let claims = create_claims(5).collect();
@@ -805,7 +802,7 @@ pub(crate) mod test_helpers {
         next_epoch_adjustment: i128,
     ) -> Option<ConvergenceBlock> {
         let (msk, mpk) = create_keypair();
-        let maddr = create_address(&mpk);
+        let maddr = create_address(&mpk).to_string();
         let miner_claim = create_claim(&mpk, &maddr, 1);
 
         let txns = create_txns(30).collect();
