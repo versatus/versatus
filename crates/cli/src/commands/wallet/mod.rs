@@ -1,4 +1,17 @@
+mod get;
+mod info;
+mod new;
+mod transfer;
+
 use clap::{Parser, Subcommand};
+
+use crate::result::{CliError, Result};
+
+#[derive(Parser, Debug)]
+pub struct WalletOpts {
+    #[clap(subcommand)]
+    pub subcommand: WalletCmd,
+}
 
 #[derive(Debug, Subcommand)]
 pub enum WalletCmd {
@@ -15,8 +28,11 @@ pub enum WalletCmd {
     Get,
 }
 
-#[derive(Parser, Debug)]
-pub struct WalletOpts {
-    #[clap(subcommand)]
-    pub subcommand: WalletCmd,
+pub async fn exec(args: WalletOpts) -> Result<()> {
+    let sub_cmd = args.subcommand;
+
+    match sub_cmd {
+        WalletCmd::Info => info::exec().await,
+        _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
+    }
 }

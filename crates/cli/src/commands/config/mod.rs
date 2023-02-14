@@ -10,6 +10,9 @@ pub enum ConfigCmd {
 
     /// Assigns a value to a specific key in the configuration file
     Set,
+
+    /// Removes all data within VRRB's data directory
+    Clean,
 }
 
 #[derive(Parser, Debug)]
