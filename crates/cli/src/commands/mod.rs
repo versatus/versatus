@@ -1,10 +1,12 @@
+pub mod config;
+pub mod node;
+pub(crate) mod utils;
+pub mod wallet;
+
 use crate::{
     cli::{Args, Commands},
     result::{CliError, Result},
 };
-
-pub mod node;
-pub mod wallet;
 
 pub async fn exec(args: Args) -> Result<()> {
     telemetry::debug!("args: {:?}", args);

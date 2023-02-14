@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::commands::{node::NodeOpts, wallet::WalletOpts};
+use crate::commands::{config::ConfigOpts, node::NodeOpts, wallet::WalletOpts};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None, arg_required_else_help(true))]
@@ -12,8 +12,12 @@ pub struct Args {
     pub config: Option<PathBuf>,
 
     /// Turn debugging information on
-    #[clap(short, long)]
-    pub debug: u8,
+    #[clap(short, long, default_value = "false")]
+    pub debug: bool,
+
+    /// Selects the network to use when executing commands
+    #[clap(short, long, default_value = "local")]
+    pub network: String,
 
     #[clap(subcommand)]
     pub command: Option<Commands>,
@@ -22,7 +26,7 @@ pub struct Args {
 #[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Manage configuration for this CLI tool
-    Config,
+    Config(ConfigOpts),
 
     /// Interact with and control VRRB nodes
     Node(NodeOpts),

@@ -2,6 +2,9 @@ use clap::{Parser, Subcommand};
 
 #[derive(Debug, Subcommand)]
 pub enum WalletCmd {
+    /// Get information about this wallet's configuration
+    Info,
+
     /// Transfer objects between accounts
     Transfer,
 
