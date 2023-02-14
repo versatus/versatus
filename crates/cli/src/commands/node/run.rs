@@ -235,7 +235,7 @@ impl RunOpts {
 
 /// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
-    let data_dir = storage::get_node_data_dir()?;
+    let data_dir = vrrb_core::storage_utils::get_node_data_dir()?;
     let keypair_file_path = PathBuf::from(&data_dir).join("keypair");
     let keypair = match read_keypair_file(&keypair_file_path) {
         Ok(keypair) => keypair,

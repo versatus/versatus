@@ -15,7 +15,7 @@ pub enum CliError {
     Node(#[from] node::result::NodeError),
 
     #[error("storage error: {0}")]
-    Storage(#[from] storage::StorageError),
+    Storage(#[from] vrrb_core::storage_utils::StorageError),
 
     #[error("primitive error: {0}")]
     Primitive(#[from] primitives::Error),

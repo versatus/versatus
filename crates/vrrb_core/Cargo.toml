@@ -23,10 +23,12 @@ lru_time_cache = { workspace = true }
 hbbft = { workspace = true }
 rand = { workspace = true }
 bincode = { workspace = true }
-storage = { workspace = true }
 udp2p = { workspace = true }
 sha2 = { workspace = true }
 chrono = { workspace = true }
 async-trait = { workspace = true }
 theater = { workspace = true }
 utils = { workspace = true }
+
+[dev-dependencies]
+serial_test = { workspace = true }
