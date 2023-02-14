@@ -25,7 +25,6 @@ use vrrb_core::{
 
 use crate::result::{CliError, Result};
 
-
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &'static str = "127.0.0.1:0";
 
 #[derive(clap::Parser, Debug, Clone, Deserialize)]
@@ -79,6 +78,10 @@ pub struct RunOpts {
     /// API version shown in swagger docs
     #[clap(long, value_parser, default_value = "1.0.0")]
     pub http_api_version: String,
+
+    /// Disables networking capabilities of the node
+    #[clap(long, action, default_value = "false")]
+    pub disable_networking: bool,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -87,7 +90,7 @@ impl From<RunOpts> for NodeConfig {
 
         let node_type = match opts.node_type.parse() {
             Ok(node_type) => node_type,
-            Err(_) => default_node_config.node_type.clone(),
+            Err(_) => default_node_config.node_type,
         };
 
         let http_api_title = if !opts.http_api_title.is_empty() {
@@ -95,7 +98,6 @@ impl From<RunOpts> for NodeConfig {
         } else {
             default_node_config.http_api_title.clone()
         };
-
 
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
@@ -121,6 +123,7 @@ impl From<RunOpts> for NodeConfig {
             // and use that if its available thus making this generation wasteful. This is a bit of
             // a hack, but it works for now.
             keypair: default_node_config.keypair,
+            disable_networking: opts.disable_networking,
         }
     }
 }
@@ -146,19 +149,20 @@ impl Default for RunOpts {
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
             http_api_version: Default::default(),
+            disable_networking: Default::default(),
         }
     }
 }
 
-
 impl RunOpts {
+    #[deprecated(note = "prefer global config file")]
     pub fn from_file(config_path: &str) -> std::result::Result<Self, ConfigError> {
         let default_bootstrap_addresses: Vec<String> = Vec::new();
 
         let s = Config::builder()
             .set_default("id", Uuid::new_v4().to_string())?
             .set_default("data_dir", ".vrrb")?
-            .set_default("db_path", ".vrrb/node/node.db")?
+            .set_default("db_path", ".vrrb/node/db")?
             .set_default("node_type", "full")?
             .set_default("jsonrpc_api_address", "127.0.0.1:0")?
             .set_default("http_api_address", "127.0.0.1:0")?
@@ -180,7 +184,6 @@ impl RunOpts {
             Ok(_) => self.node_type.clone(),
             Err(_) => other.node_type.clone(),
         };
-
 
         let data_dir = if !self.data_dir.to_str().unwrap_or_default().is_empty() {
             self.data_dir.clone()
@@ -229,10 +232,10 @@ impl RunOpts {
             http_api_address: other.http_api_address,
             http_api_title,
             http_api_version,
+            disable_networking: false,
         }
     }
 }
-
 
 #[derive(Debug, Subcommand)]
 pub enum NodeCmd {
@@ -242,16 +245,12 @@ pub enum NodeCmd {
     /// Prints currrent node configuration
     Info,
 
-    /// Stops any currently running node if any
+    /// Stops any node currrently running in dettached mode
     Stop,
 }
 
 #[derive(Parser, Debug)]
 pub struct NodeOpts {
-    /// Sets a custom config file
-    #[clap(short, long, value_parser, value_name = "FILE")]
-    pub config: Option<PathBuf>,
-
     #[clap(subcommand)]
     pub subcommand: NodeCmd,
 }
@@ -260,22 +259,8 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
     let sub_cmd = args.subcommand;
 
     match sub_cmd {
-        NodeCmd::Run(opts) => {
-            let read_opts = read_node_config_from_file(args.config.unwrap_or_default())?;
-
-            let merged_opts = read_opts.merge(&opts);
-
-            run(merged_opts).await
-        },
-        NodeCmd::Info => {
-            if let Some(config_file_path) = args.config {
-                let node_config = read_node_config_from_file(config_file_path)?;
-
-                dbg!(node_config);
-            }
-
-            Ok(())
-        },
+        NodeCmd::Run(opts) => run(opts).await,
+        NodeCmd::Info => Ok(()),
         _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
     }
 }

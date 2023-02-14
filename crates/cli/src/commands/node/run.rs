@@ -71,8 +71,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 
     tokio::signal::ctrl_c()
         .await
-        .map_err(|err| CliError::Other(String::from("failed to listen for ctrl+c: {err}")))?;
-
+        .map_err(|err| CliError::Other(format!("failed to listen for ctrl+c: {err}")))?;
 
     ctrl_tx
         .send(Event::Stop)
