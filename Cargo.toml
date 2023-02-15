@@ -43,12 +43,10 @@ members = [
     "crates/vrrb_vrf",
     "crates/network",
     "crates/node",
-
     "crates/storage",
     "crates/storage/lr_trie",
     "crates/storage/lrdb",
     "crates/storage/state",
-
     "crates/syncing",
     "crates/quorum",
     "crates/dkg_engine",
