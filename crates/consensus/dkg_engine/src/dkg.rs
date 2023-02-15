@@ -44,9 +44,7 @@ impl DkgGenerator for DkgEngine {
             }
             let secret_key = node_info.keypair.validator_kp.0.clone();
 
-            let rn = rand::rngs::OsRng::default();
-
-            if let Ok(mut rng) = Ok(rn) {
+            if let Ok(mut rng) = rand::rngs::OsRng::new() {
                 let (sync_key_gen, opt_part) = SyncKeyGen::new(
                     node_info.get_node_idx(),
                     secret_key,

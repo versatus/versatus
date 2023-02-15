@@ -9,7 +9,8 @@ edition = "2021"
 hbbft = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
-rand = { workspace = true }
+# TODO: make this crate use rand from workspace later
+rand = "0.6.5"
 bincode = { workspace = true }
 tokio = { workspace = true }
 hex = { workspace = true }
