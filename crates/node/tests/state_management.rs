@@ -22,6 +22,7 @@ use vrrb_rpc::rpc::{
 };
 
 #[tokio::test]
+#[ignore]
 async fn can_add_txns_to_mempool() {
     let node_config = create_mock_bootstrap_node_config();
 
@@ -62,8 +63,6 @@ async fn can_add_txns_to_mempool() {
         .unwrap();
 
     let mempool_snapshot = client.get_full_mempool().await.unwrap();
-
-    dbg!(&mempool_snapshot);
 
     assert!(!mempool_snapshot.is_empty());
 

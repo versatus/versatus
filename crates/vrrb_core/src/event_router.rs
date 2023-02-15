@@ -38,10 +38,11 @@ pub enum Event {
     /// New txn came from network, requires validation
     NewTxnCreated(Txn),
     /// Single txn validated
-    TxnValidated(Vec<u8>),
+    TxnValidated(Txn),
     /// Batch of validated txns
     TxnBatchValidated(Vec<u8>),
     TxnAddedToMempool(TxHashString),
+    BlockReceived,
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),
     ClaimProcessed(Vec<u8>),

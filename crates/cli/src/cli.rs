@@ -19,15 +19,11 @@ pub struct Args {
     pub command: Option<Commands>,
 }
 
-#[derive(Default, Debug, Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum Commands {
     /// Node management subcommands
     Node(NodeOpts),
 
     /// Wallet management subcommands
     Wallet(NodeOpts),
-
-    /// Placeholder sub-command to demonstrate how to configure them
-    #[default]
-    Placeholder,
 }

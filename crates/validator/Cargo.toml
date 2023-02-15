@@ -8,18 +8,22 @@ edition = "2021"
 [dependencies]
 serde_json = "1.0.64"
 serde = { version = "1.0.101", features = ["derive"] }
-state = { path = "../state" }
-mempool = { path = "../mempool" }
+state = { workspace = true }
+mempool = { workspace = true }
 left-right = "0.11.5"
-lr_trie = { path = "../lr_trie" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia" }
+lr_trie = { workspace = true }
+patriecia = { workspace = true }
 sha256 = "1.0.2"
 bytebuffer = "0.2.1"
 blake3 = "0.3.8"
-bincode = "1.3.3"
-lrdb = { path = "../lrdb" }
-vrrb_core = { path = "../vrrb_core" }
-chrono = "0.4.22"
+bincode = { workspace = true }
+lrdb = { workspace = true }
+vrrb_core = { workspace = true }
+primitives = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+telemetry = { workspace = true }
+rayon = { workspace = true }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { workspace = true }

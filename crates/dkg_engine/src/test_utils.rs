@@ -13,6 +13,7 @@ use node::Node;
 use primitives::NodeType;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
+use vrrb_core::keypair::Keypair;
 
 use crate::{
     dkg::DkgGenerator,
@@ -100,6 +101,7 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
                 // node_public_key: secret_key.public_key(),
                 jsonrpc_server_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
                 bootstrap_config: None,
+                keypair: Keypair::random(),
             },
             rx,
         )

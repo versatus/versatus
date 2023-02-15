@@ -6,20 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ritelinked = { version = "0.3.2", features = ['serde'] }
-sha256 = "1.0.2"
-log = "0.4.14"
-serde_json = "1.0.64"
-hex = "*"
-serde = { version = "1.0.101", features = ["derive"] }
-lrdb = { path = "../lrdb" }
-mempool = { path = "../mempool" }
-reward = { path = "../reward" }
-lr_trie = { path = "../lr_trie" }
-primitives = { path = "../primitives" }
-vrrb_core = { path = "../vrrb_core" }
-telemetry = { path = "../telemetry" }
-patriecia = { git = "https://github.com/vrrb-io/patriecia" }
-thiserror = "1.0.37"
-rand = "0.8.5"
-derive_builder = "0.12.0"
+ritelinked = { workspace = true }
+sha256 = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+lrdb = { workspace = true }
+mempool = { workspace = true }
+reward = { workspace = true }
+lr_trie = { workspace = true }
+primitives = { workspace = true }
+vrrb_core = { workspace = true }
+telemetry = { workspace = true }
+patriecia = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
+derive_builder = { workspace = true }
+rocksdb = { workspace = true }

@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use parity_wordlist::WORDS;
-use primitives::types::SerializedSecretKey as SecretKeyBytes;
+use primitives::{ByteSlice, SerializedSecretKey as SecretKeyBytes};
 use rand::seq::SliceRandom;
 use rand_chacha::{rand_core::SeedableRng, ChaCha20Rng};
 use rand_core::RngCore;
@@ -9,7 +9,6 @@ use vrf::{
     openssl::{CipherSuite, ECVRF},
     VRF,
 };
-use vrrb_core::keypair::KeyPair;
 
 use crate::vrng::VRNG;
 
@@ -32,8 +31,8 @@ impl Display for InvalidVVRF {
 
 impl std::error::Error for InvalidVVRF {}
 
-///VVRF type contains all params necessary for creating and verifying an rng
-///It does not include the secret key
+/// VVRF type contains all params necessary for creating and verifying an rng
+/// It does not include the secret key
 pub struct VVRF {
     pub vrf: ECVRF,
     pub pubkey: Vec<u8>,
@@ -43,7 +42,7 @@ pub struct VVRF {
     pub rng: ChaCha20Rng,
 }
 
-///implenent VRNG trait for VVRF s.t. VVRF can accomomdate
+// implement VRNG trait for VVRF s.t. VVRF can accomomdate
 impl VRNG for VVRF {
     fn generate_u8(&mut self) -> u8 {
         let mut data = [0u8; 1];
@@ -156,9 +155,9 @@ impl VRNG for VVRF {
 impl VVRF {
     ///create new VVRF type by populating fields with return types
     /// of VVRF methods
-    pub fn new(message: &[u8], sk: &SecretKeyBytes) -> VVRF {
+    pub fn new(message: &[u8], sk: ByteSlice) -> VVRF {
         let mut vrf = VVRF::generate_vrf(CipherSuite::SECP256K1_SHA256_TAI);
-        let pubkey = VVRF::generate_pubkey(&mut vrf, &sk);
+        let pubkey = VVRF::generate_pubkey(&mut vrf, sk);
         let (proof, hash) = VVRF::generate_seed(&mut vrf, message, sk).unwrap();
         let rng = ChaCha20Rng::from_seed(hash);
         VVRF {
@@ -177,18 +176,18 @@ impl VVRF {
     }
 
     ///get pk from vrf crate
-    fn generate_pubkey(vrf: &mut ECVRF, sk: &SecretKeyBytes) -> Vec<u8> {
+    fn generate_pubkey(vrf: &mut ECVRF, sk: ByteSlice) -> Vec<u8> {
         // TODO: Is this unwrap neccesary?
-        vrf.derive_public_key(&sk).unwrap()
+        vrf.derive_public_key(sk).unwrap()
     }
 
     ///generate seed
     fn generate_seed(
         vrf: &mut ECVRF,
         message: &[u8],
-        sk: &SecretKeyBytes,
+        sk: ByteSlice,
     ) -> Option<([u8; 81], [u8; 32])> {
-        if let Ok(pi) = vrf.prove(&sk, message) {
+        if let Ok(pi) = vrf.prove(sk, message) {
             if let Ok(hash) = vrf.proof_to_hash(&pi) {
                 let mut proof_buff = [0u8; 81];
                 pi.iter().enumerate().for_each(|(i, v)| {

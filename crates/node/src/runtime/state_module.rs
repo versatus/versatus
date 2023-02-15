@@ -7,7 +7,10 @@ use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
-use vrrb_core::event_router::{DirectedEvent, Event, Topic};
+use vrrb_core::{
+    event_router::{DirectedEvent, Event, Topic},
+    txn::Txn,
+};
 
 use crate::{result::Result, NodeError, RuntimeModule};
 
@@ -48,7 +51,6 @@ impl StateModule {
     /// Produces a reader factory that can be used to generate read handles into
     /// the state tree.
     #[deprecated(note = "use self.read_handle instead")]
-    //
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
         // TODO: make this method return a custom factory
         todo!()
@@ -56,6 +58,30 @@ impl StateModule {
 
     pub fn read_handle(&self) -> NodeStateReadHandle {
         self.state.read_handle()
+    }
+
+    fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
+        let txn_hash = txn.digest();
+
+        info!("Storing transaction {txn_hash} in confirmed transaction store");
+
+        self.state
+            .remove_txn_from_mempool(&txn_hash)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        self.state
+            .insert_confirmed_txn(txn)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        self.events_tx
+            .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        Ok(())
+    }
+
+    fn process_block(&mut self) {
+        //
     }
 }
 
@@ -95,17 +121,26 @@ impl Handler<Event> for StateModule {
                 return Ok(ActorState::Stopped);
             },
 
+            Event::BlockReceived => {},
+
             Event::NewTxnCreated(txn) => {
                 info!("Storing transaction in mempool for validation");
 
                 let txn_hash = txn.digest();
 
-                self.state.insert_txn_to_mempool(txn);
+                self.state
+                    .insert_txn_to_mempool(txn)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
                     .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            Event::TxnValidated(txn) => {
+                self.confirm_txn(txn)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+
             Event::NoOp => {},
             _ => telemetry::warn!("Unrecognized command received: {:?}", event),
         }

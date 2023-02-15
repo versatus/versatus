@@ -1,0 +1,6 @@
+[hooks]
+pre-commit = "sh ./infra/scripts/pre-commit.sh"
+pre-push = "cargo t --all"
+
+[logging]
+verbose = true

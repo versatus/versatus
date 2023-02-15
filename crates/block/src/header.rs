@@ -1,11 +1,5 @@
 // FEATURE TAG(S): Block Structure, Rewards
-use std::{
-    time::{SystemTime, UNIX_EPOCH},
-    u32::MAX as u32MAX,
-};
-
-use primitives::{Epoch, SecretKey as SecretKeyBytes};
-use rand::Rng;
+use primitives::{Epoch, SecretKey, SerializedSecretKey};
 use reward::reward::Reward;
 use secp256k1::{
     hashes::{sha256 as s256, Hash},
@@ -52,7 +46,7 @@ impl BlockHeader {
         round: u128,
         epoch: Epoch,
         miner_claim: Claim,
-        secret_key: SecretKeyBytes,
+        secret_key: SecretKey,
         claim_list_hash: String,
     ) -> BlockHeader {
         //TODO: Replace rand::thread_rng() with VPRNG
@@ -114,7 +108,7 @@ impl BlockHeader {
         last_block: Block,
         ref_hashes: Vec<String>,
         miner_claim: Claim,
-        secret_key: SecretKeyBytes,
+        secret_key: SecretKey,
         txn_hash: String,
         claim_list_hash: String,
         adjustment_next_epoch: NextEpochAdjustment,
@@ -141,8 +135,10 @@ impl BlockHeader {
             hash.as_bytes().to_vec()
         };
 
+        let sk_bytes = &secret_key.secret_bytes();
+
         // Generate next_block_seed
-        let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
+        let mut vrf = VVRF::new(&message, sk_bytes);
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 
         // generate timestamp

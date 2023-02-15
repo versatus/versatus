@@ -4,6 +4,8 @@ pub mod result;
 pub mod state;
 pub mod types;
 
+mod backing_db;
+
 pub use components::*;
 pub use result::*;
 pub use types::*;

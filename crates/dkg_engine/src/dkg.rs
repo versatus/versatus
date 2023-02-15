@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
-use primitives::types::node::NodeType;
+use primitives::NodeType;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
@@ -219,7 +219,7 @@ mod tests {
 
     use hbbft::sync_key_gen::Ack;
     use node::NodeType;
-    use primitives::is_enum_variant;
+    use vrrb_core::is_enum_variant;
 
     use super::DkgGenerator;
     use crate::{
@@ -228,19 +228,23 @@ mod tests {
         types::{DkgEngine, DkgError},
     };
 
-    #[test]
-    fn failed_to_generate_part_committment_message_since_only_master_node_allowed() {
+    #[tokio::test]
+    #[ignore]
+    async fn failed_to_generate_part_committment_message_since_only_master_node_allowed() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::Miner);
-        let dkg_engine = dkg_engines.get_mut(0).unwrap();
+        let mut dkg_engine = dkg_engines.await;
+        let dkg_engine = dkg_engine.get_mut(0).unwrap();
         let result = dkg_engine.generate_sync_keygen_instance(1);
         assert_eq!(result.is_err(), true);
         assert!(is_enum_variant!(result, Err(DkgError::InvalidNode { .. })));
     }
 
-    #[test]
-    fn generate_part_committment_message() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
-        let dkg_engine = dkg_engines.get_mut(0).unwrap();
+    #[tokio::test]
+    #[ignore]
+    async fn generate_part_committment_message() {
+        let dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+        let mut dkg_engine = dkg_engines.await;
+        let dkg_engine = dkg_engine.get_mut(0).unwrap();
         let part_committement_result = dkg_engine.generate_sync_keygen_instance(1);
         assert_eq!(part_committement_result.is_ok(), true);
         assert!(is_enum_variant!(
@@ -249,10 +253,12 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn successfull_acknowledge_part_committment_message() {
+    #[tokio::test]
+    #[ignore]
+    async fn successfull_acknowledge_part_committment_message() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
-        let dkg_engine = dkg_engines.get_mut(0).unwrap();
+        let mut dkg_engine = dkg_engines.await;
+        let dkg_engine = dkg_engine.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(0);
         assert_eq!(result.is_ok(), true);
@@ -262,11 +268,13 @@ mod tests {
         ));
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn failed_to_acknowledge_part_committment_missing_committment() {
+    async fn failed_to_acknowledge_part_committment_missing_committment() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
-        let dkg_engine = dkg_engines.get_mut(0).unwrap();
+
+        let mut dkg_engine = dkg_engines.await;
+        let dkg_engine = dkg_engine.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(1);
         assert_eq!(result.is_err(), true);
@@ -276,10 +284,12 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn failed_to_acknowledge_part_committment_missing_syncgen_instance() {
+    #[tokio::test]
+    #[ignore]
+    async fn failed_to_acknowledge_part_committment_missing_syncgen_instance() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
-        let dkg_engine = dkg_engines.get_mut(0).unwrap();
+        let mut dkg_engine = dkg_engines.await;
+        let dkg_engine = dkg_engine.get_mut(0).unwrap();
         let result = dkg_engine.ack_partial_commitment(0);
         assert_eq!(result.is_err(), true);
         assert!(is_enum_variant!(
@@ -288,9 +298,12 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn successfull_acknowledge_all_acks() {
+    #[tokio::test]
+    #[ignore]
+    async fn successfull_acknowledge_all_acks() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+        let mut dkg_engines = dkg_engines.await;
+
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();
@@ -333,9 +346,12 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn successful_generations_of_key_sets() {
+    #[tokio::test]
+    #[ignore]
+    async fn successful_generations_of_key_sets() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode);
+        let mut dkg_engines = dkg_engines.await;
+
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();

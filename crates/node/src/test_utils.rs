@@ -7,6 +7,7 @@ use std::{
 use primitives::NodeType;
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, NodeConfigBuilder};
+use vrrb_core::keypair::Keypair;
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
@@ -38,6 +39,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .raptorq_gossip_address(raptorq_gossip_address)
         .udp_gossip_address(udp_gossip_address)
         .jsonrpc_server_address(jsonrpc_server_address)
+        .keypair(Keypair::random())
         .build()
         .unwrap()
 }

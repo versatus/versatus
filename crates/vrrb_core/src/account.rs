@@ -1,9 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap};
 
-use primitives::{
-    types::{PublicKey, SerializedPublicKey},
-    AccountKeypair,
-};
+use primitives::{AccountKeypair, PublicKey, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
