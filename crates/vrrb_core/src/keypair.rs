@@ -15,12 +15,13 @@ use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
 use serde::Deserialize;
 use thiserror::Error;
 
+use crate::storage_utils;
+
 pub type MinerSk = secp256k1::SecretKey;
 pub type MinerPk = secp256k1::PublicKey;
 
 pub type SecretKeys = (MinerSk, Validator_Sk);
 pub type PublicKeys = (MinerPk, Validator_Pk);
-
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct KeyPair {
@@ -339,7 +340,7 @@ fn get_key_bytes(miner_sk_content: &&str) -> Vec<u8> {
 ///
 /// A Result<KeyPair, KeyPairError>
 pub fn read_keypair_file<F: AsRef<Path>>(path: F) -> Result<KeyPair> {
-    match storage::read_file(path.as_ref()) {
+    match crate::storage_utils::read_file(path.as_ref()) {
         Ok(mut file) => read_keypair(&mut file),
         Err(e) => Err(KeyPairError::FailedToReadFromFile(e.to_string())),
     }
@@ -384,7 +385,7 @@ pub fn write_keypair_file<F: AsRef<Path>>(
 ) -> Result<(String, String)> {
     let outfile = outfile.as_ref();
     if let Some(outdir) = outfile.parent() {
-        if let Err(_e) = storage::create_dir(outdir) {
+        if let Err(_e) = storage_utils::create_dir(outdir) {
             return Err(KeyPairError::IOError(
                 "Failed to create directory for storage of  secret key".to_string(),
             ));

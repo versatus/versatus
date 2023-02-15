@@ -1,0 +1,14 @@
+[package]
+name = "job_pool"
+version = "0.1.0"
+readme = "README.md"
+edition = "2021"
+
+[dependencies]
+crossbeam-channel = { workspace = true }
+once_cell = { workspace = true }
+waker-fn = { workspace = true }
+uuid = { workspace = true }
+concurrent-queue = { workspace = true }
+thiserror = { workspace = true }
+vrrb_core = { workspace = true }

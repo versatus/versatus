@@ -1,0 +1,19 @@
+[package]
+name = "lrdb"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sha2 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+vrrb_core = { workspace = true }
+lr_trie = { workspace = true }
+primitives = { workspace = true }
+patriecia = { workspace = true }
+bincode = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }

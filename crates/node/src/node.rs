@@ -65,8 +65,11 @@ impl Node {
     /// Initializes and returns a new Node instance
     pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
         // Copy the original config to avoid overriding the original
+
         let mut config = config.clone();
-        let vm = Some(trecho::vm::Cpu::new());
+
+        // let vm = Some(trecho::vm::Cpu::new());
+        let vm = None;
 
         let (events_tx, mut events_rx) = unbounded_channel::<DirectedEvent>();
 
@@ -79,15 +82,20 @@ impl Node {
         )
         .await?;
 
-        let (gossip_handle, gossip_addr) = Self::setup_gossip_network(
-            &config,
-            events_tx.clone(),
-            event_router.subscribe(&Topic::Network)?,
-            state_read_handle.clone(),
-        )
-        .await?;
+        let mut gossip_handle = None;
 
-        config.udp_gossip_address = gossip_addr;
+        if !config.disable_networking {
+            let (new_gossip_handle, gossip_addr) = Self::setup_gossip_network(
+                &config,
+                events_tx.clone(),
+                event_router.subscribe(&Topic::Network)?,
+                state_read_handle.clone(),
+            )
+            .await?;
+
+            gossip_handle = new_gossip_handle;
+            config.udp_gossip_address = gossip_addr;
+        }
 
         let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = Self::setup_rpc_api_server(
             &config,
@@ -285,8 +293,11 @@ impl Node {
     ) -> Result<(NodeStateReadHandle, Option<JoinHandle<Result<()>>>)> {
         // TODO: restore state if exists
 
+        let database_path = config.db_path();
+        vrrb_core::storage_utils::create_dir(database_path)?;
+
         let node_state_config = NodeStateConfig {
-            path: config.data_dir().to_path_buf(),
+            path: database_path.to_path_buf(),
 
             // TODO: read these from config
             serialized_state_filename: None,

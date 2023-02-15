@@ -38,7 +38,6 @@ mod tests {
         })
     }
 
-
     #[test]
     fn should_validate_a_list_of_invalid_transactions() {
         let mut valcore_manager = ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap();

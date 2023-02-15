@@ -16,7 +16,7 @@ pub enum NodeError {
     AddrParse(#[from] AddrParseError),
 
     #[error("{0}")]
-    Storage(#[from] storage::StorageError),
+    Storage(#[from] vrrb_core::storage_utils::StorageError),
 
     #[error("{0}")]
     Broadcast(#[from] BroadCastError),

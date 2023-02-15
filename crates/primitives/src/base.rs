@@ -15,15 +15,20 @@ pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 pub const NUMBER_OF_NETWORK_PACKETS: usize = 32;
 pub const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";
-pub const DEFAULT_VRRB_DB_PATH: &str = ".vrrb/node/node/db";
+pub const DEFAULT_VRRB_DB_PATH: &str = ".vrrb/node/db";
+pub const DEFAULT_VRRB_WALLET_DATA_DIR_PATH: &str = ".vrrb/wallet";
 
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
+pub type PayloadHash = ByteVec;
+pub type RawSignature = ByteVec;
+pub type PeerId = ByteVec;
 
-type Hash = Vec<u8>;
-pub type TxHash = Vec<u8>;
+#[deprecated(note = "Use TransactionDigest instead")]
+pub type TxHash = ByteVec;
+
+#[deprecated(note = "Use TransactionDigest and call to_string on it instead")]
 pub type TxHashString = String;
-pub type PayloadHash = Hash;
-pub type BlockHash = Hash;
-pub type RawSignature = Vec<u8>;
-pub type PeerId = Vec<u8>;
+
+#[deprecated(note = "Use Digest instead")]
+pub type BlockHash = ByteVec;

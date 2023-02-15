@@ -180,17 +180,6 @@ impl RuntimeModule for BroadcastModule {
     async fn start(&mut self, events_rx: &mut Receiver<Event>) -> Result<()> {
         info!("{0} started", self.name());
 
-        // loop {
-        //     tokio::select! {
-        //         biased;
-        //         Ok(event) = events_rx.recv() =>
-        // self.handle_event_stream_input(event),         Some(controller_event)
-        // = self.controller_rx.recv() => {             dbg!(controller_event);
-        //         }
-        //
-        //     }
-        // }
-
         while let Ok(event) = events_rx.recv().await {
             info!("{} received {event:?}", self.name());
 
