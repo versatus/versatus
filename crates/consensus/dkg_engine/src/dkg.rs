@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
 use primitives::NodeType;
+use rand::RngCore;
 
 use crate::types::{DkgEngine, DkgError, DkgResult};
 
@@ -42,7 +43,10 @@ impl DkgGenerator for DkgEngine {
                 return Err(DkgError::InvalidNode);
             }
             let secret_key = node_info.keypair.validator_kp.0.clone();
-            if let Ok(mut rng) = rand::rngs::OsRng::new() {
+
+            let rn = rand::rngs::OsRng::default();
+
+            if let Ok(mut rng) = Ok(rn) {
                 let (sync_key_gen, opt_part) = SyncKeyGen::new(
                     node_info.get_node_idx(),
                     secret_key,
