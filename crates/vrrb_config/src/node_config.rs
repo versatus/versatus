@@ -67,6 +67,9 @@ pub struct NodeConfig {
     pub bootstrap_config: Option<BootstrapConfig>,
 
     pub keypair: Keypair,
+
+    #[builder(default = "false")]
+    pub disable_networking: bool,
 }
 
 impl NodeConfig {
@@ -89,7 +92,6 @@ impl NodeConfig {
             other.id
         };
 
-
         Self {
             id,
             idx: self.idx,
@@ -111,7 +113,6 @@ impl NodeConfig {
         }
     }
 }
-
 
 impl Default for NodeConfig {
     fn default() -> Self {
@@ -137,6 +138,7 @@ impl Default for NodeConfig {
             preload_mock_state: false,
             bootstrap_config: None,
             keypair: Keypair::random(),
+            disable_networking: false,
         }
     }
 }

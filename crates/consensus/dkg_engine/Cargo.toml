@@ -9,7 +9,7 @@ edition = "2021"
 hbbft = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
-rand = "0.6.5"
+rand = { workspace = true }
 bincode = { workspace = true }
 tokio = { workspace = true }
 hex = { workspace = true }

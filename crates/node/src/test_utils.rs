@@ -40,6 +40,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .udp_gossip_address(udp_gossip_address)
         .jsonrpc_server_address(jsonrpc_server_address)
         .keypair(Keypair::random())
+        .disable_networking(false)
         .build()
         .unwrap()
 }
