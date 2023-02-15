@@ -33,6 +33,7 @@ members = [
     "crates/consensus/signer",
     "crates/consensus/job_pool",
     "crates/consensus/job_scheduler",
+    "crates/consensus/vrrb_vrf",
     "crates/executor",
     "crates/vrrb_core",
     "crates/cli",
@@ -45,7 +46,6 @@ members = [
     "crates/vrrb_lib",
     "crates/vrrb_cli",
     "crates/vrrb_gui",
-    "crates/vrrb_vrf",
     "crates/network",
     "crates/node",
     "crates/storage",
@@ -82,7 +82,7 @@ vrrb_cli = { path = "crates/vrrb_cli" }
 
 # NOTE: potentially deprecated
 vrrb_gui = { path = "crates/vrrb_gui" }
-vrrb_vrf = { path = "crates/vrrb_vrf" }
+
 
 storage = { path = "crates/storage" }
 state = { path = "crates/storage/state" }
@@ -96,6 +96,7 @@ dkg_engine = { path = "crates/consensus/dkg_engine" }
 reward = { path = "crates/consensus/reward" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
+vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
