@@ -30,7 +30,12 @@ use crate::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mining_module,
     result::{NodeError, Result},
-    validator_module, NodeType, RuntimeModule, RuntimeModuleState, StateModule, StateModuleConfig,
+    validator_module,
+    NodeType,
+    RuntimeModule,
+    RuntimeModuleState,
+    StateModule,
+    StateModuleConfig,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
