@@ -5,9 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod result;
+
 use primitives::DEFAULT_VRRB_DATA_DIR_PATH;
 
-use crate::result::{Result, StorageError};
+pub use crate::result::{Result, StorageError};
 
 /// Creates a data dir if it doesn't exists already, otherwise it simply returns
 /// its path

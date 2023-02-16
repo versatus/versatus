@@ -1,1 +1,0 @@
-{\"timestamp\":1674820629,\"sender_address\":\"aaa1\",\"sender_public_key\":[3,107,229,120,52,230,3,44,229,86,39,172,38,34,172,161,61,182,90,226,210,183,80,20,71,255,88,225,201,87,176,117,2],\"receiver_address\":\"bbb1\",\"token\":null,\"amount\":0,\"payload\":\"x\",\"signature\":[],\"validators\":{},\"nonce\":0,\"receiver_farmer_id\":null}

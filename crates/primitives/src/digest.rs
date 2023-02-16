@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use secp256k1::hashes::hex;
+use serde::{Deserialize, Serialize};
 
 use crate::{ByteSlice, ByteVec};
 
@@ -8,6 +9,7 @@ use crate::{ByteSlice, ByteVec};
 pub const DIGEST_LENGTH: usize = 32;
 
 /// Represents a SHA-256 digest produced from any serializable data type
+#[derive(Debug, Default, Clone, Copy, Hash, Deserialize, Serialize)]
 pub struct Digest([u8; DIGEST_LENGTH]);
 
 impl From<ByteVec> for Digest {
@@ -33,7 +35,6 @@ impl Display for Digest {
 }
 
 pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
-
 pub type TransactionDigest = Digest;
 
 // pub type TxHashString = String;

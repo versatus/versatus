@@ -5,7 +5,16 @@ use std::{
     str::FromStr,
 };
 
-use primitives::{ByteSlice, ByteVec, PublicKey, SecretKey, SerializedPublicKey};
+use hbbft::transaction_queue::TransactionQueue;
+use primitives::{
+    ByteSlice,
+    ByteVec,
+    Digest,
+    PublicKey,
+    SecretKey,
+    SerializedPublicKey,
+    TransactionDigest,
+};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
@@ -96,6 +105,13 @@ impl Txn {
         let encoded = self.encode();
 
         gen_sha256_digest_string(encoded.as_slice())
+    }
+
+    /// Produces a SHA 256 hash slice of bytes from the transaction
+    pub fn raw_digest(&self) -> TransactionDigest {
+        let digest_string = self.digest();
+
+        TransactionDigest::from(digest_string.as_bytes())
     }
 
     /// Serializes the transation into a byte array
@@ -248,6 +264,12 @@ impl FromStr for Txn {
 impl From<&str> for Txn {
     fn from(data: &str) -> Self {
         Self::from_string(data)
+    }
+}
+
+impl From<Txn> for TransactionDigest {
+    fn from(txn: Txn) -> Self {
+        txn.raw_digest()
     }
 }
 

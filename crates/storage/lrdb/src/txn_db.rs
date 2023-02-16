@@ -2,26 +2,32 @@ use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
 use lr_trie::{InnerTrieWrapper, LeftRightTrie};
 use patriecia::db::MemoryDB;
-use primitives::TxHash;
+use primitives::{TransactionDigest, TxHash};
+use storage_utils::{Result, StorageError};
 use vrrb_core::txn::Txn;
 
-use crate::result::{LeftRightDbError, Result};
+use crate::RocksDbAdapter;
+
+pub type TransactionStore = TxnDb<'static>;
 
 #[derive(Debug, Clone)]
 pub struct TxnDb<'a> {
-    trie: LeftRightTrie<'a, TxHash, Txn, MemoryDB>,
-    last_refresh: std::time::SystemTime,
+    trie: LeftRightTrie<'a, TransactionDigest, Txn, RocksDbAdapter>,
 }
 
 impl<'a> Default for TxnDb<'a> {
     fn default() -> Self {
-        let trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
+        let db_path = storage_utils::get_node_data_dir()
+            .unwrap_or_default()
+            .join("node")
+            .join("db")
+            .join("transactions");
 
-        Self {
-            // TODO: revisit to use utc time
-            last_refresh: SystemTime::now(),
-            trie,
-        }
+        let db_adapter = RocksDbAdapter::new(db_path, "transactions").unwrap_or_default();
+
+        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+
+        Self { trie }
     }
 }
 
@@ -35,18 +41,24 @@ impl<'a> TxnDb<'a> {
         let inner = self.trie.handle();
         TxnDbReadHandle { inner }
     }
+
+    pub fn insert(&mut self, txn: Txn) -> Result<()> {
+        let key = TransactionDigest::from(txn.clone());
+
+        Ok(self.trie.insert(key, txn))
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct TxnDbReadHandle {
-    inner: InnerTrieWrapper<MemoryDB>,
+    inner: InnerTrieWrapper<RocksDbAdapter>,
 }
 
 impl TxnDbReadHandle {
     pub fn get(&self, key: &TxHash) -> Result<Txn> {
         self.inner
             .get(key)
-            .map_err(|err| LeftRightDbError::Other(err.to_string()))
+            .map_err(|err| StorageError::Other(err.to_string()))
     }
 
     pub fn batch_get(&self, keys: Vec<TxHash>) -> HashMap<TxHash, Option<Txn>> {

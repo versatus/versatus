@@ -20,14 +20,13 @@ use primitives::{
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
+use storage_utils::{result::Result, types::StatePath, StateError};
 use telemetry::info;
 use vrrb_core::{
     account::{Account, UpdateArgs},
     serde_helpers,
     txn::Txn,
 };
-
-use crate::{result::Result, types::StatePath, StateError};
 
 const DEFAULT_SERIALIZED_STATE_FILENAME: &str = "state";
 const DEFAULT_SERIALIZED_CONFIRMED_TXNS_FILENAME: &str = "txns";

@@ -52,6 +52,7 @@ members = [
     "crates/storage/lr_trie",
     "crates/storage/lrdb",
     "crates/storage/state",
+    "crates/storage/utils",
     "crates/syncing",
     "crates/telemetry",
 ]
@@ -88,6 +89,7 @@ storage = { path = "crates/storage" }
 state = { path = "crates/storage/state" }
 lrdb = { path = "crates/storage/lrdb" }
 lr_trie = { path = "crates/storage/lr_trie" }
+storage_utils = { path = "crates/storage/utils" }
 
 consensus = { path = "crates/consensus" }
 quorum = { path = "crates/consensus/quorum" }

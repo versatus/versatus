@@ -5,9 +5,8 @@ use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::SerializedPublicKeyString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
-
-use crate::result::{LeftRightDbError, Result};
 
 pub type FailedAccountUpdates = Vec<(SerializedPublicKeyString, Vec<UpdateArgs>, Result<()>)>;
 
@@ -19,6 +18,8 @@ pub struct StateDb<'a> {
 
 impl<'a> Default for StateDb<'a> {
     fn default() -> Self {
+        let data_dir = storage_utils::get_node_data_dir();
+
         let trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
 
         Self {
@@ -56,13 +57,13 @@ impl<'a> StateDb<'a> {
         account: Account,
     ) -> Result<()> {
         if account.debits != 0 {
-            return Err(LeftRightDbError::Other(
+            return Err(StorageError::Other(
                 "cannot insert account with debit".to_string(),
             ));
         }
 
         if account.nonce != 0 {
-            return Err(LeftRightDbError::Other(
+            return Err(StorageError::Other(
                 "cannot insert account with nonce bigger than 0".to_string(),
             ));
         }
@@ -86,9 +87,8 @@ impl<'a> StateDb<'a> {
     fn batch_insert_uncommited(
         &mut self,
         inserts: Vec<(SerializedPublicKeyString, Account)>,
-    ) -> Option<Vec<(SerializedPublicKeyString, Account, LeftRightDbError)>> {
-        let mut failed_inserts: Vec<(SerializedPublicKeyString, Account, LeftRightDbError)> =
-            vec![];
+    ) -> Option<Vec<(SerializedPublicKeyString, Account, StorageError)>> {
+        let mut failed_inserts: Vec<(SerializedPublicKeyString, Account, StorageError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
@@ -112,7 +112,7 @@ impl<'a> StateDb<'a> {
     pub fn batch_insert(
         &mut self,
         inserts: Vec<(SerializedPublicKeyString, Account)>,
-    ) -> Option<Vec<(SerializedPublicKeyString, Account, LeftRightDbError)>> {
+    ) -> Option<Vec<(SerializedPublicKeyString, Account, StorageError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit_changes();
         failed_inserts
@@ -156,11 +156,11 @@ impl<'a> StateDb<'a> {
         let mut account = self
             .read_handle()
             .get(&key)
-            .map_err(|err| LeftRightDbError::Other(err.to_string()))?;
+            .map_err(|err| StorageError::Other(err.to_string()))?;
 
         account
             .update(update)
-            .map_err(|err| LeftRightDbError::Other(err.to_string()))?;
+            .map_err(|err| StorageError::Other(err.to_string()))?;
 
         Ok(())
     }
@@ -232,7 +232,7 @@ impl<'a> StateDb<'a> {
                     for update in v.as_slice() {
                         let update_result = account
                             .update(update.clone())
-                            .map_err(|err| LeftRightDbError::Other(err.to_string()));
+                            .map_err(|err| StorageError::Other(err.to_string()));
 
                         if let Err(err) = update_result {
                             fail = (true, Err(err));
@@ -289,7 +289,7 @@ impl StateDbReadHandle {
     pub fn get(&self, key: &SerializedPublicKeyString) -> Result<Account> {
         self.inner
             .get(key)
-            .map_err(|err| LeftRightDbError::Other(err.to_string()))
+            .map_err(|err| StorageError::Other(err.to_string()))
     }
 
     /// Get a batch of accounts by providing Vec of PublicKeysHash

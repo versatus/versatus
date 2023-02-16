@@ -1,8 +1,14 @@
+mod backing_db;
+mod ledger_store;
 mod lrdb;
 pub mod result;
+mod rocksdb_adapter;
 mod state_db;
 mod txn_db;
 
+pub use backing_db::*;
+pub use ledger_store::*;
+pub use rocksdb_adapter::*;
 pub use state_db::*;
 pub use txn_db::*;
 
