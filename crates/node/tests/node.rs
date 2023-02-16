@@ -24,7 +24,6 @@ async fn node_runtime_starts_and_stops() {
     let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8082);
     let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8083);
 
-
     let id = Uuid::new_v4().simple().to_string();
     let idx = 100;
 
@@ -33,18 +32,19 @@ async fn node_runtime_starts_and_stops() {
         idx,
         data_dir,
         db_path,
-        node_type: NodeType::Full,
         raptorq_gossip_address,
         udp_gossip_address,
-        jsonrpc_server_address,
+        node_type: NodeType::Full,
         bootstrap_node_addresses: bootstrap_node.bootstrap_node_addresses(),
-        preload_mock_state: false,
         http_api_address,
         http_api_title: "Node HTTP API".into(),
         http_api_version: "1.0".into(),
         http_api_shutdown_timeout: None,
+        jsonrpc_server_address,
+        preload_mock_state: false,
         bootstrap_config: None,
         keypair: Keypair::random(),
+        disable_networking: false,
     };
 
     let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();

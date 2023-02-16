@@ -180,6 +180,7 @@ hyper = { version = "0.14.23", features = ["full"] }
 cuckoofilter = "0.5.0"
 
 [dev-dependencies]
+cuckoofilter.workspace = true
 reqwest.workspace = true
 rusty-hook.workspace = true
 serial_test.workspace = true

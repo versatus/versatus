@@ -248,7 +248,7 @@ mod tests {
             tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let mut swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 6069,
+                port: 0,
                 bootstrap_node: Some(BootStrapNodeDetails {
                     addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
                     key: hex::encode(key.clone()),

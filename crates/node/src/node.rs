@@ -86,7 +86,7 @@ impl Node {
         let mut gossip_handle = None;
 
         if !config.disable_networking {
-            let (gossip_handle, broadcast_controller_handle, gossip_addr) =
+            let (new_gossip_handle, broadcast_controller_handle, gossip_addr) =
                 Self::setup_gossip_network(
                     &config,
                     events_tx.clone(),
