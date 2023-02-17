@@ -7,7 +7,7 @@ use jsonrpsee::{
     types::SubscriptionResult,
 };
 use mempool::MempoolReadHandleFactory;
-use primitives::NodeType;
+use primitives::{NodeType, TransactionDigest};
 use storage::vrrbdb::VrrbDbReadHandle;
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
@@ -77,11 +77,11 @@ impl RpcServer for RpcServerImpl {
         todo!()
     }
 
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<(), Error> {}
+    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<(), Error> {
+        todo!()
+    }
 
-    async fn list_transactions(&self) -> Result<(), Error> {}
-
-    async fn create_account(&self, account: Account) -> Result<(), Error> {}
-
-    async fn update_account(&self, account: Account) -> Result<(), Error> {}
+    async fn list_transactions(&self) -> Result<(), Error> {
+        todo!()
+    }
 }
