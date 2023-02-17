@@ -7,7 +7,6 @@ use network::{
     network::BroadcastEngine,
 };
 use primitives::{NodeType, PeerId};
-use state::NodeStateReadHandle;
 use telemetry::{error, info, warn};
 use theater::{ActorLabel, ActorState, Handler};
 use tokio::{

@@ -10,14 +10,12 @@ use kademlia_dht::{Key, Node, NodeData};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{NodeIdx, NodeType, QuorumType};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
 use vrrb_core::event_router::{DirectedEvent, Event, Topic};
 
 use crate::{result::Result, NodeError, RuntimeModule};
-
 
 pub struct DkgModuleConfig {
     pub quorum_type: Option<QuorumType>,
@@ -34,7 +32,6 @@ pub struct DkgModule {
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
 }
-
 
 impl DkgModule {
     pub fn new(
@@ -299,7 +296,6 @@ mod tests {
         handle.await.unwrap();
     }
 
-
     #[tokio::test]
     async fn dkg_runtime_dkg_init() {
         let (broadcast_events_tx, mut broadcast_events_rx) =
@@ -356,7 +352,6 @@ mod tests {
 
         handle.await.unwrap();
     }
-
 
     #[tokio::test]
     async fn dkg_runtime_dkg_ack() {
@@ -424,7 +419,6 @@ mod tests {
         ctrl_tx.send(Event::Stop).unwrap();
         handle.await.unwrap();
     }
-
 
     #[tokio::test]
     async fn dkg_runtime_handle_all_acks_generate_keyset() {

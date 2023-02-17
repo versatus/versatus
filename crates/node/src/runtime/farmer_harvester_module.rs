@@ -17,7 +17,6 @@ use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumType, RawSignature, TxHashString};
 use serde::{Deserialize, Serialize};
 use signer::signer::{SignatureProvider, Signer};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;

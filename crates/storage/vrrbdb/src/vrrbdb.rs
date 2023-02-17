@@ -10,6 +10,7 @@ use crate::{
     StateStoreReadHandleFactory,
     TransactionStore,
     TransactionStoreReadHandleFactory,
+    VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
@@ -51,6 +52,10 @@ impl VrrbDb {
             state_store,
             transaction_store,
         }
+    }
+
+    pub fn read_handle(&self) -> VrrbDbReadHandle {
+        VrrbDbReadHandle::new(self.state_store.factory(), self.transaction_store_factory())
     }
 
     pub fn new_with_stores(state_store: StateStore, transaction_store: TransactionStore) -> Self {

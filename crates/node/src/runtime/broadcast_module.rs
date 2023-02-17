@@ -7,7 +7,7 @@ use network::{
     network::BroadcastEngine,
 };
 use primitives::{NodeType, PeerId};
-use state::NodeStateReadHandle;
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::{error, info, warn};
 use theater::{ActorLabel, ActorState, Handler};
 use tokio::{
@@ -28,7 +28,7 @@ use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
 pub struct BroadcastModuleConfig {
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     pub node_type: NodeType,
-    pub state_handle_factory: NodeStateReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub udp_gossip_address_port: u16,
     pub raptorq_gossip_address_port: u16,
     pub node_id: PeerId,
@@ -39,7 +39,7 @@ pub struct BroadcastModuleConfig {
 pub struct BroadcastModule {
     id: Uuid,
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-    state_handle_factory: NodeStateReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle,
     // broadcast_handle: JoinHandle<Result<()>>,
     addr: SocketAddr,
     // controller_rx: MpscReceiver<Event>,
@@ -59,7 +59,7 @@ impl BroadcastModule {
         Ok(Self {
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            state_handle_factory: config.state_handle_factory,
+            vrrbdb_read_handle: config.vrrbdb_read_handle,
             addr,
             // broadcast_handle,
             // controller_rx,
@@ -111,7 +111,7 @@ mod tests {
     use std::sync::mpsc::channel;
 
     use primitives::NodeType;
-    use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use tokio::sync::mpsc::unbounded_channel;
     use vrrb_core::event_router::Event;
 
@@ -121,19 +121,17 @@ mod tests {
     async fn test_broadcast_module() {
         let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
 
-        let node_state_config = NodeStateConfig {
-            ..Default::default()
-        };
-
-        let node_state = NodeState::new(&node_state_config);
-
-        let state_handle_factory = node_state.read_handle();
-
         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
+
+        let db_config = VrrbDbConfig::default();
+
+        let db = VrrbDb::new(db_config);
+
+        let vrrbdb_read_handle = db.read_handle();
 
         let config = BroadcastModuleConfig {
             events_tx: internal_events_tx,
-            state_handle_factory,
+            vrrbdb_read_handle,
             node_type: NodeType::Full,
             udp_gossip_address_port: 0,
             raptorq_gossip_address_port: 0,

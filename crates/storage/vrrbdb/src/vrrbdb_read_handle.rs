@@ -12,6 +12,16 @@ pub struct VrrbDbReadHandle {
 }
 
 impl VrrbDbReadHandle {
+    pub fn new(
+        state_store_handle_factory: StateStoreReadHandleFactory,
+        transaction_store_handle_factory: TransactionStoreReadHandleFactory,
+    ) -> Self {
+        Self {
+            state_store_handle_factory,
+            transaction_store_handle_factory,
+        }
+    }
+
     /// Returns a copy of all values stored within the state trie
     pub fn state_store_values(&self) -> HashMap<Address, Account> {
         self.state_store_handle_factory.handle().entries()

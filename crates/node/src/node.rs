@@ -1,9 +1,13 @@
 use std::{io::Read, net::SocketAddr, path::PathBuf, sync::mpsc::channel, thread};
 
 use crossbeam_channel::unbounded;
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use network::{message::Message, network::BroadcastEngine, packet, packet::RaptorBroadCastedData};
 use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
+use storage::{
+    storage_utils,
+    vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
+};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::{
@@ -76,6 +80,9 @@ impl Node {
 
         let mut event_router = Self::setup_event_routing_system();
 
+        let mempool = LeftRightMempool::new();
+        let mempool_read_handle_factory = mempool.factory();
+
         let (state_read_handle, state_handle) = Self::setup_state_store(
             &config,
             events_tx.clone(),
@@ -105,6 +112,7 @@ impl Node {
             events_tx.clone(),
             // event_router.subscribe(&Topic::Network)?,
             state_read_handle.clone(),
+            mempool_read_handle_factory.clone(),
         )
         .await?;
 
@@ -266,7 +274,7 @@ impl Node {
         events_tx: UnboundedSender<DirectedEvent>,
         mut network_events_rx: Receiver<Event>,
         mut controller_events_rx: Receiver<Event>,
-        state_handle_factory: NodeStateReadHandle,
+        vrrbdb_read_handle: VrrbDbReadHandle,
     ) -> Result<(
         Option<JoinHandle<Result<()>>>,
         Option<JoinHandle<Result<()>>>,
@@ -274,7 +282,7 @@ impl Node {
     )> {
         let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
             events_tx: events_tx.clone(),
-            state_handle_factory,
+            vrrbdb_read_handle,
             udp_gossip_address_port: config.udp_gossip_address.port(),
             raptorq_gossip_address_port: config.raptorq_gossip_address.port(),
             node_type: config.node_type,
@@ -322,30 +330,20 @@ impl Node {
         config: &NodeConfig,
         events_tx: UnboundedSender<DirectedEvent>,
         mut state_events_rx: Receiver<Event>,
-    ) -> Result<(NodeStateReadHandle, Option<JoinHandle<Result<()>>>)> {
+    ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
         // TODO: restore state if exists
 
         let database_path = config.db_path();
-        vrrb_core::storage_utils::create_dir(database_path)?;
 
-        let node_state_config = NodeStateConfig {
-            path: database_path.to_path_buf(),
+        storage_utils::create_dir(database_path)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
 
-            // TODO: read these from config
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let vrrbdb_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+        let vrrbdb_read_handle = db.read_handle();
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
-
-        let state_read_handle = state_module.read_handle();
-
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
         let mut state_module_actor = ActorImpl::new(state_module);
 
         let state_handle = tokio::spawn(async move {
@@ -355,19 +353,21 @@ impl Node {
                 .map_err(|err| NodeError::Other(err.to_string()))
         });
 
-        Ok((state_read_handle, Some(state_handle)))
+        Ok((vrrbdb_read_handle, Some(state_handle)))
     }
 
     async fn setup_rpc_api_server(
         config: &NodeConfig,
         events_tx: UnboundedSender<DirectedEvent>,
-        state_read_handle: NodeStateReadHandle,
+        vrrbdb_read_handle: VrrbDbReadHandle,
+        mempool_read_handle_factory: MempoolReadHandleFactory,
     ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
         let jsonrpc_server_config = JsonRpcServerConfig {
             address: config.jsonrpc_server_address,
-            state_handle_factory: state_read_handle,
             node_type: config.node_type,
             events_tx,
+            vrrbdb_read_handle,
+            mempool_read_handle_factory,
         };
 
         let resolved_jsonrpc_server_addr = JsonRpcServer::run(&jsonrpc_server_config)

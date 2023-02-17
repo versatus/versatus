@@ -3,7 +3,7 @@ use std::{hash::Hash, path::PathBuf};
 use async_trait::async_trait;
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
+use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
@@ -15,13 +15,13 @@ use vrrb_core::{
 use crate::{result::Result, NodeError, RuntimeModule};
 
 pub struct StateModuleConfig {
-    pub node_state: NodeState,
+    pub db: VrrbDb,
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
 }
 
 #[derive(Debug)]
 pub struct StateModule {
-    state: NodeState,
+    db: VrrbDb,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -34,7 +34,7 @@ pub struct StateModule {
 impl StateModule {
     pub fn new(config: StateModuleConfig) -> Self {
         Self {
-            state: config.node_state,
+            db: config.db,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
             label: String::from("State"),
@@ -56,8 +56,8 @@ impl StateModule {
         todo!()
     }
 
-    pub fn read_handle(&self) -> NodeStateReadHandle {
-        self.state.read_handle()
+    pub fn read_handle(&self) -> VrrbDbReadHandle {
+        self.db.read_handle()
     }
 
     fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
@@ -65,23 +65,19 @@ impl StateModule {
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 
-        self.state
-            .remove_txn_from_mempool(&txn_hash)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        // self.db
+        //     .remove_txn_from_mempool(&txn_hash)
+        //     .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        self.state
-            .insert_confirmed_txn(txn)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        // self.db
+        //     .insert_confirmed_txn(txn)
+        //     .map_err(|err| NodeError::Other(err.to_string()))?;
 
         self.events_tx
             .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         Ok(())
-    }
-
-    fn process_block(&mut self) {
-        //
     }
 }
 
@@ -128,9 +124,9 @@ impl Handler<Event> for StateModule {
 
                 let txn_hash = txn.digest();
 
-                self.state
-                    .insert_txn_to_mempool(txn)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                // self.db
+                //     .insert_txn_to_mempool(txn)
+                //     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
                     .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
@@ -153,6 +149,7 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
+    use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
     use vrrb_core::{
         event_router::{DirectedEvent, Event},
@@ -167,19 +164,11 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let node_state_config = NodeStateConfig {
-            path: temp_dir_path,
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let db_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -203,19 +192,11 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let node_state_config = NodeStateConfig {
-            path: temp_dir_path,
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let db_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -239,19 +220,11 @@ mod tests {
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let node_state_config = NodeStateConfig {
-            path: temp_dir_path,
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let db_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 

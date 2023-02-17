@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
