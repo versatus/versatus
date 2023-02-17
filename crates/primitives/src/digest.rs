@@ -36,18 +36,3 @@ impl Display for Digest {
 
 pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
 pub type TransactionDigest = Digest;
-
-// pub type TxHashString = String;
-// pub type PayloadHash = Hash;
-// pub type BlockHash = Hash;
-// pub type RawSignature = Vec<u8>;
-// pub type PeerId = Vec<u8>;
-// /// Represents a byte slice produced from an instance of secp256k1::SecretKey
-// pub type SerializedSecretKey = Vec<u8>;
-// /// Represents a byte slice produced from an instance of secp256k1::PublicKey
-// pub type SerializedPublicKey = Vec<u8>;
-// /// Represents a String produced from an instance of secp256k1::PublicKey
-// pub type SerializedPublicKeyString = String;
-// pub type PublicKey = secp256k1::PublicKey;
-// pub type SecretKey = secp256k1::SecretKey;
-// pub type Signature = secp256k1::ecdsa::Signature;
