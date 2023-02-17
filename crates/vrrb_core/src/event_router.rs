@@ -59,7 +59,6 @@ pub struct VoteReceipt {
     pub signature: RawSignature,
 }
 
-
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct QuorumCertifiedTxn {
     sender_farmer_id: Vec<u8>,
@@ -69,7 +68,6 @@ pub struct QuorumCertifiedTxn {
     /// Threshold Signature
     signature: RawSignature,
 }
-
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Event {
@@ -214,6 +212,8 @@ pub enum Topic {
     Transactions,
     State,
     Network,
+    Storage,
+    Consensus,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction
@@ -279,7 +279,6 @@ impl EventRouter {
         }
     }
 }
-
 
 impl QuorumCertifiedTxn {
     pub fn new(

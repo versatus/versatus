@@ -32,6 +32,7 @@ use vrrb_rpc::{
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module,
     result::{NodeError, Result},
     validator_module,
@@ -82,6 +83,22 @@ impl Node {
 
         let mempool = LeftRightMempool::new();
         let mempool_read_handle_factory = mempool.factory();
+
+        let mempool_module = MempoolModule::new(MempoolModuleConfig {
+            mempool,
+            events_tx: events_tx.clone(),
+        });
+
+        let mut mempool_module_actor = ActorImpl::new(mempool_module);
+
+        let mut mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
+
+        let mempool_handle = tokio::spawn(async move {
+            mempool_module_actor
+                .start(&mut mempool_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
 
         let (state_read_handle, state_handle) = Self::setup_state_store(
             &config,
