@@ -1,61 +1,70 @@
-use std::{collections::HashMap, sync::Arc, time::SystemTime};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::SystemTime,
+};
 
 use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::SerializedPublicKeyString;
+use primitives::{Address, SerializedPublicKeyString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
-pub type FailedAccountUpdates = Vec<(SerializedPublicKeyString, Vec<UpdateArgs>, Result<()>)>;
+use crate::RocksDbAdapter;
+
+mod state_store_rh;
+pub use state_store_rh::*;
+
+pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct StateDb<'a> {
-    trie: LeftRightTrie<'a, SerializedPublicKeyString, Account, MemoryDB>,
-    last_refresh: std::time::SystemTime,
+pub struct StateStore {
+    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter>,
 }
 
-impl<'a> Default for StateDb<'a> {
+impl Default for StateStore {
     fn default() -> Self {
-        let data_dir = storage_utils::get_node_data_dir();
+        let db_path = storage_utils::get_node_data_dir()
+            .unwrap_or_default()
+            .join("node")
+            .join("db")
+            .join("transactions");
 
-        let trie = LeftRightTrie::new(Arc::new(MemoryDB::new(true)));
+        let db_adapter = RocksDbAdapter::new(db_path, "state").unwrap_or_default();
 
-        Self {
-            // TODO: revisit to use utc time
-            last_refresh: SystemTime::now(),
-            trie,
-        }
+        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+
+        Self { trie }
     }
 }
 
-impl<'a> StateDb<'a> {
+impl StateStore {
     /// Returns new, empty instance of StateDb
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(path: &PathBuf) -> Self {
+        let db_adapter = RocksDbAdapter::new(path.to_owned(), "state").unwrap_or_default();
+        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+
+        Self { trie }
     }
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> StateDbReadHandle {
+    pub fn read_handle(&self) -> StateStoreReadHandle {
         let inner = self.trie.handle();
-        StateDbReadHandle { inner }
+        StateStoreReadHandle::new(inner)
     }
 
     /// Commits uncommitted changes to the underlying trie by calling
     /// `publish()` Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
         self.trie.publish();
-        self.last_refresh = SystemTime::now();
     }
 
     // Maybe initialize is better name for that?
-    fn insert_uncommited(
-        &mut self,
-        key: SerializedPublicKeyString,
-        account: Account,
-    ) -> Result<()> {
+    fn insert_uncommited(&mut self, key: Address, account: Account) -> Result<()> {
         if account.debits != 0 {
             return Err(StorageError::Other(
                 "cannot insert account with debit".to_string(),
@@ -74,7 +83,7 @@ impl<'a> StateDb<'a> {
     }
 
     /// Inserts new account into StateDb.
-    pub fn insert(&mut self, key: SerializedPublicKeyString, account: Account) -> Result<()> {
+    pub fn insert(&mut self, key: Address, account: Account) -> Result<()> {
         self.insert_uncommited(key, account)?;
         self.commit_changes();
         Ok(())
@@ -86,14 +95,14 @@ impl<'a> StateDb<'a> {
     // inserted
     fn batch_insert_uncommited(
         &mut self,
-        inserts: Vec<(SerializedPublicKeyString, Account)>,
-    ) -> Option<Vec<(SerializedPublicKeyString, Account, StorageError)>> {
-        let mut failed_inserts: Vec<(SerializedPublicKeyString, Account, StorageError)> = vec![];
+        inserts: Vec<(Address, Account)>,
+    ) -> Option<Vec<(Address, Account, StorageError)>> {
+        let mut failed_inserts: Vec<(Address, Account, StorageError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
-            if let Err(e) = self.insert_uncommited(k.to_string(), v.clone()) {
-                failed_inserts.push((k.to_string(), v.clone(), e));
+            if let Err(e) = self.insert_uncommited(k.to_owned(), v.clone()) {
+                failed_inserts.push((k.to_owned(), v.clone(), e));
             }
         });
 
@@ -111,8 +120,8 @@ impl<'a> StateDb<'a> {
     /// Otherwise returns vector of (key, account_to_be_inserted, error).
     pub fn batch_insert(
         &mut self,
-        inserts: Vec<(SerializedPublicKeyString, Account)>,
-    ) -> Option<Vec<(SerializedPublicKeyString, Account, StorageError)>> {
+        inserts: Vec<(Address, Account)>,
+    ) -> Option<Vec<(Address, Account, StorageError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit_changes();
         failed_inserts
@@ -120,21 +129,22 @@ impl<'a> StateDb<'a> {
 
     /// Retain returns new StateDb with witch all Accounts that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, mut filter: F) -> StateDb
+    pub fn retain<F>(&self, mut filter: F) -> StateStore
     where
         F: FnMut(&Account) -> bool,
     {
-        let mut subdb = StateDb::new();
-
-        self.trie.entries().iter().for_each(|(key, value)| {
-            let account = value.to_owned();
-            if filter(&account) {
-                subdb.insert_uncommited(key.to_string(), account);
-            }
-        });
-
-        subdb.trie.publish();
-        subdb
+        todo!()
+        // let mut subdb = StateStore::new(self.);
+        //
+        // self.trie.entries().iter().for_each(|(key, value)| {
+        //     let account = value.to_owned();
+        //     if filter(&account) {
+        //         subdb.insert_uncommited(key.to_string(), account);
+        //     }
+        // });
+        //
+        // subdb.trie.publish();
+        // subdb
     }
 
     /// Returns a number of initialized accounts in the database
@@ -142,17 +152,8 @@ impl<'a> StateDb<'a> {
         self.trie.len()
     }
 
-    /// Returns the last refresh time
-    pub fn last_refresh(&self) -> SystemTime {
-        self.last_refresh
-    }
-
     /// Updates a given account if it exists within the store
-    fn update_uncommited(
-        &mut self,
-        key: SerializedPublicKeyString,
-        update: UpdateArgs,
-    ) -> Result<()> {
+    fn update_uncommited(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
         let mut account = self
             .read_handle()
             .get(&key)
@@ -168,7 +169,7 @@ impl<'a> StateDb<'a> {
     /// Updates an Account in the database under given PublicKey
     ///
     /// If succesful commits the change. Otherwise returns an error.
-    pub fn update(&mut self, key: SerializedPublicKeyString, update: UpdateArgs) -> Result<()> {
+    pub fn update(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
         self.update_uncommited(key, update)?;
         self.commit_changes();
         Ok(())
@@ -189,7 +190,7 @@ impl<'a> StateDb<'a> {
     /// account, and error that prevented the update.
     pub fn batch_update(
         &mut self,
-        mut updates: Vec<(SerializedPublicKeyString, UpdateArgs)>,
+        mut updates: Vec<(Address, UpdateArgs)>,
     ) -> Option<FailedAccountUpdates> {
         // Store and return all failures as (PublicKey, AllPushedUpdates, Error)
         // This way caller is provided with all info -> They know which accounts were
@@ -204,7 +205,7 @@ impl<'a> StateDb<'a> {
 
         // We'll segregate the batch of updates by key (since it's possible that in
         // provided Vec there is a chance that not every PublicKey is unique)
-        let mut update_batches = HashMap::<&SerializedPublicKeyString, Vec<UpdateArgs>>::new();
+        let mut update_batches = HashMap::<&Address, Vec<UpdateArgs>>::new();
 
         updates.iter().for_each(|update| {
             if let Some(vec_of_updates) = update_batches.get_mut(&update.0) {
@@ -267,89 +268,13 @@ impl<'a> StateDb<'a> {
         self.trie.root()
     }
 
-    pub fn extend(&mut self, accounts: Vec<(SerializedPublicKeyString, Account)>) {
+    pub fn extend(&mut self, accounts: Vec<(Address, Account)>) {
         self.trie.extend(accounts)
     }
 
-    pub fn factory(&self) -> StateDbReadHandleFactory {
+    pub fn factory(&self) -> StateStoreReadHandleFactory {
         let inner = self.trie.factory();
 
-        StateDbReadHandleFactory { inner }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct StateDbReadHandle {
-    inner: InnerTrieWrapper<MemoryDB>,
-}
-
-impl StateDbReadHandle {
-    /// Returns `Some(Account)` if an account exist under given PublicKey.
-    /// Otherwise returns `None`.
-    pub fn get(&self, key: &SerializedPublicKeyString) -> Result<Account> {
-        self.inner
-            .get(key)
-            .map_err(|err| StorageError::Other(err.to_string()))
-    }
-
-    /// Get a batch of accounts by providing Vec of PublicKeysHash
-    ///
-    /// Returns HashMap indexed by PublicKeys and containing either
-    /// Some(account) or None if account was not found.
-    pub fn batch_get(
-        &self,
-        keys: Vec<SerializedPublicKeyString>,
-    ) -> HashMap<SerializedPublicKeyString, Option<Account>> {
-        let mut accounts = HashMap::new();
-
-        keys.iter().for_each(|key| {
-            let value = self.get(key).ok();
-            accounts.insert(key.to_owned(), value);
-        });
-
-        accounts
-    }
-
-    pub fn entries(&self) -> HashMap<SerializedPublicKeyString, Account> {
-        // TODO: revisit and refactor into inner wrapper
-        self.inner
-            .iter()
-            .map(|(key, value)| {
-                let key = bincode::deserialize(&key).unwrap_or_default();
-                let value = bincode::deserialize(&value).unwrap_or_default();
-
-                (key, value)
-            })
-            .collect()
-    }
-
-    /// Returns a number of initialized accounts in the database
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    /// Returns the information about the StateDb being empty
-    pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct StateDbReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<MemoryDB>>,
-}
-
-impl StateDbReadHandleFactory {
-    pub fn handle(&self) -> StateDbReadHandle {
-        let handle = self
-            .inner
-            .handle()
-            .enter()
-            .map(|guard| guard.clone())
-            .unwrap_or_default();
-
-        let inner = InnerTrieWrapper::new(handle);
-
-        StateDbReadHandle { inner }
+        StateStoreReadHandleFactory::new(inner)
     }
 }

@@ -50,8 +50,7 @@ members = [
     "crates/node",
     "crates/storage",
     "crates/storage/lr_trie",
-    "crates/storage/lrdb",
-    "crates/storage/state",
+    "crates/storage/vrrbdb",
     "crates/storage/utils",
     "crates/syncing",
     "crates/telemetry",
@@ -84,10 +83,8 @@ vrrb_cli = { path = "crates/vrrb_cli" }
 # NOTE: potentially deprecated
 vrrb_gui = { path = "crates/vrrb_gui" }
 
-
 storage = { path = "crates/storage" }
-state = { path = "crates/storage/state" }
-lrdb = { path = "crates/storage/lrdb" }
+vrrbdb = { path = "crates/storage/vrrbdb" }
 lr_trie = { path = "crates/storage/lr_trie" }
 storage_utils = { path = "crates/storage/utils" }
 
@@ -180,6 +177,8 @@ tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["trace"] }
 hyper = { version = "0.14.23", features = ["full"] }
 cuckoofilter = "0.5.0"
+indexmap = "1.9.1"
+raptorq = "1.7.0"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

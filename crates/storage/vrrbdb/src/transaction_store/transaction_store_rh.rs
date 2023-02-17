@@ -1,60 +1,23 @@
 use std::{collections::HashMap, sync::Arc, time::SystemTime};
 
-use lr_trie::{InnerTrieWrapper, LeftRightTrie};
-use patriecia::db::MemoryDB;
+use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory};
+use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{TransactionDigest, TxHash};
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::Txn;
 
 use crate::RocksDbAdapter;
 
-pub type TransactionStore = TxnDb<'static>;
-
 #[derive(Debug, Clone)]
-pub struct TxnDb<'a> {
-    trie: LeftRightTrie<'a, TransactionDigest, Txn, RocksDbAdapter>,
-}
-
-impl<'a> Default for TxnDb<'a> {
-    fn default() -> Self {
-        let db_path = storage_utils::get_node_data_dir()
-            .unwrap_or_default()
-            .join("node")
-            .join("db")
-            .join("transactions");
-
-        let db_adapter = RocksDbAdapter::new(db_path, "transactions").unwrap_or_default();
-
-        let trie = LeftRightTrie::new(Arc::new(db_adapter));
-
-        Self { trie }
-    }
-}
-
-impl<'a> TxnDb<'a> {
-    /// Returns new, empty instance of TxnDb
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn read_handle(&self) -> TxnDbReadHandle {
-        let inner = self.trie.handle();
-        TxnDbReadHandle { inner }
-    }
-
-    pub fn insert(&mut self, txn: Txn) -> Result<()> {
-        let key = TransactionDigest::from(txn.clone());
-
-        Ok(self.trie.insert(key, txn))
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TxnDbReadHandle {
+pub struct TransactionStoreReadHandle {
     inner: InnerTrieWrapper<RocksDbAdapter>,
 }
 
-impl TxnDbReadHandle {
+impl TransactionStoreReadHandle {
+    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+        Self { inner }
+    }
+
     pub fn get(&self, key: &TxHash) -> Result<Txn> {
         self.inner
             .get(key)
@@ -93,5 +56,29 @@ impl TxnDbReadHandle {
     /// Returns the information about the StateDb being empty
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TransactionStoreReadHandleFactory {
+    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
+}
+
+impl TransactionStoreReadHandleFactory {
+    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+        Self { inner }
+    }
+
+    pub fn handle(&self) -> TransactionStoreReadHandle {
+        let handle = self
+            .inner
+            .handle()
+            .enter()
+            .map(|guard| guard.clone())
+            .unwrap_or_default();
+
+        let inner = InnerTrieWrapper::new(handle);
+
+        TransactionStoreReadHandle { inner }
     }
 }

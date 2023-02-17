@@ -1,16 +1,15 @@
-mod ledger_store;
-mod lrdb;
+mod event_store;
 pub mod result;
 mod rocksdb_adapter;
-mod state_db;
-mod txn_db;
+mod state_store;
+mod transaction_store;
+mod vrrbdb;
 
-pub use ledger_store::*;
+pub use event_store::*;
 pub use rocksdb_adapter::*;
-pub use state_db::*;
-pub use txn_db::*;
-
-pub use crate::lrdb::*;
+pub use state_store::*;
+pub use transaction_store::*;
+pub use vrrbdb::*;
 
 #[cfg(test)]
 mod tests {
