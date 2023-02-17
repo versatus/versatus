@@ -1,4 +1,31 @@
-// pub mod blockchain_module;
+use std::net::SocketAddr;
+
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use network::network::BroadcastEngine;
+use storage::{
+    storage_utils,
+    vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
+};
+use theater::{Actor, ActorImpl};
+use tokio::{
+    sync::{broadcast::Receiver, mpsc::UnboundedSender},
+    task::JoinHandle,
+};
+use vrrb_config::NodeConfig;
+use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
+
+use self::{
+    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    mempool_module::{MempoolModule, MempoolModuleConfig},
+};
+use crate::{
+    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
+    NodeError,
+    Result,
+    RuntimeModule,
+};
+
 pub mod broadcast_module;
 pub mod dkg_module;
 pub mod farmer_harvester_module;
@@ -8,26 +35,85 @@ pub mod state_module;
 pub mod swarm_module;
 pub mod validator_module;
 
-use std::net::SocketAddr;
+pub async fn setup_runtime_components(
+    config: &NodeConfig,
+    events_tx: UnboundedSender<(Topic, Event)>,
+    mempool_events_rx: Receiver<Event>,
+    vrrbdb_events_rx: Receiver<Event>,
+    network_events_rx: Receiver<Event>,
+    controller_events_rx: Receiver<Event>,
+    validator_events_rx: Receiver<Event>,
+    miner_events_rx: Receiver<Event>,
+) -> Result<()> {
+    let mempool = LeftRightMempool::new();
+    let mempool_read_handle_factory = mempool.factory();
 
-use network::network::BroadcastEngine;
-pub use state_module::*;
-use storage::vrrbdb::VrrbDbReadHandle;
-use tokio::{
-    sync::{broadcast::Receiver, mpsc::UnboundedSender},
-    task::JoinHandle,
-};
-use vrrb_config::NodeConfig;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
+    let mempool_module = MempoolModule::new(MempoolModuleConfig {
+        mempool,
+        events_tx: events_tx.clone(),
+    });
 
-use self::broadcast_module::{BroadcastModule, BroadcastModuleConfig};
-use crate::{
-    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
-    NodeError,
-};
+    let mut mempool_module_actor = ActorImpl::new(mempool_module);
+    let mut mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
 
-pub async fn setup_runtime_components() {
-    //
+    let mempool_handle = tokio::spawn(async move {
+        mempool_module_actor
+            .start(&mut mempool_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    let (state_read_handle, state_handle) = Self::setup_state_store(
+        &config,
+        events_tx.clone(),
+        event_router.subscribe(&Topic::State)?,
+    )
+    .await?;
+
+    let mut gossip_handle = None;
+
+    if !config.disable_networking {
+        let (new_gossip_handle, broadcast_controller_handle, gossip_addr) =
+            Self::setup_gossip_network(
+                &config,
+                events_tx.clone(),
+                event_router.subscribe(&Topic::Network)?,
+                event_router.subscribe(&Topic::Network)?,
+                state_read_handle.clone(),
+            )
+            .await?;
+
+        gossip_handle = new_gossip_handle;
+        config.udp_gossip_address = gossip_addr;
+    }
+
+    let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = Self::setup_rpc_api_server(
+        &config,
+        events_tx.clone(),
+        // event_router.subscribe(&Topic::Network)?,
+        state_read_handle.clone(),
+        mempool_read_handle_factory.clone(),
+    )
+    .await?;
+
+    config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
+
+    // TODO: make nodes start with some preconfigured state
+    // TODO: make nodes send each other said state with raprtor q
+
+    let txn_validator_handle = Self::setup_validation_module(
+        events_tx.clone(),
+        event_router.subscribe(&Topic::Transactions)?,
+    )?;
+
+    let miner_handle = Self::setup_mining_module(
+        //
+        events_tx.clone(),
+        event_router.subscribe(&Topic::Transactions)?,
+    )?;
+
+    // TODO: report error from handle
+    let event_router_handle = tokio::spawn(async move { event_router.start(&mut events_rx).await });
 }
 
 fn setup_event_routing_system() -> EventRouter {
@@ -113,7 +199,9 @@ async fn setup_state_store(
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
     let vrrbdb_read_handle = db.read_handle();
 
-    let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+    let mut state_module =
+        state_module::StateModule::new(state_module::StateModuleConfig { events_tx, db });
+
     let mut state_module_actor = ActorImpl::new(state_module);
 
     let state_handle = tokio::spawn(async move {

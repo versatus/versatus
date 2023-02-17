@@ -35,6 +35,7 @@ use crate::{
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module,
     result::{NodeError, Result},
+    runtime::setup_runtime_components,
     validator_module,
     NodeType,
     RuntimeModule,
@@ -78,8 +79,26 @@ impl Node {
         let vm = None;
 
         let (events_tx, mut events_rx) = unbounded_channel::<DirectedEvent>();
-
         let mut event_router = Self::setup_event_routing_system();
+
+        let mut mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let mut vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let mut network_events_rx = event_router.subscribe(&Topic::Network)?;
+        let mut controller_events_rx = event_router.subscribe(&Topic::Network)?;
+        let mut validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mut miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+
+        let (handle) = setup_runtime_components(
+            &config,
+            events_tx.clone(),
+            mempool_events_rx,
+            vrrbdb_events_rx,
+            network_events_rx,
+            controller_events_rx,
+            validator_events_rx,
+            miner_events_rx,
+        )
+        .await;
 
         let mempool = LeftRightMempool::new();
         let mempool_read_handle_factory = mempool.factory();
