@@ -6,10 +6,12 @@ use jsonrpsee::{
     server::{ServerBuilder, SubscriptionSink},
     types::SubscriptionResult,
 };
+use mempool::MempoolReadHandleFactory;
 use primitives::NodeType;
-use state::NodeStateReadHandle;
+use storage::vrrbdb::VrrbDbReadHandle;
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
+    account::Account,
     event_router::{DirectedEvent, Event, Topic},
     txn::NewTxnArgs,
 };
@@ -17,25 +19,23 @@ use vrrb_core::{
 use super::api::{CreateTxnArgs, FullMempoolSnapshot};
 use crate::rpc::api::{FullStateSnapshot, RpcServer};
 
-pub type ExampleHash = [u8; 32];
-pub type ExampleStorageKey = Vec<u8>;
-
 pub struct RpcServerImpl {
     node_type: NodeType,
-    state_handle_factory: NodeStateReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
     events_tx: UnboundedSender<DirectedEvent>,
 }
 
 #[async_trait]
 impl RpcServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
-        let values = self.state_handle_factory.values();
+        let values = self.vrrbdb_read_handle.state_store_values();
 
         Ok(values)
     }
 
     async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error> {
-        let values = self.state_handle_factory.mempool_values();
+        let values = self.mempool_read_handle_factory.values();
 
         Ok(values)
     }
@@ -68,12 +68,21 @@ impl RpcServer for RpcServerImpl {
 
         Ok(())
     }
+
+    async fn create_account(&self, account: Account) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn update_account(&self, account: Account) -> Result<(), Error> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct JsonRpcServerConfig {
     pub address: SocketAddr,
-    pub state_handle_factory: NodeStateReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
     pub events_tx: UnboundedSender<DirectedEvent>,
 }
@@ -87,8 +96,9 @@ impl JsonRpcServer {
 
         let server_impl = RpcServerImpl {
             node_type: config.node_type,
-            state_handle_factory: config.state_handle_factory.clone(),
             events_tx: config.events_tx.clone(),
+            vrrbdb_read_handle: config.vrrbdb_read_handle.clone(),
+            mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
         };
 
         let addr = server.local_addr()?;

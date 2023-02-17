@@ -2,9 +2,9 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use async_trait::async_trait;
 use jsonrpsee::{core::Error, proc_macros::rpc, types::SubscriptionResult};
-use primitives::{NodeType, PublicKey, SerializedPublicKey, SerializedPublicKeyString};
+use primitives::{Address, NodeType, PublicKey, SerializedPublicKey, SerializedPublicKeyString};
 use serde::{Deserialize, Serialize};
-use state::NodeStateReadHandle;
+use storage::vrrbdb::VrrbDbReadHandle;
 use vrrb_core::{
     account::Account,
     txn::{TxAmount, TxNonce, TxPayload, TxSignature, TxToken, Txn},
@@ -12,7 +12,7 @@ use vrrb_core::{
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
-pub type FullStateSnapshot = HashMap<SerializedPublicKeyString, Account>;
+pub type FullStateSnapshot = HashMap<Address, Account>;
 pub type FullMempoolSnapshot = Vec<Txn>;
 
 #[derive(Serialize, Deserialize)]
@@ -43,4 +43,10 @@ pub trait Rpc {
 
     #[method(name = "createTxn")]
     async fn create_txn(&self, args: CreateTxnArgs) -> Result<(), Error>;
+
+    #[method(name = "createAccount")]
+    async fn create_account(&self, account: Account) -> Result<(), Error>;
+
+    #[method(name = "updateAccount")]
+    async fn update_account(&self, account: Account) -> Result<(), Error>;
 }

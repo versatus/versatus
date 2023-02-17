@@ -170,7 +170,7 @@ num_cpus = "1.14.0"
 rand_chacha = "0.3.1"
 format-bytes = "0.3.0"
 thread_local = "1.1.4"
-
+tabled = "0.10.0"
 axum = "0.5.17"
 axum-server = { version = "0.4.4", features = ["tls-rustls"] }
 tower = "0.4.13"

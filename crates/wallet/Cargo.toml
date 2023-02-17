@@ -19,5 +19,6 @@ log = { workspace = true }
 ritelinked = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-state = { workspace = true }
+storage = { workspace = true }
 vrrb_core = { workspace = true }
+tabled = { workspace = true }

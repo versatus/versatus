@@ -9,7 +9,7 @@ use crate::{ByteSlice, ByteVec};
 pub const DIGEST_LENGTH: usize = 32;
 
 /// Represents a SHA-256 digest produced from any serializable data type
-#[derive(Debug, Default, Clone, Copy, Hash, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Copy, Hash, Deserialize, Serialize, Eq, PartialEq)]
 pub struct Digest([u8; DIGEST_LENGTH]);
 
 impl From<ByteVec> for Digest {

@@ -4,12 +4,16 @@ mod rocksdb_adapter;
 mod state_store;
 mod transaction_store;
 mod vrrbdb;
+mod vrrbdb_read_handle;
+mod vrrbdb_serialized_values;
 
 pub use event_store::*;
 pub use rocksdb_adapter::*;
 pub use state_store::*;
 pub use transaction_store::*;
 pub use vrrbdb::*;
+pub use vrrbdb_read_handle::*;
+pub use vrrbdb_serialized_values::*;
 
 #[cfg(test)]
 mod tests {

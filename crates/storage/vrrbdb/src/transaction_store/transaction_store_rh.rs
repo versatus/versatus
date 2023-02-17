@@ -18,24 +18,27 @@ impl TransactionStoreReadHandle {
         Self { inner }
     }
 
-    pub fn get(&self, key: &TxHash) -> Result<Txn> {
+    pub fn get(&self, key: &TransactionDigest) -> Result<Txn> {
         self.inner
             .get(key)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
-    pub fn batch_get(&self, keys: Vec<TxHash>) -> HashMap<TxHash, Option<Txn>> {
-        let mut accounts = HashMap::new();
+    pub fn batch_get(
+        &self,
+        keys: Vec<TransactionDigest>,
+    ) -> HashMap<TransactionDigest, Option<Txn>> {
+        let mut transactions = HashMap::new();
 
         keys.iter().for_each(|key| {
             let value = self.get(key).ok();
-            accounts.insert(key.to_owned(), value);
+            transactions.insert(key.to_owned(), value);
         });
 
-        accounts
+        transactions
     }
 
-    pub fn entries(&self) -> HashMap<TxHash, Txn> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
             .iter()
@@ -48,12 +51,12 @@ impl TransactionStoreReadHandle {
             .collect()
     }
 
-    /// Returns a number of initialized accounts in the database
+    /// Returns a number of transactions in the ledger
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
-    /// Returns the information about the StateDb being empty
+    /// Returns true if TransactionStore is empty
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }

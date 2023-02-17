@@ -13,7 +13,8 @@ serde_json = { workspace = true }
 vrrb_core = { workspace = true }
 telemetry = { workspace = true }
 primitives = { workspace = true }
-state = { workspace = true }
+storage = { workspace = true }
+mempool = { workspace = true }
 tracing = { workspace = true }
 axum = { workspace = true }
 axum-server = { workspace = true }
