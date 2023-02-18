@@ -18,7 +18,7 @@ use primitives::{
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use utils::{create_payload, hash_data, timestamp};
+use utils::{create_payload, hash_data};
 
 /// This module contains the basic structure of simple transaction
 use crate::{
@@ -67,7 +67,7 @@ pub struct Txn {
     pub receiver_farmer_id: Option<Vec<u8>>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct NewTxnArgs {
     pub sender_address: String,
     pub sender_public_key: SerializedPublicKey,
@@ -83,7 +83,7 @@ pub struct NewTxnArgs {
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
         // TODO: change time unit from seconds to millis
-        let timestamp = timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
 
         Self {
             timestamp,
@@ -364,5 +364,18 @@ impl Verifiable for Txn {
         debendencies: &Self::Dependencies,
     ) -> Result<bool, Self::Error> {
         Ok(true)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct ParseTxnArgsError(String);
+
+impl FromStr for NewTxnArgs {
+    type Err = ParseTxnArgsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s).map_err(|err| {
+            ParseTxnArgsError(err.to_string())
+        })
     }
 }

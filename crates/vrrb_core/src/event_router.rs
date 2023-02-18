@@ -12,7 +12,7 @@ use primitives::{
     QuorumType,
     RawSignature,
     TxHash,
-    TxHashString,
+    TxHashString, Address,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
@@ -21,10 +21,11 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
 
-use crate::{txn::Txn, Error, Result};
+use crate::{txn::Txn, Error, Result, account::Account};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
+pub type AccountBytes = Vec<u8>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
@@ -126,6 +127,8 @@ pub enum Event {
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
     ConfirmedTxns(Vec<(String, QuorumPublicKey)>),
+    AccountCreated((Address, AccountBytes)),
+    UpdateAccount(AccountBytes),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),

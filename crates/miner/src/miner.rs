@@ -5,12 +5,8 @@
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
     cmp::Ordering,
-    collections::{BTreeSet, HashMap, HashSet},
-    error::Error,
-    fmt,
+    collections::{HashMap, HashSet},
     mem,
-    ptr::addr_of,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use block::{
@@ -34,8 +30,7 @@ use bulldag::{
     graph::BullDag,
     vertex::{Direction, Vertex},
 };
-use mempool::LeftRightMempool;
-use primitives::{Address, Epoch, PublicKey, SecretKey, SerializedSecretKey, Signature};
+use primitives::{Address, Epoch, PublicKey, SecretKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -44,12 +39,10 @@ use secp256k1::{
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use state::{state::NetworkState, NodeStateReadHandle};
-use utils::{create_payload, hash_data, timestamp};
+use utils::{create_payload, hash_data};
 use vrrb_core::{
     claim::Claim,
-    keypair::{KeyPair, MinerPk, MinerSk},
-    nonceable::Nonceable,
+    keypair::{MinerPk, MinerSk},
     txn::Txn,
 };
 
@@ -148,7 +141,7 @@ impl Miner {
 
     /// Facade method to mine the various available block types
     pub fn mine(&mut self, args: MineArgs) -> Result<Block, MinerError> {
-        let now = timestamp!();
+        let now = chrono::Utc::now().timestamp();
         todo!()
     }
 
@@ -383,8 +376,7 @@ impl Miner {
 
     /// Gets a local current timestamp
     pub fn get_timestamp(&self) -> u128 {
-        todo!()
-        // utils::timestamp!()
+        chrono::Utc::now().timestamp() as u128
     }
 
     // Check that conflicts with previous convergence block are removed

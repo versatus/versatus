@@ -5,16 +5,13 @@ use jsonrpsee::{core::Error, proc_macros::rpc, types::SubscriptionResult};
 use primitives::{
     Address,
     NodeType,
-    PublicKey,
     SerializedPublicKey,
-    SerializedPublicKeyString,
     TransactionDigest,
 };
 use serde::{Deserialize, Serialize};
-use storage::vrrbdb::VrrbDbReadHandle;
 use vrrb_core::{
     account::Account,
-    txn::{TxAmount, TxNonce, TxPayload, TxSignature, TxToken, Txn},
+    txn::{TxAmount, TxNonce, TxPayload, TxSignature, Txn},
 };
 
 pub type ExampleHash = [u8; 32];
@@ -35,6 +32,7 @@ pub struct CreateTxnArgs {
 }
 
 #[rpc(server, client, namespace = "state")]
+#[async_trait]
 pub trait Rpc {
     /// Returns a full list of all accounts within state
     #[method(name = "getFullState")]
@@ -48,18 +46,27 @@ pub trait Rpc {
     #[method(name = "getNodeType")]
     async fn get_node_type(&self) -> Result<NodeType, Error>;
 
+    /// Create a new transaction
     #[method(name = "createTxn")]
-    async fn create_txn(&self, args: CreateTxnArgs) -> Result<(), Error>;
+    async fn create_txn(&self, args: Txn) -> Result<(), Error>;
 
+    /// Get a transaction from state
     #[method(name = "getTransaction")]
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<(), Error>;
+    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn, Error>;
 
+    /// List a group of transactions
     #[method(name = "listTransactions")]
-    async fn list_transactions(&self) -> Result<(), Error>;
+    async fn list_transactions(&self, digests: Vec<TransactionDigest>) -> Result<HashMap<TransactionDigest, Txn>, Error>;
 
     #[method(name = "createAccount")]
-    async fn create_account(&self, account: Account) -> Result<(), Error>;
+    async fn create_account(&self, address:Address, account: Account) -> Result<(), Error>;
 
     #[method(name = "updateAccount")]
     async fn update_account(&self, account: Account) -> Result<(), Error>;
+    
+    #[method(name = "getAccount")]
+    async fn get_account(&self, address: Address) -> Result<Account, Error>;
+
+    //#[method(name = "faucetDrip")]
+    //async fn faucet_drip(&self, address: Address) -> Result<(), Error>;
 }

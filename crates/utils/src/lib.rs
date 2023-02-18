@@ -1,13 +1,6 @@
 pub mod payload;
 
 pub mod time {
-    #[macro_export]
-    /// Returns a Unix timestamp in UTC
-    macro_rules! timestamp {
-        () => {{
-            chrono::offset::Utc::now().timestamp()
-        }};
-    }
 }
 
 #[cfg(test)]

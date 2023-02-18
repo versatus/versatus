@@ -18,6 +18,7 @@ use crate::RocksDbAdapter;
 mod state_store_rh;
 pub use state_store_rh::*;
 
+pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
@@ -76,7 +77,7 @@ impl StateStore {
                 "cannot insert account with nonce bigger than 0".to_string(),
             ));
         }
-
+        
         self.trie.insert_uncommitted(key, account);
 
         Ok(())

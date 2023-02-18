@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::HashMap};
 
-use primitives::{AccountKeypair, PublicKey, SerializedPublicKey};
+use primitives::{AccountKeypair, PublicKey, SerializedPublicKey, TransactionDigest};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -14,6 +14,7 @@ pub enum AccountField {
     Debits(u128),
     Storage(Option<String>),
     Code(Option<String>),
+    Digests(HashMap<AccountNonce, TransactionDigest>)
 }
 
 /// Struct representing the desired updates to be applied to account.
@@ -24,6 +25,7 @@ pub struct UpdateArgs {
     pub debits: Option<u128>,
     pub storage: Option<Option<String>>,
     pub code: Option<Option<String>>,
+    pub digests: Option<HashMap<AccountNonce, TransactionDigest>> 
 }
 
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
@@ -51,6 +53,7 @@ pub struct Account {
     pub storage: Option<String>,
     pub code: Option<String>,
     pub pubkey: SerializedPublicKey,
+    pub digests: HashMap<AccountNonce, TransactionDigest>
 }
 
 impl Account {
@@ -61,6 +64,7 @@ impl Account {
         let debits = 0u128;
         let storage = None;
         let code = None;
+        let digests = HashMap::new();
 
         let mut hasher = Sha256::new();
         hasher.update(nonce.to_be_bytes());
@@ -79,6 +83,7 @@ impl Account {
             storage,
             code,
             pubkey,
+            digests
         }
     }
 
@@ -110,6 +115,11 @@ impl Account {
     // This may be a problem since even though u64 (or whatever we end up using) are
     // big Imagining some trading account, at one point it could fill up (with
     // thousands of transactions per day)
+    //
+    // THOUGHT:
+    //
+    // WRT the above, maybe what we want to do is use bytes/hex strings instead of values 
+    // and then just do byte/hex math for display...
 
     /// Updates single field in account struct without updating it's hash.
     /// Unsafe to use alone (hash should be recalculated).
@@ -141,6 +151,14 @@ impl Account {
             AccountField::Code(code) => {
                 self.code = code;
             },
+
+            // Maybe we want to change `digests` to digest and only
+            // update one at a time, though this could become a problem
+            // if a single account has multiple transactions per round
+            // better to batch them and update or at least have option to.
+            AccountField::Digests(digests) => {
+                self.digests.extend(digests);
+            }
         }
         Ok(())
     }
@@ -181,6 +199,9 @@ impl Account {
         }
         if let Some(storage_update) = args.storage {
             self.update_single_field_no_hash(AccountField::Storage(storage_update))?;
+        }
+        if let Some(digests) = args.digests {
+            self.update_single_field_no_hash(AccountField::Digests(digests))?;
         }
 
         self.bump_nonce();
