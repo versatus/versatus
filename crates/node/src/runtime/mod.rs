@@ -36,15 +36,26 @@ pub mod swarm_module;
 pub mod validator_module;
 
 pub async fn setup_runtime_components(
-    config: &NodeConfig,
+    original_config: &NodeConfig,
     events_tx: UnboundedSender<(Topic, Event)>,
-    mempool_events_rx: Receiver<Event>,
-    vrrbdb_events_rx: Receiver<Event>,
-    network_events_rx: Receiver<Event>,
-    controller_events_rx: Receiver<Event>,
-    validator_events_rx: Receiver<Event>,
-    miner_events_rx: Receiver<Event>,
-) -> Result<()> {
+    mut mempool_events_rx: Receiver<Event>,
+    mut vrrbdb_events_rx: Receiver<Event>,
+    mut network_events_rx: Receiver<Event>,
+    mut controller_events_rx: Receiver<Event>,
+    mut validator_events_rx: Receiver<Event>,
+    mut miner_events_rx: Receiver<Event>,
+) -> Result<(
+    NodeConfig,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
+)> {
+    let mut config = original_config.clone();
+
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
 
@@ -54,7 +65,6 @@ pub async fn setup_runtime_components(
     });
 
     let mut mempool_module_actor = ActorImpl::new(mempool_module);
-    let mut mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
 
     let mempool_handle = tokio::spawn(async move {
         mempool_module_actor
@@ -63,34 +73,33 @@ pub async fn setup_runtime_components(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    let (state_read_handle, state_handle) = Self::setup_state_store(
-        &config,
-        events_tx.clone(),
-        event_router.subscribe(&Topic::State)?,
-    )
-    .await?;
+    let mempool_handle = Some(mempool_handle);
+
+    let (state_read_handle, state_handle) =
+        setup_state_store(&config, events_tx.clone(), vrrbdb_events_rx).await?;
 
     let mut gossip_handle = None;
+    let mut broadcast_controller_handle = None;
 
     if !config.disable_networking {
-        let (new_gossip_handle, broadcast_controller_handle, gossip_addr) =
-            Self::setup_gossip_network(
+        let (new_gossip_handle, new_broadcast_controller_handle, gossip_addr) =
+            setup_gossip_network(
                 &config,
                 events_tx.clone(),
-                event_router.subscribe(&Topic::Network)?,
-                event_router.subscribe(&Topic::Network)?,
+                network_events_rx,
+                controller_events_rx,
                 state_read_handle.clone(),
             )
             .await?;
 
         gossip_handle = new_gossip_handle;
+        broadcast_controller_handle = new_broadcast_controller_handle;
         config.udp_gossip_address = gossip_addr;
     }
 
-    let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = Self::setup_rpc_api_server(
+    let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,
         events_tx.clone(),
-        // event_router.subscribe(&Topic::Network)?,
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
     )
@@ -99,21 +108,19 @@ pub async fn setup_runtime_components(
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
 
     // TODO: make nodes start with some preconfigured state
-    // TODO: make nodes send each other said state with raprtor q
+    let txn_validator_handle = setup_validation_module(events_tx.clone(), validator_events_rx)?;
+    let miner_handle = setup_mining_module(events_tx.clone(), miner_events_rx)?;
 
-    let txn_validator_handle = Self::setup_validation_module(
-        events_tx.clone(),
-        event_router.subscribe(&Topic::Transactions)?,
-    )?;
-
-    let miner_handle = Self::setup_mining_module(
-        //
-        events_tx.clone(),
-        event_router.subscribe(&Topic::Transactions)?,
-    )?;
-
-    // TODO: report error from handle
-    let event_router_handle = tokio::spawn(async move { event_router.start(&mut events_rx).await });
+    Ok((
+        config,
+        mempool_handle,
+        state_handle,
+        gossip_handle,
+        broadcast_controller_handle,
+        jsonrpc_server_handle,
+        txn_validator_handle,
+        miner_handle,
+    ))
 }
 
 fn setup_event_routing_system() -> EventRouter {
@@ -188,8 +195,6 @@ async fn setup_state_store(
     events_tx: UnboundedSender<DirectedEvent>,
     mut state_events_rx: Receiver<Event>,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
-    // TODO: restore state if exists
-
     let database_path = config.db_path();
 
     storage_utils::create_dir(database_path).map_err(|err| NodeError::Other(err.to_string()))?;

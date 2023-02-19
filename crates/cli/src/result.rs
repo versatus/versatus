@@ -20,6 +20,9 @@ pub enum CliError {
     #[error("primitive error: {0}")]
     Primitive(#[from] primitives::Error),
 
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+
     #[error("{0}")]
     Other(String),
 }
