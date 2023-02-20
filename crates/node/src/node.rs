@@ -86,6 +86,7 @@ impl Node {
         let controller_events_rx = event_router.subscribe(&Topic::Network)?;
         let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
 
         let (
             updated_config,
@@ -105,6 +106,7 @@ impl Node {
             controller_events_rx,
             validator_events_rx,
             miner_events_rx,
+            jsonrpc_events_rx,
         )
         .await?;
 

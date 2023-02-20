@@ -39,11 +39,12 @@ pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     events_tx: UnboundedSender<(Topic, Event)>,
     mut mempool_events_rx: Receiver<Event>,
-    mut vrrbdb_events_rx: Receiver<Event>,
-    mut network_events_rx: Receiver<Event>,
-    mut controller_events_rx: Receiver<Event>,
-    mut validator_events_rx: Receiver<Event>,
-    mut miner_events_rx: Receiver<Event>,
+    vrrbdb_events_rx: Receiver<Event>,
+    network_events_rx: Receiver<Event>,
+    controller_events_rx: Receiver<Event>,
+    validator_events_rx: Receiver<Event>,
+    miner_events_rx: Receiver<Event>,
+    jsonrpc_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
     Option<JoinHandle<Result<()>>>,
@@ -102,6 +103,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
+        jsonrpc_events_rx,
     )
     .await?;
 
@@ -224,6 +226,7 @@ async fn setup_rpc_api_server(
     events_tx: UnboundedSender<DirectedEvent>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
+    mut jsonrpc_events_rx: Receiver<Event>,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
@@ -233,11 +236,20 @@ async fn setup_rpc_api_server(
         mempool_read_handle_factory,
     };
 
-    let resolved_jsonrpc_server_addr = JsonRpcServer::run(&jsonrpc_server_config)
-        .await
-        .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
+    let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) =
+        JsonRpcServer::run(&jsonrpc_server_config)
+            .await
+            .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
 
-    let jsonrpc_server_handle = Some(tokio::spawn(async { Ok(()) }));
+    let jsonrpc_server_handle = Some(tokio::spawn(async move {
+        if let Ok(evt) = jsonrpc_events_rx.recv().await {
+            if let Event::Stop = evt {
+                jsonrpc_server_handle.stop();
+                return Ok(());
+            }
+        }
+        Ok(())
+    }));
 
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }

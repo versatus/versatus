@@ -1,14 +1,14 @@
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
 use jsonrpsee::{
     core::Error,
-    server::{ServerBuilder, SubscriptionSink, ServerHandle},
+    server::{ServerBuilder, ServerHandle, SubscriptionSink},
     types::SubscriptionResult,
 };
-use mempool::{MempoolReadHandleFactory, Mempool, LeftRightMempool};
+use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory};
 use primitives::NodeType;
-use storage::vrrbdb::{VrrbDbReadHandle, VrrbDb, VrrbDbConfig};
+use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use vrrb_core::{
     account::Account,
@@ -57,24 +57,20 @@ impl JsonRpcServer {
 
 impl Default for JsonRpcServerConfig {
     fn default() -> JsonRpcServerConfig {
-        let address = SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(127,0,0,1)), 
-            9293
-        );
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
         let vrrbdb_config = VrrbDbConfig::default();
         let vrrbdb = VrrbDb::new(vrrbdb_config);
         let vrrbdb_read_handle = vrrbdb.read_handle();
         let mempool = LeftRightMempool::default();
         let mempool_read_handle_factory = mempool.factory();
         let node_type = NodeType::RPCNode;
-        let (events_tx, _) = unbounded_channel();  
-        JsonRpcServerConfig { 
-            address, 
-            vrrbdb_read_handle, 
-            mempool_read_handle_factory, 
-            node_type, 
-            events_tx 
+        let (events_tx, _) = unbounded_channel();
+        JsonRpcServerConfig {
+            address,
+            vrrbdb_read_handle,
+            mempool_read_handle_factory,
+            node_type,
+            events_tx,
         }
-        
     }
 }

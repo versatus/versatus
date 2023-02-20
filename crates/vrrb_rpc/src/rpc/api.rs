@@ -2,12 +2,7 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use async_trait::async_trait;
 use jsonrpsee::{core::Error, proc_macros::rpc, types::SubscriptionResult};
-use primitives::{
-    Address,
-    NodeType,
-    SerializedPublicKey,
-    TransactionDigest,
-};
+use primitives::{Address, NodeType, SerializedPublicKey, TransactionDigest};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,
@@ -56,14 +51,17 @@ pub trait Rpc {
 
     /// List a group of transactions
     #[method(name = "listTransactions")]
-    async fn list_transactions(&self, digests: Vec<TransactionDigest>) -> Result<HashMap<TransactionDigest, Txn>, Error>;
+    async fn list_transactions(
+        &self,
+        digests: Vec<TransactionDigest>,
+    ) -> Result<HashMap<TransactionDigest, Txn>, Error>;
 
     #[method(name = "createAccount")]
-    async fn create_account(&self, address:Address, account: Account) -> Result<(), Error>;
+    async fn create_account(&self, address: Address, account: Account) -> Result<(), Error>;
 
     #[method(name = "updateAccount")]
     async fn update_account(&self, account: Account) -> Result<(), Error>;
-    
+
     #[method(name = "getAccount")]
     async fn get_account(&self, address: Address) -> Result<Account, Error>;
 
