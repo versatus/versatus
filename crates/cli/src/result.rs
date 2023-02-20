@@ -23,6 +23,9 @@ pub enum CliError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("opts error: {0}")]
+    OptsError(String),
+
     #[error("{0}")]
     Other(String),
 }

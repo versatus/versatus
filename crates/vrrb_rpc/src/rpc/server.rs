@@ -1,15 +1,15 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
 use jsonrpsee::{
     core::Error,
-    server::{ServerBuilder, SubscriptionSink},
+    server::{ServerBuilder, ServerHandle, SubscriptionSink},
     types::SubscriptionResult,
 };
-use mempool::MempoolReadHandleFactory;
+use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory};
 use primitives::NodeType;
-use storage::vrrbdb::VrrbDbReadHandle;
-use tokio::sync::mpsc::UnboundedSender;
+use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
@@ -35,7 +35,7 @@ pub struct JsonRpcServerConfig {
 pub struct JsonRpcServer;
 
 impl JsonRpcServer {
-    pub async fn run(config: &JsonRpcServerConfig) -> anyhow::Result<SocketAddr> {
+    pub async fn run(config: &JsonRpcServerConfig) -> anyhow::Result<(ServerHandle, SocketAddr)> {
         let server = ServerBuilder::default().build(config.address).await?;
 
         let server_impl = RpcServerImpl {
@@ -51,8 +51,26 @@ impl JsonRpcServer {
         // TODO: refactor example out of here
         // In this example we don't care about doing shutdown so let's it run forever.
         // You may use the `ServerHandle` to shut it down or manage it yourself.
-        tokio::spawn(handle.stopped());
+        Ok((handle, addr))
+    }
+}
 
-        Ok(addr)
+impl Default for JsonRpcServerConfig {
+    fn default() -> JsonRpcServerConfig {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
+        let vrrbdb_config = VrrbDbConfig::default();
+        let vrrbdb = VrrbDb::new(vrrbdb_config);
+        let vrrbdb_read_handle = vrrbdb.read_handle();
+        let mempool = LeftRightMempool::default();
+        let mempool_read_handle_factory = mempool.factory();
+        let node_type = NodeType::RPCNode;
+        let (events_tx, _) = unbounded_channel();
+        JsonRpcServerConfig {
+            address,
+            vrrbdb_read_handle,
+            mempool_read_handle_factory,
+            node_type,
+            events_tx,
+        }
     }
 }

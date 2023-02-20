@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "wallet"
+path = "src/lib.rs"
+
+[[test]]
+name = "wallet-rpc-tests"
+path = "tests/wallet_rpc_tests.rs"
 
 [dependencies]
 sha256 = { workspace = true }
@@ -22,3 +29,11 @@ strum_macros = { workspace = true }
 storage = { workspace = true }
 vrrb_core = { workspace = true }
 tabled = { workspace = true }
+jsonrpsee = { workspace = true } 
+primitives = { workspace = true }
+secp256k1 = { workspace = true }
+vrrb_rpc = { workspace = true }
+utils = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true }
+sha2 = { workspace = true }

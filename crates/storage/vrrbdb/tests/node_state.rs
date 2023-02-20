@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::{collections::HashMap, env, fs};
 
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use state::NodeState;
@@ -59,6 +59,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
+                digests: HashMap::new(),
             },
         )
         .unwrap();
@@ -74,6 +75,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
+                digests: HashMap::new(),
             },
         )
         .unwrap();
@@ -94,6 +96,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
+                digests: HashMap::new(),
             },
         ),
         (
@@ -106,6 +109,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
+                digests: HashMap::new(),
             },
         ),
         (
@@ -118,6 +122,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
+                digests: HashMap::new(),
             },
         ),
     ]);

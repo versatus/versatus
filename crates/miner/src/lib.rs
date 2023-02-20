@@ -15,39 +15,30 @@ pub mod v2 {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, mem, str::FromStr};
+    use std::{collections::HashMap, str::FromStr};
 
     use block::{header::BlockHeader, Block, ConvergenceBlock};
     use bulldag::{graph::BullDag, vertex::Vertex};
-    use primitives::{PublicKey, SecretKey, Signature};
+    use primitives::{PublicKey, Signature};
     use reward::reward::Reward;
     use ritelinked::{LinkedHashMap, LinkedHashSet};
     use secp256k1::{
         hashes::{sha256 as s256, Hash},
-        rand,
         Message,
     };
     use sha256::digest;
     use utils::{create_payload, hash_data};
-    use vrrb_core::{
-        keypair::{Keypair, SecretKeys},
-        txn::Txn,
-    };
+    use vrrb_core::txn::Txn;
 
     use super::test_helpers::create_txns;
-    use crate::{
-        test_helpers::{
-            build_proposal_block,
-            create_claim,
-            create_keypair,
-            create_miner,
-            mine_convergence_block,
-            mine_convergence_block_epoch_change,
-            mine_genesis,
-        },
-        MineArgs,
-        Miner,
-        MinerConfig,
+    use crate::test_helpers::{
+        build_proposal_block,
+        create_claim,
+        create_keypair,
+        create_miner,
+        mine_convergence_block,
+        mine_convergence_block_epoch_change,
+        mine_genesis,
     };
 
     #[test]
@@ -428,7 +419,7 @@ mod tests {
         let block_seed = 34_989_333;
         let next_block_seed = 839_999_843;
         let block_height = 29_999_998;
-        let timestamp = utils::timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = "abcdef01234567890".to_string();
         let miner_claim = miner.generate_claim(nonce);
         let claim_list_hash = "01234567890abcdef".to_string();
@@ -539,7 +530,7 @@ mod tests {
         let block_seed = 34_989_333;
         let next_block_seed = 839_999_843;
         let block_height = 29_999_998;
-        let timestamp = utils::timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = "abcdef01234567890".to_string();
 
         let miner_claim = create_claim(&mpk1, &addr.to_string(), 1);

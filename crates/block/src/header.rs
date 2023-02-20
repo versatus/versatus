@@ -1,4 +1,5 @@
 // FEATURE TAG(S): Block Structure, Rewards
+use chrono;
 use primitives::{Epoch, SecretKey, SerializedSecretKey};
 use reward::reward::Reward;
 use secp256k1::{
@@ -7,7 +8,7 @@ use secp256k1::{
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use utils::{create_payload, hash_data, timestamp};
+use utils::{create_payload, hash_data};
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
@@ -64,7 +65,7 @@ impl BlockHeader {
 
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 
-        let timestamp = timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = hash_data!("Genesis_Txn_Hash");
         let block_reward = Reward::genesis(Some(miner_claim.address.clone()));
         let block_height = 0;
@@ -142,7 +143,7 @@ impl BlockHeader {
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 
         // generate timestamp
-        let timestamp = timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
 
         // Get current block reward, which is last_block.next_block_reward
         let mut block_reward = last_block.get_next_block_reward();

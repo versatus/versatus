@@ -65,6 +65,10 @@ impl VrrbDb {
         }
     }
 
+    pub fn add_account(&mut self, address: Address, account: Account) -> Result<()> {
+        self.state_store.insert(address, account)
+    }
+
     pub fn state_store(&self) -> &StateStore {
         &self.state_store
     }
@@ -123,6 +127,7 @@ impl VrrbDb {
                     debits: Some(account.debits),
                     storage: Some(account.storage),
                     code: Some(account.code),
+                    digests: Some(account.digests),
                 },
             )
             .map_err(|err| StorageError::Other(err.to_string()))

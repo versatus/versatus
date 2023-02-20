@@ -18,6 +18,7 @@ use crate::RocksDbAdapter;
 mod state_store_rh;
 pub use state_store_rh::*;
 
+pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
