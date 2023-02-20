@@ -11,7 +11,7 @@ use node::{Node, NodeType};
 use primitives::{DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use secp256k1::{rand, Secp256k1};
 use serde::Deserialize;
-use telemetry::{error, info};
+use telemetry::{error, info, warn};
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
 use vrrb_core::{
@@ -243,7 +243,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let keypair = match read_keypair_file(&keypair_file_path) {
         Ok(keypair) => keypair,
         Err(err) => {
-            error!("Failed to read keypair file: {}", err);
+            warn!("Failed to read keypair file: {}", err);
             info!("Generating new keypair");
             let keypair = Keypair::random();
 
