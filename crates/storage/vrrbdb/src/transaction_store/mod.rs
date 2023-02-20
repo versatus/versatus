@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
-use lr_trie::{LeftRightTrie, H256};
+use lr_trie::{LeftRightTrie, Proof, H256};
 use storage_utils::Result;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
@@ -68,7 +68,11 @@ impl TransactionStore {
         self.trie.root()
     }
 
-    pub fn get_proof(&self) -> Option<H256> {
-        self.trie.get_proof()
+    pub fn get_proof(&self) -> Result<Vec<Proof>> {
+        todo!()
+    }
+
+    pub fn verify_proof(&self) -> Option<H256> {
+        todo!()
     }
 }

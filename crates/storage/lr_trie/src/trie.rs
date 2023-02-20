@@ -64,12 +64,14 @@ where
         self.handle().root_hash().ok()
     }
 
-    pub fn get_proof(&self, key: &K) -> Result<Vec<Proof>> {
-        self.handle().get_proof(key)
+    pub fn get_proof(&self, key: K) -> Result<Vec<Proof>> {
+        todo!()
+        // self.handle().get_proof(key)
     }
 
-    pub fn verify_proof(&self, root: H256, key: &K, proof: Vec<Proof>) -> Result<Option<Proof>> {
-        self.handle().verify_proof(root, key, proof)
+    pub fn verify_proof(&self, root: H256, key: K, proof: Vec<Proof>) -> Result<Option<Proof>> {
+        todo!()
+        // self.handle().verify_proof(root, key, proof)
     }
 
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {
