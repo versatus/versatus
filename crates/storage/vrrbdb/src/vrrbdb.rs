@@ -127,7 +127,7 @@ impl VrrbDb {
                     debits: Some(account.debits),
                     storage: Some(account.storage),
                     code: Some(account.code),
-                    digests: Some(account.digests)
+                    digests: Some(account.digests),
                 },
             )
             .map_err(|err| StorageError::Other(err.to_string()))

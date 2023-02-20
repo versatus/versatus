@@ -4,6 +4,7 @@ use std::{
 };
 
 use primitives::{
+    Address,
     FarmerQuorumThreshold,
     NodeIdx,
     NodeType,
@@ -12,7 +13,7 @@ use primitives::{
     QuorumType,
     RawSignature,
     TxHash,
-    TxHashString, Address,
+    TxHashString,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
@@ -21,7 +22,7 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
 
-use crate::{txn::Txn, Error, Result, account::Account};
+use crate::{account::Account, txn::Txn, Error, Result};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;

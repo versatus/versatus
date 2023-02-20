@@ -77,7 +77,7 @@ impl StateStore {
                 "cannot insert account with nonce bigger than 0".to_string(),
             ));
         }
-        
+
         self.trie.insert_uncommitted(key, account);
 
         Ok(())

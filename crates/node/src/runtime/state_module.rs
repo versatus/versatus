@@ -3,15 +3,17 @@ use std::{hash::Hash, path::PathBuf};
 use async_trait::async_trait;
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
+use primitives::Address;
 use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::{
+    account::Account,
     event_router::{DirectedEvent, Event, Topic},
-    txn::Txn, account::Account,
+    txn::Txn,
 };
-use primitives::Address;
+
 use crate::{result::Result, NodeError, RuntimeModule};
 
 pub struct StateModuleConfig {
@@ -81,11 +83,10 @@ impl StateModule {
     }
 
     fn add_account(&mut self, key: Address, account: Account) -> Result<()> {
-        self.db.add_account(key, account).map_err(|err| {
-            NodeError::Other(err.to_string())
-        })
+        self.db
+            .add_account(key, account)
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
-
 }
 
 #[async_trait]
@@ -145,11 +146,11 @@ impl Handler<Event> for StateModule {
             },
             // TODO: Implement custom error types
             Event::AccountCreated((address, account_bytes)) => {
-                if let Ok(account) = serde_json::from_slice(&account_bytes) { 
+                if let Ok(account) = serde_json::from_slice(&account_bytes) {
                     self.add_account(address, account)
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
-            }
+            },
             Event::NoOp => {},
             _ => telemetry::warn!("Unrecognized command received: {:?}", event),
         }

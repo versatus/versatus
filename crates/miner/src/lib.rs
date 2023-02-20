@@ -530,7 +530,7 @@ mod tests {
         let block_seed = 34_989_333;
         let next_block_seed = 839_999_843;
         let block_height = 29_999_998;
-        let timestamp = chrono::Utc::now().timestamp(); 
+        let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = "abcdef01234567890".to_string();
 
         let miner_claim = create_claim(&mpk1, &addr.to_string(), 1);

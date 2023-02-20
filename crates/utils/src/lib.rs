@@ -1,7 +1,6 @@
 pub mod payload;
 
-pub mod time {
-}
+pub mod time {}
 
 #[cfg(test)]
 mod tests {

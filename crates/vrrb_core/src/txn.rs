@@ -374,8 +374,6 @@ impl FromStr for NewTxnArgs {
     type Err = ParseTxnArgsError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s).map_err(|err| {
-            ParseTxnArgsError(err.to_string())
-        })
+        serde_json::from_str(s).map_err(|err| ParseTxnArgsError(err.to_string()))
     }
 }

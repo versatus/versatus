@@ -42,7 +42,7 @@ pub enum WalletCmd {
     /// Gets information about an account
     Get {
         #[clap(short, long)]
-        address: String
+        address: String,
     },
 }
 
@@ -54,11 +54,14 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
     match sub_cmd {
         WalletCmd::Info => info::exec().await,
         WalletCmd::Transfer {
-            address_number, to, amount, token 
-        } => { 
-                transfer::exec(address_number, to, amount, token).await?;
+            address_number,
+            to,
+            amount,
+            token,
+        } => {
+            transfer::exec(address_number, to, amount, token).await?;
 
-                Ok(())
+            Ok(())
         },
         WalletCmd::New { address, account } => {
             let address = if let Ok(addr) = serde_json::from_str(&address) {
@@ -70,7 +73,7 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             let account = if let Ok(acct) = serde_json::from_str(&account) {
                 acct
             } else {
-                return Err(CliError::Other("invalid account".to_string()))
+                return Err(CliError::Other("invalid account".to_string()));
             };
 
             new::exec(address, account).await?;
@@ -93,5 +96,3 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
         _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
     }
 }
-
-

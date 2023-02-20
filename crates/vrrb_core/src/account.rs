@@ -14,7 +14,7 @@ pub enum AccountField {
     Debits(u128),
     Storage(Option<String>),
     Code(Option<String>),
-    Digests(HashMap<AccountNonce, TransactionDigest>)
+    Digests(HashMap<AccountNonce, TransactionDigest>),
 }
 
 /// Struct representing the desired updates to be applied to account.
@@ -25,7 +25,7 @@ pub struct UpdateArgs {
     pub debits: Option<u128>,
     pub storage: Option<Option<String>>,
     pub code: Option<Option<String>>,
-    pub digests: Option<HashMap<AccountNonce, TransactionDigest>> 
+    pub digests: Option<HashMap<AccountNonce, TransactionDigest>>,
 }
 
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
@@ -53,7 +53,7 @@ pub struct Account {
     pub storage: Option<String>,
     pub code: Option<String>,
     pub pubkey: SerializedPublicKey,
-    pub digests: HashMap<AccountNonce, TransactionDigest>
+    pub digests: HashMap<AccountNonce, TransactionDigest>,
 }
 
 impl Account {
@@ -83,7 +83,7 @@ impl Account {
             storage,
             code,
             pubkey,
-            digests
+            digests,
         }
     }
 
@@ -118,8 +118,8 @@ impl Account {
     //
     // THOUGHT:
     //
-    // WRT the above, maybe what we want to do is use bytes/hex strings instead of values 
-    // and then just do byte/hex math for display...
+    // WRT the above, maybe what we want to do is use bytes/hex strings instead of
+    // values and then just do byte/hex math for display...
 
     /// Updates single field in account struct without updating it's hash.
     /// Unsafe to use alone (hash should be recalculated).
@@ -158,7 +158,7 @@ impl Account {
             // better to batch them and update or at least have option to.
             AccountField::Digests(digests) => {
                 self.digests.extend(digests);
-            }
+            },
         }
         Ok(())
     }

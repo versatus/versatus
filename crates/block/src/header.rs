@@ -1,4 +1,5 @@
 // FEATURE TAG(S): Block Structure, Rewards
+use chrono;
 use primitives::{Epoch, SecretKey, SerializedSecretKey};
 use reward::reward::Reward;
 use secp256k1::{
@@ -10,7 +11,6 @@ use sha256::digest;
 use utils::{create_payload, hash_data};
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
-use chrono;
 
 use crate::{
     block::Block,
