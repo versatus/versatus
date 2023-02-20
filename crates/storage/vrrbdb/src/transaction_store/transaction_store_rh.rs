@@ -1,10 +1,9 @@
-use std::{collections::HashMap, sync::Arc, time::SystemTime};
+use std::collections::HashMap;
 
-use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{TransactionDigest, TxHash};
+use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
+use patriecia::inner::InnerTrie;
 use storage_utils::{Result, StorageError};
-use vrrb_core::txn::Txn;
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 

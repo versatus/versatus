@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
-use primitives::{Address, TransactionDigest};
-use vrrb_core::{account::Account, txn::Txn};
+use primitives::Address;
+use vrrb_core::{
+    account::Account,
+    txn::{TransactionDigest, Txn},
+};
 
 use crate::{StateStoreReadHandleFactory, TransactionStoreReadHandleFactory};
 

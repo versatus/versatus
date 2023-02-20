@@ -1,10 +1,10 @@
 use std::{cmp::Ordering, collections::HashMap};
 
-use primitives::{AccountKeypair, PublicKey, SerializedPublicKey, TransactionDigest};
+use primitives::SerializedPublicKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{Error, Result};
+use crate::{txn::TransactionDigest, Error, Result};
 
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.

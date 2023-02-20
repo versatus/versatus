@@ -61,7 +61,7 @@ impl Reward {
     }
 
     pub fn generate_next_reward(&self, adjustment_to_next_epoch: i128) -> Reward {
-        let rem = (self.current_block + 1) % NUMBER_OF_BLOCKS_PER_EPOCH as u128;
+        let rem = (self.current_block + 1) % NUMBER_OF_BLOCKS_PER_EPOCH;
         if rem == 0 {
             let nr_epoch = self.epoch + 1;
             let nr_next_epoch_block = self.next_epoch_block + NUMBER_OF_BLOCKS_PER_EPOCH;
@@ -77,13 +77,13 @@ impl Reward {
                 nr_amount = MAX_BASELINE_REWARD;
             }
 
-            return Reward {
+            Reward {
                 current_block: self.current_block,
                 epoch: nr_epoch,
                 next_epoch_block: nr_next_epoch_block,
                 miner: None,
                 amount: nr_amount,
-            };
+            }
         } else {
             self.clone()
         }

@@ -1,9 +1,13 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use lr_trie::H256;
 use primitives::Address;
+use serde_json::json;
 use storage_utils::{Result, StorageError};
-use vrrb_core::account::{Account, UpdateArgs};
+use vrrb_core::{
+    account::{Account, UpdateArgs},
+    txn::Txn,
+};
 
 use crate::{
     StateStore,
@@ -65,10 +69,6 @@ impl VrrbDb {
         }
     }
 
-    pub fn add_account(&mut self, address: Address, account: Account) -> Result<()> {
-        self.state_store.insert(address, account)
-    }
-
     pub fn state_store(&self) -> &StateStore {
         &self.state_store
     }
@@ -99,16 +99,9 @@ impl VrrbDb {
         self.transaction_store.factory()
     }
 
-    /// Returns a mappig of public keys and accounts.
-    pub fn entries(&self) -> HashMap<Address, Account> {
-        self.state_store.read_handle().entries()
-    }
-
     /// Inserts an account to current state tree.
     pub fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
-        self.state_store
-            .insert(key, account)
-            .map_err(|err| StorageError::Other(err.to_string()))
+        self.state_store.insert(key, account)
     }
 
     /// Adds multiplpe accounts to current state tree.
@@ -132,6 +125,30 @@ impl VrrbDb {
             )
             .map_err(|err| StorageError::Other(err.to_string()))
     }
+
+    /// Inserts a confirmed transaction to the ledger. Does not check if
+    /// accounts involved in the transaction actually exist.
+    pub fn insert_transaction_unchecked(&mut self, txn: Txn) -> Result<()> {
+        self.transaction_store.insert(txn)
+    }
+
+    /// Adds multiplpe accounts to current state tree. Does not check if
+    /// accounts involved in the transaction actually exist.
+    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<Txn>) {
+        self.transaction_store.extend(transactions);
+    }
+
+    /// Inserts a confirmed transaction to the ledger. Does not check if
+    /// accounts involved in the transaction actually exist.
+    pub fn insert_transaction(&mut self, txn: Txn) -> Result<()> {
+        self.transaction_store.insert(txn)
+    }
+
+    /// Adds multiplpe accounts to current state tree. Does not check if
+    /// accounts involved in the transaction actually exist.
+    pub fn extend_transactions(&mut self, transactions: Vec<Txn>) {
+        self.transaction_store.extend(transactions);
+    }
 }
 
 impl Clone for VrrbDb {
@@ -140,5 +157,34 @@ impl Clone for VrrbDb {
             state_store: self.state_store.clone(),
             transaction_store: self.transaction_store.clone(),
         }
+    }
+}
+
+impl Display for VrrbDb {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let state_entries = self.state_store_factory().handle().entries();
+        let transaction_entries = self
+            .transaction_store_factory()
+            .handle()
+            .entries()
+            .into_iter()
+            .map(|(digest, txn)| (digest.to_string(), txn))
+            .collect::<HashMap<String, Txn>>();
+
+        let out = json!({
+            "state": {
+                "count": state_entries.len(),
+                "entries": state_entries,
+            },
+            "transactions": {
+                "count": transaction_entries.len(),
+                "entries": transaction_entries,
+            },
+        });
+
+        //TODO: report errors better
+        let out_str = serde_json::to_string_pretty(&out).map_err(|_| std::fmt::Error)?;
+
+        f.write_str(&out_str)
     }
 }

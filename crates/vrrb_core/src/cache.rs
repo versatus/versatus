@@ -59,23 +59,23 @@ mod tests {
     fn test_insert_cache() {
         let mut cache = Cache::new(10, 1000);
         cache.push(1, 1);
-        assert!(cache.len() > 0);
+        assert!(!cache.is_empty());
     }
 
     #[test]
     fn test_entry_exist() {
         let mut cache = Cache::new(10, 1000);
         cache.push(1, 1);
-        assert!(cache.contains(&1) == true);
+        assert!(cache.contains(&1));
     }
 
     #[test]
     fn test_evict_entries() {
         let mut cache = Cache::new(10, 100);
         cache.push(1, 1);
-        assert!(cache.len() > 0);
+        assert!(!cache.is_empty());
         sleep(std::time::Duration::from_millis(105));
-        assert!(cache.len() == 0);
+        assert!(cache.is_empty());
     }
 
     #[test]
@@ -85,9 +85,9 @@ mod tests {
             _a: i16,
         }
         cache.push("Hello_str", Abc { _a: 1i16 });
-        assert!(cache.len() > 0);
+        assert!(!cache.is_empty());
         cache.clear();
-        assert!(cache.len() == 0);
+        assert!(cache.is_empty());
     }
 
     #[test]

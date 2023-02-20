@@ -9,10 +9,7 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
-use vrrb_core::{
-    event_router::Vote,
-    txn::{TxTimestamp, Txn},
-};
+use vrrb_core::txn::{TxTimestamp, Txn};
 
 use super::error::MempoolError;
 
@@ -168,7 +165,6 @@ impl LeftRightMempool {
             .map(|guard| guard.clone())
             .unwrap_or_default()
             .pool
-            .clone()
     }
 
     /// Getter for Mempool DB
@@ -192,12 +188,12 @@ impl LeftRightMempool {
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
-    pub fn add_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+    pub fn add_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
         self.insert(txn.to_owned())
     }
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
-        let mut txn_record = TxnRecord::new(txn);
+        let txn_record = TxnRecord::new(txn);
         self.write.append(MempoolOp::Add(txn_record)).publish();
         Ok(())
     }
@@ -248,7 +244,7 @@ impl LeftRightMempool {
     pub fn add_txn_batch(
         &mut self,
         txn_batch: &HashSet<Txn>,
-        txns_status: TxnStatus,
+        _txns_status: TxnStatus,
     ) -> Result<()> {
         self.extend(txn_batch.clone())
     }
@@ -281,7 +277,7 @@ impl LeftRightMempool {
     /// Removes a single transaction identified by itself, makes sure it exists
     /// in db. Pushes to the ReadHandle.
     #[deprecated]
-    pub fn remove_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+    pub fn remove_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
         self.remove(&txn.digest())
     }
 
@@ -298,7 +294,7 @@ impl LeftRightMempool {
     pub fn remove_txn_batch(
         &mut self,
         txn_batch: &HashSet<Txn>,
-        txns_status: TxnStatus,
+        _txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
             self.write.append(MempoolOp::Remove(t.digest()));
@@ -373,7 +369,6 @@ impl MempoolReadHandleFactory {
             .map(|guard| guard.clone())
             .unwrap_or_default()
             .pool
-            .clone()
     }
 
     /// Returns a hash map of all the key value pairs within the mempool

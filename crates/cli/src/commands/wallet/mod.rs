@@ -46,7 +46,6 @@ pub enum WalletCmd {
     },
 }
 
-
 #[allow(unreachable_patterns)]
 pub async fn exec(args: WalletOpts) -> Result<()> {
     let sub_cmd = args.subcommand;

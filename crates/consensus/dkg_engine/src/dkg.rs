@@ -156,7 +156,7 @@ impl DkgGenerator for DkgEngine {
                     Err(_) => {
                         return Err(DkgError::InvalidAckMessage(format!(
                             "{} {}",
-                            sender_id.0.to_string(),
+                            sender_id.0,
                             &sender_id.1.to_string()
                         )));
                     },
@@ -183,14 +183,12 @@ impl DkgGenerator for DkgEngine {
                     self.dkg_state.secret_key_share = sks;
                     Ok(DkgResult::KeySetsGenerated)
                 },
-                Err(e) => {
-                    return Err(DkgError::Unknown(format!(
-                        "{}, Node ID {}, Error: {}",
-                        String::from("Failed to create `PublicKeySet` and `SecretKeyShare`"),
-                        self.node_idx,
-                        e.to_string()
-                    )));
-                },
+                Err(e) => Err(DkgError::Unknown(format!(
+                    "{}, Node ID {}, Error: {}",
+                    String::from("Failed to create `PublicKeySet` and `SecretKeyShare`"),
+                    self.node_idx,
+                    e
+                ))),
             }
         } else {
             Err(DkgError::SyncKeyGenInstanceNotCreated)
@@ -218,7 +216,7 @@ mod tests {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::Miner).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let result = dkg_engine.generate_sync_keygen_instance(1);
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         assert!(is_enum_variant!(result, Err(DkgError::InvalidNode { .. })));
     }
 
@@ -227,7 +225,7 @@ mod tests {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let part_committement_result = dkg_engine.generate_sync_keygen_instance(1);
-        assert_eq!(part_committement_result.is_ok(), true);
+        assert!(part_committement_result.is_ok());
         assert!(is_enum_variant!(
             part_committement_result,
             Ok(DkgResult::PartMessageGenerated { .. })
@@ -240,7 +238,7 @@ mod tests {
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(0);
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         assert!(is_enum_variant!(
             result,
             Ok(DkgResult::PartMessageAcknowledged)
@@ -253,7 +251,7 @@ mod tests {
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(1);
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         assert!(is_enum_variant!(
             result,
             Err(DkgError::PartMsgMissingForNode { .. })
@@ -265,7 +263,7 @@ mod tests {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let result = dkg_engine.ack_partial_commitment(0);
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         assert!(is_enum_variant!(
             result,
             Err(DkgError::SyncKeyGenInstanceNotCreated { .. })
@@ -310,7 +308,7 @@ mod tests {
 
         let result = dkg_engine_node1.handle_ack_messages();
 
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
         assert!(is_enum_variant!(
             result,
             Ok(DkgResult::AllAcksHandled { .. })
@@ -339,29 +337,29 @@ mod tests {
 
         for part_commitment in part_committment_tuples.iter() {
             if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
-                if *node_idx as u16 != dkg_engine_node1.node_idx {
+                if *node_idx != dkg_engine_node1.node_idx {
                     dkg_engine_node1
                         .dkg_state
                         .part_message_store
-                        .insert(*node_idx as u16, part.clone());
+                        .insert(*node_idx, part.clone());
                 }
-                if *node_idx as u16 != dkg_engine_node2.node_idx {
+                if *node_idx != dkg_engine_node2.node_idx {
                     dkg_engine_node2
                         .dkg_state
                         .part_message_store
-                        .insert(*node_idx as u16, part.clone());
+                        .insert(*node_idx, part.clone());
                 }
-                if *node_idx as u16 != dkg_engine_node3.node_idx {
+                if *node_idx != dkg_engine_node3.node_idx {
                     dkg_engine_node3
                         .dkg_state
                         .part_message_store
-                        .insert(*node_idx as u16, part.clone());
+                        .insert(*node_idx, part.clone());
                 }
-                if *node_idx as u16 != dkg_engine_node4.node_idx {
+                if *node_idx != dkg_engine_node4.node_idx {
                     dkg_engine_node4
                         .dkg_state
                         .part_message_store
-                        .insert(*node_idx as u16, part.clone());
+                        .insert(*node_idx, part.clone());
                 }
             }
         }
@@ -429,9 +427,9 @@ mod tests {
         }
 
         let result = dkg_engine_node1.generate_key_sets();
-        assert_eq!(result.is_ok(), true);
-        assert_eq!(dkg_engine_node1.dkg_state.public_key_set.is_some(), true);
-        assert_eq!(dkg_engine_node1.dkg_state.secret_key_share.is_some(), true);
+        assert!(result.is_ok());
+        assert!(dkg_engine_node1.dkg_state.public_key_set.is_some());
+        assert!(dkg_engine_node1.dkg_state.secret_key_share.is_some());
     }
 
     fn add_part_committment_to_node_dkg_state(

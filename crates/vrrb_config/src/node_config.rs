@@ -1,5 +1,4 @@
 use std::{
-    env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
     time::Duration,

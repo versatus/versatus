@@ -496,20 +496,20 @@ mod tests {
         let miner_pk = deserialized_key.get_miner_public_key();
 
         assert_eq!(keypair.validator_kp.0.sign(msg), validator_sk.sign(msg));
-        assert_eq!(validator_pk.verify(&validator_sk.sign(msg), msg), true);
+        assert!(validator_pk.verify(&validator_sk.sign(msg), msg));
         let validator_pbytes = deserialized_key.to_validator_pk_bytes().unwrap();
         let validator_pkey = KeyPair::from_validator_pk_bytes(&validator_pbytes).unwrap();
-        assert_eq!(validator_pkey.verify(&validator_sk.sign(msg), msg), true);
+        assert!(validator_pkey.verify(&validator_sk.sign(msg), msg));
 
         let secp = Secp256k1::new();
         let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg.as_bytes());
         assert_eq!(
             secp.sign_ecdsa(&msg, &keypair.miner_kp.0),
-            secp.sign_ecdsa(&msg, &miner_sk)
+            secp.sign_ecdsa(&msg, miner_sk)
         );
 
         let sig = secp.sign_ecdsa(&msg, &keypair.miner_kp.0);
-        assert!(secp.verify_ecdsa(&msg, &sig, &miner_pk).is_ok());
+        assert!(secp.verify_ecdsa(&msg, &sig, miner_pk).is_ok());
         let miner_pbytes = deserialized_key.to_miner_pk_bytes().unwrap();
         let miner_pkey = KeyPair::from_miner_pk_bytes(&miner_pbytes).unwrap();
         assert!(secp.verify_ecdsa(&msg, &sig, &miner_pkey).is_ok());

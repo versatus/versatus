@@ -1,7 +1,7 @@
 use secp256k1::{rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
 
-use crate::PublicKey;
+use crate::{ByteVec, PublicKey};
 
 /// Represents a secp256k1 public key, hashed with sha256::digest
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -10,6 +10,15 @@ pub struct Address(PublicKey);
 impl Address {
     pub fn new(public_key: PublicKey) -> Self {
         Self(public_key)
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.0
+    }
+
+    pub fn public_key_bytes(&self) -> ByteVec {
+        // TODO: revisit later
+        self.0.to_string().into_bytes()
     }
 }
 

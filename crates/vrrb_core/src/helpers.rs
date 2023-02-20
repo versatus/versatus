@@ -1,6 +1,4 @@
-use primitives::{ByteVec, Digest};
 use ritelinked::LinkedHashMap;
-use sha2::Sha256;
 use sha256::Sha256Digest;
 
 use crate::txn::Txn;
@@ -23,6 +21,6 @@ macro_rules! is_enum_variant {
 pub fn size_of_txn_list(txns: &LinkedHashMap<String, Txn>) -> usize {
     txns.iter()
         .map(|(_, set)| set)
-        .map(|(txn)| std::mem::size_of_val(&txn))
-        .fold(0, |acc, item| acc + item)
+        .map(|txn| std::mem::size_of_val(&txn))
+        .sum()
 }

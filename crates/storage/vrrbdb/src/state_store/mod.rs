@@ -1,15 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::SystemTime,
-};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{Address, SerializedPublicKeyString};
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use lr_trie::{LeftRightTrie, H256};
+use primitives::Address;
+use sha2::Digest;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
@@ -130,7 +123,7 @@ impl StateStore {
 
     /// Retain returns new StateDb with witch all Accounts that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, mut filter: F) -> StateStore
+    pub fn retain<F>(&self, _filter: F) -> StateStore
     where
         F: FnMut(&Account) -> bool,
     {

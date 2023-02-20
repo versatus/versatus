@@ -12,7 +12,6 @@ use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
-
 #[tokio::test]
 async fn node_can_start_as_a_bootstrap_node() {
     let node_config = create_mock_bootstrap_node_config();

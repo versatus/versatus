@@ -1,29 +1,21 @@
 use std::{
     collections::HashMap,
-    fmt,
+    fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
     str::FromStr,
 };
 
-use hbbft::transaction_queue::TransactionQueue;
-use primitives::{
-    ByteSlice,
-    ByteVec,
-    Digest,
-    PublicKey,
-    SecretKey,
-    SerializedPublicKey,
-    TransactionDigest,
-};
-use secp256k1::{ecdsa::Signature, Message, Secp256k1};
+use primitives::{ByteSlice, ByteVec, Digest, SecretKey, SerializedPublicKey, DIGEST_LENGTH};
+use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use utils::{create_payload, hash_data};
+use utils::hash_data;
 
 /// This module contains the basic structure of simple transaction
 use crate::{
     accountable::Accountable,
     helpers::gen_sha256_digest_string,
+    result,
     serde_helpers::{decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary},
 };
 use crate::{serde_helpers::encode_to_json, verifiable::Verifiable};
@@ -214,7 +206,7 @@ impl Txn {
             }
         } else {
             self.build_payload();
-            self.sign(&sk);
+            self.sign(sk);
         }
     }
 }
@@ -360,8 +352,8 @@ impl Verifiable for Txn {
 
     fn valid(
         &self,
-        item: &Self::Item,
-        debendencies: &Self::Dependencies,
+        _item: &Self::Item,
+        _debendencies: &Self::Dependencies,
     ) -> Result<bool, Self::Error> {
         Ok(true)
     }
@@ -375,5 +367,58 @@ impl FromStr for NewTxnArgs {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s).map_err(|err| ParseTxnArgsError(err.to_string()))
+    }
+}
+
+pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
+
+#[derive(Debug, Default, Clone, Hash, Deserialize, Serialize, Eq, PartialEq)]
+pub struct TransactionDigest {
+    inner: Digest,
+    digest_string: String,
+}
+
+impl TransactionDigest {
+    pub fn new(txn: &Txn) -> Self {
+        Self {
+            inner: Digest::from(txn.digest().as_bytes()),
+            digest_string: txn.digest(),
+        }
+    }
+
+    /// Produces a SHA 256 hash string of the transaction
+    pub fn digest_string(&self) -> String {
+        self.digest_string.clone()
+    }
+}
+
+impl Display for TransactionDigest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.digest_string)
+    }
+}
+
+impl From<ByteVec> for TransactionDigest {
+    fn from(byte_vec: ByteVec) -> Self {
+        let digest_string = gen_sha256_digest_string(byte_vec.as_slice());
+        let inner = byte_vec.try_into().unwrap_or_default();
+
+        Self {
+            inner,
+            digest_string,
+        }
+    }
+}
+
+impl<'a> From<ByteSlice<'a>> for TransactionDigest {
+    fn from(byte_slice: ByteSlice) -> Self {
+        let inner = byte_slice.try_into().unwrap_or_default();
+
+        let digest_string = gen_sha256_digest_string(byte_slice);
+
+        Self {
+            inner,
+            digest_string,
+        }
     }
 }

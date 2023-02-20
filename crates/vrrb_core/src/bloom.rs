@@ -1,4 +1,4 @@
-use std::{any::Any, collections::hash_map::DefaultHasher, hash::Hash};
+use std::{collections::hash_map::DefaultHasher, hash::Hash};
 
 use cuckoofilter::{CuckooError, CuckooFilter};
 
@@ -41,7 +41,6 @@ impl Bloom {
 #[cfg(test)]
 mod tests {
 
-    use std::thread::sleep;
 
     use super::Bloom;
     #[test]
@@ -49,14 +48,14 @@ mod tests {
         let mut filter = Bloom::new(1000);
         let key = "1";
         filter.push(key);
-        assert!(filter.len() > 0);
+        assert!(!filter.is_empty());
     }
     fn test_delete_filter() {
         let mut filter = Bloom::new(1000);
         let key = "1";
         filter.push(key);
-        assert!(filter.len() > 0);
+        assert!(!filter.is_empty());
         filter.delete(key);
-        assert!(filter.len() == 0);
+        assert!(filter.is_empty());
     }
 }

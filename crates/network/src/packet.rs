@@ -22,7 +22,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 use tokio::net::UdpSocket;
 use vrrb_core::txn::Txn;
 
-
 /// Maximum over-the-wire size of a Transaction
 ///   1280 is IPv6 minimum MTU
 ///   40 bytes is the size of the IPv6 header
@@ -47,7 +46,6 @@ pub(crate) const NUM_RCVMMSGS: usize = 32;
 ///   True payload size ,or the size of single packet that will be written to or
 /// read from socket
 const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 - 8;
-
 
 /// Below is the type that shall be used to broadcast RaptorQ Data
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -183,7 +181,6 @@ pub fn get_payload_length(packet: &[u8; 1280]) -> u32 {
     payload_len_bytes[..4].copy_from_slice(&packet[2..6]);
     u32::from_le_bytes(payload_len_bytes)
 }
-
 
 pub fn get_symbol_size(packet: &[u8; 1280]) -> u16 {
     let mut symbol_size_bytes: [u8; 2] = [0; 2];

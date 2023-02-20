@@ -1,7 +1,4 @@
-use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
-    net::SocketAddr,
-};
+use std::{collections::HashMap, net::SocketAddr};
 
 use primitives::{
     Address,
@@ -12,7 +9,6 @@ use primitives::{
     QuorumPublicKey,
     QuorumType,
     RawSignature,
-    TxHash,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
@@ -22,7 +18,7 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
 
-use crate::{account::Account, txn::Txn, Error, Result};
+use crate::{txn::Txn, Error};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;

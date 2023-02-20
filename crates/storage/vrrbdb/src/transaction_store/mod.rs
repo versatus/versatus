@@ -1,10 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::SystemTime};
+use std::{path::PathBuf, sync::Arc};
 
-use lr_trie::{InnerTrieWrapper, LeftRightTrie, H256};
-use patriecia::db::MemoryDB;
-use primitives::{TransactionDigest, TxHash};
-use storage_utils::{Result, StorageError};
-use vrrb_core::txn::Txn;
+use lr_trie::{LeftRightTrie, H256};
+use storage_utils::Result;
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
@@ -53,12 +51,24 @@ impl TransactionStore {
     }
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
-        let key = TransactionDigest::from(txn.clone());
+        self.trie.insert(txn.raw_digest(), txn);
+        Ok(())
+    }
 
-        Ok(self.trie.insert(key, txn))
+    pub fn extend(&mut self, transactions: Vec<Txn>) {
+        let transactions = transactions
+            .into_iter()
+            .map(|txn| (txn.raw_digest(), txn))
+            .collect();
+
+        self.trie.extend(transactions)
     }
 
     pub fn root_hash(&self) -> Option<H256> {
         self.trie.root()
+    }
+
+    pub fn get_proof(&self) -> Option<H256> {
+        self.trie.get_proof()
     }
 }

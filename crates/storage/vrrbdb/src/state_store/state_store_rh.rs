@@ -1,17 +1,11 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::SystemTime,
-};
+use std::collections::HashMap;
 
-use lr_trie::{InnerTrieWrapper, LeftRightTrie, ReadHandleFactory, H256};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{Address, SerializedPublicKeyString};
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
+use patriecia::inner::InnerTrie;
+use primitives::Address;
+use sha2::Digest;
 use storage_utils::{Result, StorageError};
-use vrrb_core::account::{Account, UpdateArgs};
+use vrrb_core::account::Account;
 
 use crate::RocksDbAdapter;
 

@@ -33,6 +33,3 @@ impl Display for Digest {
         hex::format_hex(&self.0, f)
     }
 }
-
-pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
-pub type TransactionDigest = Digest;

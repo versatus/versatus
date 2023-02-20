@@ -8,8 +8,8 @@ echo 'Formatting...'
  for rust_file in $(git diff --name-only --cached | grep ".*\.rs$"); do
 
     if test -e "$rust_file"; then
-         cargo +nightly fmt -- $rust_file
-        git add $rust_file
+        cargo +nightly fmt -- "$rust_file"
+        git add "$rust_file"
     fi
  done
  echo "Done"

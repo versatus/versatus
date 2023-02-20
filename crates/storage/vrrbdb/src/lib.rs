@@ -11,19 +11,14 @@ pub use event_store::*;
 pub use rocksdb_adapter::*;
 pub use state_store::*;
 pub use transaction_store::*;
-pub use vrrbdb::*;
 pub use vrrbdb_read_handle::*;
 pub use vrrbdb_serialized_values::*;
+
+pub use crate::vrrbdb::*;
 
 #[cfg(test)]
 mod tests {
 
-    use std::thread;
-
-    use vrrb_core::{
-        account::Account,
-        keypair::{KeyPair, PublicKeys},
-    };
     // fn new_random_keys(n: usize) -> Vec<PublicKeys> {
     //     let mut res: Vec<PublicKeys> = vec![];
     //     for _ in 0..n {
