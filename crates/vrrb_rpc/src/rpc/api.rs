@@ -6,25 +6,13 @@ use primitives::{Address, NodeType, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,
-    txn::{TransactionDigest, TxAmount, TxNonce, TxPayload, TxSignature, Txn},
+    txn::{NewTxnArgs, TransactionDigest, TxAmount, TxNonce, TxPayload, TxSignature, Txn},
 };
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
 pub type FullStateSnapshot = HashMap<Address, Account>;
 pub type FullMempoolSnapshot = Vec<Txn>;
-
-#[derive(Serialize, Deserialize)]
-pub struct CreateTxnArgs {
-    pub sender_address: String,
-    pub sender_public_key: SerializedPublicKey,
-    pub receiver_address: String,
-    pub token: Option<String>,
-    pub amount: TxAmount,
-    pub payload: Option<TxPayload>,
-    pub signature: TxSignature,
-    pub nonce: TxNonce,
-}
 
 #[rpc(server, client, namespace = "state")]
 #[async_trait]
@@ -43,7 +31,7 @@ pub trait Rpc {
 
     /// Create a new transaction
     #[method(name = "createTxn")]
-    async fn create_txn(&self, args: Txn) -> Result<(), Error>;
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<(), Error>;
 
     /// Get a transaction from state
     #[method(name = "getTransaction")]

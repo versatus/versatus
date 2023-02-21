@@ -16,11 +16,7 @@ use vrrb_core::{
     txn::NewTxnArgs,
 };
 
-use super::api::{CreateTxnArgs, FullMempoolSnapshot};
-use crate::rpc::{
-    api::{FullStateSnapshot, RpcServer},
-    server_impl::RpcServerImpl,
-};
+use crate::rpc::{api::RpcServer, server_impl::RpcServerImpl};
 
 #[derive(Debug, Clone)]
 pub struct JsonRpcServerConfig {

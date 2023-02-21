@@ -9,6 +9,7 @@ use jsonrpsee::{
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
+use telemetry::debug;
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
@@ -16,7 +17,7 @@ use vrrb_core::{
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
-use super::api::{CreateTxnArgs, FullMempoolSnapshot};
+use super::api::FullMempoolSnapshot;
 use crate::rpc::api::{FullStateSnapshot, RpcServer};
 
 pub struct RpcServerImpl {
@@ -44,11 +45,12 @@ impl RpcServer for RpcServerImpl {
         Ok(self.node_type)
     }
 
-    async fn create_txn(&self, args: Txn) -> Result<(), Error> {
-        let event = Event::NewTxnCreated(args);
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<(), Error> {
+        let txn = Txn::new(args);
+        let event = Event::NewTxnCreated(txn);
 
-        #[cfg(debug_assertions)]
-        println!("{:?}", event);
+        debug!("{:?}", event);
+
         self.events_tx
             .send((Topic::Transactions, event))
             .map_err(|err| {
@@ -64,8 +66,7 @@ impl RpcServer for RpcServerImpl {
             serde_json::to_vec(&account).map_err(|err| Error::Custom(err.to_string()))?;
         let event = Event::AccountCreated((address, account_bytes));
 
-        #[cfg(debug_assertions)]
-        println!("{:?}", event.clone());
+        debug!("{:?}", event.clone());
 
         self.events_tx.send((Topic::State, event)).map_err(|err| {
             telemetry::error!("could not create account: {err}");
@@ -76,8 +77,7 @@ impl RpcServer for RpcServerImpl {
     }
 
     async fn update_account(&self, account: Account) -> Result<(), Error> {
-        #[cfg(debug_assertions)]
-        println!("Received an updateAccount RPC request");
+        debug!("Received an updateAccount RPC request");
 
         let account_bytes =
             serde_json::to_vec(&account).map_err(|err| Error::Custom(err.to_string()))?;
@@ -94,8 +94,8 @@ impl RpcServer for RpcServerImpl {
 
     async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn, Error> {
         // Do we need to check both state AND mempool?
-        #[cfg(debug_assertions)]
-        println!("Received a getTransaction RPC request");
+        debug!("Received a getTransaction RPC request");
+
         let values = self.vrrbdb_read_handle.transaction_store_values();
         let value = values.get(&transaction_digest);
 
@@ -109,8 +109,8 @@ impl RpcServer for RpcServerImpl {
         &self,
         digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, Txn>, Error> {
-        #[cfg(debug_assertions)]
-        println!("Received a listTransactions RPC request");
+        debug!("Received a listTransactions RPC request");
+
         let mut values: HashMap<TransactionDigest, Txn> = HashMap::new();
         digests.iter().for_each(|digest| {
             if let Some(txn) = self
@@ -129,8 +129,7 @@ impl RpcServer for RpcServerImpl {
         let values = self.vrrbdb_read_handle.state_store_values();
         let value = values.get(&address);
 
-        #[cfg(debug_assertions)]
-        println!("Received getAccount RPC Request");
+        debug!("Received getAccount RPC Request: {value:?}");
 
         match value {
             Some(account) => return Ok(account.to_owned()),
