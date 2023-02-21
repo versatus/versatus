@@ -7,13 +7,13 @@ use jsonrpsee::{
     types::SubscriptionResult,
 };
 use mempool::MempoolReadHandleFactory;
-use primitives::{Address, NodeType, TransactionDigest};
+use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
-    txn::{NewTxnArgs, Txn},
+    txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
 use super::api::{CreateTxnArgs, FullMempoolSnapshot};

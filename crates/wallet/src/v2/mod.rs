@@ -1,14 +1,14 @@
 use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use jsonrpsee::core::client::Client;
-use primitives::{digest::TransactionDigest, Address};
+use primitives::Address;
 use secp256k1::{ecdsa::Signature, PublicKey, SecretKey};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 use vrrb_core::{
     account::Account,
     keypair::{KeyPair, KeyPairError},
-    txn::{TxToken, Txn},
+    txn::{TransactionDigest, TxToken, Txn},
 };
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 

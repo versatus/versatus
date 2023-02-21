@@ -1,7 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use primitives::digest::TransactionDigest;
-use vrrb_core::txn::TxToken;
+use vrrb_core::txn::{TransactionDigest, TxToken};
 use wallet::v2::Wallet;
 
 use crate::result::CliError;

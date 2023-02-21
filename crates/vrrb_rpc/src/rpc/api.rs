@@ -2,11 +2,11 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use async_trait::async_trait;
 use jsonrpsee::{core::Error, proc_macros::rpc, types::SubscriptionResult};
-use primitives::{Address, NodeType, SerializedPublicKey, TransactionDigest};
+use primitives::{Address, NodeType, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,
-    txn::{TxAmount, TxNonce, TxPayload, TxSignature, Txn},
+    txn::{TransactionDigest, TxAmount, TxNonce, TxPayload, TxSignature, Txn},
 };
 
 pub type ExampleHash = [u8; 32];

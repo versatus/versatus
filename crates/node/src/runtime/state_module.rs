@@ -82,9 +82,9 @@ impl StateModule {
         Ok(())
     }
 
-    fn add_account(&mut self, key: Address, account: Account) -> Result<()> {
+    fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
         self.db
-            .add_account(key, account)
+            .insert_account(key, account)
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 }
@@ -147,7 +147,7 @@ impl Handler<Event> for StateModule {
             // TODO: Implement custom error types
             Event::AccountCreated((address, account_bytes)) => {
                 if let Ok(account) = serde_json::from_slice(&account_bytes) {
-                    self.add_account(address, account)
+                    self.insert_account(address, account)
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
