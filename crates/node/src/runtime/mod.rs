@@ -76,8 +76,13 @@ pub async fn setup_runtime_components(
 
     let mempool_handle = Some(mempool_handle);
 
-    let (state_read_handle, state_handle) =
-        setup_state_store(&config, events_tx.clone(), vrrbdb_events_rx).await?;
+    let (state_read_handle, state_handle) = setup_state_store(
+        &config,
+        events_tx.clone(),
+        vrrbdb_events_rx,
+        mempool_read_handle_factory.clone(),
+    )
+    .await?;
 
     let mut gossip_handle = None;
     let mut broadcast_controller_handle = None;
@@ -110,7 +115,12 @@ pub async fn setup_runtime_components(
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
 
     // TODO: make nodes start with some preconfigured state
-    let txn_validator_handle = setup_validation_module(events_tx.clone(), validator_events_rx)?;
+    let txn_validator_handle = setup_validation_module(
+        events_tx.clone(),
+        validator_events_rx,
+        mempool_read_handle_factory.clone(),
+    )?;
+
     let miner_handle = setup_mining_module(events_tx.clone(), miner_events_rx)?;
 
     Ok((
@@ -196,6 +206,7 @@ async fn setup_state_store(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
     mut state_events_rx: Receiver<Event>,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
     let database_path = config.db_path();
 
@@ -257,6 +268,7 @@ async fn setup_rpc_api_server(
 fn setup_validation_module(
     events_tx: UnboundedSender<DirectedEvent>,
     mut validator_events_rx: Receiver<Event>,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let mut module = validator_module::ValidatorModule::new();
 

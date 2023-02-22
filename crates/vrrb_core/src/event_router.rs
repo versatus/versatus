@@ -18,7 +18,11 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
 
-use crate::{account::Account, txn::Txn, Error};
+use crate::{
+    account::Account,
+    txn::{TransactionDigest, Txn},
+    Error,
+};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -80,8 +84,8 @@ pub enum Event {
     /// Single txn validated
     TxnValidated(Txn),
     /// Batch of validated txns
-    TxnBatchValidated(Vec<u8>),
-    TxnAddedToMempool(TxHashString),
+    TxnBatchValidated(Vec<TransactionDigest>),
+    TxnAddedToMempool(TransactionDigest),
     BlockReceived,
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),

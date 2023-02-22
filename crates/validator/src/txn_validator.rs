@@ -10,7 +10,8 @@ use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
 use vrrb_core::{
     account::Account,
     keypair::{KeyPair, MinerPk},
-    txn::Txn,
+    serde_helpers::decode_from_binary_byte_slice,
+    txn::{self, Txn},
 };
 
 pub type Result<T> = StdResult<T, TxnValidatorError>;
@@ -122,7 +123,7 @@ impl TxnValidator {
                 // String::from_slice(&txn.signature),
                 // txn.signature.clone(),
                 txn.payload().as_bytes(),
-                txn.sender_public_key.clone(),
+                txn.sender_public_key.to_string().as_bytes().to_vec(),
             )
             .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
         } else {
@@ -132,11 +133,8 @@ impl TxnValidator {
 
     /// Txn public key validator
     pub fn validate_public_key(&self, txn: &Txn) -> Result<()> {
-        if !txn.sender_public_key.is_empty() {
-            match MinerPk::from_slice(&txn.sender_public_key) {
-                Ok(_) => Ok(()),
-                Err(_) => Err(TxnValidatorError::SenderPublicKeyIncorrect),
-            }
+        if !txn.sender_public_key.to_string().is_empty() {
+            Ok(())
         } else {
             Err(TxnValidatorError::SenderPublicKeyIncorrect)
         }

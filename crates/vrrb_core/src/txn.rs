@@ -15,7 +15,7 @@ use primitives::{
     SerializedPublicKeyString,
     DIGEST_LENGTH,
 };
-use secp256k1::Message;
+use secp256k1::{Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sha256::digest;
@@ -54,11 +54,11 @@ pub type TxToken = String;
 //TODO: Discuss how to best package this to minimize the size of it/compress it
 //TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
 //signature of validators in.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
     pub timestamp: TxTimestamp,
     pub sender_address: String,
-    pub sender_public_key: SerializedPublicKeyString,
+    pub sender_public_key: PublicKey,
     pub receiver_address: String,
     token: Option<TxToken>,
     amount: TxAmount,
@@ -83,13 +83,19 @@ pub struct NewTxnArgs {
     pub nonce: TxNonce,
 }
 
+impl Default for Txn {
+    fn default() -> Self {
+        null_txn()
+    }
+}
+
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
         Self {
             // TODO: change time unit from seconds to millis
             timestamp: args.timestamp,
             sender_address: args.sender_address,
-            sender_public_key: args.sender_public_key.to_string(),
+            sender_public_key: args.sender_public_key,
             receiver_address: args.receiver_address,
             token: args.token,
             amount: args.amount,
@@ -117,9 +123,6 @@ impl Txn {
         let hash = hasher.finalize();
 
         hash.to_vec()
-
-        // NOTE: it's the same as hashing and then calling hex::encode
-        // gen_sha256_digest_string(&hash[..])
     }
 
     pub fn encode_to_string(&self) -> String {
@@ -127,7 +130,7 @@ impl Txn {
             "{},{},{},{},{},{:?},{}",
             &self.timestamp,
             &self.sender_address,
-            &hex::encode(self.sender_public_key.to_string().as_bytes()),
+            &self.sender_public_key,
             &self.receiver_address,
             &self.amount,
             &self.token,
@@ -151,7 +154,7 @@ impl Txn {
     }
 
     pub fn is_null(&self) -> bool {
-        self == &NULL_TXN
+        self == &null_txn()
     }
 
     pub fn amount(&self) -> TxAmount {
@@ -205,11 +208,16 @@ impl Txn {
             return result;
         }
 
-        NULL_TXN
+        null_txn()
+    }
+
+    #[deprecated(note = "use digest instead")]
+    pub fn txn_id(&self) -> String {
+        self.digest_string()
     }
 
     fn from_string(data: &str) -> Txn {
-        Txn::from_str(data).unwrap_or(NULL_TXN)
+        Txn::from_str(data).unwrap_or(null_txn())
     }
 
     pub fn sign(&mut self, sk: &SecretKey) {
@@ -229,20 +237,43 @@ impl Txn {
     }
 }
 
-pub const NULL_TXN: Txn = Txn {
-    // txn_id: Uuid::nil(),
-    timestamp: 0,
-    sender_address: String::new(),
-    sender_public_key: String::new(),
-    receiver_address: String::new(),
-    token: None,
-    amount: 0,
-    payload: None,
-    signature: None,
-    validators: None,
-    nonce: 0,
-    receiver_farmer_id: None,
-};
+/// Returns a null transaction
+pub fn null_txn() -> Txn {
+    Txn {
+        timestamp: 0,
+        sender_address: String::new(),
+        sender_public_key: PublicKey::from_slice(NULL_SENDER_PUBLIC_KEY_SLICE).unwrap(),
+        receiver_address: String::new(),
+        token: None,
+        amount: 0,
+        payload: None,
+        signature: None,
+        validators: None,
+        nonce: 0,
+        receiver_farmer_id: None,
+    }
+}
+
+pub const NULL_SENDER_PUBLIC_KEY_SLICE: &[u8; 33] = &[
+    0x02, 0xc6, 0x6e, 0x7d, 0x89, 0x66, 0xb5, 0xc5, 0x55, 0xaf, 0x58, 0x05, 0x98, 0x9d, 0xa9, 0xfb,
+    0xf8, 0xdb, 0x95, 0xe1, 0x56, 0x31, 0xce, 0x35, 0x8c, 0x3a, 0x17, 0x10, 0xc9, 0x62, 0x67, 0x90,
+    0x63,
+];
+
+// pub const NULL_TXN: Txn = Txn {
+//     timestamp: 0,
+//     sender_address: String::new(),
+//     sender_public_key:
+// PublicKey::from_slice(NULL_SENDER_PUBLIC_KEY_SLICE).unwrap(),
+//     receiver_address: String::new(),
+//     token: None,
+//     amount: 0,
+//     payload: None,
+//     signature: None,
+//     validators: None,
+//     nonce: 0,
+//     receiver_farmer_id: None,
+// };
 
 impl From<String> for Txn {
     fn from(data: String) -> Self {

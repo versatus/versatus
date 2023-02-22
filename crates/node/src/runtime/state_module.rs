@@ -11,6 +11,7 @@ use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
+    serde_helpers::decode_from_binary_byte_slice,
     txn::Txn,
 };
 
@@ -67,13 +68,10 @@ impl StateModule {
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 
-        // self.db
-        //     .remove_txn_from_mempool(&txn_hash)
-        //     .map_err(|err| NodeError::Other(err.to_string()))?;
-
-        // self.db
-        //     .insert_confirmed_txn(txn)
-        //     .map_err(|err| NodeError::Other(err.to_string()))?;
+        //TODO: call checked methods instead
+        self.db
+            .insert_transaction(txn)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
 
         self.events_tx
             .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
@@ -85,6 +83,12 @@ impl StateModule {
     fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
         self.db
             .insert_account(key, account)
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    fn update_account(&mut self, key: Address, account: Account) -> Result<()> {
+        self.db
+            .update_account(key, account)
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 }
@@ -118,39 +122,28 @@ impl Handler<Event> for StateModule {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::Stop => {
-                // TODO: fix
-                // self.state
-                //     .serialize_to_json()
-                //     .map_err(|err| NodeError::Other(err.to_string()))?;
                 return Ok(ActorState::Stopped);
             },
 
-            Event::BlockReceived => {},
-
-            Event::NewTxnCreated(txn) => {
-                info!("Storing transaction in mempool for validation");
-
-                let txn_hash = txn.digest();
-
-                // self.db
-                //     .insert_txn_to_mempool(txn)
-                //     .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                self.events_tx
-                    .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
             Event::TxnValidated(txn) => {
                 self.confirm_txn(txn)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            // TODO: Implement custom error types
+
             Event::AccountCreated((address, account_bytes)) => {
-                if let Ok(account) = serde_json::from_slice(&account_bytes) {
+                if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
                     self.insert_account(address, account)
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
+
+            Event::AccountCreated((address, account_bytes)) => {
+                if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
+                    self.update_account(address, account)
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
+                }
+            },
+
             Event::NoOp => {},
             _ => telemetry::warn!("Unrecognized command received: {:?}", event),
         }
@@ -167,7 +160,7 @@ mod tests {
     use theater::ActorImpl;
     use vrrb_core::{
         event_router::{DirectedEvent, Event},
-        txn::NULL_TXN,
+        txn::null_txn,
     };
 
     use super::*;
@@ -222,7 +215,7 @@ mod tests {
             state_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        ctrl_tx.send(Event::NewTxnCreated(NULL_TXN)).unwrap();
+        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();
@@ -256,7 +249,7 @@ mod tests {
 
         // TODO: implement all state && validation ops
 
-        ctrl_tx.send(Event::NewTxnCreated(NULL_TXN)).unwrap();
+        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();
