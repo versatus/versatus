@@ -25,7 +25,7 @@ use vrrb_core::{
     accountable::Accountable,
     bloom::Bloom,
     event_router::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt},
-    txn::Txn,
+    txn::{TransactionDigest, Txn},
 };
 
 use crate::{result::Result, NodeError};
@@ -94,7 +94,7 @@ impl FarmerHarvesterModule {
         }
     }
 
-    pub fn update_txn_status(&mut self, txn_id: TxHashString, status: TxnStatus) {
+    pub fn update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
         if let Some(tx_mempool) = self.tx_mempool.borrow_mut() {
             let txn_record_opt = tx_mempool.get(&txn_id);
             if let Some(mut txn_record) = txn_record_opt {
@@ -105,7 +105,7 @@ impl FarmerHarvesterModule {
         }
     }
 
-    pub fn remove_txn(&mut self, txn_id: TxHashString) {
+    pub fn remove_txn(&mut self, txn_id: TransactionDigest) {
         if let Some(tx_mempool) = self.tx_mempool.borrow_mut() {
             let _ = tx_mempool.remove(&txn_id);
         }
@@ -372,8 +372,9 @@ mod tests {
 
         for n in 1..101 {
             let mut txn = Txn::new(NewTxnArgs {
+                timestamp: 0,
                 sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+                sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,
@@ -478,15 +479,16 @@ mod tests {
 
         for n in 0..1 {
             let mut txn = Txn::new(NewTxnArgs {
+                timestamp: 0,
                 sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+                sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,
                 payload: Some(String::from("x")),
+                signature: vec![],
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: vec![],
             });
             let bytes = bincode::serialize(&txn).unwrap();
             let sig = hex::decode(

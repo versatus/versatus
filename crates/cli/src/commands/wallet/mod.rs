@@ -3,13 +3,21 @@ mod info;
 mod new;
 mod transfer;
 
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
+use secp256k1::{generate_keypair, rand};
 use serde_json;
+use vrrb_core::helpers::read_or_generate_keypair_file;
 
 use crate::result::{CliError, Result};
 
 #[derive(Parser, Debug)]
 pub struct WalletOpts {
+    /// Secret key to use when signing transactions
+    #[clap(long, default_value = "default")]
+    pub identity: String,
+
     #[clap(subcommand)]
     pub subcommand: WalletCmd,
 }
@@ -46,19 +54,26 @@ pub enum WalletCmd {
     },
 }
 
-#[allow(unreachable_patterns)]
 pub async fn exec(args: WalletOpts) -> Result<()> {
     let sub_cmd = args.subcommand;
 
+    let data_dir = vrrb_core::storage_utils::get_wallet_data_dir()?.join("keys");
+
+    std::fs::create_dir_all(&data_dir)?;
+
+    let keypair_file_path = PathBuf::from(&data_dir).join(args.identity);
+
+    let keypair = read_or_generate_keypair_file(&keypair_file_path)?;
+
     match sub_cmd {
-        WalletCmd::Info => info::exec().await,
+        WalletCmd::Info => info::exec(keypair).await,
         WalletCmd::Transfer {
             address_number,
             to,
             amount,
             token,
         } => {
-            transfer::exec(address_number, to, amount, token).await?;
+            transfer::exec(address_number, to, amount, token, keypair).await?;
 
             Ok(())
         },
@@ -75,7 +90,7 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
                 return Err(CliError::Other("invalid account".to_string()));
             };
 
-            new::exec(address, account).await?;
+            new::exec(address, account, keypair).await?;
 
             Ok(())
         },
@@ -86,7 +101,7 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
                 return Err(CliError::Other("invalid address".to_string()));
             };
 
-            if let Some(acct) = get::exec(address).await {
+            if let Some(acct) = get::exec(address, keypair).await {
                 println!("{:?}", acct);
             };
 

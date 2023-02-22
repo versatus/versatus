@@ -136,10 +136,7 @@ mod tests {
     use theater::ActorImpl;
     use tracing::log::kv::Source;
     use udp2p::protocol::protocol::Peer;
-    use vrrb_core::{
-        event_router::{DirectedEvent, Event, PeerData},
-        txn::NULL_TXN,
-    };
+    use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
 
     use super::*;
 

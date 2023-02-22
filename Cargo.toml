@@ -54,7 +54,7 @@ members = [
     "crates/storage/utils",
     "crates/syncing",
     "crates/telemetry",
-    "crates/utils"
+    "crates/utils",
 ]
 
 [workspace.dependencies]
@@ -180,6 +180,7 @@ hyper = { version = "0.14.23", features = ["full"] }
 cuckoofilter = "0.5.0"
 indexmap = "1.9.1"
 raptorq = "1.7.0"
+dirs = "4.0.0"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

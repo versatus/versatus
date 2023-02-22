@@ -86,12 +86,18 @@ impl Handler<Event> for MempoolModule {
 
                 let txn_hash = txn.digest();
 
-                // self.db
-                //     .insert_txn_to_mempool(txn)
-                //     .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.mempool
+                    .insert(txn)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
                     .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+
+            Event::TxnValidated(txn) => {
+                self.mempool
+                    .remove(&txn.digest())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 

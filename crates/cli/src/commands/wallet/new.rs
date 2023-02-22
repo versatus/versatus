@@ -1,15 +1,29 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use primitives::Address;
+use primitives::{Address, PublicKey, SecretKey};
+use secp256k1::{generate_keypair, hashes::sha256, rand, Message};
 use vrrb_core::account::Account;
-use wallet::v2::Wallet;
+use wallet::v2::{Wallet, WalletConfig};
 
 use crate::result::CliError;
 
-pub async fn exec(address: Address, account: Account) -> Result<(), CliError> {
-    let rpc_server = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9293);
+pub async fn exec(
+    address: Address,
+    account: Account,
+    kp: (SecretKey, PublicKey),
+) -> Result<(), CliError> {
+    let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9293);
 
-    let mut wallet = Wallet::new(rpc_server)
+    // TODO: read keypair from file
+    let (secret_key, public_key) = generate_keypair(&mut rand::thread_rng());
+
+    let wallet_config = WalletConfig {
+        rpc_server_address,
+        secret_key,
+        public_key,
+    };
+
+    let mut wallet = Wallet::new(wallet_config)
         .await
         .map_err(|err| CliError::Other("unable to create wallet".to_string()))?;
 
