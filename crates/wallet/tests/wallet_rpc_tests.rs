@@ -64,7 +64,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     assert_eq!(
         &txn_digest.to_string(),
-        "54e2c0b70ec83d5fd9fa1a11c4bc91d0547fe77bebbc14902e7e3e32bfe42086"
+        "98230724e2ba42c6df2fcb14e61175415875be70270d5034b53392a2f58fbd8b"
     );
 }
 
