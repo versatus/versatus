@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, collections::HashMap};
 
+use chrono::Utc;
 use primitives::SerializedPublicKey;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -54,6 +55,8 @@ pub struct Account {
     pub code: Option<String>,
     pub pubkey: SerializedPublicKey,
     pub digests: HashMap<AccountNonce, TransactionDigest>,
+    pub created_at: i64,
+    pub updated_at: Option<i64>,
 }
 
 impl Account {
@@ -84,6 +87,8 @@ impl Account {
             code,
             pubkey,
             digests,
+            created_at: Utc::now().timestamp(),
+            updated_at: None,
         }
     }
 
@@ -204,6 +209,7 @@ impl Account {
             self.update_single_field_no_hash(AccountField::Digests(digests))?;
         }
 
+        self.updated_at = Some(Utc::now().timestamp());
         self.bump_nonce();
         self.rehash();
         Ok(())

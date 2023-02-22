@@ -51,14 +51,14 @@ impl TransactionStore {
     }
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
-        self.trie.insert(txn.raw_digest(), txn);
+        self.trie.insert(txn.digest(), txn);
         Ok(())
     }
 
     pub fn extend(&mut self, transactions: Vec<Txn>) {
         let transactions = transactions
             .into_iter()
-            .map(|txn| (txn.raw_digest(), txn))
+            .map(|txn| (txn.digest(), txn))
             .collect();
 
         self.trie.extend(transactions)

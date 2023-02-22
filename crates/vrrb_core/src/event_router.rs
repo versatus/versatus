@@ -18,7 +18,7 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
 
-use crate::{txn::Txn, Error};
+use crate::{account::Account, txn::Txn, Error};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;

@@ -5,9 +5,19 @@ use std::{
     str::FromStr,
 };
 
-use primitives::{ByteSlice, ByteVec, Digest, SecretKey, SerializedPublicKey, DIGEST_LENGTH};
+use primitives::{
+    ByteSlice,
+    ByteVec,
+    Digest as PrimitiveDigest,
+    PublicKey,
+    SecretKey,
+    SerializedPublicKey,
+    SerializedPublicKeyString,
+    DIGEST_LENGTH,
+};
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sha256::digest;
 use utils::hash_data;
 
@@ -48,7 +58,7 @@ pub type TxToken = String;
 pub struct Txn {
     pub timestamp: TxTimestamp,
     pub sender_address: String,
-    pub sender_public_key: SerializedPublicKey,
+    pub sender_public_key: SerializedPublicKeyString,
     pub receiver_address: String,
     token: Option<TxToken>,
     amount: TxAmount,
@@ -59,10 +69,11 @@ pub struct Txn {
     pub receiver_farmer_id: Option<Vec<u8>>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewTxnArgs {
+    pub timestamp: TxTimestamp,
     pub sender_address: String,
-    pub sender_public_key: SerializedPublicKey,
+    pub sender_public_key: PublicKey,
     pub receiver_address: String,
     pub token: Option<TxToken>,
     pub amount: TxAmount,
@@ -74,13 +85,11 @@ pub struct NewTxnArgs {
 
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
-        // TODO: change time unit from seconds to millis
-        let timestamp = chrono::Utc::now().timestamp();
-
         Self {
-            timestamp,
+            // TODO: change time unit from seconds to millis
+            timestamp: args.timestamp,
             sender_address: args.sender_address,
-            sender_public_key: args.sender_public_key,
+            sender_public_key: args.sender_public_key.to_string(),
             receiver_address: args.receiver_address,
             token: args.token,
             amount: args.amount,
@@ -93,17 +102,42 @@ impl Txn {
     }
 
     /// Produces a SHA 256 hash string of the transaction
-    pub fn digest(&self) -> String {
-        let encoded = self.encode();
+    pub fn digest_string(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.encode_to_string());
+        let hash = hasher.finalize();
 
-        gen_sha256_digest_string(encoded.as_slice())
+        // NOTE: it's the same as hashing and then calling hex::encode
+        gen_sha256_digest_string(&hash[..])
+    }
+
+    pub fn digest_vec(&self) -> ByteVec {
+        let mut hasher = Sha256::new();
+        hasher.update(self.encode_to_string());
+        let hash = hasher.finalize();
+
+        hash.to_vec()
+
+        // NOTE: it's the same as hashing and then calling hex::encode
+        // gen_sha256_digest_string(&hash[..])
+    }
+
+    pub fn encode_to_string(&self) -> String {
+        format!(
+            "{},{},{},{},{},{:?},{}",
+            &self.timestamp,
+            &self.sender_address,
+            &hex::encode(self.sender_public_key.to_string().as_bytes()),
+            &self.receiver_address,
+            &self.amount,
+            &self.token,
+            &self.nonce.clone()
+        )
     }
 
     /// Produces a SHA 256 hash slice of bytes from the transaction
-    pub fn raw_digest(&self) -> TransactionDigest {
-        let digest_string = self.digest();
-
-        TransactionDigest::from(digest_string.as_bytes())
+    pub fn digest(&self) -> TransactionDigest {
+        TransactionDigest::from(self.digest_vec())
     }
 
     /// Serializes the transation into a byte array
@@ -114,17 +148,6 @@ impl Txn {
     /// Encodes the transaction into a JSON-serialized byte vector
     pub fn encode_to_json(&self) -> Vec<u8> {
         encode_to_json(self).unwrap_or_default()
-    }
-
-    #[deprecated(note = "use encode instead")]
-    pub fn as_bytes(&self) -> ByteVec {
-        let as_string = serde_json::to_string(self).unwrap();
-        as_string.as_bytes().to_vec()
-    }
-
-    #[deprecated(note = "rely on the from trait implementation instead")]
-    pub fn from_bytes(data: &[u8]) -> Txn {
-        Self::from(data)
     }
 
     pub fn is_null(&self) -> bool {
@@ -154,11 +177,6 @@ impl Txn {
 
     pub fn validators(&self) -> HashMap<String, bool> {
         self.validators.clone().unwrap_or_default()
-    }
-
-    pub fn txn_id(&self) -> String {
-        // self.txn_id.to_string()
-        self.digest()
     }
 
     pub fn payload(&self) -> String {
@@ -215,7 +233,7 @@ pub const NULL_TXN: Txn = Txn {
     // txn_id: Uuid::nil(),
     timestamp: 0,
     sender_address: String::new(),
-    sender_public_key: vec![],
+    sender_public_key: String::new(),
     receiver_address: String::new(),
     token: None,
     amount: 0,
@@ -261,7 +279,7 @@ impl From<&str> for Txn {
 
 impl From<Txn> for TransactionDigest {
     fn from(txn: Txn) -> Self {
-        txn.raw_digest()
+        txn.digest()
     }
 }
 
@@ -374,21 +392,25 @@ pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
 
 #[derive(Debug, Default, Clone, Hash, Deserialize, Serialize, Eq, PartialEq)]
 pub struct TransactionDigest {
-    inner: Digest,
+    inner: PrimitiveDigest,
     digest_string: String,
 }
 
 impl TransactionDigest {
     pub fn new(txn: &Txn) -> Self {
         Self {
-            inner: Digest::from(txn.digest().as_bytes()),
-            digest_string: txn.digest(),
+            inner: PrimitiveDigest::from(txn.digest_vec()),
+            digest_string: txn.digest_string(),
         }
     }
 
     /// Produces a SHA 256 hash string of the transaction
     pub fn digest_string(&self) -> String {
         self.digest_string.clone()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty() && self.digest_string.is_empty()
     }
 }
 

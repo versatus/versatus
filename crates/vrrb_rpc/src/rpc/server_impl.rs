@@ -9,11 +9,12 @@ use jsonrpsee::{
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::debug;
+use telemetry::{debug, error};
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
+    serde_helpers::{encode_to_binary, encode_to_json},
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
@@ -45,31 +46,40 @@ impl RpcServer for RpcServerImpl {
         Ok(self.node_type)
     }
 
-    async fn create_txn(&self, args: NewTxnArgs) -> Result<(), Error> {
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<Txn, Error> {
         let txn = Txn::new(args);
-        let event = Event::NewTxnCreated(txn);
+        let event = Event::NewTxnCreated(txn.clone());
 
         debug!("{:?}", event);
+
+        if self.events_tx.is_closed() {
+            let err = Error::Custom("event router is closed".to_string());
+
+            error!("failed to publish write: {:?}", err);
+
+            return Err(err);
+        }
 
         self.events_tx
             .send((Topic::Transactions, event))
             .map_err(|err| {
-                telemetry::error!("could not queue transaction to mempool: {err}");
+                error!("could not queue transaction to mempool: {err}");
                 Error::Custom(err.to_string())
             })?;
 
-        Ok(())
+        Ok(txn)
     }
 
     async fn create_account(&self, address: Address, account: Account) -> Result<(), Error> {
         let account_bytes =
-            serde_json::to_vec(&account).map_err(|err| Error::Custom(err.to_string()))?;
+            encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
+
         let event = Event::AccountCreated((address, account_bytes));
 
         debug!("{:?}", event.clone());
 
         self.events_tx.send((Topic::State, event)).map_err(|err| {
-            telemetry::error!("could not create account: {err}");
+            error!("could not create account: {err}");
             Error::Custom(err.to_string())
         })?;
 
@@ -80,12 +90,12 @@ impl RpcServer for RpcServerImpl {
         debug!("Received an updateAccount RPC request");
 
         let account_bytes =
-            serde_json::to_vec(&account).map_err(|err| Error::Custom(err.to_string()))?;
+            encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
         let event = Event::UpdateAccount(account_bytes);
 
         self.events_tx.send((Topic::State, event)).map_err(|err| {
-            telemetry::error!("could not update account: {err}");
+            error!("could not update account: {err}");
             Error::Custom(err.to_string())
         })?;
 

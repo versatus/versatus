@@ -22,6 +22,7 @@ serde = { workspace = true }
 blake3 = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
+telemetry = { workspace = true }
 log = { workspace = true }
 ritelinked = { workspace = true }
 strum = { workspace = true }
@@ -29,7 +30,7 @@ strum_macros = { workspace = true }
 storage = { workspace = true }
 vrrb_core = { workspace = true }
 tabled = { workspace = true }
-jsonrpsee = { workspace = true } 
+jsonrpsee = { workspace = true }
 primitives = { workspace = true }
 secp256k1 = { workspace = true }
 vrrb_rpc = { workspace = true }
@@ -37,3 +38,6 @@ utils = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }
 sha2 = { workspace = true }
+
+[dev-dependencies]
+serial_test = { workspace = true }

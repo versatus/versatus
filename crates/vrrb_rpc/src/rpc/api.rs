@@ -31,7 +31,7 @@ pub trait Rpc {
 
     /// Create a new transaction
     #[method(name = "createTxn")]
-    async fn create_txn(&self, args: NewTxnArgs) -> Result<(), Error>;
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<Txn, Error>;
 
     /// Get a transaction from state
     #[method(name = "getTransaction")]

@@ -21,27 +21,27 @@ pub enum WalletCmd {
 
     /// Transfer objects between accounts
     Transfer {
-        #[clap(short, long)]
+        #[clap(long)]
         address_number: u32,
-        #[clap(short, long)]
+        #[clap(long)]
         to: String,
-        #[clap(short, long)]
+        #[clap(long)]
         amount: u128,
-        #[clap(short, long)]
+        #[clap(long)]
         token: Option<String>,
     },
 
     /// Create a new account on the network
     New {
-        #[clap(short, long)]
+        #[clap(long)]
         address: String,
-        #[clap(short, long)]
+        #[clap(long)]
         account: String,
     },
 
     /// Gets information about an account
     Get {
-        #[clap(short, long)]
+        #[clap(long)]
         address: String,
     },
 }

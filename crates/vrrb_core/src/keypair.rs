@@ -11,6 +11,7 @@ use hbbft::crypto::{
     SecretKey as Validator_Sk,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
+use rand::SeedableRng;
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
 use serde::Deserialize;
 use thiserror::Error;

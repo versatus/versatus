@@ -33,3 +33,14 @@ impl Display for Digest {
         hex::format_hex(&self.0, f)
     }
 }
+
+impl Digest {
+    /// Returns the raw bytes of the digest
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}

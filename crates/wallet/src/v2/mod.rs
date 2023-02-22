@@ -1,13 +1,19 @@
-use std::{collections::HashMap, net::SocketAddr, str::FromStr};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    str::FromStr,
+};
 
 use jsonrpsee::core::client::Client;
 use primitives::Address;
-use secp256k1::{ecdsa::Signature, PublicKey, SecretKey};
+use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use sha2::{Digest, Sha256};
+use telemetry::debug;
 use thiserror::Error;
 use vrrb_core::{
     account::Account,
-    keypair::{KeyPair, KeyPairError},
+    helpers::gen_sha256_digest_string,
+    keypair::KeyPairError,
     txn::{TransactionDigest, TxToken, Txn},
 };
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
@@ -33,71 +39,96 @@ pub struct Wallet {
     pub nonce: u128,
 }
 
-impl Wallet {
-    /// Initiate a new wallet.
-    pub async fn new(rpc_server: SocketAddr) -> WalletResult<Self> {
-        //TODO: Don't use random keypair, generate it from a
-        //mnemonic phrase seed
-        let kp = KeyPair::random();
+#[derive(Debug)]
+pub struct WalletConfig {
+    pub rpc_server_address: SocketAddr,
+    pub secret_key: SecretKey,
+    pub public_key: PublicKey,
+}
 
-        //TODO: Change name of kp methods, not only miner secret key
-        let sk = kp.get_miner_secret_key();
-        let pk = kp.get_miner_public_key();
+impl Default for WalletConfig {
+    fn default() -> Self {
+        let secp = Secp256k1::new();
+        // NOTE: not meant to be used in production. Generate a random keypair from the
+        // CLI
+        let secret_key = SecretKey::from_slice(&[0xcd; 32]).unwrap();
+        let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+        let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
+
+        Self {
+            rpc_server_address,
+            secret_key,
+            public_key,
+        }
+    }
+}
+
+impl Wallet {
+    /// Initiates a new wallet.
+    pub async fn new(config: WalletConfig) -> WalletResult<Self> {
+        //TODO: Don't use random keypair, generate it from a
+        //mnemonic phrase seed or read from file if already generated
+
+        let secret_key = config.secret_key;
+        let public_key = config.public_key;
 
         let addresses = HashMap::new();
         let accounts = HashMap::new();
-        //TODO: get rpc server address from config file
-        let client = create_client(rpc_server).await?;
+
+        //TODO: get rpc server address from config file or env variable
+        let client = create_client(config.rpc_server_address).await?;
 
         let welcome_message = format!(
             "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\n",
-            "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &sk, &pk,
+            "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key,
         );
 
         let mut wallet = Wallet {
-            secret_key: sk.clone(),
+            secret_key,
+            public_key,
             welcome_message,
             client,
-            public_key: pk.clone(),
             addresses,
             accounts,
             nonce: 0,
         };
 
         let res = wallet.create_account().await;
-        #[cfg(debug_assertions)]
-        println!("{:?}", res);
+        debug!("{:?}", res);
 
         if let Ok((address, account)) = res {
-            #[cfg(debug_assertions)]
-            println!("{:?}", address);
-            #[cfg(debug_assertions)]
-            println!("{:?}", account);
+            debug!("{:?}", address);
+            debug!("{:?}", account);
+
             wallet.addresses.insert(0, address.clone());
             wallet.accounts.insert(address.clone(), account);
-            #[cfg(debug_assertions)]
-            println!("{:?}", wallet.addresses);
-            #[cfg(debug_assertions)]
-            println!("{:?}", wallet.accounts);
+
+            debug!("{:?}", wallet.addresses);
+            debug!("{:?}", wallet.accounts);
+
             let welcome_message = format!(
                 "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
-                "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &sk, &pk, &address,
+                "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address,
             );
+
             wallet.welcome_message = welcome_message;
         }
 
         Ok(wallet)
     }
 
-    pub async fn send_txn(
+    pub fn info(&self) {
+        //
+    }
+
+    pub async fn send_transaction(
         &mut self,
         address_number: u32,
         receiver: String,
         amount: u128,
         token: Option<TxToken>,
+        timestamp: i64,
     ) -> Result<TransactionDigest, WalletError> {
-        let time = chrono::Utc::now().timestamp();
-
         let addresses = self.addresses.clone();
         let sender_address = {
             if let Some(addr) = addresses.get(&address_number) {
@@ -113,9 +144,9 @@ impl Wallet {
 
         let payload = format!(
             "{},{},{},{},{},{:?},{}",
-            &time,
+            &timestamp,
             &sender_address,
-            &hex::encode(self.public_key.to_string().as_bytes().to_vec().clone()),
+            &hex::encode(self.public_key.to_string().as_bytes()),
             &receiver,
             &amount,
             &token,
@@ -126,53 +157,41 @@ impl Wallet {
         hasher.update(payload.as_bytes());
         let payload_hash = hasher.finalize();
 
-        let signature = self
-            .sign_txn(&payload_hash[..])
-            .map_err(|err| WalletError::Custom(err.to_string()))?;
+        let signature = self.sign_transaction(&payload_hash[..]);
 
-        let txn = Txn::new(vrrb_core::txn::NewTxnArgs {
+        let txn_args = vrrb_core::txn::NewTxnArgs {
+            timestamp,
             sender_address: sender_address.to_string(),
-            sender_public_key: self.public_key.to_string().as_bytes().to_vec(),
+            sender_public_key: self.public_key,
             receiver_address: receiver,
             token,
             amount,
-            payload: Some(payload),
+            payload: Some(payload.clone()),
             signature: signature.to_string().as_bytes().to_vec(),
             validators: Some(HashMap::new()),
             nonce: self.nonce,
-        });
-
-        let _ = self.client.create_txn(txn.clone()).await;
-
-        let txn_string = serde_json::to_string(&txn)
-            .map_err(|_| WalletError::Custom("unable to convert txn to string".to_string()));
-
-        let return_res = {
-            if let Ok(txn_string) = txn_string {
-                let mut hasher = Sha256::new();
-                hasher.update(txn_string.as_bytes());
-                let txn_hash = hasher.finalize();
-
-                let digest = TransactionDigest::from(&txn_hash[..]);
-
-                Ok(digest)
-            } else {
-                Err(WalletError::Custom(
-                    "unable to create txn digest".to_string(),
-                ))
-            }
         };
 
-        return_res
+        let txn = self
+            .client
+            .create_txn(txn_args.clone())
+            .await
+            .map_err(|err| {
+                telemetry::error!("{:?}", err.to_string());
+
+                WalletError::Custom(format!("API Error:{}", err))
+            })?;
+
+        Ok(txn.digest())
     }
 
     pub async fn get_transaction(&mut self, transaction_digest: TransactionDigest) -> Option<Txn> {
         let res = self.client.get_transaction(transaction_digest).await;
 
         if let Ok(value) = res {
-            return Some(value);
+            Some(value)
         } else {
-            return None;
+            None
         }
     }
 
@@ -180,9 +199,9 @@ impl Wallet {
         let res = self.client.get_account(address).await;
 
         if let Ok(value) = res {
-            return Some(value);
+            Some(value)
         } else {
-            return None;
+            None
         }
     }
 
@@ -193,14 +212,16 @@ impl Wallet {
         let res = self.client.list_transactions(digests).await;
 
         if let Ok(values) = res {
-            return values;
+            values
         } else {
-            return HashMap::new();
+            HashMap::new()
         }
     }
 
-    fn sign_txn(&mut self, payload: &[u8]) -> Result<Signature, KeyPairError> {
-        KeyPair::ecdsa_signature(payload, &self.secret_key.secret_bytes().to_vec())
+    fn sign_transaction(&mut self, payload: &[u8]) -> Signature {
+        type H = secp256k1::hashes::sha256::Hash;
+        let msg = Message::from_hashed_data::<H>(payload);
+        self.secret_key.sign_ecdsa(msg)
     }
 
     pub fn get_welcome_message(&self) -> String {
@@ -272,14 +293,15 @@ impl Wallet {
     }
 
     pub async fn create_account(&mut self) -> Result<(Address, Account), WalletError> {
-        let pk = self.public_key.clone();
-        let account = Account::new(pk.clone());
-        let address = Address::new(pk.clone());
-        let _ = self
+        let pk = self.public_key;
+        let account = Account::new(pk);
+        let address = Address::new(pk);
+
+        let result = self
             .client
             .create_account(address.clone(), account.clone())
             .await
-            .map_err(|err| WalletError::Custom(err.to_string()));
+            .map_err(|err| WalletError::Custom(err.to_string()))?;
 
         Ok((address, account))
     }
