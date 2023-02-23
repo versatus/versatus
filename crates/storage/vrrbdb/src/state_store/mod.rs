@@ -23,9 +23,8 @@ impl Default for StateStore {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
-            .join("node")
             .join("db")
-            .join("transactions");
+            .join("state");
 
         let db_adapter = RocksDbAdapter::new(db_path, "state").unwrap_or_default();
 
@@ -37,7 +36,9 @@ impl Default for StateStore {
 
 impl StateStore {
     /// Returns new, empty instance of StateDb
+
     pub fn new(path: &PathBuf) -> Self {
+        let path = path.join("state");
         let db_adapter = RocksDbAdapter::new(path.to_owned(), "state").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 

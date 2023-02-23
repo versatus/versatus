@@ -18,7 +18,6 @@ impl Default for TransactionStore {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
-            .join("node")
             .join("db")
             .join("transactions");
 
@@ -33,6 +32,7 @@ impl Default for TransactionStore {
 impl TransactionStore {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &PathBuf) -> Self {
+        let path = path.join("transactions");
         let db_adapter = RocksDbAdapter::new(path.to_owned(), "transactions").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 

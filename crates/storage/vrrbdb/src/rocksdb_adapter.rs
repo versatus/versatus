@@ -72,13 +72,7 @@ impl Clone for RocksDbAdapter {
         let mut options = base_db_options();
         options.set_error_if_exists(false);
 
-        let db = new_db_instance(
-            //
-            options,
-            self.db.path().into(),
-            self.column.as_str(),
-        )
-        .unwrap();
+        let db = new_db_instance(options, self.db.path().into(), self.column.as_str()).unwrap();
 
         Self {
             db,
