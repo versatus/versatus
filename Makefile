@@ -18,7 +18,7 @@ endif
 all: $(DEFAULT)
 
 help:
-	$(Q)echo "Dev CLI - v0.0.1"
+	$(Q)echo "VRRB Dev CLI - v0.0.1"
 	$(Q)echo "make run               - Runs main executable"
 	$(Q)echo "make build             - Builds the main executable"
 	$(Q)echo "make build-dev         - Builds a debug version of the main executable"
@@ -26,6 +26,7 @@ help:
 	$(Q)echo "make lint              - Runs clippy and formatter"
 	$(Q)echo "make fmt               - Runs formatter"
 	$(Q)echo "make bench             - Benchmarks all crates"
+	$(Q)echo "make dev               - Alias for 'make watch'"
 	$(Q)echo "make watch             - Runs main executable in hot-reloading mode for development"
 	$(Q)echo "make clean             - Deletes binaries and documentation."
 	$(Q)echo "make docker-build      - Builds a Docker container for the Node runtime."
@@ -76,6 +77,8 @@ lint:
 fmt:
 	$(Q)cargo +nightly fmt --all 
 	$(Q)echo "--- Ran formatter"
+
+dev: watch 
 
 watch: 
 	$(Q)sh infra/scripts/watch.sh
