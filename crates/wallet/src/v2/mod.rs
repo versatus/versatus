@@ -7,6 +7,7 @@ use std::{
 use jsonrpsee::core::client::Client;
 use primitives::Address;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use telemetry::{debug, error};
 use thiserror::Error;
@@ -45,6 +46,14 @@ pub struct WalletConfig {
     pub rpc_server_address: SocketAddr,
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WalletInfo {
+    pub secret_key: SecretKey,
+    pub public_key: String,
+    pub addresses: HashMap<u32, Address>,
+    pub nonce: u128,
 }
 
 impl Default for WalletConfig {
@@ -122,8 +131,13 @@ impl Wallet {
         //
     }
 
-    pub fn info(&self) {
-        //
+    pub fn info(&self) -> WalletInfo {
+        WalletInfo {
+            secret_key: self.secret_key,
+            public_key: self.public_key.to_string(),
+            addresses: self.addresses.clone(),
+            nonce: self.nonce,
+        }
     }
 
     pub async fn send_transaction(
