@@ -1,9 +1,8 @@
-pub mod wallet;
+mod v1;
+pub mod v2;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+#[deprecated(note = "This module will be migrated to v2 soon which includes breaking changes")]
+pub mod wallet {
+    #[deprecated]
+    pub use crate::v1::*;
 }

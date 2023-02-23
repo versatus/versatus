@@ -1,8 +1,13 @@
-use std::{net::SocketAddr, path::PathBuf};
+use std::{io::Read, net::SocketAddr, path::PathBuf, sync::mpsc::channel, thread};
 
-use network::network::BroadcastEngine;
+use crossbeam_channel::unbounded;
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use network::{message::Message, network::BroadcastEngine, packet, packet::RaptorBroadCastedData};
 use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
+use storage::{
+    storage_utils,
+    vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
+};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::{
@@ -17,6 +22,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     event_router::{DirectedEvent, Event, EventRouter, Topic},
     keypair::KeyPair,
+    txn::Txn,
 };
 use vrrb_rpc::{
     http::HttpApiServerConfig,
@@ -24,18 +30,17 @@ use vrrb_rpc::{
 };
 
 use crate::{
+    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module,
     result::{NodeError, Result},
+    runtime::setup_runtime_components,
     validator_module,
     NodeType,
     RuntimeModule,
     RuntimeModuleState,
-    StateModule,
-    StateModuleConfig,
 };
-
-const NUMBER_OF_NETWORK_PACKETS: usize = 32;
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
@@ -55,7 +60,9 @@ pub struct Node {
     // NOTE: optional node components
     vm: Option<Cpu>,
     state_handle: Option<JoinHandle<Result<()>>>,
+    mempool_handle: Option<JoinHandle<Result<()>>>,
     gossip_handle: Option<JoinHandle<Result<()>>>,
+    broadcast_controller_handle: Option<JoinHandle<Result<()>>>,
     miner_handle: Option<JoinHandle<Result<()>>>,
     txn_validator_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
@@ -68,58 +75,43 @@ impl Node {
 
         let mut config = config.clone();
 
-        // let vm = Some(trecho::vm::Cpu::new());
         let vm = None;
+        let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = unbounded_channel::<DirectedEvent>();
-
         let mut event_router = Self::setup_event_routing_system();
 
-        let (state_read_handle, state_handle) = Self::setup_state_store(
+        let mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let network_events_rx = event_router.subscribe(&Topic::Network)?;
+        let controller_events_rx = event_router.subscribe(&Topic::Network)?;
+        let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
+
+        let (
+            updated_config,
+            mempool_handle,
+            state_handle,
+            gossip_handle,
+            broadcast_controller_handle,
+            jsonrpc_server_handle,
+            txn_validator_handle,
+            miner_handle,
+        ) = setup_runtime_components(
             &config,
             events_tx.clone(),
-            event_router.subscribe(&Topic::State)?,
+            mempool_events_rx,
+            vrrbdb_events_rx,
+            network_events_rx,
+            controller_events_rx,
+            validator_events_rx,
+            miner_events_rx,
+            jsonrpc_events_rx,
         )
         .await?;
 
-        let mut gossip_handle = None;
-
-        if !config.disable_networking {
-            let (new_gossip_handle, gossip_addr) = Self::setup_gossip_network(
-                &config,
-                events_tx.clone(),
-                event_router.subscribe(&Topic::Network)?,
-                state_read_handle.clone(),
-            )
-            .await?;
-
-            gossip_handle = new_gossip_handle;
-            config.udp_gossip_address = gossip_addr;
-        }
-
-        let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = Self::setup_rpc_api_server(
-            &config,
-            events_tx.clone(),
-            // event_router.subscribe(&Topic::Network)?,
-            state_read_handle.clone(),
-        )
-        .await?;
-
-        config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
-
-        // TODO: make nodes start with some preconfigured state
-        // TODO: make nodes send each other said state with raprtor q
-
-        let txn_validator_handle = Self::setup_validation_module(
-            events_tx.clone(),
-            event_router.subscribe(&Topic::Transactions)?,
-        )?;
-
-        let miner_handle = Self::setup_mining_module(
-            //
-            events_tx.clone(),
-            event_router.subscribe(&Topic::Transactions)?,
-        )?;
+        config = updated_config;
 
         // TODO: report error from handle
         let event_router_handle =
@@ -127,17 +119,19 @@ impl Node {
 
         Ok(Self {
             config,
+            vm,
             event_router_handle,
             state_handle,
+            mempool_handle,
             jsonrpc_server_handle,
             gossip_handle,
+            broadcast_controller_handle,
             running_status: RuntimeModuleState::Stopped,
-            vm,
             control_rx,
             events_tx,
             txn_validator_handle,
             miner_handle,
-            keypair: KeyPair::random(),
+            keypair,
         })
     }
 
@@ -254,119 +248,9 @@ impl Node {
         event_router.add_topic(Topic::State, Some(1));
         event_router.add_topic(Topic::Transactions, Some(100));
         event_router.add_topic(Topic::Network, Some(100));
+        event_router.add_topic(Topic::Consensus, Some(100));
+        event_router.add_topic(Topic::Storage, Some(100));
 
         event_router
-    }
-
-    async fn setup_gossip_network(
-        config: &NodeConfig,
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut network_events_rx: Receiver<Event>,
-        state_handle_factory: NodeStateReadHandle,
-        // ) -> Result<(JoinHandle<()>, SocketAddr)> {
-    ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-        let bootstrap_node_addresses = config.bootstrap_node_addresses.clone();
-
-        let mut broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
-            events_tx: events_tx.clone(),
-            state_handle_factory,
-            bootstrap_node_addresses,
-            udp_gossip_address_port: config.udp_gossip_address.port(),
-            raptorq_gossip_address_port: config.raptorq_gossip_address.port(),
-            node_type: config.node_type,
-            node_id: config.id.as_bytes().to_vec(),
-        })
-        .await?;
-
-        let addr = broadcast_module.local_addr();
-
-        let broadcast_handle =
-            tokio::spawn(async move { broadcast_module.start(&mut network_events_rx).await });
-
-        Ok((Some(broadcast_handle), addr))
-    }
-
-    async fn setup_state_store(
-        config: &NodeConfig,
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut state_events_rx: Receiver<Event>,
-    ) -> Result<(NodeStateReadHandle, Option<JoinHandle<Result<()>>>)> {
-        // TODO: restore state if exists
-
-        let database_path = config.db_path();
-        vrrb_core::storage_utils::create_dir(database_path)?;
-
-        let node_state_config = NodeStateConfig {
-            path: database_path.to_path_buf(),
-
-            // TODO: read these from config
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
-
-        let node_state = NodeState::new(&node_state_config);
-
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
-
-        let state_read_handle = state_module.read_handle();
-
-        let mut state_module_actor = ActorImpl::new(state_module);
-
-        let state_handle = tokio::spawn(async move {
-            state_module_actor
-                .start(&mut state_events_rx)
-                .await
-                .map_err(|err| NodeError::Other(err.to_string()))
-        });
-
-        Ok((state_read_handle, Some(state_handle)))
-    }
-
-    async fn setup_rpc_api_server(
-        config: &NodeConfig,
-        events_tx: UnboundedSender<DirectedEvent>,
-        state_read_handle: NodeStateReadHandle,
-    ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-        let jsonrpc_server_config = JsonRpcServerConfig {
-            address: config.jsonrpc_server_address,
-            state_handle_factory: state_read_handle,
-            node_type: config.node_type,
-            events_tx,
-        };
-
-        let resolved_jsonrpc_server_addr = JsonRpcServer::run(&jsonrpc_server_config)
-            .await
-            .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
-
-        let jsonrpc_server_handle = Some(tokio::spawn(async { Ok(()) }));
-
-        Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
-    }
-
-    fn setup_validation_module(
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut validator_events_rx: Receiver<Event>,
-    ) -> Result<Option<JoinHandle<Result<()>>>> {
-        let mut module = validator_module::ValidatorModule::new();
-
-        let txn_validator_handle =
-            tokio::spawn(async move { module.start(&mut validator_events_rx).await });
-
-        Ok(Some(txn_validator_handle))
-    }
-
-    fn setup_mining_module(
-        events_tx: UnboundedSender<DirectedEvent>,
-        mut miner_events_rx: Receiver<Event>,
-    ) -> Result<Option<JoinHandle<Result<()>>>> {
-        let mut module = mining_module::MiningModule::new();
-
-        let miner_handle = tokio::spawn(async move { module.start(&mut miner_events_rx).await });
-
-        Ok(Some(miner_handle))
     }
 }

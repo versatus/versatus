@@ -10,7 +10,7 @@ pub async fn create_client(server_url: SocketAddr) -> crate::Result<Client> {
     let client = WsClientBuilder::default()
         .build(&jsonrpc_url)
         .await
-        .map_err(|err| ApiError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
+        .map_err(|err| ApiError::Other(format!("unable to start JSON-RPC server: {}", err)))?;
 
     Ok(client)
 }

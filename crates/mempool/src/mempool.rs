@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
-use vrrb_core::txn::{TxTimestamp, Txn};
+use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
 use super::error::MempoolError;
 
@@ -33,7 +33,7 @@ impl TxnRecord {
         let timestamp = txn.timestamp;
 
         TxnRecord {
-            txn_id: txn.digest(),
+            txn_id: txn.digest().to_string(),
             txn,
             timestamp,
             added_timestamp,
@@ -55,6 +55,7 @@ pub type PoolType = IndexMap<TxHashString, TxnRecord, FxBuildHasher>;
 pub enum TxnStatus {
     #[default]
     Pending,
+    Valdating,
     Validated,
     Rejected,
 }
@@ -65,7 +66,7 @@ pub struct Mempool {
     pool: PoolType,
 }
 
-pub const DEFAULT_INITIAL_MEMPOOL_CAPACITY: usize = 100;
+pub const DEFAULT_INITIAL_MEMPOOL_CAPACITY: usize = 10000;
 
 impl Default for Mempool {
     fn default() -> Self {
@@ -91,7 +92,7 @@ impl Mempool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolOp {
     Add(TxnRecord),
-    Remove(TxHashString),
+    Remove(String),
 }
 
 impl Absorb<MempoolOp> for Mempool {
@@ -164,7 +165,6 @@ impl LeftRightMempool {
             .map(|guard| guard.clone())
             .unwrap_or_default()
             .pool
-            .clone()
     }
 
     /// Getter for Mempool DB
@@ -188,20 +188,19 @@ impl LeftRightMempool {
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
-    pub fn add_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+    pub fn add_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
         self.insert(txn.to_owned())
     }
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
-        let mut txn_record = TxnRecord::new(txn);
-
+        let txn_record = TxnRecord::new(txn);
         self.write.append(MempoolOp::Add(txn_record)).publish();
         Ok(())
     }
 
     /// Retrieves a single transaction identified by id, makes sure it exists in
     /// db
-    pub fn get_txn(&mut self, txn_hash: &TxHashString) -> Option<Txn> {
+    pub fn get_txn(&mut self, txn_hash: &TransactionDigest) -> Option<Txn> {
         if let Some(record) = self.get(txn_hash) {
             return Some(record.txn);
         }
@@ -209,12 +208,34 @@ impl LeftRightMempool {
     }
 
     /// Getter for an entire pending Txn record
-    pub fn get(&mut self, txn_hash: &TxHashString) -> Option<TxnRecord> {
+    pub fn get(&mut self, txn_hash: &TransactionDigest) -> Option<TxnRecord> {
         if txn_hash.is_empty() {
             return None;
         }
 
-        self.pool().get(txn_hash).cloned()
+        self.pool().get(&txn_hash.to_string()).cloned()
+    }
+
+    /// It fetches the transactions from the pool and returns them.
+    ///
+    /// Arguments:
+    ///
+    /// * `num_of_txns`: The number of transactions to fetch from the pool.
+    ///
+    /// Returns:
+    ///
+    /// A vector of tuples of type (TxHashString, TxnRecord)
+    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TxHashString, TxnRecord)> {
+        let mut txns_records = vec![];
+        for i in 0..num_of_txns {
+            if i == self.pool().len() {
+                break;
+            }
+            if let Some(txn_data) = self.pool().pop() {
+                txns_records.push(txn_data);
+            }
+        }
+        txns_records
     }
 
     /// Adds a batch of new transaction, makes sure that each is unique in db.
@@ -223,7 +244,7 @@ impl LeftRightMempool {
     pub fn add_txn_batch(
         &mut self,
         txn_batch: &HashSet<Txn>,
-        txns_status: TxnStatus,
+        _txns_status: TxnStatus,
     ) -> Result<()> {
         self.extend(txn_batch.clone())
     }
@@ -249,18 +270,18 @@ impl LeftRightMempool {
     /// Removes a single transaction identified by id, makes sure it exists in
     /// db. Pushes to the ReadHandle.
     #[deprecated]
-    pub fn remove_txn_by_id(&mut self, txn_hash: TxHashString) -> Result<()> {
-        self.remove(&txn_hash)
+    pub fn remove_txn_by_id(&mut self, txn_hash: &TransactionDigest) -> Result<()> {
+        self.remove(txn_hash)
     }
 
     /// Removes a single transaction identified by itself, makes sure it exists
     /// in db. Pushes to the ReadHandle.
     #[deprecated]
-    pub fn remove_txn(&mut self, txn: &Txn, status: TxnStatus) -> Result<()> {
+    pub fn remove_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
         self.remove(&txn.digest())
     }
 
-    pub fn remove(&mut self, txn_hash: &TxHashString) -> Result<()> {
+    pub fn remove(&mut self, txn_hash: &TransactionDigest) -> Result<()> {
         self.write
             .append(MempoolOp::Remove(txn_hash.to_string()))
             .publish();
@@ -273,10 +294,10 @@ impl LeftRightMempool {
     pub fn remove_txn_batch(
         &mut self,
         txn_batch: &HashSet<Txn>,
-        txns_status: TxnStatus,
+        _txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t.digest()));
+            self.write.append(MempoolOp::Remove(t.digest().to_string()));
         });
 
         self.publish();
@@ -348,7 +369,6 @@ impl MempoolReadHandleFactory {
             .map(|guard| guard.clone())
             .unwrap_or_default()
             .pool
-            .clone()
     }
 
     /// Returns a hash map of all the key value pairs within the mempool

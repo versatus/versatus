@@ -1,9 +1,16 @@
-use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
-    net::SocketAddr,
-};
+use std::{collections::HashMap, net::SocketAddr};
 
-use primitives::{NodeType, PeerId, TxHash, TxHashString};
+use primitives::{
+    Address,
+    FarmerQuorumThreshold,
+    NodeIdx,
+    NodeType,
+    PeerId,
+    QuorumPublicKey,
+    QuorumType,
+    RawSignature,
+    TxHashString,
+};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
@@ -11,10 +18,15 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
 
-use crate::{txn::Txn, Error, Result};
+use crate::{
+    account::Account,
+    txn::{TransactionDigest, Txn},
+    Error,
+};
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
+pub type AccountBytes = Vec<u8>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
@@ -27,7 +39,40 @@ pub struct PeerData {
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
 // once definitions of those are moved into primitives.
+
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct Vote {
+    /// The identity of the voter.
+    pub farmer_id: Vec<u8>,
+    pub farmer_node_id: NodeIdx,
+    /// Partial Signature
+    pub signature: RawSignature,
+    pub txn: Txn,
+    pub quorum_public_key: Vec<u8>,
+    pub quorum_threshold: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct VoteReceipt {
+    /// The identity of the voter.
+    pub farmer_id: Vec<u8>,
+    pub farmer_node_id: NodeIdx,
+    /// Partial Signature
+    pub signature: RawSignature,
+}
+
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct QuorumCertifiedTxn {
+    sender_farmer_id: Vec<u8>,
+    /// All valid vote receipts
+    votes: Vec<VoteReceipt>,
+    txn: Txn,
+    /// Threshold Signature
+    signature: RawSignature,
+}
+
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Event {
     #[default]
     NoOp,
@@ -40,8 +85,8 @@ pub enum Event {
     /// Single txn validated
     TxnValidated(Txn),
     /// Batch of validated txns
-    TxnBatchValidated(Vec<u8>),
-    TxnAddedToMempool(TxHashString),
+    TxnBatchValidated(Vec<TransactionDigest>),
+    TxnAddedToMempool(TransactionDigest),
     BlockReceived,
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),
@@ -56,7 +101,40 @@ pub enum Event {
     PeerJoined(PeerData),
 
     /// Peer abandoned the network. Should be removed from the node's peer list
-    PeerLeft(SocketAddr),
+    PeerLeft(PeerData),
+
+    /// A Event to start the DKG process.
+    DkgInitiate,
+
+    /// A command to  ack Part message of  sender .
+    AckPartCommitment(u16),
+
+    /// Event to broadcast Part Message
+    PartMessage(u16, Vec<u8>),
+
+    /// A command to  send ack of Part message of sender by current Node.
+    SendAck(u16, u16, Vec<u8>),
+
+    /// A command to handle all the acks received by the node.
+    HandleAllAcks,
+
+    /// Used to generate the public key set& Distrbuted Group Public Key for the
+    /// node.
+    GenerateKeySet,
+
+    Farm,
+
+    Vote(Vote, QuorumType, FarmerQuorumThreshold),
+    PullQuorumCertifiedTxns(usize),
+    QuorumCertifiedTxns(QuorumCertifiedTxn),
+
+    ConfirmedTxns(Vec<(String, QuorumPublicKey)>),
+
+    CreateAccountRequested((Address, AccountBytes)),
+    AccountCreated(Address),
+
+    AccountUpdateRequested((Address, AccountBytes)),
+    UpdatedAccount(AccountBytes),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),
@@ -143,6 +221,8 @@ pub enum Topic {
     Transactions,
     State,
     Network,
+    Storage,
+    Consensus,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction
@@ -209,6 +289,21 @@ impl EventRouter {
     }
 }
 
+impl QuorumCertifiedTxn {
+    pub fn new(
+        sender_farmer_id: Vec<u8>,
+        votes: Vec<VoteReceipt>,
+        txn: Txn,
+        signature: RawSignature,
+    ) -> QuorumCertifiedTxn {
+        QuorumCertifiedTxn {
+            sender_farmer_id,
+            votes,
+            txn,
+            signature,
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
 

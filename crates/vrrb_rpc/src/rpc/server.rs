@@ -1,79 +1,28 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
 use jsonrpsee::{
     core::Error,
-    server::{ServerBuilder, SubscriptionSink},
+    server::{ServerBuilder, ServerHandle, SubscriptionSink},
     types::SubscriptionResult,
 };
+use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory};
 use primitives::NodeType;
-use state::NodeStateReadHandle;
-use tokio::sync::mpsc::UnboundedSender;
+use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use vrrb_core::{
+    account::Account,
     event_router::{DirectedEvent, Event, Topic},
     txn::NewTxnArgs,
 };
 
-use super::api::{CreateTxnArgs, FullMempoolSnapshot};
-use crate::rpc::api::{FullStateSnapshot, RpcServer};
-
-pub type ExampleHash = [u8; 32];
-pub type ExampleStorageKey = Vec<u8>;
-
-pub struct RpcServerImpl {
-    node_type: NodeType,
-    state_handle_factory: NodeStateReadHandle,
-    events_tx: UnboundedSender<DirectedEvent>,
-}
-
-#[async_trait]
-impl RpcServer for RpcServerImpl {
-    async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
-        let values = self.state_handle_factory.values();
-
-        Ok(values)
-    }
-
-    async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error> {
-        let values = self.state_handle_factory.mempool_values();
-
-        Ok(values)
-    }
-
-    async fn get_node_type(&self) -> Result<NodeType, Error> {
-        Ok(self.node_type)
-    }
-
-    async fn create_txn(&self, args: CreateTxnArgs) -> Result<(), Error> {
-        let txn = vrrb_core::txn::Txn::new(NewTxnArgs {
-            sender_address: args.sender_address,
-            sender_public_key: args.sender_public_key,
-            receiver_address: args.receiver_address,
-            token: args.token,
-            amount: args.amount,
-            payload: args.payload,
-            signature: args.signature,
-            validators: None,
-            nonce: args.nonce,
-        });
-
-        let event = Event::NewTxnCreated(txn);
-
-        self.events_tx
-            .send((Topic::Transactions, event))
-            .map_err(|err| {
-                telemetry::error!("could not queue transaction to mempool: {err}");
-                Error::Custom(err.to_string())
-            })?;
-
-        Ok(())
-    }
-}
+use crate::rpc::{api::RpcServer, server_impl::RpcServerImpl};
 
 #[derive(Debug, Clone)]
 pub struct JsonRpcServerConfig {
     pub address: SocketAddr,
-    pub state_handle_factory: NodeStateReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
     pub events_tx: UnboundedSender<DirectedEvent>,
 }
@@ -82,13 +31,14 @@ pub struct JsonRpcServerConfig {
 pub struct JsonRpcServer;
 
 impl JsonRpcServer {
-    pub async fn run(config: &JsonRpcServerConfig) -> anyhow::Result<SocketAddr> {
+    pub async fn run(config: &JsonRpcServerConfig) -> anyhow::Result<(ServerHandle, SocketAddr)> {
         let server = ServerBuilder::default().build(config.address).await?;
 
         let server_impl = RpcServerImpl {
             node_type: config.node_type,
-            state_handle_factory: config.state_handle_factory.clone(),
             events_tx: config.events_tx.clone(),
+            vrrbdb_read_handle: config.vrrbdb_read_handle.clone(),
+            mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
         };
 
         let addr = server.local_addr()?;
@@ -97,8 +47,35 @@ impl JsonRpcServer {
         // TODO: refactor example out of here
         // In this example we don't care about doing shutdown so let's it run forever.
         // You may use the `ServerHandle` to shut it down or manage it yourself.
-        tokio::spawn(handle.stopped());
+        Ok((handle, addr))
+    }
+}
 
-        Ok(addr)
+impl Default for JsonRpcServerConfig {
+    fn default() -> JsonRpcServerConfig {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
+        let mut vrrbdb_config = VrrbDbConfig::default();
+
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+
+        vrrbdb_config.path = db_path;
+
+        let vrrbdb = VrrbDb::new(vrrbdb_config);
+        let vrrbdb_read_handle = vrrbdb.read_handle();
+
+        let mempool = LeftRightMempool::default();
+        let mempool_read_handle_factory = mempool.factory();
+
+        let node_type = NodeType::RPCNode;
+        let (events_tx, _) = unbounded_channel();
+
+        JsonRpcServerConfig {
+            address,
+            vrrbdb_read_handle,
+            mempool_read_handle_factory,
+            node_type,
+            events_tx,
+        }
     }
 }

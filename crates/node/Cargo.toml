@@ -15,7 +15,6 @@ network = { workspace = true }
 lr_trie = { workspace = true }
 storage = { workspace = true }
 wallet = { workspace = true }
-state = { workspace = true }
 validator = { workspace = true }
 reward = { workspace = true }
 vrrb_rpc = { workspace = true }
@@ -45,6 +44,14 @@ derive_builder = { workspace = true }
 jsonrpsee = { workspace = true }
 bytes = { workspace = true }
 theater = { workspace = true }
+kademlia-dht = { workspace = true }
+dkg_engine = { workspace = true }
+hbbft = { workspace = true }
+mempool = { workspace = true }
+signer = { workspace = true }
+indexmap = { workspace = true }
+raptorq = { workspace = true }
+crossbeam-channel = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

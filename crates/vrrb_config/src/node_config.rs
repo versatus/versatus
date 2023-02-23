@@ -1,5 +1,4 @@
 use std::{
-    env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
     time::Duration,
@@ -84,8 +83,6 @@ impl NodeConfig {
     }
 
     pub fn merge(&self, other: NodeConfig) -> Self {
-        dbg!(&other.id, &self.id);
-
         let id = if other.id.is_empty() {
             self.id.clone()
         } else {

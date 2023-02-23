@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// The unit of time within VRRB.
 /// It lasts for some number
 pub type Epoch = u128;
@@ -32,3 +34,14 @@ pub type TxHashString = String;
 
 #[deprecated(note = "Use Digest instead")]
 pub type BlockHash = ByteVec;
+
+pub type GroupPublicKey = ByteVec;
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub enum QuorumType {
+    Farmer,
+    Harvester,
+}
+
+pub type FarmerQuorumThreshold = usize;
+pub type QuorumPublicKey = Vec<u8>;

@@ -12,7 +12,6 @@ hbbft = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 primitives = { workspace = true }
-node = { workspace = true }
 dkg_engine = { workspace = true }
 tokio = { workspace = true }
 vrrb_core = { workspace = true }

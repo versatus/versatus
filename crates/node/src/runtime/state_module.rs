@@ -3,25 +3,28 @@ use std::{hash::Hash, path::PathBuf};
 use async_trait::async_trait;
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use state::{NodeState, NodeStateConfig, NodeStateReadHandle};
+use primitives::Address;
+use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::{
+    account::Account,
     event_router::{DirectedEvent, Event, Topic},
+    serde_helpers::decode_from_binary_byte_slice,
     txn::Txn,
 };
 
 use crate::{result::Result, NodeError, RuntimeModule};
 
 pub struct StateModuleConfig {
-    pub node_state: NodeState,
+    pub db: VrrbDb,
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
 }
 
 #[derive(Debug)]
 pub struct StateModule {
-    state: NodeState,
+    db: VrrbDb,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -34,7 +37,7 @@ pub struct StateModule {
 impl StateModule {
     pub fn new(config: StateModuleConfig) -> Self {
         Self {
-            state: config.node_state,
+            db: config.db,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
             label: String::from("State"),
@@ -56,8 +59,8 @@ impl StateModule {
         todo!()
     }
 
-    pub fn read_handle(&self) -> NodeStateReadHandle {
-        self.state.read_handle()
+    pub fn read_handle(&self) -> VrrbDbReadHandle {
+        self.db.read_handle()
     }
 
     fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
@@ -65,12 +68,9 @@ impl StateModule {
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 
-        self.state
-            .remove_txn_from_mempool(&txn_hash)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
-
-        self.state
-            .insert_confirmed_txn(txn)
+        //TODO: call checked methods instead
+        self.db
+            .insert_transaction(txn)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         self.events_tx
@@ -80,8 +80,16 @@ impl StateModule {
         Ok(())
     }
 
-    fn process_block(&mut self) {
-        //
+    fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
+        self.db
+            .insert_account(key, account)
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    fn update_account(&mut self, key: Address, account: Account) -> Result<()> {
+        self.db
+            .update_account(key, account)
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
 }
 
@@ -114,35 +122,36 @@ impl Handler<Event> for StateModule {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::Stop => {
-                // TODO: fix
-                // self.state
-                //     .serialize_to_json()
-                //     .map_err(|err| NodeError::Other(err.to_string()))?;
                 return Ok(ActorState::Stopped);
             },
 
-            Event::BlockReceived => {},
-
-            Event::NewTxnCreated(txn) => {
-                info!("Storing transaction in mempool for validation");
-
-                let txn_hash = txn.digest();
-
-                self.state
-                    .insert_txn_to_mempool(txn)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                self.events_tx
-                    .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
             Event::TxnValidated(txn) => {
                 self.confirm_txn(txn)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
+            Event::CreateAccountRequested((address, account_bytes)) => {
+                telemetry::info!(
+                    "creating account {address} with new state",
+                    address = address.to_string()
+                );
+
+                if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
+                    self.insert_account(address.clone(), account)
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                    telemetry::info!("account {address} created", address = address.to_string());
+                }
+            },
+            Event::AccountUpdateRequested((address, account_bytes)) => {
+                if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
+                    self.update_account(address, account)
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
+                }
+            },
+
             Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
+            _ => {},
         }
 
         Ok(ActorState::Running)
@@ -153,10 +162,11 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
+    use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
     use vrrb_core::{
         event_router::{DirectedEvent, Event},
-        txn::NULL_TXN,
+        txn::null_txn,
     };
 
     use super::*;
@@ -167,19 +177,11 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let node_state_config = NodeStateConfig {
-            path: temp_dir_path,
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let db_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -203,19 +205,11 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let node_state_config = NodeStateConfig {
-            path: temp_dir_path,
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let db_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -227,7 +221,7 @@ mod tests {
             state_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        ctrl_tx.send(Event::NewTxnCreated(NULL_TXN)).unwrap();
+        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();
@@ -239,19 +233,11 @@ mod tests {
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
-        let node_state_config = NodeStateConfig {
-            path: temp_dir_path,
-            serialized_state_filename: None,
-            serialized_mempool_filename: None,
-            serialized_confirmed_txns_filename: None,
-        };
+        let db_config = VrrbDbConfig::default();
 
-        let node_state = NodeState::new(&node_state_config);
+        let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            node_state,
-        });
+        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -269,7 +255,7 @@ mod tests {
 
         // TODO: implement all state && validation ops
 
-        ctrl_tx.send(Event::NewTxnCreated(NULL_TXN)).unwrap();
+        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
         ctrl_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();

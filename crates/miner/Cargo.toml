@@ -17,7 +17,6 @@ patriecia = { workspace = true }
 primitives = { workspace = true }
 vrrb_core = { workspace = true }
 reward = { workspace = true }
-state = { workspace = true }
 block = { workspace = true }
 mempool = { workspace = true }
 thiserror = { workspace = true }

@@ -14,7 +14,6 @@ rand = "0.6.5"
 bincode = { workspace = true }
 tokio = { workspace = true }
 hex = { workspace = true }
-node = { workspace = true }
 primitives = { workspace = true }
 vrrb_config = { workspace = true }
 vrrb_core = { workspace = true }

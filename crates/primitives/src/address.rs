@@ -1,14 +1,36 @@
-use secp256k1::{rand::rngs::OsRng, Secp256k1};
+use std::str::FromStr;
 
-use crate::PublicKey;
+use secp256k1::{rand::rngs::OsRng, Secp256k1};
+use serde::{Deserialize, Serialize};
+
+use crate::{ByteVec, PublicKey};
 
 /// Represents a secp256k1 public key, hashed with sha256::digest
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Address(PublicKey);
 
 impl Address {
     pub fn new(public_key: PublicKey) -> Self {
         Self(public_key)
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.0
+    }
+
+    pub fn public_key_bytes(&self) -> ByteVec {
+        // TODO: revisit later
+        self.0.to_string().into_bytes()
+    }
+}
+
+impl FromStr for Address {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_str(s)
+            .map_err(|err| crate::Error::Other(err.to_string()))
+            .map(Self)
     }
 }
 

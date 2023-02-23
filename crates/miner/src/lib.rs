@@ -19,35 +19,26 @@ mod tests {
 
     use block::{header::BlockHeader, Block, ConvergenceBlock};
     use bulldag::{graph::BullDag, vertex::Vertex};
-    use primitives::{PublicKey, SecretKey, Signature};
+    use primitives::{PublicKey, Signature};
     use reward::reward::Reward;
     use ritelinked::{LinkedHashMap, LinkedHashSet};
     use secp256k1::{
         hashes::{sha256 as s256, Hash},
-        rand,
         Message,
     };
     use sha256::digest;
     use utils::{create_payload, hash_data};
-    use vrrb_core::{
-        keypair::{Keypair, SecretKeys},
-        txn::Txn,
-    };
+    use vrrb_core::txn::Txn;
 
     use super::test_helpers::create_txns;
-    use crate::{
-        test_helpers::{
-            build_proposal_block,
-            create_claim,
-            create_keypair,
-            create_miner,
-            mine_convergence_block,
-            mine_convergence_block_epoch_change,
-            mine_genesis,
-        },
-        MineArgs,
-        Miner,
-        MinerConfig,
+    use crate::test_helpers::{
+        build_proposal_block,
+        create_claim,
+        create_keypair,
+        create_miner,
+        mine_convergence_block,
+        mine_convergence_block_epoch_change,
+        mine_genesis,
     };
 
     #[test]
@@ -59,7 +50,7 @@ mod tests {
     #[test]
     fn test_create_proposal_block() {
         let genesis = mine_genesis().unwrap();
-        let proposal = build_proposal_block(&genesis.hash, 30, 10, 0, 0);
+        let proposal = build_proposal_block(&genesis.hash, 30, 10, 0, 0).unwrap();
 
         let payload = create_payload!(
             proposal.round,
@@ -74,7 +65,16 @@ mod tests {
         let sig = proposal.signature;
         let sig = Signature::from_str(&sig).unwrap();
         let verify = sig.verify(&payload, &h_pk);
+
         assert!(verify.is_ok())
+    }
+
+    #[test]
+    fn test_create_proposal_block_over_size_limit() {
+        let genesis = mine_genesis().unwrap();
+        let proposal = build_proposal_block(&genesis.hash, 2000, 10, 0, 0);
+
+        assert!(proposal.is_err());
     }
 
     #[test]
@@ -85,9 +85,13 @@ mod tests {
             let round = gblock.header.round.clone() + 1;
             let epoch = gblock.header.epoch.clone();
 
-            let prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch);
+            let prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch)
+                .unwrap()
+                .clone();
 
-            let prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch);
+            let prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch)
+                .unwrap()
+                .clone();
 
             let proposals = vec![prop1.clone(), prop2.clone()];
 
@@ -161,9 +165,13 @@ mod tests {
             let round = gblock.header.round + 1;
             let epoch = gblock.header.epoch;
 
-            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch);
+            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch)
+                .unwrap()
+                .clone();
 
-            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch);
+            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch)
+                .unwrap()
+                .clone();
 
             let txns: HashMap<String, Txn> = create_txns(5).collect();
             prop1.txns.extend(txns.clone());
@@ -278,9 +286,13 @@ mod tests {
             let round = gblock.header.round.clone() + 1;
             let epoch = gblock.header.epoch.clone();
 
-            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch);
+            let mut prop1 = build_proposal_block(&ref_hash, 30, 10, round, epoch)
+                .unwrap()
+                .clone();
 
-            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch);
+            let mut prop2 = build_proposal_block(&ref_hash, 40, 5, round, epoch)
+                .unwrap()
+                .clone();
 
             let txns: HashMap<String, Txn> = create_txns(5).collect();
             prop1.txns.extend(txns.clone());
@@ -330,7 +342,9 @@ mod tests {
 
             chain.extend_from_edges(edges);
 
-            let mut prop3 = build_proposal_block(&ref_hash, 20, 10, round, epoch);
+            let mut prop3 = build_proposal_block(&ref_hash, 20, 10, round, epoch)
+                .unwrap()
+                .clone();
 
             prop3.txns.extend(txns.clone());
 
@@ -405,7 +419,7 @@ mod tests {
         let block_seed = 34_989_333;
         let next_block_seed = 839_999_843;
         let block_height = 29_999_998;
-        let timestamp = utils::timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = "abcdef01234567890".to_string();
         let miner_claim = miner.generate_claim(nonce);
         let claim_list_hash = "01234567890abcdef".to_string();
@@ -474,7 +488,9 @@ mod tests {
 
         let mut chain: BullDag<Block, String> = BullDag::new();
 
-        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0);
+        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0)
+            .unwrap()
+            .clone();
 
         let cb1vtx = Vertex::new(Block::Convergence { block: cb1.clone() }, cb1.hash.clone());
 
@@ -514,7 +530,7 @@ mod tests {
         let block_seed = 34_989_333;
         let next_block_seed = 839_999_843;
         let block_height = 29_999_998;
-        let timestamp = utils::timestamp!();
+        let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = "abcdef01234567890".to_string();
 
         let miner_claim = create_claim(&mpk1, &addr.to_string(), 1);
@@ -586,7 +602,9 @@ mod tests {
 
         let mut chain: BullDag<Block, String> = BullDag::new();
 
-        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0);
+        let prop1 = build_proposal_block(&cb1.hash.clone(), 5, 5, 30_000_000, 0)
+            .unwrap()
+            .clone();
         let cb1vtx = Vertex::new(Block::Convergence { block: cb1.clone() }, cb1.hash.clone());
 
         let p1vtx = Vertex::new(
@@ -613,13 +631,24 @@ mod tests {
 }
 
 pub(crate) mod test_helpers {
-    use block::{Block, ConvergenceBlock, GenesisBlock, ProposalBlock, EPOCH_BLOCK};
+    use std::mem;
+
+    use block::{
+        invalid::InvalidBlockErrorReason,
+        Block,
+        ConvergenceBlock,
+        GenesisBlock,
+        ProposalBlock,
+        TxnList,
+        EPOCH_BLOCK,
+    };
     use bulldag::graph::BullDag;
     use primitives::{Address, PublicKey, SecretKey};
     use sha256::digest;
     use utils::hash_data;
     use vrrb_core::{
         claim::Claim,
+        helpers::size_of_txn_list,
         keypair::KeyPair,
         txn::{NewTxnArgs, Txn},
     };
@@ -696,6 +725,7 @@ pub(crate) mod test_helpers {
                 txn.sign(&sk);
 
                 let txn_hash = hash_data!(&txn);
+
                 (txn_hash, txn)
             })
             .into_iter()
@@ -718,9 +748,10 @@ pub(crate) mod test_helpers {
         n_claims: usize,
         round: u128,
         epoch: u128,
-    ) -> ProposalBlock {
+    ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
         let (sk, pk) = create_keypair();
-        let txns = create_txns(n_tx).collect();
+        let txns: TxnList = create_txns(n_tx).collect();
+
         let nonce = 1;
 
         let claims = create_claims(n_claims).collect();
@@ -728,7 +759,16 @@ pub(crate) mod test_helpers {
 
         let miner = create_miner();
 
-        miner.build_proposal_block(ref_hash.clone(), round, epoch, txns, claims, nonce)
+        let prop_block =
+            miner.build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims, nonce);
+
+        let total_txns_size = size_of_txn_list(&txns);
+
+        if total_txns_size > 2000 {
+            return Err(InvalidBlockErrorReason::InvalidBlockSize);
+        }
+
+        return prop_block;
     }
 
     pub(crate) fn mine_convergence_block(

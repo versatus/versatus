@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
@@ -90,22 +90,24 @@ where
         self.commit()
     }
 
-    pub fn get_proof<'a, K, V>(&mut self, key: K) -> Result<Vec<Vec<u8>>>
+    /// Creates a Merkle proof for a given value.
+    pub fn get_proof<'a, K, V>(&mut self, key: &K) -> Result<Vec<Proof>>
     where
         K: Serialize + Deserialize<'a>,
         V: Serialize + Deserialize<'a>,
     {
-        let key = bincode::serialize(&key).unwrap_or_default();
+        let key = bincode::serialize(key).unwrap_or_default();
         self.inner
             .get_proof(&key)
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
+    /// Verifies a Merkle proof for a given value.
     pub fn verify_proof<'a, K, V>(
         &self,
         root_hash: H256,
         key: &K,
-        proof: Vec<Vec<u8>>,
+        proof: Vec<Proof>,
     ) -> Result<Option<Proof>>
     where
         K: Serialize + Deserialize<'a>,
@@ -123,22 +125,6 @@ where
             .commit()
             .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
-
-    // pub fn entries<'a, K, V>(&self) -> HashMap<K, V>
-    // where
-    //     K: Serialize + Deserialize<'a> + std::hash::Hash + Default + Eq +
-    // PartialEq,     V: Serialize + Deserialize<'a> + Default,
-    // {
-    //     let mut map = HashMap::new();
-    //     for (k, v) in self.inner.iter() {
-    //         let key = bincode::deserialize(&k).unwrap_or_default();
-    //         let value = bincode::deserialize(&v).unwrap_or_default();
-    //
-    //         map.insert(key, value);
-    //     }
-    //
-    //     map
-    // }
 
     pub fn iter(&self) -> TrieIterator<D> {
         self.inner.iter()

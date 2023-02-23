@@ -50,10 +50,11 @@ members = [
     "crates/node",
     "crates/storage",
     "crates/storage/lr_trie",
-    "crates/storage/lrdb",
-    "crates/storage/state",
+    "crates/storage/vrrbdb",
+    "crates/storage/utils",
     "crates/syncing",
     "crates/telemetry",
+    "crates/utils",
 ]
 
 [workspace.dependencies]
@@ -83,11 +84,10 @@ vrrb_cli = { path = "crates/vrrb_cli" }
 # NOTE: potentially deprecated
 vrrb_gui = { path = "crates/vrrb_gui" }
 
-
 storage = { path = "crates/storage" }
-state = { path = "crates/storage/state" }
-lrdb = { path = "crates/storage/lrdb" }
+vrrbdb = { path = "crates/storage/vrrbdb" }
 lr_trie = { path = "crates/storage/lr_trie" }
+storage_utils = { path = "crates/storage/utils" }
 
 consensus = { path = "crates/consensus" }
 quorum = { path = "crates/consensus/quorum" }
@@ -105,6 +105,7 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
+kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
@@ -170,15 +171,19 @@ num_cpus = "1.14.0"
 rand_chacha = "0.3.1"
 format-bytes = "0.3.0"
 thread_local = "1.1.4"
-
+tabled = "0.10.0"
 axum = "0.5.17"
 axum-server = { version = "0.4.4", features = ["tls-rustls"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["trace"] }
 hyper = { version = "0.14.23", features = ["full"] }
-
+cuckoofilter = "0.5.0"
+indexmap = "1.9.1"
+raptorq = "1.7.0"
+dirs = "4.0.0"
 
 [dev-dependencies]
+cuckoofilter.workspace = true
 reqwest.workspace = true
 rusty-hook.workspace = true
 serial_test.workspace = true

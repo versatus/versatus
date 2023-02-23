@@ -52,6 +52,13 @@ pub fn get_node_data_dir() -> Result<PathBuf> {
     Ok(vrrb_data_dir)
 }
 
+/// Retrieves the wallet's data directory path.
+pub fn get_wallet_data_dir() -> Result<PathBuf> {
+    let mut vrrb_data_dir = get_vrrb_data_dir()?;
+    vrrb_data_dir.push("wallet");
+    Ok(vrrb_data_dir)
+}
+
 pub fn read_file<F: AsRef<Path>>(path: F) -> Result<File> {
     match File::open(path.as_ref()) {
         Ok(file) => Ok(file),

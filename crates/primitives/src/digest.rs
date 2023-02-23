@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use secp256k1::hashes::hex;
+use serde::{Deserialize, Serialize};
 
 use crate::{ByteSlice, ByteVec};
 
@@ -8,6 +9,7 @@ use crate::{ByteSlice, ByteVec};
 pub const DIGEST_LENGTH: usize = 32;
 
 /// Represents a SHA-256 digest produced from any serializable data type
+#[derive(Debug, Default, Clone, Copy, Hash, Deserialize, Serialize, Eq, PartialEq)]
 pub struct Digest([u8; DIGEST_LENGTH]);
 
 impl From<ByteVec> for Digest {
@@ -32,21 +34,13 @@ impl Display for Digest {
     }
 }
 
-pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
+impl Digest {
+    /// Returns the raw bytes of the digest
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
 
-pub type TransactionDigest = Digest;
-
-// pub type TxHashString = String;
-// pub type PayloadHash = Hash;
-// pub type BlockHash = Hash;
-// pub type RawSignature = Vec<u8>;
-// pub type PeerId = Vec<u8>;
-// /// Represents a byte slice produced from an instance of secp256k1::SecretKey
-// pub type SerializedSecretKey = Vec<u8>;
-// /// Represents a byte slice produced from an instance of secp256k1::PublicKey
-// pub type SerializedPublicKey = Vec<u8>;
-// /// Represents a String produced from an instance of secp256k1::PublicKey
-// pub type SerializedPublicKeyString = String;
-// pub type PublicKey = secp256k1::PublicKey;
-// pub type SecretKey = secp256k1::SecretKey;
-// pub type Signature = secp256k1::ecdsa::Signature;
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}

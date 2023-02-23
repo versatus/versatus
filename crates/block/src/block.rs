@@ -65,6 +65,31 @@ impl Block {
     pub fn is_genesis(&self) -> bool {
         matches!(self, Block::Genesis { .. })
     }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Block::Convergence { block } => block
+                .txns
+                .iter()
+                .map(|(_, set)| set)
+                .map(|(txn)| std::mem::size_of_val(&txn))
+                .fold(0, |acc, item| acc + item),
+
+            Block::Proposal { block } => block
+                .txns
+                .iter()
+                .map(|(_, set)| set)
+                .map(|(txn)| std::mem::size_of_val(&txn))
+                .fold(0, |acc, item| acc + item),
+
+            Block::Genesis { block } => block
+                .txns
+                .iter()
+                .map(|(_, set)| set)
+                .map(|(txn)| std::mem::size_of_val(&txn))
+                .fold(0, |acc, item| acc + item),
+        }
+    }
 }
 
 impl fmt::Display for ConvergenceBlock {

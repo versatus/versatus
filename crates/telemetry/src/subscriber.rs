@@ -27,9 +27,11 @@ impl TelemetrySubscriber {
     where
         W: for<'s> MakeWriter<'s> + 'static + Sync + Send,
     {
+        let environment = std::env::var("ENV").unwrap_or_else(|_| "dev".to_string());
+
         let sub = tracing_subscriber::fmt()
             .with_writer(out)
-            .with_file(true)
+            .with_file(environment == "dev")
             .with_line_number(true)
             .json()
             .with_current_span(false)
