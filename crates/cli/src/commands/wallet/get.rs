@@ -1,7 +1,6 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 
 use primitives::{Address, PublicKey, SecretKey};
-use secp256k1::{generate_keypair, rand};
 use vrrb_core::account::Account;
 use wallet::v2::{Wallet, WalletConfig};
 

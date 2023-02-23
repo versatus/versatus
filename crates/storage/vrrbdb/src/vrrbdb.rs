@@ -29,7 +29,6 @@ impl Default for VrrbDbConfig {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
-            .join("node")
             .join("db");
 
         Self {

@@ -8,6 +8,9 @@ pub type NodeIdentifier = String;
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
+    #[error("invalid environment: {0}")]
+    InvalidEnvironment(String),
+
     #[error("{0}")]
     Other(String),
 }

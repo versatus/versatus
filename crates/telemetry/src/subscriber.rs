@@ -1,3 +1,4 @@
+use primitives::Environment;
 use thiserror::Error;
 use tracing_subscriber::{
     fmt::MakeWriter,
@@ -27,12 +28,13 @@ impl TelemetrySubscriber {
     where
         W: for<'s> MakeWriter<'s> + 'static + Sync + Send,
     {
-        let environment = std::env::var("ENV").unwrap_or_else(|_| "dev".to_string());
+        let environ = primitives::get_vrrb_environment();
+        let is_local_env = matches!(environ, Environment::Local);
 
         let sub = tracing_subscriber::fmt()
             .with_writer(out)
-            .with_file(environment == "dev")
-            .with_line_number(true)
+            .with_file(is_local_env)
+            .with_line_number(is_local_env)
             .json()
             .with_current_span(false)
             .flatten_event(true)

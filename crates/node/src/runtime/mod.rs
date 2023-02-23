@@ -211,9 +211,9 @@ async fn setup_state_store(
     mut state_events_rx: Receiver<Event>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
-    let database_path = config.db_path();
-
-    storage_utils::create_dir(database_path).map_err(|err| NodeError::Other(err.to_string()))?;
+    // let database_path = config.db_path();
+    // storage_utils::create_dir(database_path).map_err(|err|
+    // NodeError::Other(err.to_string()))?;
 
     let vrrbdb_config = VrrbDbConfig::default();
 
