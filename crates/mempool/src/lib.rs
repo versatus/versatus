@@ -32,8 +32,9 @@ mod tests {
         let keypair = KeyPair::random();
 
         let txn = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),
             token: None,
             amount: 0,
@@ -66,8 +67,9 @@ mod tests {
             .as_nanos();
 
         let txn = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),
             token: None,
             amount: 0,
@@ -109,8 +111,9 @@ mod tests {
             .as_nanos();
 
         let txn1 = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),
             token: None,
             amount: 0,
@@ -121,8 +124,9 @@ mod tests {
         });
 
         let txn2 = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("ccc1"),
             token: None,
             amount: 0,
@@ -162,8 +166,9 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         let txn = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),
             token: None,
             amount: txn_amount,
@@ -227,8 +232,9 @@ mod tests {
 
         for n in 1..101 {
             let txn = Txn::new(NewTxnArgs {
+                timestamp: 0,
                 sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+                sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,
@@ -265,7 +271,7 @@ mod tests {
         let txn_id = record.txn_id;
         let test_txn_amount = record.txn.amount();
 
-        if let Some(txn_retrieved) = mpooldb.get_txn(&txn_id) {
+        if let Some(txn_retrieved) = mpooldb.get_txn(&record.txn.digest()) {
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
             assert_eq!(txn_retrieved.amount(), test_txn_amount);
@@ -283,8 +289,9 @@ mod tests {
             .as_nanos();
 
         let txn1 = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),
             token: None,
             amount: 0,
@@ -295,8 +302,9 @@ mod tests {
         });
 
         let txn2 = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("ccc1"),
             token: None,
             amount: 0,
@@ -328,7 +336,7 @@ mod tests {
             },
         };
 
-        match mpooldb.remove_txn_by_id(txn2_id.clone()) {
+        match mpooldb.remove_txn_by_id(&txn2_id) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -347,8 +355,9 @@ mod tests {
             .as_nanos();
 
         let txn1 = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),
             token: None,
             amount: 0,
@@ -359,8 +368,9 @@ mod tests {
         });
 
         let txn2 = Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: String::from("aaa1"),
-            sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+            sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("ccc1"),
             token: None,
             amount: 0,
@@ -417,8 +427,9 @@ mod tests {
 
         for n in 1..101 {
             let txn = Txn::new(NewTxnArgs {
+                timestamp: 0,
                 sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+                sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,
@@ -468,8 +479,9 @@ mod tests {
 
         for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
             let txn = Txn::new(NewTxnArgs {
+                timestamp: 0,
                 sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().serialize().to_vec(),
+                sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,

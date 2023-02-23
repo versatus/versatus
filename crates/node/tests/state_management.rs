@@ -16,10 +16,7 @@ use node::{
 };
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::event_router::Event;
-use vrrb_rpc::rpc::{
-    api::{CreateTxnArgs, RpcClient},
-    client::create_client,
-};
+use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
 #[tokio::test]
 #[ignore]

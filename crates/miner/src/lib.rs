@@ -709,8 +709,9 @@ pub(crate) mod test_helpers {
                 let nonce = 1u128;
                 let token = Some("VRRB".to_string());
                 let txn_args = NewTxnArgs {
+                    timestamp: 0,
                     sender_address: saddr.to_string(),
-                    sender_public_key: pk.serialize().to_vec(),
+                    sender_public_key: pk.clone(),
                     receiver_address: raddr,
                     token,
                     amount,

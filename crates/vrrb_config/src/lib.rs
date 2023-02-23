@@ -5,9 +5,10 @@ pub use node_config::*;
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
     use primitives::NodeType;
+    use vrrb_core::keypair::Keypair;
 
     use super::*;
 
