@@ -72,6 +72,7 @@ pub struct QuorumCertifiedTxn {
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Event {
     #[default]
     NoOp,
@@ -128,8 +129,12 @@ pub enum Event {
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
     ConfirmedTxns(Vec<(String, QuorumPublicKey)>),
-    AccountCreated((Address, AccountBytes)),
-    UpdateAccount(AccountBytes),
+
+    CreateAccountRequested((Address, AccountBytes)),
+    AccountCreated(Address),
+
+    AccountUpdateRequested((Address, AccountBytes)),
+    UpdatedAccount(AccountBytes),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),

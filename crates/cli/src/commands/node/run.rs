@@ -58,7 +58,7 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub http_api_address: SocketAddr,
 
-    #[clap(long, value_parser, default_value = "127.0.0.1:0")]
+    #[clap(long, value_parser, default_value = "127.0.0.1:9293")]
     pub jsonrpc_api_address: SocketAddr,
 
     #[clap(long, default_value = "false")]

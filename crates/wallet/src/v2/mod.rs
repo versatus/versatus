@@ -8,7 +8,7 @@ use jsonrpsee::core::client::Client;
 use primitives::Address;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use sha2::{Digest, Sha256};
-use telemetry::debug;
+use telemetry::{debug, error};
 use thiserror::Error;
 use vrrb_core::{
     account::Account,
@@ -22,8 +22,9 @@ type WalletResult<Wallet> = Result<Wallet, WalletError>;
 
 #[derive(Error, Debug)]
 pub enum WalletError {
-    #[error("unable to create rpc client")]
+    #[error("API error: {0}")]
     InvalidRpcClient(#[from] vrrb_rpc::ApiError),
+
     #[error("custom error")]
     Custom(String),
 }
@@ -117,6 +118,10 @@ impl Wallet {
         Ok(wallet)
     }
 
+    pub async fn sync_account(&self) {
+        //
+    }
+
     pub fn info(&self) {
         //
     }
@@ -177,7 +182,7 @@ impl Wallet {
             .create_txn(txn_args.clone())
             .await
             .map_err(|err| {
-                telemetry::error!("{:?}", err.to_string());
+                error!("{:?}", err.to_string());
 
                 WalletError::Custom(format!("API Error:{}", err))
             })?;
@@ -195,14 +200,14 @@ impl Wallet {
         }
     }
 
-    pub async fn get_account(&mut self, address: Address) -> Option<Account> {
-        let res = self.client.get_account(address).await;
+    pub async fn get_account(&mut self, address: Address) -> WalletResult<Account> {
+        let account = self.client.get_account(address).await.map_err(|err| {
+            error!("{:?}", err.to_string());
 
-        if let Ok(value) = res {
-            Some(value)
-        } else {
-            None
-        }
+            WalletError::Custom(format!("API Error: {err}"))
+        })?;
+
+        Ok(account)
     }
 
     pub async fn list_transactions(
@@ -253,10 +258,8 @@ impl Wallet {
             let mut accounts = HashMap::new();
             let addresses = wallet.addresses.clone();
             for (_, addr) in addresses.iter() {
-                let ret = wallet.get_account(addr.clone()).await;
-                if let Some(account) = ret {
-                    accounts.insert(addr.to_owned(), account);
-                }
+                let account = wallet.get_account(addr.clone()).await?;
+                accounts.insert(addr.to_owned(), account);
             }
 
             wallet.accounts = accounts;

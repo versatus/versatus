@@ -116,7 +116,7 @@ impl Handler<Event> for SwarmModule {
                 return Ok(ActorState::Stopped);
             },
             Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
+            _ => {},
         }
 
         Ok(ActorState::Running)

@@ -255,7 +255,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                 }
             },
             Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
+            _ => {},
         }
 
         Ok(ActorState::Running)

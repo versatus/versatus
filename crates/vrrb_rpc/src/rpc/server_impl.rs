@@ -74,14 +74,18 @@ impl RpcServer for RpcServerImpl {
         let account_bytes =
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
-        let event = Event::AccountCreated((address, account_bytes));
+        let event = Event::CreateAccountRequested((address.clone(), account_bytes));
 
-        debug!("{:?}", event.clone());
+        debug!("{:?}", event);
 
-        self.events_tx.send((Topic::State, event)).map_err(|err| {
-            error!("could not create account: {err}");
-            Error::Custom(err.to_string())
-        })?;
+        self.events_tx
+            .send((Topic::Storage, event.clone()))
+            .map_err(|err| {
+                error!("could not create account: {err}");
+                Error::Custom(err.to_string())
+            })?;
+
+        telemetry::info!("requested account creation for address: {}", address);
 
         Ok(())
     }
@@ -92,12 +96,11 @@ impl RpcServer for RpcServerImpl {
         let account_bytes =
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
-        let event = Event::UpdateAccount(account_bytes);
-
-        self.events_tx.send((Topic::State, event)).map_err(|err| {
-            error!("could not update account: {err}");
-            Error::Custom(err.to_string())
-        })?;
+        // let event = Event::RequestedAccountUpdate((account.hash, account_bytes));
+        // self.events_tx.send((Topic::State, event)).map_err(|err| {
+        //     error!("could not update account: {err}");
+        //     Error::Custom(err.to_string())
+        // })?;
 
         Ok(())
     }
@@ -136,6 +139,8 @@ impl RpcServer for RpcServerImpl {
     }
 
     async fn get_account(&self, address: Address) -> Result<Account, Error> {
+        telemetry::info!("retrieving account {address}");
+
         let values = self.vrrbdb_read_handle.state_store_values();
         let value = values.get(&address);
 

@@ -234,7 +234,7 @@ impl Handler<Event> for DkgModule {
                 }
             },
             Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
+            _ => {},
         }
 
         Ok(ActorState::Running)

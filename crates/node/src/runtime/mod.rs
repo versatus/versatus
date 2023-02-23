@@ -6,6 +6,7 @@ use storage::{
     storage_utils,
     vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
 };
+use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::{
     sync::{broadcast::Receiver, mpsc::UnboundedSender},
@@ -113,6 +114,8 @@ pub async fn setup_runtime_components(
     .await?;
 
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
+
+    info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
     // TODO: make nodes start with some preconfigured state
     let txn_validator_handle = setup_validation_module(

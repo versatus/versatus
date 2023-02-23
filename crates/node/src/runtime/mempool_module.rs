@@ -102,7 +102,7 @@ impl Handler<Event> for MempoolModule {
             },
 
             Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
+            _ => {},
         }
 
         Ok(ActorState::Running)

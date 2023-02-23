@@ -8,12 +8,11 @@ use wallet::v2::{Wallet, WalletConfig};
 use crate::result::CliError;
 
 pub async fn exec(
+    rpc_server_address: SocketAddr,
     address: Address,
     account: Account,
     kp: (SecretKey, PublicKey),
 ) -> Result<(), CliError> {
-    let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9293);
-
     // TODO: read keypair from file
     let (secret_key, public_key) = generate_keypair(&mut rand::thread_rng());
 

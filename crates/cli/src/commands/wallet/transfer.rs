@@ -8,6 +8,7 @@ use wallet::v2::{Wallet, WalletConfig};
 use crate::result::CliError;
 
 pub async fn exec(
+    rpc_server_address: SocketAddr,
     address_number: u32,
     to: String,
     amount: u128,

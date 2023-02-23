@@ -130,14 +130,20 @@ impl Handler<Event> for StateModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
-            Event::AccountCreated((address, account_bytes)) => {
+            Event::CreateAccountRequested((address, account_bytes)) => {
+                telemetry::info!(
+                    "creating account {address} with new state",
+                    address = address.to_string()
+                );
+
                 if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
-                    self.insert_account(address, account)
+                    self.insert_account(address.clone(), account)
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                    telemetry::info!("account {address} created", address = address.to_string());
                 }
             },
-
-            Event::AccountCreated((address, account_bytes)) => {
+            Event::AccountUpdateRequested((address, account_bytes)) => {
                 if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
                     self.update_account(address, account)
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
@@ -145,7 +151,7 @@ impl Handler<Event> for StateModule {
             },
 
             Event::NoOp => {},
-            _ => telemetry::warn!("Unrecognized command received: {:?}", event),
+            _ => {},
         }
 
         Ok(ActorState::Running)

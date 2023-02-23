@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use secp256k1::{rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +21,16 @@ impl Address {
     pub fn public_key_bytes(&self) -> ByteVec {
         // TODO: revisit later
         self.0.to_string().into_bytes()
+    }
+}
+
+impl FromStr for Address {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_str(s)
+            .map_err(|err| crate::Error::Other(err.to_string()))
+            .map(Self)
     }
 }
 

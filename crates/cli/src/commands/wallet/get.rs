@@ -5,11 +5,13 @@ use secp256k1::{generate_keypair, rand};
 use vrrb_core::account::Account;
 use wallet::v2::{Wallet, WalletConfig};
 
-use crate::result::CliError;
+use crate::result::{CliError, Result};
 
-pub async fn exec(address: Address, kp: (SecretKey, PublicKey)) -> Option<Account> {
-    let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9293);
-
+pub async fn exec(
+    rpc_server_address: SocketAddr,
+    address: Address,
+    kp: (SecretKey, PublicKey),
+) -> Result<Account> {
     let (secret_key, public_key) = kp;
 
     let wallet_config = WalletConfig {
@@ -18,14 +20,14 @@ pub async fn exec(address: Address, kp: (SecretKey, PublicKey)) -> Option<Accoun
         public_key,
     };
 
-    let res = Wallet::new(wallet_config)
+    let mut wal = Wallet::new(wallet_config)
         .await
-        .map_err(|err| CliError::Other(err.to_string()));
+        .map_err(|err| CliError::Other(err.to_string()))?;
 
-    if let Ok(mut wallet) = res {
-        let opt = wallet.get_account(address).await;
-        return opt;
-    }
+    let account = wal
+        .get_account(address)
+        .await
+        .map_err(|err| CliError::Other(err.to_string()))?;
 
-    return None;
+    Ok(account)
 }
