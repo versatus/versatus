@@ -39,6 +39,8 @@ fn accounts_can_be_added() {
             code: None,
             pubkey: vec![],
             digests: HashMap::new(),
+            created_at: 0,
+            updated_at: None,
         },
     )
     .unwrap();
@@ -54,6 +56,8 @@ fn accounts_can_be_added() {
             code: None,
             pubkey: vec![],
             digests: HashMap::new(),
+            created_at: 0,
+            updated_at: None,
         },
     )
     .unwrap();
@@ -74,6 +78,8 @@ fn accounts_can_be_added() {
                 code: None,
                 pubkey: vec![],
                 digests: HashMap::new(),
+                created_at: 0,
+                updated_at: None,
             },
         ),
         (
@@ -87,6 +93,8 @@ fn accounts_can_be_added() {
                 code: None,
                 pubkey: vec![],
                 digests: HashMap::new(),
+                created_at: 0,
+                updated_at: None,
             },
         ),
         (
@@ -100,6 +108,8 @@ fn accounts_can_be_added() {
                 code: None,
                 pubkey: vec![],
                 digests: HashMap::new(),
+                created_at: 0,
+                updated_at: None,
             },
         ),
     ]);

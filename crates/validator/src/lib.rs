@@ -11,7 +11,7 @@ mod tests {
 
     use primitives::AccountKeypair;
     use rand::{rngs::StdRng, Rng, SeedableRng};
-    use vrrb_core::txn::*;
+    use vrrb_core::{keypair::KeyPair, txn::*};
 
     use crate::{
         txn_validator::{StateSnapshot, TxnValidator},
@@ -26,8 +26,9 @@ mod tests {
 
     fn random_txn(rng: &mut StdRng) -> Txn {
         Txn::new(NewTxnArgs {
+            timestamp: 0,
             sender_address: random_string(rng),
-            sender_public_key: random_string(rng).as_bytes().to_vec(),
+            sender_public_key: KeyPair::random().miner_kp.1,
             receiver_address: random_string(rng),
             token: None,
             amount: 0,

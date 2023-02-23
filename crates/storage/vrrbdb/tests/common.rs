@@ -17,14 +17,14 @@ pub fn generate_random_string() -> String {
 
 pub fn generate_random_address() -> Address {
     let kp = Keypair::random();
-
     Address::new(kp.miner_kp.1)
 }
 
 pub fn generate_random_transaction(from: Address, to: Address) -> Txn {
     Txn::new(NewTxnArgs {
+        timestamp: 0,
         sender_address: from.to_string(),
-        sender_public_key: from.public_key_bytes(),
+        sender_public_key: from.public_key(),
         receiver_address: to.to_string(),
         token: None,
         amount: 100,
@@ -40,8 +40,9 @@ pub fn generate_random_valid_transaction() -> Txn {
     let to = generate_random_address();
 
     Txn::new(NewTxnArgs {
+        timestamp: 0,
         sender_address: from.to_string(),
-        sender_public_key: from.public_key_bytes(),
+        sender_public_key: from.public_key(),
         receiver_address: to.to_string(),
         token: None,
         amount: 100,
