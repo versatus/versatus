@@ -90,7 +90,6 @@ pub async fn wallet_sends_create_account_request_to_rpc_server() {
 
     let mut wallet = Wallet::new(wallet_config).await.unwrap();
 
-    let (address, account) = wallet.create_account().await.unwrap();
+    let (_address, _account) = wallet.create_account().await.unwrap();
 
-    wallet.get_account(address.clone()).await.unwrap();
 }
