@@ -8,31 +8,18 @@ use wallet::v2::{Wallet, WalletConfig};
 use crate::result::CliError;
 
 pub async fn exec(
-    rpc_server_address: SocketAddr,
+    wallet: &mut Wallet,
     address_number: u32,
     to: String,
     amount: u128,
     token: Option<TxToken>,
-    kp: (SecretKey, PublicKey),
 ) -> Result<TransactionDigest, CliError> {
     let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 9293);
 
-    let (secret_key, public_key) = kp;
-
-    let wallet_config = WalletConfig {
-        rpc_server_address,
-        secret_key,
-        public_key,
-    };
-
-    let mut wallet = Wallet::new(wallet_config)
-        .await
-        .map_err(|err| CliError::Other("unable to create wallet".to_string()))?;
-
-    wallet
-        .create_account()
-        .await
-        .map_err(|err| CliError::Other(err.to_string()))?;
+    // wallet
+    //     .create_account()
+    //     .await
+    //     .map_err(|err| CliError::Other(err.to_string()))?;
 
     let timestamp = chrono::Utc::now().timestamp();
 
