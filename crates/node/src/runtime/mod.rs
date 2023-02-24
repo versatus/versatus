@@ -142,7 +142,6 @@ fn setup_event_routing_system() -> EventRouter {
     let mut event_router = EventRouter::new();
     event_router.add_topic(Topic::Control, Some(1));
     event_router.add_topic(Topic::State, Some(1));
-    event_router.add_topic(Topic::Transactions, Some(100));
     event_router.add_topic(Topic::Network, Some(100));
     event_router.add_topic(Topic::Storage, Some(100));
     event_router.add_topic(Topic::Consensus, Some(100));

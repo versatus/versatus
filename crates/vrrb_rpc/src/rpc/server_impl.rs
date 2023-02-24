@@ -61,7 +61,7 @@ impl RpcServer for RpcServerImpl {
         }
 
         self.events_tx
-            .send((Topic::Transactions, event))
+            .send((Topic::Storage, event))
             .map_err(|err| {
                 error!("could not queue transaction to mempool: {err}");
                 Error::Custom(err.to_string())

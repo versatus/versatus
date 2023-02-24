@@ -91,8 +91,10 @@ impl Handler<Event> for MempoolModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
-                    .send((Topic::Transactions, Event::TxnAddedToMempool(txn_hash)))
+                    .send((Topic::Storage, Event::TxnAddedToMempool(txn_hash.clone())))
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                info!("Transaction {} sent to mempool", txn_hash);
             },
 
             Event::TxnValidated(txn) => {

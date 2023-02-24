@@ -103,7 +103,9 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             amount,
             token,
         } => {
-            transfer::exec(&mut wallet, address_number, to, amount, token).await?;
+            let digest = transfer::exec(&mut wallet, address_number, to, amount, token).await?;
+
+            println!("{}", digest);
 
             Ok(())
         },

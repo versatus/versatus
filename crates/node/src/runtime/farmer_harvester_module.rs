@@ -249,7 +249,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                 if let Some(txns) = self.quorum_certified_txns.borrow() {
                     txns.iter().take(num_of_txns).for_each(|txn| {
                         self.broadcast_events_tx
-                            .send((Topic::Transactions, Event::QuorumCertifiedTxns(txn.clone())))
+                            .send((Topic::Storage, Event::QuorumCertifiedTxns(txn.clone())))
                             .expect("Failed to send Quorum Certified Txns");
                     });
                 }
@@ -558,7 +558,7 @@ mod tests {
         let _ = broadcast_rxs.get_mut(0).unwrap().recv().await;
         let event = broadcast_rxs.get_mut(0).unwrap().recv().await;
         if let Some(event) = event {
-            if let Topic::Transactions = event.0 {
+            if let Topic::Storage = event.0 {
                 is_enum_variant!(event.1, Event::QuorumCertifiedTxns { .. });
             }
         }
