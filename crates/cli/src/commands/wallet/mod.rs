@@ -111,8 +111,11 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
         WalletCmd::Get { address } => {
             let address = Address::from_str(&address)?;
 
-            if let Ok(acct) = get::exec(rpc_server_address, address, keypair).await {
-                println!("{:?}", acct);
+            if let Ok(account) = get::exec(rpc_server_address, address, keypair).await {
+                let account_info = serde_json::to_string_pretty(&account)
+                    .map_err(|err| CliError::Other(err.to_string()))?;
+
+                println!("{}", account_info);
             };
 
             Ok(())
