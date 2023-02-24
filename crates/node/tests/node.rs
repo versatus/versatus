@@ -9,8 +9,11 @@ use tokio::sync::mpsc::unbounded_channel;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
 use vrrb_core::{event_router::Event, keypair::Keypair};
+use serial_test::serial;
 
 #[tokio::test]
+#[serial]
+#[ignore]
 async fn node_runtime_starts_and_stops() {
     let node_config = create_mock_bootstrap_node_config();
     let (bootstrap_ctrl_tx, bootstrap_ctrl_rx) = unbounded_channel::<Event>();

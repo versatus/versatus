@@ -57,7 +57,7 @@ pub async fn setup_runtime_components(
     Option<JoinHandle<Result<()>>>,
 )> {
     let mut config = original_config.clone();
-
+    
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
 
@@ -77,6 +77,7 @@ pub async fn setup_runtime_components(
 
     let mempool_handle = Some(mempool_handle);
 
+    println!("Setting up state_store");
     let (state_read_handle, state_handle) = setup_state_store(
         &config,
         events_tx.clone(),
@@ -103,7 +104,7 @@ pub async fn setup_runtime_components(
         broadcast_controller_handle = new_broadcast_controller_handle;
         config.udp_gossip_address = gossip_addr;
     }
-
+    
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,
         events_tx.clone(),

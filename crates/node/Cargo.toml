@@ -55,3 +55,4 @@ crossbeam-channel = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }
+serial_test = { workspace = true }

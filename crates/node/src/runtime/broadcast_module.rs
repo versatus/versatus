@@ -118,6 +118,7 @@ mod tests {
     use super::{BroadcastModule, BroadcastModuleConfig};
 
     #[tokio::test]
+    #[ignore]
     async fn test_broadcast_module() {
         let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
 

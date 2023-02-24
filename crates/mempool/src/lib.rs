@@ -61,10 +61,6 @@ mod tests {
     #[test]
     fn add_twice_same_txn() {
         let keypair = KeyPair::random();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
         let txn = Txn::new(NewTxnArgs {
             timestamp: 0,
@@ -105,10 +101,6 @@ mod tests {
     #[test]
     fn add_two_different_txn() {
         let keypair = KeyPair::random();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
         let txn1 = Txn::new(NewTxnArgs {
             timestamp: 0,
@@ -165,8 +157,10 @@ mod tests {
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
 
+        let now = chrono::offset::Utc::now().timestamp();
+
         let txn = Txn::new(NewTxnArgs {
-            timestamp: 0,
+            timestamp: now,
             sender_address: String::from("aaa1"),
             sender_public_key: keypair.get_miner_public_key().clone(),
             receiver_address: String::from("bbb1"),

@@ -4,8 +4,10 @@ use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
+use serial_test::serial;
 
 #[tokio::test]
+#[serial]
 async fn node_rpc_api_returns_node_type() {
     let mut node_config = create_mock_full_node_config();
     node_config.node_type = NodeType::Bootstrap;

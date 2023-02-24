@@ -30,7 +30,7 @@ impl Default for VrrbDbConfig {
         let path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
             .join("db");
-
+        
         Self {
             path,
             state_store_path: None,

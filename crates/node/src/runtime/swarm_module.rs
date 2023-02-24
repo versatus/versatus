@@ -137,10 +137,12 @@ mod tests {
     use tracing::log::kv::Source;
     use udp2p::protocol::protocol::Peer;
     use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
+    use serial_test::serial;
 
     use super::*;
 
     #[tokio::test]
+    #[serial]
     async fn swarm_runtime_module_starts_and_stops() {
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
@@ -169,6 +171,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn swarm_runtime_add_peers() {
         let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let mut bootstrap_swarm_module = SwarmModule::new(
@@ -224,11 +227,12 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn swarm_runtime_test_unreachable_peers() {
         let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let mut bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 6061,
+                port: 6063,
                 bootstrap_node: None,
             },
             None,
@@ -244,9 +248,9 @@ mod tests {
             tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let mut swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 0,
+                port: 6069,
                 bootstrap_node: Some(BootStrapNodeDetails {
-                    addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+                    addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 6069),
                     key: hex::encode(key.clone()),
                 }),
             },
