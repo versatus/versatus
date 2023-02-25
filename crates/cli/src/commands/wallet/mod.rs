@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use primitives::Address;
 use secp256k1::{generate_keypair, rand};
 use serde_json;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
+use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file, txn::Token};
 use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
@@ -46,7 +46,7 @@ pub enum WalletCmd {
         amount: u128,
 
         #[clap(long)]
-        token: Option<String>,
+        token: Option<Token>,
     },
 
     /// Create a new account on the network
@@ -110,7 +110,14 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             amount,
             token,
         } => {
-            let digest = transfer::exec(&mut wallet, address_number, to, amount, token).await?;
+            let digest = transfer::exec(
+                &mut wallet,
+                address_number,
+                to,
+                amount,
+                token.unwrap_or_default(),
+            )
+            .await?;
 
             println!("{}", digest);
 

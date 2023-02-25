@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use primitives::{PublicKey, SecretKey};
 use secp256k1::{generate_keypair, rand};
-use vrrb_core::txn::{TransactionDigest, TxToken};
+use vrrb_core::txn::{Token, TransactionDigest};
 use wallet::v2::{Wallet, WalletConfig};
 
 use crate::result::CliError;
@@ -12,7 +12,7 @@ pub async fn exec(
     address_number: u32,
     to: String,
     amount: u128,
-    token: Option<TxToken>,
+    token: Token,
 ) -> Result<TransactionDigest, CliError> {
     let timestamp = chrono::Utc::now().timestamp();
 

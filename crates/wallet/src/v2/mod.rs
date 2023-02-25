@@ -162,7 +162,7 @@ impl Wallet {
         address_number: u32,
         receiver: String,
         amount: u128,
-        token: Option<Token>,
+        token: Token,
         timestamp: i64,
     ) -> Result<TransactionDigest, WalletError> {
         let addresses = self.addresses.clone();
@@ -200,7 +200,7 @@ impl Wallet {
             sender_address: sender_address.to_string(),
             sender_public_key: self.public_key,
             receiver_address: receiver,
-            token,
+            token: Some(token),
             amount,
             payload: Some(payload.clone()),
             signature,
