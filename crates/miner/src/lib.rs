@@ -644,6 +644,7 @@ pub(crate) mod test_helpers {
     };
     use bulldag::graph::BullDag;
     use primitives::{Address, PublicKey, SecretKey};
+    use secp256k1::Message;
     use sha256::digest;
     use utils::hash_data;
     use vrrb_core::{
@@ -708,6 +709,7 @@ pub(crate) mod test_helpers {
                 let amount = (n.pow(2)) as u128;
                 let nonce = 1u128;
                 let token = Some("VRRB".to_string());
+
                 let txn_args = NewTxnArgs {
                     timestamp: 0,
                     sender_address: saddr.to_string(),
@@ -716,7 +718,7 @@ pub(crate) mod test_helpers {
                     token,
                     amount,
                     payload: None,
-                    signature: vec![],
+                    signature: sk.sign_ecdsa(Message::from_hashed_data::<sha256::Hash>(b"vrrb")),
                     validators: None,
                     nonce: n.clone() as u128,
                 };

@@ -1,4 +1,5 @@
 mod get;
+mod get_mempool;
 mod info;
 mod new;
 mod transfer;
@@ -58,6 +59,12 @@ pub enum WalletCmd {
     Get {
         #[clap(long)]
         address: String,
+    },
+
+    /// Retrieves a snapshot of the values within mempool
+    GetMempool {
+        #[clap(long)]
+        limit: Option<usize>,
     },
 }
 
@@ -126,6 +133,12 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
 
             Ok(())
         },
+        WalletCmd::GetMempool { limit } => {
+            let mempool = get_mempool::exec(&mut wallet, limit).await?;
+
+            Ok(())
+        },
+
         _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
     }
 }

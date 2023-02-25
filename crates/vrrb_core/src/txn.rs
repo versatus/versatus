@@ -15,7 +15,7 @@ use primitives::{
     SerializedPublicKeyString,
     DIGEST_LENGTH,
 };
-use secp256k1::{Message, Secp256k1};
+use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sha256::digest;
@@ -63,7 +63,7 @@ pub struct Txn {
     token: Option<TxToken>,
     amount: TxAmount,
     pub payload: Option<TxPayload>,
-    pub signature: Option<TxSignature>,
+    pub signature: Signature,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
     pub receiver_farmer_id: Option<Vec<u8>>,
@@ -78,7 +78,7 @@ pub struct NewTxnArgs {
     pub token: Option<TxToken>,
     pub amount: TxAmount,
     pub payload: Option<TxPayload>,
-    pub signature: TxSignature,
+    pub signature: Signature,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
 }
@@ -100,7 +100,7 @@ impl Txn {
             token: args.token,
             amount: args.amount,
             payload: args.payload,
-            signature: Some(args.signature),
+            signature: args.signature,
             validators: args.validators,
             nonce: args.nonce,
             receiver_farmer_id: None,
@@ -226,7 +226,7 @@ impl Txn {
             match message {
                 Ok(msg) => {
                     let sig = sk.sign_ecdsa(msg);
-                    self.signature = Some(sig.to_string().as_bytes().to_vec());
+                    self.signature = sig.into();
                 },
                 _ => { /*TODO return Result<(), SignatureError>*/ },
             }
@@ -239,41 +239,29 @@ impl Txn {
 
 /// Returns a null transaction
 pub fn null_txn() -> Txn {
+    type H = secp256k1::hashes::sha256::Hash;
+
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
+    let sender_public_key = PublicKey::from_secret_key(&secp, &secret_key);
+    let message = Message::from_hashed_data::<H>(b"vrrb");
+    let signature = secp.sign_ecdsa(&message, &secret_key);
+
     Txn {
         timestamp: 0,
         sender_address: String::new(),
-        sender_public_key: PublicKey::from_slice(NULL_SENDER_PUBLIC_KEY_SLICE).unwrap(),
+        // sender_public_key: PublicKey::from_slice(NULL_SENDER_PUBLIC_KEY_SLICE).unwrap(),
+        sender_public_key,
         receiver_address: String::new(),
         token: None,
         amount: 0,
         payload: None,
-        signature: None,
+        signature,
         validators: None,
         nonce: 0,
         receiver_farmer_id: None,
     }
 }
-
-pub const NULL_SENDER_PUBLIC_KEY_SLICE: &[u8; 33] = &[
-    0x02, 0xc6, 0x6e, 0x7d, 0x89, 0x66, 0xb5, 0xc5, 0x55, 0xaf, 0x58, 0x05, 0x98, 0x9d, 0xa9, 0xfb,
-    0xf8, 0xdb, 0x95, 0xe1, 0x56, 0x31, 0xce, 0x35, 0x8c, 0x3a, 0x17, 0x10, 0xc9, 0x62, 0x67, 0x90,
-    0x63,
-];
-
-// pub const NULL_TXN: Txn = Txn {
-//     timestamp: 0,
-//     sender_address: String::new(),
-//     sender_public_key:
-// PublicKey::from_slice(NULL_SENDER_PUBLIC_KEY_SLICE).unwrap(),
-//     receiver_address: String::new(),
-//     token: None,
-//     amount: 0,
-//     payload: None,
-//     signature: None,
-//     validators: None,
-//     nonce: 0,
-//     receiver_farmer_id: None,
-// };
 
 impl From<String> for Txn {
     fn from(data: String) -> Self {

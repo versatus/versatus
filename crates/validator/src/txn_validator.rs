@@ -115,13 +115,11 @@ impl TxnValidator {
 
     /// Txn signature validator.
     pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
-        let txn_signature = txn.signature.clone().unwrap_or_default();
-        if !txn_signature.is_empty() {
+        let txn_signature = txn.signature;
+        if !txn_signature.to_string().is_empty() {
             KeyPair::verify_ecdsa_sign(
                 // TODO: revisit this verification
                 format!("{:?}", txn.signature),
-                // String::from_slice(&txn.signature),
-                // txn.signature.clone(),
                 txn.payload().as_bytes(),
                 txn.sender_public_key.to_string().as_bytes().to_vec(),
             )

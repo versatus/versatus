@@ -23,8 +23,11 @@ type WalletResult<Wallet> = Result<Wallet, WalletError>;
 
 #[derive(Error, Debug)]
 pub enum WalletError {
+    #[error("RPC error: {0}")]
+    RpcError(#[from] jsonrpsee::core::Error),
+
     #[error("API error: {0}")]
-    InvalidRpcClient(#[from] vrrb_rpc::ApiError),
+    ApiError(#[from] vrrb_rpc::ApiError),
 
     #[error("custom error")]
     Custom(String),
@@ -148,6 +151,12 @@ impl Wallet {
         }
     }
 
+    pub async fn get_mempool(&self) -> Result<Vec<Txn>, WalletError> {
+        let mempool = self.client.get_full_mempool().await?;
+
+        Ok(mempool)
+    }
+
     pub async fn send_transaction(
         &mut self,
         address_number: u32,
@@ -194,7 +203,7 @@ impl Wallet {
             token,
             amount,
             payload: Some(payload.clone()),
-            signature: signature.to_string().as_bytes().to_vec(),
+            signature,
             validators: Some(HashMap::new()),
             nonce: self.nonce,
         };
