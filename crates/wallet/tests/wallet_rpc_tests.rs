@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 
 use primitives::{PublicKey, SecretKey};
-use secp256k1::Secp256k1;
+use secp256k1::{generate_keypair, Secp256k1};
 use serial_test::serial;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
-use vrrb_core::keypair::Keypair;
+use vrrb_core::{helpers::read_or_generate_keypair_file, keypair::Keypair, txn::Token};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
@@ -56,7 +56,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
             0,
             "0x192abcdef01234567890fedcba09876543210".to_string(),
             10,
-            None,
+            Token::default(),
             timestamp,
         )
         .await
@@ -90,5 +90,7 @@ pub async fn wallet_sends_create_account_request_to_rpc_server() {
 
     let mut wallet = Wallet::new(wallet_config).await.unwrap();
 
-    let (_address, _account) = wallet.create_account().await.unwrap();
+    let (_, public_key) = generate_keypair(&mut rand::thread_rng());
+
+    let (address, account) = wallet.create_account(1, public_key).await.unwrap();
 }

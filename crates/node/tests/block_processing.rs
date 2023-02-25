@@ -15,6 +15,7 @@ use node::{
     RuntimeModuleState,
 };
 use primitives::generate_account_keypair;
+use secp256k1::Message;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::{event_router::Event, txn::NewTxnArgs};
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
@@ -36,11 +37,13 @@ async fn process_full_node_event_flow() {
         .await
         .unwrap();
 
-
     let node_1_handle = tokio::spawn(async move {
         node_1.wait().await.unwrap();
     });
     let (sk, pk) = generate_account_keypair();
+
+    let signature =
+        sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
 
     client
         .create_txn(NewTxnArgs {
@@ -51,7 +54,7 @@ async fn process_full_node_event_flow() {
             token: None,
             amount: 0,
             payload: None,
-            signature: vec![],
+            signature,
             nonce: 0,
             validators: None,
         })

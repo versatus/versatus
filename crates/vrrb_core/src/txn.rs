@@ -54,6 +54,15 @@ pub struct Token {
     pub decimals: u8,
 }
 
+impl FromStr for Token {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let token: Token = serde_json::from_str(s)?;
+        Ok(token)
+    }
+}
+
 impl Default for Token {
     fn default() -> Self {
         Self {
