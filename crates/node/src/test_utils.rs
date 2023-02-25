@@ -11,9 +11,10 @@ use vrrb_core::keypair::Keypair;
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
-    let db_path = data_dir.join("node.db");
-
     let id = Uuid::new_v4().to_string();
+    let path = "node.db";
+    let db_path = data_dir.join(path.clone());
+
     let idx = 100;
 
     let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);

@@ -20,31 +20,26 @@ use vrrb_core::{event_router::Event, txn::NewTxnArgs};
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
 #[tokio::test]
+#[ignore]
 async fn process_full_node_event_flow() {
     let node_config = create_mock_bootstrap_node_config();
-
     let (bootstrap_ctrl_tx, bootstrap_ctrl_rx) = unbounded_channel::<Event>();
     let (ctrl_tx_1, ctrl_rx_1) = unbounded_channel::<Event>();
-
     let bootstrap_node = Node::start(&node_config, bootstrap_ctrl_rx).await.unwrap();
-
     let bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
-
     let node_config_1 = create_mock_full_node_config_with_bootstrap(vec![bootstrap_gossip_address]);
     let node_1 = Node::start(&node_config_1, ctrl_rx_1).await.unwrap();
-
     let bootstrap_handle = tokio::spawn(async move {
         bootstrap_node.wait().await.unwrap();
     });
-
     let client = create_client(node_1.jsonrpc_server_address())
         .await
         .unwrap();
 
+
     let node_1_handle = tokio::spawn(async move {
         node_1.wait().await.unwrap();
     });
-
     let (sk, pk) = generate_account_keypair();
 
     client

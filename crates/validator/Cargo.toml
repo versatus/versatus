@@ -12,6 +12,7 @@ mempool = { workspace = true }
 left-right = "0.11.5"
 lr_trie = { workspace = true }
 patriecia = { workspace = true }
+secp256k1 = { workspace = true }
 sha256 = "1.0.2"
 bytebuffer = "0.2.1"
 blake3 = "0.3.8"

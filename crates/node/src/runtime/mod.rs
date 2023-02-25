@@ -77,6 +77,7 @@ pub async fn setup_runtime_components(
 
     let mempool_handle = Some(mempool_handle);
 
+    println!("Setting up state_store");
     let (state_read_handle, state_handle) = setup_state_store(
         &config,
         events_tx.clone(),

@@ -15,7 +15,7 @@ use vrrb_core::{
     account::Account,
     helpers::{gen_sha256_digest_string, write_keypair_file},
     keypair::KeyPairError,
-    txn::{TransactionDigest, TxToken, Txn},
+    txn::{Token, TransactionDigest, Txn},
 };
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
@@ -162,7 +162,7 @@ impl Wallet {
         address_number: u32,
         receiver: String,
         amount: u128,
-        token: Option<TxToken>,
+        token: Option<Token>,
         timestamp: i64,
     ) -> Result<TransactionDigest, WalletError> {
         let addresses = self.addresses.clone();

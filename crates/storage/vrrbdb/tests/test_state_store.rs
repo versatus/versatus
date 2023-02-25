@@ -22,11 +22,11 @@ fn accounts_can_be_added() {
         event_store_path: None,
     });
 
-    let addr1 = generate_random_address();
-    let addr2 = generate_random_address();
-    let addr3 = generate_random_address();
-    let addr4 = generate_random_address();
-    let addr5 = generate_random_address();
+    let (_, addr1) = generate_random_address();
+    let (_, addr2) = generate_random_address();
+    let (_, addr3) = generate_random_address();
+    let (_, addr4) = generate_random_address();
+    let (_, addr5) = generate_random_address();
 
     db.insert_account(
         addr1,

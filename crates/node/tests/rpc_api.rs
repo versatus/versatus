@@ -1,4 +1,5 @@
 use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
+use serial_test::serial;
 use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
@@ -6,6 +7,7 @@ use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
 #[tokio::test]
+#[serial]
 async fn node_rpc_api_returns_node_type() {
     let mut node_config = create_mock_full_node_config();
     node_config.node_type = NodeType::Bootstrap;

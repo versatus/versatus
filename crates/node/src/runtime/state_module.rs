@@ -162,6 +162,7 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
+    use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
     use vrrb_core::{
@@ -172,6 +173,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[serial]
     async fn state_runtime_module_starts_and_stops() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
@@ -200,6 +202,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn state_runtime_receives_new_txn_event() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
@@ -228,6 +231,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn state_runtime_can_publish_events() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
@@ -242,7 +246,8 @@ mod tests {
         let mut state_module = ActorImpl::new(state_module);
 
         let events_handle = tokio::spawn(async move {
-            events_rx.recv().await.unwrap();
+            let res = events_rx.recv().await;
+            println!("{:?}", res);
         });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);

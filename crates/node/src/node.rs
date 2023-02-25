@@ -72,8 +72,8 @@ impl Node {
     /// Initializes and returns a new Node instance
     pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
         // Copy the original config to avoid overriding the original
-
         let mut config = config.clone();
+
 
         let vm = None;
         let keypair = config.keypair.clone();

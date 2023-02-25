@@ -47,7 +47,22 @@ pub type TxSignature = Vec<u8>;
 pub type TxPayload = String;
 
 // TODO: replace with a generic token struct
-pub type TxToken = String;
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub struct Token {
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
+}
+
+impl Default for Token {
+    fn default() -> Self {
+        Self {
+            name: "VRRB".to_string(),
+            symbol: "VRRB".to_string(),
+            decimals: 18,
+        }
+    }
+}
 
 /// The basic transation structure.
 //TODO: Discuss the pieces of the Transaction structure that should stay and go
@@ -60,7 +75,7 @@ pub struct Txn {
     pub sender_address: String,
     pub sender_public_key: PublicKey,
     pub receiver_address: String,
-    token: Option<TxToken>,
+    token: Token,
     amount: TxAmount,
     pub payload: Option<TxPayload>,
     pub signature: Signature,
@@ -75,7 +90,7 @@ pub struct NewTxnArgs {
     pub sender_address: String,
     pub sender_public_key: PublicKey,
     pub receiver_address: String,
-    pub token: Option<TxToken>,
+    pub token: Option<Token>,
     pub amount: TxAmount,
     pub payload: Option<TxPayload>,
     pub signature: Signature,
@@ -91,13 +106,15 @@ impl Default for Txn {
 
 impl Txn {
     pub fn new(args: NewTxnArgs) -> Self {
+        let token = args.token.clone().unwrap_or_default();
+
         Self {
             // TODO: change time unit from seconds to millis
             timestamp: args.timestamp,
             sender_address: args.sender_address,
             sender_public_key: args.sender_public_key,
             receiver_address: args.receiver_address,
-            token: args.token,
+            token,
             amount: args.amount,
             payload: args.payload,
             signature: args.signature,
@@ -166,12 +183,12 @@ impl Txn {
         self.amount()
     }
 
-    pub fn token(&self) -> Option<TxToken> {
+    pub fn token(&self) -> Token {
         self.token.clone()
     }
 
-    pub fn set_token(&mut self, token: TxToken) {
-        self.token = Some(token);
+    pub fn set_token(&mut self, token: Token) {
+        self.token = token;
     }
 
     pub fn set_amount(&mut self, amount: u128) {
@@ -253,7 +270,7 @@ pub fn null_txn() -> Txn {
         // sender_public_key: PublicKey::from_slice(NULL_SENDER_PUBLIC_KEY_SLICE).unwrap(),
         sender_public_key,
         receiver_address: String::new(),
-        token: None,
+        token: Token::default(),
         amount: 0,
         payload: None,
         signature,
