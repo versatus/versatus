@@ -651,7 +651,7 @@ pub(crate) mod test_helpers {
         claim::Claim,
         helpers::size_of_txn_list,
         keypair::KeyPair,
-        txn::{NewTxnArgs, Txn},
+        txn::{NewTxnArgs, Token, Txn},
     };
 
     use crate::{MineArgs, Miner, MinerConfig};
@@ -708,7 +708,7 @@ pub(crate) mod test_helpers {
                 let saddr = create_address(&pk);
                 let amount = (n.pow(2)) as u128;
                 let nonce = 1u128;
-                let token = Some("VRRB".to_string());
+                let token = None;
 
                 let txn_args = NewTxnArgs {
                     timestamp: 0,
@@ -718,7 +718,9 @@ pub(crate) mod test_helpers {
                     token,
                     amount,
                     payload: None,
-                    signature: sk.sign_ecdsa(Message::from_hashed_data::<sha256::Hash>(b"vrrb")),
+                    signature: sk.sign_ecdsa(Message::from_hashed_data::<
+                        secp256k1::hashes::sha256::Hash,
+                    >(b"vrrb")),
                     validators: None,
                     nonce: n.clone() as u128,
                 };

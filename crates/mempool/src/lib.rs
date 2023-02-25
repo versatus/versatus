@@ -13,13 +13,26 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
+    use primitives::Signature;
     use rand::{thread_rng, Rng};
+    use secp256k1::ecdsa;
     use vrrb_core::{
         keypair::KeyPair,
         txn::{NewTxnArgs, Txn},
     };
 
     use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
+
+    fn mock_txn_signature() -> Signature {
+        ecdsa::Signature::from_compact(&[
+            0xdc, 0x4d, 0xc2, 0x64, 0xa9, 0xfe, 0xf1, 0x7a, 0x3f, 0x25, 0x34, 0x49, 0xcf, 0x8c,
+            0x39, 0x7a, 0xb6, 0xf1, 0x6f, 0xb3, 0xd6, 0x3d, 0x86, 0x94, 0x0b, 0x55, 0x86, 0x82,
+            0x3d, 0xfd, 0x02, 0xae, 0x3b, 0x46, 0x1b, 0xb4, 0x33, 0x6b, 0x5e, 0xcb, 0xae, 0xfd,
+            0x66, 0x27, 0xaa, 0x92, 0x2e, 0xfc, 0x04, 0x8f, 0xec, 0x0c, 0x88, 0x1c, 0x10, 0xc4,
+            0xc9, 0x42, 0x8f, 0xca, 0x69, 0xc1, 0x32, 0xa2,
+        ])
+        .unwrap()
+    }
 
     #[test]
     fn creates_new_lrmempooldb() {
@@ -41,7 +54,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -72,7 +85,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -112,7 +125,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let txn2 = Txn::new(NewTxnArgs {
@@ -125,7 +138,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -169,7 +182,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let txn_id = txn.digest();
@@ -235,7 +248,7 @@ mod tests {
                 payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: vec![],
+                signature: mock_txn_signature(),
             });
 
             txns.insert(txn);
@@ -292,7 +305,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let txn2 = Txn::new(NewTxnArgs {
@@ -305,7 +318,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let txn2_id = txn2.digest();
@@ -358,7 +371,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let txn2 = Txn::new(NewTxnArgs {
@@ -371,7 +384,7 @@ mod tests {
             payload: Some(String::from("x")),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-            signature: vec![],
+            signature: mock_txn_signature(),
         });
 
         let mut mpooldb = LeftRightMempool::new();
@@ -430,7 +443,7 @@ mod tests {
                 payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: vec![],
+                signature: mock_txn_signature(),
             });
 
             txns.insert(txn);
@@ -482,7 +495,7 @@ mod tests {
                 payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: vec![],
+                signature: mock_txn_signature(),
             });
 
             txns.insert(txn);
