@@ -133,11 +133,11 @@ mod tests {
     };
 
     use primitives::NodeType;
+    use serial_test::serial;
     use theater::ActorImpl;
     use tracing::log::kv::Source;
     use udp2p::protocol::protocol::Peer;
     use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
-    use serial_test::serial;
 
     use super::*;
 

@@ -1,10 +1,10 @@
 use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
+use serial_test::serial;
 use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
-use serial_test::serial;
 
 #[tokio::test]
 #[serial]

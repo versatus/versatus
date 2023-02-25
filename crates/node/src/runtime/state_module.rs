@@ -162,13 +162,14 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
+    use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
     use vrrb_core::{
         event_router::{DirectedEvent, Event},
         txn::null_txn,
     };
-    use serial_test::serial;
+
     use super::*;
 
     #[tokio::test]

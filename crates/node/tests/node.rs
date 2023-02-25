@@ -5,11 +5,11 @@ use std::{
 
 use node::{test_utils::create_mock_bootstrap_node_config, Node, NodeType, RuntimeModuleState};
 use poem::http::status;
+use serial_test::serial;
 use tokio::sync::mpsc::unbounded_channel;
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
 use vrrb_core::{event_router::Event, keypair::Keypair};
-use serial_test::serial;
 
 #[tokio::test]
 #[serial]

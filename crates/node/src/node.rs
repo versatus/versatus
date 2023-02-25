@@ -74,7 +74,7 @@ impl Node {
         // Copy the original config to avoid overriding the original
         let mut config = config.clone();
 
-        
+
         let vm = None;
         let keypair = config.keypair.clone();
 
@@ -88,7 +88,7 @@ impl Node {
         let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
-        
+
         let (
             updated_config,
             mempool_handle,

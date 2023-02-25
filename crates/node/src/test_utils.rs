@@ -24,7 +24,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
     let main_bootstrap_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 10)), 0);
     let bootstrap_node_addresses = vec![main_bootstrap_addr];
-    
+
     NodeConfigBuilder::default()
         .id(id)
         .idx(idx)
