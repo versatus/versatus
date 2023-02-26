@@ -177,7 +177,6 @@ impl Wallet {
             receiver_address: receiver,
             token: Some(token),
             amount,
-            payload: Some(payload.clone()),
             signature,
             validators: Some(HashMap::new()),
             nonce: self.nonce,

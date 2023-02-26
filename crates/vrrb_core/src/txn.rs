@@ -86,7 +86,6 @@ pub struct Txn {
     pub receiver_address: String,
     token: Token,
     amount: TxAmount,
-    pub payload: Option<TxPayload>,
     pub signature: Signature,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
@@ -101,7 +100,6 @@ pub struct NewTxnArgs {
     pub receiver_address: String,
     pub token: Option<Token>,
     pub amount: TxAmount,
-    pub payload: Option<TxPayload>,
     pub signature: Signature,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
@@ -125,7 +123,6 @@ impl Txn {
             receiver_address: args.receiver_address,
             token,
             amount: args.amount,
-            payload: args.payload,
             signature: args.signature,
             validators: args.validators,
             nonce: args.nonce,
@@ -208,21 +205,15 @@ impl Txn {
         self.validators.clone().unwrap_or_default()
     }
 
-    pub fn payload(&self) -> String {
-        self.payload.clone().unwrap_or_default()
-    }
-
-    pub fn build_payload(&mut self) {
-        let payload = hash_data!(
+    pub fn build_payload(&self) -> String {
+        hash_data!(
             self.sender_address.clone(),
             self.sender_public_key.clone(),
             self.receiver_address.clone(),
             self.token.clone(),
             self.amount.clone(),
             self.nonce.clone()
-        );
-
-        self.payload = Some(payload);
+        )
     }
 
     fn from_byte_slice(data: ByteSlice) -> Self {
@@ -247,7 +238,8 @@ impl Txn {
     }
 
     pub fn sign(&mut self, sk: &SecretKey) {
-        if let Some(payload) = self.payload.clone() {
+        // TODO: refactor signing out the txn structure definition
+        if let payload = self.build_payload() {
             let message = Message::from_slice(payload.as_bytes());
             match message {
                 Ok(msg) => {
@@ -281,7 +273,6 @@ pub fn null_txn() -> Txn {
         receiver_address: String::new(),
         token: Token::default(),
         amount: 0,
-        payload: None,
         signature,
         validators: None,
         nonce: 0,
@@ -359,7 +350,6 @@ impl Hash for Txn {
         self.receiver_address.hash(state);
         self.token.hash(state);
         self.amount.hash(state);
-        self.payload.hash(state);
         self.signature.hash(state);
         self.nonce.hash(state);
     }

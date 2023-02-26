@@ -120,7 +120,7 @@ impl TxnValidator {
             KeyPair::verify_ecdsa_sign(
                 // TODO: revisit this verification
                 format!("{:?}", txn.signature),
-                txn.payload().as_bytes(),
+                txn.build_payload().as_bytes(),
                 txn.sender_public_key.to_string().as_bytes().to_vec(),
             )
             .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
