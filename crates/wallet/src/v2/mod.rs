@@ -114,32 +114,7 @@ impl Wallet {
             nonce: 0,
         };
 
-        // let res = wallet.create_account(0).await;
-        // debug!("{:?}", res);
-        //
-        // if let Ok((address, account)) = res {
-        //     debug!("{:?}", address);
-        //     debug!("{:?}", account);
-        //
-        //     wallet.addresses.insert(0, address.clone());
-        //     wallet.accounts.insert(address.clone(), account);
-        //
-        //     debug!("{:?}", wallet.addresses);
-        //     debug!("{:?}", wallet.accounts);
-        //
-        //     let welcome_message = format!(
-        //         "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
-        //         "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key,
-        // &address,     );
-        //
-        //     wallet.welcome_message = welcome_message;
-        // }
-
         Ok(wallet)
-    }
-
-    pub async fn sync_account(&self) {
-        //
     }
 
     pub fn info(&self) -> WalletInfo {
