@@ -1,5 +1,6 @@
-use primitives::Address;
+use primitives::{Address, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use secp256k1::{Message, Secp256k1};
 use vrrb_core::{
     keypair::Keypair,
     txn::{NewTxnArgs, Txn},
@@ -15,12 +16,22 @@ pub fn generate_random_string() -> String {
         .collect()
 }
 
-pub fn generate_random_address() -> Address {
+pub fn generate_random_address() -> (SecretKey, Address) {
     let kp = Keypair::random();
-    Address::new(kp.miner_kp.1)
+    (kp.miner_kp.0, Address::new(kp.miner_kp.1))
 }
 
-pub fn generate_random_transaction(from: Address, to: Address) -> Txn {
+pub fn generate_random_transaction(
+    secret_key: primitives::SecretKey,
+    from: Address,
+    to: Address,
+) -> Txn {
+    type H = secp256k1::hashes::sha256::Hash;
+
+    let secp = Secp256k1::new();
+    let message = Message::from_hashed_data::<H>(b"vrrb");
+    let signature = secp.sign_ecdsa(&message, &secret_key);
+
     Txn::new(NewTxnArgs {
         timestamp: 0,
         sender_address: from.to_string(),
@@ -28,16 +39,21 @@ pub fn generate_random_transaction(from: Address, to: Address) -> Txn {
         receiver_address: to.to_string(),
         token: None,
         amount: 100,
-        payload: None,
-        signature: vec![],
+        signature,
         validators: None,
         nonce: 10,
     })
 }
 
 pub fn generate_random_valid_transaction() -> Txn {
-    let from = generate_random_address();
-    let to = generate_random_address();
+    let (sender_secret_key, from) = generate_random_address();
+    let (receiver_secret_key, to) = generate_random_address();
+
+    type H = secp256k1::hashes::sha256::Hash;
+
+    let secp = Secp256k1::new();
+    let message = Message::from_hashed_data::<H>(b"vrrb");
+    let signature = secp.sign_ecdsa(&message, &sender_secret_key);
 
     Txn::new(NewTxnArgs {
         timestamp: 0,
@@ -46,8 +62,7 @@ pub fn generate_random_valid_transaction() -> Txn {
         receiver_address: to.to_string(),
         token: None,
         amount: 100,
-        payload: None,
-        signature: vec![],
+        signature,
         validators: None,
         nonce: 10,
     })

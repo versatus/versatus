@@ -77,6 +77,7 @@ pub async fn setup_runtime_components(
 
     let mempool_handle = Some(mempool_handle);
 
+    println!("Setting up state_store");
     let (state_read_handle, state_handle) = setup_state_store(
         &config,
         events_tx.clone(),
@@ -142,7 +143,6 @@ fn setup_event_routing_system() -> EventRouter {
     let mut event_router = EventRouter::new();
     event_router.add_topic(Topic::Control, Some(1));
     event_router.add_topic(Topic::State, Some(1));
-    event_router.add_topic(Topic::Transactions, Some(100));
     event_router.add_topic(Topic::Network, Some(100));
     event_router.add_topic(Topic::Storage, Some(100));
     event_router.add_topic(Topic::Consensus, Some(100));
@@ -211,12 +211,7 @@ async fn setup_state_store(
     mut state_events_rx: Receiver<Event>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
-    let database_path = config.db_path();
-
-    storage_utils::create_dir(database_path).map_err(|err| NodeError::Other(err.to_string()))?;
-
     let vrrbdb_config = VrrbDbConfig::default();
-
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
     let vrrbdb_read_handle = db.read_handle();
 

@@ -218,7 +218,6 @@ impl From<Event> for Vec<u8> {
 /// Contains all the potential topics.
 pub enum Topic {
     Control,
-    Transactions,
     State,
     Network,
     Storage,

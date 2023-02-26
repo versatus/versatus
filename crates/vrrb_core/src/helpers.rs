@@ -71,13 +71,10 @@ pub fn read_or_generate_keypair_file<F: AsRef<Path>>(
         },
     };
 
-    write_keypair_file(&path, &keypair)
-        .map_err(|err| crate::Error::Other(format!("failed to write keypair file: {err}")))?;
-
     Ok(keypair)
 }
 
-fn write_keypair_file<F: AsRef<Path>>(
+pub fn write_keypair_file<F: AsRef<Path>>(
     path: F,
     keypair: &(SecretKey, PublicKey),
 ) -> crate::Result<()> {

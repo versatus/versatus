@@ -7,14 +7,15 @@ use std::{
 use jsonrpsee::core::client::Client;
 use primitives::Address;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use telemetry::{debug, error};
 use thiserror::Error;
 use vrrb_core::{
     account::Account,
-    helpers::gen_sha256_digest_string,
+    helpers::{gen_sha256_digest_string, write_keypair_file},
     keypair::KeyPairError,
-    txn::{TransactionDigest, TxToken, Txn},
+    txn::{Token, TransactionDigest, Txn},
 };
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
@@ -22,12 +23,17 @@ type WalletResult<Wallet> = Result<Wallet, WalletError>;
 
 #[derive(Error, Debug)]
 pub enum WalletError {
+    #[error("RPC error: {0}")]
+    RpcError(#[from] jsonrpsee::core::Error),
+
     #[error("API error: {0}")]
-    InvalidRpcClient(#[from] vrrb_rpc::ApiError),
+    ApiError(#[from] vrrb_rpc::ApiError),
 
     #[error("custom error")]
     Custom(String),
 }
+
+pub type AddressAlias = u32;
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -35,7 +41,7 @@ pub struct Wallet {
     welcome_message: String,
     client: Client,
     pub public_key: PublicKey,
-    pub addresses: HashMap<u32, Address>,
+    pub addresses: HashMap<AddressAlias, Address>,
     pub accounts: HashMap<Address, Account>,
     pub nonce: u128,
 }
@@ -45,6 +51,16 @@ pub struct WalletConfig {
     pub rpc_server_address: SocketAddr,
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
+    pub accounts: HashMap<Address, Account>,
+    pub addresses: HashMap<AddressAlias, Address>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WalletInfo {
+    pub secret_key: SecretKey,
+    pub public_key: String,
+    pub addresses: HashMap<u32, Address>,
+    pub nonce: u128,
 }
 
 impl Default for WalletConfig {
@@ -55,11 +71,15 @@ impl Default for WalletConfig {
         let secret_key = SecretKey::from_slice(&[0xcd; 32]).unwrap();
         let public_key = PublicKey::from_secret_key(&secp, &secret_key);
         let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
+        let accounts = HashMap::new();
+        let addresses = HashMap::new();
 
         Self {
             rpc_server_address,
             secret_key,
             public_key,
+            accounts,
+            addresses,
         }
     }
 }
@@ -73,8 +93,8 @@ impl Wallet {
         let secret_key = config.secret_key;
         let public_key = config.public_key;
 
-        let addresses = HashMap::new();
-        let accounts = HashMap::new();
+        let addresses = config.addresses;
+        let accounts = config.accounts;
 
         //TODO: get rpc server address from config file or env variable
         let client = create_client(config.rpc_server_address).await?;
@@ -94,36 +114,22 @@ impl Wallet {
             nonce: 0,
         };
 
-        let res = wallet.create_account().await;
-        debug!("{:?}", res);
-
-        if let Ok((address, account)) = res {
-            debug!("{:?}", address);
-            debug!("{:?}", account);
-
-            wallet.addresses.insert(0, address.clone());
-            wallet.accounts.insert(address.clone(), account);
-
-            debug!("{:?}", wallet.addresses);
-            debug!("{:?}", wallet.accounts);
-
-            let welcome_message = format!(
-                "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
-                "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key, &address,
-            );
-
-            wallet.welcome_message = welcome_message;
-        }
-
         Ok(wallet)
     }
 
-    pub async fn sync_account(&self) {
-        //
+    pub fn info(&self) -> WalletInfo {
+        WalletInfo {
+            secret_key: self.secret_key,
+            public_key: self.public_key.to_string(),
+            addresses: self.addresses.clone(),
+            nonce: self.nonce,
+        }
     }
 
-    pub fn info(&self) {
-        //
+    pub async fn get_mempool(&self) -> Result<Vec<Txn>, WalletError> {
+        let mempool = self.client.get_full_mempool().await?;
+
+        Ok(mempool)
     }
 
     pub async fn send_transaction(
@@ -131,7 +137,7 @@ impl Wallet {
         address_number: u32,
         receiver: String,
         amount: u128,
-        token: Option<TxToken>,
+        token: Token,
         timestamp: i64,
     ) -> Result<TransactionDigest, WalletError> {
         let addresses = self.addresses.clone();
@@ -169,10 +175,9 @@ impl Wallet {
             sender_address: sender_address.to_string(),
             sender_public_key: self.public_key,
             receiver_address: receiver,
-            token,
+            token: Some(token),
             amount,
-            payload: Some(payload.clone()),
-            signature: signature.to_string().as_bytes().to_vec(),
+            signature,
             validators: Some(HashMap::new()),
             nonce: self.nonce,
         };
@@ -291,20 +296,26 @@ impl Wallet {
             .insert(largest_address_index as u32, new_address);
     }
 
-    pub fn get_wallet_addresses(&self) -> HashMap<u32, Address> {
+    pub fn get_wallet_addresses(&self) -> HashMap<AddressAlias, Address> {
         self.addresses.clone()
     }
 
-    pub async fn create_account(&mut self) -> Result<(Address, Account), WalletError> {
-        let pk = self.public_key;
-        let account = Account::new(pk);
-        let address = Address::new(pk);
+    pub async fn create_account(
+        &mut self,
+        alias: AddressAlias,
+        public_key: PublicKey,
+    ) -> Result<(Address, Account), WalletError> {
+        let account = Account::new(public_key);
+        let address = Address::new(public_key);
 
         let result = self
             .client
             .create_account(address.clone(), account.clone())
             .await
             .map_err(|err| WalletError::Custom(err.to_string()))?;
+
+        self.addresses.insert(alias, address.clone());
+        self.accounts.insert(address.clone(), account.clone());
 
         Ok((address, account))
     }

@@ -21,7 +21,10 @@ use vrrb_core::{
 
 use crate::result::{CliError, Result};
 
-const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &'static str = "127.0.0.1:0";
+const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
+const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
+const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
+const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 
 #[derive(clap::Parser, Debug, Clone, Deserialize)]
 pub struct RunOpts {
@@ -49,16 +52,16 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = DEFAULT_VRRB_DB_PATH)]
     pub db_path: PathBuf,
 
-    #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
+    #[clap(long, value_parser, default_value = DEFAULT_UDP_GOSSIP_ADDRESS)]
     pub udp_gossip_address: SocketAddr,
 
-    #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
+    #[clap(long, value_parser, default_value = DEFAULT_RAPTORQ_GOSSIP_ADDRESS)]
     pub raptorq_gossip_address: SocketAddr,
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub http_api_address: SocketAddr,
 
-    #[clap(long, value_parser, default_value = "127.0.0.1:9293")]
+    #[clap(long, value_parser, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub jsonrpc_api_address: SocketAddr,
 
     #[clap(long, default_value = "false")]
@@ -157,11 +160,11 @@ impl RunOpts {
 
         let s = Config::builder()
             .set_default("id", Uuid::new_v4().to_string())?
-            .set_default("data_dir", ".vrrb")?
-            .set_default("db_path", ".vrrb/node/db")?
+            .set_default("data_dir", DEFAULT_VRRB_DATA_DIR_PATH)?
+            .set_default("db_path", DEFAULT_VRRB_DB_PATH)?
             .set_default("node_type", "full")?
-            .set_default("jsonrpc_api_address", "127.0.0.1:0")?
-            .set_default("http_api_address", "127.0.0.1:0")?
+            .set_default("jsonrpc_api_address", DEFAULT_JSONRPC_ADDRESS)?
+            .set_default("http_api_address", DEFAULT_OS_ASSIGNED_PORT_ADDRESS)?
             .set_default("http_api_title", "Node API")?
             .set_default("http_api_version", "1.0.1")?
             .set_default("bootstrap_node_addresses", default_bootstrap_addresses)?

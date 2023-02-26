@@ -249,7 +249,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                 if let Some(txns) = self.quorum_certified_txns.borrow() {
                     txns.iter().take(num_of_txns).for_each(|txn| {
                         self.broadcast_events_tx
-                            .send((Topic::Transactions, Event::QuorumCertifiedTxns(txn.clone())))
+                            .send((Topic::Storage, Event::QuorumCertifiedTxns(txn.clone())))
                             .expect("Failed to send Quorum Certified Txns");
                     });
                 }
@@ -371,6 +371,11 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
+            let sig = keypair
+                .miner_kp
+                .0
+                .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+
             let mut txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
                 sender_address: String::from("aaa1"),
@@ -378,23 +383,10 @@ mod tests {
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,
-                payload: Some(String::from("x")),
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
-                signature: vec![],
+                signature: sig,
             });
-            let bytes = bincode::serialize(&txn).unwrap();
-            let sig = hex::decode(
-                keypair
-                    .miner_kp
-                    .0
-                    .sign_ecdsa(
-                        Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(&bytes),
-                    )
-                    .to_string(),
-            )
-            .unwrap();
-            txn.signature = Some(sig);
             txns.insert(txn);
         }
         if let Some(tx_mempool) = farmer_harvester_swarm_module.tx_mempool.borrow_mut() {
@@ -478,6 +470,11 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 0..1 {
+            let sig = keypair
+                .miner_kp
+                .0
+                .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+
             let mut txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
                 sender_address: String::from("aaa1"),
@@ -485,23 +482,11 @@ mod tests {
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,
-                payload: Some(String::from("x")),
-                signature: vec![],
+                signature: sig,
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
             });
-            let bytes = bincode::serialize(&txn).unwrap();
-            let sig = hex::decode(
-                keypair
-                    .miner_kp
-                    .0
-                    .sign_ecdsa(
-                        Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(&bytes),
-                    )
-                    .to_string(),
-            )
-            .unwrap();
-            txn.signature = Some(sig);
+
             txns.insert(txn);
         }
 
@@ -558,7 +543,7 @@ mod tests {
         let _ = broadcast_rxs.get_mut(0).unwrap().recv().await;
         let event = broadcast_rxs.get_mut(0).unwrap().recv().await;
         if let Some(event) = event {
-            if let Topic::Transactions = event.0 {
+            if let Topic::Storage = event.0 {
                 is_enum_variant!(event.1, Event::QuorumCertifiedTxns { .. });
             }
         }

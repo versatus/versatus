@@ -180,11 +180,6 @@ impl LeftRightMempool {
         MempoolReadHandleFactory { factory }
     }
 
-    /// Returns a new ReadHandleFactory, to simplify multithread access.
-    // pub fn factory(&self) -> ReadHandleFactory<Mempool> {
-    //     self.read.factory()
-    // }
-
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]

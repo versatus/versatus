@@ -1,12 +1,30 @@
 use patriecia::db::Database;
-use primitives::DEFAULT_VRRB_DATA_DIR_PATH;
+use primitives::{base, get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
-use storage_utils::StorageError;
+use storage_utils::{get_node_data_dir, StorageError};
 
 #[derive(Debug)]
 pub struct RocksDbAdapter {
     db: DB,
     column: String,
+}
+
+fn base_db_options() -> rocksdb::Options {
+    let mut options = rocksdb::Options::default();
+
+    let environ = get_vrrb_environment();
+
+    if matches!(environ, Environment::Local) {
+        options.set_keep_log_file_num(3);
+    }
+
+    let node_data_dir = get_node_data_dir().unwrap_or_default();
+
+    let log_path = node_data_dir.join("db").join("log");
+
+    options.set_db_log_dir(log_path);
+
+    options
 }
 
 fn new_db_instance(
@@ -21,7 +39,8 @@ fn new_db_instance(
         .map_err(|err| StorageError::Other(err.to_string()))?;
 
     if !column_family_exists {
-        let options = rocksdb::Options::default();
+        let options = base_db_options();
+
         instance
             .create_cf(column_family, &options)
             .map_err(|err| StorageError::Other(err.to_string()))?;
@@ -32,7 +51,7 @@ fn new_db_instance(
 
 impl RocksDbAdapter {
     pub fn new(path: std::path::PathBuf, column_family: &str) -> storage_utils::Result<Self> {
-        let mut options = rocksdb::Options::default();
+        let mut options = base_db_options();
         options.set_error_if_exists(false);
         options.create_if_missing(true);
         options.create_missing_column_families(true);
@@ -50,16 +69,10 @@ impl RocksDbAdapter {
 // TODO: handle these unwrap
 impl Clone for RocksDbAdapter {
     fn clone(&self) -> Self {
-        let mut options = rocksdb::Options::default();
+        let mut options = base_db_options();
         options.set_error_if_exists(false);
 
-        let db = new_db_instance(
-            //
-            options,
-            self.db.path().into(),
-            self.column.as_str(),
-        )
-        .unwrap();
+        let db = new_db_instance(options, self.db.path().into(), self.column.as_str()).unwrap();
 
         Self {
             db,
@@ -70,14 +83,14 @@ impl Clone for RocksDbAdapter {
 
 impl Default for RocksDbAdapter {
     fn default() -> Self {
-        let mut options = rocksdb::Options::default();
+        let mut options = base_db_options();
         options.set_error_if_exists(false);
         options.create_if_missing(true);
         options.create_missing_column_families(true);
 
         let db = new_db_instance(
             options,
-            DEFAULT_VRRB_DATA_DIR_PATH.into(),
+            DEFAULT_VRRB_DB_PATH.into(),
             DEFAULT_COLUMN_FAMILY_NAME,
         )
         .unwrap();

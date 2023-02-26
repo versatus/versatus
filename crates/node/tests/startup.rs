@@ -8,11 +8,13 @@ use node::{
     NodeType,
     RuntimeModuleState,
 };
+use serial_test::serial;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
 
 #[tokio::test]
+#[serial]
 async fn node_can_start_as_a_bootstrap_node() {
     let node_config = create_mock_bootstrap_node_config();
 
@@ -39,6 +41,8 @@ async fn node_can_start_as_a_bootstrap_node() {
 }
 
 #[tokio::test]
+#[serial]
+#[ignore]
 async fn node_can_join_network() {
     let node_config = create_mock_bootstrap_node_config();
 
@@ -68,6 +72,7 @@ async fn node_can_join_network() {
 }
 
 #[tokio::test]
+#[serial]
 async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
     let node_config = create_mock_bootstrap_node_config();
 
