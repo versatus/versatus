@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use primitives::{PublicKey, SecretKey};
-use secp256k1::{generate_keypair, Secp256k1};
+use secp256k1::{generate_keypair, Message, Secp256k1};
 use serial_test::serial;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use vrrb_core::{helpers::read_or_generate_keypair_file, keypair::Keypair, txn::Token};
@@ -49,6 +49,14 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     let mut wallet = Wallet::new(wallet_config).await.unwrap();
 
+    type H = secp256k1::hashes::sha256::Hash;
+
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
+    wallet.create_account(0, public_key).await.unwrap();
+
     let timestamp = 0;
 
     let txn_digest = wallet
@@ -64,7 +72,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     assert_eq!(
         &txn_digest.to_string(),
-        "98230724e2ba42c6df2fcb14e61175415875be70270d5034b53392a2f58fbd8b"
+        "29c137a39df84a4b049a68c1fabf85dc641f4a69f9a6aea469a1c329fa187214"
     );
 }
 

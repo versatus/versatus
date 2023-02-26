@@ -44,7 +44,6 @@ mod tests {
             receiver_address: random_string(rng),
             token: None,
             amount: 0,
-            payload: Some(random_string(rng)),
             signature: mock_txn_signature(),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,

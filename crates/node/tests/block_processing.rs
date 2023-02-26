@@ -53,7 +53,6 @@ async fn process_full_node_event_flow() {
             receiver_address: String::from("mock receiver_address"),
             token: None,
             amount: 0,
-            payload: None,
             signature,
             nonce: 0,
             validators: None,

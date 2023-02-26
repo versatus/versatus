@@ -717,7 +717,6 @@ pub(crate) mod test_helpers {
                     receiver_address: raddr,
                     token,
                     amount,
-                    payload: None,
                     signature: sk.sign_ecdsa(Message::from_hashed_data::<
                         secp256k1::hashes::sha256::Hash,
                     >(b"vrrb")),
