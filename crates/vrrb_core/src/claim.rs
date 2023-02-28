@@ -25,6 +25,7 @@ pub struct Claim {
     pub hash: String,
     pub nonce: u128,
     pub eligible: bool,
+    pub credit_score: u128,
 }
 
 impl Claim {
@@ -52,6 +53,7 @@ impl Claim {
             hash,
             nonce: claim_nonce,
             eligible: true,
+            credit_score: 0
         }
     }
 

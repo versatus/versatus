@@ -203,4 +203,16 @@ impl Quorum {
 
         Ok(self)
     }
+
+    pub fn change_pre_trusted_peer(claims: Vec<Claim>) -> Vec<Claim>{
+        //matrix of scores dealt with in score updating
+        //5% of quorum nodes (or 1) are in the trusted group
+        
+
+        claims.sort();
+
+        num_trusted_peers = floor((claims.len())*0.05, 2);
+
+        return claims.split_off(num_trusted_peers);
+    }
 }
