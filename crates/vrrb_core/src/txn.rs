@@ -228,7 +228,7 @@ impl Txn {
                     let sig = sk.sign_ecdsa(msg);
                     self.signature = Some(sig.to_string().as_bytes().to_vec());
                 },
-                _ => { /*TODO return Result<(), SignatureError>*/ },
+                Err(message) => { /*TODO return Result<(), SignatureError>*/ },
             }
         } else {
             self.build_payload();

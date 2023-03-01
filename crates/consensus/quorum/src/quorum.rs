@@ -5,6 +5,7 @@ use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::election::Election;
+use crate::credit_model::CreditModel;
 
 ///Error type for Quorum
 #[derive(Error, Debug)]
@@ -33,6 +34,7 @@ pub struct Quorum {
     pub election_block_height: u128,
     pub election_timestamp: u128,
     pub keypair: KeyPair,
+    pub credit_model: CreditModel,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -138,6 +140,7 @@ impl Quorum {
                 election_block_height: height,
                 election_timestamp: timestamp,
                 keypair: kp,
+                credit_model: CreditModel::new(),
             })
         }
     }
@@ -204,15 +207,12 @@ impl Quorum {
         Ok(self)
     }
 
-    pub fn change_pre_trusted_peer(claims: Vec<Claim>) -> Vec<Claim>{
-        //matrix of scores dealt with in score updating
-        //5% of quorum nodes (or 1) are in the trusted group
-        
+    pub fn get_trusted_peers(&mut self, claims: Vec<Claim>) -> Self {
+        //get the weighted value hashmap
+        //calcualte all the t values
 
-        claims.sort();
+        todo!();
 
-        num_trusted_peers = floor((claims.len())*0.05, 2);
-
-        return claims.split_off(num_trusted_peers);
     }
+    
 }
