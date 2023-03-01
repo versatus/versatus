@@ -1,6 +1,6 @@
+pub mod credit_model;
 pub mod election;
 pub mod quorum;
-pub mod credit_model;
 
 #[cfg(test)]
 mod tests {

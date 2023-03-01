@@ -4,8 +4,7 @@ use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::election::Election;
-use crate::credit_model::CreditModel;
+use crate::{credit_model::CreditModel, election::Election};
 
 ///Error type for Quorum
 #[derive(Error, Debug)]
@@ -212,7 +211,5 @@ impl Quorum {
         //calcualte all the t values
 
         todo!();
-
     }
-    
 }

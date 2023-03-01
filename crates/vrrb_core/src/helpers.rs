@@ -41,7 +41,7 @@ macro_rules! is_enum_variant {
 pub fn size_of_txn_list(txns: &LinkedHashMap<String, Txn>) -> usize {
     txns.iter()
         .map(|(_, set)| set)
-        .map(|txn|std::mem::size_of_val(txn))
+        .map(|txn| std::mem::size_of_val(txn))
         .sum()
 }
 

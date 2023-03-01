@@ -8,14 +8,18 @@ use sha256::digest;
 use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct CreditScores{ //should live in Claim
+pub struct CreditScores {
+    //should live in Claim
     pub id: String,
-    pub peer_score: Vec<u128> //not normalized; get normalized in election logic
+    pub peer_score: Vec<u128>, //not normalized; get normalized in election logic
 }
 
-impl CreditScores{
+impl CreditScores {
     pub fn new(pk: String) -> Self {
-        return CreditScores{ id: pk, peer_score: Vec::new() }
+        CreditScores {
+            id: pk,
+            peer_score: Vec::new(),
+        }
     }
 }
 /// A custom error type for invalid claims that are used/attempted to be used
@@ -64,7 +68,7 @@ impl Claim {
             hash,
             nonce: claim_nonce,
             eligible: true,
-            credit_score: CreditScores::new(public_key.clone()),
+            credit_score: CreditScores::new(public_key),
         }
     }
 
