@@ -3,6 +3,9 @@ FROM rust:latest AS builder
 
 RUN update-ca-certificates
 
+RUN apt update
+RUN apt -y install make clang pkg-config libssl-dev llvm
+
 WORKDIR /vrrb
 
 COPY ./ .
@@ -18,4 +21,4 @@ ENV RUST_BACKTRACE 1
 
 COPY --from=builder /vrrb/target/release/vrrb ./
 
-CMD ["vrrb", "node", "run"]
+CMD ["/vrrb/vrrb", "node", "run"]

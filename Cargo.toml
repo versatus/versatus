@@ -8,7 +8,7 @@ readme = "README.md"
 
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = "thin"
 
 [[bin]]
 name = "vrrb"
@@ -188,6 +188,8 @@ tracing-subscriber = { version = "0.3.15", features = [
     "tracing-log",
     "json",
 ] }
+prometheus = { version = "0.13.3", features = ["process"] }
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

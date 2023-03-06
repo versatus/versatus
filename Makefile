@@ -29,9 +29,9 @@ help:
 	$(Q)echo "make dev               - Alias for 'make watch'"
 	$(Q)echo "make watch             - Runs main executable in hot-reloading mode for development"
 	$(Q)echo "make clean             - Deletes binaries and documentation."
-	$(Q)echo "make docker-build      - Builds a Docker container for the Node runtime."
-	$(Q)echo "make docker-run        - Builds and runs a Docker container for the Node runtime."
-	$(Q)echo "make docker-run-d      - Builds and runs a Docker container for the Node runtime in dettached mode."
+	$(Q)echo "make ci-build   		 - Builds a container for the Node runtime."
+	$(Q)echo "make ci-run     		 - Builds and runs a container for the Node runtime."
+	$(Q)echo "make ci-run-d   		 - Builds and runs a container for the Node runtime in dettached mode."
 
 build:
 	$(Q)cargo build --release
@@ -41,15 +41,15 @@ build-dev:
 	$(Q)cargo build
 	$(Q)echo "--- Done"
 
-docker-build:
-	$(Q)docker build -t vrrb-io/node -f infra/docker/Dockerfile .
+ci-build:
+	$(Q)sh infra/scripts/build-ci.sh
 	$(Q)echo "--- Done"
 
-docker-run: docker-build
+ci-run: ci-build
 	$(Q)docker run --rm --name vrrb-node vrrb-io/node 
 	$(Q)echo "--- Done"
 
-docker-run-d:
+ci-run-d:
 	$(Q)docker run -d --name vrrb-node vrrb-io/node 
 	$(Q)echo "--- Done"
 

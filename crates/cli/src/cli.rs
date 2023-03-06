@@ -15,7 +15,7 @@ pub struct Args {
     #[clap(short, long, default_value = "false")]
     pub debug: bool,
 
-    /// Selects the network to use when executing commands
+    /// Turn debugging information on
     #[clap(short, long, default_value = "local")]
     pub network: String,
 
