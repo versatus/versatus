@@ -21,7 +21,6 @@ impl CreditModel {
 
     fn calculate_weights_one_peer(&mut self, peer_scores: CreditScores) -> Vec<u128> {
         //for one peer, turn sij into cij for all its peers
-
         fn calculate_score(
             current_peer_score: u128,
             peer_scores: CreditScores,
@@ -59,7 +58,36 @@ impl CreditModel {
         return weighted_scores;
     }
 
-    //now, get the final scores (t values)
+    //now, get the final scores (t value)
 
-    pub fn calculate_final_scores(weighted_scores: HashMap<NodeId, Vec<u128>>) {}
+    fn calculate_final_score_single_peer(&mut self, single_peer_weighted_scores: Vec<u128>) -> () {
+        //get h value 
+        let honest_peer_score: u128;
+        if self.final_peer_scores.len() == 0 {
+            single_peer_weighted_scores.sort();
+            let honest_peer_value = single_peer_weighted_scores[0];
+        } else {
+            let sorted_scores = self.final_peer_scores.clone().sort();
+            let honest_peer_value = sorted_scores[0];
+        }
+
+
+    }
+
+    pub fn calculate_final_scores(&mut self, weighted_scores: HashMap<NodeId, Vec<u128>>) -> CreditModel {
+        //find honest peer; max t if not first run
+        // pub struct CreditModel {
+        //     // one CreditModel per quorum
+        //     pub trusted_peers: HashMap<NodeId, u128>, //pubkeys --> Uuid
+        //     pub final_peer_scores: HashMap<NodeId, u128>,
+        // }
+
+        if self.final_peer_scores.len() == 0 {
+            //get max peer score and set as h
+            //call function to calculate t value
+        }
+
+
+
+    }
 }
