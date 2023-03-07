@@ -10,8 +10,8 @@ use vrrb_core::cache::Cache;
 
 pub struct JobScheduler {
     local_peer_id: PeerID,
-    local_pool: JobPool,
-    remote_pool: JobPool,
+    pub local_pool: JobPool,
+    pub remote_pool: JobPool,
     forwarding_pool: JobPool,
     peers_back_pressure: Cache<PeerID, f32>,
 }
