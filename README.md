@@ -34,8 +34,15 @@ $ npm install -g wscat
 # In terminal instance 2, navigate to root of repo
 # Start ws connection
 $ wscat -c ws://127.0.0.1:9293
+# Get full state
+$ {"jsonrpc":"2.0","id":"1","method":"state_getFullState","params":[]}
+# Get full mempool
+$ {"jsonrpc":"2.0","id":"1","method":"state_getFullMempool","params":[]}
 # Get node type
 $ {"jsonrpc":"2.0","id":"1","method":"state_getNodeType","params":[]}
+# Get Account
+# TODO: understand how to retrieve pub key
+$ {"jsonrpc":"2.0","id":"1","method":"state_getAccount","params":["{pub_key}"]}
 # TODO: document other RPC endpoints 
 ```
 
@@ -45,4 +52,5 @@ In 2nd terminal using curl
 # In terminal instance 2, navigate to root of repo
 # Get node type
 $ curl -X POST -i -H "Accept: application/json" -H "Content-Type: application/json" -d '{"params": {},"jsonrpc": "2.0", "id": "1","method":"state_getNodeType"}' http://localhost:9293
+# TODO: document other RPC endpoints 
 ```
