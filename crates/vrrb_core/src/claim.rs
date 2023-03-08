@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
@@ -7,18 +9,18 @@ use sha256::digest;
 
 use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreditScores {
     //should live in Claim
     pub id: String,
-    pub peer_score: Vec<u128>, //not normalized; get normalized in election logic
+    pub scores_from_peers: HashMap<String,u128>, //not normalized; get normalized in election logic
 }
 
 impl CreditScores {
     pub fn new(pk: String) -> Self {
         CreditScores {
             id: pk,
-            peer_score: Vec::new(),
+            scores_from_peers: HashMap::new(),
         }
     }
 }
@@ -33,7 +35,7 @@ pub struct InvalidClaimError {
 /// calculate whether or not you are an entitled miner, and to share with
 /// network
 // TODO: Add staking to the claim.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Claim {
     pub public_key: String,
     pub address: String,
