@@ -8,7 +8,7 @@ use vrrb_core::{
     txn::{NewTxnArgs, Txn},
 };
 use vrrbdb::{VrrbDb, VrrbDbConfig};
-
+use serial_test::serial;
 mod common;
 
 use common::{
@@ -19,6 +19,7 @@ use common::{
 };
 
 #[test]
+#[serial]
 fn transactions_can_be_added() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}", generate_random_string()));

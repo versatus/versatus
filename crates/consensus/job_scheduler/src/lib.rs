@@ -10,8 +10,8 @@ use vrrb_core::cache::Cache;
 
 pub struct JobScheduler {
     local_peer_id: PeerID,
-    pub local_pool: JobPool,
-    pub remote_pool: JobPool,
+    local_pool: JobPool,
+    remote_pool: JobPool,
     forwarding_pool: JobPool,
     peers_back_pressure: Cache<PeerID, f32>,
 }
@@ -179,6 +179,22 @@ impl JobScheduler {
             BackPressure::new(vec![1u8], 1.0 + local_backpressure.log10()),
             log_normalized_backpressure,
         )
+    }
+
+    pub fn get_local_pool(&self) -> &JobPool {
+        return &self.local_pool
+    }
+
+    pub fn set_local_pool(&mut self, pool: JobPool) {
+        self.local_pool = pool
+    } 
+
+    pub fn get_remote_pool(&self) -> &JobPool {
+        return &&self.remote_pool
+    }
+
+    pub fn set_remote_pool(&mut self, pool: JobPool) {
+        self.remote_pool = pool
     }
 }
 

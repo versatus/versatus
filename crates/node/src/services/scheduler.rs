@@ -131,7 +131,7 @@ impl<'a> JobSchedulerController<'a> {
                         //Delegation Principle need to be done
                         let votes_result = self
                             .job_scheduler
-                            .local_pool
+                            .get_local_pool()
                             .run_sync_job(move || {
                                 let votes = validated_txns
                                     .par_iter()
