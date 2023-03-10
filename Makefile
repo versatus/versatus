@@ -46,11 +46,11 @@ ci-build:
 	$(Q)echo "--- Done"
 
 ci-run: ci-build
-	$(Q)docker run --rm --name vrrb-node vrrb-io/node 
+	$(Q)docker run --rm --name vrrb-node ghcr.io/vrrb-io/vrrb
 	$(Q)echo "--- Done"
 
 ci-run-d:
-	$(Q)docker run -d --name vrrb-node vrrb-io/node 
+	$(Q)docker run -d --name vrrb-node ghcr.io/vrrb-io/vrrb
 	$(Q)echo "--- Done"
 
 clean:
