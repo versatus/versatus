@@ -163,9 +163,9 @@ impl<'a> JobSchedulerController<'a> {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            self.sync_jobs_outputs_sender
-                                .send(JobResult::Votes((votes, farmer_quorum_threshold)))
-                                .expect("Cannot send JobResult votes");
+                            let _ = self
+                                .sync_jobs_outputs_sender
+                                .send(JobResult::Votes((votes, farmer_quorum_threshold)));
                         }
                     },
                     Job::VoteTxn((
@@ -190,13 +190,13 @@ impl<'a> JobSchedulerController<'a> {
                                 quorum_public_key: group_public_Key.clone(),
                                 quorum_threshold: farmer_quorum_threshold,
                             };
-                            self.sync_jobs_outputs_sender
-                                .send(JobResult::SendVoteToHarvester(
-                                    vote,
-                                    quorum_type,
-                                    farmer_quorum_threshold,
-                                ))
-                                .expect("Cannot send JobResult vote to Harvester");
+                            let _ =
+                                self.sync_jobs_outputs_sender
+                                    .send(JobResult::SendVoteToHarvester(
+                                        vote,
+                                        quorum_type,
+                                        farmer_quorum_threshold,
+                                    ));
                         }
                     },
                     Job::CertifyTxn((
@@ -213,16 +213,14 @@ impl<'a> JobSchedulerController<'a> {
                         }
                         let result = sig_provider.generate_quorum_signature(sig_shares);
                         if let Ok(threshold_signature) = result {
-                            self.sync_jobs_outputs_sender
-                                .send(JobResult::CertifiedTxn(
-                                    votes,
-                                    threshold_signature,
-                                    txn_id,
-                                    farmer_quorum_key,
-                                    farmer_id,
-                                    txn,
-                                ))
-                                .expect("Cannot send JobResult Certified Txn to Harvester module");
+                            self.sync_jobs_outputs_sender.send(JobResult::CertifiedTxn(
+                                votes,
+                                threshold_signature,
+                                txn_id,
+                                farmer_quorum_key,
+                                farmer_id,
+                                txn,
+                            ));
                         } else {
                             error!("Quorum signature generation failed");
                         }

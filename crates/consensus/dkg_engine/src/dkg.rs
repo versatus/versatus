@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
+use hbbft::sync_key_gen::{Error, PartOutcome, SyncKeyGen};
 use primitives::NodeType;
 use rand::rngs::OsRng;
 
@@ -69,7 +69,7 @@ impl DkgGenerator for DkgEngine {
                             Err(DkgError::PartCommitmentNotGenerated)
                         }
                     },
-                    Err(e) => Err(DkgError::SyncKeyGenError(format!(
+                    Err(_e) => Err(DkgError::SyncKeyGenError(format!(
                         "Failed to create `SyncKeyGen` instance for node #{:?}",
                         self.node_idx
                     ))),
@@ -106,20 +106,25 @@ impl DkgGenerator for DkgEngine {
             let part_commitment = self.dkg_state.part_message_store.get(&sender_node_idx);
             if let Some(part_commitment) = part_commitment {
                 if let Some(rng) = self.dkg_state.random_number_gen.as_mut() {
-                    match node
-                        .handle_part(&sender_node_idx, part_commitment.clone(), rng)
-                        .expect("Failed to handle sender_node_idx")
-                    {
-                        PartOutcome::Valid(Some(ack)) => {
-                            self.dkg_state
-                                .ack_message_store
-                                .insert((self.node_idx, sender_node_idx), ack);
-                            Ok(DkgResult::PartMessageAcknowledged)
+                    let handed_part_result =
+                        node.handle_part(&sender_node_idx, part_commitment.clone(), rng);
+                    match handed_part_result {
+                        Ok(part_outcome) => match part_outcome {
+                            PartOutcome::Valid(Some(ack)) => {
+                                self.dkg_state
+                                    .ack_message_store
+                                    .insert((self.node_idx, sender_node_idx), ack);
+                                Ok(DkgResult::PartMessageAcknowledged)
+                            },
+                            PartOutcome::Invalid(fault) => {
+                                Err(DkgError::InvalidPartMessage(fault.to_string()))
+                            },
+                            PartOutcome::Valid(None) => Err(DkgError::ObserverNotAllowed),
                         },
-                        PartOutcome::Invalid(fault) => {
-                            Err(DkgError::InvalidPartMessage(fault.to_string()))
-                        },
-                        PartOutcome::Valid(None) => Err(DkgError::ObserverNotAllowed),
+                        Err(e) => Err(DkgError::Unknown(format!(
+                            "Failed to generate handle part commitment , error details {:}",
+                            e,
+                        ))),
                     }
                 } else {
                     Err(DkgError::Unknown(String::from(

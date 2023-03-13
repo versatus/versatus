@@ -165,22 +165,38 @@ impl FarmerHarvesterModule {
         &mut self,
         broadcast_events_tx: UnboundedSender<DirectedEvent>,
         sync_jobs_status_receiver: Receiver<JobResult>,
-    ) -> ! {
+    ) {
         loop {
             let job_result = sync_jobs_status_receiver.recv().unwrap();
             match job_result {
                 JobResult::Votes((votes, farmer_quorum_threshold)) => {
                     for vote_opt in votes.iter() {
-                        println!("Recieved Vote:{:?}", vote_opt);
                         if let Some(vote) = vote_opt {
-                            broadcast_events_tx.send((Topic::Network, Event::Vote(vote.clone(), QuorumType::Farmer, farmer_quorum_threshold))).expect("Cannot send vote to broadcast channel to share votes among farmer nodes");
-                            broadcast_events_tx.send((Topic::Network, Event::Vote(vote.clone(), QuorumType::Harvester, farmer_quorum_threshold))).expect("Cannot send vote to broadcast channel to send vote to Harvester Node ");
+                            let _ = broadcast_events_tx.send((
+                                Topic::Network,
+                                Event::Vote(
+                                    vote.clone(),
+                                    QuorumType::Farmer,
+                                    farmer_quorum_threshold,
+                                ),
+                            ));
+                            let _ = broadcast_events_tx.send((
+                                Topic::Network,
+                                Event::Vote(
+                                    vote.clone(),
+                                    QuorumType::Harvester,
+                                    farmer_quorum_threshold,
+                                ),
+                            ));
                         }
                     }
                 },
                 JobResult::SendVoteToHarvester(vote, quorum_type, farmer_quorum_threshold) => {
                     if QuorumType::Farmer == quorum_type.clone() {
-                        broadcast_events_tx.send((Topic::Network,Event::Vote(vote,quorum_type,farmer_quorum_threshold))).expect("Cannot send vote to broadcast channel to send vote to Harvester Node ");
+                        let _ = broadcast_events_tx.send((
+                            Topic::Network,
+                            Event::Vote(vote, quorum_type, farmer_quorum_threshold),
+                        ));
                     }
                 },
                 JobResult::CertifiedTxn(
@@ -342,8 +358,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                     .take(num_of_txns)
                     .for_each(|txn| {
                         self.broadcast_events_tx
-                            .send((Topic::Storage, Event::QuorumCertifiedTxns(txn.clone())))
-                            .expect("Failed to send Quorum Certified Txns");
+                            .send((Topic::Storage, Event::QuorumCertifiedTxns(txn.clone())));
                     });
             },
             Event::NoOp => {},
@@ -396,7 +411,7 @@ mod tests {
             crossbeam_channel::unbounded::<JobResult>();
         let (async_jobs_status_sender, async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
-        let mut farmer_harvester_swarm_module = FarmerHarvesterModule::new(
+        let farmer_harvester_swarm_module = FarmerHarvesterModule::new(
             Bloom::new(10000),
             None,
             None,
@@ -441,7 +456,7 @@ mod tests {
     #[tokio::test]
     async fn farmer_harvester_farm_cast_vote() {
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (broadcast_events_tx, mut broadcast_events_rx) =
+        let (broadcast_events_tx, broadcast_events_rx) =
             tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -515,7 +530,7 @@ mod tests {
                 .0
                 .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
 
-            let mut txn = Txn::new(NewTxnArgs {
+            let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
                 sender_address: String::from("aaa1"),
                 sender_public_key: keypair.get_miner_public_key().clone(),

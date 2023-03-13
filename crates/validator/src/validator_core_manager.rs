@@ -35,7 +35,7 @@ impl ValidatorCoreManager {
         // ) -> HashSet<(Txn, bool)> {
         self.core_pool.install(|| {
             let valcore = Core::new(
-                self.core_pool.current_thread_index().unwrap() as CoreId,
+                self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
             );
 
