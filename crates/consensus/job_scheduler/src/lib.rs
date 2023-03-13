@@ -182,15 +182,15 @@ impl JobScheduler {
     }
 
     pub fn get_local_pool(&self) -> &JobPool {
-        return &self.local_pool
+        return &self.local_pool;
     }
 
     pub fn set_local_pool(&mut self, pool: JobPool) {
         self.local_pool = pool
-    } 
+    }
 
     pub fn get_remote_pool(&self) -> &JobPool {
-        return &&self.remote_pool
+        return &&self.remote_pool;
     }
 
     pub fn set_remote_pool(&mut self, pool: JobPool) {

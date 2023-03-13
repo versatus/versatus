@@ -2,13 +2,13 @@ use std::{collections::HashMap, env, fs};
 
 use primitives::Address;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use serial_test::serial;
 use vrrb_core::{
     account::Account,
     keypair::Keypair,
     txn::{NewTxnArgs, Txn},
 };
 use vrrbdb::{VrrbDb, VrrbDbConfig};
-use serial_test::serial;
 mod common;
 
 use common::{
