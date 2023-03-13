@@ -44,36 +44,36 @@ impl DkgGenerator for DkgEngine {
         let secret_key = self.secret_key.clone();
         match OsRng::new() {
             Ok(mut rng) => {
-                let (sync_key_gen, opt_part) = SyncKeyGen::new(
+                let sync_key_gen_instance_result = SyncKeyGen::new(
                     self.node_idx,
                     secret_key,
                     Arc::new(self.dkg_state.peer_public_keys.clone()),
                     threshold,
                     &mut rng,
-                )
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "Error :{:?}",
-                        DkgError::SyncKeyGenError(format!(
-                            "Failed to create `SyncKeyGen` instance for node #{:?}",
-                            self.node_idx
-                        ))
-                    )
-                });
-                if let Some(part_committment) = opt_part {
-                    self.dkg_state.random_number_gen = Some(rng.clone());
-                    self.dkg_state
-                        .part_message_store
-                        .insert(self.node_idx, part_committment.clone());
-                    self.dkg_state.sync_key_gen = Some(sync_key_gen);
-                    //part_commitment has to be multicasted to all LLMQ Peers
-                    Ok(DkgResult::PartMessageGenerated(
-                        self.node_idx,
-                        part_committment,
-                    ))
-                } else {
-                    Err(DkgError::PartCommitmentNotGenerated)
-                }
+                );
+                return match sync_key_gen_instance_result {
+                    Ok((sync_key_gen, opt_part)) => {
+                        if let Some(part_committment) = opt_part {
+                            self.dkg_state.random_number_gen = Some(rng.clone());
+                            self.dkg_state
+                                .part_message_store
+                                .insert(self.node_idx, part_committment.clone());
+                            self.dkg_state.sync_key_gen = Some(sync_key_gen);
+                            //part_commitment has to be multicasted to all Farmers/Harvester Peers
+                            // within the Quorum
+                            Ok(DkgResult::PartMessageGenerated(
+                                self.node_idx,
+                                part_committment,
+                            ))
+                        } else {
+                            Err(DkgError::PartCommitmentNotGenerated)
+                        }
+                    },
+                    Err(e) => Err(DkgError::SyncKeyGenError(format!(
+                        "Failed to create `SyncKeyGen` instance for node #{:?}",
+                        self.node_idx
+                    ))),
+                };
             },
             Err(e) => Err(DkgError::Unknown(format!(
                 "{} {}",
