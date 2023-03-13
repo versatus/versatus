@@ -4,7 +4,7 @@ use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::election::Election;
+use crate::{election::Election};
 
 ///Error type for Quorum
 #[derive(Error, Debug)]
@@ -23,6 +23,9 @@ pub enum InvalidQuorum {
 
     #[error("quorum does not contain a seed")]
     NoSeedError(),
+
+    #[error("none values from claim")]
+    ClaimError(),
 }
 
 ///Quorum struct which is created and modified when an election is run
@@ -175,16 +178,13 @@ impl Quorum {
 
         let num_claims = ((claims.len() as f32) * 0.51).ceil() as usize;
 
-        let mut claim_tuples: Vec<(u128, &String)> = claims
-            .iter()
-            .filter(|claim| claim.get_pointer(self.quorum_seed as u128).is_some())
-            .map(|claim| {
-                (
-                    claim.get_pointer(self.quorum_seed as u128).unwrap(),
-                    &claim.public_key,
-                )
-            })
-            .collect();
+        let mut claim_tuples: Vec<(u128, &String)> = Vec::new();
+
+        for x in 0..claims.len() { 
+            if let Some(pointer) = claims[x].get_pointer(self.quorum_seed as u128){
+                claim_tuples.push((pointer, &claims[x].public_key ));
+            }
+        }
 
         if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
@@ -202,5 +202,12 @@ impl Quorum {
         self.master_pubkeys = final_pubkeys;
 
         Ok(self)
+    }
+
+    pub fn get_trusted_peers(&mut self, claims: Vec<Claim>) -> Self {
+        //get the weighted value hashmap
+        //calcualte all the t values
+
+        todo!();
     }
 }
