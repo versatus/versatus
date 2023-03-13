@@ -118,17 +118,24 @@ impl Handler<Event> for DkgModule {
             Event::DkgInitiate => {
                 let threshold_config = self.dkg_engine.threshold_config.clone();
                 if self.quorum_type.clone().is_some() {
-                    let part_commitment = self
+                    match self
                         .dkg_engine
                         .generate_sync_keygen_instance(threshold_config.threshold as usize)
-                        .unwrap();
-                    if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
-                        if let Ok(part_committment_bytes) = bincode::serialize(&part) {
-                            let _ = self.broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::PartMessage(node_idx, part_committment_bytes),
-                            ));
-                        }
+                    {
+                        Ok(part_commitment) => {
+                            if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment
+                            {
+                                if let Ok(part_committment_bytes) = bincode::serialize(&part) {
+                                    let _ = self.broadcast_events_tx.send((
+                                        Topic::Network,
+                                        Event::PartMessage(node_idx, part_committment_bytes),
+                                    ));
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            error!("Error occured while generating synchronized keygen instance for node {:?}", self.dkg_engine.node_idx);
+                        },
                     }
                 } else {
                     error!(
@@ -148,27 +155,6 @@ impl Handler<Event> for DkgModule {
                         .entry(node_idx)
                         .or_insert_with(|| part_committment);
                 };
-                let threshold_config = self.dkg_engine.threshold_config.clone();
-                if self.quorum_type.clone().is_some() {
-                    let part_commitment = self
-                        .dkg_engine
-                        .generate_sync_keygen_instance(threshold_config.threshold as usize)
-                        .unwrap();
-                    if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
-                        if let Ok(part_committment_bytes) = bincode::serialize(&part) {
-                            let _ = self.broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::PartMessage(node_idx, part_committment_bytes),
-                            ));
-                        }
-                    }
-                } else {
-                    error!(
-                                "Cannot participate into DKG ,since current node {:?} dint win any Quorum Election",
-                                self.dkg_engine.node_idx
-                            );
-                }
-                return Ok(ActorState::Running);
             },
             Event::AckPartCommitment(sender_id) => {
                 if self
@@ -424,7 +410,7 @@ mod tests {
     async fn dkg_runtime_handle_all_acks_generate_keyset() {
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
         let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (broadcast_events_tx, mut broadcast_events_rx) =
+        let (broadcast_events_tx, broadcast_events_rx) =
             tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let dkg_module =
             DkgModule::make_engine(dkg_engines.pop().unwrap(), events_tx, broadcast_events_tx);

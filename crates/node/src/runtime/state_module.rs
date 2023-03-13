@@ -247,7 +247,6 @@ mod tests {
 
         let events_handle = tokio::spawn(async move {
             let res = events_rx.recv().await;
-            println!("{:?}", res);
         });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);

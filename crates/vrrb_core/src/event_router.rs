@@ -3,6 +3,7 @@ use std::{collections::HashMap, net::SocketAddr};
 use primitives::{
     Address,
     FarmerQuorumThreshold,
+    HarvesterQuorumThreshold,
     NodeIdx,
     NodeType,
     PeerId,

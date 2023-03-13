@@ -12,8 +12,9 @@ use vrrb_core::keypair::Keypair;
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
     let id = Uuid::new_v4().to_string();
-    let path = "node.db";
-    let db_path = data_dir.join(path.clone());
+
+    let temp_dir_path = std::env::temp_dir();
+    let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
 
     let idx = 100;
 
