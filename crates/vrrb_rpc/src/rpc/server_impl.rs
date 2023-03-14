@@ -151,9 +151,6 @@ impl RpcServer for RpcServerImpl {
 
         let value = parsedValues.get(&transaction_digest_string);
 
-        info!("{:?}", parsedValues);
-        info!("{:?}", value);
-
         match value {
             Some(txn) => return Ok(txn.to_owned()),
             None => return Err(Error::Custom("unable to find transaction".to_string())),

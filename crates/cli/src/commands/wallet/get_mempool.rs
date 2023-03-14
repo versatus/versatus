@@ -8,22 +8,13 @@ pub(crate) async fn exec(
 
     let ser_result =
         serde_json::to_string_pretty(&result).map_err(|e| CliError::Other(e.to_string()))?;
-
     println!("{}", ser_result);
 
     let mut hashes = Vec::new();
     for txn in result.iter() {
         hashes.push(txn.digest_string());
     }
-
     println!("{:?}", hashes);
-
-    let mut digests = Vec::new();
-    for txn in result.iter() {
-        digests.push(txn.digest());
-    }
-
-    println!("{:?}", digests);
 
     Ok(())
 }
