@@ -7,20 +7,14 @@ use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;
 use common::generate_random_address;
+use serial_test::serial;
 
 use crate::common::generate_random_string;
 
 #[test]
+#[serial]
 fn accounts_can_be_added() {
-    let temp_dir_path = env::temp_dir();
-    let state_backup_path = temp_dir_path.join(format!("{}", generate_random_string()));
-
-    let mut db = VrrbDb::new(VrrbDbConfig {
-        path: state_backup_path,
-        state_store_path: None,
-        transaction_store_path: None,
-        event_store_path: None,
-    });
+    let mut db = VrrbDb::new(VrrbDbConfig::default());
 
     let (_, addr1) = generate_random_address();
     let (_, addr2) = generate_random_address();

@@ -18,11 +18,14 @@ where
     T: Send + 'static,
 {
     fn run_job(&mut self, _cx: &mut Context) -> JobExecutionStatus {
-        let closure = self.sync_job.take().expect("job already ran to completion");
-        let result = catch_unwind(AssertUnwindSafe(closure));
-        let is_err = result.is_err();
-        self.result = Some(result);
-        JobExecutionStatus::Complete { is_err }
+        if let Some(closure) = self.sync_job.take() {
+            let result = catch_unwind(AssertUnwindSafe(closure));
+            let is_err = result.is_err();
+            self.result = Some(result);
+            JobExecutionStatus::Complete { is_err }
+        } else {
+            JobExecutionStatus::NoJobToPoll
+        }
     }
 
     fn complete(&mut self) {

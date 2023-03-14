@@ -2,13 +2,13 @@ use std::{collections::HashMap, env, fs};
 
 use primitives::Address;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use serial_test::serial;
 use vrrb_core::{
     account::Account,
     keypair::Keypair,
     txn::{NewTxnArgs, Txn},
 };
 use vrrbdb::{VrrbDb, VrrbDbConfig};
-
 mod common;
 
 use common::{
@@ -19,6 +19,7 @@ use common::{
 };
 
 #[test]
+#[serial]
 fn transactions_can_be_added() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}", generate_random_string()));

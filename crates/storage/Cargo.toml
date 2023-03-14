@@ -9,3 +9,4 @@ edition = "2021"
 vrrbdb = { workspace = true }
 lr_trie = { workspace = true }
 storage_utils = { workspace = true }
+serial_test = { workspace = true }

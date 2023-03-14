@@ -52,6 +52,10 @@ signer = { workspace = true }
 indexmap = { workspace = true }
 raptorq = { workspace = true }
 crossbeam-channel = { workspace = true }
+job_scheduler={workspace=true}
+rayon = "1.6.1"
+lazy_static = "1.4.0"
+dashmap = "5.4.0"
 
 [dev-dependencies]
 reqwest = { workspace = true }

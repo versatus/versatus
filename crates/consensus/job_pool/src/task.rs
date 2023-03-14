@@ -273,6 +273,7 @@ pub enum JobExecutionStatus {
     //For Async Jobs
     Yield,
     Complete { is_err: bool },
+    NoJobToPoll,
 }
 
 /// `SyncJobPoller` is a type that holds a `sync_job` and a `task` and polls the

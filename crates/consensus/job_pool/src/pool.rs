@@ -88,8 +88,10 @@ impl JobPool {
             // else the jobs are further pushed down to the waiting
             // If possible, spawn an additional thread to handle the task.
             if let Err(e) = self.spawn_job(Some(e.into_inner())) {
-                if let Err(e) = self.waiting_queue.0.try_send(e.unwrap()) {
-                    return Err(e.into_inner());
+                if let Some(job) = e {
+                    if let Err(e) = self.waiting_queue.0.try_send(job) {
+                        return Err(e.into_inner());
+                    }
                 }
             }
         }
