@@ -25,6 +25,12 @@ pub trait Rpc {
     #[method(name = "getFullMempool")]
     async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error>;
 
+    #[method(name = "getFullMempoolDigests")]
+    async fn get_full_mempool_digests(&self) -> Result<Vec<String>, Error>;
+
+    #[method(name = "getFullMempoolTxnCount")]
+    async fn get_full_mempool_txn_count(&self) -> Result<usize, Error>;
+
     /// Returns the node type this client is connected to
     #[method(name = "getNodeType")]
     async fn get_node_type(&self) -> Result<NodeType, Error>;
@@ -36,6 +42,13 @@ pub trait Rpc {
     /// Get a transaction from state
     #[method(name = "getTransaction")]
     async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn, Error>;
+
+    /// Get a transaction from state by digest string
+    #[method(name = "getTransactionByDigestString")]
+    async fn get_transaction_by_digest_string(
+        &self,
+        transaction_digest_string: String,
+    ) -> Result<Txn, Error>;
 
     /// List a group of transactions
     #[method(name = "listTransactions")]

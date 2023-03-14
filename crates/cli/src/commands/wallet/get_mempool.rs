@@ -11,5 +11,19 @@ pub(crate) async fn exec(
 
     println!("{}", ser_result);
 
+    let mut hashes = Vec::new();
+    for txn in result.iter() {
+        hashes.push(txn.digest_string());
+    }
+
+    println!("{:?}", hashes);
+
+    let mut digests = Vec::new();
+    for txn in result.iter() {
+        digests.push(txn.digest());
+    }
+
+    println!("{:?}", digests);
+
     Ok(())
 }

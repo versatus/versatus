@@ -9,7 +9,7 @@ use jsonrpsee::{
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::{debug, error};
+use telemetry::{debug, error, info};
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
@@ -40,6 +40,23 @@ impl RpcServer for RpcServerImpl {
         let values = self.mempool_read_handle_factory.values();
 
         Ok(values)
+    }
+
+    async fn get_full_mempool_digests(&self) -> Result<Vec<String>, Error> {
+        let values = self.mempool_read_handle_factory.values();
+
+        let mut digests = Vec::new();
+        for value in values {
+            digests.push(value.digest_string());
+        }
+
+        Ok(digests)
+    }
+
+    async fn get_full_mempool_txn_count(&self) -> Result<usize, Error> {
+        let values = self.mempool_read_handle_factory.values();
+
+        Ok(values.len())
     }
 
     async fn get_node_type(&self) -> Result<NodeType, Error> {
@@ -111,6 +128,31 @@ impl RpcServer for RpcServerImpl {
 
         let values = self.vrrbdb_read_handle.transaction_store_values();
         let value = values.get(&transaction_digest);
+
+        match value {
+            Some(txn) => return Ok(txn.to_owned()),
+            None => return Err(Error::Custom("unable to find transaction".to_string())),
+        }
+    }
+
+    // TODO: revist and remove if necessary
+    async fn get_transaction_by_digest_string(
+        &self,
+        transaction_digest_string: String,
+    ) -> Result<Txn, Error> {
+        debug!("Received a getTransactionByDigestString RPC request");
+
+        let values = self.vrrbdb_read_handle.transaction_store_values();
+        info!("{:?}", values);
+        let mut parsedValues = HashMap::new();
+        for (k, v) in values {
+            parsedValues.insert(k.digest_string(), v);
+        }
+
+        let value = parsedValues.get(&transaction_digest_string);
+
+        info!("{:?}", parsedValues);
+        info!("{:?}", value);
 
         match value {
             Some(txn) => return Ok(txn.to_owned()),
