@@ -1,24 +1,22 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
-use jsonrpsee::{
-    core::Error,
-    server::{ServerBuilder, SubscriptionSink},
-    types::SubscriptionResult,
-};
+use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
+use secp256k1::{Message, SecretKey};
+use sha2::{Digest, Sha256};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::{debug, error, info};
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
-    serde_helpers::{encode_to_binary, encode_to_json},
+    serde_helpers::encode_to_binary,
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
-use super::api::FullMempoolSnapshot;
+use super::{api::FullMempoolSnapshot, SignOpts};
 use crate::rpc::api::{FullStateSnapshot, RpcServer};
 
 pub struct RpcServerImpl {
@@ -189,5 +187,34 @@ impl RpcServer for RpcServerImpl {
             Some(account) => return Ok(account.to_owned()),
             None => return Err(Error::Custom("unable to find account".to_string())),
         }
+    }
+
+    async fn sign(&self, sign_opts: SignOpts) -> Result<String, Error> {
+        let payload = format!(
+            "{},{},{},{},{},{:?},{}",
+            &sign_opts.timestamp,
+            &sign_opts.sender_address,
+            &sign_opts.sender_public_key,
+            &sign_opts.receiver_address,
+            &sign_opts.amount,
+            &sign_opts.token,
+            &sign_opts.nonce
+        );
+
+        let mut hasher = Sha256::new();
+        hasher.update(payload.as_bytes());
+        let payload_hash = hasher.finalize();
+
+        type H = secp256k1::hashes::sha256::Hash;
+        let msg = Message::from_hashed_data::<H>(&payload_hash[..]);
+
+        let secret_key_result = SecretKey::from_str(&sign_opts.private_key);
+
+        let secret_key = match secret_key_result {
+            Ok(secret_key) => secret_key,
+            Err(_) => return Err(Error::Custom("unable to parse secret_key".to_string())),
+        };
+
+        Ok(secret_key.sign_ecdsa(msg).to_string())
     }
 }

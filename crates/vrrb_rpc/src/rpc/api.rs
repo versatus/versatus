@@ -9,6 +9,8 @@ use vrrb_core::{
     txn::{NewTxnArgs, TransactionDigest, TxAmount, TxNonce, TxPayload, TxSignature, Txn},
 };
 
+use super::SignOpts;
+
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
 pub type FullStateSnapshot = HashMap<Address, Account>;
@@ -68,4 +70,7 @@ pub trait Rpc {
 
     //#[method(name = "faucetDrip")]
     //async fn faucet_drip(&self, address: Address) -> Result<(), Error>;
+
+    #[method(name = "sign")]
+    async fn sign(&self, sign_opts: SignOpts) -> Result<String, Error>;
 }
