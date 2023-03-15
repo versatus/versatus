@@ -35,17 +35,13 @@ impl MempoolModule {
             mempool: config.mempool,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            label: String::from("Mempool"),
             id: uuid::Uuid::new_v4().to_string(),
         }
     }
 }
 
-impl MempoolModule {
-    fn name(&self) -> String {
-        String::from("Mempool module")
-    }
-}
+impl MempoolModule {}
 
 #[async_trait]
 impl Handler<Event> for MempoolModule {
@@ -54,7 +50,7 @@ impl Handler<Event> for MempoolModule {
     }
 
     fn label(&self) -> ActorLabel {
-        self.name()
+        self.label.clone()
     }
 
     fn status(&self) -> ActorState {
@@ -68,8 +64,8 @@ impl Handler<Event> for MempoolModule {
     fn on_stop(&self) {
         info!(
             "{}-{} received stop signal. Stopping",
-            self.name(),
-            self.label()
+            self.label(),
+            self.id(),
         );
     }
 
@@ -78,8 +74,6 @@ impl Handler<Event> for MempoolModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-
-            Event::BlockReceived => {},
 
             Event::NewTxnCreated(txn) => {
                 info!("Storing transaction in mempool for validation");
@@ -91,7 +85,7 @@ impl Handler<Event> for MempoolModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
-                    .send((Topic::Storage, Event::TxnAddedToMempool(txn_hash.clone())))
+                    .send((Topic::Consensus, Event::TxnAddedToMempool(txn_hash.clone())))
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Transaction {} sent to mempool", txn_hash);

@@ -36,7 +36,7 @@ ritelinked = { workspace = true }
 bincode = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
-poem = { workspace = true }
+miner = { workspace = true }
 public-ip = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -52,10 +52,10 @@ signer = { workspace = true }
 indexmap = { workspace = true }
 raptorq = { workspace = true }
 crossbeam-channel = { workspace = true }
-job_scheduler={workspace=true}
-rayon = "1.6.1"
-lazy_static = "1.4.0"
-dashmap = "5.4.0"
+job_scheduler = { workspace = true }
+rayon = { workspace = true }
+lazy_static = { workspace = true }
+dashmap = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

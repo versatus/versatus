@@ -1,20 +1,8 @@
-use std::{io::Read, net::SocketAddr, path::PathBuf, sync::mpsc::channel, thread};
+use std::net::SocketAddr;
 
-use crossbeam_channel::unbounded;
-use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use network::{message::Message, network::BroadcastEngine, packet, packet::RaptorBroadCastedData};
-use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
-use storage::{
-    storage_utils,
-    vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
-};
 use telemetry::info;
-use theater::{Actor, ActorImpl};
 use tokio::{
-    sync::{
-        broadcast::Receiver,
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-    },
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use trecho::vm::Cpu;
@@ -22,23 +10,12 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     event_router::{DirectedEvent, Event, EventRouter, Topic},
     keypair::KeyPair,
-    txn::Txn,
-};
-use vrrb_rpc::{
-    http::HttpApiServerConfig,
-    rpc::{JsonRpcServer, JsonRpcServerConfig},
 };
 
 use crate::{
-    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
-    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
-    mempool_module::{MempoolModule, MempoolModuleConfig},
-    mining_module,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
-    validator_module,
     NodeType,
-    RuntimeModule,
     RuntimeModuleState,
 };
 
@@ -73,7 +50,6 @@ impl Node {
     pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
         // Copy the original config to avoid overriding the original
         let mut config = config.clone();
-
 
         let vm = None;
         let keypair = config.keypair.clone();
