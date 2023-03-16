@@ -21,7 +21,7 @@ pub struct TransactionRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FullMempoolSnapshotResponse {
-    //
+    data: Vec<TransactionRecord>,
 }
 
 pub type RpcTransactionDigest = String;
@@ -39,7 +39,7 @@ impl From<Txn> for RpcTransactionRecord {
 
 #[rpc(server, client, namespace = "state")]
 #[async_trait]
-pub trait Rpc {
+pub trait RpcApi {
     /// Returns a full list of all accounts within state
     #[method(name = "getFullState")]
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error>;
@@ -54,7 +54,7 @@ pub trait Rpc {
 
     /// Create a new transaction
     #[method(name = "createTxn")]
-    async fn create_txn(&self, args: NewTxnArgs) -> Result<Txn, Error>;
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<RpcTransactionRecord, Error>;
 
     /// Get a transaction from state
     #[method(name = "getTransaction")]

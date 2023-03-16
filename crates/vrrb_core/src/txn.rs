@@ -63,8 +63,8 @@ pub type TxTimestamp = i64;
 pub type TxAmount = u128;
 pub type TxSignature = Vec<u8>;
 
-//TODO: Replace with `secp256k1::Message` struct or guarantee
-//that it is a stringified version of `secp256k1::Message`
+// TODO: Replace with `secp256k1::Message` struct or guarantee
+// that it is a stringified version of `secp256k1::Message`
 pub type TxPayload = String;
 
 // TODO: replace with a generic token struct

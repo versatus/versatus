@@ -18,8 +18,13 @@ use vrrb_core::{
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
-use super::api::{FullMempoolSnapshot, RpcTransactionDigest, RpcTransactionRecord};
-use crate::rpc::api::{FullStateSnapshot, RpcServer};
+use crate::rpc::api::{
+    FullMempoolSnapshot,
+    FullStateSnapshot,
+    RpcApi,
+    RpcTransactionDigest,
+    RpcTransactionRecord,
+};
 
 pub struct RpcServerImpl {
     pub node_type: NodeType,
@@ -29,7 +34,7 @@ pub struct RpcServerImpl {
 }
 
 #[async_trait]
-impl RpcServer for RpcServerImpl {
+impl RpcApi for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
         let values = self.vrrbdb_read_handle.state_store_values();
 
