@@ -4,7 +4,7 @@ use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::{election::Election};
+use crate::election::Election;
 
 ///Error type for Quorum
 #[derive(Error, Debug)]
@@ -180,9 +180,9 @@ impl Quorum {
 
         let mut claim_tuples: Vec<(u128, &String)> = Vec::new();
 
-        for x in 0..claims.len() { 
-            if let Some(pointer) = claims[x].get_pointer(self.quorum_seed as u128){
-                claim_tuples.push((pointer, &claims[x].public_key ));
+        for x in 0..claims.len() {
+            if let Some(pointer) = claims[x].get_pointer(self.quorum_seed as u128) {
+                claim_tuples.push((pointer, &claims[x].public_key));
             }
         }
 
