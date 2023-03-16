@@ -34,6 +34,7 @@ members = [
     "crates/consensus/job_pool",
     "crates/consensus/job_scheduler",
     "crates/consensus/vrrb_vrf",
+    "crates/count_min_sketch",
     "crates/executor",
     "crates/vrrb_core",
     "crates/cli",
@@ -74,6 +75,7 @@ syncing = { path = "crates/syncing" }
 telemetry = { path = "crates/telemetry" }
 validator = { path = "crates/validator" }
 utils = { path = "crates/utils" }
+cms = { path = "crates/count_min_sketch" }
 
 # NOTE: potentially deprecated
 vrrb_lib = { path = "crates/vrrb_lib" }
