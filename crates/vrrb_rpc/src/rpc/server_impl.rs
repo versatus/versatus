@@ -18,7 +18,7 @@ use vrrb_core::{
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
-use super::api::FullMempoolSnapshot;
+use super::api::{FullMempoolSnapshot, RpcTransactionDigest, RpcTransactionRecord};
 use crate::rpc::api::{FullStateSnapshot, RpcServer};
 
 pub struct RpcServerImpl {
@@ -37,7 +37,17 @@ impl RpcServer for RpcServerImpl {
     }
 
     async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error> {
-        let values = self.mempool_read_handle_factory.values();
+        let values = self
+            .mempool_read_handle_factory
+            .values()
+            .iter()
+            .map(|txn| {
+                let txn = txn.clone();
+                let txn = RpcTransactionRecord::from(txn);
+
+                txn
+            })
+            .collect();
 
         Ok(values)
     }
@@ -105,33 +115,50 @@ impl RpcServer for RpcServerImpl {
         Ok(())
     }
 
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn, Error> {
+    async fn get_transaction(
+        &self,
+        transaction_digest: RpcTransactionDigest,
+    ) -> Result<RpcTransactionRecord, Error> {
         // Do we need to check both state AND mempool?
         debug!("Received a getTransaction RPC request");
 
+        let parsed_digest = transaction_digest
+            .parse::<TransactionDigest>()
+            .map_err(|err| Error::Custom("unable to parse transaction digest".to_string()))?;
+
         let values = self.vrrbdb_read_handle.transaction_store_values();
-        let value = values.get(&transaction_digest);
+        let value = values.get(&parsed_digest);
 
         match value {
-            Some(txn) => return Ok(txn.to_owned()),
+            Some(txn) => {
+                let txn_record = RpcTransactionRecord::from(txn.clone());
+                Ok(txn_record)
+            },
             None => return Err(Error::Custom("unable to find transaction".to_string())),
         }
     }
 
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, Txn>, Error> {
+        digests: Vec<RpcTransactionDigest>,
+    ) -> Result<HashMap<RpcTransactionDigest, RpcTransactionRecord>, Error> {
         debug!("Received a listTransactions RPC request");
 
-        let mut values: HashMap<TransactionDigest, Txn> = HashMap::new();
-        digests.iter().for_each(|digest| {
+        let mut values: HashMap<RpcTransactionDigest, RpcTransactionRecord> = HashMap::new();
+
+        digests.iter().for_each(|digest_string| {
+            let parsed_digest = digest_string
+                .parse::<TransactionDigest>()
+                .unwrap_or_default(); // TODO: report this error
+
             if let Some(txn) = self
                 .vrrbdb_read_handle
                 .transaction_store_values()
-                .get(digest)
+                .get(&parsed_digest)
             {
-                values.insert(digest.clone(), txn.clone());
+                let txn_record = RpcTransactionRecord::from(txn.clone());
+
+                values.insert(txn.digest().to_string(), txn_record);
             }
         });
 

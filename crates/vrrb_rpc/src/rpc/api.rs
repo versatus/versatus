@@ -6,13 +6,36 @@ use primitives::{Address, NodeType, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,
-    txn::{NewTxnArgs, TransactionDigest, TxAmount, TxNonce, TxPayload, TxSignature, Txn},
+    txn::{NewTxnArgs, Txn},
 };
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
 pub type FullStateSnapshot = HashMap<Address, Account>;
-pub type FullMempoolSnapshot = Vec<Txn>;
+pub type FullMempoolSnapshot = Vec<RpcTransactionRecord>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionRecord {
+    //
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FullMempoolSnapshotResponse {
+    //
+}
+
+pub type RpcTransactionDigest = String;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcTransactionRecord {
+    //
+}
+
+impl From<Txn> for RpcTransactionRecord {
+    fn from(txn: Txn) -> Self {
+        Self {}
+    }
+}
 
 #[rpc(server, client, namespace = "state")]
 #[async_trait]
@@ -35,14 +58,17 @@ pub trait Rpc {
 
     /// Get a transaction from state
     #[method(name = "getTransaction")]
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn, Error>;
+    async fn get_transaction(
+        &self,
+        transaction_digest: RpcTransactionDigest,
+    ) -> Result<RpcTransactionRecord, Error>;
 
     /// List a group of transactions
     #[method(name = "listTransactions")]
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, Txn>, Error>;
+        digests: Vec<RpcTransactionDigest>,
+    ) -> Result<HashMap<RpcTransactionDigest, RpcTransactionRecord>, Error>;
 
     #[method(name = "createAccount")]
     async fn create_account(&self, address: Address, account: Account) -> Result<(), Error>;

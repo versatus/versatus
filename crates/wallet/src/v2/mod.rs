@@ -13,7 +13,7 @@ use telemetry::{debug, error};
 use thiserror::Error;
 use vrrb_core::{
     account::Account,
-    helpers::{gen_sha256_digest_string, write_keypair_file},
+    helpers::write_keypair_file,
     keypair::KeyPairError,
     txn::{Token, TransactionDigest, Txn},
 };
