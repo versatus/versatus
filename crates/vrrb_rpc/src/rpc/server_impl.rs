@@ -103,9 +103,10 @@ impl RpcApiServer for RpcServerImpl {
         let account_bytes =
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
-        let addr = Address::from_str(account.hash);
+        let addr =
+            Address::from_str(&account.hash).map_err(|err| Error::Custom(err.to_string()))?;
 
-        let event = Event::AccountUpdateRequested((account.hash, account_bytes));
+        let event = Event::AccountUpdateRequested((addr, account_bytes));
 
         self.events_tx.send((Topic::State, event)).map_err(|err| {
             error!("could not update account: {err}");

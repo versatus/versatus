@@ -18,7 +18,7 @@ async fn server_can_publish_transactions_to_be_created() {
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, _) = unbounded_channel();
+    let (events_tx, events_rx) = unbounded_channel();
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();
