@@ -28,7 +28,7 @@ pub type RpcTransactionDigest = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcTransactionRecord {
-    pub digest: RpcTransactionDigest,
+    pub id: RpcTransactionDigest,
     pub timestamp: TxTimestamp,
     pub sender_address: String,
     pub sender_public_key: String,
@@ -43,7 +43,7 @@ pub struct RpcTransactionRecord {
 impl From<Txn> for RpcTransactionRecord {
     fn from(txn: Txn) -> Self {
         Self {
-            digest: txn.digest().to_string(),
+            id: txn.digest().to_string(),
             timestamp: txn.timestamp(),
             sender_address: txn.sender_address(),
             sender_public_key: txn.sender_public_key().to_string(),

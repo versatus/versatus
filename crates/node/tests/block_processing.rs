@@ -18,7 +18,7 @@ use primitives::generate_account_keypair;
 use secp256k1::Message;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::{event_router::Event, txn::NewTxnArgs};
-use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
+use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
 #[ignore]

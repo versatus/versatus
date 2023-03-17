@@ -80,7 +80,7 @@ async fn server_can_publish_transactions_to_be_created() {
     let mock_signature= "30440220029d8f55b771933f5bcea06771cda9fa793478317a5633407366d3f2186ac994022012f5bdc5217f192a34a62e9856c6efd9a0803e7a93bfaefb95783da29c52c3df".to_string();
 
     let mock_record = RpcTransactionRecord {
-        digest: mock_digest,
+        id: mock_digest,
         timestamp: 0,
         sender_address: mock_sender_address,
         sender_public_key: mock_sender_public_key,
