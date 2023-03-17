@@ -1,11 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use async_trait::async_trait;
-use jsonrpsee::{
-    core::Error,
-    server::{ServerBuilder, SubscriptionSink},
-    types::SubscriptionResult,
-};
+use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -14,13 +10,19 @@ use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
-    serde_helpers::{encode_to_binary, encode_to_json},
+    serde_helpers::encode_to_binary,
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
-use super::api::FullMempoolSnapshot;
-use crate::rpc::api::{FullStateSnapshot, RpcServer};
+use super::api::RpcApiServer;
+use crate::rpc::api::{
+    FullMempoolSnapshot,
+    FullStateSnapshot,
+    RpcTransactionDigest,
+    RpcTransactionRecord,
+};
 
+#[derive(Debug, Clone)]
 pub struct RpcServerImpl {
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
@@ -29,7 +31,7 @@ pub struct RpcServerImpl {
 }
 
 #[async_trait]
-impl RpcServer for RpcServerImpl {
+impl RpcApiServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
         let values = self.vrrbdb_read_handle.state_store_values();
 
@@ -37,7 +39,12 @@ impl RpcServer for RpcServerImpl {
     }
 
     async fn get_full_mempool(&self) -> Result<FullMempoolSnapshot, Error> {
-        let values = self.mempool_read_handle_factory.values();
+        let values = self
+            .mempool_read_handle_factory
+            .values()
+            .iter()
+            .map(|txn| RpcTransactionRecord::from(txn.clone()))
+            .collect();
 
         Ok(values)
     }
@@ -46,7 +53,7 @@ impl RpcServer for RpcServerImpl {
         Ok(self.node_type)
     }
 
-    async fn create_txn(&self, args: NewTxnArgs) -> Result<Txn, Error> {
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<RpcTransactionRecord, Error> {
         let txn = Txn::new(args);
         let event = Event::NewTxnCreated(txn.clone());
 
@@ -67,7 +74,7 @@ impl RpcServer for RpcServerImpl {
                 Error::Custom(err.to_string())
             })?;
 
-        Ok(txn)
+        Ok(RpcTransactionRecord::from(txn))
     }
 
     async fn create_account(&self, address: Address, account: Account) -> Result<(), Error> {
@@ -96,42 +103,63 @@ impl RpcServer for RpcServerImpl {
         let account_bytes =
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
-        // let event = Event::RequestedAccountUpdate((account.hash, account_bytes));
-        // self.events_tx.send((Topic::State, event)).map_err(|err| {
-        //     error!("could not update account: {err}");
-        //     Error::Custom(err.to_string())
-        // })?;
+        let addr =
+            Address::from_str(&account.hash).map_err(|err| Error::Custom(err.to_string()))?;
+
+        let event = Event::AccountUpdateRequested((addr, account_bytes));
+
+        self.events_tx.send((Topic::State, event)).map_err(|err| {
+            error!("could not update account: {err}");
+            Error::Custom(err.to_string())
+        })?;
 
         Ok(())
     }
 
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn, Error> {
+    async fn get_transaction(
+        &self,
+        transaction_digest: RpcTransactionDigest,
+    ) -> Result<RpcTransactionRecord, Error> {
         // Do we need to check both state AND mempool?
         debug!("Received a getTransaction RPC request");
 
+        let parsed_digest = transaction_digest
+            .parse::<TransactionDigest>()
+            .map_err(|err| Error::Custom("unable to parse transaction digest".to_string()))?;
+
         let values = self.vrrbdb_read_handle.transaction_store_values();
-        let value = values.get(&transaction_digest);
+        let value = values.get(&parsed_digest);
 
         match value {
-            Some(txn) => return Ok(txn.to_owned()),
+            Some(txn) => {
+                let txn_record = RpcTransactionRecord::from(txn.clone());
+                Ok(txn_record)
+            },
             None => return Err(Error::Custom("unable to find transaction".to_string())),
         }
     }
 
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, Txn>, Error> {
+        digests: Vec<RpcTransactionDigest>,
+    ) -> Result<HashMap<RpcTransactionDigest, RpcTransactionRecord>, Error> {
         debug!("Received a listTransactions RPC request");
 
-        let mut values: HashMap<TransactionDigest, Txn> = HashMap::new();
-        digests.iter().for_each(|digest| {
+        let mut values: HashMap<RpcTransactionDigest, RpcTransactionRecord> = HashMap::new();
+
+        digests.iter().for_each(|digest_string| {
+            let parsed_digest = digest_string
+                .parse::<TransactionDigest>()
+                .unwrap_or_default(); // TODO: report this error
+
             if let Some(txn) = self
                 .vrrbdb_read_handle
                 .transaction_store_values()
-                .get(digest)
+                .get(&parsed_digest)
             {
-                values.insert(digest.clone(), txn.clone());
+                let txn_record = RpcTransactionRecord::from(txn.clone());
+
+                values.insert(txn.digest().to_string(), txn_record);
             }
         });
 

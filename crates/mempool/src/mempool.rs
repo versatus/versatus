@@ -30,10 +30,10 @@ pub struct TxnRecord {
 impl TxnRecord {
     pub fn new(txn: Txn) -> TxnRecord {
         let added_timestamp = chrono::offset::Utc::now().timestamp();
-        let timestamp = txn.timestamp;
+        let timestamp = txn.timestamp();
 
         TxnRecord {
-            txn_id: txn.digest().to_string(),
+            txn_id: txn.id().to_string(),
             txn,
             timestamp,
             added_timestamp,

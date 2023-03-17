@@ -8,13 +8,11 @@ use primitives::{PublicKey, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ritelinked::LinkedHashMap;
 use secp256k1::generate_keypair;
-use sha2::Sha256;
-use sha256::Sha256Digest;
 
 use crate::{txn::Txn, Error};
 
-pub fn gen_sha256_digest_string<D: Sha256Digest>(data: D) -> String {
-    sha256::digest(data)
+pub fn gen_hex_encoded_string<T: AsRef<[u8]>>(data: T) -> String {
+    hex::encode(data)
 }
 
 // NOTE: this is used to generate random filenames so files created by tests

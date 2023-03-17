@@ -16,7 +16,7 @@ use vrrb_core::{
     txn::NewTxnArgs,
 };
 
-use crate::rpc::{api::RpcServer, server_impl::RpcServerImpl};
+use crate::rpc::{api::RpcApiServer, server_impl::RpcServerImpl};
 
 #[derive(Debug, Clone)]
 pub struct JsonRpcServerConfig {
