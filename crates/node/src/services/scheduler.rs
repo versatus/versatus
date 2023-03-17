@@ -87,7 +87,6 @@ pub enum JobResult {
     CertifiedTxn(Vec<Vote>, RawSignature, String, String, Vec<u8>, Txn),
 }
 
-
 impl<'a> JobSchedulerController<'a> {
     pub fn new(
         peer_id: PeerID,

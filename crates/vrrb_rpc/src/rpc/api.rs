@@ -6,7 +6,7 @@ use primitives::{Address, NodeType, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,
-    txn::{NewTxnArgs, Txn},
+    txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
 };
 
 pub type ExampleHash = [u8; 32];
@@ -28,12 +28,32 @@ pub type RpcTransactionDigest = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcTransactionRecord {
-    //
+    pub digest: RpcTransactionDigest,
+    pub timestamp: TxTimestamp,
+    pub sender_address: String,
+    pub sender_public_key: String,
+    pub receiver_address: String,
+    pub token: Token,
+    pub amount: TxAmount,
+    pub signature: String,
+    pub validators: HashMap<String, bool>,
+    pub nonce: TxNonce,
 }
 
 impl From<Txn> for RpcTransactionRecord {
     fn from(txn: Txn) -> Self {
-        Self {}
+        Self {
+            digest: txn.digest().to_string(),
+            timestamp: txn.timestamp(),
+            sender_address: txn.sender_address(),
+            sender_public_key: txn.sender_public_key().to_string(),
+            receiver_address: txn.receiver_address(),
+            token: txn.token(),
+            amount: txn.amount(),
+            signature: txn.signature().to_string(),
+            validators: txn.validators(),
+            nonce: txn.nonce(),
+        }
     }
 }
 

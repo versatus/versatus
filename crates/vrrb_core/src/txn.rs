@@ -111,7 +111,6 @@ pub struct Txn {
     pub signature: Signature,
     pub validators: Option<HashMap<String, bool>>,
     pub nonce: TxNonce,
-    pub receiver_farmer_id: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,7 +160,6 @@ impl Txn {
             signature: args.signature,
             validators: args.validators,
             nonce: args.nonce,
-            receiver_farmer_id: None,
         }
     }
 
@@ -197,12 +195,28 @@ impl Txn {
         self.token.clone()
     }
 
-    pub fn set_token(&mut self, token: Token) {
-        self.token = token;
+    pub fn timestamp(&self) -> TxTimestamp {
+        self.timestamp.clone()
     }
 
-    pub fn set_amount(&mut self, amount: u128) {
-        self.amount = amount;
+    pub fn sender_address(&self) -> String {
+        self.sender_address.clone()
+    }
+
+    pub fn sender_public_key(&self) -> PublicKey {
+        self.sender_public_key.clone()
+    }
+
+    pub fn receiver_address(&self) -> String {
+        self.receiver_address.clone()
+    }
+
+    pub fn signature(&self) -> Signature {
+        self.signature.clone()
+    }
+
+    pub fn nonce(&self) -> TxNonce {
+        self.nonce.clone()
     }
 
     pub fn validators(&self) -> HashMap<String, bool> {
@@ -287,7 +301,6 @@ pub fn null_txn() -> Txn {
         signature,
         validators: None,
         nonce: 0,
-        receiver_farmer_id: None,
     }
 }
 

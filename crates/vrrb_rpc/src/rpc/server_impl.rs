@@ -1,11 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use async_trait::async_trait;
-use jsonrpsee::{
-    core::Error,
-    server::{ServerBuilder, SubscriptionSink},
-    types::SubscriptionResult,
-};
+use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -14,18 +10,19 @@ use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
-    serde_helpers::{encode_to_binary, encode_to_json},
+    serde_helpers::encode_to_binary,
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 
+use super::api::RpcApiServer;
 use crate::rpc::api::{
     FullMempoolSnapshot,
     FullStateSnapshot,
-    RpcApi,
     RpcTransactionDigest,
     RpcTransactionRecord,
 };
 
+#[derive(Debug, Clone)]
 pub struct RpcServerImpl {
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
@@ -34,7 +31,7 @@ pub struct RpcServerImpl {
 }
 
 #[async_trait]
-impl RpcApi for RpcServerImpl {
+impl RpcApiServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
         let values = self.vrrbdb_read_handle.state_store_values();
 
@@ -46,12 +43,7 @@ impl RpcApi for RpcServerImpl {
             .mempool_read_handle_factory
             .values()
             .iter()
-            .map(|txn| {
-                let txn = txn.clone();
-                let txn = RpcTransactionRecord::from(txn);
-
-                txn
-            })
+            .map(|txn| RpcTransactionRecord::from(txn.clone()))
             .collect();
 
         Ok(values)
@@ -61,7 +53,7 @@ impl RpcApi for RpcServerImpl {
         Ok(self.node_type)
     }
 
-    async fn create_txn(&self, args: NewTxnArgs) -> Result<Txn, Error> {
+    async fn create_txn(&self, args: NewTxnArgs) -> Result<RpcTransactionRecord, Error> {
         let txn = Txn::new(args);
         let event = Event::NewTxnCreated(txn.clone());
 
@@ -82,7 +74,7 @@ impl RpcApi for RpcServerImpl {
                 Error::Custom(err.to_string())
             })?;
 
-        Ok(txn)
+        Ok(RpcTransactionRecord::from(txn))
     }
 
     async fn create_account(&self, address: Address, account: Account) -> Result<(), Error> {
@@ -111,11 +103,14 @@ impl RpcApi for RpcServerImpl {
         let account_bytes =
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
-        // let event = Event::RequestedAccountUpdate((account.hash, account_bytes));
-        // self.events_tx.send((Topic::State, event)).map_err(|err| {
-        //     error!("could not update account: {err}");
-        //     Error::Custom(err.to_string())
-        // })?;
+        let addr = Address::from_str(account.hash);
+
+        let event = Event::AccountUpdateRequested((account.hash, account_bytes));
+
+        self.events_tx.send((Topic::State, event)).map_err(|err| {
+            error!("could not update account: {err}");
+            Error::Custom(err.to_string())
+        })?;
 
         Ok(())
     }
