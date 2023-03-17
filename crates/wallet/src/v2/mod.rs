@@ -17,7 +17,10 @@ use vrrb_core::{
     keypair::KeyPairError,
     txn::{Token, TransactionDigest, Txn},
 };
-use vrrb_rpc::rpc::{api::RpcClient, client::create_client};
+use vrrb_rpc::rpc::{
+    api::{RpcApiClient, RpcTransactionDigest, RpcTransactionRecord},
+    client::create_client,
+};
 
 type WalletResult<Wallet> = Result<Wallet, WalletError>;
 
@@ -126,7 +129,7 @@ impl Wallet {
         }
     }
 
-    pub async fn get_mempool(&self) -> Result<Vec<Txn>, WalletError> {
+    pub async fn get_mempool(&self) -> Result<Vec<RpcTransactionRecord>, WalletError> {
         let mempool = self.client.get_full_mempool().await?;
 
         Ok(mempool)
@@ -139,7 +142,7 @@ impl Wallet {
         amount: u128,
         token: Token,
         timestamp: i64,
-    ) -> Result<TransactionDigest, WalletError> {
+    ) -> Result<RpcTransactionDigest, WalletError> {
         let addresses = self.addresses.clone();
         let sender_address = {
             if let Some(addr) = addresses.get(&address_number) {
@@ -192,10 +195,13 @@ impl Wallet {
                 WalletError::Custom(format!("API Error:{}", err))
             })?;
 
-        Ok(txn.digest())
+        Ok(txn.id)
     }
 
-    pub async fn get_transaction(&mut self, transaction_digest: TransactionDigest) -> Option<Txn> {
+    pub async fn get_transaction(
+        &mut self,
+        transaction_digest: RpcTransactionDigest,
+    ) -> Option<RpcTransactionRecord> {
         let res = self.client.get_transaction(transaction_digest).await;
 
         if let Ok(value) = res {
@@ -217,9 +223,9 @@ impl Wallet {
 
     pub async fn list_transactions(
         &mut self,
-        digests: Vec<TransactionDigest>,
-    ) -> HashMap<TransactionDigest, Txn> {
-        let res = self.client.list_transactions(digests).await;
+        ids: Vec<RpcTransactionDigest>,
+    ) -> HashMap<RpcTransactionDigest, RpcTransactionRecord> {
+        let res = self.client.list_transactions(ids).await;
 
         if let Ok(values) = res {
             values
