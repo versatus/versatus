@@ -101,16 +101,16 @@ impl Default for Token {
 //signature of validators in.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
-    digest: TransactionDigest,
-    pub timestamp: TxTimestamp,
-    pub sender_address: String,
-    pub sender_public_key: PublicKey,
-    pub receiver_address: String,
+    id: TransactionDigest,
+    timestamp: TxTimestamp,
+    sender_address: String,
+    sender_public_key: PublicKey,
+    receiver_address: String,
     token: Token,
     amount: TxAmount,
-    pub signature: Signature,
-    pub validators: Option<HashMap<String, bool>>,
-    pub nonce: TxNonce,
+    signature: Signature,
+    validators: Option<HashMap<String, bool>>,
+    nonce: TxNonce,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,7 +149,7 @@ impl Txn {
         let digest = TransactionDigest::from(digest_vec);
 
         Self {
-            digest,
+            id: digest,
             // TODO: change time unit from seconds to millis
             timestamp: args.timestamp,
             sender_address: args.sender_address,
@@ -164,8 +164,13 @@ impl Txn {
     }
 
     /// Produces a SHA 256 hash slice of bytes from the transaction
+    pub fn id(&self) -> TransactionDigest {
+        self.id.clone()
+    }
+
+    #[deprecated]
     pub fn digest(&self) -> TransactionDigest {
-        self.digest.clone()
+        self.id()
     }
 
     /// Serializes the transation into a byte array
@@ -291,7 +296,7 @@ pub fn null_txn() -> Txn {
     let digest = TransactionDigest::from(txn_digest_vec);
 
     Txn {
-        digest,
+        id: digest,
         timestamp: 0,
         sender_address: String::new(),
         sender_public_key,
