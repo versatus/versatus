@@ -101,16 +101,16 @@ impl Default for Token {
 //signature of validators in.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
-    id: TransactionDigest,
-    timestamp: TxTimestamp,
-    sender_address: String,
-    sender_public_key: PublicKey,
-    receiver_address: String,
-    token: Token,
-    amount: TxAmount,
-    signature: Signature,
-    validators: Option<HashMap<String, bool>>,
-    nonce: TxNonce,
+    pub id: TransactionDigest,
+    pub timestamp: TxTimestamp,
+    pub sender_address: String,
+    pub sender_public_key: PublicKey,
+    pub receiver_address: String,
+    pub token: Token,
+    pub amount: TxAmount,
+    pub signature: Signature,
+    pub validators: Option<HashMap<String, bool>>,
+    pub nonce: TxNonce,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,6 +171,11 @@ impl Txn {
     #[deprecated]
     pub fn digest(&self) -> TransactionDigest {
         self.id()
+    }
+
+    #[deprecated]
+    pub fn txn_id(&self) -> String {
+        self.id().to_string()
     }
 
     /// Serializes the transation into a byte array
