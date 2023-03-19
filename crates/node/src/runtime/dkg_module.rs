@@ -1,19 +1,30 @@
-use std::{hash::Hash, net::SocketAddr, path::PathBuf};
+use std::{
+    hash::Hash,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
+    thread,
+    thread::sleep,
+    time::Duration,
+};
 
 use async_trait::async_trait;
+use crossbeam_channel::{select, unbounded};
 use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgError, DkgResult},
 };
 use hbbft::sync_key_gen::Part;
 use kademlia_dht::{Key, Node, NodeData};
+use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{NodeIdx, NodeType, QuorumType};
+use primitives::{NodeIdx, NodeType, QuorumType, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST};
+use rand::{distributions::Alphanumeric, Rng};
+use serde::{Deserialize, Serialize};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
-use vrrb_core::event_router::{DirectedEvent, Event, Topic};
+use vrrb_core::event_router::{DirectedEvent, Event, SyncPeerData, Topic};
 
 use crate::{result::Result, NodeError, RuntimeModule};
 
@@ -26,6 +37,10 @@ pub struct DkgModuleConfig {
 pub struct DkgModule {
     pub dkg_engine: DkgEngine,
     pub quorum_type: Option<QuorumType>,
+    pub rendzevous_local_addr: SocketAddr,
+    pub rendzevous_server_addr: SocketAddr,
+    pub quic_port: u16,
+    pub socket: Socket,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -39,6 +54,9 @@ impl DkgModule {
         node_type: NodeType,
         secret_key: hbbft::crypto::SecretKey,
         config: DkgModuleConfig,
+        rendzevous_local_addr: SocketAddr,
+        rendzevous_server_addr: SocketAddr,
+        quic_port: u16,
         events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
         broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     ) -> Self {
@@ -51,9 +69,33 @@ impl DkgModule {
                 threshold: config.quorum_threshold as u16,
             },
         );
+        let mut socket = Socket::bind_with_config(
+            rendzevous_local_addr,
+            Config {
+                blocking_mode: false,
+                idle_connection_timeout: Duration::from_secs(5),
+                heartbeat_interval: None,
+                max_packet_size: (16 * 1024) as usize,
+                max_fragments: 16 as u8,
+                fragment_size: 1024,
+                fragment_reassembly_buffer_size: 64,
+                receive_buffer_max_size: 1452 as usize,
+                rtt_smoothing_factor: 0.10,
+                rtt_max_value: 250,
+                socket_event_buffer_size: 1024,
+                socket_polling_timeout: Some(Duration::from_millis(1000)),
+                max_packets_in_flight: 512,
+                max_unestablished_connections: 50,
+            },
+        )
+        .unwrap();
         Self {
             dkg_engine: engine,
             quorum_type: config.quorum_type,
+            rendzevous_local_addr,
+            rendzevous_server_addr,
+            quic_port,
+            socket,
             status: ActorState::Stopped,
             label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
@@ -68,9 +110,33 @@ impl DkgModule {
         events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
         broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     ) -> Self {
+        let mut socket = Socket::bind_with_config(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            Config {
+                blocking_mode: false,
+                idle_connection_timeout: Duration::from_secs(5),
+                heartbeat_interval: None,
+                max_packet_size: (16 * 1024) as usize,
+                max_fragments: 16 as u8,
+                fragment_size: 1024,
+                fragment_reassembly_buffer_size: 64,
+                receive_buffer_max_size: 1452 as usize,
+                rtt_smoothing_factor: 0.10,
+                rtt_max_value: 250,
+                socket_event_buffer_size: 1024,
+                socket_polling_timeout: Some(Duration::from_millis(1000)),
+                max_packets_in_flight: 512,
+                max_unestablished_connections: 50,
+            },
+        )
+        .unwrap();
         Self {
             dkg_engine,
             quorum_type: Some(QuorumType::Farmer),
+            rendzevous_local_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            rendzevous_server_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            quic_port: 9090,
+            socket,
             status: ActorState::Stopped,
             label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
@@ -82,7 +148,177 @@ impl DkgModule {
     fn name(&self) -> String {
         String::from("DKG module")
     }
+
+    pub fn process_rendzevous_response(&self) {
+        let receiver = self.socket.get_event_receiver();
+        let sender = self.socket.get_packet_sender();
+        loop {
+            if let Ok(event) = receiver.recv() {
+                match event {
+                    SocketEvent::Packet(packet) => {
+                        if packet.addr() == self.rendzevous_server_addr {
+                            let payload_response: Data =
+                                bincode::deserialize(packet.payload()).unwrap();
+                            match payload_response {
+                                Data::Request(req) => match req {
+                                    RendezvousRequest::Ping => {
+                                        let response = &Data::Response(RendezvousResponse::Pong);
+                                        let _ = sender.send(Packet::reliable_unordered(
+                                            packet.addr(),
+                                            bincode::serialize(&response).unwrap(),
+                                        ));
+                                    },
+                                    _ => {},
+                                },
+                                Data::Response(res) => match res {
+                                    RendezvousResponse::Peers(peers) => {
+                                        for peer in peers.iter() {
+                                            println!("Peers in Quorum are {:?}", peer);
+                                            let _ = self.broadcast_events_tx.send((
+                                                Topic::Network,
+                                                Event::SyncPeers(peer.clone()),
+                                            ));
+                                        }
+                                    },
+                                    RendezvousResponse::NamespaceRegistered => {
+                                        info!("Namespace Registered");
+                                    },
+                                    RendezvousResponse::PeerRegistered => {
+                                        info!("Peer Registered");
+                                    },
+
+                                    _ => {},
+                                },
+                                _ => {},
+                            }
+                        } else {
+                            println!("Unknown sender.");
+                        }
+                    },
+                    SocketEvent::Timeout(_) => {},
+                    _ =>
+                        //println!("Silence.."),
+                        {},
+                }
+            }
+        }
+    }
+
+    pub fn send_register_retrieve_peers_request(&self) {
+        let sender = self.socket.get_packet_sender();
+        let (tx1, rx1) = unbounded();
+
+        let (tx2, rx2) = unbounded();
+
+        thread::spawn(move || loop {
+            sleep(Duration::from_secs(RETRIEVE_PEERS_REQUEST));
+            let _ = tx1.send(());
+        });
+
+        thread::spawn(move || loop {
+            sleep(Duration::from_secs(REGISTER_REQUEST));
+            let _ = tx2.send(());
+        });
+
+        loop {
+            loop {
+                select! {
+                           recv(rx1)->_  => {
+                                    if self.dkg_engine.node_type==NodeType::Farmer{
+                                //ToDo Request peers of harvester Quorum ,how to find a way request for harvester quorum key by Checking Last Mined Block Certificate
+
+
+                        }
+
+
+                    },
+
+                          recv(rx2) ->_ => {
+
+                                              match self.dkg_engine.dkg_state.public_key_set.clone(){
+                                                  Some(quorum_key) => {
+
+                                                          /// Sending a request to the rendezvous server to register the namespace
+                                                          let _ = sender.send(Packet::reliable_ordered(
+                                                                   self.rendzevous_server_addr,
+                                                                   bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
+                                                                       self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                                                                      quorum_key.public_key().to_bytes().to_vec()
+                                                                   )))
+                                                                   .unwrap(),
+                                                                   None,
+                                                               ));
+                                                                thread::sleep(Duration::from_secs(10));
+
+                        if let Some(secret_key_share)=&self.dkg_engine.dkg_state.secret_key_share{
+                                    /// Generating a random string of 15 characters as payload.
+                                    let message: String = rand::thread_rng()
+                                                    .sample_iter(&Alphanumeric)
+                                                    .take(15)
+                                                    .map(char::from)
+                                                    .collect();
+                                    let msg_bytes=if let Ok(m)=hex::decode(message.clone()){
+                                        m
+                                    }else{
+                                        vec![]
+                                    };
+                            let signature = secret_key_share.sign(message.clone()).to_bytes().to_vec();
+                            /// Sending the Register Peer Payload   to the rendezvous server.
+                            let payload_result=bincode::serialize(&Data::Request(RendezvousRequest::RegisterPeer(
+                                quorum_key.public_key().to_bytes().to_vec(),
+                                self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                                secret_key_share.public_key_share().to_bytes().to_vec(),
+                               signature,
+                                msg_bytes,
+                                SyncPeerData {
+                                    address: self.rendzevous_local_addr.to_string(),
+                                    raptor_udp_port: self.rendzevous_local_addr.port(),
+                                    quic_port: self.quic_port,
+                                    node_type: self.dkg_engine.node_type,
+                                },
+                                 )));
+                            if let Ok(payload) = payload_result{
+                                   let _ = sender.send(Packet::reliable_ordered( self.rendzevous_server_addr,payload,None));
+                            }
+                        }
+                    },
+                    None =>{
+                        error!("Cannot proceed with registration since current node is not part of any quorum");
+                    }
+                }
+
+                                                           break;
+                                                       },
+                                                   }
+            }
+        }
+    }
 }
+
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Data {
+    Request(RendezvousRequest),
+    Response(RendezvousResponse),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousRequest {
+    Ping,
+    Peers(Vec<u8>),
+    Namespace(Vec<u8>, Vec<u8>),
+    RegisterPeer(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, SyncPeerData),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousResponse {
+    Pong,
+    RequestPeers(Vec<u8>),
+    Peers(Vec<SyncPeerData>),
+    PeerRegistered,
+    NamespaceRegistered,
+}
+
 
 #[async_trait]
 impl Handler<Event> for DkgModule {
@@ -265,6 +501,9 @@ mod tests {
             NodeType::MasterNode,
             sec_key,
             dkg_config,
+            "127.0.0.1:3031".parse().unwrap(),
+            "127.0.0.1:3030".parse().unwrap(),
+            9092,
             events_tx,
             broadcast_events_tx,
         );
@@ -299,6 +538,9 @@ mod tests {
             NodeType::MasterNode,
             sec_key.clone(),
             dkg_config,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            9091,
             events_tx,
             broadcast_events_tx,
         );
@@ -356,6 +598,9 @@ mod tests {
             NodeType::MasterNode,
             sec_key.clone(),
             dkg_config,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            9092,
             events_tx,
             broadcast_events_tx.clone(),
         );

@@ -36,6 +36,15 @@ pub struct PeerData {
     pub peer_id: PeerId,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub struct SyncPeerData {
+    pub address: String,
+    pub raptor_udp_port: u16,
+    pub quic_port: u16,
+    pub node_type: NodeType,
+}
+
+
 // NOTE: naming convention for events goes as follows:
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants
@@ -96,6 +105,7 @@ pub enum Event {
     ClaimAbandoned(String, Vec<u8>),
     SlashClaims(Vec<String>),
     CheckAbandoned,
+    SyncPeers(SyncPeerData),
     PeerRequestedStateSync(PeerData),
 
     /// A peer joined the network, should be added to the node's peer list

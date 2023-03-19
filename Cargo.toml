@@ -106,6 +106,7 @@ theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
+rendezvous_dht={git="https://github.com/vrrb-io/rendezvous_dht"}
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
