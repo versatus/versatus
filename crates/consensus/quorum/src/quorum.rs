@@ -4,7 +4,8 @@ use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::{credit_model::CreditModel, election::Election};
+use crate::election::Election;
+
 
 ///Error type for Quorum
 #[derive(Error, Debug)]
@@ -34,6 +35,7 @@ pub struct Quorum {
     pub election_timestamp: u128,
     pub keypair: KeyPair,
     pub credit_model: CreditModel,
+    pub credit_scores: Vec<CreditScores>,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -140,6 +142,7 @@ impl Quorum {
                 election_timestamp: timestamp,
                 keypair: kp,
                 credit_model: CreditModel::new(),
+                credit_scores: CreditScores::new(),
             })
         }
     }
@@ -177,16 +180,13 @@ impl Quorum {
 
         let num_claims = ((claims.len() as f32) * 0.51).ceil() as usize;
 
-        let mut claim_tuples: Vec<(u128, &String)> = claims
-            .iter()
-            .filter(|claim| claim.get_pointer(self.quorum_seed as u128).is_some())
-            .map(|claim| {
-                (
-                    claim.get_pointer(self.quorum_seed as u128).unwrap(),
-                    &claim.public_key,
-                )
-            })
-            .collect();
+        let mut claim_tuples: Vec<(u128, &String)> = Vec::new();
+
+        for x in 0..claims.len() {
+            if let Some(pointer) = claims[x].get_pointer(self.quorum_seed as u128) {
+                claim_tuples.push((pointer, &claims[x].public_key));
+            }
+        }
 
         if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
@@ -207,9 +207,9 @@ impl Quorum {
     }
 
     pub fn get_trusted_peers(&mut self, claims: Vec<Claim>) -> Self {
-        //get the weighted value hashmap
-        //calcualte all the t values
+        let new_final_scores = self.credit_model.calculate_final_scores(self.credit_scores);
+        self.credit_model.final_peer_scores = new_final_scores;
 
-        todo!();
+        return self;
     }
 }

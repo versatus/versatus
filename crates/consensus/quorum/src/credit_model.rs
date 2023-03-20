@@ -1,8 +1,22 @@
 use std::collections::HashMap;
 
 use primitives::NodeId;
-//use credit_score::CreditScore;
-use vrrb_core::claim::CreditScores;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CreditScores {
+    //should live in Claim
+    pub id: String,
+    pub scores_from_peers: HashMap<String,u128>, //not normalized; get normalized in election logic
+}
+
+impl CreditScores {
+    pub fn new(pk: String) -> Self {
+        CreditScores {
+            id: pk,
+            scores_from_peers: HashMap::new(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreditModel {
@@ -19,23 +33,25 @@ impl CreditModel {
         };
     }
 
+    fn calculate_score(
+        current_peer_score: u128,
+        peer_scores: CreditScores,
+        trusted_peers: HashMap<NodeId, u128>,
+    ) -> u128 {
+        let sum: u128 = peer_scores.scores_from_peers.clone().values().collect().iter().sum();
+        if sum == 0 {
+            if trusted_peers[&peer_scores.id] != 0 {
+                return (1 / (trusted_peers.keys().len())) as u128;
+            } else {
+                return 0;
+            }
+        }
+        return current_peer_score / (sum - current_peer_score);
+    }
+
     fn calculate_weights_one_peer(trusted_peers: HashMap<NodeId, u128>, credit_score: CreditScores) -> Vec<u128> {
         //for one peer, turn sij into cij for all its peers
-        fn calculate_score(
-            current_peer_score: u128,
-            peer_scores: CreditScores,
-            trusted_peers: HashMap<NodeId, u128>,
-        ) -> u128 {
-            let sum: u128 = peer_scores.scores_from_peers.clone().values().collect().iter().sum();
-            if sum == 0 {
-                if trusted_peers[&peer_scores.id] != 0 {
-                    return (1 / (trusted_peers.keys().len())) as u128;
-                } else {
-                    return 0;
-                }
-            }
-            return current_peer_score / (sum - current_peer_score);
-        }
+
         return credit_score
             .scores_from_peers
             .clone()
@@ -68,7 +84,7 @@ impl CreditModel {
         peers.sort();
 
         if final_peer_scores.len() == 0 {
-            honest_peer_score = peers[0];
+            honest_peer_score = &peers[0];
         } else {
             let scores: Vec<&u128> = final_peer_scores.clone().values().collect();
             let mut sorted_scores: Vec<&u128> = final_peer_scores.values().clone().collect::<Vec<&u128>>();
@@ -120,12 +136,16 @@ impl CreditModel {
         //run calculate_final_score_single_peer for each peer in the credit model. collect the t values and update.
         let weighted_scores = calculate_all_weighted_scores(all_credit_scores); //should return a vector of HM <String, u128>
 
+        let node_ids = weighted_scores.keys().clone().collect();
+        let mut new_final_scores = HashMap::new();
 
-        
-        //Self::calculate_final_score_single_peer(self.trusted_peers, self.final_peer_scores);
-        //update credit model w new trusted peers and new final peer scores
+        for i in 0..(node_ids.len() + 1) {
+            //calculate final score sincgle oeer
+            let mut single_weighted_scores = HashMap::new();
+            single_weighted_scores.insert(node_ids[i].clone(), weighted_scores.value(node_ids[i].clone()));
 
-
-
+            new_final_scores.insert(node_ids[i].clone(), calculate_final_score_single_peer(self.trusted_peers, self.final_peer_scores, single_weighted_scores));            
+        }
+        new_final_scores;
     }
 }

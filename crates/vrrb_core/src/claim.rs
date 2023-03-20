@@ -9,21 +9,6 @@ use sha256::digest;
 
 use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CreditScores {
-    //should live in Claim
-    pub id: String,
-    pub scores_from_peers: HashMap<String,u128>, //not normalized; get normalized in election logic
-}
-
-impl CreditScores {
-    pub fn new(pk: String) -> Self {
-        CreditScores {
-            id: pk,
-            scores_from_peers: HashMap::new(),
-        }
-    }
-}
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +27,6 @@ pub struct Claim {
     pub hash: String,
     pub nonce: u128,
     pub eligible: bool,
-    pub credit_score: CreditScores,
 }
 
 impl Claim {
@@ -70,7 +54,6 @@ impl Claim {
             hash,
             nonce: claim_nonce,
             eligible: true,
-            credit_score: CreditScores::new(public_key),
         }
     }
 
