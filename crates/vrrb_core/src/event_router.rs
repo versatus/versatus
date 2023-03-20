@@ -132,7 +132,7 @@ pub enum Event {
     /// Used to generate the public key set& Distrbuted Group Public Key for the
     /// node.
     GenerateKeySet,
-
+    HarvesterPublicKey(Vec<u8>),
     Farm,
 
     Vote(Vote, QuorumType, FarmerQuorumThreshold),

@@ -41,6 +41,9 @@ pub struct DkgEngine {
 
     /// state information related to dkg process
     pub dkg_state: DkgState,
+
+    /// state information related to dkg process
+    pub harvester_public_key: Option<PublicKey>,
 }
 
 /// `DkgState` is a struct that contains all the state that is needed to run the
@@ -143,6 +146,7 @@ impl DkgEngine {
                 sync_key_gen: None,
                 random_number_gen: None,
             },
+            harvester_public_key: None,
         }
     }
 
