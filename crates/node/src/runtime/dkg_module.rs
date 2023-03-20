@@ -13,7 +13,6 @@ use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgError, DkgResult},
 };
-use events::{DirectedEvent, Event, SyncPeerData, Topic};
 use hbbft::{crypto::PublicKey, sync_key_gen::Part};
 use kademlia_dht::{Key, Node, NodeData};
 use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
@@ -37,6 +36,7 @@ use serde::{Deserialize, Serialize};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
+use events::{DirectedEvent, Event, SyncPeerData, Topic};
 
 use crate::{result::Result, NodeError};
 
@@ -115,7 +115,6 @@ impl DkgModule {
                 "Error occurred while binding socket to port. Details :{0}",
                 e.to_string()
             ))),
-
         }
     }
 
