@@ -280,6 +280,16 @@ impl KeyPair {
     pub fn get_validator_public_key(&self) -> &Validator_Pk {
         &self.validator_kp.1
     }
+
+    /// Return the miner keypair
+    pub fn get_miner_keypair(&self) -> (&MinerSk, &MinerPk) {
+        (&self.miner_kp.0, &self.miner_kp.1)
+    }
+
+    /// Return the validator keypair
+    pub fn get_validator_keypair(&self) -> (&Validator_Sk, &Validator_Pk) {
+        (&self.validator_kp.0, &self.validator_kp.1)
+    }
 }
 
 /// Reads a Hex-encoded `Keypair` from a `Reader` implementor
