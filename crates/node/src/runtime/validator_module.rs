@@ -3,7 +3,10 @@ use std::{path::PathBuf, result::Result as StdResult};
 use async_trait::async_trait;
 use telemetry::info;
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
-use vrrb_core::event_router::{Event, Topic};
+use vrrb_core::{
+    event_router::{Event, Topic},
+    txn::Txn,
+};
 
 use crate::{result::Result, NodeError, RuntimeModule, RuntimeModuleState};
 
@@ -77,6 +80,7 @@ impl ValidatorModule {
 
     fn process_event(&mut self, event: Event) {
         match event {
+            Event::TxnAddedToMempool(digest) => {},
             Event::BlockConfirmed(_) => {
                 // do something
             },

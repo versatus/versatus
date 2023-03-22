@@ -7,7 +7,6 @@ use std::{
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
 use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
@@ -17,7 +16,7 @@ pub type Result<T> = StdResult<T, MempoolError>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct TxnRecord {
-    pub txn_id: TxHashString,
+    pub txn_id: TransactionDigest,
     pub txn: Txn,
     pub status: TxnStatus,
     pub timestamp: TxTimestamp,
@@ -33,7 +32,7 @@ impl TxnRecord {
         let timestamp = txn.timestamp();
 
         TxnRecord {
-            txn_id: txn.id().to_string(),
+            txn_id: txn.id(),
             txn,
             timestamp,
             added_timestamp,
@@ -41,15 +40,19 @@ impl TxnRecord {
         }
     }
 
-    pub fn new_by_id(txn_id: &str) -> TxnRecord {
+    pub fn new_by_id(txn_id: &TransactionDigest) -> TxnRecord {
         TxnRecord {
             txn_id: txn_id.to_owned(),
             ..Default::default()
         }
     }
+
+    pub fn payload(&self) -> String {
+        self.txn.generate_txn_digest_vec()
+    }
 }
 
-pub type PoolType = IndexMap<TxHashString, TxnRecord, FxBuildHasher>;
+pub type PoolType = IndexMap<TransactionDigest, TxnRecord, FxBuildHasher>;
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TxnStatus {
@@ -92,7 +95,7 @@ impl Mempool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolOp {
     Add(TxnRecord),
-    Remove(String),
+    Remove(TransactionDigest),
 }
 
 impl Absorb<MempoolOp> for Mempool {
@@ -220,7 +223,7 @@ impl LeftRightMempool {
     /// Returns:
     ///
     /// A vector of tuples of type (TxHashString, TxnRecord)
-    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TxHashString, TxnRecord)> {
+    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TransactionDigest, TxnRecord)> {
         let mut txns_records = vec![];
         for i in 0..num_of_txns {
             if i == self.pool().len() {
@@ -300,7 +303,7 @@ impl LeftRightMempool {
         Ok(())
     }
 
-    pub fn remove_txns(&mut self, txn_batch: &HashSet<TxHashString>) -> Result<()> {
+    pub fn remove_txns(&mut self, txn_batch: &HashSet<TransactionDigest>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
             self.write.append(MempoolOp::Remove(t.to_string()));
         });
@@ -367,7 +370,7 @@ impl MempoolReadHandleFactory {
     }
 
     /// Returns a hash map of all the key value pairs within the mempool
-    pub fn entries(&self) -> HashMap<TxHashString, TxnRecord> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, TxnRecord> {
         self.handle()
             .values()
             .cloned()
@@ -382,5 +385,9 @@ impl MempoolReadHandleFactory {
             .cloned()
             .map(|record| (record.txn))
             .collect()
+    }
+
+    pub fn get(&self, digest: TransactionDigest) -> Option<&TxnRecord> {
+        self.handle().get(&digest)
     }
 }

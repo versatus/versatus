@@ -32,6 +32,7 @@ use vrrb_rpc::{
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    farmer_harvester_module::QuorumMember,
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module,
     result::{NodeError, Result},
@@ -58,7 +59,9 @@ pub struct Node {
     pub keypair: KeyPair,
 
     // NOTE: optional node components
+    #[deprecated(note = "This will be replaced with an executor")]
     vm: Option<Cpu>,
+
     state_handle: Option<JoinHandle<Result<()>>>,
     mempool_handle: Option<JoinHandle<Result<()>>>,
     gossip_handle: Option<JoinHandle<Result<()>>>,
@@ -74,7 +77,6 @@ impl Node {
         // Copy the original config to avoid overriding the original
         let mut config = config.clone();
 
-
         let vm = None;
         let keypair = config.keypair.clone();
 
@@ -87,6 +89,11 @@ impl Node {
         let controller_events_rx = event_router.subscribe(&Topic::Network)?;
         let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
 
         let (
