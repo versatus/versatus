@@ -18,11 +18,17 @@ fn base_db_options() -> rocksdb::Options {
         options.set_keep_log_file_num(3);
     }
 
-    let node_data_dir = get_node_data_dir().unwrap_or_default();
-
-    let log_path = node_data_dir.join("db").join("log");
-
-    options.set_db_log_dir(log_path);
+    match get_node_data_dir() {
+        Ok(node_data_dir) => {
+            let log_path = node_data_dir.join("db").join("log");
+            options.set_db_log_dir(log_path);
+        },
+        Err(_) => {
+            let default_data_dir = std::path::PathBuf::default();
+            let log_path = default_data_dir.join("db").join("log");
+            options.set_db_log_dir(log_path);
+        },
+    }
 
     options
 }
@@ -32,7 +38,12 @@ fn new_db_instance(
     path: std::path::PathBuf,
     column_family: &str,
 ) -> storage_utils::Result<DB> {
-    let cfs = rocksdb::DB::list_cf(&options, &path).unwrap_or(vec![]);
+    let cfs = match rocksdb::DB::list_cf(&options, &path) {
+        Ok(cfs) => cfs,
+        Err(_) => vec![],
+    };
+
+
     let column_family_exists = cfs.iter().any(|cf| &cf == &column_family);
 
     let mut instance = rocksdb::DB::open_cf(&options, &path, cfs)
@@ -134,8 +145,15 @@ impl Database for RocksDbAdapter {
     }
 
     fn is_empty(&self) -> Result<bool, Self::Error> {
-        let count = self.len().unwrap_or(0);
-
-        Ok(count == 0)
+        match self.len() {
+            Ok(count) => {
+                if count > 0 {
+                    Ok(false)
+                } else {
+                    Ok(true)
+                }
+            },
+            Err(_) => Ok(true),
+        }
     }
 }
