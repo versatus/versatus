@@ -10,14 +10,20 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::{
     event_router::{DirectedEvent, Event, Topic},
-    txn::Txn,
+    txn::{TransactionDigest, Txn},
 };
 
-use crate::{result::Result, NodeError, RuntimeModule};
+use crate::{
+    result::Result,
+    EventBroadcastSender,
+    NodeError,
+    RuntimeModule,
+    MEMPOOL_THRESHOLD_SIZE,
+};
 
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    pub events_tx: EventBroadcastSender,
 }
 
 #[derive(Debug)]
@@ -26,17 +32,19 @@ pub struct MempoolModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    events_tx: EventBroadcastSender,
+    cutoff_transaction: Option<TransactionDigest>,
 }
 
 impl MempoolModule {
     pub fn new(config: MempoolModuleConfig) -> Self {
         Self {
+            id: uuid::Uuid::new_v4().to_string(),
             mempool: config.mempool,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
             label: String::from("Mempool"),
-            id: uuid::Uuid::new_v4().to_string(),
+            cutoff_transaction: None,
         }
     }
 }
@@ -78,9 +86,10 @@ impl Handler<Event> for MempoolModule {
             Event::NewTxnCreated(txn) => {
                 info!("Storing transaction in mempool for validation");
 
-                let txn_hash = txn.digest();
+                let txn_hash = txn.id();
 
-                self.mempool
+                let mempool_size = self
+                    .mempool
                     .insert(txn)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
@@ -89,11 +98,27 @@ impl Handler<Event> for MempoolModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Transaction {} sent to mempool", txn_hash);
+
+                if self.mempool.size_in_kilobytes() >= MEMPOOL_THRESHOLD_SIZE
+                    && self.cutoff_transaction.is_none()
+                {
+                    info!("mempool threshold reached. Dropping transaction");
+                    self.cutoff_transaction = Some(txn_hash.clone());
+
+                    self.events_tx
+                        .send((
+                            Topic::Consensus,
+                            Event::MempoolSizeThesholdReached {
+                                cutoff_transaction: txn_hash,
+                            },
+                        ))
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
+                }
             },
 
             Event::TxnValidated(txn) => {
                 self.mempool
-                    .remove(&txn.digest())
+                    .remove(&txn.id())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 

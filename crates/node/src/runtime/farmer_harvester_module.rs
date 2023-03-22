@@ -30,7 +30,6 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::{broadcast::error::TryRecvError, mpsc::UnboundedSender};
 use tracing::error;
 use vrrb_core::{
-    accountable::Accountable,
     bloom::Bloom,
     event_router::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt},
     txn::{TransactionDigest, Txn},
@@ -655,7 +654,6 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-
 
         let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");

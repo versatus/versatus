@@ -184,13 +184,15 @@ impl LeftRightMempool {
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
     pub fn add_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
-        self.insert(txn.to_owned())
+        self.insert(txn.to_owned())?;
+        Ok(())
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<()> {
+    pub fn insert(&mut self, txn: Txn) -> Result<usize> {
         let txn_record = TxnRecord::new(txn);
         self.write.append(MempoolOp::Add(txn_record)).publish();
-        Ok(())
+
+        Ok(self.size_in_kilobytes())
     }
 
     /// Retrieves a single transaction identified by id, makes sure it exists in
@@ -324,6 +326,14 @@ impl LeftRightMempool {
     /// Retrieves actual size of the mempooldb.
     pub fn size(&self) -> usize {
         self.pool().len()
+    }
+
+    /// Retrieves actual size of the mempooldb in Kilobytes.
+    pub fn size_in_kilobytes(&self) -> usize {
+        let txn_size_factor = std::mem::size_of::<Txn>();
+        let mempool_items = self.size();
+
+        (mempool_items * txn_size_factor) / 1024
     }
 
     /// Pushes changes to Reader.

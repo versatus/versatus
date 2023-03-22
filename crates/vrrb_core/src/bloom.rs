@@ -41,7 +41,6 @@ impl Bloom {
 #[cfg(test)]
 mod tests {
 
-
     use super::Bloom;
     #[test]
     fn test_insert_filter() {

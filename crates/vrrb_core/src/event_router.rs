@@ -88,6 +88,9 @@ pub enum Event {
     /// Batch of validated txns
     TxnBatchValidated(Vec<TransactionDigest>),
     TxnAddedToMempool(TransactionDigest),
+    MempoolSizeThesholdReached {
+        cutoff_transaction: TransactionDigest,
+    },
     BlockReceived,
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),

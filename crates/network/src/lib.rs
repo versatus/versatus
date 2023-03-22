@@ -1,5 +1,4 @@
 pub mod components;
-pub mod config_utils;
 pub mod network;
 pub mod packet;
 pub mod protocol;
