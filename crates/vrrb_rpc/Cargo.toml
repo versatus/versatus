@@ -25,6 +25,8 @@ jsonrpsee = { workspace = true }
 async-trait = { workspace = true }
 anyhow = { workspace = true }
 secp256k1 = { workspace = true }
+sha256 = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 hyper = { workspace = true }

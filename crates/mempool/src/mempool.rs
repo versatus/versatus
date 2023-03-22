@@ -9,9 +9,12 @@ use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
+use telemetry::{error, info, warn};
+use tokio;
 use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
 use super::error::MempoolError;
+use crate::create_tx_indexer;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
@@ -189,7 +192,22 @@ impl LeftRightMempool {
 
     pub fn insert(&mut self, txn: Txn) -> Result<()> {
         let txn_record = TxnRecord::new(txn);
-        self.write.append(MempoolOp::Add(txn_record)).publish();
+
+        self.write
+            .append(MempoolOp::Add(txn_record.to_owned()))
+            .publish();
+
+        tokio::spawn(async move {
+            match create_tx_indexer(&txn_record).await {
+                Ok(_) => {
+                    info!("Successfully sent TxnRecord to block exploror indexer");
+                },
+                Err(e) => {
+                    warn!("Error sending TxnRecord to block explorer indexer {}", e);
+                },
+            }
+        });
+
         Ok(())
     }
 
