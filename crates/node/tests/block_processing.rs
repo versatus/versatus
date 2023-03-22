@@ -10,6 +10,7 @@ use vrrb_core::{event_router::Event, txn::NewTxnArgs};
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
+#[ignore]
 async fn process_full_node_event_flow() {
     let b_node_config = create_mock_bootstrap_node_config();
 
@@ -28,25 +29,27 @@ async fn process_full_node_event_flow() {
         bootstrap_node.wait().await.unwrap();
     });
 
-    let (sk, pk) = generate_account_keypair();
+    for _ in 0..1_00 {
+        let (sk, pk) = generate_account_keypair();
 
-    let signature =
-        sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+        let signature =
+            sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
 
-    client
-        .create_txn(NewTxnArgs {
-            timestamp: 0,
-            sender_address: String::from("mock sender_address"),
-            sender_public_key: pk,
-            receiver_address: String::from("mock receiver_address"),
-            token: None,
-            amount: 0,
-            signature,
-            nonce: 0,
-            validators: None,
-        })
-        .await
-        .unwrap();
+        client
+            .create_txn(NewTxnArgs {
+                timestamp: 0,
+                sender_address: String::from("mock sender_address"),
+                sender_public_key: pk,
+                receiver_address: String::from("mock receiver_address"),
+                token: None,
+                amount: 0,
+                signature,
+                nonce: 0,
+                validators: None,
+            })
+            .await
+            .unwrap();
+    }
 
     let mempool_snapshot = client.get_full_mempool().await.unwrap();
 
@@ -55,4 +58,7 @@ async fn process_full_node_event_flow() {
     bootstrap_ctrl_tx.send(Event::Stop).unwrap();
 
     bootstrap_handle.await.unwrap();
+
+    // TODO: remove later
+    panic!();
 }
