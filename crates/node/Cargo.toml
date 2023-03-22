@@ -53,11 +53,11 @@ indexmap = { workspace = true }
 raptorq = { workspace = true }
 crossbeam-channel = { workspace = true }
 job_scheduler={workspace=true}
-rayon = "1.6.1"
-lazy_static = "1.4.0"
-dashmap = "5.4.0"
-timer = "0.2.0"
-laminar = "0.5.0"
+rayon = {workspace=true}
+lazy_static = {workspace=true}
+dashmap ={workspace=true}
+timer = {workspace=true}
+laminar = {workspace=true}
 
 [dev-dependencies]
 reqwest = { workspace = true }

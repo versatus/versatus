@@ -191,6 +191,9 @@ tracing-subscriber = { version = "0.3.15", features = [
 ] }
 prometheus = { version = "0.13.3", features = ["process"] }
 lazy_static = "1.4.0"
+dashmap = "5.4.0"
+timer = "0.2.0"
+laminar = "0.5.0"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

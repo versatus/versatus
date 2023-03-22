@@ -18,7 +18,18 @@ use kademlia_dht::{Key, Node, NodeData};
 use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{NodeIdx, NodeType, QuorumType, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST};
+use primitives::{
+    NodeIdx,
+    NodeType,
+    NodeTypeBytes,
+    PKShareBytes,
+    PayloadBytes,
+    QuorumPublicKey,
+    QuorumType,
+    RawSignature,
+    REGISTER_REQUEST,
+    RETRIEVE_PEERS_REQUEST,
+};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
@@ -59,7 +70,7 @@ impl DkgModule {
         quic_port: u16,
         events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
         broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-    ) -> std::result::Result<DkgModule, NodeError> {
+    ) -> Result<DkgModule> {
         let engine = DkgEngine::new(
             node_idx,
             node_type,
@@ -261,7 +272,7 @@ impl DkgModule {
                                           recv(rx2) ->_ =>   {
                 match self.dkg_engine.dkg_state.public_key_set.clone() {
                                 Some(quorum_key) => {
-                                    /// Sending a request to the rendezvous server to register the namespace
+                                    // Sending a request to the rendezvous server to register the namespace
                                     if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
                                             self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
                                             quorum_key.public_key().to_bytes().to_vec(),
@@ -277,7 +288,7 @@ impl DkgModule {
 
                                     if let Some(secret_key_share) = &self.dkg_engine.dkg_state.secret_key_share
                                     {
-                                        /// Generating a random string of 15 characters as payload.
+                                        // Generating a random string of 15 characters as payload.
                                         let message: String = rand::thread_rng()
                                             .sample_iter(&Alphanumeric)
                                             .take(15)
@@ -339,14 +350,21 @@ pub enum Data {
 pub enum RendezvousRequest {
     Ping,
     Peers(Vec<u8>),
-    Namespace(Vec<u8>, Vec<u8>),
-    RegisterPeer(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, SyncPeerData),
+    Namespace(NodeTypeBytes, QuorumPublicKey),
+    RegisterPeer(
+        QuorumPublicKey,
+        NodeTypeBytes,
+        PKShareBytes,
+        RawSignature,
+        PayloadBytes,
+        SyncPeerData,
+    ),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RendezvousResponse {
     Pong,
-    RequestPeers(Vec<u8>),
+    RequestPeers(QuorumPublicKey),
     Peers(Vec<SyncPeerData>),
     PeerRegistered,
     NamespaceRegistered,
