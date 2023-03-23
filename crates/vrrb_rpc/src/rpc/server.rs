@@ -1,6 +1,17 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
+use axum_server::tls_rustls::RustlsConfig;
+use hyper::{
+    client::HttpConnector,
+    server::{conn::Http, Server},
+    service::{make_service_fn, service_fn},
+};
+// use tokio_rustls::TlsAcceptor;
+use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
 use jsonrpsee::{
     core::Error,
     server::{ServerBuilder, ServerHandle, SubscriptionSink},
@@ -8,14 +19,18 @@ use jsonrpsee::{
 };
 use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory};
 use primitives::NodeType;
+// use axum_server::{tls_rustls::RustlsConfig, Server};
+use rustls::ClientConfig;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio_rustls::{rustls, rustls::ServerConfig, TlsAcceptor};
 use vrrb_core::{
     account::Account,
     event_router::{DirectedEvent, Event, Topic},
     txn::NewTxnArgs,
 };
 
+use super::tls;
 use crate::rpc::{api::RpcApiServer, server_impl::RpcServerImpl};
 
 #[derive(Debug, Clone)]
@@ -25,6 +40,7 @@ pub struct JsonRpcServerConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
     pub events_tx: UnboundedSender<DirectedEvent>,
+    // pub tls_config: Option<ServerConfig>,
 }
 
 #[derive(Debug)]
@@ -41,13 +57,35 @@ impl JsonRpcServer {
             mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
         };
 
-        let addr = server.local_addr()?;
+        // if let Some(tls_config) = &config.tls_config {
+        //     // if let Err(e) = tls::run_server() {
+        //     //     eprintln!("FAILED: {}", e);
+        //     //     std::process::exit(1);
+        //     // }
+
+        //     tls::run_server();
+        // }
+        tokio::spawn(async move {
+            // match create_tx_indexer(&txn_record).await {
+            //     Ok(_) => {
+            //         info!("Successfully sent TxnRecord to block exploror indexer");
+            //     },
+            //     Err(e) => {
+            //         warn!("Error sending TxnRecord to block explorer indexer {}", e);
+            //     },
+            // }
+
+            // info!("stufffffffffffff");
+
+            match tls::run_server().await {
+                Ok(_) => todo!(),
+                Err(_) => todo!(),
+            }
+        });
+
         let handle = server.start(server_impl.into_rpc())?;
 
-        // TODO: refactor example out of here
-        // In this example we don't care about doing shutdown so let's it run forever.
-        // You may use the `ServerHandle` to shut it down or manage it yourself.
-        Ok((handle, addr))
+        Ok((handle, config.address))
     }
 }
 
@@ -76,6 +114,7 @@ impl Default for JsonRpcServerConfig {
             mempool_read_handle_factory,
             node_type,
             events_tx,
+            // tls_config: None,
         }
     }
 }

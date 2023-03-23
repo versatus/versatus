@@ -21,10 +21,16 @@ axum-server = { workspace = true }
 tower = { workspace = true }
 tower-http = { workspace = true }
 hyper = { workspace = true }
-jsonrpsee = { workspace = true }
+jsonrpsee = "0.16.2"
 async-trait = { workspace = true }
 anyhow = { workspace = true }
 secp256k1 = { workspace = true }
+tokio-rustls = "0.23.4"
+rcgen = "0.10.0"
+hyper-rustls = { version = "0.23.2", features = ["http1", "http2", "tls12"] }
+rustls-pemfile = "1.0.2"
+futures-util = "0.3.27"
+hyper-reverse-proxy = "0.5.1"
 
 [dev-dependencies]
 hyper = { workspace = true }
