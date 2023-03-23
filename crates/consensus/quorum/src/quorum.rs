@@ -211,3 +211,7 @@ impl Quorum {
         todo!();
     }
 }
+
+/// This is a marker trait for Farmer and Harvester Quorum
+/// (Credit Model & Message Rate Control Quorums???)
+pub trait QuorumMember {}

@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use std::net::SocketAddr;
 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
@@ -40,6 +41,10 @@ pub mod mining_module;
 pub mod state_module;
 pub mod swarm_module;
 pub mod validator_module;
+pub mod credit_model_module;
+pub mod reputation_module;
+pub mod harvester_module;
+pub mod farmer_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -149,6 +154,7 @@ pub async fn setup_runtime_components(
     ))
 }
 
+#[allow(unused)]
 fn setup_event_routing_system() -> EventRouter {
     let mut event_router = EventRouter::new();
     event_router.add_topic(Topic::Control, Some(1));
@@ -160,6 +166,7 @@ fn setup_event_routing_system() -> EventRouter {
     event_router
 }
 
+#[allow(unused_mut)]
 async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
@@ -183,6 +190,7 @@ async fn setup_gossip_network(
 
     let addr = broadcast_module.local_addr();
 
+    #[allow(unused)]
     let (controller_tx, controller_rx) =
         tokio::sync::mpsc::channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
 
@@ -215,6 +223,7 @@ async fn setup_gossip_network(
     ))
 }
 
+#[allow(unused)]
 async fn setup_state_store(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
@@ -265,6 +274,7 @@ async fn setup_rpc_api_server(
             .await
             .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
 
+    #[allow(unused_must_use)]
     let jsonrpc_server_handle = Some(tokio::spawn(async move {
         if let Ok(evt) = jsonrpc_events_rx.recv().await {
             if let Event::Stop = evt {
@@ -278,6 +288,7 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
+#[allow(unused)]
 fn setup_validation_module(
     events_tx: UnboundedSender<DirectedEvent>,
     mut validator_events_rx: Receiver<Event>,
@@ -330,4 +341,28 @@ fn setup_mining_module(
     });
 
     Ok(Some(miner_handle))
+}
+
+#[allow(unused)]
+fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    
+    Ok(None)
+}
+
+#[allow(unused)]
+fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
+
+    Ok(None)
+}
+
+#[allow(unused)]
+fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+
+    Ok(None)
+}
+
+#[allow(unused)]
+fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+
+    Ok(None)
 }
