@@ -78,7 +78,7 @@ impl ValidatorModule {
     fn process_event(&mut self, event: Event) {
         match event {
             Event::TxnAddedToMempool(digest) => {
-                
+                                
             }
             Event::BlockConfirmed(_) => {
                 // do something
