@@ -23,8 +23,9 @@ bytes = { version = "1.2.1", features = ["serde"] }
 telemetry = { path = "../telemetry" }
 vrrb_core = { path = "../vrrb_core" }
 primitives = { path = "../primitives" }
-block={path="../block" }
+block = { path = "../block" }
 bincode = "1.3.3"
+events = { workspace = true }
 
 thiserror = "1.0.33"
 uuid = { version = "1.2.1", features = ["v4", "serde"] }

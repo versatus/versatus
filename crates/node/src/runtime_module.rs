@@ -1,6 +1,6 @@
 use async_trait::async_trait;
+use events::Event;
 use tokio::sync::broadcast::Receiver;
-use vrrb_core::event_router::Event;
 
 use crate::result::Result;
 

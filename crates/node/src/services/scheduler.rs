@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use dashmap::DashMap;
+use events::{QuorumCertifiedTxn, Vote, VoteReceipt};
 use indexmap::IndexMap;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
@@ -21,11 +22,7 @@ use validator::{
     txn_validator::{StateSnapshot, TxnFees},
     validator_core_manager::ValidatorCoreManager,
 };
-use vrrb_core::{
-    bloom::Bloom,
-    event_router::{QuorumCertifiedTxn, Vote, VoteReceipt},
-    txn::Txn,
-};
+use vrrb_core::{bloom::Bloom, txn::Txn};
 
 /// `JobSchedulerController` is a struct that contains a `JobScheduler`, a
 /// `Receiver<Job>` for synchronous jobs, a `Sender<JobResult>` for synchronous

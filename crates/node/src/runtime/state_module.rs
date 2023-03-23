@@ -1,6 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
+use events::{DirectedEvent, Event, Topic};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
@@ -8,12 +9,7 @@ use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
-use vrrb_core::{
-    account::Account,
-    event_router::{DirectedEvent, Event, Topic},
-    serde_helpers::decode_from_binary_byte_slice,
-    txn::Txn,
-};
+use vrrb_core::{account::Account, serde_helpers::decode_from_binary_byte_slice, txn::Txn};
 
 use crate::{result::Result, NodeError, RuntimeModule};
 
@@ -162,13 +158,11 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
+    use events::{DirectedEvent, Event};
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
-    use vrrb_core::{
-        event_router::{DirectedEvent, Event},
-        txn::null_txn,
-    };
+    use vrrb_core::txn::null_txn;
 
     use super::*;
 

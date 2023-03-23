@@ -1,4 +1,3 @@
-#![allow(deprecated)]
 use std::{
     borrow::{Borrow, BorrowMut},
     thread,
@@ -7,11 +6,18 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use hbbft::{crypto::{Signature, SignatureShare}, threshold_sign::ThresholdSign};
+use events::{BlockVote, DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
+use hbbft::{
+    crypto::{Signature, SignatureShare},
+    threshold_sign::ThresholdSign,
+};
 use indexmap::IndexMap;
 use kademlia_dht::{Key, Node, NodeData};
 use lr_trie::ReadHandleFactory;
-use mempool::{mempool::{LeftRightMempool, TxnStatus}, Mempool};
+use mempool::{
+    mempool::{LeftRightMempool, TxnStatus},
+    Mempool,
+};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{
     FarmerQuorumThreshold,
@@ -32,21 +38,17 @@ use tokio::sync::{broadcast::error::TryRecvError, mpsc::UnboundedSender};
 use tracing::error;
 use vrrb_core::{
     bloom::Bloom,
-    event_router::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, BlockVote, VoteReceipt},
     txn::{TransactionDigest, Txn},
 };
 
 use crate::{
+    farmer_harvester_module::{QuorumId, QuorumMember, QuorumPubkey},
     result::Result,
     scheduler::{Job, JobResult},
-    NodeError, validator_module::ValidatorModule, farmer_harvester_module::{
-        QuorumMember,
-        QuorumPubkey,
-        QuorumId,
-    }
+    validator_module::ValidatorModule,
+    NodeError,
 };
 
-#[allow(unused)]
 pub struct Harvester {
     pub certified_txns_filter: Bloom,
     // Need to figure out what the String in the key tuple is
@@ -89,8 +91,7 @@ impl Harvester {
         sync_jobs_status_receiver: Receiver<JobResult>,
         async_jobs_status_receiver: Receiver<JobResult>,
     ) -> Self {
-
-        // Need to discuss how the new harvester 
+        // Need to discuss how the new harvester
         // takes over existing transaction votes.
         // When a "new" election occurs,
         // we need to have a wind down where txs that
@@ -157,10 +158,8 @@ impl Handler<Event> for Harvester {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            Event::BlockVote(BlockVote) => {
-            },
-            Event::PullQuorumCertifiedTxns(num_of_txns) => {
-            },
+            Event::BlockVote(BlockVote) => {},
+            Event::PullQuorumCertifiedTxns(num_of_txns) => {},
             Event::NoOp => {},
             _ => {},
         }
@@ -168,4 +167,3 @@ impl Handler<Event> for Harvester {
         Ok(ActorState::Running)
     }
 }
-

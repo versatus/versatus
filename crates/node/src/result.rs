@@ -1,6 +1,6 @@
 use std::net::AddrParseError;
 
-use network::types::config::BroadCastError;
+use network::{config::BroadcastError, types::config::BroadCastError};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TryRecvError;
 
@@ -19,10 +19,13 @@ pub enum NodeError {
     Storage(#[from] vrrb_core::storage_utils::StorageError),
 
     #[error("{0}")]
-    Broadcast(#[from] BroadCastError),
+    Broadcast(#[from] BroadcastError),
 
     #[error("{0}")]
     TryRecv(#[from] TryRecvError),
+
+    #[error("{0}")]
+    Event(#[from] events::Error),
 
     #[error("{0}")]
     Core(#[from] vrrb_core::Error),

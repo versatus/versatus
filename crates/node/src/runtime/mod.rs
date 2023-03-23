@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 use std::net::SocketAddr;
 
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::network::BroadcastEngine;
@@ -16,7 +17,6 @@ use tokio::{
     task::JoinHandle,
 };
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -34,17 +34,17 @@ use crate::{
 };
 
 pub mod broadcast_module;
+pub mod credit_model_module;
 pub mod dkg_module;
 pub mod farmer_harvester_module;
+pub mod farmer_module;
+pub mod harvester_module;
 pub mod mempool_module;
 pub mod mining_module;
+pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
 pub mod validator_module;
-pub mod credit_model_module;
-pub mod reputation_module;
-pub mod harvester_module;
-pub mod farmer_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -345,24 +345,20 @@ fn setup_mining_module(
 
 #[allow(unused)]
 fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
-    
     Ok(None)
 }
 
 #[allow(unused)]
 fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
-
     Ok(None)
 }
 
 #[allow(unused)]
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
-
     Ok(None)
 }
 
 #[allow(unused)]
 fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
-
     Ok(None)
 }

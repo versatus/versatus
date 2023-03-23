@@ -46,10 +46,6 @@ impl TxnRecord {
             ..Default::default()
         }
     }
-
-    pub fn payload(&self) -> String {
-        self.txn.generate_txn_digest_vec() 
-    }
 }
 
 pub type PoolType = IndexMap<TransactionDigest, TxnRecord, FxBuildHasher>;
@@ -118,16 +114,17 @@ impl Absorb<MempoolOp> for Mempool {
 pub trait FetchFiltered {
     fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
     where
-        F: FnMut(&String, &mut TxnRecord) -> bool;
+        F: FnMut(&TransactionDigest, &mut TxnRecord) -> bool;
 }
 
 impl FetchFiltered for ReadHandle<Mempool> {
     fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
     where
-        F: FnMut(&String, &mut TxnRecord) -> bool,
+        F: FnMut(&TransactionDigest, &mut TxnRecord) -> bool,
     {
         if let Some(map) = self.enter().map(|guard| guard.clone()) {
             let mut result = map.pool;
+
             result.retain(f);
 
             let mut returned = Vec::<TxnRecord>::new();
@@ -208,12 +205,12 @@ impl LeftRightMempool {
     }
 
     /// Getter for an entire pending Txn record
-    pub fn get(&mut self, txn_hash: &TransactionDigest) -> Option<TxnRecord> {
-        if txn_hash.is_empty() {
+    pub fn get(&mut self, txn_id: &TransactionDigest) -> Option<TxnRecord> {
+        if txn_id.to_string().is_empty() {
             return None;
         }
 
-        self.pool().get(&txn_hash.to_string()).cloned()
+        self.pool().get(txn_id).cloned()
     }
 
     /// It fetches the transactions from the pool and returns them.
@@ -281,9 +278,9 @@ impl LeftRightMempool {
         self.remove(&txn.digest())
     }
 
-    pub fn remove(&mut self, txn_hash: &TransactionDigest) -> Result<()> {
+    pub fn remove(&mut self, id: &TransactionDigest) -> Result<()> {
         self.write
-            .append(MempoolOp::Remove(txn_hash.to_string()))
+            .append(MempoolOp::Remove(id.to_owned()))
             .publish();
         Ok(())
     }
@@ -297,7 +294,7 @@ impl LeftRightMempool {
         _txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t.digest().to_string()));
+            self.write.append(MempoolOp::Remove(t.id()));
         });
 
         self.publish();
@@ -307,7 +304,7 @@ impl LeftRightMempool {
 
     pub fn remove_txns(&mut self, txn_batch: &HashSet<TransactionDigest>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t.to_string()));
+            self.write.append(MempoolOp::Remove(t.to_owned()));
         });
 
         self.publish();
@@ -397,7 +394,10 @@ impl MempoolReadHandleFactory {
             .collect()
     }
 
-    pub fn get(&self, digest: TransactionDigest) -> Option<&TxnRecord> {
-        self.handle().get(&digest) 
+    pub fn get(&self, digest: &TransactionDigest) -> Option<TxnRecord> {
+        if let Some(record) = self.handle().get(digest) {
+            return Some(record.clone());
+        }
+        None
     }
 }

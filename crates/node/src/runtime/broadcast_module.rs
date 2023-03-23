@@ -2,6 +2,7 @@ use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult};
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
@@ -21,7 +22,6 @@ use tokio::{
     task::JoinHandle,
 };
 use uuid::Uuid;
-use vrrb_core::event_router::{DirectedEvent, Event};
 
 use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
 
@@ -93,14 +93,18 @@ impl Handler<Event> for BroadcastModule {
     }
 
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        if event == Event::Stop {
-            info!("{0} received stop signal. Stopping", self.name());
-            return Ok(ActorState::Terminating);
+        match event {
+            Event::Stop => {
+                info!("{0} received stop signal. Stopping", self.name());
+                return Ok(ActorState::Terminating);
+            },
+            Event::NewTxnCreated(txn) => {
+                info!("received transaction: {0}", txn.id());
+                return Ok(ActorState::Running);
+            },
+
+            _ => Ok(ActorState::Running),
         }
-
-        // do something with the event
-
-        Ok(ActorState::Running)
     }
 }
 
@@ -108,10 +112,10 @@ impl Handler<Event> for BroadcastModule {
 mod tests {
     use std::sync::mpsc::channel;
 
+    use events::Event;
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use tokio::sync::mpsc::unbounded_channel;
-    use vrrb_core::event_router::Event;
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 

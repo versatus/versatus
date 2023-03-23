@@ -5,6 +5,7 @@ use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgError, DkgResult},
 };
+use events::{DirectedEvent, Event, Topic};
 use hbbft::sync_key_gen::Part;
 use kademlia_dht::{Key, Node, NodeData};
 use lr_trie::ReadHandleFactory;
@@ -13,7 +14,6 @@ use primitives::{NodeIdx, NodeType, QuorumType};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
-use vrrb_core::event_router::{DirectedEvent, Event, Topic};
 
 use crate::{result::Result, NodeError, RuntimeModule};
 
@@ -241,11 +241,11 @@ mod tests {
     };
 
     use dkg_engine::test_utils;
+    use events::{DirectedEvent, Event, PeerData};
     use hbbft::crypto::SecretKey;
     use primitives::{NodeType, QuorumType::Farmer};
     use theater::ActorImpl;
     use tokio::{spawn, sync::mpsc::UnboundedReceiver};
-    use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
 
     use super::*;
 

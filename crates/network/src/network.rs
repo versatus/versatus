@@ -53,6 +53,16 @@ pub struct BroadcastEngine {
     pub raptor_num_packet_blast: usize,
 }
 
+// TODO: replace the one above with this
+// pub struct BroadcastEngine {
+//     pub peer_connection_list: HashMap<SocketAddr, Connection>,
+//     pub raptor_list: HashSet<SocketAddr>,
+//     pub endpoint: (Endpoint, IncomingConnections),
+//     pub raptor_udp_port: u16,
+//     pub raptor_num_packet_blast: usize,
+//     pub harvester_endpoints: (Endpoint, IncomingConnections),
+// }
+
 const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
 
 impl BroadcastEngine {

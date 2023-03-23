@@ -1,10 +1,10 @@
 use std::{collections::HashMap, net::SocketAddr};
 
+use events::{Event, PeerData};
 use primitives::{NodeType, PublicKey};
 use serde::{Deserialize, Serialize};
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
-use vrrb_core::event_router::{Event, PeerData};
 
 use crate::packet::{NotCompleteError, Packet, Packetize};
 

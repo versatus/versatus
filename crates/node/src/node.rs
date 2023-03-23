@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -7,16 +8,14 @@ use tokio::{
 };
 use trecho::vm::Cpu;
 use vrrb_config::NodeConfig;
-use vrrb_core::{
-    event_router::{DirectedEvent, Event, EventRouter, Topic},
-    keypair::KeyPair,
-};
+use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_harvester_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState, farmer_harvester_module::QuorumMember,
+    RuntimeModuleState,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -69,7 +68,7 @@ impl Node {
         let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
         let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
-        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?; 
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
 
         let (

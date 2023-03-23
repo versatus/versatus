@@ -7,11 +7,18 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use hbbft::{crypto::{Signature, SignatureShare}, threshold_sign::ThresholdSign};
+use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
+use hbbft::{
+    crypto::{Signature, SignatureShare},
+    threshold_sign::ThresholdSign,
+};
 use indexmap::IndexMap;
 use kademlia_dht::{Key, Node, NodeData};
 use lr_trie::ReadHandleFactory;
-use mempool::{mempool::{LeftRightMempool, TxnStatus}, Mempool};
+use mempool::{
+    mempool::{LeftRightMempool, TxnStatus},
+    Mempool,
+};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{
     FarmerQuorumThreshold,
@@ -32,14 +39,14 @@ use tokio::sync::{broadcast::error::TryRecvError, mpsc::UnboundedSender};
 use tracing::error;
 use vrrb_core::{
     bloom::Bloom,
-    event_router::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt},
     txn::{TransactionDigest, Txn},
 };
 
 use crate::{
     result::Result,
     scheduler::{Job, JobResult},
-    NodeError, validator_module::ValidatorModule,
+    validator_module::ValidatorModule,
+    NodeError,
 };
 
 /// `FarmerHarvesterModule` is a struct that contains a bunch of `Option`s, a
@@ -373,7 +380,6 @@ impl Handler<Event> for FarmerHarvesterModule {
     }
 }
 
-
 pub trait QuorumMember {}
 // TODO: Move this to primitives
 pub type QuorumId = String;
@@ -391,6 +397,7 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
+    use events::{DirectedEvent, Event, PeerData};
     use lazy_static::lazy_static;
     use primitives::{NodeType, QuorumType::Farmer};
     use secp256k1::Message;
@@ -399,13 +406,7 @@ mod tests {
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,
     };
-    use vrrb_core::{
-        cache,
-        event_router::{DirectedEvent, Event, PeerData},
-        is_enum_variant,
-        keypair::KeyPair,
-        txn::NewTxnArgs,
-    };
+    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
