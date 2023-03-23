@@ -55,6 +55,7 @@ members = [
     "crates/syncing",
     "crates/telemetry",
     "crates/utils",
+    "crates/grpc",
 ]
 
 [workspace.dependencies]
