@@ -33,22 +33,32 @@ impl Topology {
 }
 
 #[derive(Debug)]
-pub enum BroadCastResult {
+pub enum BroadcastStatus {
     ConnectionEstablished,
     Success,
 }
 
 /// List of all possible errors related to BroadCasting .
 #[derive(Error, Debug)]
-pub enum BroadCastError {
-    #[error("There was a problem while creating endpoint")]
-    EndpointError(#[from] EndpointError),
-    #[error("There was a problem while connecting to endpoint")]
-    ConnectionError(#[from] ConnectionError),
-    #[error("There was a problem while broadcasting data to peers")]
-    BroadcastingDataError(#[from] SendError),
+pub enum BroadcastError {
+    #[error("Connection error: {0}")]
+    Connection(#[from] ConnectionError),
+
+    #[error("Send error: {0}")]
+    Send(#[from] SendError),
+
+    #[error("Endpoint error: {0}")]
+    Endpoint(#[from] EndpointError),
+
     #[error("Udp Port already in use")]
     EaddrInUse,
+
     #[error("Current Node doesn't have any peers")]
     NoPeers,
+
+    #[error("error: {0}")]
+    Other(String),
 }
+
+#[deprecated(note = "here for backwards compatibility")]
+pub type BroadCastError = BroadcastError;
