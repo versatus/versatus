@@ -20,15 +20,8 @@ use crate::{
     config::BroadcastError,
     message::Message,
     packet::{
-        generate_batch_id,
-        packet_forwarder,
-        reassemble_packets,
-        recv_mmsg,
-        split_into_packets,
-        RaptorBroadCastedData,
-        BATCH_ID_SIZE,
-        MTU_SIZE,
-        NUM_RCVMMSGS,
+        generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
+        RaptorBroadCastedData, BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
     },
     types::config::BroadcastStatus,
 };
@@ -46,22 +39,12 @@ pub enum BroadcastType {
 
 #[derive(Debug)]
 pub struct BroadcastEngine {
-    pub peer_connection_list: Vec<(SocketAddr, Connection)>,
-    pub raptor_list: Vec<SocketAddr>,
+    pub peer_connection_list: HashMap<SocketAddr, Connection>,
+    pub raptor_list: HashSet<SocketAddr>,
     pub endpoint: (Endpoint, IncomingConnections),
     pub raptor_udp_port: u16,
     pub raptor_num_packet_blast: usize,
 }
-
-// TODO: replace the one above with this
-// pub struct BroadcastEngine {
-//     pub peer_connection_list: HashMap<SocketAddr, Connection>,
-//     pub raptor_list: HashSet<SocketAddr>,
-//     pub endpoint: (Endpoint, IncomingConnections),
-//     pub raptor_udp_port: u16,
-//     pub raptor_num_packet_blast: usize,
-//     pub harvester_endpoints: (Endpoint, IncomingConnections),
-// }
 
 const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
 
@@ -71,8 +54,8 @@ impl BroadcastEngine {
         let (node, incoming_conns, _) = Self::new_endpoint(raptor_udp_port).await?;
 
         Ok(Self {
-            peer_connection_list: Vec::new(),
-            raptor_list: Vec::new(),
+            peer_connection_list: HashMap::new(),
+            raptor_list: HashSet::new(),
             endpoint: (node, incoming_conns),
             raptor_udp_port,
             raptor_num_packet_blast,
@@ -125,7 +108,8 @@ impl BroadcastEngine {
                 BroadcastError::Connection(err)
             })?;
 
-            self.peer_connection_list.push((*addr, connection));
+            self.peer_connection_list
+                .insert(addr.to_owned(), connection);
         }
 
         // std::mem::drop(peers);
@@ -149,10 +133,10 @@ impl BroadcastEngine {
         // })?;
 
         for addr in address.iter() {
-            self.peer_connection_list.retain(|address| {
+            self.peer_connection_list.retain(|address, connection| {
                 info!("closed connection with: {addr}");
-                address.1.close(Some(String::from(CONNECTION_CLOSED)));
-                address.0 != *addr
+                connection.close(Some(String::from(CONNECTION_CLOSED)));
+                address != addr
             });
         }
 
@@ -263,33 +247,25 @@ impl BroadcastEngine {
         }
 
         for (packet_index, packet) in chunks.iter().enumerate() {
-            // Sharding/Distribution of packets as per number of nodes
-            let address = self
-                .raptor_list
-                .get(packet_index % self.raptor_list.len())
-                .unwrap_or(&SocketAddr::new(ipv4_addr, port)) // TODO: refactor this default
-                .to_owned();
+            let addresses =
+                self.get_address_for_packet_shards(packet_index, self.raptor_list.len());
 
-            let packet = packet.clone();
-            let sock = udp_socket.clone();
-
-            futs.push(tokio::spawn(async move {
-                let addr = address.to_string();
-                if let Ok(bytes_written) = sock.send_to(&packet, addr.clone()).await {
-                    telemetry::debug!("sent {bytes_written} to {addr}");
-                } else {
-                    telemetry::error!("failed to send to {addr}");
-                }
-            }));
-
-            if futs.len() >= self.raptor_num_packet_blast {
-                match futs.next().await {
-                    Some(fut) => {
-                        if fut.is_err() {
-                            error!("Sending future is not ready yet")
-                        }
-                    },
-                    None => error!("Sending future is not ready yet"),
+            for address in addresses.into_iter() {
+                let packet = packet.clone();
+                let sock = udp_socket.clone();
+                futs.push(tokio::spawn(async move {
+                    let addr = address.to_string();
+                    let _ = sock.send_to(&packet, addr.clone()).await;
+                }));
+                if futs.len() >= self.raptor_num_packet_blast {
+                    match futs.next().await {
+                        Some(fut) => {
+                            if fut.is_err() {
+                                error!("Sending future is not ready yet")
+                            }
+                        },
+                        None => error!("Sending future is not ready yet"),
+                    }
                 }
             }
         }
@@ -315,69 +291,69 @@ impl BroadcastEngine {
         port: u16,
         batch_sender: Sender<RaptorBroadCastedData>,
     ) -> Result<()> {
-        if let Ok(sock_recv) = UdpSocket::bind(SocketAddr::new(
+        let sock_recv = UdpSocket::bind(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             port,
         ))
         .await
-        {
-            info!("Listening on {}", port);
+        .map_err(|err| {
+            error!("UDP port {port} already in use");
+            BroadcastError::Other(err.to_string())
+        })?;
 
-            let buf = [0; MTU_SIZE];
-            let (reassembler_channel_send, reassembler_channel_receive) = unbounded();
-            let (forwarder_send, forwarder_receive) = unbounded();
-            let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
-            let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
+        info!("Listening on {}", port);
 
-            thread::spawn({
-                let assemble_send = reassembler_channel_send.clone();
-                let fwd_send = forwarder_send.clone();
-                let batch_send = batch_sender.clone();
+        let buf = [0; MTU_SIZE];
+        let (reassembler_channel_send, reassembler_channel_receive) = unbounded();
+        let (forwarder_send, forwarder_receive) = unbounded();
+        let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
+        let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
 
-                move || {
-                    reassemble_packets(
-                        reassembler_channel_receive,
-                        &mut batch_id_store,
-                        &mut decoder_hash,
-                        fwd_send.clone(),
-                        batch_send.clone(),
-                    );
-                    drop(assemble_send);
-                    drop(fwd_send);
-                    drop(batch_send);
-                }
-            });
+        thread::spawn({
+            let assemble_send = reassembler_channel_send.clone();
+            let fwd_send = forwarder_send.clone();
+            let batch_send = batch_sender.clone();
 
-            let mut nodes_ips_except_self = vec![];
-            if self.raptor_list.len() == 0 {
-                return Err(BroadcastError::NoPeers);
+            move || {
+                reassemble_packets(
+                    reassembler_channel_receive,
+                    &mut batch_id_store,
+                    &mut decoder_hash,
+                    fwd_send.clone(),
+                    batch_send.clone(),
+                );
+                drop(assemble_send);
+                drop(fwd_send);
+                drop(batch_send);
             }
+        });
 
-            self.raptor_list
-                .iter()
-                .for_each(|addr| nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec()));
+        let mut nodes_ips_except_self = vec![];
+        if self.raptor_list.is_empty() {
+            return Err(BroadcastError::NoPeers);
+        }
 
-            let port = self.raptor_udp_port;
-            thread::spawn(move || packet_forwarder(forwarder_receive, nodes_ips_except_self, port));
+        self.raptor_list
+            .iter()
+            .for_each(|addr| nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec()));
 
-            loop {
-                let mut receive_buffers = [buf; NUM_RCVMMSGS];
-                // Receiving a batch of packets from the socket.
-                if let Ok(res) = recv_mmsg(&sock_recv, receive_buffers.borrow_mut()).await {
-                    if !res.is_empty() {
-                        let mut i = 0;
-                        for buf in &receive_buffers {
-                            if let Some(packets_info) = res.get(i) {
-                                let _ = reassembler_channel_send.send((*buf, packets_info.1));
-                                i += 1;
-                            }
+        let port = self.raptor_udp_port;
+        thread::spawn(move || packet_forwarder(forwarder_receive, nodes_ips_except_self, port));
+
+        loop {
+            let mut receive_buffers = [buf; NUM_RCVMMSGS];
+            // Receiving a batch of packets from the socket.
+            if let Ok(res) = recv_mmsg(&sock_recv, receive_buffers.borrow_mut()).await {
+                if !res.is_empty() {
+                    let mut i = 0;
+                    for buf in &receive_buffers {
+                        if let Some(packets_info) = res.get(i) {
+                            let _ = reassembler_channel_send.send((*buf, packets_info.1));
+                            i += 1;
                         }
                     }
                 }
             }
-        } else {
-            error!("UDP port {port} already in use");
-            Err(BroadcastError::EaddrInUse)
         }
     }
 
@@ -387,6 +363,25 @@ impl BroadcastEngine {
 
     pub fn local_addr(&self) -> SocketAddr {
         self.endpoint.0.local_addr()
+    }
+
+    fn get_address_for_packet_shards(
+        &self,
+        packet_index: usize,
+        total_peers: usize,
+    ) -> Vec<SocketAddr> {
+        let mut addresses = Vec::new();
+        let number_of_peers = (total_peers as f32 * 0.10).ceil() as usize;
+        let raptor_list_cloned: Vec<&SocketAddr> = self.raptor_list.iter().collect();
+
+        for i in 0..number_of_peers {
+            if let Some(address) = raptor_list_cloned.get(packet_index % (total_peers + i)) {
+                // TODO: refactor this double owning
+                addresses.push(address.to_owned().to_owned());
+            }
+        }
+
+        addresses
     }
 }
 
@@ -399,7 +394,10 @@ mod tests {
 
     use bytes::Bytes;
 
-    use crate::{message::Message, network::BroadcastEngine};
+    use crate::{
+        message::{Message, MessageBody},
+        network::BroadcastEngine,
+    };
 
     #[tokio::test]
     async fn test_successful_connection() {
@@ -495,10 +493,7 @@ mod tests {
     pub fn test_message() -> Message {
         let msg = Message {
             id: uuid::Uuid::new_v4(),
-            data: "Hello_VRRB".to_string().as_bytes().to_vec(),
-            source: Some("vrrb".to_string().as_bytes().to_vec()),
-            sequence_number: Some(1i32.to_ne_bytes().to_vec()),
-            return_receipt: 0u8,
+            data: MessageBody::Empty,
         };
         msg
     }

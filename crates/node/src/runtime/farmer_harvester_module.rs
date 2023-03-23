@@ -93,7 +93,7 @@ pub struct FarmerHarvesterModule {
     pub certified_txns_filter: Bloom,
     pub quorum_type: Option<QuorumType>,
     pub tx_mempool: Option<LeftRightMempool>,
-    pub votes_pool: DashMap<(TxHashString, String), Vec<Vote>>,
+    pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
     pub farmer_id: PeerId,
@@ -176,27 +176,11 @@ impl FarmerHarvesterModule {
                                 Topic::Network,
                                 Event::Vote(
                                     vote.clone(),
-                                    QuorumType::Farmer,
-                                    farmer_quorum_threshold,
-                                ),
-                            ));
-                            let _ = broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::Vote(
-                                    vote.clone(),
                                     QuorumType::Harvester,
                                     farmer_quorum_threshold,
                                 ),
                             ));
                         }
-                    }
-                },
-                JobResult::SendVoteToHarvester(vote, quorum_type, farmer_quorum_threshold) => {
-                    if QuorumType::Farmer == quorum_type.clone() {
-                        let _ = broadcast_events_tx.send((
-                            Topic::Network,
-                            Event::Vote(vote, quorum_type, farmer_quorum_threshold),
-                        ));
                     }
                 },
                 JobResult::CertifiedTxn(
@@ -308,17 +292,7 @@ impl Handler<Event> for FarmerHarvesterModule {
             },
             Event::Vote(vote, quorum, farmer_quorum_threshold) => {
                 if let QuorumType::Farmer = quorum {
-                    if let Some(sig_provider) = self.sig_provider.clone() {
-                        let _ = self.sync_jobs_sender.send(Job::VoteTxn((
-                            vote,
-                            self.farmer_id.clone(),
-                            self.farmer_node_idx,
-                            self.group_public_key.clone(),
-                            sig_provider.clone(),
-                            QuorumType::Farmer,
-                            farmer_quorum_threshold,
-                        )));
-                    }
+                    error!("Farmer cannot process votes ");
                 } else if let QuorumType::Harvester = quorum {
                     //Harvest should check for integrity of the vote by Voter( Does it vote truly
                     // comes from Voter Prevent Double Voting
@@ -326,9 +300,9 @@ impl Handler<Event> for FarmerHarvesterModule {
                         let farmer_quorum_key = hex::encode(vote.quorum_public_key.clone());
                         if let Some(mut votes) = self
                             .votes_pool
-                            .get_mut(&(vote.txn.txn_id(), farmer_quorum_key.clone()))
+                            .get_mut(&(vote.txn.id(), farmer_quorum_key.clone()))
                         {
-                            let txn_id = vote.txn.txn_id();
+                            let txn_id = vote.txn.id();
                             if !self
                                 .certified_txns_filter
                                 .contains(&(txn_id.clone(), farmer_quorum_key.clone()))
@@ -347,7 +321,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                             }
                         } else {
                             self.votes_pool
-                                .insert((vote.txn.txn_id(), farmer_quorum_key), vec![vote]);
+                                .insert((vote.txn.id(), farmer_quorum_key), vec![vote]);
                         }
                     }
                 }

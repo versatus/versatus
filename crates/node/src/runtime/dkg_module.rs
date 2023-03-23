@@ -55,7 +55,6 @@ pub struct DkgModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
 }
 
@@ -68,7 +67,6 @@ impl DkgModule {
         rendzevous_local_addr: SocketAddr,
         rendzevous_server_addr: SocketAddr,
         quic_port: u16,
-        events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
         broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     ) -> Result<DkgModule> {
         let engine = DkgEngine::new(
@@ -80,7 +78,7 @@ impl DkgModule {
                 threshold: config.quorum_threshold as u16,
             },
         );
-        let mut socket_result = Socket::bind_with_config(
+        let socket_result = Socket::bind_with_config(
             rendzevous_local_addr,
             Config {
                 blocking_mode: false,
@@ -110,7 +108,6 @@ impl DkgModule {
                 status: ActorState::Stopped,
                 label: String::from("State"),
                 id: uuid::Uuid::new_v4().to_string(),
-                events_tx,
                 broadcast_events_tx,
             }),
             Err(e) => Err(NodeError::Other(format!(
@@ -192,13 +189,9 @@ impl DkgModule {
                                     },
                                     Data::Response(res) => match res {
                                         RendezvousResponse::Peers(peers) => {
-                                            for peer in peers.iter() {
-                                                println!("Peers in Quorum are {:?}", peer);
-                                                let _ = self.broadcast_events_tx.send((
-                                                    Topic::Network,
-                                                    Event::SyncPeers(peer.clone()),
-                                                ));
-                                            }
+                                            let _ = self
+                                                .broadcast_events_tx
+                                                .send((Topic::Network, Event::SyncPeers(peers)));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -469,7 +462,7 @@ impl Handler<Event> for DkgModule {
                                                 ack_bytes,
                                             ),
                                         ));
-                                    }
+                                    };
                                 }
                             },
                             _ => {
@@ -477,7 +470,7 @@ impl Handler<Event> for DkgModule {
                             },
                         },
                         Err(err) => {
-                            error!("Error occured while acknowledging partial commitment for node {}: Err {}", sender_id, err);
+                            error!("Error occured while acknowledging partial commitment for node {:?}: Err {:?}", sender_id, err);
                         },
                     }
                 } else {
@@ -561,7 +554,6 @@ mod tests {
             "127.0.0.1:3031".parse().unwrap(),
             "127.0.0.1:3030".parse().unwrap(),
             9092,
-            events_tx,
             broadcast_events_tx,
         )
         .unwrap();
@@ -599,7 +591,6 @@ mod tests {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
             9091,
-            events_tx,
             broadcast_events_tx,
         )
         .unwrap();
@@ -660,7 +651,6 @@ mod tests {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
             9092,
-            events_tx,
             broadcast_events_tx.clone(),
         )
         .unwrap();

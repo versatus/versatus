@@ -66,6 +66,7 @@ pub struct Node {
     miner_handle: Option<JoinHandle<Result<()>>>,
     txn_validator_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
+    dkg_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -88,6 +89,7 @@ impl Node {
         let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
+        let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
 
         let (
             updated_config,
@@ -98,6 +100,7 @@ impl Node {
             jsonrpc_server_handle,
             txn_validator_handle,
             miner_handle,
+            dkg_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -108,6 +111,7 @@ impl Node {
             validator_events_rx,
             miner_events_rx,
             jsonrpc_events_rx,
+            dkg_events_rx,
         )
         .await?;
 
@@ -126,6 +130,7 @@ impl Node {
             jsonrpc_server_handle,
             gossip_handle,
             broadcast_controller_handle,
+            dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,

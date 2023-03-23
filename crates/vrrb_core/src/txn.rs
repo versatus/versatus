@@ -94,11 +94,6 @@ impl Default for Token {
     }
 }
 
-/// The basic transation structure.
-//TODO: Discuss the pieces of the Transaction structure that should stay and go
-//TODO: Discuss how to best package this to minimize the size of it/compress it
-//TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
-//signature of validators in.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
     pub id: TransactionDigest,

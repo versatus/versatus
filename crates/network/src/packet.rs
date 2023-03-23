@@ -18,7 +18,7 @@ use futures::future::try_join_all;
 use log::error;
 use rand::{distributions::Alphanumeric, thread_rng, Rng, RngCore};
 use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use tokio::net::UdpSocket;
 use vrrb_core::txn::Txn;
 
@@ -192,7 +192,7 @@ pub fn get_symbol_size(packet: &[u8; 1280]) -> u16 {
 pub fn generate_batch_id() -> [u8; BATCH_ID_SIZE] {
     let mut x = [0_u8; BATCH_ID_SIZE];
     thread_rng().fill_bytes(&mut x);
-    let s: String = rand::thread_rng()
+    let s: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(BATCH_ID_SIZE)
         .map(char::from)
@@ -320,7 +320,7 @@ pub fn reassemble_packets(
                     batch_id_hashset.insert(batch_id);
                     if let Ok(batch_id_str) = str::from_utf8(&batch_id) {
                         let batch_id_str = String::from(batch_id_str);
-                        let mut msg = (batch_id_str, result_bytes);
+                        let msg = (batch_id_str, result_bytes);
                         if let Ok(data) = String::from_utf8(msg.1.clone()) {
                             let data = data.trim_end_matches('\0').to_string().replace("\\", "");
                             match serde_json::from_str::<RaptorBroadCastedData>(&data) {

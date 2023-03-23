@@ -2,12 +2,13 @@ use std::net::SocketAddr;
 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use network::network::BroadcastEngine;
+use primitives::QuorumType::Farmer;
 use storage::{
     storage_utils,
     vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
 };
 use telemetry::info;
-use theater::{Actor, ActorImpl};
+use theater::{Actor, ActorImpl, Handler};
 use tokio::{
     sync::{broadcast::Receiver, mpsc::UnboundedSender},
     task::JoinHandle,
@@ -22,6 +23,7 @@ use self::{
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
+    dkg_module::DkgModuleConfig,
     NodeError,
     Result,
     RuntimeModule,
@@ -46,8 +48,10 @@ pub async fn setup_runtime_components(
     validator_events_rx: Receiver<Event>,
     miner_events_rx: Receiver<Event>,
     jsonrpc_events_rx: Receiver<Event>,
+    dkg_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -127,6 +131,8 @@ pub async fn setup_runtime_components(
 
     let miner_handle = setup_mining_module(events_tx.clone(), miner_events_rx)?;
 
+    let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
+
     Ok((
         config,
         mempool_handle,
@@ -136,6 +142,7 @@ pub async fn setup_runtime_components(
         jsonrpc_server_handle,
         txn_validator_handle,
         miner_handle,
+        dkg_handle,
     ))
 }
 
@@ -178,7 +185,7 @@ async fn setup_gossip_network(
 
     let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
         .await
-        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {}", err)))?;
+        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
     let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
 
@@ -290,4 +297,34 @@ fn setup_mining_module(
     let miner_handle = tokio::spawn(async move { module.start(&mut miner_events_rx).await });
 
     Ok(Some(miner_handle))
+}
+
+fn setup_dkg_module(
+    config: &NodeConfig,
+    events_tx: UnboundedSender<DirectedEvent>,
+    mut dkg_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let mut module = dkg_module::DkgModule::new(
+        0,
+        config.node_type,
+        config.keypair.validator_kp.0.clone(),
+        DkgModuleConfig {
+            quorum_type: Some(Farmer),
+            quorum_size: 30, /* Need to be decided either will be preconfigured or decided by
+                              * Bootstrap Node */
+            quorum_threshold: 15, /* Need to be decided either will be preconfigured or decided
+                                   * by Bootstrap Node */
+        },
+        config.rendzevous_local_address,
+        config.rendzevous_local_address,
+        config.udp_gossip_address.port(),
+        events_tx,
+    );
+    if let Ok(dkg_module) = module {
+        let dkg_handle = tokio::spawn(async move { dkg_module.handle(&mut dkg_events_rx).await });
+        return Ok(Some(dkg_handle));
+    }
+    Err(NodeError::Other(String::from(
+        "Failed to instantiate dkg module",
+    )))
 }

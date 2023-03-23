@@ -1,12 +1,10 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::net::SocketAddr;
 
-use primitives::{NodeType, PublicKey};
+use primitives::{FarmerQuorumThreshold, NodeType, QuorumType};
 use serde::{Deserialize, Serialize};
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
-use vrrb_core::event_router::{Event, PeerData};
-
-use crate::packet::{NotCompleteError, Packet, Packetize};
+use vrrb_core::event_router::{Event, PeerData, Vote};
 
 pub type MessageId = Uuid;
 pub type MessageContents = Vec<u8>;
@@ -149,18 +147,6 @@ impl StateBlock {
     }
 }
 
-impl AsMessage for MessageType {
-    fn into_message(self, return_receipt: u8) -> Message {
-        let id = Uuid::new_v4();
-        Message {
-            id,
-            source: None,
-            data: self.as_bytes(),
-            sequence_number: None,
-            return_receipt,
-        }
-    }
-}
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.
 //TODO: Convert the Vec<u8> and u8's into custom types that are more
@@ -169,10 +155,7 @@ impl AsMessage for MessageType {
 // TODO: Replace message contents with an instance of MessageBody
 pub struct Message {
     pub id: MessageId,
-    pub data: MessageContents,
-    pub source: Option<Vec<u8>>,
-    pub sequence_number: Option<Vec<u8>>,
-    pub return_receipt: u8,
+    pub data: MessageBody,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -228,14 +211,6 @@ pub enum MessageBody {
         claim: Vec<u8>,
         sender_id: String,
     },
-    DKGPartCommitment {
-        dkg_part_commitment: Vec<u8>,
-        sender_id: String,
-    },
-    DKGACKCommitment {
-        dkg_ack_commitment: Vec<u8>,
-        sender_id: String,
-    },
     ResetPeerConnection {
         peer_id: PeerId,
     },
@@ -248,6 +223,21 @@ pub enum MessageBody {
         peer_id: primitives::PeerId,
         socket_addr: SocketAddr,
         node_type: NodeType,
+    },
+    DKGPartCommitment {
+        part_commitment: Vec<u8>,
+        sender_id: u16,
+    },
+    DKGPartAcknowledgement {
+        curr_node_id: u16,
+        sender_id: u16,
+        ack: Vec<u8>,
+    },
+
+    Vote {
+        vote: Vote,
+        quorum_type: QuorumType,
+        farmer_quorum_threshold: FarmerQuorumThreshold,
     },
     Empty,
 }
@@ -281,15 +271,19 @@ impl Message {
     pub fn from_bytes(data: &[u8]) -> Message {
         Self::from(data.to_vec())
     }
+
+    pub fn new(msg: MessageBody) -> Self {
+        Message {
+            id: Uuid::new_v4(),
+            data: msg,
+        }
+    }
 }
 
 /// Represents an empty, often invalid Message
 pub const NULL_MESSAGE: Message = Message {
     id: uuid::Uuid::nil(),
-    data: vec![],
-    source: None,
-    sequence_number: None,
-    return_receipt: 0,
+    data: MessageBody::Empty,
 };
 
 impl From<Vec<u8>> for Message {
@@ -333,133 +327,5 @@ impl From<MessageBody> for Event {
             }),
             _ => Event::NoOp,
         }
-    }
-}
-
-/// Converts a message into a vector of packets to be sent across
-/// the transport layer.
-impl Packetize for Message {
-    type FlatPackets = Vec<u8>;
-    type PacketBytes = Vec<Vec<u8>>;
-    type PacketMap = HashMap<u32, Packet>;
-    type Packets = Vec<Packet>;
-
-    fn into_packets(self) -> Vec<Packet> {
-        vec![]
-
-        // let message_string = serde_json::to_string(&self).unwrap();
-        // let message_bytes = message_string.as_bytes();
-        // let n_bytes = message_bytes.len();
-        // if n_bytes > MAX_TRANSMIT_SIZE {
-        //     let mut n_packets = n_bytes / MAX_TRANSMIT_SIZE;
-        //     if n_bytes % MAX_TRANSMIT_SIZE != 0 {
-        //         n_packets += 1;
-        //     }
-        //     let mut end = MAX_TRANSMIT_SIZE;
-        //     let mut start = 0;
-        //     let range: Vec<_> = (0..n_packets).collect();
-        //     let packets = range
-        //         .iter()
-        //         .map(|idx| {
-        //             if *idx == n_packets - 1 {
-        //                 start = end;
-        //                 Packet::new(
-        //                     self.id.clone(),
-        //                     self.source.clone(),
-        //                     message_bytes[start..].to_vec(),
-        //                     (n_bytes - end).to_be_bytes().to_vec(),
-        //                     (idx + 1).to_be_bytes().to_vec(),
-        //                     n_packets.to_be_bytes().to_vec(),
-        //                     self.return_receipt,
-        //                 )
-        //             } else if *idx == 0 {
-        //                 Packet::new(
-        //                     self.id.clone(),
-        //                     self.source.clone(),
-        //                     message_bytes[start..end].to_vec(),
-        //                     MAX_TRANSMIT_SIZE.to_be_bytes().to_vec(),
-        //                     (idx + 1).to_be_bytes().to_vec(),
-        //                     n_packets.to_be_bytes().to_vec(),
-        //                     self.return_receipt,
-        //                 )
-        //             } else {
-        //                 start = end;
-        //                 end = start + (MAX_TRANSMIT_SIZE);
-        //                 Packet::new(
-        //                     self.id.clone(),
-        //                     self.source.clone(),
-        //                     message_bytes[start..end].to_vec(),
-        //                     MAX_TRANSMIT_SIZE.to_be_bytes().to_vec(),
-        //                     (idx + 1).to_be_bytes().to_vec(),
-        //                     n_packets.to_be_bytes().to_vec(),
-        //                     self.return_receipt,
-        //                 )
-        //             }
-        //         })
-        //         .collect::<Vec<Packet>>();
-        //
-        //     packets
-        // } else {
-        //     let n_packets = 1usize;
-        //     vec![Packet {
-        //         id: self.id.clone(),
-        //         source: self.source.clone(),
-        //         data: message_bytes.to_vec(),
-        //         size: n_bytes.to_be_bytes().to_vec(),
-        //         packet_number: n_packets.to_be_bytes().to_vec(),
-        //         total_packets: n_packets.to_be_bytes().to_vec(),
-        //         return_receipt: self.return_receipt,
-        //     }]
-        // }
-    }
-
-    /// Serializes a vector of packets into nested vectors of bytes.
-    fn as_packet_bytes(&self) -> Vec<Vec<u8>> {
-        let packets = self.clone().into_packets();
-
-        packets
-            .iter()
-            .map(|packet| packet.as_bytes())
-            .collect::<Vec<Vec<u8>>>()
-    }
-
-    /// Reassembles a map of packets into a serialized vector of bytes that
-    /// cab be converted back into a Message for processing
-    fn assemble(map: &mut Self::PacketMap) -> Self::FlatPackets {
-        let mut byte_slices = map
-            .iter()
-            .map(|(packet_number, packet)| (*packet_number, packet.clone()))
-            .collect::<Vec<(u32, Packet)>>();
-
-        byte_slices.sort_unstable_by_key(|k| k.0);
-        let mut assembled = vec![];
-        byte_slices.iter().for_each(|(_, v)| {
-            assembled.extend(v.data.clone());
-        });
-
-        assembled
-    }
-
-    /// Does the same thing as assemble but with better error handling in the
-    /// event packets are missing or cannot be assembled.
-    fn try_assemble(map: &mut Self::PacketMap) -> Result<Self::FlatPackets, NotCompleteError> {
-        if let Some((_, packet)) = map.clone().iter().next() {
-            if map.len() == usize::from_be_bytes(packet.clone().convert_total_packets()) {
-                let mut byte_slices = map
-                    .iter()
-                    .map(|(packet_number, packet)| (*packet_number, packet.clone()))
-                    .collect::<Vec<(u32, Packet)>>();
-
-                byte_slices.sort_unstable_by_key(|k| k.0);
-                let mut assembled = vec![];
-
-                byte_slices.iter().for_each(|(_, v)| {
-                    assembled.extend(v.data.clone());
-                });
-
-                return Ok(assembled);
-            }
-        }
-        Err(NotCompleteError)
     }
 }

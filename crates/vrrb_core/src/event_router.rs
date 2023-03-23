@@ -105,7 +105,7 @@ pub enum Event {
     ClaimAbandoned(String, Vec<u8>),
     SlashClaims(Vec<String>),
     CheckAbandoned,
-    SyncPeers(SyncPeerData),
+    SyncPeers(Vec<SyncPeerData>),
     PeerRequestedStateSync(PeerData),
 
     /// A peer joined the network, should be added to the node's peer list
@@ -123,6 +123,9 @@ pub enum Event {
     /// Event to broadcast Part Message
     PartMessage(u16, Vec<u8>),
 
+    /// Event to broadcast Part Message
+    SendPartMessage(u16, Vec<u8>),
+
     /// A command to  send ack of Part message of sender by current Node.
     SendAck(u16, u16, Vec<u8>),
 
@@ -134,7 +137,6 @@ pub enum Event {
     GenerateKeySet,
     HarvesterPublicKey(Vec<u8>),
     Farm,
-
     Vote(Vote, QuorumType, FarmerQuorumThreshold),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),

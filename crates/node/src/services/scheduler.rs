@@ -24,7 +24,7 @@ use validator::{
 use vrrb_core::{
     bloom::Bloom,
     event_router::{QuorumCertifiedTxn, Vote, VoteReceipt},
-    txn::Txn,
+    txn::{TransactionDigest, Txn},
 };
 
 /// `JobSchedulerController` is a struct that contains a `JobScheduler`, a
@@ -66,25 +66,29 @@ pub enum Job {
             FarmerQuorumThreshold,
         ),
     ),
-    VoteTxn(
+    CertifyTxn(
         (
-            Vote,
-            ByteVec,
-            u16,
-            ByteVec,
             SignatureProvider,
-            QuorumType,
-            FarmerQuorumThreshold,
+            Vec<Vote>,
+            TransactionDigest,
+            String,
+            Vec<u8>,
+            Txn,
         ),
     ),
-    CertifyTxn((SignatureProvider, Vec<Vote>, String, String, Vec<u8>, Txn)),
 }
 
 #[derive(Debug)]
 pub enum JobResult {
     Votes((Vec<Option<Vote>>, FarmerQuorumThreshold)),
-    SendVoteToHarvester(Vote, QuorumType, FarmerQuorumThreshold),
-    CertifiedTxn(Vec<Vote>, RawSignature, String, String, Vec<u8>, Txn),
+    CertifiedTxn(
+        Vec<Vote>,
+        RawSignature,
+        TransactionDigest,
+        String,
+        Vec<u8>,
+        Txn,
+    ),
 }
 
 impl<'a> JobSchedulerController<'a> {
@@ -167,37 +171,6 @@ impl<'a> JobSchedulerController<'a> {
                                 .send(JobResult::Votes((votes, farmer_quorum_threshold)));
                         }
                     },
-                    Job::VoteTxn((
-                        vote,
-                        farmer_id,
-                        farmer_node_idx,
-                        group_public_Key,
-                        sig_provider,
-                        quorum_type,
-                        farmer_quorum_threshold,
-                    )) => {
-                        if let QuorumType::Farmer = quorum_type.clone() {
-                            let txn = vote.txn;
-                            let txn_bytes = bincode::serialize(&txn).unwrap();
-                            let signature =
-                                sig_provider.generate_partial_signature(txn_bytes).unwrap();
-                            let vote = Vote {
-                                farmer_id: farmer_id.clone(),
-                                farmer_node_id: farmer_node_idx,
-                                signature,
-                                txn,
-                                quorum_public_key: group_public_Key.clone(),
-                                quorum_threshold: farmer_quorum_threshold,
-                            };
-                            let _ =
-                                self.sync_jobs_outputs_sender
-                                    .send(JobResult::SendVoteToHarvester(
-                                        vote,
-                                        quorum_type,
-                                        farmer_quorum_threshold,
-                                    ));
-                        }
-                    },
                     Job::CertifyTxn((
                         sig_provider,
                         votes,
@@ -206,22 +179,33 @@ impl<'a> JobSchedulerController<'a> {
                         farmer_id,
                         txn,
                     )) => {
-                        let mut sig_shares = std::collections::BTreeMap::new();
+                        let mut sig_shares = BTreeMap::new();
                         for v in votes.iter() {
                             sig_shares.insert(v.farmer_node_id, v.signature.clone());
                         }
-                        let result = sig_provider.generate_quorum_signature(sig_shares);
-                        if let Ok(threshold_signature) = result {
-                            self.sync_jobs_outputs_sender.send(JobResult::CertifiedTxn(
-                                votes,
-                                threshold_signature,
-                                txn_id,
-                                farmer_quorum_key,
-                                farmer_id,
-                                txn,
-                            ));
+                        let validated_txns: Vec<_> = self
+                            .validator_core_manager
+                            .validate(self.state_snapshot, vec![txn.clone()])
+                            .into_iter()
+                            .collect();
+                        let validated = validated_txns.par_iter().any(|x| x.0.id() == txn.id());
+                        if validated {
+                            let result = sig_provider.generate_quorum_signature(sig_shares.clone());
+                            if let Ok(threshold_signature) = result {
+                                let _ =
+                                    self.sync_jobs_outputs_sender.send(JobResult::CertifiedTxn(
+                                        votes.clone(),
+                                        threshold_signature,
+                                        txn_id.clone(),
+                                        farmer_quorum_key.clone(),
+                                        farmer_id.clone(),
+                                        txn.clone(),
+                                    ));
+                            } else {
+                                error!("Quorum signature generation failed");
+                            }
                         } else {
-                            error!("Quorum signature generation failed");
+                            error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
                         }
                     },
                 },
