@@ -7,7 +7,7 @@ pub use server::*;
 pub use server_impl::*;
 use vrrb_core::txn::Token;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, Hash)]
 pub struct SignOpts {
     pub timestamp: i64,
     pub sender_address: String,
