@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use std::{
     borrow::{Borrow, BorrowMut},
     thread,
@@ -6,11 +7,11 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use hbbft::crypto::{Signature, SignatureShare};
+use hbbft::{crypto::{Signature, SignatureShare}, threshold_sign::ThresholdSign};
 use indexmap::IndexMap;
 use kademlia_dht::{Key, Node, NodeData};
 use lr_trie::ReadHandleFactory;
-use mempool::mempool::{LeftRightMempool, TxnStatus};
+use mempool::{mempool::{LeftRightMempool, TxnStatus}, Mempool};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{
     FarmerQuorumThreshold,
@@ -38,7 +39,7 @@ use vrrb_core::{
 use crate::{
     result::Result,
     scheduler::{Job, JobResult},
-    NodeError,
+    NodeError, validator_module::ValidatorModule,
 };
 
 /// `FarmerHarvesterModule` is a struct that contains a bunch of `Option`s, a
@@ -230,12 +231,14 @@ impl FarmerHarvesterModule {
     }
 
     pub fn insert_txn(&mut self, txn: Txn) {
+        // This should be handled by the mempool_module
         if let Some(tx_mempool) = self.tx_mempool.borrow_mut() {
             let _ = tx_mempool.insert(txn);
         }
     }
 
     pub fn update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
+        // There is no scenario where this should occur.
         if let Some(tx_mempool) = self.tx_mempool.borrow_mut() {
             let txn_record_opt = tx_mempool.get(&txn_id);
             if let Some(mut txn_record) = txn_record_opt {
@@ -247,6 +250,7 @@ impl FarmerHarvesterModule {
     }
 
     pub fn remove_txn(&mut self, txn_id: TransactionDigest) {
+        // This should be handled by the mempool module
         if let Some(tx_mempool) = self.tx_mempool.borrow_mut() {
             let _ = tx_mempool.remove(&txn_id);
         }
@@ -351,6 +355,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                     }
                 }
             },
+            // What does this do?
             Event::PullQuorumCertifiedTxns(num_of_txns) => {
                 self.quorum_certified_txns
                     .iter()
@@ -367,6 +372,12 @@ impl Handler<Event> for FarmerHarvesterModule {
         Ok(ActorState::Running)
     }
 }
+
+
+pub trait QuorumMember {}
+// TODO: Move this to primitives
+pub type QuorumId = String;
+pub type QuorumPubkey = String;
 
 #[cfg(test)]
 mod tests {

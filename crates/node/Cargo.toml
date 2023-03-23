@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 primitives = { workspace = true }
-block = { workspace = true }
 vrrb_core = { workspace = true }
 telemetry = { workspace = true }
 vrrb_config = { workspace = true }
@@ -56,6 +55,7 @@ job_scheduler = { workspace = true }
 rayon = { workspace = true }
 lazy_static = { workspace = true }
 dashmap = { workspace = true }
+block = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

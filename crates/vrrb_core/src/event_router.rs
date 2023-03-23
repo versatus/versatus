@@ -1,4 +1,5 @@
 use std::{collections::HashMap, net::SocketAddr};
+use block::convergence_block::ConvergenceBlock;
 
 use primitives::{
     Address,
@@ -49,6 +50,18 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
+    pub quorum_public_key: Vec<u8>,
+    pub quorum_threshold: usize,
+    // May want to serialize this as a vector of bytes
+    pub execution_result: Option<String>
+}
+
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct BlockVote {
+    pub harvester_id: Vec<u8>,
+    pub harvester_node_id: NodeIdx,
+    pub signature: RawSignature,
+    pub convergence_block: ConvergenceBlock,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
 }
@@ -127,8 +140,11 @@ pub enum Event {
     GenerateKeySet,
 
     Farm,
-
-    Vote(Vote, QuorumType, FarmerQuorumThreshold),
+    // Vote will ONLY be for voting on txns, not on Blocks
+    // Will add a new type, VoteBlock
+    // As a result, we ONLY need the Vote
+    Vote(Vote),
+    BlockVote(BlockVote),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
@@ -226,6 +242,7 @@ pub enum Topic {
     Network,
     Storage,
     Consensus,
+    Throttle,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction

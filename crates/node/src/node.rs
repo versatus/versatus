@@ -16,7 +16,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState, farmer_harvester_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -35,7 +35,9 @@ pub struct Node {
     pub keypair: KeyPair,
 
     // NOTE: optional node components
+    #[deprecated(note = "This will be replaced with an executor")]
     vm: Option<Cpu>,
+
     state_handle: Option<JoinHandle<Result<()>>>,
     mempool_handle: Option<JoinHandle<Result<()>>>,
     gossip_handle: Option<JoinHandle<Result<()>>>,
@@ -63,6 +65,11 @@ impl Node {
         let controller_events_rx = event_router.subscribe(&Topic::Network)?;
         let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?; 
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
 
         let (
