@@ -571,7 +571,9 @@ mod tests {
         });
         ctrl_tx.send(Event::Farm.into()).unwrap();
         ctrl_tx.send(Event::Stop.into()).unwrap();
+
         handle.await.unwrap();
+
         let job_status = sync_jobs_status_receiver.recv().unwrap();
         is_enum_variant!(job_status, JobResult::Votes { .. });
     }
