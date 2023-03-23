@@ -168,6 +168,20 @@ impl Txn {
         self.id.clone()
     }
 
+    pub fn build_payload(&self) -> TransactionDigest {
+        let digest = generate_txn_digest_vec(
+            self.timestamp(),
+            self.sender_address(),
+            self.sender_public_key(),
+            self.receiver_address(),
+            self.token(),
+            self.amount(),
+            self.nonce()
+        );
+
+        digest
+    }
+
     #[deprecated]
     pub fn digest(&self) -> TransactionDigest {
         self.id()

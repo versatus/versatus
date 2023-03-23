@@ -55,7 +55,6 @@ job_scheduler = { workspace = true }
 rayon = { workspace = true }
 lazy_static = { workspace = true }
 dashmap = { workspace = true }
-block = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

@@ -113,7 +113,9 @@ pub enum Event {
     SlashClaims(Vec<String>),
     CheckAbandoned,
     PeerRequestedStateSync(PeerData),
-
+    //Event to tell Farmer node to sign the Transaction 
+    //the validator module has validated this transaction
+    ValidTxn(TransactionDigest),
     /// A peer joined the network, should be added to the node's peer list
     PeerJoined(PeerData),
 
