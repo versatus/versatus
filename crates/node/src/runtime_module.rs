@@ -15,6 +15,7 @@ pub enum RuntimeModuleState {
 /// RuntimeModule represents a node component that is loaded on startup and
 /// controls whenever a node is terminated
 #[async_trait]
+#[deprecated]
 pub trait RuntimeModule {
     fn name(&self) -> String;
     fn status(&self) -> RuntimeModuleState;

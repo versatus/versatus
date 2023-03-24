@@ -67,11 +67,11 @@ impl BroadcastModule {
             })?;
 
         Ok(Self {
+            id: Uuid::new_v4(),
             events_tx: config.events_tx,
             status: ActorState::Stopped,
             vrrbdb_read_handle: config.vrrbdb_read_handle,
             broadcast_engine,
-            id: Uuid::new_v4(),
         })
     }
 
@@ -259,7 +259,6 @@ mod tests {
     use super::{BroadcastModule, BroadcastModuleConfig};
 
     #[tokio::test]
-    #[ignore]
     async fn test_broadcast_module() {
         let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
 
