@@ -28,6 +28,14 @@ pub struct VrrbDbConfig {
     pub claim_store_path: Option<String>, 
 }
 
+impl VrrbDbConfig {
+    pub fn with_path(&mut self, path: PathBuf) -> Self {
+        self.path = path;
+
+        self.clone()
+    }
+}
+
 impl Default for VrrbDbConfig {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
