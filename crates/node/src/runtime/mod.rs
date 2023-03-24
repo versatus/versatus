@@ -211,7 +211,12 @@ async fn setup_state_store(
     mut state_events_rx: Receiver<Event>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
-    let vrrbdb_config = VrrbDbConfig::default();
+    let mut vrrbdb_config = VrrbDbConfig::default();
+
+    if config.db_path() != &vrrbdb_config.path {
+        vrrbdb_config.with_path(config.db_path().to_path_buf());
+    }
+
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
     let vrrbdb_read_handle = db.read_handle();
 
