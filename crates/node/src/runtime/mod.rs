@@ -1,8 +1,9 @@
 use std::net::SocketAddr;
 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use miner::MinerConfig;
 use network::network::BroadcastEngine;
-use primitives::QuorumType::Farmer;
+use primitives::{Address, QuorumType::Farmer};
 use storage::{
     storage_utils,
     vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
@@ -20,6 +21,9 @@ use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mempool_module::{MempoolModule, MempoolModuleConfig},
+    mining_module::MiningModule,
+    state_module::StateModule,
+    validator_module::ValidatorModule,
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
@@ -81,7 +85,6 @@ pub async fn setup_runtime_components(
 
     let mempool_handle = Some(mempool_handle);
 
-    println!("Setting up state_store");
     let (state_read_handle, state_handle) = setup_state_store(
         &config,
         events_tx.clone(),
@@ -129,7 +132,7 @@ pub async fn setup_runtime_components(
         mempool_read_handle_factory.clone(),
     )?;
 
-    let miner_handle = setup_mining_module(events_tx.clone(), miner_events_rx)?;
+    let miner_handle = setup_mining_module(&config, events_tx.clone(), miner_events_rx)?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
 
@@ -225,10 +228,10 @@ async fn setup_state_store(
     }
 
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+
     let vrrbdb_read_handle = db.read_handle();
 
-    let mut state_module =
-        state_module::StateModule::new(state_module::StateModuleConfig { events_tx, db });
+    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
 
     let mut state_module_actor = ActorImpl::new(state_module);
 
@@ -280,7 +283,7 @@ fn setup_validation_module(
     mut validator_events_rx: Receiver<Event>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = validator_module::ValidatorModule::new();
+    let mut module = ValidatorModule::new();
 
     let txn_validator_handle =
         tokio::spawn(async move { module.start(&mut validator_events_rx).await });
@@ -289,12 +292,33 @@ fn setup_validation_module(
 }
 
 fn setup_mining_module(
+    config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
     mut miner_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = mining_module::MiningModule::new();
+    let (_, miner_secret_key) = config.keypair.get_secret_keys();
+    let (_, miner_public_key) = config.keypair.get_public_keys();
 
-    let miner_handle = tokio::spawn(async move { module.start(&mut miner_events_rx).await });
+    let address = Address::new(*miner_public_key).to_string();
+
+    let miner_config = MinerConfig {
+        secret_key: *miner_secret_key,
+        public_key: *miner_public_key,
+        address,
+    };
+
+    let miner = miner::Miner::new(miner_config);
+
+    let module = MiningModule::new(miner, events_tx);
+
+    let mut miner_module_actor = ActorImpl::new(module);
+
+    let miner_handle = tokio::spawn(async move {
+        miner_module_actor
+            .start(&mut miner_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
 
     Ok(Some(miner_handle))
 }
@@ -320,7 +344,7 @@ fn setup_dkg_module(
         config.udp_gossip_address.port(),
         events_tx,
     );
-    if let Ok(dkg_module) = module {
+    if let Ok(mut dkg_module) = module {
         let dkg_handle = tokio::spawn(async move { dkg_module.handle(&mut dkg_events_rx).await });
         return Ok(Some(dkg_handle));
     }

@@ -36,7 +36,7 @@ ritelinked = { workspace = true }
 bincode = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
-poem = { workspace = true }
+miner = { workspace = true }
 public-ip = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
