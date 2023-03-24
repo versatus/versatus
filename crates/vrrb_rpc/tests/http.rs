@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use axum::{body::Body, http::Request};
 use axum_server::tls_rustls::RustlsConfig;
+use events::Event;
 use hyper::{Client, StatusCode};
 use tokio::sync::broadcast::channel;
-use vrrb_core::event_router::Event;
 use vrrb_rpc::http::*;
 
 mod common;
