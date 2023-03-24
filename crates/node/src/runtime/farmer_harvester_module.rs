@@ -32,6 +32,7 @@ use vrrb_core::{
 };
 
 use crate::{
+    farmer_module::PULL_TXN_BATCH_SIZE,
     result::Result,
     scheduler::{Job, JobResult},
     NodeError,
@@ -106,7 +107,6 @@ pub struct FarmerHarvesterModule {
     async_jobs_status_receiver: Receiver<JobResult>,
 }
 
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 impl FarmerHarvesterModule {
     pub fn new(

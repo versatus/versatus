@@ -35,6 +35,7 @@ pub mod broadcast_module;
 pub mod credit_model_module;
 pub mod dkg_module;
 pub mod farmer_harvester_module;
+pub mod farmer_module;
 pub mod mempool_module;
 pub mod mining_module;
 pub mod reputation_module;
@@ -131,8 +132,7 @@ pub async fn setup_runtime_components(
         miner_events_rx,
     )?;
 
-    //    let dkg_handle = setup_dkg_module(&config, events_tx.clone(),
-    // dkg_events_rx)?;
+    let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
 
     Ok((
         config,
@@ -316,7 +316,7 @@ fn setup_mining_module(
     Ok(Some(miner_handle))
 }
 
-/*
+
 fn setup_dkg_module(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
@@ -330,26 +330,33 @@ fn setup_dkg_module(
             quorum_type: Some(Farmer),
             quorum_size: 30,
             /* Need to be decided either will be preconfigured or decided by
-                              * Bootstrap Node */
+             * Bootstrap Node */
             quorum_threshold: 15,
             /* Need to be decided either will be preconfigured or decided
-                                   * by Bootstrap Node */
+             * by Bootstrap Node */
         },
         config.rendzevous_local_address,
         config.rendzevous_local_address,
         config.udp_gossip_address.port(),
         events_tx,
     );
-    if let Ok(mut dkg_module) = module {
-        let dkg_handle = tokio::spawn(async move { dkg_module.start(&mut dkg_events_rx).await });
+    if let Ok(dkg_module) = module {
+        let mut dkg_module_actor = ActorImpl::new(dkg_module);
+        let dkg_handle = tokio::spawn(async move {
+            dkg_module_actor
+                .start(&mut dkg_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
         return Ok(Some(dkg_handle));
+    } else {
+        Err(NodeError::Other(String::from(
+            "Failed to instantiate dkg module",
+        )))
     }
-    Err(NodeError::Other(String::from(
-        "Failed to instantiate dkg module",
-    )))
 }
 
-*/
+
 #[allow(unused)]
 fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
