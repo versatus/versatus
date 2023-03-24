@@ -361,6 +361,38 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Data {
+    Request(RendezvousRequest),
+    Response(RendezvousResponse),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousRequest {
+    Ping,
+    Peers(Vec<u8>),
+    Namespace(NodeTypeBytes, QuorumPublicKey),
+    RegisterPeer(
+        QuorumPublicKey,
+        NodeTypeBytes,
+        PKShareBytes,
+        RawSignature,
+        PayloadBytes,
+        SyncPeerData,
+    ),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousResponse {
+    Pong,
+    RequestPeers(QuorumPublicKey),
+    Peers(Vec<SyncPeerData>),
+    PeerRegistered,
+    NamespaceRegistered,
+}
+
+
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {

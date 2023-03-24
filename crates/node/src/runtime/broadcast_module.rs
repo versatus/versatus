@@ -1,6 +1,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use async_trait::async_trait;
+use block::Block;
 use bytes::Bytes;
 use events::{DirectedEvent, Event};
 use network::network::BroadcastEngine;
@@ -43,6 +44,18 @@ type BytesTrifecta = (Bytes, Bytes, Bytes);
 
 const PACKET_TIMEOUT_DURATION: u64 = 10;
 const EMPTY_BYTES_TRIFECTA: BytesTrifecta = (Bytes::new(), Bytes::new(), Bytes::new());
+
+trait Timeout: Sized {
+    fn timeout(self) -> tokio::time::Timeout<Self>;
+}
+
+impl<F: std::future::Future> Timeout for F {
+    fn timeout(self) -> tokio::time::Timeout<Self> {
+        tokio::time::timeout(Duration::from_secs(PACKET_TIMEOUT_DURATION), self)
+    }
+}
+
+const PACKET_TIMEOUT_DURATION: u64 = 10;
 
 trait Timeout: Sized {
     fn timeout(self) -> tokio::time::Timeout<Self>;
@@ -99,6 +112,46 @@ impl BroadcastModule {
 
     pub fn name(&self) -> String {
         "BroadcastModule".to_string()
+    }
+
+    pub async fn process_received_msg(&mut self) {
+        loop {
+            if let Some((_, mut incoming)) = self
+                .broadcast_engine
+                .get_incomming_connections()
+                .next()
+                .await
+            {
+                if let Ok(message_result) = incoming.next().timeout().await {
+                    if let Ok(msg_option) = message_result {
+                        if let Some(message) = msg_option {
+                            let msg = Message::from_bytes(&message.2);
+                            match msg.data {
+                                MessageBody::InvalidBlock { .. } => {},
+                                MessageBody::Disconnect { .. } => {},
+                                MessageBody::StateComponents { .. } => {},
+                                MessageBody::Genesis { .. } => {},
+                                MessageBody::Child { .. } => {},
+                                MessageBody::Parent { .. } => {},
+                                MessageBody::Ledger { .. } => {},
+                                MessageBody::NetworkState { .. } => {},
+                                MessageBody::ClaimAbandoned { .. } => {},
+                                MessageBody::ResetPeerConnection { .. } => {},
+                                MessageBody::RemovePeer { .. } => {},
+                                MessageBody::AddPeer { .. } => {},
+                                MessageBody::DKGPartCommitment {
+                                    part_commitment,
+                                    sender_id,
+                                } => {},
+                                MessageBody::DKGPartAcknowledgement { .. } => {},
+                                MessageBody::Vote { .. } => {},
+                                MessageBody::Empty => {},
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

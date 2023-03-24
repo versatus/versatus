@@ -38,7 +38,6 @@ pub struct NodeConfig {
     /// This is the address that the node will use to connect to the rendzevous
     /// server.
     pub rendezvous_server_address: SocketAddr,
-
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
@@ -135,6 +134,8 @@ impl Default for NodeConfig {
             udp_gossip_address: ipv4_localhost_with_random_port,
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
+            rendzevous_local_address: ipv4_localhost_with_random_port,
+            rendzevous_server_address: ipv4_localhost_with_random_port,
             node_type: NodeType::Full,
             bootstrap_node_addresses: vec![],
             http_api_address: ipv4_localhost_with_random_port,

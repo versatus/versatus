@@ -485,4 +485,3 @@ fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
 fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
-

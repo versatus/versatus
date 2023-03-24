@@ -129,6 +129,7 @@ impl From<RunOpts> for NodeConfig {
             // a hack, but it works for now.
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
+            rendzevous_server_address: opts.rendzevous_server_address,
         }
     }
 }

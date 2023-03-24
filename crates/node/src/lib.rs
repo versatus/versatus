@@ -8,7 +8,11 @@ mod runtime_module;
 pub mod services;
 pub mod test_utils;
 
+<<<<<<< HEAD
 use events::{DirectedEvent, Event};
+=======
+use events::DirectedEvent;
+>>>>>>> 2e8db4f (Add missing runtime component setup modules for dkg, farmer and harvester modules (#189))
 pub use node_type::*;
 pub use result::*;
 pub use runtime::*;
@@ -18,7 +22,10 @@ pub use services::*;
 pub use crate::node::*;
 
 pub(crate) type EventBroadcastSender = tokio::sync::mpsc::UnboundedSender<DirectedEvent>;
+<<<<<<< HEAD
 pub(crate) type EventBroadcastReceiver = tokio::sync::broadcast::Receiver<Event>;
+=======
+>>>>>>> 2e8db4f (Add missing runtime component setup modules for dkg, farmer and harvester modules (#189))
 
 /// The maximum size in kilobytes of transactions that can be in the mempool at
 /// any given time.
