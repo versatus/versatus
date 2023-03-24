@@ -9,7 +9,7 @@ use vrrb_core::{
     txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
 };
 
-use super::SignOpts;
+use crate::rpc::SignOpts;
 
 pub type ExampleHash = [u8; 32];
 pub type ExampleStorageKey = Vec<u8>;
