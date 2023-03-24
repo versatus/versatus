@@ -123,7 +123,6 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
-
     let miner_handle = setup_mining_module(
         &config,
         events_tx.clone(),
@@ -316,7 +315,6 @@ fn setup_mining_module(
     Ok(Some(miner_handle))
 }
 
-
 fn setup_dkg_module(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
@@ -356,23 +354,18 @@ fn setup_dkg_module(
     }
 }
 
-
-#[allow(unused)]
 fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-#[allow(unused)]
 fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-#[allow(unused)]
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-#[allow(unused)]
 fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }

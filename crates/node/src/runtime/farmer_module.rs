@@ -32,7 +32,6 @@ use crate::{
     NodeError,
 };
 
-
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 pub struct FarmerModule {

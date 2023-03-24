@@ -225,6 +225,7 @@ impl Node {
         event_router.add_topic(Topic::Network, Some(100));
         event_router.add_topic(Topic::Consensus, Some(100));
         event_router.add_topic(Topic::Storage, Some(100));
+        event_router.add_topic(Topic::Throttle, Some(100));
 
         event_router
     }

@@ -58,7 +58,6 @@ pub struct SyncPeerData {
     pub node_type: NodeType,
 }
 
-
 // NOTE: naming convention for events goes as follows:
 // <Subject><Verb, in past tense>, e.g. ObjectCreated
 // TODO: Replace Vec<u8>'s with proper data structs in enum wariants

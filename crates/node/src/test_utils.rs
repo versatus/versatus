@@ -22,6 +22,8 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let rendzevous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let rendzevous_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
     let main_bootstrap_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 10)), 0);
     let bootstrap_node_addresses = vec![main_bootstrap_addr];
@@ -42,6 +44,8 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .udp_gossip_address(udp_gossip_address)
         .jsonrpc_server_address(jsonrpc_server_address)
         .keypair(Keypair::random())
+        .rendzevous_local_address(rendzevous_local_address)
+        .rendzevous_server_address(rendzevous_server_address)
         .disable_networking(false)
         .build()
         .unwrap()
