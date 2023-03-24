@@ -20,8 +20,15 @@ use crate::{
     config::BroadcastError,
     message::Message,
     packet::{
-        generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
-        RaptorBroadCastedData, BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
+        generate_batch_id,
+        packet_forwarder,
+        reassemble_packets,
+        recv_mmsg,
+        split_into_packets,
+        RaptorBroadCastedData,
+        BATCH_ID_SIZE,
+        MTU_SIZE,
+        NUM_RCVMMSGS,
     },
     types::config::BroadcastStatus,
 };

@@ -256,7 +256,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let keypair = match read_keypair_file(&keypair_file_path) {
         Ok(keypair) => keypair,
         Err(err) => {
-            warn!("Failed to read keypair file: {:?}", err);
+            warn!("Failed to read keypair file: {err}");
             info!("Generating new keypair");
             let keypair = Keypair::random();
 
