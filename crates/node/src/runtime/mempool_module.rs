@@ -1,6 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
+use events::{DirectedEvent, Event, Topic};
 use lr_trie::ReadHandleFactory;
 use mempool::LeftRightMempool;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -8,10 +9,7 @@ use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
-use vrrb_core::{
-    event_router::{DirectedEvent, Event, Topic},
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::{
     result::Result,

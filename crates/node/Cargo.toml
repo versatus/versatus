@@ -9,6 +9,7 @@ edition = "2021"
 primitives = { workspace = true }
 block = { workspace = true }
 vrrb_core = { workspace = true }
+events = { workspace = true }
 telemetry = { workspace = true }
 vrrb_config = { workspace = true }
 network = { workspace = true }

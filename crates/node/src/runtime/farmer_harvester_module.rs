@@ -6,9 +6,7 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use hbbft::crypto::{Signature, SignatureShare};
-use indexmap::IndexMap;
-use kademlia_dht::{Key, Node, NodeData};
+use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
 use lr_trie::ReadHandleFactory;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -20,7 +18,6 @@ use primitives::{
     PeerId,
     QuorumType,
     RawSignature,
-    TxHashString,
 };
 use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -31,7 +28,6 @@ use tokio::sync::{broadcast::error::TryRecvError, mpsc::UnboundedSender};
 use tracing::error;
 use vrrb_core::{
     bloom::Bloom,
-    event_router::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt},
     txn::{TransactionDigest, Txn},
 };
 
@@ -342,6 +338,11 @@ impl Handler<Event> for FarmerHarvesterModule {
     }
 }
 
+pub trait QuorumMember {}
+// TODO: Move this to primitives
+pub type QuorumId = String;
+pub type QuorumPubkey = String;
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -354,6 +355,7 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
+    use events::{DirectedEvent, Event, PeerData, Vote};
     use lazy_static::lazy_static;
     use primitives::{NodeType, QuorumType::Farmer};
     use secp256k1::Message;
@@ -362,13 +364,7 @@ mod tests {
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,
     };
-    use vrrb_core::{
-        cache,
-        event_router::{DirectedEvent, Event},
-        is_enum_variant,
-        keypair::KeyPair,
-        txn::NewTxnArgs,
-    };
+    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
@@ -711,6 +707,7 @@ mod tests {
                             txn,
                             quorum_public_key: group_public_key,
                             quorum_threshold: threshold,
+                            execution_result: None,
                         };
                         ballot.push(new_vote);
                     }

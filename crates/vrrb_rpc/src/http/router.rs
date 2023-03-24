@@ -1,7 +1,7 @@
 use axum::{routing::get, Router};
+use events::Event;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use vrrb_core::event_router::Event;
 
 use crate::http::{
     routes::{accounts, health},

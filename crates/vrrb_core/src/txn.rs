@@ -163,6 +163,20 @@ impl Txn {
         self.id.clone()
     }
 
+    pub fn build_payload_digest(&self) -> TransactionDigest {
+        let digest = generate_txn_digest_vec(
+            self.timestamp(),
+            self.sender_address(),
+            self.sender_public_key(),
+            self.receiver_address(),
+            self.token(),
+            self.amount(),
+            self.nonce(),
+        );
+
+        digest.into()
+    }
+
     #[deprecated]
     pub fn digest(&self) -> TransactionDigest {
         self.id()
@@ -209,7 +223,7 @@ impl Txn {
     }
 
     pub fn sender_public_key(&self) -> PublicKey {
-        self.sender_public_key.clone()
+        self.sender_public_key
     }
 
     pub fn receiver_address(&self) -> String {
@@ -217,15 +231,27 @@ impl Txn {
     }
 
     pub fn signature(&self) -> Signature {
-        self.signature.clone()
+        self.signature
     }
 
     pub fn nonce(&self) -> TxNonce {
-        self.nonce.clone()
+        self.nonce
     }
 
     pub fn validators(&self) -> HashMap<String, bool> {
         self.validators.clone().unwrap_or_default()
+    }
+
+    pub fn generate_txn_digest_vec(&self) -> ByteVec {
+        generate_txn_digest_vec(
+            self.timestamp(),
+            self.sender_address(),
+            self.sender_public_key(),
+            self.receiver_address(),
+            self.token(),
+            self.amount(),
+            self.nonce(),
+        )
     }
 
     pub fn build_payload(&self) -> String {
@@ -255,6 +281,7 @@ impl Txn {
         Txn::from_str(data).unwrap_or(null_txn())
     }
 
+    #[deprecated(note = "will be removed from Txn struct soon")]
     pub fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
         if let payload = self.build_payload() {

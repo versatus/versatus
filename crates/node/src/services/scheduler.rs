@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use dashmap::DashMap;
+use events::{QuorumCertifiedTxn, Vote, VoteReceipt};
 use indexmap::IndexMap;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
@@ -12,7 +13,6 @@ use primitives::{
     HarvesterQuorumThreshold,
     QuorumType,
     RawSignature,
-    TxHashString,
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
@@ -23,9 +23,9 @@ use validator::{
 };
 use vrrb_core::{
     bloom::Bloom,
-    event_router::{QuorumCertifiedTxn, Vote, VoteReceipt},
     txn::{TransactionDigest, Txn},
 };
+
 
 /// `JobSchedulerController` is a struct that contains a `JobScheduler`, a
 /// `Receiver<Job>` for synchronous jobs, a `Sender<JobResult>` for synchronous
@@ -58,7 +58,7 @@ pub struct JobSchedulerController<'a> {
 pub enum Job {
     Farm(
         (
-            Vec<(String, TxnRecord)>,
+            Vec<(TransactionDigest, TxnRecord)>,
             ByteVec,
             u16,
             ByteVec,
@@ -155,6 +155,7 @@ impl<'a> JobSchedulerController<'a> {
                                                         quorum_public_key: quorum_public_key
                                                             .clone(),
                                                         quorum_threshold: 2,
+                                                        execution_result: None,
                                                     });
                                                 }
                                             }

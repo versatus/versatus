@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::network::BroadcastEngine;
@@ -15,7 +16,6 @@ use tokio::{
     task::JoinHandle,
 };
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -23,24 +23,23 @@ use self::{
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
-    validator_module::ValidatorModule,
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     dkg_module::DkgModuleConfig,
     NodeError,
     Result,
-    RuntimeModule,
 };
 
 pub mod broadcast_module;
+pub mod credit_model_module;
 pub mod dkg_module;
 pub mod farmer_harvester_module;
 pub mod mempool_module;
 pub mod mining_module;
+pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
-pub mod validator_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -49,13 +48,11 @@ pub async fn setup_runtime_components(
     vrrbdb_events_rx: Receiver<Event>,
     network_events_rx: Receiver<Event>,
     controller_events_rx: Receiver<Event>,
-    validator_events_rx: Receiver<Event>,
     miner_events_rx: Receiver<Event>,
     jsonrpc_events_rx: Receiver<Event>,
     dkg_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
-    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -125,12 +122,6 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
-    // TODO: make nodes start with some preconfigured state
-    let txn_validator_handle = setup_validation_module(
-        events_tx.clone(),
-        validator_events_rx,
-        mempool_read_handle_factory.clone(),
-    )?;
 
     let miner_handle = setup_mining_module(
         &config,
@@ -140,7 +131,8 @@ pub async fn setup_runtime_components(
         miner_events_rx,
     )?;
 
-    let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
+    //    let dkg_handle = setup_dkg_module(&config, events_tx.clone(),
+    // dkg_events_rx)?;
 
     Ok((
         config,
@@ -149,9 +141,8 @@ pub async fn setup_runtime_components(
         gossip_handle,
         broadcast_controller_handle,
         jsonrpc_server_handle,
-        txn_validator_handle,
         miner_handle,
-        dkg_handle,
+        None,
     ))
 }
 
@@ -284,19 +275,6 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-fn setup_validation_module(
-    events_tx: UnboundedSender<DirectedEvent>,
-    mut validator_events_rx: Receiver<Event>,
-    mempool_read_handle_factory: MempoolReadHandleFactory,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = ValidatorModule::new();
-
-    let txn_validator_handle =
-        tokio::spawn(async move { module.start(&mut validator_events_rx).await });
-
-    Ok(Some(txn_validator_handle))
-}
-
 fn setup_mining_module(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
@@ -338,6 +316,7 @@ fn setup_mining_module(
     Ok(Some(miner_handle))
 }
 
+/*
 fn setup_dkg_module(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
@@ -349,9 +328,11 @@ fn setup_dkg_module(
         config.keypair.validator_kp.0.clone(),
         DkgModuleConfig {
             quorum_type: Some(Farmer),
-            quorum_size: 30, /* Need to be decided either will be preconfigured or decided by
+            quorum_size: 30,
+            /* Need to be decided either will be preconfigured or decided by
                               * Bootstrap Node */
-            quorum_threshold: 15, /* Need to be decided either will be preconfigured or decided
+            quorum_threshold: 15,
+            /* Need to be decided either will be preconfigured or decided
                                    * by Bootstrap Node */
         },
         config.rendzevous_local_address,
@@ -360,10 +341,31 @@ fn setup_dkg_module(
         events_tx,
     );
     if let Ok(mut dkg_module) = module {
-        let dkg_handle = tokio::spawn(async move { dkg_module.handle(&mut dkg_events_rx).await });
+        let dkg_handle = tokio::spawn(async move { dkg_module.start(&mut dkg_events_rx).await });
         return Ok(Some(dkg_handle));
     }
     Err(NodeError::Other(String::from(
         "Failed to instantiate dkg module",
     )))
+}
+
+*/
+#[allow(unused)]
+fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
+}
+
+#[allow(unused)]
+fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
+}
+
+#[allow(unused)]
+fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
+}
+
+#[allow(unused)]
+fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
 }

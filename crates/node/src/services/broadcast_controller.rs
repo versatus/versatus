@@ -2,6 +2,7 @@ use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult};
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
@@ -20,7 +21,6 @@ use tokio::{
     task::JoinHandle,
 };
 use uuid::Uuid;
-use vrrb_core::event_router::{DirectedEvent, Event};
 
 use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
 

@@ -13,6 +13,7 @@ use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgError, DkgResult},
 };
+use events::{DirectedEvent, Event, SyncPeerData, Topic};
 use hbbft::{crypto::PublicKey, sync_key_gen::Part};
 use kademlia_dht::{Key, Node, NodeData};
 use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
@@ -35,9 +36,8 @@ use serde::{Deserialize, Serialize};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
-use vrrb_core::event_router::{DirectedEvent, Event, SyncPeerData, Topic};
 
-use crate::{result::Result, NodeError, RuntimeModule};
+use crate::{result::Result, NodeError};
 
 pub struct DkgModuleConfig {
     pub quorum_type: Option<QuorumType>,
@@ -153,7 +153,6 @@ impl DkgModule {
             status: ActorState::Stopped,
             label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
-            events_tx,
             broadcast_events_tx,
         }
     }
@@ -527,11 +526,11 @@ mod tests {
     };
 
     use dkg_engine::test_utils;
+    use events::{DirectedEvent, Event, PeerData};
     use hbbft::crypto::SecretKey;
     use primitives::{NodeType, QuorumType::Farmer};
     use theater::ActorImpl;
     use tokio::{spawn, sync::mpsc::UnboundedReceiver};
-    use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
 
     use super::*;
 

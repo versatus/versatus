@@ -3,6 +3,7 @@ use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult, ti
 use async_trait::async_trait;
 use block::Block;
 use bytes::Bytes;
+use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
@@ -23,9 +24,8 @@ use tokio::{
     time::timeout,
 };
 use uuid::Uuid;
-use vrrb_core::event_router::{DirectedEvent, Event, Topic};
 
-use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
+use crate::{NodeError, Result, RuntimeModuleState};
 
 pub struct BroadcastModuleConfig {
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
@@ -147,10 +147,6 @@ impl Handler<Event> for BroadcastModule {
     }
 
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        if event == Event::Stop {
-            info!("{0} received stop signal. Stopping", self.name());
-            return Ok(ActorState::Terminating);
-        }
         match event {
             Event::PartMessage(sender_id, part_commitment) => {
                 let status = self
@@ -251,10 +247,10 @@ impl Handler<Event> for BroadcastModule {
 mod tests {
     use std::sync::mpsc::channel;
 
+    use events::Event;
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use tokio::sync::mpsc::unbounded_channel;
-    use vrrb_core::event_router::Event;
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 

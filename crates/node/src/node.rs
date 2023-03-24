@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -7,12 +8,10 @@ use tokio::{
 };
 use trecho::vm::Cpu;
 use vrrb_config::NodeConfig;
-use vrrb_core::{
-    event_router::{DirectedEvent, Event, EventRouter, Topic},
-    keypair::KeyPair,
-};
+use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_harvester_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
@@ -41,7 +40,6 @@ pub struct Node {
     gossip_handle: Option<JoinHandle<Result<()>>>,
     broadcast_controller_handle: Option<JoinHandle<Result<()>>>,
     miner_handle: Option<JoinHandle<Result<()>>>,
-    txn_validator_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
 }
@@ -62,8 +60,13 @@ impl Node {
         let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
         let network_events_rx = event_router.subscribe(&Topic::Network)?;
         let controller_events_rx = event_router.subscribe(&Topic::Network)?;
-        let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
         let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
 
@@ -74,7 +77,6 @@ impl Node {
             gossip_handle,
             broadcast_controller_handle,
             jsonrpc_server_handle,
-            txn_validator_handle,
             miner_handle,
             dkg_handle,
         ) = setup_runtime_components(
@@ -84,7 +86,6 @@ impl Node {
             vrrbdb_events_rx,
             network_events_rx,
             controller_events_rx,
-            validator_events_rx,
             miner_events_rx,
             jsonrpc_events_rx,
             dkg_events_rx,
@@ -110,7 +111,6 @@ impl Node {
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,
-            txn_validator_handle,
             miner_handle,
             keypair,
         })
@@ -145,11 +145,6 @@ impl Node {
         if let Some(handle) = self.gossip_handle {
             handle.await??;
             info!("shutdown complete for gossip module");
-        }
-
-        if let Some(handle) = self.txn_validator_handle {
-            handle.await??;
-            info!("shutdown complete for mining module ");
         }
 
         if let Some(handle) = self.jsonrpc_server_handle {

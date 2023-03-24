@@ -1,15 +1,13 @@
 use async_trait::async_trait;
 use block::Block;
+use events::{DirectedEvent, Event};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
-use vrrb_core::{
-    event_router::{DirectedEvent, Event},
-    txn::Txn,
-};
+use vrrb_core::txn::Txn;
 
 use crate::EventBroadcastSender;
 
@@ -63,15 +61,6 @@ impl MiningModule {
     fn mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
         telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
         // TODO: run a batch update to mark txns as being processed
-        // let handle = self.mempool_read_handle_factory.handle();
-        //
-        // let snapshot = self.miner.get_snapshot();
-        //
-        // if let Some(snapshot) = snapshot {
-        //     handle.mark_snapshot_transactions(snapshot);
-        // } else {
-        //     telemetry::error!("Could not mark snapshot transactions");
-        // }
     }
 }
 
@@ -117,7 +106,7 @@ impl Handler<Event> for MiningModule {
             Event::MempoolSizeThesholdReached { cutoff_transaction } => {
                 let handle = self.mempool_read_handle_factory.handle();
 
-                if let Some(idx) = handle.get_index_of(&cutoff_transaction.to_string()) {
+                if let Some(idx) = handle.get_index_of(&cutoff_transaction) {
                     dbg!(handle.len());
                     let transaction_snapshot = self.take_snapshot_until_cutoff(idx);
                     dbg!(transaction_snapshot.len());
