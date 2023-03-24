@@ -241,60 +241,62 @@ impl BroadcastEngine {
     /// Returns:
     ///
     /// The return type is a future of type BroadcastStatus.
-    // TODO: Verify if mutex really needs to be held during the await
     pub async fn unreliable_broadcast(
         &self,
         data: Vec<u8>,
         erasure_count: u32,
         port: u16,
     ) -> Result<BroadcastStatus> {
-        info!("broadcasting to Port {:?}", port);
+        info!("broadcasting to port {:?}", port);
 
         let batch_id = generate_batch_id();
         let chunks = split_into_packets(&data, batch_id, erasure_count);
-        if let Ok(udp_socket) = UdpSocket::bind(SocketAddr::new(
-            std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            port,
-        ))
-        .await
-        {
-            let udp_socket = Arc::new(udp_socket);
-            let mut futs = FuturesUnordered::new();
 
-            if self.raptor_list.is_empty() {
-                return Err(BroadcastError::NoPeers);
-            }
+        let ipv4_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let udp_socket = UdpSocket::bind(SocketAddr::new(ipv4_addr, port))
+            .await
+            .map_err(|err| BroadcastError::Other(err.to_string()))?;
 
-            for (packet_index, packet) in chunks.iter().enumerate() {
-                // Sharding/Distribution of packets as per no of nodes
-                let address: SocketAddr = self
-                    .raptor_list
-                    .get(packet_index % self.raptor_list.len())
-                    .unwrap()
-                    .clone();
+        let udp_socket = Arc::new(udp_socket);
+        let mut futs = FuturesUnordered::new();
 
-                let packet = packet.clone();
-                let sock = udp_socket.clone();
+        if self.raptor_list.is_empty() {
+            return Err(BroadcastError::NoPeers);
+        }
 
-                futs.push(tokio::spawn(async move {
-                    let addr = address.to_string();
-                    let s = sock.send_to(&packet, addr.clone()).await;
-                }));
+        for (packet_index, packet) in chunks.iter().enumerate() {
+            // Sharding/Distribution of packets as per number of nodes
+            let address = self
+                .raptor_list
+                .get(packet_index % self.raptor_list.len())
+                .unwrap_or(&SocketAddr::new(ipv4_addr, port)) // TODO: refactor this default
+                .to_owned();
 
-                if futs.len() >= self.raptor_num_packet_blast {
-                    match futs.next().await {
-                        Some(fut) => {
-                            if fut.is_err() {
-                                error!("Sending future is not ready yet")
-                            }
-                        },
-                        None => error!("Sending future is not ready yet"),
-                    }
+            let packet = packet.clone();
+            let sock = udp_socket.clone();
+
+            futs.push(tokio::spawn(async move {
+                let addr = address.to_string();
+                if let Ok(bytes_written) = sock.send_to(&packet, addr.clone()).await {
+                    telemetry::debug!("sent {bytes_written} to {addr}");
+                } else {
+                    telemetry::error!("failed to send to {addr}");
+                }
+            }));
+
+            if futs.len() >= self.raptor_num_packet_blast {
+                match futs.next().await {
+                    Some(fut) => {
+                        if fut.is_err() {
+                            error!("Sending future is not ready yet")
+                        }
+                    },
+                    None => error!("Sending future is not ready yet"),
                 }
             }
-
-            while (futs.next().await).is_some() {}
         }
+
+        while (futs.next().await).is_some() {}
 
         Ok(BroadcastStatus::Success)
     }
