@@ -27,6 +27,7 @@ development = ["rusty-hook"]
 [workspace]
 members = [
     "crates/primitives",
+    "crates/events",
     "crates/consensus",
     "crates/consensus/quorum",
     "crates/consensus/dkg_engine",
@@ -74,6 +75,7 @@ syncing = { path = "crates/syncing" }
 telemetry = { path = "crates/telemetry" }
 validator = { path = "crates/validator" }
 utils = { path = "crates/utils" }
+events = { path = "crates/events" }
 
 # NOTE: potentially deprecated
 vrrb_lib = { path = "crates/vrrb_lib" }
@@ -106,6 +108,7 @@ theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
+rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
@@ -190,6 +193,11 @@ tracing-subscriber = { version = "0.3.15", features = [
 ] }
 prometheus = { version = "0.13.3", features = ["process"] }
 lazy_static = "1.4.0"
+dashmap = "5.4.0"
+timer = "0.2.0"
+laminar = "0.5.0"
+futures = { version = "0.3.24", features = ["thread-pool"] }
+qp2p = "0.30.0"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

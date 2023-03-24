@@ -5,7 +5,7 @@ use hbbft::{
     crypto::{PublicKey, PublicKeySet, SecretKey, SecretKeyShare},
     sync_key_gen::{Ack, Part, SyncKeyGen},
 };
-use primitives::{NodeIdx, NodeType};
+use primitives::{NodeIdx, NodeType, QuorumType};
 use rand::rngs::OsRng;
 use thiserror::Error;
 
@@ -41,6 +41,9 @@ pub struct DkgEngine {
 
     /// state information related to dkg process
     pub dkg_state: DkgState,
+
+    /// state information related to dkg process
+    pub harvester_public_key: Option<PublicKey>,
 }
 
 /// `DkgState` is a struct that contains all the state that is needed to run the
@@ -143,6 +146,7 @@ impl DkgEngine {
                 sync_key_gen: None,
                 random_number_gen: None,
             },
+            harvester_public_key: None,
         }
     }
 
@@ -156,5 +160,16 @@ impl DkgEngine {
 
     pub fn get_node_idx(&self) -> NodeIdx {
         self.node_idx
+    }
+
+    /// It clears the state of the DKG. it happens during change of Epoch
+    pub fn clear_state(&mut self) {
+        self.dkg_state.part_message_store.clear();
+        self.dkg_state.ack_message_store.clear();
+        self.dkg_state.sync_key_gen = None;
+        self.dkg_state.random_number_gen = None;
+        self.dkg_state.public_key_set = None;
+        self.dkg_state.peer_public_keys.clear();
+        self.dkg_state.secret_key_share = None;
     }
 }

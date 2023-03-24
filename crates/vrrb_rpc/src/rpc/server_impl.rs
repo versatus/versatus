@@ -1,6 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use async_trait::async_trait;
+use events::{DirectedEvent, Event, Topic};
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
@@ -9,7 +10,6 @@ use telemetry::{debug, error};
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
-    event_router::{DirectedEvent, Event, Topic},
     serde_helpers::encode_to_binary,
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
