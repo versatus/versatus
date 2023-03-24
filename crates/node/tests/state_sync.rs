@@ -25,7 +25,11 @@ async fn nodes_can_synchronize_state() {
     let vrrb_node_1 = Node::start(&node_config_1, ctrl_rx_1).await.unwrap();
     let vrrb_node_2 = Node::start(&node_config_2, ctrl_rx_2).await.unwrap();
 
-    let client = create_client(vrrb_node_1.jsonrpc_server_address())
+    let client_1 = create_client(vrrb_node_1.jsonrpc_server_address())
+        .await
+        .unwrap();
+
+    let client_2 = create_client(vrrb_node_2.jsonrpc_server_address())
         .await
         .unwrap();
 
@@ -46,7 +50,7 @@ async fn nodes_can_synchronize_state() {
         let signature =
             sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
 
-        client
+        client_1
             .create_txn(NewTxnArgs {
                 timestamp: 0,
                 sender_address: String::from("mock sender_address"),
@@ -62,7 +66,7 @@ async fn nodes_can_synchronize_state() {
             .unwrap();
     }
 
-    let mempool_snapshot = client.get_full_mempool().await.unwrap();
+    let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
 
     assert!(!mempool_snapshot.is_empty());
 

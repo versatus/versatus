@@ -21,7 +21,7 @@ use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mempool_module::{MempoolModule, MempoolModuleConfig},
-    mining_module::MiningModule,
+    mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
     validator_module::ValidatorModule,
 };
@@ -132,7 +132,13 @@ pub async fn setup_runtime_components(
         mempool_read_handle_factory.clone(),
     )?;
 
-    let miner_handle = setup_mining_module(&config, events_tx.clone(), miner_events_rx)?;
+    let miner_handle = setup_mining_module(
+        &config,
+        events_tx.clone(),
+        state_read_handle.clone(),
+        mempool_read_handle_factory.clone(),
+        miner_events_rx,
+    )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
 
@@ -294,6 +300,8 @@ fn setup_validation_module(
 fn setup_mining_module(
     config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
     mut miner_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let (_, miner_secret_key) = config.keypair.get_secret_keys();
@@ -309,7 +317,14 @@ fn setup_mining_module(
 
     let miner = miner::Miner::new(miner_config);
 
-    let module = MiningModule::new(miner, events_tx);
+    let module_config = MiningModuleConfig {
+        miner,
+        events_tx,
+        vrrbdb_read_handle,
+        mempool_read_handle_factory,
+    };
+
+    let module = MiningModule::new(module_config);
 
     let mut miner_module_actor = ActorImpl::new(module);
 

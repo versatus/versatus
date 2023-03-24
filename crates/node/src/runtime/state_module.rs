@@ -64,7 +64,7 @@ impl StateModule {
     }
 
     fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
-        let txn_hash = txn.digest();
+        let txn_hash = txn.id();
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 

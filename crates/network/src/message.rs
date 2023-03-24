@@ -7,7 +7,6 @@ use crate::{
 };
 
 pub const MAX_TRANSMIT_SIZE: usize = 1024;
-
 pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
