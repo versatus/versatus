@@ -133,10 +133,8 @@ impl BroadcastEngine {
         Ok(BroadcastStatus::ConnectionEstablished)
     }
 
-    pub async fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) -> Result<BroadcastStatus> {
-        self.raptor_list.extend(address);
-
-        Ok(BroadcastStatus::ConnectionEstablished)
+    pub async fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) {
+        self.raptor_list.extend(address)
     }
 
     /// This function removes a peer connection from the peer connection list
