@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +32,14 @@ pub enum NodeType {
     Validator = 5,
     MasterNode = 6,
     RPCNode = 7,
+    Farmer = 8,
     Unknown = 100,
+}
+
+impl fmt::Display for NodeType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl FromStr for NodeType {
@@ -63,6 +70,7 @@ impl From<String> for NodeType {
             "bootstrap" => NodeType::Bootstrap,
             "validator" => NodeType::Validator,
             "masternode" => NodeType::MasterNode,
+            "farmer" => NodeType::Farmer,
             "rpc" => NodeType::RPCNode,
             _ => NodeType::Unknown,
         }
@@ -80,6 +88,7 @@ impl From<usize> for NodeType {
             5 => NodeType::Validator,
             6 => NodeType::MasterNode,
             7 => NodeType::RPCNode,
+            8 => NodeType::Farmer,
             _ => NodeType::Unknown,
         }
     }

@@ -21,7 +21,7 @@ use crate::{
     ProposalBlock,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BlockHeader {
     // TODO: Replace tx hash with tx trie root???
     // TODO: Replace claim hash with claim trie root???

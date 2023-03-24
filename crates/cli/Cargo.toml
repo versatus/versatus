@@ -32,6 +32,7 @@ config = { workspace = true }
 wallet = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+events = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

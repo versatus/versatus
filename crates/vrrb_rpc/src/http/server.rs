@@ -6,8 +6,8 @@ use std::{
 
 use axum::{Router, Server};
 use axum_server::{tls_rustls::RustlsConfig, Handle};
+use events::Event;
 use tokio::sync::broadcast::Receiver;
-use vrrb_core::event_router::Event;
 
 use crate::{
     http::{router::create_router, HttpApiRouterConfig, HttpApiServerConfig},

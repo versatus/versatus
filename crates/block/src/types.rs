@@ -65,7 +65,7 @@ pub type QuorumPubkey = String;
 pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TxnId, Conflict>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[repr(C)]
 pub struct Certificate {
     pub signature: String,

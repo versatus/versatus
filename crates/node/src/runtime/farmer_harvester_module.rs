@@ -6,9 +6,7 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use hbbft::crypto::{Signature, SignatureShare};
-use indexmap::IndexMap;
-use kademlia_dht::{Key, Node, NodeData};
+use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
 use lr_trie::ReadHandleFactory;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -20,7 +18,6 @@ use primitives::{
     PeerId,
     QuorumType,
     RawSignature,
-    TxHashString,
 };
 use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -30,13 +27,12 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::{broadcast::error::TryRecvError, mpsc::UnboundedSender};
 use tracing::error;
 use vrrb_core::{
-    accountable::Accountable,
     bloom::Bloom,
-    event_router::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt},
     txn::{TransactionDigest, Txn},
 };
 
 use crate::{
+    farmer_module::PULL_TXN_BATCH_SIZE,
     result::Result,
     scheduler::{Job, JobResult},
     NodeError,
@@ -93,7 +89,7 @@ pub struct FarmerHarvesterModule {
     pub certified_txns_filter: Bloom,
     pub quorum_type: Option<QuorumType>,
     pub tx_mempool: Option<LeftRightMempool>,
-    pub votes_pool: DashMap<(TxHashString, String), Vec<Vote>>,
+    pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
     pub farmer_id: PeerId,
@@ -111,7 +107,6 @@ pub struct FarmerHarvesterModule {
     async_jobs_status_receiver: Receiver<JobResult>,
 }
 
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 impl FarmerHarvesterModule {
     pub fn new(
@@ -176,27 +171,11 @@ impl FarmerHarvesterModule {
                                 Topic::Network,
                                 Event::Vote(
                                     vote.clone(),
-                                    QuorumType::Farmer,
-                                    farmer_quorum_threshold,
-                                ),
-                            ));
-                            let _ = broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::Vote(
-                                    vote.clone(),
                                     QuorumType::Harvester,
                                     farmer_quorum_threshold,
                                 ),
                             ));
                         }
-                    }
-                },
-                JobResult::SendVoteToHarvester(vote, quorum_type, farmer_quorum_threshold) => {
-                    if QuorumType::Farmer == quorum_type.clone() {
-                        let _ = broadcast_events_tx.send((
-                            Topic::Network,
-                            Event::Vote(vote, quorum_type, farmer_quorum_threshold),
-                        ));
                     }
                 },
                 JobResult::CertifiedTxn(
@@ -308,17 +287,7 @@ impl Handler<Event> for FarmerHarvesterModule {
             },
             Event::Vote(vote, quorum, farmer_quorum_threshold) => {
                 if let QuorumType::Farmer = quorum {
-                    if let Some(sig_provider) = self.sig_provider.clone() {
-                        let _ = self.sync_jobs_sender.send(Job::VoteTxn((
-                            vote,
-                            self.farmer_id.clone(),
-                            self.farmer_node_idx,
-                            self.group_public_key.clone(),
-                            sig_provider.clone(),
-                            QuorumType::Farmer,
-                            farmer_quorum_threshold,
-                        )));
-                    }
+                    error!("Farmer cannot process votes ");
                 } else if let QuorumType::Harvester = quorum {
                     //Harvest should check for integrity of the vote by Voter( Does it vote truly
                     // comes from Voter Prevent Double Voting
@@ -326,9 +295,9 @@ impl Handler<Event> for FarmerHarvesterModule {
                         let farmer_quorum_key = hex::encode(vote.quorum_public_key.clone());
                         if let Some(mut votes) = self
                             .votes_pool
-                            .get_mut(&(vote.txn.txn_id(), farmer_quorum_key.clone()))
+                            .get_mut(&(vote.txn.id(), farmer_quorum_key.clone()))
                         {
-                            let txn_id = vote.txn.txn_id();
+                            let txn_id = vote.txn.id();
                             if !self
                                 .certified_txns_filter
                                 .contains(&(txn_id.clone(), farmer_quorum_key.clone()))
@@ -347,7 +316,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                             }
                         } else {
                             self.votes_pool
-                                .insert((vote.txn.txn_id(), farmer_quorum_key), vec![vote]);
+                                .insert((vote.txn.id(), farmer_quorum_key), vec![vote]);
                         }
                     }
                 }
@@ -369,6 +338,11 @@ impl Handler<Event> for FarmerHarvesterModule {
     }
 }
 
+pub trait QuorumMember {}
+// TODO: Move this to primitives
+pub type QuorumId = String;
+pub type QuorumPubkey = String;
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -381,6 +355,7 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
+    use events::{DirectedEvent, Event, PeerData, Vote};
     use lazy_static::lazy_static;
     use primitives::{NodeType, QuorumType::Farmer};
     use secp256k1::Message;
@@ -389,13 +364,7 @@ mod tests {
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,
     };
-    use vrrb_core::{
-        cache,
-        event_router::{DirectedEvent, Event, PeerData},
-        is_enum_variant,
-        keypair::KeyPair,
-        txn::NewTxnArgs,
-    };
+    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
@@ -561,7 +530,9 @@ mod tests {
         });
         ctrl_tx.send(Event::Farm.into()).unwrap();
         ctrl_tx.send(Event::Stop.into()).unwrap();
+
         handle.await.unwrap();
+
         let job_status = sync_jobs_status_receiver.recv().unwrap();
         is_enum_variant!(job_status, JobResult::Votes { .. });
     }
@@ -656,7 +627,6 @@ mod tests {
             .unwrap()
             .as_nanos();
 
-
         let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
@@ -737,6 +707,7 @@ mod tests {
                             txn,
                             quorum_public_key: group_public_key,
                             quorum_threshold: threshold,
+                            execution_result: None,
                         };
                         ballot.push(new_vote);
                     }

@@ -24,6 +24,7 @@ hyper = { workspace = true }
 jsonrpsee = { workspace = true }
 async-trait = { workspace = true }
 anyhow = { workspace = true }
+events = { workspace = true }
 secp256k1 = { workspace = true }
 
 [dev-dependencies]

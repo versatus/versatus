@@ -4,7 +4,6 @@ pub mod bloom;
 pub mod cache;
 pub mod claim;
 pub mod component;
-pub mod event_router;
 pub mod handler;
 pub mod helpers;
 pub mod keypair;

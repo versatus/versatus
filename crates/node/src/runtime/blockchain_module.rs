@@ -1,6 +1,6 @@
 // use blockchain::blockchain::Blockchain;
+use events::Event;
 use tokio::sync::mpsc::error::TryRecvError;
-use vrrb_core::event_router::Event;
 
 use crate::{result::Result, RuntimeModule};
 
