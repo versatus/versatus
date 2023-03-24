@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-
 use events::{DirectedEvent, Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{

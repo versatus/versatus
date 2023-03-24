@@ -9,6 +9,7 @@ use primitives::{
     NodeType,
     PeerId,
     QuorumPublicKey,
+    QuorumThreshold,
     QuorumType,
     RawSignature,
 };
@@ -167,7 +168,7 @@ pub enum Event {
     GenerateKeySet,
     HarvesterPublicKey(Vec<u8>),
     Farm,
-    Vote(Vote, QuorumType, FarmerQuorumThreshold),
+    Vote(Vote, QuorumType, QuorumThreshold),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 

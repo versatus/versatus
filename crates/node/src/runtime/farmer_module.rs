@@ -1,8 +1,4 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    thread,
-};
-
+use std::thread;
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
@@ -32,8 +28,30 @@ use crate::{
     NodeError,
 };
 
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
+pub const PULL_TXN_BATCH_SIZE: usize = 1000;
 
+/// `FarmerModule` is responsible for voting on transactions present in mempool
+///
+/// Properties:
+///
+/// * `tx_mempool`: This is the mempool that the farmer will use to store
+///   transactions.
+/// * `group_public_key`: The public key of the group that the farmer is a
+///   member of.
+/// * `sig_provider`: This is the signature provider that will be used to sign
+///   the transactions.
+/// * `farmer_id`: PeerId - The peer id of the farmer.
+/// * `farmer_node_idx`: NodeIdx - The index of the node in the network.
+/// * `status`: The current state of the actor.
+/// * `label`: The label of the actor.
+/// * `id`: ActorId - The unique identifier of the actor.
+/// * `broadcast_events_tx`: This is the channel that the farmer uses to send
+///   events to the network.
+/// * `quorum_threshold`: QuorumThreshold,
+/// * `sync_jobs_sender`: Sender<Job>
+/// * `async_jobs_sender`: Sender<Job>
+/// * `sync_jobs_status_receiver`: Receiver<JobResult>
+/// * `async_jobs_status_receiver`: Receiver<JobResult>
 pub struct FarmerModule {
     pub tx_mempool: LeftRightMempool,
     pub group_public_key: GroupPublicKey,
@@ -84,6 +102,17 @@ impl FarmerModule {
         farmer
     }
 
+    /// > This function receives the results of the jobs that the farmer has
+    /// > completed and broadcasts
+    /// the votes to the harvester network
+    ///
+    /// Arguments:
+    ///
+    /// * `broadcast_events_tx`: This is the channel that the farmer will use to
+    ///   send events to the rest
+    /// of the network.
+    /// * `sync_jobs_status_receiver`: This is a channel that receives the
+    ///   results of the sync jobs.
     fn process_sync_job_status(
         &mut self,
         broadcast_events_tx: UnboundedSender<DirectedEvent>,
