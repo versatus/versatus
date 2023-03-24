@@ -145,15 +145,8 @@ impl Database for RocksDbAdapter {
     }
 
     fn is_empty(&self) -> Result<bool, Self::Error> {
-        match self.len() {
-            Ok(count) => {
-                if count > 0 {
-                    Ok(false)
-                } else {
-                    Ok(true)
-                }
-            },
-            Err(_) => Ok(true),
-        }
+        let count = self.len().unwrap_or(0);
+
+        Ok(count == 0)
     }
 }
