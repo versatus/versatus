@@ -15,10 +15,10 @@ use std::{
 use block::Block;
 use crossbeam_channel::{Receiver, Sender};
 use futures::future::try_join_all;
-use log::error;
 use rand::{distributions::Alphanumeric, thread_rng, Rng, RngCore};
 use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
 use serde::{Deserialize, Serialize};
+use telemetry::error;
 use tokio::net::UdpSocket;
 use vrrb_core::txn::Txn;
 
