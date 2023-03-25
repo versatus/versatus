@@ -6,6 +6,7 @@ use std::{
 
 use config::{Config, ConfigError, File};
 use derive_builder::Builder;
+use nom::error::ErrorKind;
 use primitives::{NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -72,10 +73,10 @@ pub struct NodeConfig {
     pub preload_mock_state: bool,
 
     /// Bootstrap configuration
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     pub bootstrap_config: Option<BootstrapConfig>,
 
-    #[serde(skip_serializing)]
+    #[serde(skip_serializing, skip_deserializing)]
     pub keypair: Keypair,
 
     #[builder(default = "false")]
@@ -125,13 +126,19 @@ impl NodeConfig {
 
     pub fn from_file(config_path: &PathBuf) -> std::result::Result<Self, ConfigError> {
         let os_path = config_path.to_owned();
-        let path = os_path.into_os_string().into_string().unwrap();
+        let path = match os_path.into_os_string().into_string() {
+            Ok(p) => p,
+            Err(_) => return Err(ConfigError::PathParse(ErrorKind::Fail)),
+        };
 
-        let s = Config::builder()
+        let config = Config::builder()
             .add_source(File::with_name(&path))
             .build()?;
 
-        Ok(s.try_deserialize().unwrap_or_default())
+        match config.try_deserialize() {
+            Ok(config) => Ok(config),
+            Err(err) => Err(err),
+        }
     }
 }
 

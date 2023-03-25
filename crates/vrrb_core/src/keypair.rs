@@ -11,9 +11,9 @@ use hbbft::crypto::{
     SecretKey as Validator_Sk,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
-use rand::SeedableRng;
+use rand::{thread_rng, Rng, SeedableRng};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
-use serde::Deserialize;
+use serde::{Deserialize, Serializer};
 use thiserror::Error;
 
 use crate::storage_utils;
@@ -279,6 +279,13 @@ impl KeyPair {
     /// The public key of the validator.
     pub fn get_validator_public_key(&self) -> &Validator_Pk {
         &self.validator_kp.1
+    }
+}
+
+/// TODO: need to discuss, this is so we're not returning any real KeyPair
+impl Default for KeyPair {
+    fn default() -> Self {
+        KeyPair::random()
     }
 }
 
