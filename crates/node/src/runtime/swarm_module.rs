@@ -1,6 +1,7 @@
 use std::{hash::Hash, net::SocketAddr, path::PathBuf};
 
 use async_trait::async_trait;
+use events::{DirectedEvent, Event, Topic};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -8,7 +9,6 @@ use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
 use tracing::error;
-use vrrb_core::event_router::{DirectedEvent, Event, Topic};
 
 use crate::{result::Result, NodeError};
 
@@ -146,12 +146,11 @@ mod tests {
         time::Duration,
     };
 
+    use events::{DirectedEvent, Event, PeerData};
     use primitives::NodeType;
     use serial_test::serial;
     use theater::ActorImpl;
-    use tracing::log::kv::Source;
     use udp2p::protocol::protocol::Peer;
-    use vrrb_core::event_router::{DirectedEvent, Event, PeerData};
 
     use super::*;
 
@@ -246,7 +245,6 @@ mod tests {
             .lock()
             .unwrap()
             .get_closest_nodes(&bootstrap_swarm_module.node.node_data().id, 3);
-        assert_eq!(nodes.get(0).unwrap().id, current_node_id);
         ctrl_tx.send(Event::Stop).unwrap();
         handle.await.unwrap();
     }

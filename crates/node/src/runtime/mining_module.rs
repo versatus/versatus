@@ -1,89 +1,133 @@
-use std::result::Result as StdResult;
-
 use async_trait::async_trait;
+use block::Block;
+use events::{DirectedEvent, Event};
+use mempool::MempoolReadHandleFactory;
+use miner::Miner;
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
-use vrrb_core::event_router::Event;
+use vrrb_core::txn::Txn;
 
-use crate::{result::Result, RuntimeModule, RuntimeModuleState};
+use crate::EventBroadcastSender;
 
+#[derive(Debug)]
 pub struct MiningModule {
-    running_status: RuntimeModuleState,
+    status: ActorState,
+    label: ActorLabel,
+    id: ActorId,
+    events_tx: EventBroadcastSender,
+    miner: Miner,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
+}
+
+#[derive(Debug, Clone)]
+pub struct MiningModuleConfig {
+    pub events_tx: EventBroadcastSender,
+    pub miner: Miner,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 impl MiningModule {
-    pub fn new() -> Self {
+    pub fn new(cfg: MiningModuleConfig) -> Self {
         Self {
-            running_status: RuntimeModuleState::Stopped,
+            id: uuid::Uuid::new_v4().to_string(),
+            label: String::from("Miner"),
+            status: ActorState::Stopped,
+            events_tx: cfg.events_tx,
+            miner: cfg.miner,
+            vrrbdb_read_handle: cfg.vrrbdb_read_handle,
+            mempool_read_handle_factory: cfg.mempool_read_handle_factory,
         }
+    }
+}
+impl MiningModule {
+    // fn take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
+    fn take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
+        let mut handle = self.mempool_read_handle_factory.handle();
+
+        // TODO: drain mempool instead then commit changes
+        handle
+            .drain(..cutoff_idx)
+            .map(|(id, record)| {
+                dbg!(id);
+                record.txn
+            })
+            .collect()
+    }
+
+    fn mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
+        telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
+        // TODO: run a batch update to mark txns as being processed
     }
 }
 
 #[async_trait]
-impl RuntimeModule for MiningModule {
-    fn name(&self) -> String {
-        String::from("State module")
+impl Handler<Event> for MiningModule {
+    fn id(&self) -> ActorId {
+        self.id.clone()
     }
 
-    fn status(&self) -> RuntimeModuleState {
-        self.running_status.clone()
+    fn label(&self) -> ActorLabel {
+        self.label.clone()
     }
 
-    async fn start(&mut self, events_rx: &mut Receiver<Event>) -> Result<()> {
-        info!("{0} started", self.name());
-
-        while let Ok(event) = events_rx.recv().await {
-            info!("{} received {event:?}", self.name());
-
-            if event == Event::Stop {
-                info!("{0} received stop signal. Stopping", self.name());
-
-                self.running_status = RuntimeModuleState::Terminating;
-
-                break;
-            }
-
-            self.process_event(event);
-        }
-
-        self.running_status = RuntimeModuleState::Stopped;
-
-        Ok(())
+    fn status(&self) -> ActorState {
+        self.status.clone()
     }
-}
 
-impl MiningModule {
-    fn decode_event(&mut self, event: StdResult<Event, TryRecvError>) -> Event {
+    fn set_status(&mut self, actor_status: ActorState) {
+        self.status = actor_status;
+    }
+
+    fn on_start(&self) {
+        info!("{}-{} starting", self.label(), self.id(),);
+    }
+
+    fn on_stop(&self) {
+        info!(
+            "{}-{} received stop signal. Stopping",
+            self.label(),
+            self.id(),
+        );
+    }
+
+    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
-            Ok(cmd) => cmd,
-            Err(err) => match err {
-                TryRecvError::Closed => {
-                    telemetry::error!("the events channel has been closed.");
-                    Event::Stop
-                },
-
-                TryRecvError::Lagged(u64) => {
-                    telemetry::error!("receiver lagged behind");
-                    Event::NoOp
-                },
-                _ => Event::NoOp,
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
             },
-            _ => Event::NoOp,
-        }
-    }
+            // Event::TxnAddedToMempool(txn_digest) => {
+            Event::TxnAddedToMempool(_) => {
+                // dbg!(txn_digest.to_string());
+            },
+            Event::MempoolSizeThesholdReached { cutoff_transaction } => {
+                let handle = self.mempool_read_handle_factory.handle();
 
-    fn process_event(&mut self, event: Event) {
-        match event {
+                if let Some(idx) = handle.get_index_of(&cutoff_transaction) {
+                    dbg!(handle.len());
+                    let transaction_snapshot = self.take_snapshot_until_cutoff(idx);
+                    dbg!(transaction_snapshot.len());
+                    dbg!(handle.len());
+
+                    self.mark_snapshot_transactions(idx);
+                } else {
+                    telemetry::error!(
+                        "Could not find index of cutoff transaction to produce a block"
+                    );
+                }
+            },
+
             Event::BlockConfirmed(_) => {
                 // do something
             },
-
-            // Event::PeerRequestedStateSync(_) => {
-            //     // do something
-            // },
             Event::NoOp => {},
-            _ => telemetry::warn!("unrecognized command received: {:?}", event),
+            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
+            _ => {},
         }
+        Ok(ActorState::Running)
     }
 }
 

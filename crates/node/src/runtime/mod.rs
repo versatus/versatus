@@ -1,40 +1,46 @@
 use std::net::SocketAddr;
 
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use miner::MinerConfig;
 use network::network::BroadcastEngine;
+use primitives::{Address, QuorumType::Farmer};
 use storage::{
     storage_utils,
     vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
 };
 use telemetry::info;
-use theater::{Actor, ActorImpl};
+use theater::{Actor, ActorImpl, Handler};
 use tokio::{
     sync::{broadcast::Receiver, mpsc::UnboundedSender},
     task::JoinHandle,
 };
 use vrrb_config::NodeConfig;
-use vrrb_core::event_router::{DirectedEvent, Event, EventRouter, Topic};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     mempool_module::{MempoolModule, MempoolModuleConfig},
+    mining_module::{MiningModule, MiningModuleConfig},
+    state_module::StateModule,
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
+    dkg_module::DkgModuleConfig,
     NodeError,
     Result,
-    RuntimeModule,
 };
 
 pub mod broadcast_module;
+pub mod credit_model_module;
 pub mod dkg_module;
 pub mod farmer_harvester_module;
+pub mod farmer_module;
 pub mod mempool_module;
 pub mod mining_module;
+pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
-pub mod validator_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -43,9 +49,9 @@ pub async fn setup_runtime_components(
     vrrbdb_events_rx: Receiver<Event>,
     network_events_rx: Receiver<Event>,
     controller_events_rx: Receiver<Event>,
-    validator_events_rx: Receiver<Event>,
     miner_events_rx: Receiver<Event>,
     jsonrpc_events_rx: Receiver<Event>,
+    dkg_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
     Option<JoinHandle<Result<()>>>,
@@ -77,7 +83,6 @@ pub async fn setup_runtime_components(
 
     let mempool_handle = Some(mempool_handle);
 
-    println!("Setting up state_store");
     let (state_read_handle, state_handle) = setup_state_store(
         &config,
         events_tx.clone(),
@@ -118,14 +123,15 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
-    // TODO: make nodes start with some preconfigured state
-    let txn_validator_handle = setup_validation_module(
+    let miner_handle = setup_mining_module(
+        &config,
         events_tx.clone(),
-        validator_events_rx,
+        state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
+        miner_events_rx,
     )?;
 
-    let miner_handle = setup_mining_module(events_tx.clone(), miner_events_rx)?;
+    let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
 
     Ok((
         config,
@@ -134,8 +140,8 @@ pub async fn setup_runtime_components(
         gossip_handle,
         broadcast_controller_handle,
         jsonrpc_server_handle,
-        txn_validator_handle,
         miner_handle,
+        None,
     ))
 }
 
@@ -178,7 +184,7 @@ async fn setup_gossip_network(
 
     let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
         .await
-        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {}", err)))?;
+        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
     let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
 
@@ -218,10 +224,10 @@ async fn setup_state_store(
     }
 
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+
     let vrrbdb_read_handle = db.read_handle();
 
-    let mut state_module =
-        state_module::StateModule::new(state_module::StateModuleConfig { events_tx, db });
+    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
 
     let mut state_module_actor = ActorImpl::new(state_module);
 
@@ -268,26 +274,98 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-fn setup_validation_module(
-    events_tx: UnboundedSender<DirectedEvent>,
-    mut validator_events_rx: Receiver<Event>,
-    mempool_read_handle_factory: MempoolReadHandleFactory,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = validator_module::ValidatorModule::new();
-
-    let txn_validator_handle =
-        tokio::spawn(async move { module.start(&mut validator_events_rx).await });
-
-    Ok(Some(txn_validator_handle))
-}
-
 fn setup_mining_module(
+    config: &NodeConfig,
     events_tx: UnboundedSender<DirectedEvent>,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
     mut miner_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = mining_module::MiningModule::new();
+    let (_, miner_secret_key) = config.keypair.get_secret_keys();
+    let (_, miner_public_key) = config.keypair.get_public_keys();
 
-    let miner_handle = tokio::spawn(async move { module.start(&mut miner_events_rx).await });
+    let address = Address::new(*miner_public_key).to_string();
+
+    let miner_config = MinerConfig {
+        secret_key: *miner_secret_key,
+        public_key: *miner_public_key,
+        address,
+    };
+
+    let miner = miner::Miner::new(miner_config);
+
+    let module_config = MiningModuleConfig {
+        miner,
+        events_tx,
+        vrrbdb_read_handle,
+        mempool_read_handle_factory,
+    };
+
+    let module = MiningModule::new(module_config);
+
+    let mut miner_module_actor = ActorImpl::new(module);
+
+    let miner_handle = tokio::spawn(async move {
+        miner_module_actor
+            .start(&mut miner_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
 
     Ok(Some(miner_handle))
+}
+
+fn setup_dkg_module(
+    config: &NodeConfig,
+    events_tx: UnboundedSender<DirectedEvent>,
+    mut dkg_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let mut module = dkg_module::DkgModule::new(
+        0,
+        config.node_type,
+        config.keypair.validator_kp.0.clone(),
+        DkgModuleConfig {
+            quorum_type: Some(Farmer),
+            quorum_size: 30,
+            /* Need to be decided either will be preconfigured or decided by
+             * Bootstrap Node */
+            quorum_threshold: 15,
+            /* Need to be decided either will be preconfigured or decided
+             * by Bootstrap Node */
+        },
+        config.rendzevous_local_address,
+        config.rendzevous_local_address,
+        config.udp_gossip_address.port(),
+        events_tx,
+    );
+    if let Ok(dkg_module) = module {
+        let mut dkg_module_actor = ActorImpl::new(dkg_module);
+        let dkg_handle = tokio::spawn(async move {
+            dkg_module_actor
+                .start(&mut dkg_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
+        return Ok(Some(dkg_handle));
+    } else {
+        Err(NodeError::Other(String::from(
+            "Failed to instantiate dkg module",
+        )))
+    }
+}
+
+fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
+}
+
+fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
+}
+
+fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
+}
+
+fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
 }

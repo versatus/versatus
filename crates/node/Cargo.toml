@@ -9,6 +9,7 @@ edition = "2021"
 primitives = { workspace = true }
 block = { workspace = true }
 vrrb_core = { workspace = true }
+events = { workspace = true }
 telemetry = { workspace = true }
 vrrb_config = { workspace = true }
 network = { workspace = true }
@@ -36,7 +37,7 @@ ritelinked = { workspace = true }
 bincode = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
-poem = { workspace = true }
+miner = { workspace = true }
 public-ip = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -53,9 +54,11 @@ indexmap = { workspace = true }
 raptorq = { workspace = true }
 crossbeam-channel = { workspace = true }
 job_scheduler={workspace=true}
-rayon = "1.6.1"
-lazy_static = "1.4.0"
-dashmap = "5.4.0"
+rayon = {workspace=true}
+lazy_static = {workspace=true}
+dashmap ={workspace=true}
+timer = {workspace=true}
+laminar = {workspace=true}
 
 [dev-dependencies]
 reqwest = { workspace = true }

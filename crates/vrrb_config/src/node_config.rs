@@ -31,6 +31,14 @@ pub struct NodeConfig {
     /// Address the node listens for network events through udp2p
     pub udp_gossip_address: SocketAddr,
 
+    /// This is the address that the node will use to connect to the rendzevous
+    /// server.
+    pub rendzevous_local_address: SocketAddr,
+
+    /// This is the address that the node will use to connect to the rendzevous
+    /// server.
+    pub rendzevous_server_address: SocketAddr,
+
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
@@ -125,6 +133,8 @@ impl Default for NodeConfig {
                 .join("db"),
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             udp_gossip_address: ipv4_localhost_with_random_port,
+            rendzevous_local_address: ipv4_localhost_with_random_port,
+            rendzevous_server_address: ipv4_localhost_with_random_port,
             node_type: NodeType::Full,
             bootstrap_node_addresses: vec![],
             http_api_address: ipv4_localhost_with_random_port,

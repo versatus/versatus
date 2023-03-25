@@ -7,7 +7,6 @@ use std::{
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
-use primitives::TxHashString;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info, warn};
 use tokio;
@@ -20,7 +19,7 @@ pub type Result<T> = StdResult<T, MempoolError>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
 pub struct TxnRecord {
-    pub txn_id: TxHashString,
+    pub txn_id: TransactionDigest,
     pub txn: Txn,
     pub status: TxnStatus,
     pub timestamp: TxTimestamp,
@@ -36,7 +35,7 @@ impl TxnRecord {
         let timestamp = txn.timestamp();
 
         TxnRecord {
-            txn_id: txn.id().to_string(),
+            txn_id: txn.id(),
             txn,
             timestamp,
             added_timestamp,
@@ -44,7 +43,7 @@ impl TxnRecord {
         }
     }
 
-    pub fn new_by_id(txn_id: &str) -> TxnRecord {
+    pub fn new_by_id(txn_id: &TransactionDigest) -> TxnRecord {
         TxnRecord {
             txn_id: txn_id.to_owned(),
             ..Default::default()
@@ -52,7 +51,7 @@ impl TxnRecord {
     }
 }
 
-pub type PoolType = IndexMap<TxHashString, TxnRecord, FxBuildHasher>;
+pub type PoolType = IndexMap<TransactionDigest, TxnRecord, FxBuildHasher>;
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TxnStatus {
@@ -95,7 +94,7 @@ impl Mempool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolOp {
     Add(TxnRecord),
-    Remove(String),
+    Remove(TransactionDigest),
 }
 
 impl Absorb<MempoolOp> for Mempool {
@@ -118,18 +117,17 @@ impl Absorb<MempoolOp> for Mempool {
 pub trait FetchFiltered {
     fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
     where
-        F: FnMut(&String, &mut TxnRecord) -> bool;
+        F: FnMut(&TransactionDigest, &mut TxnRecord) -> bool;
 }
 
 impl FetchFiltered for ReadHandle<Mempool> {
     fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
     where
-        F: FnMut(&String, &mut TxnRecord) -> bool,
+        F: FnMut(&TransactionDigest, &mut TxnRecord) -> bool,
     {
         if let Some(map) = self.enter().map(|guard| guard.clone()) {
             let mut result = map.pool;
             result.retain(f);
-
             let mut returned = Vec::<TxnRecord>::new();
             for (_, v) in &result {
                 returned.push(v.clone());
@@ -187,10 +185,11 @@ impl LeftRightMempool {
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
     pub fn add_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
-        self.insert(txn.to_owned())
+        self.insert(txn.to_owned())?;
+        Ok(())
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<()> {
+    pub fn insert(&mut self, txn: Txn) -> Result<usize> {
         let txn_record = TxnRecord::new(txn);
 
         self.write
@@ -208,7 +207,7 @@ impl LeftRightMempool {
             }
         });
 
-        Ok(())
+        Ok(self.size_in_kilobytes())
     }
 
     /// Retrieves a single transaction identified by id, makes sure it exists in
@@ -221,12 +220,12 @@ impl LeftRightMempool {
     }
 
     /// Getter for an entire pending Txn record
-    pub fn get(&mut self, txn_hash: &TransactionDigest) -> Option<TxnRecord> {
-        if txn_hash.is_empty() {
+    pub fn get(&mut self, txn_id: &TransactionDigest) -> Option<TxnRecord> {
+        if txn_id.to_string().is_empty() {
             return None;
         }
 
-        self.pool().get(&txn_hash.to_string()).cloned()
+        self.pool().get(txn_id).cloned()
     }
 
     /// It fetches the transactions from the pool and returns them.
@@ -238,7 +237,7 @@ impl LeftRightMempool {
     /// Returns:
     ///
     /// A vector of tuples of type (TxHashString, TxnRecord)
-    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TxHashString, TxnRecord)> {
+    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TransactionDigest, TxnRecord)> {
         let mut txns_records = vec![];
         for i in 0..num_of_txns {
             if i == self.pool().len() {
@@ -291,12 +290,12 @@ impl LeftRightMempool {
     /// in db. Pushes to the ReadHandle.
     #[deprecated]
     pub fn remove_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
-        self.remove(&txn.digest())
+        self.remove(&txn.id())
     }
 
-    pub fn remove(&mut self, txn_hash: &TransactionDigest) -> Result<()> {
+    pub fn remove(&mut self, id: &TransactionDigest) -> Result<()> {
         self.write
-            .append(MempoolOp::Remove(txn_hash.to_string()))
+            .append(MempoolOp::Remove(id.to_owned()))
             .publish();
         Ok(())
     }
@@ -310,7 +309,7 @@ impl LeftRightMempool {
         _txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t.digest().to_string()));
+            self.write.append(MempoolOp::Remove(t.id()));
         });
 
         self.publish();
@@ -318,9 +317,9 @@ impl LeftRightMempool {
         Ok(())
     }
 
-    pub fn remove_txns(&mut self, txn_batch: &HashSet<TxHashString>) -> Result<()> {
+    pub fn remove_txns(&mut self, txn_batch: &HashSet<TransactionDigest>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t.to_string()));
+            self.write.append(MempoolOp::Remove(t.to_owned()));
         });
 
         self.publish();
@@ -342,6 +341,14 @@ impl LeftRightMempool {
     /// Retrieves actual size of the mempooldb.
     pub fn size(&self) -> usize {
         self.pool().len()
+    }
+
+    /// Retrieves actual size of the mempooldb in Kilobytes.
+    pub fn size_in_kilobytes(&self) -> usize {
+        let txn_size_factor = std::mem::size_of::<Txn>();
+        let mempool_items = self.size();
+
+        (mempool_items * txn_size_factor) / 1024
     }
 
     /// Pushes changes to Reader.
@@ -385,7 +392,7 @@ impl MempoolReadHandleFactory {
     }
 
     /// Returns a hash map of all the key value pairs within the mempool
-    pub fn entries(&self) -> HashMap<TxHashString, TxnRecord> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, TxnRecord> {
         self.handle()
             .values()
             .cloned()
@@ -400,5 +407,12 @@ impl MempoolReadHandleFactory {
             .cloned()
             .map(|record| (record.txn))
             .collect()
+    }
+
+    pub fn get(&self, digest: &TransactionDigest) -> Option<TxnRecord> {
+        if let Some(record) = self.handle().get(digest) {
+            return Some(record.clone());
+        }
+        None
     }
 }
