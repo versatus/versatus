@@ -200,7 +200,7 @@ impl LeftRightMempool {
         tokio::spawn(async move {
             match create_tx_indexer(&txn_record).await {
                 Ok(_) => {
-                    info!("Successfully sent TxnRecord to block exploror indexer");
+                    info!("Successfully sent TxnRecord to block explorer indexer");
                 },
                 Err(e) => {
                     warn!("Error sending TxnRecord to block explorer indexer {}", e);
