@@ -18,14 +18,16 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::{self, read_keypair_file, write_keypair_file, Keypair};
 
 use crate::{
-    commands::utils::write_node_config_from_file,
+    commands::utils::{node_config_exists, write_node_config_from_file},
     result::{CliError, Result},
 };
 
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
+const DEFAULT_INDEXER_ADDRESS: &str = "127.0.0.1:3444";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
+
 
 #[derive(clap::Parser, Debug, Clone, Deserialize)]
 pub struct RunOpts {
@@ -88,6 +90,9 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub rendzevous_server_address: SocketAddr,
+
+    #[clap(long, value_parser, default_value = DEFAULT_INDEXER_ADDRESS)]
+    pub indexer_address: SocketAddr,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -132,6 +137,7 @@ impl From<RunOpts> for NodeConfig {
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
             rendzevous_server_address: opts.rendzevous_server_address,
+            indexer_address: opts.indexer_address,
         }
     }
 }
@@ -160,6 +166,7 @@ impl Default for RunOpts {
             disable_networking: Default::default(),
             rendzevous_local_address: ipv4_localhost_with_random_port,
             rendzevous_server_address: ipv4_localhost_with_random_port,
+            indexer_address: ipv4_localhost_with_random_port,
         }
     }
 }
@@ -183,6 +190,7 @@ impl RunOpts {
             .set_default("debug_config", false)?
             .set_default("bootstrap", false)?
             .set_default("dettached", false)?
+            .set_default("indexer_address", DEFAULT_INDEXER_ADDRESS)?
             .add_source(File::with_name(config_path))
             .build()?;
 
@@ -245,6 +253,7 @@ impl RunOpts {
             disable_networking: false,
             rendzevous_local_address: other.rendzevous_local_address,
             rendzevous_server_address: other.rendzevous_server_address,
+            indexer_address: other.indexer_address,
         }
     }
 }
@@ -277,8 +286,22 @@ pub async fn run(args: RunOpts) -> Result<()> {
         dbg!(&node_config);
     }
 
-    write_node_config_from_file(&node_config)
-        .map_err(|err| CliError::Other(format!("unable to write node config: {err}")))?;
+    let node_config_exists = match node_config_exists() {
+        Ok(exists) => exists,
+        Err(err) => {
+            warn!("Failed to find node config: {}", err);
+            info!("Generating new keypair");
+            match write_node_config_from_file(&node_config) {
+                Ok(_) => true,
+                Err(err) => {
+                    return Err(CliError::Other(format!(
+                        "unable to write node config: {}",
+                        err
+                    )));
+                },
+            }
+        },
+    };
 
     if args.dettached {
         run_dettached(node_config).await

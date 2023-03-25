@@ -80,6 +80,8 @@ pub struct NodeConfig {
 
     #[builder(default = "false")]
     pub disable_networking: bool,
+
+    pub indexer_address: SocketAddr,
 }
 
 impl NodeConfig {
@@ -121,9 +123,12 @@ impl NodeConfig {
         }
     }
 
-    pub fn from_file(config_path: &str) -> std::result::Result<Self, ConfigError> {
+    pub fn from_file(config_path: &PathBuf) -> std::result::Result<Self, ConfigError> {
+        let os_path = config_path.to_owned();
+        let path = os_path.into_os_string().into_string().unwrap();
+
         let s = Config::builder()
-            .add_source(File::with_name(config_path))
+            .add_source(File::with_name(&path))
             .build()?;
 
         Ok(s.try_deserialize().unwrap_or_default())
@@ -133,6 +138,9 @@ impl NodeConfig {
 impl Default for NodeConfig {
     fn default() -> Self {
         let ipv4_localhost_with_random_port =
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+
+        let ipv4_localhost_indexer_address =
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
         Self {
@@ -157,6 +165,7 @@ impl Default for NodeConfig {
             bootstrap_config: None,
             keypair: Keypair::random(),
             disable_networking: false,
+            indexer_address: ipv4_localhost_indexer_address,
         }
     }
 }
