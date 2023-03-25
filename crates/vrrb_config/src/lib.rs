@@ -1,5 +1,5 @@
 mod bootstrap;
-mod node_config;
+pub mod node_config;
 
 pub use node_config::*;
 

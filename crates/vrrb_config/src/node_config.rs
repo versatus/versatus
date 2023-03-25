@@ -4,15 +4,16 @@ use std::{
     time::Duration,
 };
 
+use config::{Config, ConfigError, File};
 use derive_builder::Builder;
 use primitives::{NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
 use crate::bootstrap::BootstrapConfig;
 
-#[derive(Builder, Debug, Clone, Deserialize)]
+#[derive(Builder, Debug, Clone, Serialize, Deserialize)]
 pub struct NodeConfig {
     /// UUID that identifies each node
     pub id: NodeId,
@@ -71,8 +72,10 @@ pub struct NodeConfig {
     pub preload_mock_state: bool,
 
     /// Bootstrap configuration
+    #[serde(skip_serializing)]
     pub bootstrap_config: Option<BootstrapConfig>,
 
+    #[serde(skip_serializing)]
     pub keypair: Keypair,
 
     #[builder(default = "false")]
@@ -116,6 +119,14 @@ impl NodeConfig {
             keypair: self.keypair.clone(),
             ..other
         }
+    }
+
+    pub fn from_file(config_path: &str) -> std::result::Result<Self, ConfigError> {
+        let s = Config::builder()
+            .add_source(File::with_name(config_path))
+            .build()?;
+
+        Ok(s.try_deserialize().unwrap_or_default())
     }
 }
 
