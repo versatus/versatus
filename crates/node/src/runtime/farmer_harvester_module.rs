@@ -362,7 +362,6 @@ mod tests {
 
     use vrrb_core::{
         cache,
-        event_router::{DirectedEvent, Event},
         is_enum_variant,
         keypair::KeyPair,
         txn::NewTxnArgs,
