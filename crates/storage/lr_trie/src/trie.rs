@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData, sync::Arc};
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
-use patriecia::{db::Database, inner::InnerTrie, trie::Trie};
+use patriecia::{db::Database, inner::InnerTrie};
 use serde::{Deserialize, Serialize};
 
 use crate::{InnerTrieWrapper, Operation, Proof, Result};
