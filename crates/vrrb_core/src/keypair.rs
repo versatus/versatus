@@ -11,9 +11,8 @@ use hbbft::crypto::{
     SecretKey as Validator_Sk,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
-use rand::{thread_rng, Rng, SeedableRng};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
-use serde::{Deserialize, Serializer};
+use serde::Deserialize;
 use thiserror::Error;
 
 use crate::storage_utils;
