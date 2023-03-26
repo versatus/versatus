@@ -1,6 +1,7 @@
 use std::net::AddrParseError;
 
 use network::{config::BroadcastError, types::config::BroadCastError};
+use theater::TheaterError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TryRecvError;
 
@@ -25,6 +26,9 @@ pub enum NodeError {
     TryRecv(#[from] TryRecvError),
 
     #[error("{0}")]
+    Theater(#[from] theater::TheaterError),
+
+    #[error("{0}")]
     Event(#[from] events::Error),
 
     #[error("{0}")]
@@ -35,3 +39,9 @@ pub enum NodeError {
 }
 
 pub type Result<T> = std::result::Result<T, NodeError>;
+
+impl From<NodeError> for TheaterError {
+    fn from(err: NodeError) -> Self {
+        TheaterError::Other(err.to_string())
+    }
+}

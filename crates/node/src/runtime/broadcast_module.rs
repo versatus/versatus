@@ -1,7 +1,6 @@
-use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 
 use async_trait::async_trait;
-use block::Block;
 use bytes::Bytes;
 use events::{DirectedEvent, Event};
 use network::{
@@ -10,22 +9,11 @@ use network::{
 };
 use primitives::{NodeType, PeerId};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::{error, info, warn};
-use theater::{ActorLabel, ActorState, Handler};
-use tokio::{
-    sync::{
-        broadcast::{
-            error::{RecvError, TryRecvError},
-            Receiver,
-        },
-        mpsc::{channel, Receiver as MpscReceiver, Sender},
-    },
-    task::JoinHandle,
-    time::timeout,
-};
+use telemetry::{error, info, instrument, warn};
+use theater::{ActorLabel, ActorState, Handler, TheaterError};
 use uuid::Uuid;
 
-use crate::{NodeError, Result, RuntimeModuleState};
+use crate::{NodeError, Result};
 
 pub struct BroadcastModuleConfig {
     pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
@@ -46,7 +34,11 @@ pub struct BroadcastModule {
     status: ActorState,
 }
 
+/// Useful alias to represent get_incomming_connections' return type
+type BytesTrifecta = (Bytes, Bytes, Bytes);
+
 const PACKET_TIMEOUT_DURATION: u64 = 10;
+const EMPTY_BYTES_TRIFECTA: BytesTrifecta = (Bytes::new(), Bytes::new(), Bytes::new());
 
 trait Timeout: Sized {
     fn timeout(self) -> tokio::time::Timeout<Self>;
@@ -83,42 +75,48 @@ impl BroadcastModule {
         "BroadcastModule".to_string()
     }
 
-    pub async fn process_received_msg(&mut self) {
+    // TODO: handle unwraps in this function
+    pub async fn process_received_msg(&mut self) -> Result<()> {
         loop {
-            if let Some((_, mut incoming)) = self
+            let (_, mut incoming) = self
                 .broadcast_engine
                 .get_incomming_connections()
                 .next()
                 .await
-            {
-                if let Ok(message_result) = incoming.next().timeout().await {
-                    if let Ok(msg_option) = message_result {
-                        if let Some(message) = msg_option {
-                            let msg = Message::from_bytes(&message.2);
-                            match msg.data {
-                                MessageBody::InvalidBlock { .. } => {},
-                                MessageBody::Disconnect { .. } => {},
-                                MessageBody::StateComponents { .. } => {},
-                                MessageBody::Genesis { .. } => {},
-                                MessageBody::Child { .. } => {},
-                                MessageBody::Parent { .. } => {},
-                                MessageBody::Ledger { .. } => {},
-                                MessageBody::NetworkState { .. } => {},
-                                MessageBody::ClaimAbandoned { .. } => {},
-                                MessageBody::ResetPeerConnection { .. } => {},
-                                MessageBody::RemovePeer { .. } => {},
-                                MessageBody::AddPeer { .. } => {},
-                                MessageBody::DKGPartCommitment {
-                                    part_commitment,
-                                    sender_id,
-                                } => {},
-                                MessageBody::DKGPartAcknowledgement { .. } => {},
-                                MessageBody::Vote { .. } => {},
-                                MessageBody::Empty => {},
-                            }
-                        }
-                    }
-                }
+                .ok_or_else(|| {
+                    NodeError::Other("unable to get incoming connections".to_string())
+                })?;
+
+            let (_, _, msg_bytes) = incoming
+                .next()
+                .timeout()
+                .await
+                .unwrap_or(Ok(None))
+                .unwrap_or_default()
+                .unwrap_or(EMPTY_BYTES_TRIFECTA);
+
+            let msg = Message::from_bytes(&msg_bytes);
+
+            match msg.data {
+                MessageBody::InvalidBlock { .. } => {},
+                MessageBody::Disconnect { .. } => {},
+                MessageBody::StateComponents { .. } => {},
+                MessageBody::Genesis { .. } => {},
+                MessageBody::Child { .. } => {},
+                MessageBody::Parent { .. } => {},
+                MessageBody::Ledger { .. } => {},
+                MessageBody::NetworkState { .. } => {},
+                MessageBody::ClaimAbandoned { .. } => {},
+                MessageBody::ResetPeerConnection { .. } => {},
+                MessageBody::RemovePeer { .. } => {},
+                MessageBody::AddPeer { .. } => {},
+                MessageBody::DKGPartCommitment {
+                    part_commitment,
+                    sender_id,
+                } => {},
+                MessageBody::DKGPartAcknowledgement { .. } => {},
+                MessageBody::Vote { .. } => {},
+                MessageBody::Empty => {},
             }
         }
     }
@@ -146,8 +144,12 @@ impl Handler<Event> for BroadcastModule {
         self.status = actor_status;
     }
 
+    #[instrument]
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
+            },
             Event::PartMessage(sender_id, part_commitment) => {
                 let status = self
                     .broadcast_engine
@@ -155,49 +157,41 @@ impl Handler<Event> for BroadcastModule {
                         sender_id,
                         part_commitment,
                     }))
-                    .await;
-                match status {
-                    Ok(_) => {},
-                    Err(e) => {
-                        error!(
-                            "Error occured while broadcasting ack commitment to peers :{:?}",
-                            e
-                        );
-                    },
-                }
-            },
-            Event::SendAck(curr_node_id, sender_id, ack) => {
-                let status = self
-                    .broadcast_engine
-                    .quic_broadcast(Message::new(MessageBody::DKGPartAcknowledgement {
-                        curr_node_id,
-                        sender_id,
-                        ack,
-                    }))
-                    .await;
-                match status {
-                    Ok(_) => {},
-                    Err(e) => {
-                        error!(
-                            "Error occured while broadcasting Part commitment to peers :{:?}",
-                            e
-                        );
-                    },
-                }
+                    .await
+                    .map_err(|err| {
+                        error!("Error occured while broadcasting ack commitment to peers: {err}");
+                        TheaterError::Other(err.to_string())
+                    })?;
+
+                info!("Broadcasted part commitment to peers: {status:?}");
             },
             Event::SyncPeers(peers) => {
+                if peers.is_empty() {
+                    warn!("No peers to sync with");
+                    return Ok(ActorState::Running);
+                }
+
                 let mut quic_addresses = vec![];
                 let mut raptor_peer_list = vec![];
+
                 for peer in peers.iter() {
-                    if let Ok(addr) = peer.address.parse::<SocketAddr>() {
-                        quic_addresses.push(addr);
-                        let mut raptor_addr = addr.clone();
-                        raptor_addr.set_port(peer.raptor_udp_port);
-                        raptor_peer_list.push(raptor_addr);
-                    }
+                    let addr = peer.address;
+
+                    quic_addresses.push(addr);
+
+                    let mut raptor_addr = addr;
+                    raptor_addr.set_port(peer.raptor_udp_port);
+                    raptor_peer_list.push(raptor_addr);
                 }
+
                 self.broadcast_engine.add_raptor_peers(raptor_peer_list);
-                self.broadcast_engine.add_peer_connection(quic_addresses);
+
+                let status = self
+                    .broadcast_engine
+                    .add_peer_connection(quic_addresses)
+                    .await?;
+
+                info!("{status:?}");
             },
             Event::Vote(vote, quorum_type, farmer_quorum_threshold) => {
                 let status = self
@@ -207,18 +201,10 @@ impl Handler<Event> for BroadcastModule {
                         quorum_type,
                         farmer_quorum_threshold,
                     }))
-                    .await;
-                match status {
-                    Ok(_) => {},
-                    Err(e) => {
-                        error!(
-                            "Error occured while broadcasting votes to harvesters :{:?}",
-                            e
-                        );
-                    },
-                }
+                    .await?;
+                info!("{status:?}");
             },
-            /// Broadcasting the Convergence block to the peers.
+            // Broadcasting the Convergence block to the peers.
             Event::BlockConfirmed(block) => {
                 let status = self
                     .broadcast_engine
@@ -227,15 +213,10 @@ impl Handler<Event> for BroadcastModule {
                         RAPTOR_ERASURE_COUNT,
                         self.broadcast_engine.raptor_udp_port,
                     )
-                    .await;
-                match status {
-                    Ok(_) => {},
-                    Err(e) => {
-                        error!("Error occured while broadcasting blocks to peers :{:?}", e);
-                    },
-                }
-            },
+                    .await?;
 
+                info!("{status:?}");
+            },
             _ => {},
         }
 
@@ -245,17 +226,21 @@ impl Handler<Event> for BroadcastModule {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::channel;
+    use std::{io::stdout, sync::mpsc::channel};
 
-    use events::Event;
+    use events::{Event, SyncPeerData};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use tokio::sync::mpsc::unbounded_channel;
+    use telemetry::TelemetrySubscriber;
+    use theater::{Actor, ActorImpl};
+    use tokio::{net::UdpSocket, sync::mpsc::unbounded_channel};
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 
     #[tokio::test]
     async fn test_broadcast_module() {
+        TelemetrySubscriber::init(stdout).unwrap();
+
         let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
 
         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
@@ -280,6 +265,34 @@ mod tests {
             node_id,
         };
 
+        let (events_tx, mut events_rx) = tokio::sync::broadcast::channel::<Event>(10);
+
         let broadcast_module = BroadcastModule::new(config).await.unwrap();
+
+        let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
+
+        let handle = tokio::spawn(async move {
+            broadcast_module_actor.start(&mut events_rx).await.unwrap();
+        });
+
+        let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+
+        let address = bound_socket.local_addr().unwrap();
+
+        let peer_data = SyncPeerData {
+            address,
+            raptor_udp_port: 9993,
+            quic_port: 9994,
+            node_type: NodeType::Full,
+        };
+
+        events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
+        events_tx.send(Event::Stop).unwrap();
+
+        let (_, evt) = internal_events_rx.recv().await.unwrap();
+
+        dbg!(&evt);
+
+        handle.await.unwrap();
     }
 }

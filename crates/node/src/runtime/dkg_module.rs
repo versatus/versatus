@@ -302,7 +302,7 @@ impl DkgModule {
                                                 signature,
                                                 msg_bytes,
                                                 SyncPeerData {
-                                                    address: self.rendzevous_local_addr.to_string(),
+                                                    address: self.rendzevous_local_addr,
                                                     raptor_udp_port: self.rendzevous_local_addr.port(),
                                                     quic_port: self.quic_port,
                                                     node_type: self.dkg_engine.node_type,
@@ -330,7 +330,6 @@ impl DkgModule {
         }
     }
 }
-
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Data {
@@ -361,7 +360,6 @@ pub enum RendezvousResponse {
     PeerRegistered,
     NamespaceRegistered,
 }
-
 
 #[async_trait]
 impl Handler<Event> for DkgModule {
