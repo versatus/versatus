@@ -18,7 +18,6 @@ use kademlia_dht::{Key, Node, NodeData};
 use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-
 use primitives::{
     NodeIdx,
     NodeType,
