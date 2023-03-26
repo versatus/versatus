@@ -38,12 +38,7 @@ use crate::{
     NodeError,
 };
 
-/// `FarmerHarvesterModule` is a struct that contains a bunch of `Option`s, a
-/// `Bloom` filter, a `GroupPublicKey`, a `SignatureProvider`, a `PeerId`, a
-/// `NodeIdx`, an `ActorState`, an `ActorLabel`, an `ActorId`, a
-/// `tokio::sync::mpsc::UnboundedSender`, a
-/// `tokio::sync::mpsc::UnboundedReceiver`, a `FarmerQuorumThreshold`, a
-/// `HarvesterQuorumThreshold`, a
+/// `FarmerHarvesterModule` is reponsible for voting of transactions,certifying it
 ///
 /// Properties:
 ///
@@ -364,7 +359,14 @@ mod tests {
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,
     };
-    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+
+    use vrrb_core::{
+        cache,
+        event_router::{DirectedEvent, Event},
+        is_enum_variant,
+        keypair::KeyPair,
+        txn::NewTxnArgs,
+    };
 
     use super::*;
     use crate::scheduler::JobSchedulerController;

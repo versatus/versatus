@@ -19,6 +19,7 @@ use kademlia_dht::{Key, Node, NodeData};
 use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
+
 use primitives::{
     NodeIdx,
     NodeType,
@@ -114,6 +115,7 @@ impl DkgModule {
                 "Error occurred while binding socket to port. Details :{0}",
                 e.to_string()
             ))),
+
         }
     }
 
