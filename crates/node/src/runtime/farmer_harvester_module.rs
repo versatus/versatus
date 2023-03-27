@@ -38,7 +38,8 @@ use crate::{
     NodeError,
 };
 
-/// `FarmerHarvesterModule` is reponsible for voting of transactions,certifying it
+/// `FarmerHarvesterModule` is reponsible for voting of transactions,certifying
+/// it
 ///
 /// Properties:
 ///
@@ -359,13 +360,7 @@ mod tests {
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,
     };
-
-    use vrrb_core::{
-        cache,
-        is_enum_variant,
-        keypair::KeyPair,
-        txn::NewTxnArgs,
-    };
+    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
