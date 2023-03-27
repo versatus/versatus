@@ -21,6 +21,10 @@ chrono = "0.4.23"
 rand = "0.8.5"
 thiserror = "1.0.38"
 secp256k1 = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+telemetry = { workspace = true }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { workspace = true }
