@@ -358,7 +358,7 @@ fn setup_dkg_module(
              * Bootstrap Node */
             quorum_threshold: 15,
             /* Need to be decided either will be preconfigured or decided
-                                   * by Bootstrap Node */
+             * by Bootstrap Node */
         },
         config.rendezvous_local_address,
         config.rendezvous_local_address,
