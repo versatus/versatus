@@ -136,12 +136,6 @@ impl MessageType {
     }
 }
 
-impl StateBlock {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        serde_json::to_string(self).unwrap().as_bytes().to_vec()
-    }
-}
-
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.
 #[derive(Debug, Clone, Serialize, Deserialize)]

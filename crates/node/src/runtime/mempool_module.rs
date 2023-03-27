@@ -100,7 +100,7 @@ impl Handler<Event> for MempoolModule {
                 if self.mempool.size_in_kilobytes() >= MEMPOOL_THRESHOLD_SIZE
                     && self.cutoff_transaction.is_none()
                 {
-                    info!("mempool threshold reached. Dropping transaction");
+                    info!("mempool threshold reached");
                     self.cutoff_transaction = Some(txn_hash.clone());
 
                     self.events_tx

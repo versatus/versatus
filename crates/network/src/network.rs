@@ -166,11 +166,9 @@ impl BroadcastEngine {
     #[telemetry::instrument(name = "quic_broadcast")]
     pub async fn quic_broadcast(&self, message: Message) -> Result<BroadcastStatus> {
         let mut futs = FuturesUnordered::new();
-
         if self.peer_connection_list.is_empty() {
             return Err(BroadcastError::NoPeers);
         }
-
         for (addr, conn) in self.peer_connection_list.clone().into_iter() {
             let new_data = message.as_bytes().clone();
 
@@ -242,10 +240,8 @@ impl BroadcastEngine {
         port: u16,
     ) -> Result<BroadcastStatus> {
         info!("broadcasting to port {:?}", port);
-
         let batch_id = generate_batch_id();
         let chunks = split_into_packets(&data, batch_id, erasure_count);
-
         let ipv4_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let udp_socket = UdpSocket::bind(SocketAddr::new(ipv4_addr, port))
             .await
@@ -314,6 +310,7 @@ impl BroadcastEngine {
             BroadcastError::Other(err.to_string())
         })?;
 
+
         info!("Listening on {}", port);
 
         let buf = [0; MTU_SIZE];
@@ -321,7 +318,6 @@ impl BroadcastEngine {
         let (forwarder_send, forwarder_receive) = unbounded();
         let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
         let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
-
         thread::spawn({
             let assemble_send = reassembler_channel_send.clone();
             let fwd_send = forwarder_send.clone();
@@ -338,6 +334,7 @@ impl BroadcastEngine {
                 drop(assemble_send);
                 drop(fwd_send);
                 drop(batch_send);
+
             }
         });
 
@@ -345,7 +342,6 @@ impl BroadcastEngine {
         if self.raptor_list.is_empty() {
             return Err(BroadcastError::NoPeers);
         }
-
         self.raptor_list
             .iter()
             .for_each(|addr| nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec()));
@@ -411,10 +407,7 @@ impl BroadcastEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        net::{Ipv6Addr, SocketAddr},
-        time::Duration,
-    };
+    use std::{assert_eq, net::{Ipv6Addr, SocketAddr}, panic, time::Duration};
 
     use bytes::Bytes;
 
