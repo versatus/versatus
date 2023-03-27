@@ -11,8 +11,6 @@ use primitives::{
     Digest as PrimitiveDigest,
     PublicKey,
     SecretKey,
-    SerializedPublicKey,
-    SerializedPublicKeyString,
     DIGEST_LENGTH,
 };
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
@@ -21,14 +19,16 @@ use sha2::{Digest, Sha256};
 use sha256::digest;
 use utils::hash_data;
 
-/// This module contains the basic structure of simple transaction
 use crate::{
-    accountable::Accountable,
     helpers::gen_hex_encoded_string,
-    result,
-    serde_helpers::{decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary},
+    serde_helpers::{
+        decode_from_binary_byte_slice,
+        decode_from_json_byte_slice,
+        encode_to_binary,
+        encode_to_json,
+    },
 };
-use crate::{serde_helpers::encode_to_json, verifiable::Verifiable};
+/// This module contains the basic structure of simple transaction
 
 /// A simple custom error type
 #[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]

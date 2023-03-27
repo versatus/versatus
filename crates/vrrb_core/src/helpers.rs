@@ -1,8 +1,4 @@
-use std::{
-    any::Any,
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::{io::Read, path::Path};
 
 use primitives::{PublicKey, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
