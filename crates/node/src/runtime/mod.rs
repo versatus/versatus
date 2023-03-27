@@ -154,7 +154,6 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-
     let claim: Claim = config.keypair.clone().into();
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
@@ -170,7 +169,6 @@ pub async fn setup_runtime_components(
         state_read_handle.clone(),
         claim.clone(),
     )?;
-
     Ok((
         config,
         mempool_handle,
@@ -186,7 +184,6 @@ pub async fn setup_runtime_components(
 
 fn setup_event_routing_system() -> EventRouter {
     let mut event_router = EventRouter::default();
-
     event_router
 }
 
@@ -344,6 +341,7 @@ fn setup_mining_module(
     Ok(Some(miner_handle))
 }
 
+
 fn setup_dkg_module(
     config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
@@ -360,7 +358,7 @@ fn setup_dkg_module(
              * Bootstrap Node */
             quorum_threshold: 15,
             /* Need to be decided either will be preconfigured or decided
-             * by Bootstrap Node */
+                                   * by Bootstrap Node */
         },
         config.rendezvous_local_address,
         config.rendezvous_local_address,

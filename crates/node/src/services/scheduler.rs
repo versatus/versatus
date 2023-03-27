@@ -26,9 +26,7 @@ use vrrb_core::{
     txn::{TransactionDigest, Txn},
 };
 
-
 /// `JobSchedulerController`sends job to the job scheduler to process the job
-///
 /// Properties:
 ///
 /// * `job_scheduler`: The JobScheduler struct that we created earlier.

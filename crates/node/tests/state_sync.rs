@@ -11,7 +11,6 @@ use secp256k1::Message;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
 use vrrb_core::txn::NewTxnArgs;
-
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]

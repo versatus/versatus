@@ -9,7 +9,6 @@ use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
-
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::{

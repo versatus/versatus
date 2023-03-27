@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use block::{Block, convergence_block};
 use events::{DirectedEvent, Event};
-
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
