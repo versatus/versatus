@@ -73,7 +73,7 @@ pub struct MineArgs<'a> {
     pub next_epoch_adjustment: i128,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[repr(C)]
 pub struct ConvergenceBlock {
     pub header: BlockHeader,

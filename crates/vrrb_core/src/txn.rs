@@ -11,8 +11,6 @@ use primitives::{
     Digest as PrimitiveDigest,
     PublicKey,
     SecretKey,
-    SerializedPublicKey,
-    SerializedPublicKeyString,
     DIGEST_LENGTH,
 };
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
@@ -21,14 +19,16 @@ use sha2::{Digest, Sha256};
 use sha256::digest;
 use utils::hash_data;
 
-/// This module contains the basic structure of simple transaction
 use crate::{
-    accountable::Accountable,
     helpers::gen_hex_encoded_string,
-    result,
-    serde_helpers::{decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary},
+    serde_helpers::{
+        decode_from_binary_byte_slice,
+        decode_from_json_byte_slice,
+        encode_to_binary,
+        encode_to_json,
+    },
 };
-use crate::{serde_helpers::encode_to_json, verifiable::Verifiable};
+/// This module contains the basic structure of simple transaction
 
 /// A simple custom error type
 #[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]
@@ -94,11 +94,6 @@ impl Default for Token {
     }
 }
 
-/// The basic transation structure.
-//TODO: Discuss the pieces of the Transaction structure that should stay and go
-//TODO: Discuss how to best package this to minimize the size of it/compress it
-//TODO: Change `validators` filed to `receipt` or `certificate` to put threshold
-//signature of validators in.
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
     pub id: TransactionDigest,
@@ -168,6 +163,20 @@ impl Txn {
         self.id.clone()
     }
 
+    pub fn build_payload_digest(&self) -> TransactionDigest {
+        let digest = generate_txn_digest_vec(
+            self.timestamp(),
+            self.sender_address(),
+            self.sender_public_key(),
+            self.receiver_address(),
+            self.token(),
+            self.amount(),
+            self.nonce(),
+        );
+
+        digest.into()
+    }
+
     #[deprecated]
     pub fn digest(&self) -> TransactionDigest {
         self.id()
@@ -214,7 +223,7 @@ impl Txn {
     }
 
     pub fn sender_public_key(&self) -> PublicKey {
-        self.sender_public_key.clone()
+        self.sender_public_key
     }
 
     pub fn receiver_address(&self) -> String {
@@ -222,15 +231,27 @@ impl Txn {
     }
 
     pub fn signature(&self) -> Signature {
-        self.signature.clone()
+        self.signature
     }
 
     pub fn nonce(&self) -> TxNonce {
-        self.nonce.clone()
+        self.nonce
     }
 
     pub fn validators(&self) -> HashMap<String, bool> {
         self.validators.clone().unwrap_or_default()
+    }
+
+    pub fn generate_txn_digest_vec(&self) -> ByteVec {
+        generate_txn_digest_vec(
+            self.timestamp(),
+            self.sender_address(),
+            self.sender_public_key(),
+            self.receiver_address(),
+            self.token(),
+            self.amount(),
+            self.nonce(),
+        )
     }
 
     pub fn build_payload(&self) -> String {
@@ -260,6 +281,7 @@ impl Txn {
         Txn::from_str(data).unwrap_or(null_txn())
     }
 
+    #[deprecated(note = "will be removed from Txn struct soon")]
     pub fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
         if let payload = self.build_payload() {

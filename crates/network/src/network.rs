@@ -2,7 +2,7 @@ use std::{
     borrow::BorrowMut,
     collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    sync::{Arc, Mutex},
+    sync::Arc,
     thread,
     time::Duration,
 };
@@ -10,21 +10,14 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
-use qp2p::{
-    Config,
-    Connection,
-    ConnectionIncoming,
-    Endpoint,
-    EndpointError,
-    IncomingConnections,
-    RetryConfig,
-};
+use qp2p::{Config, Connection, ConnectionIncoming, Endpoint, IncomingConnections, RetryConfig};
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use telemetry::{info, tracing};
+use telemetry::{error, info, instrument};
 use tokio::net::UdpSocket;
 
 use crate::{
+    config::BroadcastError,
     message::Message,
     packet::{
         generate_batch_id,
@@ -37,10 +30,10 @@ use crate::{
         MTU_SIZE,
         NUM_RCVMMSGS,
     },
-    types::config::{BroadCastError, BroadCastResult},
+    types::config::BroadcastStatus,
 };
 
-type BroadCastStatus = Result<BroadCastResult, BroadCastError>;
+pub type Result<T> = std::result::Result<T, BroadcastError>;
 
 /// This is an enum that is used to determine the type of broadcast that is
 /// being used.
@@ -48,32 +41,52 @@ type BroadCastStatus = Result<BroadCastResult, BroadCastError>;
 pub enum BroadcastType {
     Quic,
     ReliableUDP,
-    UnReliableUDP,
+    UnreliableUDP,
 }
 
 #[derive(Debug)]
 pub struct BroadcastEngine {
-    pub peer_connection_list: Arc<Mutex<Vec<(SocketAddr, Connection)>>>,
-    pub raptor_list: Arc<Mutex<Vec<SocketAddr>>>,
+    pub peer_connection_list: HashMap<SocketAddr, Connection>,
+    pub raptor_list: HashSet<SocketAddr>,
     pub endpoint: (Endpoint, IncomingConnections),
     pub raptor_udp_port: u16,
     pub raptor_num_packet_blast: usize,
 }
 
+// TODO: replace the one above with this
+// pub struct BroadcastEngine {
+//     pub peer_connection_list: HashMap<SocketAddr, Connection>,
+//     pub raptor_list: HashSet<SocketAddr>,
+//     pub endpoint: (Endpoint, IncomingConnections),
+//     pub raptor_udp_port: u16,
+//     pub raptor_num_packet_blast: usize,
+//     pub harvester_endpoints: (Endpoint, IncomingConnections),
+// }
+
 const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
 
-pub type EndPointResult = Result<
-    (
+impl BroadcastEngine {
+    /// Create a new broadcast engine for each node
+    pub async fn new(raptor_udp_port: u16, raptor_num_packet_blast: usize) -> Result<Self> {
+        let (node, incoming_conns, _) = Self::new_endpoint(raptor_udp_port).await?;
+
+        Ok(Self {
+            peer_connection_list: HashMap::new(),
+            raptor_list: HashSet::new(),
+            endpoint: (node, incoming_conns),
+            raptor_udp_port,
+            raptor_num_packet_blast,
+        })
+    }
+
+    async fn new_endpoint(
+        port: u16,
+    ) -> Result<(
         Endpoint,
         IncomingConnections,
         Option<(Connection, ConnectionIncoming)>,
-    ),
-    EndpointError,
->;
-
-impl BroadcastEngine {
-    pub async fn new_endpoint(port: u16) -> EndPointResult {
-        Endpoint::new_peer(
+    )> {
+        let (endpoint, incoming_connections, conn_opts) = Endpoint::new_peer(
             (Ipv6Addr::LOCALHOST, port),
             &[],
             Config {
@@ -85,28 +98,13 @@ impl BroadcastEngine {
                 ..Config::default()
             },
         )
-        .await
+        .await?;
+
+        Ok((endpoint, incoming_connections, conn_opts))
     }
 
-    //create a new broadcast engine for each node
-    pub async fn new(
-        raptor_udp_port: u16,
-        raptor_num_packet_blast: usize,
-    ) -> Result<BroadcastEngine, BroadCastError> {
-        match BroadcastEngine::new_endpoint(raptor_udp_port).await {
-            Ok((node, incoming_conns, _contact)) => Ok(BroadcastEngine {
-                peer_connection_list: Arc::new(Mutex::new(Vec::new())),
-                raptor_list: Arc::new(Mutex::new(vec![])),
-                endpoint: (node, incoming_conns),
-                raptor_udp_port,
-                raptor_num_packet_blast,
-            }),
-            Err(e) => Err(BroadCastError::EndpointError(e)),
-        }
-    }
-
-    /// > This function takes a vector of socket addresses and attempts to
-    /// > connect to each one. If the
+    /// This function takes a vector of socket addresses and attempts to
+    /// connect to each one. If the
     /// connection is successful, it adds the connection to the peer connection
     /// list
     ///
@@ -114,38 +112,30 @@ impl BroadcastEngine {
     ///
     /// * `address`: A vector of SocketAddr, which is the address of the peer
     ///   you want to connect to.
+    pub async fn add_peer_connection(
+        &mut self,
+        address: Vec<SocketAddr>,
+    ) -> Result<BroadcastStatus> {
+        for addr in address.iter() {
+            // TODO: revisit to make it handle errors robustly as it currently fails even if
+            // a single connection fails
+            let (connection, _) = self.endpoint.0.connect_to(addr).await.map_err(|err| {
+                error!("failed to connect with {addr}: {err}");
 
-    // TODO: Rething this - as the Mutex is locked during the `.await`, which is not
-    // reccomended. Either async-aware Mutex type should be used, or MutexGuard
-    // should be dropped before `.await`
-    #[allow(clippy::await_holding_lock)]
-    pub async fn add_peer_connection(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
-        if let Ok(mut peers) = self.peer_connection_list.lock() {
-            for addr in address.iter() {
-                let result = self.endpoint.0.connect_to(addr).await;
-                match result {
-                    Ok((connection, _)) => {
-                        peers.push((*addr, connection));
-                    },
-                    Err(e) => {
-                        return Err(BroadCastError::ConnectionError(e));
-                    },
-                }
-            }
-            std::mem::drop(peers);
-        } else {
-            telemetry::error!("Error acquiring lock on peer connection list");
+                BroadcastError::Connection(err)
+            })?;
+
+            self.peer_connection_list
+                .insert(addr.to_owned(), connection);
         }
-        Ok(BroadCastResult::ConnectionEstablished)
+
+        // std::mem::drop(peers);
+
+        Ok(BroadcastStatus::ConnectionEstablished)
     }
 
-    pub async fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
-        if let Ok(mut peers) = self.raptor_list.lock() {
-            peers.extend(address);
-        } else {
-            telemetry::error!("Error acquiring lock on peer connection list");
-        }
-        Ok(BroadCastResult::ConnectionEstablished)
+    pub async fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) {
+        self.raptor_list.extend(address)
     }
 
     /// This function removes a peer connection from the peer connection list
@@ -153,28 +143,25 @@ impl BroadcastEngine {
     /// Arguments:
     ///
     /// * `address`: The address of the peer to be removed.
-    ///
-    /// Returns:
-    ///
-    /// A boolean value.
-    pub fn remove_peer_connection(&mut self, address: Vec<SocketAddr>) -> BroadCastStatus {
-        if let Ok(mut peers) = self.peer_connection_list.lock() {
-            for addr in address.iter() {
-                peers.retain(|address| {
-                    address.1.close(Some(String::from(CONNECTION_CLOSED)));
-                    address.0 != *addr
-                });
-            }
-            return Ok(BroadCastResult::Success);
-        } else {
-            telemetry::error!("Error acquiring lock on peer connection list");
-        };
+    pub fn remove_peer_connection(&mut self, address: Vec<SocketAddr>) -> Result<()> {
+        // let mut peers = self.peer_connection_list.lock().map_err(|err| {
+        //     error!("error acquiring lock on peer connection list: {err}");
+        //     BroadcastError::Other(err.to_string())
+        // })?;
 
-        Ok(BroadCastResult::Success)
+        for addr in address.iter() {
+            self.peer_connection_list.retain(|address, connection| {
+                info!("closed connection with: {addr}");
+                connection.close(Some(String::from(CONNECTION_CLOSED)));
+                address != addr
+            });
+        }
+
+        Ok(())
     }
 
-    /// > This function takes a message and sends it to all the peers in the
-    /// > peer list
+    /// This function takes a message and sends it to all the peers in the
+    /// peer list
     ///
     /// Arguments:
     ///
@@ -182,38 +169,38 @@ impl BroadcastEngine {
     ///
     /// Returns:
     ///
-    /// A future that resolves to a BroadCastStatus
-    // TODO: Again - the Mutex is held during .await - to be reconsidered
-    #[allow(clippy::await_holding_lock)]
-    pub async fn quic_broadcast(&self, message: Message) -> BroadCastStatus {
+    /// A future that resolves to a BroadcastStatus
+    pub async fn quic_broadcast(&self, message: Message) -> Result<BroadcastStatus> {
         let mut futs = FuturesUnordered::new();
-        if let Ok(peers) = self.peer_connection_list.lock() {
-            if peers.len() == 0 {
-                return Err(BroadCastError::NoPeers);
-            }
-            for connection in peers.clone().into_iter() {
-                let new_data = message.as_bytes().clone();
-                futs.push(tokio::spawn(async move {
-                    let msg = Bytes::from(new_data);
-                    let status = connection
-                        .1
-                        .send((Bytes::new(), Bytes::new(), msg.clone()))
-                        .await;
-                    if let Err(err) = status {
-                        return Err(BroadCastError::BroadcastingDataError(err));
-                    }
-                    Ok(())
-                }))
-            }
-            while futs.next().await.is_some() {}
-        } else {
-            telemetry::error!("Error acquiring lock on peer connection list");
+
+        if self.peer_connection_list.is_empty() {
+            return Err(BroadcastError::NoPeers);
         }
-        Ok(BroadCastResult::Success)
+
+        for (addr, conn) in self.peer_connection_list.clone().into_iter() {
+            let new_data = message.as_bytes().clone();
+
+            futs.push(tokio::spawn(async move {
+                let msg = Bytes::from(new_data);
+
+                match conn.send((Bytes::new(), Bytes::new(), msg.clone())).await {
+                    Ok(_) => {
+                        info!("sent message to {addr}");
+                    },
+                    Err(err) => {
+                        error!("send error: {err}");
+                    },
+                }
+            }))
+        }
+
+        while futs.next().await.is_some() {}
+
+        Ok(BroadcastStatus::Success)
     }
 
-    /// > This function takes a message and an address, and sends the message to
-    /// > the address via QUIC
+    /// This function takes a message and an address, and sends the message to
+    /// the address via QUIC
     ///
     /// Arguments:
     ///
@@ -222,21 +209,25 @@ impl BroadcastEngine {
     ///
     /// Returns:
     ///
-    /// A future that resolves to a BroadCastStatus
-    pub async fn send_data_via_quic(&self, message: Message, addr: SocketAddr) -> BroadCastStatus {
+    /// A future that resolves to a BroadcastStatus
+    pub async fn send_data_via_quic(
+        &self,
+        message: Message,
+        addr: SocketAddr,
+    ) -> Result<BroadcastStatus> {
         let msg = Bytes::from(message.as_bytes());
         let node = self.endpoint.0.clone();
-        let result = node.connect_to(&addr).await;
-        let conn = match result {
-            Ok(conn) => conn.0,
-            Err(e) => return Err(BroadCastError::ConnectionError(e)),
-        };
+
+        let conn = node.connect_to(&addr).await?;
+        let conn = conn.0;
+
         let _ = conn.send((Bytes::new(), Bytes::new(), msg.clone())).await;
-        Ok(BroadCastResult::Success)
+
+        Ok(BroadcastStatus::Success)
     }
 
-    /// > The function takes a message and an erasure count as input and splits
-    /// > the message into packets
+    /// The function takes a message and an erasure count as input and splits
+    /// the message into packets
     /// and sends them to the peers
     ///
     /// Arguments:
@@ -248,64 +239,57 @@ impl BroadcastEngine {
     ///
     /// Returns:
     ///
-    /// The return type is a future of type BroadCastStatus.
-    // TODO: Verify if mutex really needs to be held during the await
-    #[allow(clippy::await_holding_lock)]
-
+    /// The return type is a future of type BroadcastStatus.
     pub async fn unreliable_broadcast(
         &self,
         data: Vec<u8>,
         erasure_count: u32,
         port: u16,
-    ) -> BroadCastStatus {
-        println!("Broadcasting to Port {:?}", port);
+    ) -> Result<BroadcastStatus> {
+        info!("broadcasting to port {:?}", port);
+
         let batch_id = generate_batch_id();
         let chunks = split_into_packets(&data, batch_id, erasure_count);
-        if let Ok(udp_socket) = UdpSocket::bind(SocketAddr::new(
-            std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            port,
-        ))
-        .await
-        {
-            let udp_socket = Arc::new(udp_socket);
-            let mut futs = FuturesUnordered::new();
-            if let Ok(peers) = self.raptor_list.lock() {
-                if peers.len() == 0 {
-                    return Err(BroadCastError::NoPeers);
-                }
-                for (packet_index, packet) in chunks.iter().enumerate() {
-                    // Sharding/Distribution of packets as per no of nodes
-                    let address: SocketAddr =
-                        peers.get(packet_index % peers.len()).unwrap().clone();
-                    let packet = packet.clone();
-                    let sock = udp_socket.clone();
 
-                    futs.push(tokio::spawn(async move {
-                        let addr = address.to_string();
-                        let s = sock.send_to(&packet, addr.clone()).await;
-                    }));
+        let ipv4_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let udp_socket = UdpSocket::bind(SocketAddr::new(ipv4_addr, port))
+            .await
+            .map_err(|err| BroadcastError::Other(err.to_string()))?;
 
-                    if futs.len() >= self.raptor_num_packet_blast {
-                        match futs.next().await {
-                            Some(fut) => {
-                                if fut.is_err() {
-                                    telemetry::error!("Sending future is not ready yet")
-                                }
-                            },
-                            None => telemetry::error!("Sending future is not ready yet"),
-                        }
-                    }
-                }
+        let udp_socket = Arc::new(udp_socket);
+        let mut futs = FuturesUnordered::new();
 
-                while (futs.next().await).is_some() {}
-            } else {
-                telemetry::error!("Error acquiring lock on peer connection list");
-            }
-        } else {
-            telemetry::error!("Error occured while binding socket to a port.");
+        if self.raptor_list.is_empty() {
+            return Err(BroadcastError::NoPeers);
         }
 
-        Ok(BroadCastResult::Success)
+        for (packet_index, packet) in chunks.iter().enumerate() {
+            let addresses =
+                self.get_address_for_packet_shards(packet_index, self.raptor_list.len());
+
+            for address in addresses.into_iter() {
+                let packet = packet.clone();
+                let sock = udp_socket.clone();
+                futs.push(tokio::spawn(async move {
+                    let addr = address.to_string();
+                    let _ = sock.send_to(&packet, addr.clone()).await;
+                }));
+                if futs.len() >= self.raptor_num_packet_blast {
+                    match futs.next().await {
+                        Some(fut) => {
+                            if fut.is_err() {
+                                error!("Sending future is not ready yet")
+                            }
+                        },
+                        None => error!("Sending future is not ready yet"),
+                    }
+                }
+            }
+        }
+
+        while (futs.next().await).is_some() {}
+
+        Ok(BroadcastStatus::Success)
     }
 
     /// It receives packets from the socket, and sends them to the reassembler
@@ -323,72 +307,70 @@ impl BroadcastEngine {
         &self,
         port: u16,
         batch_sender: Sender<RaptorBroadCastedData>,
-    ) -> Result<(), BroadCastError> {
-        if let Ok(sock_recv) = UdpSocket::bind(SocketAddr::new(
+    ) -> Result<()> {
+        let sock_recv = UdpSocket::bind(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             port,
         ))
         .await
-        {
-            info!("Listening on {}", port);
-            let buf = [0; MTU_SIZE];
-            let (reassembler_channel_send, reassembler_channel_receive) = unbounded();
-            let (forwarder_send, forwarder_receive) = unbounded();
-            let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
-            let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
+        .map_err(|err| {
+            error!("UDP port {port} already in use");
+            BroadcastError::Other(err.to_string())
+        })?;
 
-            thread::spawn({
-                let assemble_send = reassembler_channel_send.clone();
-                let fwd_send = forwarder_send.clone();
-                let batch_send = batch_sender.clone();
+        info!("Listening on {}", port);
 
-                move || {
-                    reassemble_packets(
-                        reassembler_channel_receive,
-                        &mut batch_id_store,
-                        &mut decoder_hash,
-                        fwd_send.clone(),
-                        batch_send.clone(),
-                    );
-                    drop(assemble_send);
-                    drop(fwd_send);
-                    drop(batch_send);
-                }
-            });
+        let buf = [0; MTU_SIZE];
+        let (reassembler_channel_send, reassembler_channel_receive) = unbounded();
+        let (forwarder_send, forwarder_receive) = unbounded();
+        let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
+        let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
 
-            let mut nodes_ips_except_self = vec![];
-            if let Ok(peers) = self.raptor_list.lock() {
-                if peers.len() == 0 {
-                    return Err(BroadCastError::NoPeers);
-                }
-                peers.iter().for_each(|(addr)| {
-                    nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec())
-                });
-            } else {
-                telemetry::error!("Error acquiring lock on peer connection list");
+        thread::spawn({
+            let assemble_send = reassembler_channel_send.clone();
+            let fwd_send = forwarder_send.clone();
+            let batch_send = batch_sender.clone();
+
+            move || {
+                reassemble_packets(
+                    reassembler_channel_receive,
+                    &mut batch_id_store,
+                    &mut decoder_hash,
+                    fwd_send.clone(),
+                    batch_send.clone(),
+                );
+                drop(assemble_send);
+                drop(fwd_send);
+                drop(batch_send);
             }
+        });
 
-            let port = self.raptor_udp_port;
-            thread::spawn(move || packet_forwarder(forwarder_receive, nodes_ips_except_self, port));
+        let mut nodes_ips_except_self = vec![];
+        if self.raptor_list.is_empty() {
+            return Err(BroadcastError::NoPeers);
+        }
 
-            loop {
-                let mut receive_buffers = [buf; NUM_RCVMMSGS];
-                // Receiving a batch of packets from the socket.
-                if let Ok(res) = recv_mmsg(&sock_recv, receive_buffers.borrow_mut()).await {
-                    if !res.is_empty() {
-                        let mut i = 0;
-                        for buf in &receive_buffers {
-                            if let Some(packets_info) = res.get(i) {
-                                let _ = reassembler_channel_send.send((*buf, packets_info.1));
-                                i += 1;
-                            }
+        self.raptor_list
+            .iter()
+            .for_each(|addr| nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec()));
+
+        let port = self.raptor_udp_port;
+        thread::spawn(move || packet_forwarder(forwarder_receive, nodes_ips_except_self, port));
+
+        loop {
+            let mut receive_buffers = [buf; NUM_RCVMMSGS];
+            // Receiving a batch of packets from the socket.
+            if let Ok(res) = recv_mmsg(&sock_recv, receive_buffers.borrow_mut()).await {
+                if !res.is_empty() {
+                    let mut i = 0;
+                    for buf in &receive_buffers {
+                        if let Some(packets_info) = res.get(i) {
+                            let _ = reassembler_channel_send.send((*buf, packets_info.1));
+                            i += 1;
                         }
                     }
                 }
             }
-        } else {
-            telemetry::error!("Udp port {} already in use", port);
-            Err(BroadCastError::EaddrInUse)
         }
     }
 
@@ -398,6 +380,25 @@ impl BroadcastEngine {
 
     pub fn local_addr(&self) -> SocketAddr {
         self.endpoint.0.local_addr()
+    }
+
+    fn get_address_for_packet_shards(
+        &self,
+        packet_index: usize,
+        total_peers: usize,
+    ) -> Vec<SocketAddr> {
+        let mut addresses = Vec::new();
+        let number_of_peers = (total_peers as f32 * 0.10).ceil() as usize;
+        let raptor_list_cloned: Vec<&SocketAddr> = self.raptor_list.iter().collect();
+
+        for i in 0..number_of_peers {
+            if let Some(address) = raptor_list_cloned.get(packet_index % (total_peers + i)) {
+                // TODO: refactor this double owning
+                addresses.push(address.to_owned().to_owned());
+            }
+        }
+
+        addresses
     }
 }
 
@@ -410,7 +411,10 @@ mod tests {
 
     use bytes::Bytes;
 
-    use crate::{message::Message, network::BroadcastEngine};
+    use crate::{
+        message::{Message, MessageBody},
+        network::BroadcastEngine,
+    };
 
     #[tokio::test]
     async fn test_successful_connection() {
@@ -506,10 +510,7 @@ mod tests {
     pub fn test_message() -> Message {
         let msg = Message {
             id: uuid::Uuid::new_v4(),
-            data: "Hello_VRRB".to_string().as_bytes().to_vec(),
-            source: Some("vrrb".to_string().as_bytes().to_vec()),
-            sequence_number: Some(1i32.to_ne_bytes().to_vec()),
-            return_receipt: 0u8,
+            data: MessageBody::Empty,
         };
         msg
     }

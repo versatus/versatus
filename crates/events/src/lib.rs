@@ -1,7 +1,9 @@
 use std::{collections::HashMap, net::SocketAddr};
 
+use block::convergence_block::ConvergenceBlock;
 use primitives::{
     Address,
+    ByteVec,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
     NodeIdx,
@@ -18,12 +20,24 @@ use tokio::sync::{
     broadcast::{self, Sender},
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
-
-use crate::{
+use vrrb_core::{
     account::Account,
     txn::{TransactionDigest, Txn},
-    Error,
 };
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("io error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("serde_json error: {0}")]
+    SerdeJson(#[from] serde_json::Error),
+
+    #[error("{0}")]
+    Other(String),
+}
 
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
@@ -34,6 +48,14 @@ pub struct PeerData {
     pub address: SocketAddr,
     pub node_type: NodeType,
     pub peer_id: PeerId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub struct SyncPeerData {
+    pub address: String,
+    pub raptor_udp_port: u16,
+    pub quic_port: u16,
+    pub node_type: NodeType,
 }
 
 // NOTE: naming convention for events goes as follows:
@@ -49,6 +71,20 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
+    pub quorum_public_key: Vec<u8>,
+    pub quorum_threshold: usize,
+    // May want to serialize this as a vector of bytes
+    pub execution_result: Option<String>,
+}
+
+pub type SerializedConvergenceBlock = ByteVec;
+
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct BlockVote {
+    pub harvester_id: Vec<u8>,
+    pub harvester_node_id: NodeIdx,
+    pub signature: RawSignature,
+    pub convergence_block: SerializedConvergenceBlock,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
 }
@@ -78,9 +114,7 @@ pub enum Event {
     #[default]
     NoOp,
     Stop,
-    /// New txn came from network, requires validation
-    #[deprecated(note = "replaced by NewTxnCreated")]
-    TxnCreated(Vec<u8>),
+
     /// New txn came from network, requires validation
     NewTxnCreated(Txn),
     /// Single txn validated
@@ -88,6 +122,9 @@ pub enum Event {
     /// Batch of validated txns
     TxnBatchValidated(Vec<TransactionDigest>),
     TxnAddedToMempool(TransactionDigest),
+    MempoolSizeThesholdReached {
+        cutoff_transaction: TransactionDigest,
+    },
     BlockReceived,
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),
@@ -96,8 +133,12 @@ pub enum Event {
     ClaimAbandoned(String, Vec<u8>),
     SlashClaims(Vec<String>),
     CheckAbandoned,
+    SyncPeers(Vec<SyncPeerData>),
     PeerRequestedStateSync(PeerData),
 
+    //Event to tell Farmer node to sign the Transaction
+    //the validator module has validated this transaction
+    ValidTxn(TransactionDigest),
     /// A peer joined the network, should be added to the node's peer list
     PeerJoined(PeerData),
 
@@ -113,6 +154,9 @@ pub enum Event {
     /// Event to broadcast Part Message
     PartMessage(u16, Vec<u8>),
 
+    /// Event to broadcast Part Message
+    SendPartMessage(u16, Vec<u8>),
+
     /// A command to  send ack of Part message of sender by current Node.
     SendAck(u16, u16, Vec<u8>),
 
@@ -122,9 +166,8 @@ pub enum Event {
     /// Used to generate the public key set& Distrbuted Group Public Key for the
     /// node.
     GenerateKeySet,
-
+    HarvesterPublicKey(Vec<u8>),
     Farm,
-
     Vote(Vote, QuorumType, FarmerQuorumThreshold),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
@@ -136,59 +179,6 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
-    // SendTxn(u32, String, u128), // address number, receiver address, amount
-    // ProcessTxnValidator(Vec<u8>),
-    // PendingBlock(Vec<u8>, String),
-    // InvalidBlock(Vec<u8>),
-    // ProcessClaim(Vec<u8>),
-    // CheckStateUpdateStatus((u128, Vec<u8>, u128)),
-    // StateUpdateCompleted(Vec<u8>),
-    // StoreStateDbChunk(Vec<u8>, Vec<u8>, u32, u32),
-    // SendState(String, u128),
-    // SendMessage(SocketAddr, Message),
-    // GetBalance(u32),
-    // SendGenesis(String),
-    // SendStateComponents(String, Vec<u8>, String),
-    // GetStateComponents(String, Vec<u8>, String),
-    // RequestedComponents(String, Vec<u8>, String, String),
-    // StoreStateComponents(Vec<u8>, ComponentTypes),
-    // StoreChild(Vec<u8>),
-    // StoreParent(Vec<u8>),
-    // StoreGenesis(Vec<u8>),
-    // StoreLedger(Vec<u8>),
-    // StoreNetworkState(Vec<u8>),
-    // StateUpdateComponents(Vec<u8>, ComponentTypes),
-    // UpdateAppMiner(Vec<u8>),
-    // UpdateAppBlockchain(Vec<u8>),
-    // UpdateAppMessageCache(Vec<u8>),
-    // UpdateAppWallet(Vec<u8>),
-    // Publish(Vec<u8>),
-    // Gossip(Vec<u8>),
-    // AddNewPeer(String, String),
-    // AddKnownPeers(Vec<u8>),
-    // AddExplicitPeer(String, String),
-    // ProcessPacket((Packet, SocketAddr)),
-    // Bootstrap(String, String),
-    // SendPing(String),
-    // ReturnPong(Vec<u8>, String),
-    // InitHandshake(String),
-    // ReciprocateHandshake(String, String, String),
-    // CompleteHandshake(String, String, String),
-    // ProcessAck(String, u32, String),
-    // CleanInbox(String),
-    // StartMiner,
-    // GetHeight,
-    // MineBlock,
-    // MineGenesis,
-    // StopMine,
-    // GetState,
-    // ProcessBacklog,
-    // SendAddress,
-    // NonceUp,
-    // InitDKG,
-    // SendPartMessage(Vec<u8>),
-    // SendAckMessage(Vec<u8>),
-    // PublicKeySetSync,
 }
 
 impl From<&theater::Message> for Event {
@@ -223,6 +213,7 @@ pub enum Topic {
     Network,
     Storage,
     Consensus,
+    Throttle,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction

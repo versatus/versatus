@@ -1,44 +1,20 @@
-use std::{io::Read, net::SocketAddr, path::PathBuf, sync::mpsc::channel, thread};
+use std::net::SocketAddr;
 
-use crossbeam_channel::unbounded;
-use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use network::{message::Message, network::BroadcastEngine, packet, packet::RaptorBroadCastedData};
-use primitives::{NodeIdentifier, NodeIdx, PublicKey, SecretKey};
-use storage::{
-    storage_utils,
-    vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
-};
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use telemetry::info;
-use theater::{Actor, ActorImpl};
 use tokio::{
-    sync::{
-        broadcast::Receiver,
-        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-    },
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
 };
 use trecho::vm::Cpu;
 use vrrb_config::NodeConfig;
-use vrrb_core::{
-    event_router::{DirectedEvent, Event, EventRouter, Topic},
-    keypair::KeyPair,
-    txn::Txn,
-};
-use vrrb_rpc::{
-    http::HttpApiServerConfig,
-    rpc::{JsonRpcServer, JsonRpcServerConfig},
-};
+use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
-    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
-    mempool_module::{MempoolModule, MempoolModuleConfig},
-    mining_module,
+    farmer_harvester_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
-    validator_module,
     NodeType,
-    RuntimeModule,
     RuntimeModuleState,
 };
 
@@ -64,8 +40,8 @@ pub struct Node {
     gossip_handle: Option<JoinHandle<Result<()>>>,
     broadcast_controller_handle: Option<JoinHandle<Result<()>>>,
     miner_handle: Option<JoinHandle<Result<()>>>,
-    txn_validator_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
+    dkg_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -73,7 +49,6 @@ impl Node {
     pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
         // Copy the original config to avoid overriding the original
         let mut config = config.clone();
-
 
         let vm = None;
         let keypair = config.keypair.clone();
@@ -85,9 +60,15 @@ impl Node {
         let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
         let network_events_rx = event_router.subscribe(&Topic::Network)?;
         let controller_events_rx = event_router.subscribe(&Topic::Network)?;
-        let validator_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
+        let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
 
         let (
             updated_config,
@@ -96,8 +77,8 @@ impl Node {
             gossip_handle,
             broadcast_controller_handle,
             jsonrpc_server_handle,
-            txn_validator_handle,
             miner_handle,
+            dkg_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -105,9 +86,9 @@ impl Node {
             vrrbdb_events_rx,
             network_events_rx,
             controller_events_rx,
-            validator_events_rx,
             miner_events_rx,
             jsonrpc_events_rx,
+            dkg_events_rx,
         )
         .await?;
 
@@ -126,10 +107,10 @@ impl Node {
             jsonrpc_server_handle,
             gossip_handle,
             broadcast_controller_handle,
+            dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,
-            txn_validator_handle,
             miner_handle,
             keypair,
         })
@@ -164,11 +145,6 @@ impl Node {
         if let Some(handle) = self.gossip_handle {
             handle.await??;
             info!("shutdown complete for gossip module");
-        }
-
-        if let Some(handle) = self.txn_validator_handle {
-            handle.await??;
-            info!("shutdown complete for mining module ");
         }
 
         if let Some(handle) = self.jsonrpc_server_handle {
@@ -249,6 +225,7 @@ impl Node {
         event_router.add_topic(Topic::Network, Some(100));
         event_router.add_topic(Topic::Consensus, Some(100));
         event_router.add_topic(Topic::Storage, Some(100));
+        event_router.add_topic(Topic::Throttle, Some(100));
 
         event_router
     }

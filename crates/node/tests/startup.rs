@@ -1,3 +1,4 @@
+use events::Event;
 use node::{
     test_utils::{
         create_mock_bootstrap_node_config,
@@ -10,7 +11,6 @@ use node::{
 };
 use serial_test::serial;
 use tokio::sync::mpsc::unbounded_channel;
-use vrrb_core::event_router::Event;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]

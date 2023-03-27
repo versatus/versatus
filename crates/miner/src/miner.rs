@@ -77,13 +77,6 @@ pub struct MinerConfig {
     pub secret_key: MinerSk,
     pub public_key: MinerPk,
     pub address: String,
-    //
-    // pub pubkey: String,
-    // pub reward: Reward,
-    // pub state_handle: NodeStateReadHandle,
-    // pub state_handle_factory: NodeStateReadHandle,
-    // pub n_miners: u128,
-    // pub epoch: Epoch,
 }
 
 #[derive(Debug, Clone)]
