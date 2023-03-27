@@ -3,7 +3,36 @@ pub mod mempool;
 
 // TODO: merge pool w Mempool later on
 pub mod pool;
+use anyhow::{Context, Result};
+use reqwest::StatusCode;
+
 pub use crate::mempool::*;
+// use serde_json::{Error as JsonError, json};
+// use serde::{Deserialize, Serialize};
+
+pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
+    let url = "http://localhost:3444/transactions"; // TODO: Move to config
+    let req_json =
+        serde_json::to_string(txn_record).context("Failed to serialize txn_record to json")?;
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(url)
+        .header("Content-Type", "application/json")
+        .body(req_json)
+        .send()
+        .await
+        .context("Request error")?;
+
+    if response.status().is_success() {
+        Ok(response.status())
+    } else {
+        Err(anyhow::anyhow!(
+            "Unexpected status code: {}",
+            response.status()
+        ))
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -16,6 +45,7 @@ mod tests {
     use primitives::Signature;
     use rand::{thread_rng, Rng};
     use secp256k1::ecdsa;
+    use tokio;
     use vrrb_core::{
         keypair::KeyPair,
         txn::{NewTxnArgs, Txn},
@@ -40,8 +70,8 @@ mod tests {
         assert_eq!(0, lrmpooldb.size());
     }
 
-    #[test]
-    fn add_a_single_txn() {
+    #[tokio::test]
+    async fn add_a_single_txn() {
         let keypair = KeyPair::random();
 
         let txn = Txn::new(NewTxnArgs {
@@ -70,8 +100,8 @@ mod tests {
         assert_eq!(1, mpooldb.size());
     }
 
-    #[test]
-    fn add_twice_same_txn() {
+    #[tokio::test]
+    async fn add_twice_same_txn() {
         let keypair = KeyPair::random();
 
         let txn = Txn::new(NewTxnArgs {
@@ -109,8 +139,8 @@ mod tests {
         assert_eq!(1, mpooldb.size());
     }
 
-    #[test]
-    fn add_two_different_txn() {
+    #[tokio::test]
+    async fn add_two_different_txn() {
         let keypair = KeyPair::random();
 
         let txn1 = Txn::new(NewTxnArgs {
@@ -158,8 +188,8 @@ mod tests {
         };
     }
 
-    #[test]
-    fn add_and_retrieve_txn() {
+    #[tokio::test]
+    async fn add_and_retrieve_txn() {
         let keypair = KeyPair::random();
 
         let sender_address = String::from("aaa1");
@@ -218,8 +248,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn add_batch_of_transactions() {
+    #[tokio::test]
+    async fn add_batch_of_transactions() {
         let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
@@ -281,8 +311,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn remove_single_txn_by_id() {
+    #[tokio::test]
+    async fn remove_single_txn_by_id() {
         let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -345,8 +375,8 @@ mod tests {
         };
     }
 
-    #[test]
-    fn remove_single_txn() {
+    #[tokio::test]
+    async fn remove_single_txn() {
         let keypair = KeyPair::random();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
