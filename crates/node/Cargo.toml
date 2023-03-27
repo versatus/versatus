@@ -64,7 +64,6 @@ quorum={ workspace = true }
 sha2 = { workspace = true }
 bulldag = { workspace = true }
 
-
 [dev-dependencies]
 reqwest = { workspace = true }
 serial_test = { workspace = true }
