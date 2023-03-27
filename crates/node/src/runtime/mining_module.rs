@@ -1,12 +1,14 @@
 use async_trait::async_trait;
 use block::{Block, convergence_block};
 use events::{DirectedEvent, Event};
+
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
+
 use vrrb_core::txn::Txn;
 use crate::EventBroadcastSender;
 
@@ -29,7 +31,6 @@ pub struct MiningModuleConfig {
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
-
 
 impl MiningModule {
     pub fn new(cfg: MiningModuleConfig) -> Self {
@@ -60,8 +61,7 @@ impl MiningModule {
     }
 
     fn mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
-        telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
-        // TODO: run a batch update to mark txns as being processed
+        info!("Marking transactions as mined until index: {}", cutoff_idx);
     }
 }
 

@@ -9,13 +9,13 @@ use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
 use tokio::sync::broadcast::error::TryRecvError;
+
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::{
     result::Result,
     EventBroadcastSender,
     NodeError,
-    RuntimeModule,
     MEMPOOL_THRESHOLD_SIZE,
 };
 
@@ -100,7 +100,7 @@ impl Handler<Event> for MempoolModule {
                 if self.mempool.size_in_kilobytes() >= MEMPOOL_THRESHOLD_SIZE
                     && self.cutoff_transaction.is_none()
                 {
-                    info!("mempool threshold reached");
+                    info!("mempool threshold reached. Dropping transaction");
                     self.cutoff_transaction = Some(txn_hash.clone());
 
                     self.events_tx

@@ -68,8 +68,6 @@ async fn nodes_can_synchronize_state() {
     }
 
     let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
-
-
     assert!(!mempool_snapshot.is_empty());
 
     ctrl_tx_1.send(Event::Stop).unwrap();

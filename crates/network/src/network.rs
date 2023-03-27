@@ -24,6 +24,7 @@ use telemetry::{error, info, instrument};
 use tokio::net::UdpSocket;
 
 use crate::{
+
     config::BroadcastError,
     message::Message,
     packet::{
@@ -98,12 +99,10 @@ impl BroadcastEngine {
             },
         )
         .await?;
-
         Ok((endpoint, incoming_connections, conn_opts))
     }
-
-    /// This function takes a vector of socket addresses and attempts to
-    /// connect to each one. If the
+    /// > This function takes a vector of socket addresses and attempts to
+    /// > connect to each one. If the
     /// connection is successful, it adds the connection to the peer connection
     /// list
     ///
@@ -137,7 +136,7 @@ impl BroadcastEngine {
         self.raptor_list.extend(address)
     }
 
-    /// This function removes a peer connection from the peer connection list
+    /// > This function removes a peer connection from the peer connection list
     ///
     /// Arguments:
     ///
@@ -213,10 +212,8 @@ impl BroadcastEngine {
     ) -> Result<BroadcastStatus> {
         let msg = Bytes::from(message.as_bytes());
         let node = self.endpoint.0.clone();
-
         let conn = node.connect_to(&addr).await?;
         let conn = conn.0;
-
         let _ = conn.send((Bytes::new(), Bytes::new(), msg.clone())).await;
 
         Ok(BroadcastStatus::Success)
@@ -228,10 +225,11 @@ impl BroadcastEngine {
     ///
     /// Arguments:
     ///
-    /// * `message`: The message to be broadcasted.
+    /// * `data`: The data to be broadcasted.
     /// * `erasure_count`: The number of packets that can be lost and still be
     ///   able to reconstruct the
-    /// original message.
+    /// original data.
+    /// * `port`: The port on which the broadcast is to be done.
     ///
     /// Returns:
     ///
@@ -285,7 +283,6 @@ impl BroadcastEngine {
         }
 
         while (futs.next().await).is_some() {}
-
         Ok(BroadcastStatus::Success)
     }
 
