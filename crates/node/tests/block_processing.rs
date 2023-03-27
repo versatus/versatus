@@ -1,4 +1,6 @@
+use kademlia_dht::Node;
 use events::Event;
+
 use node::{
     test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
     Node,
@@ -11,7 +13,6 @@ use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
-#[ignore]
 async fn process_full_node_event_flow() {
     let b_node_config = create_mock_bootstrap_node_config();
 
@@ -32,7 +33,6 @@ async fn process_full_node_event_flow() {
 
     for _ in 0..1_00 {
         let (sk, pk) = generate_account_keypair();
-
         let signature =
             sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
 
@@ -59,7 +59,4 @@ async fn process_full_node_event_flow() {
     bootstrap_ctrl_tx.send(Event::Stop).unwrap();
 
     bootstrap_handle.await.unwrap();
-
-    // TODO: remove later
-    panic!();
 }
