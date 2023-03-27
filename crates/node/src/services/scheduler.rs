@@ -27,10 +27,7 @@ use vrrb_core::{
 };
 
 
-/// `JobSchedulerController` is a struct that contains a `JobScheduler`, a
-/// `Receiver<Job>` for synchronous jobs, a `Sender<JobResult>` for synchronous
-/// jobs, a `Receiver<Job>` for asynchronous jobs, a `Sender<JobResult>` for
-/// asynchronous jobs, a `ValidatorCoreManager`, and a `StateSnapshot`.
+/// `JobSchedulerController`sends job to the job scheduler to process the job
 ///
 /// Properties:
 ///

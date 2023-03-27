@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-
 use events::{Event, PeerData, Vote};
 use primitives::{FarmerQuorumThreshold, NodeType, QuorumType};
 use serde::{Deserialize, Serialize};
@@ -13,6 +12,135 @@ pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
+/// Message types are the different types of messages that can be
+/// packed and sent across the network.
+//TODO: Convert Vec<u8>, String, u128 and other standard types with custom types
+// that better describe their purpose
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum MessageType {
+    // TxnMessage {
+    //     txn: Vec<u8>,
+    //     sender_id: String,
+    // },
+    // TxnValidatorMessage {
+    //     txn_validator: Vec<u8>,
+    //     sender_id: String,
+    // },
+    // BlockMessage {
+    //     block: Vec<u8>,
+    //     sender_id: String,
+    // },
+    // ClaimMessage {
+    //     claim: Vec<u8>,
+    //     sender_id: String,
+    // },
+    // GetNetworkStateMessage {
+    //     sender_id: String,
+    //     requested_from: String,
+    //     requestor_address: SocketAddr,
+    //     requestor_node_type: Vec<u8>,
+    //     lowest_block: u128,
+    //     component: Vec<u8>,
+    // },
+    InvalidBlockMessage {
+        block_height: u128,
+        reason: Vec<u8>,
+        miner_id: String,
+        sender_id: String,
+    },
+    DisconnectMessage {
+        sender_id: String,
+        pubkey: String,
+    },
+    StateComponentsMessage {
+        data: Vec<u8>,
+        requestor: String,
+        requestor_id: String,
+        sender_id: String,
+    },
+    GenesisMessage {
+        data: Vec<u8>,
+        requestor: String,
+        requestor_id: String,
+        sender_id: String,
+    },
+    ChildMessage {
+        data: Vec<u8>,
+        requestor: String,
+        requestor_id: String,
+        sender_id: String,
+    },
+    ParentMessage {
+        data: Vec<u8>,
+        requestor: String,
+        requestor_id: String,
+        sender_id: String,
+    },
+    LedgerMessage {
+        data: Vec<u8>,
+        requestor: String,
+        requestor_id: String,
+        sender_id: String,
+    },
+    NetworkStateMessage {
+        data: Vec<u8>,
+        requestor: String,
+        requestor_id: String,
+        sender_id: String,
+    },
+    ClaimAbandonedMessage {
+        claim: Vec<u8>,
+        sender_id: String,
+    },
+    DKGPartCommitmentMessage {
+        dkg_part_commitment: Vec<u8>,
+        sender_id: String,
+    },
+    DKGACKCommitmentMessage {
+        dkg_ack_commitment: Vec<u8>,
+        sender_id: String,
+    },
+    SendPeerIdMessage {
+        pub_key: String,
+        peer_id: PeerId,
+    },
+    ResetPeerConnectionMessage {
+        peer_id: PeerId,
+    },
+    RemovePeerMessage {
+        peer_id: PeerId,
+        socket_addr: SocketAddr,
+    },
+    AddPeerMessage {
+        peer_id: PeerId,
+        socket_addr: SocketAddr,
+    },
+    // SendChainLockSignatureMessage {
+    //     chain_lock_signature: Vec<u8>,
+    // },
+}
+
+impl MessageType {
+    /// Serialize a message to into a vector of bytes
+    pub fn as_bytes(self) -> Vec<u8> {
+        serde_json::to_string(&self).unwrap().as_bytes().to_vec()
+    }
+
+    /// Deserialize a vector of bytes into a MessageType
+    pub fn from_bytes(data: &[u8]) -> Option<MessageType> {
+        if let Ok(message) = serde_json::from_slice::<MessageType>(data) {
+            Some(message)
+        } else {
+            None
+        }
+    }
+}
+
+impl StateBlock {
+    pub fn as_bytes(&self) -> Vec<u8> {
+        serde_json::to_string(self).unwrap().as_bytes().to_vec()
+    }
+}
 
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.

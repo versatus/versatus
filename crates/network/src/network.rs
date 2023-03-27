@@ -20,7 +20,7 @@ pub use qp2p::{
 };
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info};
+use telemetry::{error, info, instrument};
 use tokio::net::UdpSocket;
 
 use crate::{
@@ -151,7 +151,6 @@ impl BroadcastEngine {
                 address != addr
             });
         }
-
         Ok(())
     }
 
@@ -290,6 +289,7 @@ impl BroadcastEngine {
         Ok(BroadcastStatus::Success)
     }
 
+
     /// It receives packets from the socket, and sends them to the reassembler
     /// thread
     ///
@@ -382,6 +382,17 @@ impl BroadcastEngine {
         self.endpoint.0.local_addr()
     }
 
+    /// > This function takes a packet index and the total number of peers and returns a list of
+    /// addresses to send the packet to
+    ///
+    /// Arguments:
+    ///
+    /// * `packet_index`: the index of the packet in the file
+    /// * `total_peers`: The total number of peers in the network
+    ///
+    /// Returns:
+    ///
+    /// A vector of socket addresses.
     fn get_address_for_packet_shards(
         &self,
         packet_index: usize,
@@ -389,15 +400,14 @@ impl BroadcastEngine {
     ) -> Vec<SocketAddr> {
         let mut addresses = Vec::new();
         let number_of_peers = (total_peers as f32 * 0.10).ceil() as usize;
-        let raptor_list_cloned: Vec<&SocketAddr> = self.raptor_list.iter().collect();
+        let raptor_list_cloned:Vec<SocketAddr> = self.raptor_list.iter().cloned().collect();
 
         for i in 0..number_of_peers {
             if let Some(address) = raptor_list_cloned.get(packet_index % (total_peers + i)) {
                 // TODO: refactor this double owning
-                addresses.push(address.to_owned().to_owned());
+                addresses.push(address.clone());
             }
         }
-
         addresses
     }
 }
