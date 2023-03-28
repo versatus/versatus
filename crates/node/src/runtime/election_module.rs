@@ -16,7 +16,6 @@ use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use vrrb_core::claim::Claim;
 
-
 pub type Seed = u64;
 
 pub trait ElectionType: Clone + Debug {}
@@ -34,7 +33,6 @@ pub struct QuorumElection;
 pub struct ElectionModuleConfig {
     pub db_read_handle: VrrbDbReadHandle,
     pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
-    pub local_claim: Claim,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -45,8 +43,8 @@ pub struct ElectionResult {
 }
 
 #[derive(Clone, Debug)]
-pub struct ElectionModule<E, T>
-where
+pub struct ElectionModule<E, T> 
+where 
     E: ElectionType,
     T: ElectionOutcome,
 {
@@ -142,7 +140,6 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
                     let claims = self.db_read_handle.claim_store_values();
                     let mut election_results: BTreeMap<U256, Claim> =
                         elect_miner(claims, header.block_seed);
-
                     let winner = get_winner(&mut election_results);
 
                     let _ = self.events_tx.send(Event::ElectedMiner(winner));

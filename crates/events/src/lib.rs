@@ -10,6 +10,7 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
+    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
@@ -23,7 +24,6 @@ use tokio::sync::{
 use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("io error: {0}")]
@@ -35,7 +35,6 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
-
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
@@ -52,7 +51,7 @@ pub struct PeerData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SyncPeerData {
-    pub address: SocketAddr,
+    pub address: String,
     pub raptor_udp_port: u16,
     pub quic_port: u16,
     pub node_type: NodeType,
@@ -71,6 +70,21 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
+    pub execution_result: Option<String>,
+    pub quorum_public_key: Vec<u8>,
+    pub quorum_threshold: usize,
+    // May want to serialize this as a vector of bytes
+    pub execution_result: Option<String>,
+}
+
+pub type SerializedConvergenceBlock = ByteVec;
+
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct BlockVote {
+    pub harvester_id: Vec<u8>,
+    pub harvester_node_id: NodeIdx,
+    pub signature: RawSignature,
+    pub convergence_block: SerializedConvergenceBlock,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
 

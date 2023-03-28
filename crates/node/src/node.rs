@@ -15,7 +15,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState, farmer_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -94,7 +94,7 @@ impl Node {
             jsonrpc_events_rx,
             dkg_events_rx,
             miner_election_events_rx,
-            quorum_election_events_rx,
+            quorum_election_events_rx
         )
         .await?;
 
