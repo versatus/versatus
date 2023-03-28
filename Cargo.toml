@@ -108,7 +108,7 @@ theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
-rendezvous_dht={git="https://github.com/vrrb-io/rendezvous_dht"}
+rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
@@ -198,7 +198,6 @@ timer = "0.2.0"
 laminar = "0.5.0"
 futures = { version = "0.3.24", features = ["thread-pool"] }
 qp2p = "0.30.0"
-
 
 [dev-dependencies]
 cuckoofilter.workspace = true
