@@ -1,4 +1,5 @@
 use std::thread;
+
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
@@ -83,7 +84,7 @@ impl FarmerModule {
         async_jobs_status_receiver: Receiver<JobResult>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
-        let farmer = Self {
+        let mut farmer = Self {
             sig_provider,
             tx_mempool: lrmpooldb,
             status: ActorState::Stopped,
@@ -113,13 +114,9 @@ impl FarmerModule {
     /// of the network.
     /// * `sync_jobs_status_receiver`: This is a channel that receives the
     ///   results of the sync jobs.
-    fn process_sync_job_status(
-        &mut self,
-        broadcast_events_tx: UnboundedSender<DirectedEvent>,
-        sync_jobs_status_receiver: Receiver<JobResult>,
-    ) {
+    pub fn process_sync_job_status(&mut self, broadcast_events_tx: UnboundedSender<DirectedEvent>) {
         loop {
-            let job_result = sync_jobs_status_receiver.recv().unwrap();
+            let job_result = self.sync_jobs_status_receiver.recv().unwrap();
             match job_result {
                 JobResult::Votes((votes, farmer)) => {
                     for vote_opt in votes.iter() {

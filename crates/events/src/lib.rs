@@ -135,7 +135,6 @@ pub enum Event {
     CheckAbandoned,
     SyncPeers(Vec<SyncPeerData>),
     PeerRequestedStateSync(PeerData),
-
     //Event to tell Farmer node to sign the Transaction
     //the validator module has validated this transaction
     ValidTxn(TransactionDigest),
@@ -266,7 +265,7 @@ impl EventRouter {
     #[deprecated]
     pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {}
 
-    pub fn subscribe(&self) -> Receiver<Event> {
+    pub fn subscribe(&self, x: &Topic) -> Receiver<Event> {
         self.sender.subscribe()
     }
 
@@ -343,8 +342,6 @@ mod tests {
 #[deprecated(note = "use Event instead")]
 #[derive(Debug, Clone)]
 pub enum Command {
-    //TODO: Replace standard types with custom types for better readability
-    // and to help engineers understand what the hell these items are.
     SendTxn(u32, String, u128), // address number, receiver address, amount
     ProcessTxn(Vec<u8>),
     ProcessTxnValidator(Vec<u8>),

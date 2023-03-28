@@ -44,7 +44,7 @@ use crate::{
 
 
 /// `HarvesterModule` is responsible for
-/// 1. for collecting votes from farmers and then certify the Txns
+/// 1. To collect votes from farmers and then certify the Txns
 /// 2. Certify convergence block
 ///
 /// Properties:
@@ -69,8 +69,8 @@ use crate::{
 /// * `broadcast_events_tx`: This is the channel that the HarvesterModule uses
 ///   to send events to the
 /// EventHandler.
-/// * `clear_filter_rx`: This is a channel that the Harvester listens on for a
-///   message to clear the
+/// * `events_rx`: This is a channel that the Harvester listens on for a message
+///   to clear the
 /// certified_txns_filter.
 /// * `quorum_threshold`: QuorumThreshold - The threshold of votes required to
 ///   certify a transaction.
@@ -91,7 +91,7 @@ pub struct HarvesterModule {
     label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: UnboundedSender<DirectedEvent>,
-    clear_filter_rx: UnboundedReceiver<DirectedEvent>,
+    events_rx: UnboundedReceiver<DirectedEvent>,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
@@ -105,8 +105,8 @@ impl HarvesterModule {
         certified_txns_filter: Bloom,
         sig_provider: Option<SignatureProvider>,
         group_public_key: GroupPublicKey,
+        events_rx: UnboundedReceiver<DirectedEvent>,
         broadcast_events_tx: UnboundedSender<DirectedEvent>,
-        clear_filter_rx: UnboundedReceiver<DirectedEvent>,
         quorum_threshold: HarvesterQuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
@@ -126,7 +126,7 @@ impl HarvesterModule {
             id: uuid::Uuid::new_v4().to_string(),
             group_public_key,
             broadcast_events_tx: broadcast_events_tx.clone(),
-            clear_filter_rx,
+            events_rx,
             quorum_threshold,
             votes_pool: DashMap::new(),
             sync_jobs_sender,
@@ -313,9 +313,9 @@ mod tests {
     #[tokio::test]
     async fn harvester_runtime_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (_, events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
 
         let (sync_jobs_status_sender, sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
@@ -325,8 +325,8 @@ mod tests {
             Bloom::new(10000),
             None,
             vec![],
+            events_rx,
             broadcast_events_tx,
-            clear_filter_rx,
             2,
             sync_jobs_sender,
             async_jobs_sender,

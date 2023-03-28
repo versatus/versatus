@@ -21,7 +21,8 @@ pub use crate::node::*;
 pub(crate) type EventBroadcastSender = tokio::sync::mpsc::UnboundedSender<DirectedEvent>;
 pub(crate) type EventBroadcastReceiver = tokio::sync::broadcast::Receiver<Event>;
 
+pub(crate) type EventBroadcastReceiver = tokio::sync::mpsc::UnboundedReceiver<DirectedEvent>;
+
 /// The maximum size in kilobytes of transactions that can be in the mempool at
 /// any given time.
 pub(crate) const MEMPOOL_THRESHOLD_SIZE: usize = 2048;
-

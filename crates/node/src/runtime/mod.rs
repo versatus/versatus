@@ -2,12 +2,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use bulldag::graph::BullDag;
 use block::Block;
-
-use events::{Event, EventRouter};
+use events::{DirectedEvent, Event, EventRouter};
+use crossbeam_channel::Sender;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::network::BroadcastEngine;
-use primitives::{Address, QuorumType::Farmer};
+use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::{
     storage_utils,
     vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
@@ -18,11 +18,18 @@ use tokio::{
     sync::{
         broadcast::Receiver,
         mpsc::UnboundedSender,
+
     },
     task::JoinHandle,
 };
+use tokio::sync::mpsc::UnboundedReceiver;
+use validator::{
+    txn_validator::{StateSnapshot, TxnValidator},
+    validator_core_manager::ValidatorCoreManager,
+};
 use vrrb_config::NodeConfig;
 use vrrb_core::claim::Claim;
+use vrrb_core::bloom::Bloom;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -40,9 +47,13 @@ use self::{
     state_module::StateModule
 };
 use crate::{
-    EventBroadcastSender,
     broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
     dkg_module::DkgModuleConfig,
+    scheduler,
+    scheduler::{Job, JobResult},
+    EventBroadcastReceiver,
+    EventBroadcastSender,
+    Node,
     NodeError,
     Result,
 };
@@ -71,8 +82,12 @@ pub async fn setup_runtime_components(
     dkg_events_rx: Receiver<Event>,
     miner_election_events_rx: Receiver<Event>,
     quorum_election_events_rx: Receiver<Event>,
+    farmer_events_rx: Receiver<Event>,
+    harvester_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -169,6 +184,55 @@ pub async fn setup_runtime_components(
         state_read_handle.clone(),
         claim.clone(),
     )?;
+    let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+    let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+
+
+    let (farmer_sync_jobs_status_sender, farmer_sync_jobs_status_receiver) =
+        crossbeam_channel::unbounded::<JobResult>();
+    let (farmer_async_jobs_status_sender, farmer_async_jobs_status_receiver) =
+        crossbeam_channel::unbounded::<JobResult>();
+
+    let (harvester_sync_jobs_status_sender, harvester_sync_jobs_status_receiver) =
+        crossbeam_channel::unbounded::<JobResult>();
+    let (harvester_async_jobs_status_sender, harvester_async_jobs_status_receiver) =
+        crossbeam_channel::unbounded::<JobResult>();
+
+    let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+
+
+    let farmer_handle = setup_farmer_module(
+        &config,
+        sync_jobs_sender.clone(),
+        async_jobs_sender.clone(),
+        farmer_sync_jobs_status_receiver,
+        farmer_async_jobs_status_receiver,
+        events_tx.clone(),
+        farmer_events_rx,
+    )?;
+
+    let harvester_handle = setup_harvester_module(
+        sync_jobs_sender,
+        async_jobs_sender,
+        harvester_sync_jobs_status_receiver,
+        harvester_async_jobs_status_receiver,
+        events_tx.clone(),
+        events_rx,
+        harvester_events_rx,
+    )?;
+
+    /*
+    let scheduler_handle = setup_scheduler_module(
+        &config,
+        if config.node_type==NodeType::Farmer{farmer_sync_jobs_receiver}else{harvester_sync_jobs_receiver},
+        if config.node_type==NodeType::Farmer{farmer_async_jobs_receiver}else{harvester_async_jobs_receiver},
+        if config.node_type==NodeType::Farmer{farmer_sync_jobs_status_sender}else{harvester_sync_jobs_status_sender},
+        if config.node_type==NodeType::Farmer{farmer_async_jobs_status_sender}else{harvester_async_jobs_status_sender},
+        ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap(),
+
+    )?;
+
+     */
     Ok((
         config,
         mempool_handle,
@@ -179,6 +243,8 @@ pub async fn setup_runtime_components(
         dkg_handle,
         miner_election_handle,
         quorum_election_handle,
+        farmer_handle,
+        harvester_handle,
     ))
 }
 
@@ -439,13 +505,103 @@ fn setup_quorum_election_module(
     return Ok(Some(quorum_election_module_handle));
 }
 
-fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
-    Ok(None)
+
+fn setup_farmer_module(
+    config: &NodeConfig,
+    sync_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
+    sync_jobs_receiver: crossbeam_channel::Receiver<JobResult>,
+    async_jobs_receiver: crossbeam_channel::Receiver<JobResult>,
+    mut events_tx: EventBroadcastSender,
+    mut farmer_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let mut module = farmer_module::FarmerModule::new(
+        None,
+        vec![],
+        config.keypair.get_peer_id().into_bytes(),
+        0,
+        events_tx.clone(),
+        1,
+        sync_jobs_sender,
+        async_jobs_sender,
+        sync_jobs_receiver,
+        async_jobs_receiver,
+    );
+
+    let mut farmer_module_actor = ActorImpl::new(module);
+    let farmer_handle = tokio::spawn(async move {
+        farmer_module_actor
+            .start(&mut farmer_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+    return Ok(Some(farmer_handle));
 }
 
-fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
-    Ok(None)
+fn setup_harvester_module(
+    sync_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
+    sync_jobs_receiver: crossbeam_channel::Receiver<JobResult>,
+    async_jobs_receiver: crossbeam_channel::Receiver<JobResult>,
+    mut broadcast_events_tx: EventBroadcastSender,
+    mut events_rx: UnboundedReceiver<DirectedEvent>,
+    mut harvester_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let mut module = harvester_module::HarvesterModule::new(
+        Bloom::new(10000),
+        None,
+        vec![],
+        events_rx,
+        broadcast_events_tx,
+        1,
+        sync_jobs_sender,
+        async_jobs_sender,
+        sync_jobs_receiver,
+        async_jobs_receiver,
+    );
+
+    let mut harvester_module_actor = ActorImpl::new(module);
+    let harvester_handle = tokio::spawn(async move {
+        harvester_module_actor
+            .start(&mut harvester_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+    return Ok(Some(harvester_handle));
 }
+
+/*
+fn setup_scheduler_module(
+    config: &NodeConfig,
+    sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
+    async_jobs_receiver: crossbeam_channel::Receiver<Job>,
+    sync_jobs_outputs_sender: crossbeam_channel::Sender<JobResult>,
+    async_jobs_outputs_sender: crossbeam_channel::Sender<JobResult>,
+    validator_core_manager: ValidatorCoreManager,
+    state_snapshot: &StateSnapshot,
+    mut scheduler_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let mut module = scheduler::JobSchedulerController::new(
+        hex::decode(config.keypair.get_peer_id()).unwrap(),
+        sync_jobs_receiver,
+        async_jobs_receiver,
+        sync_jobs_outputs_sender,
+        async_jobs_outputs_sender,
+        validator_core_manager,
+        state_snapshot,
+    );
+
+    let mut scheduler_module_actor = ActorImpl::new(module);
+    let scheduler_handle = tokio::spawn(async move {
+        scheduler_module_actor
+            .start(&mut scheduler_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+    return Ok(Some(scheduler_handle));
+}
+
+*/
 
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
