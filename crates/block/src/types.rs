@@ -16,6 +16,7 @@ use vrrb_core::{
     txn::{Txn, TransactionDigest},
 };
 use tokio::task::JoinHandle;
+use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;

@@ -81,10 +81,10 @@ pub struct RunOpts {
     pub disable_networking: bool,
 
     #[clap(long, value_parser ,default_value=DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
-    pub rendezvous_local_address: SocketAddr,
+    pub rendzevous_local_address: SocketAddr,
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
-    pub rendezvous_server_address: SocketAddr,
+    pub rendzevous_server_address: SocketAddr,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -155,8 +155,8 @@ impl Default for RunOpts {
             http_api_title: Default::default(),
             http_api_version: Default::default(),
             disable_networking: Default::default(),
-            rendezvous_local_address: ipv4_localhost_with_random_port,
-            rendezvous_server_address: ipv4_localhost_with_random_port,
+            rendzevous_local_address: ipv4_localhost_with_random_port,
+            rendzevous_server_address: ipv4_localhost_with_random_port,
         }
     }
 }
@@ -240,8 +240,8 @@ impl RunOpts {
             http_api_title,
             http_api_version,
             disable_networking: false,
-            rendezvous_local_address: other.rendezvous_local_address,
-            rendezvous_server_address: other.rendezvous_server_address,
+            rendzevous_local_address: other.rendzevous_local_address,
+            rendzevous_server_address: other.rendzevous_server_address,
         }
     }
 }
