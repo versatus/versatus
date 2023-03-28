@@ -37,6 +37,14 @@ impl VrrbDbConfig {
     }
 }
 
+impl VrrbDbConfig {
+    pub fn with_path(&mut self, path: PathBuf) -> Self {
+        self.path = path;
+
+        self.clone()
+    }
+}
+
 impl Default for VrrbDbConfig {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
@@ -86,23 +94,8 @@ impl VrrbDb {
         transaction_store: TransactionStore,
         claim_store: ClaimStore,
     ) -> Self {
-        Self {
-            state_store,
-            transaction_store,
-            claim_store,
-        }
-    }
-
-    pub fn state_store(&self) -> &StateStore {
-        &self.state_store
-    }
-
-    pub fn transaction_store(&self) -> &TransactionStore {
-        &self.transaction_store
-    }
-
-    pub fn claim_store(&self) -> &ClaimStore {
         &self.claim_store
+        &self.claim_store 
     }
 
     /// Returns the current state store trie's root hash.

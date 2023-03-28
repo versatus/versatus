@@ -179,3 +179,14 @@ impl From<Keypair> for Claim {
         )
     }
 }
+
+
+impl From<Keypair> for Claim {
+    fn from(item: Keypair) -> Claim {
+        Claim::new(
+           item.miner_kp.1.to_string(),
+           Address::new(item.miner_kp.1).to_string(),
+           0
+        )
+    }
+}

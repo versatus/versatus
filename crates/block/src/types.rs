@@ -41,6 +41,7 @@ use vrrb_core::{
     verifiable::Verifiable,
 };
 use tokio::task::JoinHandle;
+use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;

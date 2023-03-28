@@ -190,7 +190,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send(Event::SyncPeers(peers));
+                                                .send((Topic::Network, Event::SyncPeers(peers)));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -263,13 +263,12 @@ impl DkgModule {
                             },
                                           recv(rx2) ->_ =>   {
                 match self.dkg_engine.dkg_state.public_key_set.clone() {
-                                Some(quorum_key) => {
+                    Some(quorum_key) => {
                                     // Sending a request to the rendezvous server to register the namespace
-                                    if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
-                                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                                            quorum_key.public_key().to_bytes().to_vec(),
-                                        ))){
-                                                   let _ = sender.send(Packet::reliable_ordered(
+                        if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
+                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                                quorum_key.public_key().to_bytes().to_vec(),))) {
+                                   let _ = sender.send(Packet::reliable_ordered(
                                         self.rendezvous_server_addr,
                                         data,
                                         None,
@@ -278,54 +277,54 @@ impl DkgModule {
                                 }
 
 
-                                    if let Some(secret_key_share) = &self.dkg_engine.dkg_state.secret_key_share
-                                    {
-                                        // Generating a random string of 15 characters as payload.
-                                        let message: String = rand::thread_rng()
-                                            .sample_iter(&Alphanumeric)
-                                            .take(15)
-                                            .map(char::from)
-                                            .collect();
-                                        let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
-                                            m
-                                        } else {
-                                            vec![]
-                                        };
-                                        let signature =
-                                            secret_key_share.sign(message.clone()).to_bytes().to_vec();
-                                        /// Sending the Register Peer Payload   to the rendezvous server.
-                                        let payload_result = bincode::serialize(&Data::Request(
-                                            RendezvousRequest::RegisterPeer(
-                                                quorum_key.public_key().to_bytes().to_vec(),
-                                                self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                                                secret_key_share.public_key_share().to_bytes().to_vec(),
-                                                signature,
-                                                msg_bytes,
-                                                SyncPeerData {
-                                                    address: self.rendezvous_local_addr,
-                                                    raptor_udp_port: self.rendezvous_local_addr.port(),
-                                                    quic_port: self.quic_port,
-                                                    node_type: self.dkg_engine.node_type,
-                                                },
-                                            ),
+                                if let Some(secret_key_share) = &self.dkg_engine.dkg_state.secret_key_share
+                                {
+                                    // Generating a random string of 15 characters as payload.
+                                    let message: String = rand::thread_rng()
+                                        .sample_iter(&Alphanumeric)
+                                        .take(15)
+                                        .map(char::from)
+                                        .collect();
+                                    let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
+                                        m
+                                    } else {
+                                        vec![]
+                                    };
+                                    let signature =
+                                        secret_key_share.sign(message.clone()).to_bytes().to_vec();
+                                    /// Sending the Register Peer Payload   to the rendezvous server.
+                                    let payload_result = bincode::serialize(&Data::Request(
+                                        RendezvousRequest::RegisterPeer(
+                                            quorum_key.public_key().to_bytes().to_vec(),
+                                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                                            secret_key_share.public_key_share().to_bytes().to_vec(),
+                                            signature,
+                                            msg_bytes,
+                                            SyncPeerData {
+                                                address: self.rendezvous_local_addr,
+                                                raptor_udp_port: self.rendezvous_local_addr.port(),
+                                                quic_port: self.quic_port,
+                                                node_type: self.dkg_engine.node_type,
+                                            },
+                                        ),
+                                    ));
+                                    if let Ok(payload) = payload_result {
+                                        let _ = sender.send(Packet::reliable_ordered(
+                                            self.rendezvous_server_addr,
+                                            payload,
+                                            None,
                                         ));
-                                        if let Ok(payload) = payload_result {
-                                            let _ = sender.send(Packet::reliable_ordered(
-                                                self.rendezvous_server_addr,
-                                                payload,
-                                                None,
-                                            ));
-                                        }
                                     }
                                 }
-                                None => {
-                                    error!("Cannot proceed with registration since current node is not part of any quorum");
-                                }
                             }
+                            None => {
+                                error!("Cannot proceed with registration since current node is not part of any quorum");
+                            }
+                        }
 
-                            break;
-                            },
-                                }
+                        break;
+                    },
+                }
             }
         }
     }
@@ -362,6 +361,8 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
+
+>>>>>>> d47861a (Feat change claimpointers to xor (#205))
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {

@@ -92,7 +92,7 @@ impl Handler<Event> for MempoolModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
-                    .send(Event::TxnAddedToMempool(txn_hash.clone()))
+                    .send((Topic::Consensus, Event::TxnAddedToMempool(txn_hash.clone())))
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Transaction {} sent to mempool", txn_hash);

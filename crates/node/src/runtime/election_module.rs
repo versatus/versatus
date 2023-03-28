@@ -202,7 +202,6 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
                 }
 
             },
-
             _ => {},
         }
 
