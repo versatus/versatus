@@ -68,6 +68,7 @@ impl Claim {
     // has been discovered, or returning None if we can't match a character.
     #[deprecated(note = "Please use get_election_result")]
     pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
+        
         // get the hexadecimal format of the block seed
         let block_seed_hex = format!("{block_seed:x}");
         // Get the length of the hexadecimal representation of the block seed
@@ -174,6 +175,17 @@ impl From<Keypair> for Claim {
         Claim::new(
            item.miner_kp.1.to_string(),
            Address::new(item.miner_kp.1).to_string(),
+        )
+    }
+}
+
+
+impl From<Keypair> for Claim {
+    fn from(item: Keypair) -> Claim {
+        Claim::new(
+           item.miner_kp.1.to_string(),
+           Address::new(item.miner_kp.1).to_string(),
+           0
         )
     }
 }

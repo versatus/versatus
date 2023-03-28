@@ -44,6 +44,7 @@ pub struct ElectionResult {
 }
 
 #[derive(Clone, Debug)]
+<<<<<<< HEAD
 pub struct ElectionModule<E, T>
 where
     E: ElectionType,

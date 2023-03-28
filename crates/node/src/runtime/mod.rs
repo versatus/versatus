@@ -31,7 +31,7 @@ use self::{
     },
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule,
+    state_module::StateModule, election_module::{ElectionModuleConfig, ElectionModule, QuorumElection, QuorumElectionResult, ConflictResolutionResult, ConflictResolution},
 };
 use crate::{
     EventBroadcastSender,
@@ -52,6 +52,7 @@ pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
+pub mod election_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -267,8 +268,7 @@ async fn setup_rpc_api_server(
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: Receiver<Event>,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-    let jsonrpc_server_config = JsonRpcServerConfig {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> { let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
         node_type: config.node_type,
         events_tx,
@@ -353,8 +353,8 @@ fn setup_dkg_module(
             /* Need to be decided either will be preconfigured or decided
              * by Bootstrap Node */
         },
-        config.rendezvous_local_address,
-        config.rendezvous_local_address,
+        config.rendzevous_local_address,
+        config.rendzevous_local_address,
         config.udp_gossip_address.port(),
         events_tx,
     );

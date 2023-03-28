@@ -15,7 +15,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState, farmer_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
