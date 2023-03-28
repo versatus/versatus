@@ -51,7 +51,10 @@ impl MiningModule {
         // TODO: drain mempool instead then commit changes
         handle
             .drain(..cutoff_idx)
-            .map(|(id, record)| record.txn)
+            .map(|(id, record)| {
+                dbg!(id);
+                record.txn
+            })
             .collect()
     }
 
@@ -97,12 +100,17 @@ impl Handler<Event> for MiningModule {
                 return Ok(ActorState::Stopped);
             },
             // Event::TxnAddedToMempool(txn_digest) => {
-            Event::TxnAddedToMempool(_) => {},
+            Event::TxnAddedToMempool(_) => {
+                // dbg!(txn_digest.to_string());
+            },
             Event::MempoolSizeThesholdReached { cutoff_transaction } => {
                 let handle = self.mempool_read_handle_factory.handle();
 
                 if let Some(idx) = handle.get_index_of(&cutoff_transaction) {
+                    dbg!(handle.len());
                     let transaction_snapshot = self.take_snapshot_until_cutoff(idx);
+                    dbg!(transaction_snapshot.len());
+                    dbg!(handle.len());
 
                     self.mark_snapshot_transactions(idx);
                 } else {
@@ -111,7 +119,12 @@ impl Handler<Event> for MiningModule {
                     );
                 }
             },
+            Event::MinerElection() => {
+                
+            },
+            Event::ResolvedConflict(conflict) => {
 
+            }
             Event::BlockConfirmed(_) => {
                 // do something
             },
