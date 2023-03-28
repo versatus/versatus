@@ -1,8 +1,6 @@
 use std::net::AddrParseError;
 
-use events::DirectedEvent;
 use network::{config::BroadcastError, types::config::BroadCastError};
-use theater::TheaterError;
 use thiserror::Error;
 use tokio::sync::{
     broadcast::error::RecvError,
@@ -30,16 +28,7 @@ pub enum NodeError {
     TryRecv(#[from] TryRecvError),
 
     #[error("{0}")]
-    MpscSend(#[from] SendError<DirectedEvent>),
-
-    #[error("{0}")]
-    Theater(#[from] theater::TheaterError),
-
-    #[error("{0}")]
     Event(#[from] events::Error),
-
-    #[error("{0}")]
-    BroadcastRecv(#[from] RecvError),
 
     #[error("{0}")]
     Core(#[from] vrrb_core::Error),

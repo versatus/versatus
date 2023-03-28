@@ -163,7 +163,7 @@ impl DkgEngine {
     }
 
     /// It clears the state of the DKG. it happens during change of Epoch
-    pub fn clear_dkg_state(&mut self) {
+    pub fn clear_state(&mut self) {
         self.dkg_state.part_message_store.clear();
         self.dkg_state.ack_message_store.clear();
         self.dkg_state.sync_key_gen = None;
