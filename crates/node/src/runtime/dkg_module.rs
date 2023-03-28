@@ -190,7 +190,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send(Event::SyncPeers(peers));
+                                                .send((Topic::Network, Event::SyncPeers(peers)));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -302,7 +302,7 @@ impl DkgModule {
                                                 signature,
                                                 msg_bytes,
                                                 SyncPeerData {
-                                                    address: self.rendzevous_local_addr,
+                                                    address: self.rendzevous_local_addr.to_string(),
                                                     raptor_udp_port: self.rendzevous_local_addr.port(),
                                                     quic_port: self.quic_port,
                                                     node_type: self.dkg_engine.node_type,
@@ -329,6 +329,37 @@ impl DkgModule {
             }
         }
     }
+}
+
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Data {
+    Request(RendezvousRequest),
+    Response(RendezvousResponse),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousRequest {
+    Ping,
+    Peers(Vec<u8>),
+    Namespace(NodeTypeBytes, QuorumPublicKey),
+    RegisterPeer(
+        QuorumPublicKey,
+        NodeTypeBytes,
+        PKShareBytes,
+        RawSignature,
+        PayloadBytes,
+        SyncPeerData,
+    ),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousResponse {
+    Pong,
+    RequestPeers(QuorumPublicKey),
+    Peers(Vec<SyncPeerData>),
+    PeerRegistered,
+    NamespaceRegistered,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -361,6 +392,8 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
+
+>>>>>>> d47861a (Feat change claimpointers to xor (#205))
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {
