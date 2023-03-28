@@ -182,7 +182,7 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
                     let winner = {
                         let mut tmp: (u128, NodeId);
                         while let Some((ps, node_id)) = ps_iter.next() {
-                            if k.is_some() { 
+                            if ps.is_some() { 
                                 tmp = (*ps, node_id.to_string());
                                 break
                             }
