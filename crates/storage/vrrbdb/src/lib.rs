@@ -1,3 +1,5 @@
+
+mod claim_store;
 mod event_store;
 pub mod result;
 mod rocksdb_adapter;
@@ -7,6 +9,7 @@ mod vrrbdb;
 mod vrrbdb_read_handle;
 mod vrrbdb_serialized_values;
 
+pub use claim_store::*;
 pub use event_store::*;
 pub use rocksdb_adapter::*;
 pub use state_store::*;
