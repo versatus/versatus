@@ -35,7 +35,7 @@ use vrrb_core::{
     accountable::Accountable,
     claim::Claim,
     keypair::KeyPair,
-    txn::Txn,
+    txn::{Txn, TransactionDigest},
     verifiable::Verifiable,
 };
 
@@ -53,7 +53,6 @@ pub const EPOCH_BLOCK: u32 = 30_000_000;
 
 pub type CurrentUtility = i128;
 pub type NextEpochAdjustment = i128;
-pub type TxnId = String;
 pub type ClaimHash = String;
 pub type RefHash = String;
 pub type TxnList = LinkedHashMap<TxnId, Txn>;
@@ -78,7 +77,7 @@ pub struct Certificate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Conflict {
-    pub txn_id: TxnId,
+    pub txn_id: TransactionDigest,
     pub proposers: HashSet<(Claim, RefHash)>,
     pub winner: Option<RefHash>,
 }

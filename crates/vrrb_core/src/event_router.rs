@@ -7,9 +7,11 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
+    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
+    TransactionDigest,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
@@ -28,6 +30,9 @@ use crate::{
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
+pub type BlockBytes = Vec<u8>;
+pub type HeaderBytes = Vec<u8>;
+pub type ConflictBytes = Vec<u8>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
@@ -49,6 +54,7 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
+    pub execution_result: Option<String>,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
 }
@@ -136,6 +142,10 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
+    MinerElection(HeaderBytes),
+    QuorumElection(HeaderBytes),
+    ConflictResolution(ConflictBytes, HeaderBytes),
+
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),

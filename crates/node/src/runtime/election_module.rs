@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
+use block::header::BlockHeader;
 use telemetry::info;
 use async_trait::async_trait;
 use primitives::NodeId;
@@ -161,13 +162,35 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
 
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
-            //TODO: Implement
-            Event::Election(block) => {
-                let accounts = self.db_read_handle.state_store_values();
-                accounts.iter().map(|addr, acct| {
-                    account.claim.
-                })  
-                
+            Event::MinerElection(header_bytes) => {
+                let header_result: Result<BlockHeader> = serde_json::from_slice(
+                    &header_bytes
+                );
+                if let Ok(header) = header_result {
+                    let claims = self.db_read_handle.claim_store_values();
+                    let pointer_sums: BTreeMap<Option<u128>, String> = claims.iter()
+                        .filter(|(_, claim)| claim.eligible)
+                        .map(
+                            |(nodeid, claim)| {
+                                (claim.get_pointer(
+                                    header.next_block_seed
+                                ), node_id.clone())
+                        }
+                    ).collect();
+                    
+                    let ps_iter = pointer_sums.iter();
+                    let winner = {
+                        let mut tmp: (u128, NodeId);
+                        while let Some((ps, node_id)) = ps_iter.next() {
+                            if k.is_some() { 
+                                tmp = (*ps, node_id.to_string());
+                                break
+                            }
+                        }
+                       
+                        tmp
+                    };
+                }
             }
             _ => {},
         }
