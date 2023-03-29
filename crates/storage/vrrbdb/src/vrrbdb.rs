@@ -65,7 +65,11 @@ impl VrrbDb {
     }
 
     pub fn read_handle(&self) -> VrrbDbReadHandle {
-        VrrbDbReadHandle::new(self.state_store.factory(), self.transaction_store_factory())
+        VrrbDbReadHandle::new(
+            self.state_store.factory(), 
+            self.transaction_store_factory(),
+            self.claim_store_factory(),
+            )
     }
 
     pub fn new_with_stores(
