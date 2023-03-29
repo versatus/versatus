@@ -2,6 +2,7 @@ use patriecia::db::Database;
 use primitives::{base, get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
 use storage_utils::{get_node_data_dir, StorageError};
+use telemetry::error;
 
 #[derive(Debug)]
 pub struct RocksDbAdapter {
@@ -23,7 +24,8 @@ fn base_db_options() -> rocksdb::Options {
             let log_path = node_data_dir.join("db").join("log");
             options.set_db_log_dir(log_path);
         },
-        Err(_) => {
+        Err(err) => {
+            error!("could not get node data directory: {}", err);
             let default_data_dir = std::path::PathBuf::default();
             let log_path = default_data_dir.join("db").join("log");
             options.set_db_log_dir(log_path);
@@ -40,7 +42,10 @@ fn new_db_instance(
 ) -> storage_utils::Result<DB> {
     let cfs = match rocksdb::DB::list_cf(&options, &path) {
         Ok(cfs) => cfs,
-        Err(_) => vec![],
+        Err(err) => {
+            error!("could not create new db instance: {}", err.into_string());
+            vec![]
+        },
     };
 
 
