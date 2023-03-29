@@ -5,7 +5,7 @@ use bytes::Bytes;
 use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
-    network::BroadcastEngine,
+    network::{BroadcastEngine, ConnectionIncoming},
 };
 use primitives::{NodeType, PeerId};
 use telemetry::{error, info, warn};
@@ -22,7 +22,7 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use crate::{NodeError, Result, RuntimeModule, RuntimeModuleState};
+use crate::{EventBroadcastReceiver, EventBroadcastSender, NodeError, Result, RuntimeModule};
 
 pub const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10000;
 
@@ -34,103 +34,95 @@ const RAPTOR_ERASURE_COUNT: u32 = 3000;
 pub struct BroadcastEngineController {
     addr: SocketAddr,
     engine: BroadcastEngine,
+    events_tx: EventBroadcastSender,
+    // events_rx: EventBroadcastReceiver,
+}
+
+#[derive(Debug)]
+pub struct BroadcastEngineControllerConfig {
+    pub engine: BroadcastEngine,
+    pub events_tx: EventBroadcastSender,
 }
 
 impl BroadcastEngineController {
-    pub fn new(engine: BroadcastEngine) -> Self {
+    pub fn new(config: BroadcastEngineControllerConfig) -> Self {
+        let engine = config.engine;
         let addr = engine.local_addr();
-        Self { engine, addr }
-    }
+        let events_tx = config.events_tx;
 
-    pub async fn listen(&self) {
-        loop {
-            // TODO: refactor this loop and these functions to adapt to tokio select
-            tokio::select! {
-                Ok(v) = self.listen_for_network_events().await => self.handle_network_event(v).await,
-                Some(v) = self.listen_for_internal_events().await => self.handle_internal_event(v).await,
-                else => break,
-            }
+        Self {
+            engine,
+            addr,
+            events_tx,
         }
     }
 
-    async fn handle_network_event(&self, message: Message) -> Option<()> {
-        todo!()
-    }
-
-    async fn handle_internal_event(&self, event: Event) -> Option<()> {
-        todo!()
-    }
-
-    /// Turns connection data into message then returns it
-    async fn listen_for_network_events(&mut self) -> Result<Message> {
-        if let Some((conn, mut conn_incoming)) =
-            self.engine.get_incomming_connections().next().await
-        {
-            let res = conn_incoming.next().await.map_err(|err| {
-                NodeError::Other(format!("unable to listen for new connections: {err}"))
-            })?;
-
-            let (_, _, raw_message) = res.unwrap_or((Bytes::new(), Bytes::new(), Bytes::new()));
-            let message = Message::from(raw_message.to_vec());
-            return Ok(message);
-        }
-
-        Err(NodeError::Other("No message received".to_string()))
-    }
-
-    async fn listen_for_internal_events(&mut self) -> Result<Event> {
-        todo!();
-        // Err(NodeError::Other("No event received".to_string()))
-    }
-
-    async fn listen_for_network_events_(
+    pub async fn listen(
         &mut self,
-        tx: Sender<Event>,
-        rx: Receiver<Event>,
+        mut events_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {
-        let listener = self.engine.get_incomming_connections();
+        loop {
+            tokio::select! {
+                Some((conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
+                match self.map_network_conn_to_message(conn_incoming).await {
+                    Ok(message) => {
+                        self.handle_network_event(message).await;
+                    },
+                     Err(err) => {
+                        error!("unable to map connection into message: {err}");
+                    }
+                  }
 
-        while let Some((conn, mut conn_incoming)) = listener.next().await {
-            let res = conn_incoming.next().await.map_err(|err| {
-                NodeError::Other(format!("unable to listen for new connections: {err}"))
-            })?;
-
-            let (_, _, raw_message) = res.unwrap_or((Bytes::new(), Bytes::new(), Bytes::new()));
-
-            let message = Message::from(raw_message.to_vec());
-
-            // let body = message.data;
-
-            match message.data {
-                MessageBody::InvalidBlock { .. } => {},
-                MessageBody::Disconnect { .. } => {},
-                MessageBody::StateComponents { .. } => {},
-                MessageBody::Genesis { .. } => {},
-                MessageBody::Child { .. } => {},
-                MessageBody::Parent { .. } => {},
-                MessageBody::Ledger { .. } => {},
-                MessageBody::NetworkState { .. } => {},
-                MessageBody::ClaimAbandoned { .. } => {},
-                MessageBody::ResetPeerConnection { .. } => {},
-                MessageBody::RemovePeer { .. } => {},
-                MessageBody::AddPeer { .. } => {},
-                MessageBody::DKGPartCommitment {
-                    part_commitment,
-                    sender_id,
-                } => {},
-                MessageBody::DKGPartAcknowledgement { .. } => {},
-                MessageBody::Vote { .. } => {},
-                MessageBody::Empty => {},
-            }
-            // if let Err(err) = tx.send(body.into()).await {
-            //     error!("failed to forward data received from network:
-            // {err}"); }
+                },
+                Some(event) = events_rx.recv() => {
+                    if matches!(event, Event::Stop) {
+                        info!("Stopping broadcast controller");
+                        break
+                        // return Ok(());
+                    }
+                    self.handle_internal_event(event).await;
+                },
+                // else => break,
+            };
         }
 
         Ok(())
     }
 
-    async fn listen_to_internal_events(&self, event: Event) -> Result<()> {
+    async fn handle_network_event(&self, message: Message) -> Result<()> {
+        match message.data {
+            MessageBody::InvalidBlock { .. } => {},
+            MessageBody::Disconnect { .. } => {},
+            MessageBody::StateComponents { .. } => {},
+            MessageBody::Genesis { .. } => {},
+            MessageBody::Child { .. } => {},
+            MessageBody::Parent { .. } => {},
+            MessageBody::Ledger { .. } => {},
+            MessageBody::NetworkState { .. } => {},
+            MessageBody::ClaimAbandoned { .. } => {},
+            MessageBody::ResetPeerConnection { .. } => {},
+            MessageBody::RemovePeer { .. } => {},
+            MessageBody::AddPeer { .. } => {},
+            MessageBody::DKGPartCommitment {
+                part_commitment,
+                sender_id,
+            } => {},
+            MessageBody::DKGPartAcknowledgement { .. } => {},
+            MessageBody::Vote { .. } => {},
+            MessageBody::Empty => {},
+        };
+        //
+        //
+        // if let Err(err) = tx.send(body.into()).await {
+        //     error!("failed to forward data received from network:
+        // {err}"); }
+        //
+        //
+        //
+        Ok(())
+    }
+
+    async fn handle_internal_event(&mut self, event: Event) -> Result<()> {
         match event {
             Event::Stop => Ok(()),
             Event::PartMessage(sender_id, part_commitment) => {
@@ -141,10 +133,6 @@ impl BroadcastEngineController {
                         part_commitment,
                     }))
                     .await?;
-                // .map_err(|err| {
-                //     error!("Error occured while broadcasting ack commitment to peers:
-                // {err}");     TheaterError::Other(err.to_string())
-                // })?;
 
                 info!("Broadcasted part commitment to peers: {status:?}");
                 Ok(())
@@ -152,6 +140,7 @@ impl BroadcastEngineController {
             Event::SyncPeers(peers) => {
                 if peers.is_empty() {
                     warn!("No peers to sync with");
+
                     // TODO: revisit this return
                     return Ok(());
                 }
@@ -174,6 +163,7 @@ impl BroadcastEngineController {
                 let status = self.engine.add_peer_connection(quic_addresses).await?;
 
                 info!("{status:?}");
+
                 Ok(())
             },
             Event::Vote(vote, quorum_type, farmer_quorum_threshold) => {
@@ -185,7 +175,9 @@ impl BroadcastEngineController {
                         farmer_quorum_threshold,
                     }))
                     .await?;
+
                 info!("{status:?}");
+
                 Ok(())
             },
             // Broadcasting the Convergence block to the peers.
@@ -196,53 +188,25 @@ impl BroadcastEngineController {
                     .await?;
 
                 info!("{status:?}");
+
                 Ok(())
             },
             _ => Ok(()),
         }
     }
-}
 
-//
-// pub async fn process_received_msg(engine: &mut BroadcastEngine) -> Result<()>
-// {     loop {
-//         let (_, mut incoming) = engine
-//             .get_incomming_connections()
-//             .next()
-//             .await
-//             .ok_or_else(|| NodeError::Other("unable to get incoming
-// connections".to_string()))?;
-//
-//         let (_, _, msg_bytes) = incoming
-//             .next()
-//             .timeout()
-//             .await
-//             .unwrap_or(Ok(None))
-//             .unwrap_or_default()
-//             .unwrap_or(EMPTY_BYTES_TRIFECTA);
-//
-//         let msg = Message::from_bytes(&msg_bytes);
-//
-//         match msg.data {
-//             MessageBody::InvalidBlock { .. } => {},
-//             MessageBody::Disconnect { .. } => {},
-//             MessageBody::StateComponents { .. } => {},
-//             MessageBody::Genesis { .. } => {},
-//             MessageBody::Child { .. } => {},
-//             MessageBody::Parent { .. } => {},
-//             MessageBody::Ledger { .. } => {},
-//             MessageBody::NetworkState { .. } => {},
-//             MessageBody::ClaimAbandoned { .. } => {},
-//             MessageBody::ResetPeerConnection { .. } => {},
-//             MessageBody::RemovePeer { .. } => {},
-//             MessageBody::AddPeer { .. } => {},
-//             MessageBody::DKGPartCommitment {
-//                 part_commitment,
-//                 sender_id,
-//             } => {},
-//             MessageBody::DKGPartAcknowledgement { .. } => {},
-//             MessageBody::Vote { .. } => {},
-//             MessageBody::Empty => {},
-//         }
-//     }
-// }
+    /// Turns connection data into Message then returns it
+    async fn map_network_conn_to_message(
+        &self,
+        mut conn_incoming: ConnectionIncoming,
+    ) -> Result<Message> {
+        let res = conn_incoming.next().await.map_err(|err| {
+            NodeError::Other(format!("unable to listen for new connections: {err}"))
+        })?;
+
+        let (_, _, raw_message) = res.unwrap_or((Bytes::new(), Bytes::new(), Bytes::new()));
+        let message = Message::from(raw_message.to_vec());
+
+        return Ok(message);
+    }
+}

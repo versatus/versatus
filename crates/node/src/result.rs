@@ -3,7 +3,7 @@ use std::net::AddrParseError;
 use network::{config::BroadcastError, types::config::BroadCastError};
 use theater::TheaterError;
 use thiserror::Error;
-use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::{broadcast::error::RecvError, mpsc::error::TryRecvError};
 
 #[derive(Debug, Error)]
 pub enum NodeError {
@@ -30,6 +30,9 @@ pub enum NodeError {
 
     #[error("{0}")]
     Event(#[from] events::Error),
+
+    #[error("{0}")]
+    BroadcastRecv(#[from] RecvError),
 
     #[error("{0}")]
     Core(#[from] vrrb_core::Error),

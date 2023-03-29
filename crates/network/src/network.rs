@@ -10,7 +10,14 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
-use qp2p::{Config, Connection, ConnectionIncoming, Endpoint, IncomingConnections, RetryConfig};
+pub use qp2p::{
+    Config,
+    Connection,
+    ConnectionIncoming,
+    Endpoint,
+    IncomingConnections,
+    RetryConfig,
+};
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
@@ -52,16 +59,6 @@ pub struct BroadcastEngine {
     pub raptor_udp_port: u16,
     pub raptor_num_packet_blast: usize,
 }
-
-// TODO: replace the one above with this
-// pub struct BroadcastEngine {
-//     pub peer_connection_list: HashMap<SocketAddr, Connection>,
-//     pub raptor_list: HashSet<SocketAddr>,
-//     pub endpoint: (Endpoint, IncomingConnections),
-//     pub raptor_udp_port: u16,
-//     pub raptor_num_packet_blast: usize,
-//     pub harvester_endpoints: (Endpoint, IncomingConnections),
-// }
 
 const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
 
@@ -376,8 +373,8 @@ impl BroadcastEngine {
         }
     }
 
-    #[telemetry::instrument(name = "get_incomming_connections")]
-    pub fn get_incomming_connections(&mut self) -> &mut IncomingConnections {
+    #[telemetry::instrument(name = "get_incoming_connections")]
+    pub fn get_incoming_connections(&mut self) -> &mut IncomingConnections {
         &mut self.endpoint.1
     }
 
@@ -482,7 +479,7 @@ mod tests {
 
         // Peer 2 gets an incoming connection
         let mut peer2_incoming_messages =
-            if let Some((_, incoming)) = b2.get_incomming_connections().next().await {
+            if let Some((_, incoming)) = b2.get_incoming_connections().next().await {
                 incoming
             } else {
                 panic!("No incoming connection");
@@ -497,7 +494,7 @@ mod tests {
 
         // Peer 2 gets an incoming connection
         let mut peer3_incoming_messages =
-            if let Some((_, incoming)) = b3.get_incomming_connections().next().await {
+            if let Some((_, incoming)) = b3.get_incoming_connections().next().await {
                 incoming
             } else {
                 panic!("No incoming connection");
