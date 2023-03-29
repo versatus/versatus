@@ -162,6 +162,13 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             //TODO: Implement
+            Event::Election(block) => {
+                let accounts = self.db_read_handle.state_store_values();
+                accounts.iter().map(|addr, acct| {
+                    account.claim.
+                })  
+                
+            }
             _ => {},
         }
 
