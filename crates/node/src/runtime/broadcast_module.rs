@@ -3,14 +3,11 @@ use std::{net::SocketAddr, time::Duration};
 use async_trait::async_trait;
 use bytes::Bytes;
 use events::{DirectedEvent, Event};
-use network::{
-    message::{Message, MessageBody},
-    network::BroadcastEngine,
-};
+use network::network::BroadcastEngine;
 use primitives::{NodeType, PeerId};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::{error, info, instrument, warn};
-use theater::{ActorLabel, ActorState, Handler, TheaterError};
+use telemetry::{error, instrument};
+use theater::{ActorLabel, ActorState, Handler};
 use tokio::sync::mpsc::unbounded_channel;
 use uuid::Uuid;
 
@@ -131,6 +128,7 @@ impl Handler<Event> for BroadcastModule {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         if let Err(err) = self.engine_controller_tx.send(event.clone()) {
             error!("unable to send event to broadcast controller: {:?}", err);
+
             return Ok(ActorState::Stopped);
         }
 
@@ -205,7 +203,7 @@ mod tests {
         events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
         events_tx.send(Event::Stop).unwrap();
 
-        // let (_, evt) = internal_events_rx.recv().await.unwrap();
+        let (_, evt) = internal_events_rx.recv().await.unwrap();
 
         handle.await.unwrap();
     }

@@ -1,28 +1,15 @@
-use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult};
+use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use events::{DirectedEvent, Event};
+use events::{Event, Topic};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
 };
-use primitives::{NodeType, PeerId};
 use telemetry::{error, info, warn};
-use theater::{ActorLabel, ActorState, Handler};
-use tokio::{
-    sync::{
-        broadcast::{
-            error::{RecvError, TryRecvError},
-            Receiver,
-        },
-        mpsc::Sender,
-    },
-    task::JoinHandle,
-};
-use uuid::Uuid;
 
-use crate::{EventBroadcastReceiver, EventBroadcastSender, NodeError, Result, RuntimeModule};
+use crate::{EventBroadcastSender, NodeError, Result};
 
 pub const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10000;
 
@@ -32,10 +19,8 @@ const RAPTOR_ERASURE_COUNT: u32 = 3000;
 
 #[derive(Debug)]
 pub struct BroadcastEngineController {
-    addr: SocketAddr,
     engine: BroadcastEngine,
     events_tx: EventBroadcastSender,
-    // events_rx: EventBroadcastReceiver,
 }
 
 #[derive(Debug)]
@@ -44,17 +29,18 @@ pub struct BroadcastEngineControllerConfig {
     pub events_tx: EventBroadcastSender,
 }
 
+impl BroadcastEngineControllerConfig {
+    pub fn local_addr(&self) -> SocketAddr {
+        self.engine.local_addr()
+    }
+}
+
 impl BroadcastEngineController {
     pub fn new(config: BroadcastEngineControllerConfig) -> Self {
         let engine = config.engine;
-        let addr = engine.local_addr();
         let events_tx = config.events_tx;
 
-        Self {
-            engine,
-            addr,
-            events_tx,
-        }
+        Self { engine, events_tx }
     }
 
     pub async fn listen(
@@ -72,17 +58,14 @@ impl BroadcastEngineController {
                         error!("unable to map connection into message: {err}");
                     }
                   }
-
                 },
                 Some(event) = events_rx.recv() => {
                     if matches!(event, Event::Stop) {
                         info!("Stopping broadcast controller");
                         break
-                        // return Ok(());
                     }
                     self.handle_internal_event(event).await;
                 },
-                // else => break,
             };
         }
 
@@ -103,22 +86,12 @@ impl BroadcastEngineController {
             MessageBody::ResetPeerConnection { .. } => {},
             MessageBody::RemovePeer { .. } => {},
             MessageBody::AddPeer { .. } => {},
-            MessageBody::DKGPartCommitment {
-                part_commitment,
-                sender_id,
-            } => {},
+            MessageBody::DKGPartCommitment { .. } => {},
             MessageBody::DKGPartAcknowledgement { .. } => {},
             MessageBody::Vote { .. } => {},
             MessageBody::Empty => {},
         };
-        //
-        //
-        // if let Err(err) = tx.send(body.into()).await {
-        //     error!("failed to forward data received from network:
-        // {err}"); }
-        //
-        //
-        //
+
         Ok(())
     }
 
@@ -141,6 +114,9 @@ impl BroadcastEngineController {
                 if peers.is_empty() {
                     warn!("No peers to sync with");
 
+                    self.events_tx
+                        .send((Topic::Consensus, Event::EmptyPeerSync))?;
+
                     // TODO: revisit this return
                     return Ok(());
                 }
@@ -160,9 +136,23 @@ impl BroadcastEngineController {
 
                 self.engine.add_raptor_peers(raptor_peer_list);
 
-                let status = self.engine.add_peer_connection(quic_addresses).await?;
+                let peer_connection_result = self
+                    .engine
+                    .add_peer_connection(quic_addresses.clone())
+                    .await;
 
-                info!("{status:?}");
+                if let Err(err) = peer_connection_result {
+                    error!("unable to add peer connection: {err}");
+
+                    self.events_tx
+                        .send((Topic::Consensus, Event::PeerSyncFailed(quic_addresses)))?;
+
+                    return Err(err.into());
+                }
+
+                if let Ok(status) = peer_connection_result {
+                    info!("{status:?}");
+                }
 
                 Ok(())
             },
@@ -207,6 +197,6 @@ impl BroadcastEngineController {
         let (_, _, raw_message) = res.unwrap_or((Bytes::new(), Bytes::new(), Bytes::new()));
         let message = Message::from(raw_message.to_vec());
 
-        return Ok(message);
+        Ok(message)
     }
 }

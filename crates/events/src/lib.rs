@@ -134,6 +134,8 @@ pub enum Event {
     SlashClaims(Vec<String>),
     CheckAbandoned,
     SyncPeers(Vec<SyncPeerData>),
+    EmptyPeerSync,
+    PeerSyncFailed(Vec<SocketAddr>),
     PeerRequestedStateSync(PeerData),
 
     //Event to tell Farmer node to sign the Transaction
