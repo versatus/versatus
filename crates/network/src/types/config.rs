@@ -1,5 +1,6 @@
 use qp2p::{ConnectionError, EndpointError, SendError};
 use serde::{Deserialize, Serialize};
+use theater::TheaterError;
 use thiserror::Error;
 use udp2p::node::peer_id::PeerId;
 
@@ -62,3 +63,10 @@ pub enum BroadcastError {
 
 #[deprecated(note = "here for backwards compatibility")]
 pub type BroadCastError = BroadcastError;
+
+impl From<BroadcastError> for TheaterError {
+    fn from(err: BroadcastError) -> Self {
+        telemetry::error!("Broadcast error: {err}");
+        TheaterError::Other(err.to_string())
+    }
+}
