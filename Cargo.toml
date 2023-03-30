@@ -56,6 +56,7 @@ members = [
     "crates/syncing",
     "crates/telemetry",
     "crates/utils",
+    "crates/vrrb_http"
 ]
 
 [workspace.dependencies]
@@ -99,6 +100,7 @@ reward = { path = "crates/consensus/reward" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
+vrrb_http = { path = "crates/vrrb_http" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }

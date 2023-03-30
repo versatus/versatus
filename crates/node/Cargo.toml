@@ -59,6 +59,7 @@ lazy_static = {workspace=true}
 dashmap ={workspace=true}
 timer = {workspace=true}
 laminar = {workspace=true}
+vrrb_http = {workspace=true}
 
 [dev-dependencies]
 reqwest = { workspace = true }
