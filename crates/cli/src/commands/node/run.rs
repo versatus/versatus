@@ -81,10 +81,10 @@ pub struct RunOpts {
     pub disable_networking: bool,
 
     #[clap(long, value_parser ,default_value=DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
-    pub rendzevous_local_address: SocketAddr,
+    pub rendezvous_local_address: SocketAddr,
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
-    pub rendzevous_server_address: SocketAddr,
+    pub rendezvous_server_address: SocketAddr,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -110,7 +110,8 @@ impl From<RunOpts> for NodeConfig {
             node_type,
             raptorq_gossip_address: opts.raptorq_gossip_address,
             udp_gossip_address: opts.udp_gossip_address,
-            rendzevous_local_address: opts.rendzevous_local_address,
+            rendezvous_local_address: opts.rendezvous_local_address,
+            rendezvous_server_address: opts.rendezvous_server_address,
             http_api_address: opts.http_api_address,
             http_api_title,
             http_api_version: opts.http_api_version,
@@ -128,7 +129,6 @@ impl From<RunOpts> for NodeConfig {
             // a hack, but it works for now.
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
-            rendzevous_server_address: opts.rendzevous_server_address,
         }
     }
 }
@@ -155,8 +155,8 @@ impl Default for RunOpts {
             http_api_title: Default::default(),
             http_api_version: Default::default(),
             disable_networking: Default::default(),
-            rendzevous_local_address: ipv4_localhost_with_random_port,
-            rendzevous_server_address: ipv4_localhost_with_random_port,
+            rendezvous_local_address: ipv4_localhost_with_random_port,
+            rendezvous_server_address: ipv4_localhost_with_random_port,
         }
     }
 }
@@ -240,8 +240,8 @@ impl RunOpts {
             http_api_title,
             http_api_version,
             disable_networking: false,
-            rendzevous_local_address: other.rendzevous_local_address,
-            rendzevous_server_address: other.rendzevous_server_address,
+            rendezvous_local_address: other.rendezvous_local_address,
+            rendezvous_server_address: other.rendezvous_server_address,
         }
     }
 }

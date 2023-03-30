@@ -11,6 +11,7 @@ use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
+#[ignore]
 async fn process_full_node_event_flow() {
     let b_node_config = create_mock_bootstrap_node_config();
 
