@@ -199,7 +199,6 @@ laminar = "0.5.0"
 futures = { version = "0.3.24", features = ["thread-pool"] }
 qp2p = "0.30.0"
 
-
 [dev-dependencies]
 cuckoofilter.workspace = true
 reqwest.workspace = true
