@@ -1,11 +1,11 @@
-use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
 /// permissionless Proof of Claim Miner Election algorithm
 use serde_json;
-use sha2::{Digest, Sha256};
+use sha2::{Sha256, Digest};
+use ethereum_types::U256;
 
 use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
@@ -172,8 +172,8 @@ impl Ownable for Claim {
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
         Claim::new(
-            item.miner_kp.1.to_string(),
-            Address::new(item.miner_kp.1).to_string(),
+           item.miner_kp.1.to_string(),
+           Address::new(item.miner_kp.1).to_string(),
         )
     }
 }
