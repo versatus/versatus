@@ -421,7 +421,7 @@ mod tests {
         let block_height = 29_999_998;
         let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = "abcdef01234567890".to_string();
-        let miner_claim = miner.generate_claim(nonce);
+        let miner_claim = miner.generate_claim();
         let claim_list_hash = "01234567890abcdef".to_string();
         let mut block_reward = Reward::default();
         block_reward.current_block = block_height;
@@ -679,8 +679,8 @@ pub(crate) mod test_helpers {
         Address::new(pubkey.clone())
     }
 
-    pub(crate) fn create_claim(pk: &PublicKey, addr: &str, nonce: u128) -> Claim {
-        Claim::new(pk.to_string(), addr.to_string(), nonce)
+    pub(crate) fn create_claim(pk: &PublicKey, addr: &str) -> Claim {
+        Claim::new(pk.to_string(), addr.to_string())
     }
 
     pub(crate) fn mine_genesis() -> Option<GenesisBlock> {
@@ -688,7 +688,7 @@ pub(crate) mod test_helpers {
         let addr = create_address(&pk);
         let miner = create_miner();
 
-        let claim = miner.generate_claim(1);
+        let claim = miner.generate_claim();
 
         let claim_list = {
             vec![(claim.hash.clone(), claim.clone())]
