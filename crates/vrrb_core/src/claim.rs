@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Sha256, Digest};
 use ethereum_types::U256;
+use sha256::digest;
 
 use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable, keypair::Keypair};
 
@@ -25,22 +26,19 @@ pub struct Claim {
     pub public_key: String,
     pub address: String,
     pub hash: U256,
-    pub nonce: u128,
     pub eligible: bool,
 }
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(public_key: String, address: String, claim_nonce: u128) -> Claim {
+    pub fn new(public_key: String, address: String) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
         // sequentially hash the public key the correct number of times
         // for the given nonce.
         let mut hasher = Sha256::new();
-        (0..claim_nonce).for_each(|_| {
-            hasher.update(public_key.clone());
-        });
+        hasher.update(public_key.clone());
 
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
@@ -48,7 +46,9 @@ impl Claim {
             public_key,
             address,
             hash,
-            nonce: claim_nonce,
+            // Consider setting to false by default 
+            // and having it be set to true when harvester 
+            // collects threshold of votes on its validity
             eligible: true,
         }
     }
@@ -176,36 +176,11 @@ impl Ownable for Claim {
     }
 }
 
-/// Implements the Nonceble train on the `Claim`
-impl Nonceable for Claim {
-    fn nonceable(&self) -> bool {
-        true
-    }
-
-    fn nonce_up(&mut self) {
-        self.nonce += 1;
-        let iters = if let Some(n) = self.nonce.checked_mul(10) {
-            n
-        } else {
-            self.nonce
-        };
-
-        let mut hash = self.public_key.clone();
-        (0..iters).for_each(|_| {
-            hash = digest(hash.as_bytes());
-        });
-
-        self.hash = hash;
-    }
-}
-
-
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
         Claim::new(
            item.miner_kp.1.to_string(),
            Address::new(item.miner_kp.1).to_string(),
-           0
         )
     }
 }

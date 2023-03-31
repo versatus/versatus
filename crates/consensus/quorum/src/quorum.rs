@@ -92,7 +92,8 @@ impl Election for Quorum {
 
         Ok(elected_quorum)
     }
-
+    
+    #[deprecated(note = "Noncing no longer applies to PoC Elections")]
     fn nonce_claims_and_new_seed(
         &mut self,
         claims: Vec<Claim>,
@@ -115,7 +116,7 @@ impl Election for Quorum {
 
         for claim in claims {
             let mut nonce_up_claim = claim;
-            nonce_up_claim.nonce += 1;
+            // nonce_up_claim.nonce += 1;
             nonce_up_claims.push(nonce_up_claim);
         }
         Ok(nonce_up_claims)
