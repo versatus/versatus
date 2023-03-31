@@ -7,7 +7,7 @@ use serde_json;
 use sha2::{Sha256, Digest};
 use ethereum_types::U256;
 
-use crate::{keypair::Keypair, nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
+use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
