@@ -1,3 +1,4 @@
+use primitives::Address;
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha256::digest;
 
-use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
+use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable, keypair::Keypair};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
@@ -182,5 +183,16 @@ impl Nonceable for Claim {
         });
 
         self.hash = hash;
+    }
+}
+
+
+impl From<Keypair> for Claim {
+    fn from(item: Keypair) -> Claim {
+        Claim::new(
+           item.miner_kp.1.to_string(),
+           Address::new(item.miner_kp.1).to_string(),
+           0
+        )
     }
 }

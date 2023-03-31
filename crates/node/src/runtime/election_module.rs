@@ -17,10 +17,6 @@ use serde::{Serialize, Deserialize};
 use std::fmt::Debug;
 use tokio::task::JoinHandle;
 
-// TODO: Create Seed Struct that 
-// checks upon creation that the 
-// value of the seed is between 
-// u32::MAX and u64::MAX 
 pub type Seed = u64;
 
 pub trait ElectionType: Clone + Debug {}

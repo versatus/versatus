@@ -15,7 +15,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState, farmer_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -41,6 +41,9 @@ pub struct Node {
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
+    miner_election_handle: Option<JoinHandle<Result<()>>>,
+    quorum_election_handle: Option<JoinHandle<Result<()>>>,
+    conflict_resolution_handle: Option<Join<Result<()>>>,
 }
 
 impl Node {
@@ -68,6 +71,9 @@ impl Node {
         let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
         let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
+        let miner_election_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let quorum_election_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let conflict_resolution_events_rx = event_router.subscribe(&Topic::Consensus)?;
 
         let (
             updated_config,
@@ -77,6 +83,9 @@ impl Node {
             jsonrpc_server_handle,
             miner_handle,
             dkg_handle,
+            miner_election_handle,
+            quorum_election_handle,
+            conflict_resolution_handle
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -87,6 +96,9 @@ impl Node {
             miner_events_rx,
             jsonrpc_events_rx,
             dkg_events_rx,
+            miner_election_events_rx,
+            quorum_election_events_rx
+            conflict_resolution_events_rx,
         )
         .await?;
 
@@ -110,6 +122,9 @@ impl Node {
             events_tx,
             miner_handle,
             keypair,
+            miner_election_handle,
+            quorum_election_handle,
+            conflict_resolution_handle,
         })
     }
 
