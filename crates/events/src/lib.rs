@@ -20,10 +20,7 @@ use tokio::sync::{
     broadcast::{self, Receiver, Sender},
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
-use vrrb_core::{
-    account::Account,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -252,11 +249,7 @@ impl EventRouter {
     }
 
     #[deprecated]
-    pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {
-        // let buffer = size.unwrap_or(1);
-        // let (tx, _) = broadcast::channel(buffer);
-        // self._topics.insert(topic, tx);
-    }
+    pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {}
 
     pub fn subscribe(&self) -> Receiver<Event> {
         self.sender.subscribe()
@@ -311,8 +304,6 @@ mod tests {
     async fn should_stop_when_issued_stop_event() {
         let (event_tx, mut event_rx) = unbounded_channel::<Event>();
         let mut router = EventRouter::default();
-
-        // router.add_topic(Topic::Control, Some(10));
 
         let mut subscriber_rx = router.subscribe();
 
