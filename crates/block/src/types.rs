@@ -38,6 +38,8 @@ use vrrb_core::{
     txn::{Txn, TransactionDigest},
     verifiable::Verifiable,
 };
+use tokio::task::JoinHandle;
+use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -55,15 +57,16 @@ pub type CurrentUtility = i128;
 pub type NextEpochAdjustment = i128;
 pub type ClaimHash = String;
 pub type RefHash = String;
-pub type TxnList = LinkedHashMap<TxnId, Txn>;
+pub type TxnList = LinkedHashMap<TransactionDigest, Txn>;
 pub type ClaimList = LinkedHashMap<ClaimHash, Claim>;
-pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TxnId>>;
+pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TransactionDigest>>;
 pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
 pub type BlockHash = String;
 pub type QuorumId = String;
 pub type QuorumPubkey = String;
 pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
-pub type ConflictList = HashMap<TxnId, Conflict>;
+pub type ConflictList = HashMap<TransactionDigest, Conflict>;
+pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>; 
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[repr(C)]

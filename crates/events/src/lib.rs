@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::convergence_block::ConvergenceBlock;
+use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
 use primitives::{
     Address,
     ByteVec,
@@ -18,13 +18,15 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
-use tokio::sync::{
-    broadcast::{self, Sender},
-    mpsc::{UnboundedReceiver, UnboundedSender},
+use tokio::{
+    sync::{
+        broadcast::{self, Sender},
+        mpsc::{UnboundedReceiver, UnboundedSender},
+    },
+    task::JoinHandle,
 };
 use vrrb_core::{
-    account::Account,
-    txn::{TransactionDigest, Txn},
+    account::Account, txn::{TransactionDigest, Txn},
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -40,7 +42,6 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
-
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
@@ -190,7 +191,7 @@ pub enum Event {
     MinerElection(HeaderBytes),
     QuorumElection(HeaderBytes),
     ConflictResolution(ConflictBytes, HeaderBytes),
-
+    ResolvedConflicts(ResolvedConflicts),
     // SendTxn(u32, String, u128), // address number, receiver address, amount
     // ProcessTxnValidator(Vec<u8>),
     // PendingBlock(Vec<u8>, String),

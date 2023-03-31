@@ -1,5 +1,12 @@
-use std::collections::{HashMap, BTreeMap};
-use block::header::BlockHeader;
+use std::{collections::{HashMap, BTreeMap}, error::Error};
+use block::{
+    header::BlockHeader, 
+    ConflictList, 
+    RefHash, 
+    Conflict, 
+    ResolvedConflicts
+};
+use events::{ConflictBytes, DirectedEvent, Topic};
 use telemetry::info;
 use async_trait::async_trait;
 use primitives::NodeId;
@@ -8,6 +15,7 @@ use theater::{ActorId, ActorState, ActorLabel, Handler};
 use vrrb_core::{claim::Claim, event_router::{DirectedEvent, Event}};
 use serde::{Serialize, Deserialize};
 use std::fmt::Debug;
+use tokio::task::JoinHandle;
 
 // TODO: Create Seed Struct that 
 // checks upon creation that the 
@@ -265,10 +273,72 @@ impl Handler<Event> for ElectionModule<ConflictResolution, ConflictResolutionRes
 
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
-            //TODO: Implement
+            Event::ConflictResolution(ConflictBytes, HeaderBytes) => {
+                let cl_res: Result<ConflictList> = serde_json::from_slice(
+                    &ConflictBytes
+                );
+
+                let header_res: Result<BlockHeader> = serde_json::from_slice(
+                    &HeaderBytes
+                );
+                
+                if let Ok(conflicts) = cl_res {
+                    if let Ok(header) = header_res {
+                        let handles: ResolvedConflicts = 
+                            conflicts.iter()
+                                .map(|(txnid, conflict)| {
+                                    let inner_header = header.clone();
+                                    let mut inner_conflict: Conflict = conflict.clone();
+                                    tokio::spawn(async move {
+                                        resolve_conflict(
+                                            &mut inner_conflict, 
+                                            inner_header.clone()).await
+                                    }
+                                );
+                            }
+                        ).collect();
+
+                        let directed_event = (Topic::Consensus, Event::ResolvedConflicts(handles));
+                        let _ = self.events_tx.send(directed_event);
+                    }
+                }
+            }
             _ => {},
         }
 
         Ok(ActorState::Running)
     }
+}
+
+async fn resolve_conflict(
+    conflict: &mut Conflict, 
+    header: BlockHeader
+) -> Result<Conflict, Box<dyn Error>> {
+
+    let propopsers = inner_conflict.proposers.clone();
+    let pointer_sums: BTreeMap<Option<u128>, String> = proposers.iter()
+        .map(|(claim, refhash)| {
+            (claim.get_pointer(
+            inner_header.block_seed.clone() 
+            ), refhash.clone());
+        }
+    ).collect(); 
+
+    let ps_iter = pointer_sums.iter();
+
+    let winner = {
+
+        let mut tmp: (u128, RefHash);
+        while let Some((ps, ref_hash)) = ps_iter.next() {
+            if ps.is_some() { 
+                tmp = (*ps, ref_hash.to_string());
+                break
+            }
+        }
+                       
+        tmp
+    };
+
+    conflict.winner = Some(winner.1);
+    return inner_conflict
 }
