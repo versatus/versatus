@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Sha256, Digest};
 use ethereum_types::U256;
+use sha256::digest;
 
 use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
@@ -175,17 +176,6 @@ impl From<Keypair> for Claim {
         Claim::new(
            item.miner_kp.1.to_string(),
            Address::new(item.miner_kp.1).to_string(),
-        )
-    }
-}
-
-
-impl From<Keypair> for Claim {
-    fn from(item: Keypair) -> Claim {
-        Claim::new(
-           item.miner_kp.1.to_string(),
-           Address::new(item.miner_kp.1).to_string(),
-           0
         )
     }
 }
