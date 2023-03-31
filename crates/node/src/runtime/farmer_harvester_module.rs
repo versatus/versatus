@@ -103,7 +103,6 @@ pub struct FarmerHarvesterModule {
     async_jobs_status_receiver: Receiver<JobResult>,
 }
 
-
 impl FarmerHarvesterModule {
     pub fn new(
         certified_txns_filter: Bloom,
@@ -163,13 +162,10 @@ impl FarmerHarvesterModule {
                 JobResult::Votes((votes, farmer_quorum_threshold)) => {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::Vote(
-                                    vote.clone(),
-                                    QuorumType::Harvester,
-                                    farmer_quorum_threshold,
-                                ),
+                            let _ = broadcast_events_tx.send(Event::Vote(
+                                vote.clone(),
+                                QuorumType::Harvester,
+                                farmer_quorum_threshold,
                             ));
                         }
                     }
@@ -323,7 +319,7 @@ impl Handler<Event> for FarmerHarvesterModule {
                     .take(num_of_txns)
                     .for_each(|txn| {
                         self.broadcast_events_tx
-                            .send((Topic::Storage, Event::QuorumCertifiedTxns(txn.clone())));
+                            .send(Event::QuorumCertifiedTxns(txn.clone()));
                     });
             },
             Event::NoOp => {},

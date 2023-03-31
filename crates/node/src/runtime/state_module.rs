@@ -70,7 +70,7 @@ impl StateModule {
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         self.events_tx
-            .send((Topic::Storage, Event::TxnAddedToMempool(txn_hash)))
+            .send(Event::TxnAddedToMempool(txn_hash))
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         Ok(())
