@@ -94,6 +94,38 @@ impl Election for Quorum {
 
         Ok(elected_quorum)
     }
+<<<<<<< HEAD
+=======
+    
+    #[deprecated(note = "Noncing no longer applies to PoC Elections")]
+    fn nonce_claims_and_new_seed(
+        &mut self,
+        claims: Vec<Claim>,
+        kp: KeyPair,
+    ) -> Result<Vec<Claim>, InvalidQuorum> {
+        let seed = match Quorum::generate_seed(
+            (
+                self.election_timestamp,
+                self.election_block_height,
+                self.quorum_pk.clone(),
+            ),
+            kp,
+        ) {
+            Ok(seed) => seed,
+            Err(e) => return Err(e),
+        };
+        self.quorum_seed = seed;
+
+        let mut nonce_up_claims = Vec::new();
+
+        for claim in claims {
+            let mut nonce_up_claim = claim;
+            // nonce_up_claim.nonce += 1;
+            nonce_up_claims.push(nonce_up_claim);
+        }
+        Ok(nonce_up_claims)
+    }
+>>>>>>> af45380 (Eliminate claim nonce, eliminate nonce_up method for claim, and clean up all instances of new method in claim to account for this, as well as any instances of direct claim nonce setting, which one was discovered that was implemented improperly anyways. Remove commented out events from events.rs as well)
 }
 
 impl Quorum {
