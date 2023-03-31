@@ -16,6 +16,7 @@ use vrrb_core::{claim::Claim, event_router::{DirectedEvent, Event}};
 use serde::{Serialize, Deserialize};
 use std::fmt::Debug;
 use tokio::task::JoinHandle;
+use ethereum_types::U256;
 
 pub type Seed = u64;
 
@@ -172,28 +173,14 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
                 );
                 if let Ok(header) = header_result {
                     let claims = self.db_read_handle.claim_store_values();
-                    let pointer_sums: BTreeMap<Option<u128>, String> = claims.iter()
-                        .filter(|(_, claim)| claim.eligible)
-                        .map(
-                            |(nodeid, claim)| {
-                                (claim.get_pointer(
-                                    header.next_block_seed
-                                ), node_id.clone())
-                        }
-                    ).collect();
+                    let mut election_results: BTreeMap<U256, String> = elect_miner(
+                        claims, header.block_seed
+                    );
                     
-                    let ps_iter = pointer_sums.iter();
-                    let winner = {
-                        let mut tmp: (u128, NodeId);
-                        while let Some((ps, node_id)) = ps_iter.next() {
-                            if ps.is_some() { 
-                                tmp = (*ps, node_id.to_string());
-                                break
-                            }
-                        }
-                       
-                        tmp
-                    };
+                    let winner = get_winner(&mut election_results); 
+
+                    let directed_event = (Topic::Consensus, Event::ElectedMiner(winner));
+                    let _ = self.events_tx.send(directed_event);
                 }
             }
             _ => {},
@@ -288,7 +275,8 @@ impl Handler<Event> for ElectionModule<ConflictResolution, ConflictResolutionRes
                                     tokio::spawn(async move {
                                         resolve_conflict(
                                             &mut inner_conflict, 
-                                            inner_header.clone()).await
+                                            inner_header.clone()).await;
+                                        inner_conflict
                                     }
                                 );
                             }
@@ -306,35 +294,61 @@ impl Handler<Event> for ElectionModule<ConflictResolution, ConflictResolutionRes
     }
 }
 
+fn elect_miner(
+    claims: HashMap<NodeId, Claim>,
+    block_seed: u64 
+) -> BTreeMap<U256, NodeId> {
+
+    claims.iter()
+        .filter(|(_, claim)| claim.eligible)
+        .map(|(nodeid, claim)| single_miner_results(claim, nodeid, block_seed)
+    ).collect()
+}
+
+fn single_miner_results(
+    claim: Claim,
+    node_id: NodeId,
+    block_seed: u64,
+) -> (U256, NodeId) {
+    (claim.get_election_result(block_seed), node_id)
+}
+
+fn get_winner(
+    results: &mut BTreeMap<U256, NodeId>
+) -> (U256, NodeId) {
+
+    let mut first: Option<(U256, NodeId)> = election_results.pop_first();
+    while let None = first {
+        first = election_results.pop_first();
+    }
+
+    return first
+}
+
 async fn resolve_conflict(
     conflict: &mut Conflict, 
     header: BlockHeader
-) -> Result<Conflict, Box<dyn Error>> {
+) {
 
-    let propopsers = inner_conflict.proposers.clone();
-    let pointer_sums: BTreeMap<Option<u128>, String> = proposers.iter()
+    let propopsers = conflict.proposers.clone();
+    let resoultion_results: BTreeMap<U256, String> = proposers.iter()
         .map(|(claim, refhash)| {
-            (claim.get_pointer(
+            (claim.get_election_results(
             inner_header.block_seed.clone() 
             ), refhash.clone());
         }
     ).collect(); 
 
-    let ps_iter = pointer_sums.iter();
-
     let winner = {
 
-        let mut tmp: (u128, RefHash);
-        while let Some((ps, ref_hash)) = ps_iter.next() {
-            if ps.is_some() { 
-                tmp = (*ps, ref_hash.to_string());
-                break
-            }
+        let mut first: Option<(U256, NodeId)> = resolution_results.pop_first();
+
+        while let None = first {
+            first = resolution_results.pop_first();
         }
-                       
-        tmp
+
+        return first
     };
 
     conflict.winner = Some(winner.1);
-    return inner_conflict
 }
