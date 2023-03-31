@@ -190,7 +190,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send((Topic::Network, Event::SyncPeers(peers)));
+                                                .send(Event::SyncPeers(peers));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -403,10 +403,9 @@ impl Handler<Event> for DkgModule {
                             if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment
                             {
                                 if let Ok(part_committment_bytes) = bincode::serialize(&part) {
-                                    let _ = self.broadcast_events_tx.send((
-                                        Topic::Network,
-                                        Event::PartMessage(node_idx, part_committment_bytes),
-                                    ));
+                                    let _ = self
+                                        .broadcast_events_tx
+                                        .send(Event::PartMessage(node_idx, part_committment_bytes));
                                 }
                             }
                         },
@@ -451,13 +450,10 @@ impl Handler<Event> for DkgModule {
                                     .get(&(sender_id, self.dkg_engine.node_idx))
                                 {
                                     if let Ok(ack_bytes) = bincode::serialize(&ack) {
-                                        let _ = self.broadcast_events_tx.send((
-                                            Topic::Network,
-                                            Event::SendAck(
-                                                self.dkg_engine.node_idx,
-                                                sender_id,
-                                                ack_bytes,
-                                            ),
+                                        let _ = self.broadcast_events_tx.send(Event::SendAck(
+                                            self.dkg_engine.node_idx,
+                                            sender_id,
+                                            ack_bytes,
                                         ));
                                     };
                                 }
@@ -615,7 +611,7 @@ mod tests {
         ctrl_tx.send(Event::DkgInitiate).unwrap();
         ctrl_tx.send(Event::AckPartCommitment(1)).unwrap();
         ctrl_tx.send(Event::Stop.into()).unwrap();
-        let part_message_event = broadcast_events_rx.recv().await.unwrap().1;
+        let part_message_event = broadcast_events_rx.recv().await.unwrap();
         match part_message_event {
             Event::PartMessage(_, part_committment_bytes) => {
                 let part_committment: bincode::Result<hbbft::sync_key_gen::Part> =
@@ -681,13 +677,13 @@ mod tests {
         });
 
         ctrl_tx.send(Event::DkgInitiate).unwrap();
-        let msg = broadcast_events_rx.recv().await.unwrap().1;
+        let msg = broadcast_events_rx.recv().await.unwrap();
         if let Event::PartMessage(sender_id, part) = msg {
             assert_eq!(sender_id, 1);
             assert!(part.len() > 0);
         }
         ctrl_tx.send(Event::AckPartCommitment(1)).unwrap();
-        let msg1 = broadcast_events_rx.recv().await.unwrap().1;
+        let msg1 = broadcast_events_rx.recv().await.unwrap();
         if let Event::SendAck(curr_id, sender_id, ack) = msg1 {
             assert_eq!(curr_id, 1);
             assert_eq!(sender_id, 1);

@@ -67,12 +67,10 @@ impl RpcApiServer for RpcServerImpl {
             return Err(err);
         }
 
-        self.events_tx
-            .send((Topic::Storage, event))
-            .map_err(|err| {
-                error!("could not queue transaction to mempool: {err}");
-                Error::Custom(err.to_string())
-            })?;
+        self.events_tx.send(event).map_err(|err| {
+            error!("could not queue transaction to mempool: {err}");
+            Error::Custom(err.to_string())
+        })?;
 
         Ok(RpcTransactionRecord::from(txn))
     }
@@ -85,12 +83,10 @@ impl RpcApiServer for RpcServerImpl {
 
         debug!("{:?}", event);
 
-        self.events_tx
-            .send((Topic::Storage, event.clone()))
-            .map_err(|err| {
-                error!("could not create account: {err}");
-                Error::Custom(err.to_string())
-            })?;
+        self.events_tx.send(event.clone()).map_err(|err| {
+            error!("could not create account: {err}");
+            Error::Custom(err.to_string())
+        })?;
 
         telemetry::info!("requested account creation for address: {}", address);
 
@@ -108,7 +104,7 @@ impl RpcApiServer for RpcServerImpl {
 
         let event = Event::AccountUpdateRequested((addr, account_bytes));
 
-        self.events_tx.send((Topic::State, event)).map_err(|err| {
+        self.events_tx.send(event).map_err(|err| {
             error!("could not update account: {err}");
             Error::Custom(err.to_string())
         })?;

@@ -21,7 +21,7 @@ pub struct JsonRpcServerConfig {
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
-    pub events_tx: UnboundedSender<DirectedEvent>,
+    pub events_tx: UnboundedSender<Event>,
 }
 
 #[derive(Debug)]

@@ -27,6 +27,7 @@ use self::{
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     dkg_module::DkgModuleConfig,
+    EventBroadcastSender,
     NodeError,
     Result,
 };
@@ -44,7 +45,7 @@ pub mod swarm_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
-    events_tx: UnboundedSender<(Topic, Event)>,
+    events_tx: UnboundedSender<Event>,
     mut mempool_events_rx: Receiver<Event>,
     vrrbdb_events_rx: Receiver<Event>,
     network_events_rx: Receiver<Event>,
@@ -142,12 +143,7 @@ pub async fn setup_runtime_components(
 }
 
 fn setup_event_routing_system() -> EventRouter {
-    let mut event_router = EventRouter::new();
-    event_router.add_topic(Topic::Control, Some(1));
-    event_router.add_topic(Topic::State, Some(1));
-    event_router.add_topic(Topic::Network, Some(100));
-    event_router.add_topic(Topic::Storage, Some(100));
-    event_router.add_topic(Topic::Consensus, Some(100));
+    let mut event_router = EventRouter::default();
 
     event_router
 }
@@ -158,11 +154,7 @@ async fn setup_gossip_network(
     mut network_events_rx: Receiver<Event>,
     mut controller_events_rx: Receiver<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
-) -> Result<(
-    Option<JoinHandle<Result<()>>>,
-    // Option<JoinHandle<Result<()>>>,
-    SocketAddr,
-)> {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
         events_tx: events_tx.clone(),
         vrrbdb_read_handle,
@@ -209,7 +201,7 @@ async fn setup_gossip_network(
 
 async fn setup_state_store(
     config: &NodeConfig,
-    events_tx: UnboundedSender<DirectedEvent>,
+    events_tx: EventBroadcastSender,
     mut state_events_rx: Receiver<Event>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
@@ -239,7 +231,7 @@ async fn setup_state_store(
 
 async fn setup_rpc_api_server(
     config: &NodeConfig,
-    events_tx: UnboundedSender<DirectedEvent>,
+    events_tx: EventBroadcastSender,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: Receiver<Event>,
@@ -272,7 +264,7 @@ async fn setup_rpc_api_server(
 
 fn setup_mining_module(
     config: &NodeConfig,
-    events_tx: UnboundedSender<DirectedEvent>,
+    events_tx: EventBroadcastSender,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut miner_events_rx: Receiver<Event>,
@@ -313,7 +305,7 @@ fn setup_mining_module(
 
 fn setup_dkg_module(
     config: &NodeConfig,
-    events_tx: UnboundedSender<DirectedEvent>,
+    events_tx: EventBroadcastSender,
     mut dkg_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let mut module = dkg_module::DkgModule::new(

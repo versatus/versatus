@@ -229,7 +229,8 @@ pub struct EventRouter {
 
 pub const DEFAULT_BUFFER: usize = 1000;
 
-pub type DirectedEvent = (Topic, Event);
+#[deprecated]
+pub type DirectedEvent = Event;
 
 impl Default for EventRouter {
     fn default() -> Self {
