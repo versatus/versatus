@@ -25,12 +25,8 @@ use self::{
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule, election_module::{ElectionModuleConfig, ElectionModule, QuorumElection, QuorumElectionResult, ConflictResolutionResult, ConflictResolution},
 };
-use crate::{
-    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
-    dkg_module::DkgModuleConfig,
-    NodeError,
-    Result,
-};
+use crate::{broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE}, dkg_module::DkgModuleConfig, EventBroadcastSender, NodeError, Result};
+use crate::election_module::{MinerElection, MinerElectionResult};
 
 pub mod broadcast_module;
 pub mod credit_model_module;
@@ -394,10 +390,10 @@ fn setup_miner_election_module(
         ElectionModule::new(ElectionModuleConfig)
     };
 
-    let miner_election_module_actor = ActorImpl::new(module);
+    let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
         miner_election_module_actor
-            .start(&miner_election_events_rx)
+            .start(&mut miner_election_events_rx)
             .await 
             .map_err(|err| NodeError::Other(err.to_string()))
     });
@@ -422,10 +418,10 @@ fn setup_quorum_election_module(
         ElectionModule::new(ElectionModuleConfig)
     };
 
-    let quorum_election_module_actor = ActorImpl::new(module);
+    let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
         quorum_election_module_actor
-            .start(&quorum_election_events_rx)
+            .start(&mut quorum_election_events_rx)
             .await 
             .map_err(|err| NodeError::Other(err.to_string()))
     });
@@ -450,10 +446,10 @@ fn setup_conflict_resolution_module(
         ElectionModule::new(ElectionModuleConfig)
     };
 
-    let conflict_resolution_module_actor = ActorImpl::new(module);
+    let mut conflict_resolution_module_actor = ActorImpl::new(module);
     let conflict_resolution_module_handle = tokio::spawn(async move {
         conflict_resolution_module_actor
-            .start(&conflict_resolution_events_rx)
+            .start(&mut conflict_resolution_events_rx)
             .await 
             .map_err(|err| NodeError::Other(err.to_string()))
     });
