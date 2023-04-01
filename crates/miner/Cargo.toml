@@ -21,3 +21,5 @@ block = { workspace = true }
 mempool = { workspace = true }
 thiserror = { workspace = true }
 utils = { workspace = true }
+sha2 = { workspace = true }
+ethereum-types = { workspace = true }
