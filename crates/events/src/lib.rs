@@ -1,21 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
-use primitives::{
-    Address,
-    ByteVec,
-    FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
-    NodeIdx,
-    NodeType,
-    PeerId,
-    NodeId,
-    QuorumPublicKey,
-    QuorumType,
-    RawSignature,
-    TransactionDigest,
-    TxHashString,
-};
+use primitives::{Address, ByteVec, FarmerQuorumThreshold, HarvesterQuorumThreshold, NodeIdx, NodeType, PeerId, NodeId, QuorumPublicKey, QuorumType, RawSignature, TransactionDigest, TxHashString, LastBlockHeight};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::{
@@ -28,6 +14,8 @@ use tokio::{
 use vrrb_core::{
     account::Account, txn::{TransactionDigest, Txn},
 };
+use vrrb_core::keypair::{Keypair, MinerPk};
+
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -75,7 +63,6 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
-    pub execution_result: Option<String>,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
     // May want to serialize this as a vector of bytes
@@ -94,18 +81,6 @@ pub struct BlockVote {
     pub quorum_threshold: usize,
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,
-}
-
-pub type SerializedConvergenceBlock = ByteVec;
-
-#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
-pub struct BlockVote {
-    pub harvester_id: Vec<u8>,
-    pub harvester_node_id: NodeIdx,
-    pub signature: RawSignature,
-    pub convergence_block: SerializedConvergenceBlock,
-    pub quorum_public_key: Vec<u8>,
-    pub quorum_threshold: usize,
 }
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
@@ -203,9 +178,10 @@ pub enum Event {
     MinerElection(HeaderBytes),
     // We make this the ClaimHash or Claim instead of the NodeId
     ElectedMiner((U256, NodeId)),
-    // May want to just use the `BlockHeader` struct to reduce 
-    // the overhead of deserializing
-    QuorumElection(HeaderBytes),
+
+    ElectedQuorum(quorum::quorum::Quorum),
+
+    QuorumElection(Keypair,LastBlockHeight),
     // May want to just use the ConflictList & `BlockHeader` types 
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),
