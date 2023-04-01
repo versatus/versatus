@@ -1,17 +1,20 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::convergence_block::ConvergenceBlock;
+use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
+    LastBlockHeight,
+    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
+    TransactionDigest,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
@@ -20,7 +23,10 @@ use tokio::sync::{
     broadcast::{self, Receiver, Sender},
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{
+    keypair::{Keypair, MinerPk},
+    txn::{TransactionDigest, Txn},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -84,6 +90,8 @@ pub struct BlockVote {
     pub convergence_block: SerializedConvergenceBlock,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
+    // May want to serialize this as a vector of bytes
+    pub execution_result: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
@@ -178,6 +186,21 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
+
+    // May want to just use the `BlockHeader` struct to reduce
+    // the overhead of deserializing
+    MinerElection(HeaderBytes),
+
+    // We make this the ClaimHash or Claim instead of the NodeId
+    ElectedMiner((U256, NodeId)),
+
+    ElectedQuorum(quorum::quorum::Quorum),
+
+    QuorumElection(Keypair, LastBlockHeight),
+    // May want to just use the ConflictList & `BlockHeader` types
+    // to reduce the overhead of deserializing
+    ConflictResolution(ConflictBytes, HeaderBytes),
+    ResolvedConflict(Conflict),
 }
 
 impl From<&theater::Message> for Event {

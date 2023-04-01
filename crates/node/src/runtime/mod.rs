@@ -27,6 +27,7 @@ use self::{
 use crate::{
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     dkg_module::DkgModuleConfig,
+    election_module::{MinerElection, MinerElectionResult},
     EventBroadcastSender,
     NodeError,
     Result,
@@ -35,6 +36,7 @@ use crate::{
 pub mod broadcast_module;
 pub mod credit_model_module;
 pub mod dkg_module;
+pub mod election_module;
 pub mod farmer_harvester_module;
 pub mod farmer_module;
 pub mod mempool_module;
@@ -340,6 +342,87 @@ fn setup_dkg_module(
             "Failed to instantiate dkg module",
         )))
     }
+}
+
+fn setup_miner_election_module(
+    config: &NodeConfig,
+    events_tx: UnboundedSender<DirectedEvent>,
+    mut miner_election_events_rx: Receiver<Event>,
+    db_read_handle: VrrbDbReadHandle,
+    local_claim: Claim,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module_config = ElectionModuleConfig {
+        db_read_handle,
+        events_tx,
+        local_claim,
+    };
+
+    let module: ElectionModule<MinerElection, MinerElectionResult> =
+        { ElectionModule::new(ElectionModuleConfig) };
+
+    let mut miner_election_module_actor = ActorImpl::new(module);
+    let miner_election_module_handle = tokio::spawn(async move {
+        miner_election_module_actor
+            .start(&mut miner_election_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    return Ok(Some(miner_election_module_handle));
+}
+
+fn setup_quorum_election_module(
+    config: &NodeConfig,
+    events_tx: UnboundedSender<DirectedEvent>,
+    mut quourum_election_events_rx: Receiver<Event>,
+    db_read_handle: VrrbDbReadHandle,
+    local_claim: Claim,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module_config = ElectionModuleConfig {
+        db_read_handle,
+        events_tx,
+        local_claim,
+    };
+
+    let module: ElectionModule<QuorumElection, QuorumElectionResult> =
+        { ElectionModule::new(ElectionModuleConfig) };
+
+    let mut quorum_election_module_actor = ActorImpl::new(module);
+    let quorum_election_module_handle = tokio::spawn(async move {
+        quorum_election_module_actor
+            .start(&mut quorum_election_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    return Ok(Some(quorum_election_module_handle));
+}
+
+fn setup_conflict_resolution_module(
+    config: &NodeConfig,
+    events_tx: UnboundedSender<DirectedEvent>,
+    mut conflict_resolution_events_rx: Receiver<Event>,
+    db_read_handle: VrrbDbReadHandle,
+    local_claim: Claim,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module_config = ElectionModuleConfig {
+        db_read_handle,
+        events_tx,
+        local_claim,
+    };
+
+    let module: ElectionModule<ConflictResolution, ConflictResolutionResult> =
+        { ElectionModule::new(ElectionModuleConfig) };
+
+    let mut conflict_resolution_module_actor = ActorImpl::new(module);
+    let conflict_resolution_module_handle = tokio::spawn(async move {
+        conflict_resolution_module_actor
+            .start(&mut conflict_resolution_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    return Ok(Some(quorum_election_module_handle));
 }
 
 fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
