@@ -285,9 +285,7 @@ impl Miner {
             signature,
         }
     }
-    
-    /// This method has been deprecated and will be removed soon
-    #[allow(path_statements)]
+
     #[deprecated(note = "Building proposal blocks will be done in Harvester")]
     pub fn build_proposal_block(
         &self,
@@ -322,7 +320,6 @@ impl Miner {
         })
     }
 
-    
     /// This method has been deprecated and will be removed soon
     #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
