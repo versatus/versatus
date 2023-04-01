@@ -5,7 +5,7 @@
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
     cmp::Ordering,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, BTreeMap},
     mem,
 };
 
@@ -67,8 +67,7 @@ const GENESIS_ALLOWED_MINERS: [&str; 2] = [
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MinerStatus {
     Mining,
-    Waiting,
-    Processing,
+    Waiting
 }
 
 #[derive(Debug)]
@@ -104,10 +103,20 @@ pub struct MineArgs<'a> {
 
 impl Miner {
     pub fn new(config: MinerConfig) -> Self {
+        let public_key = config.public_key.clone();
+        let address = Address::new(config.public_key.clone());
+        let claim = Claim::new(
+            config.public_key,
+            address 
+        );
+
         Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
             address: Address::new(config.public_key.clone()),
+            claim,
+            last_block: None,
+            status: MinerStatus::Waiting,
         }
     }
 
@@ -136,28 +145,33 @@ impl Miner {
         todo!()
     }
 
+    pub fn get_dag(&self) -> Event {
+        return Event::GetDag
+    }
+
+    pub fn check_claim(&self, winner: U256) -> bool {
+        winner == self.claim.hash
+    }
+
     pub fn mine_convergence_block(
-        &self,
-        args: MineArgs,
-        proposals: &Vec<ProposalBlock>,
+        &mut self,
         chain: &BullDag<Block, String>,
+        next_epoch_adjustment: i128,
     ) -> Option<ConvergenceBlock> {
         // identify and resolve all the conflicting txns between proposal blocks
+        self.miner_status = MinerStatus::Mining;
+        
+        let proposals = &self.get_proposal_blocks(chain, &self.last_block);
         let resolved_txns = {
-            match args.last_block {
-                Block::Convergence { ref block } => self.resolve_conflicts(
-                    &proposals,
-                    block.header.next_block_seed.into(),
-                    args.round.clone(),
-                    chain,
-                ),
-                Block::Genesis { ref block } => self.resolve_conflicts(
-                    &proposals,
-                    block.header.next_block_seed.into(),
-                    args.round.clone(),
-                    chain,
-                ),
-                _ => return None,
+            if let Some(last_block) = self.last_block {
+                self.get_resolved_txns(
+                    proposals, 
+                    &last_block, 
+                    &last_block.header.round, 
+                    chain
+                )            
+            } else {
+                return None 
             }
         };
 
@@ -172,44 +186,26 @@ impl Miner {
             })
             .collect();
 
-        //TODO: resolve claim conflicts. This is less important because it
-        //cannot lead to double spend
-        let claims: ConsolidatedClaims = proposals
-            .iter()
-            .map(|block| {
-                let claim_hashes: LinkedHashSet<ClaimHash> = block
-                    .claims
-                    .iter()
-                    .map(|(claim_hash, _)| claim_hash.clone())
-                    .collect();
+        let mut txn_hasher = Sha256::new();
+        let mut claim_hasher = Sha256::new();
 
-                (block.hash.clone(), claim_hashes)
-            })
-            .collect();
+        let txns_hash = {
+            if let Ok(serialized_txns) = serde_json::to_string(&txn) {
+                txn_hasher.update(serialized_txns.as_bytes());
+            } 
+            txn_hasher.finalize()
+        };
 
-        // Get the convergence block from the last round
-        let last_block = args.last_block;
+        let claims_hash = {
+            if let Ok(serialized_claims) = serde_json::to_string(&txn) {
+                claim_hasher.update(serialized_claims.as_bytes());
+            }
+            claim_hasher.finalize(); 
+        };
 
-        // Get the miner claim
-        let claim = args.claim;
+        let txn_hash_string = format!("{:x}", txn_hash);
+        let claims_hash_string = format!("{:x}", claims_hash);
 
-        // Get the miner secret key
-        let secret_key = args.secret_key;
-
-        // TODO: Calculate the rolling utility and the rolling
-        // next epoch adjustment
-        let adjustment_next_epoch = args.next_epoch_adjustment;
-
-        // Get all the proposal block hashes
-        let ref_hashes = proposals.iter().map(|b| b.hash.clone()).collect();
-
-        // Hash the conflict resolved transactions
-        let txn_hash = hash_data!(txns);
-
-        // Hash the claims
-        let claim_list_hash = hash_data!(claims);
-
-        // Get the block header for the current block
         let header = BlockHeader::new(
             last_block.clone(),
             ref_hashes,
@@ -217,10 +213,9 @@ impl Miner {
             secret_key,
             txn_hash,
             claim_list_hash,
-            adjustment_next_epoch,
+            next_epoch_adjustment,
         )?;
 
-        // Hash all the header data to get the blockhash
         let block_hash = hash_data!(
             header.ref_hashes,
             header.round,
@@ -236,7 +231,8 @@ impl Miner {
             header.miner_signature
         );
 
-        // Return the ConvergenceBlock
+        self.miner_status = MinerStatus::Waiting;
+
         Some(ConvergenceBlock {
             header,
             txns,
@@ -246,6 +242,7 @@ impl Miner {
         })
     }
 
+    #[deprecated(note = "Building proposal blocks will be done in Harvester")]
     pub fn mine_proposal_block(
         &self,
         ref_block: RefHash,
@@ -255,6 +252,7 @@ impl Miner {
         claims: ClaimList,
         from: Claim,
     ) -> ProposalBlock {
+
         let payload = create_payload!(round, epoch, txns, claims, from);
 
         let signature = self.secret_key.sign_ecdsa(payload).to_string();
@@ -273,6 +271,7 @@ impl Miner {
         }
     }
 
+    #[deprecated(note = "Building proposal blocks will be done in Harvester")]
     pub fn build_proposal_block(
         &self,
         ref_block: RefHash,
@@ -280,8 +279,6 @@ impl Miner {
         epoch: Epoch,
         txns: TxnList,
         claims: ClaimList,
-        // from: Claim,
-        // secret_key: SecretKeyBytes,
     ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
         let from = self.generate_claim();
         let payload = create_payload!(round, epoch, txns, claims, from);
@@ -307,6 +304,7 @@ impl Miner {
             signature,
         })
     }
+
 
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
@@ -370,12 +368,45 @@ impl Miner {
         chrono::Utc::now().timestamp() as u128
     }
 
+    fn get_proposal_blocks(
+        &self, 
+        bulldag: &BullDag<Block, String>, 
+        last_block: ConvergenceBlock
+    ) -> Option<Vec<ProposalBlock>> {
+        let idx = self.last_block.hash;
+        if let Some(vtx) = bulldag.get_vertex(idx) {
+            let p_ids = vtx.get_references();
+            let mut proposals = Vec::new();
+            p_ids.iter().for_each(|idx| {
+                if let Some(vtx) = bulldag.get_vertex(idx) {
+                    match vtx.get_data() {
+                        Block::Proposal { ref block } => {
+                            proposals.push(vtx);
+                        },
+                        _ => { 
+                            /*Should throw an error here as 
+                             this shouldn't happen, so we 
+                             should change return type to 
+                             Result<Vec<ProposalBlock>>
+                             so that we can propagate 
+                             the error.
+                            */
+                        }
+                    }
+            }});
+
+            return proposals
+        }
+
+        return None
+    }
+
     // Check that conflicts with previous convergence block are removed
     // and there is no winner in current round.
     fn resolve_conflicts(
         &self,
         proposals: &Vec<ProposalBlock>,
-        seed: u128,
+        seed: u64,
         round: u128,
         chain: &BullDag<Block, String>,
     ) -> Vec<ProposalBlock> {
@@ -394,36 +425,27 @@ impl Miner {
         };
 
         // Next get all the prev_round conflicts resolved
-        let prev_resolved = self.resolve_conflicts_prev_rounds(round, &prev, chain);
+        let prev_resolved = self.resolve_conflicts_prev_rounds(
+            round, &prev, chain
+        );
 
         // Identify all conflicts
         let mut conflicts = self.identify_conflicts(&curr);
 
-        // create a vector of proposers with the claim and the proposal block
-        // hash.
         let proposers: Vec<(Claim, RefHash)> = curr
             .iter()
             .map(|block| (block.from.clone(), block.hash.clone()))
             .collect();
 
-        // calculate the pointer sums for all propsers and save into a vector
-        // of thruples with the claim, ref_hash and pointer sum
-        let mut pointer_sums: Vec<(Claim, RefHash, Option<u128>)> = {
-            proposers
+        // Construct a BTreeMap of all election results
+        let mut pointer_sums: BTreeMap<U256, (Claim, RefHash)> = proposers
                 .iter()
                 .map(|(claim, ref_hash)| {
-                    (claim.clone(), ref_hash.to_string(), claim.get_pointer(seed))
+                    (claim.get_election_result(seed),
+                     (claim.clone(), 
+                     ref_hash.to_string()))
                 })
-                .collect()
-        };
-
-        // Sort all the pointer sums
-        pointer_sums.sort_by(|a, b| match (a.2, b.2) {
-            (Some(x), Some(y)) => x.cmp(&y),
-            (None, Some(_)) => Ordering::Greater,
-            (Some(_), None) => Ordering::Less,
-            (None, None) => Ordering::Equal,
-        });
+                .collect();
 
         // Iterate, mutably through all the conflicts identified
         conflicts.iter_mut().for_each(|(_, conflict)| {
@@ -431,7 +453,7 @@ impl Miner {
             let mut local_pointers = pointer_sums.clone();
 
             // retain only the pointer sum related to the current conflict
-            local_pointers.retain(|(claim, ref_hash, _)| {
+            local_pointers.retain(|(election_results, (claim, ref_hash))| {
                 conflict
                     .proposers
                     .contains(&(claim.clone(), ref_hash.clone()))
@@ -439,10 +461,20 @@ impl Miner {
 
             // select the first pointer sum and extract the proposal block
             // hash from the pointer sum
-            let winner = local_pointers[0].1.clone();
+            let winner = {
 
+                let mut first: Option<U256,(Claim, RefHash)> = local_pointers.pop_first();
+
+                while let None = first {
+                    first = local_pointers.pop_first();
+                }
+
+                first
+            };
             // save it as the conflict winner
-            conflict.winner = Some(winner);
+            if let Some((res, (claim, ref_hash))) = winner {
+                conflict.winner = Some(ref_hash);
+            }
         });
 
         let mut curr_resolved = curr.clone();
@@ -619,5 +651,65 @@ impl Miner {
         });
 
         return stack;
+    }
+
+    fn get_resolved_txns(
+        &self,
+        proposals: &Vec<ProposalBlock>,
+        last_block: &Block,
+        round: &u128,
+        chain: &BullDag<Block, String>,
+    ) -> Vec<ProposalBlock> {
+        match last_block {
+            Block::Convergence { ref block } => {
+                self.resolve_conflicts(
+                    proposals, 
+                    &block.header.next_block_seed, 
+                    round, 
+                    chain
+                )
+            },
+            Block::Genesis { ref block } => {
+                self.resolve_conflicts(
+                    proposals,
+                    &block.head.next_block_seed,
+                    round,
+                    chain
+                )
+            },
+            _ => return None,
+        }
+    }
+
+    fn consolidate_txns(
+        &self, 
+        proposals: &Vec<ProposalBlock>
+    ) -> ConsolidatedTxns {
+
+        propsals.iter()
+            .map(|block| {
+                let txn_list = block.txns.iter()
+                    .map(|(id, _)| { 
+                        id.clone()
+                    }).collect();
+
+            (block.hash.clone(), txn_list)
+        }).collect()
+    }
+
+    fn consolidate_claims(
+        proposals: &Vec<ProposalBlock>
+    ) -> ConsolidatedClaims {
+
+        proposals.iter()
+            .map(|block| {
+                let claim_hashes: LinkedHashSet<ClaimHash> = block
+                    .claims
+                    .iter()
+                    .map(|(claim_hash, _)| claim_hash.clone())
+                    .collect();
+
+            (block.hash.clone(), claim_hashes)
+        }).collect()
     }
 }
