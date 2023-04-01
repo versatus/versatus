@@ -32,12 +32,20 @@ pub enum InvalidQuorum {
 }
 
 ///Quorum struct which is created and modified when an election is run
+<<<<<<< HEAD
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
+=======
+#[derive(Debug, Clone)]
+>>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
 pub struct Quorum {
     pub quorum_seed: u64,
     pub master_pubkeys: Vec<String>,
     pub quorum_pk: String,
     pub election_block_height: u128,
+<<<<<<< HEAD
+=======
+    pub keypair: KeyPair,
+>>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -95,9 +103,13 @@ impl Election for Quorum {
         Ok(elected_quorum)
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
     
     #[deprecated(note = "Noncing no longer applies to PoC Elections")]
+=======
+
+>>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
     fn nonce_claims_and_new_seed(
         &mut self,
         claims: Vec<Claim>,
@@ -105,7 +117,6 @@ impl Election for Quorum {
     ) -> Result<Vec<Claim>, InvalidQuorum> {
         let seed = match Quorum::generate_seed(
             (
-                self.election_timestamp,
                 self.election_block_height,
                 self.quorum_pk.clone(),
             ),
@@ -133,7 +144,12 @@ impl Quorum {
     /// block timestamp
     pub fn new(
         seed: u64,
+<<<<<<< HEAD
         height: u128
+=======
+        height: u128,
+        kp: KeyPair,
+>>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
     ) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::check_validity(height) {
             Err(InvalidQuorum::InvalidChildBlockError())
@@ -143,6 +159,10 @@ impl Quorum {
                 master_pubkeys: Vec::new(),
                 quorum_pk: String::new(),
                 election_block_height: height,
+<<<<<<< HEAD
+=======
+                keypair: kp,
+>>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
             })
         }
     }
