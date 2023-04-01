@@ -54,8 +54,9 @@ impl ProposalBlock {
     }
 
     pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {
-        let sets: Vec<LinkedHashSet<&TransactionDigest>> =
-            { prev_blocks.iter().map(|block| block.txn_id_set()).collect() };
+        let sets: Vec<LinkedHashSet<&TransactionDigest>> ={ 
+            prev_blocks.iter().map(|block| block.txn_id_set()).collect() 
+        };
 
         let prev_block_set: LinkedHashSet<&TransactionDigest> =
             { sets.into_iter().flatten().collect() };
