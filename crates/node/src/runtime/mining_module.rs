@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use block::Block;
+use block::{Block, convergence_block};
 use events::{DirectedEvent, Event};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
@@ -99,34 +99,19 @@ impl Handler<Event> for MiningModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            // Event::TxnAddedToMempool(txn_digest) => {
-            Event::TxnAddedToMempool(_) => {
-                // dbg!(txn_digest.to_string());
+            Event::ElectedMiner((winner_claim_hash, winner_node_id)) => {
+                if self.miner.check_claim(winner_claim_hash) {
+                    let _ = self.events_tx.send(self.miner.get_dag());
+                };
             },
-            Event::MempoolSizeThesholdReached { cutoff_transaction } => {
-                let handle = self.mempool_read_handle_factory.handle();
-
-                if let Some(idx) = handle.get_index_of(&cutoff_transaction) {
-                    dbg!(handle.len());
-                    let transaction_snapshot = self.take_snapshot_until_cutoff(idx);
-                    dbg!(transaction_snapshot.len());
-                    dbg!(handle.len());
-
-                    self.mark_snapshot_transactions(idx);
-                } else {
-                    telemetry::error!(
-                        "Could not find index of cutoff transaction to produce a block"
+            Event::DagSnapshot(dag) => {
+                if let Some(convergence_block) = self.miner.mine_convergence_block(
+                    proposals, chain, next_epoch_adjustment
+                ) {
+                    let _ = self.events_tx.send(
+                        Event::MinedBlock(convergence_block)
                     );
                 }
-            },
-            Event::MinerElection() => {
-                
-            },
-            Event::ResolvedConflict(conflict) => {
-
-            }
-            Event::BlockConfirmed(_) => {
-                // do something
             },
             Event::NoOp => {},
             // _ => telemetry::warn!("unrecognized command received: {:?}", event),
