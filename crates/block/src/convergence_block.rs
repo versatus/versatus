@@ -35,6 +35,7 @@ use vrrb_core::{
     txn::Txn,
     verifiable::Verifiable,
 };
+use vrrb_core::txn::TransactionDigest;
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -53,7 +54,6 @@ use crate::{
     GenesisBlock,
     ProposalBlock,
     RefHash,
-    TxnId,
 };
 
 pub struct MineArgs<'a> {
@@ -88,7 +88,7 @@ impl ConvergenceBlock {
         self.certificate = Some(cert);
     }
 
-    pub fn txn_id_set(&self) -> LinkedHashSet<&TxnId> {
+    pub fn txn_id_set(&self) -> LinkedHashSet<&TransactionDigest> {
         self.txns.iter().flat_map(|(_, set)| set).collect()
     }
 }
