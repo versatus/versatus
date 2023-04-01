@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data};
 use vrrb_core::{claim::Claim, txn::TransactionDigest};
-
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

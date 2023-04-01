@@ -1,7 +1,8 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{hash_map::DefaultHasher, BTreeMap, HashMap},
     error::Error,
     fmt::Debug,
+    hash::{Hash, Hasher},
 };
 
 use async_trait::async_trait;
@@ -44,7 +45,6 @@ pub struct ElectionResult {
 }
 
 #[derive(Clone, Debug)]
-<<<<<<< HEAD
 pub struct ElectionModule<E, T>
 where
     E: ElectionType,
@@ -66,7 +66,7 @@ impl ElectionModule<MinerElection, MinerElectionResult> {
             election_type: MinerElection,
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("State module"),
+            label: String::from("Election module"),
             db_read_handle: config.db_read_handle,
             local_claim: config.local_claim,
             outcome: None,
@@ -87,7 +87,7 @@ impl ElectionModule<QuorumElection, QuorumElectionResult> {
             election_type: QuorumElection,
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("State module"),
+            label: String::from("Election module"),
             db_read_handle: config.db_read_handle,
             local_claim: config.local_claim,
             outcome: None,
@@ -100,6 +100,29 @@ impl ElectionModule<QuorumElection, QuorumElectionResult> {
     }
 }
 
+impl ElectionModule<ConflictResolution, ConflictResolutionResult> {
+    pub fn new(
+        config: ElectionModuleConfig,
+    ) -> ElectionModule<ConflictResolution, ConflictResolutionResult> {
+        ElectionModule {
+            election_type: ConflictResolution,
+            status: ActorState::Stopped,
+            id: uuid::Uuid::new_v4().to_string(),
+            label: String::from("Election module"),
+            db_read_handle: config.db_read_handle,
+            local_claim: config.local_claim,
+            outcome: None,
+            events_tx: config.events_tx,
+        }
+    }
+
+    pub fn name(&self) -> ActorLabel {
+        String::from("Conflict Resultion Election Module")
+    }
+}
+
+
+>>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
 impl ElectionType for MinerElection {}
 impl ElectionType for QuorumElection {}
 
@@ -182,7 +205,31 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
 
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
-            //TODO: Implement
+            Event::QuorumElection(kp, last_block_height) => {
+                let claims = self.db_read_handle.claim_store_values();
+                let mut hasher = DefaultHasher::new();
+                kp.get_miner_public_key().hash(&mut hasher);
+                let pubkey_hash = hasher.finish();
+
+                let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+                pub_key_bytes.push(1u8);
+
+                let hash = digest(digest(&*pub_key_bytes).as_bytes());
+                let payload = (10, hash);
+
+                if let Ok(seed) = Quorum::generate_seed(payload, kp.clone()) {
+                    if let Ok(mut quorum) = Quorum::new(seed, last_block_height, kp.clone()) {
+                        if let Ok(elected_quorum) =
+                            quorum.run_election(claims.values().cloned().collect::<Vec<Claim>>())
+                        {
+                            let directed_event = Event::ElectedQuorum(elected_quorum.clone());
+                            let _ = self.events_tx.send(directed_event);
+                        }
+                    }
+                }
+
+            },
+
             _ => {},
         }
 
