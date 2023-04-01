@@ -3,6 +3,7 @@ pub mod result;
 pub use crate::miner::*;
 pub mod block_builder;
 pub mod conflict_resolver;
+pub mod miner_impl;
 // mod miner_v1;
 
 /// Legacy miner implementation
