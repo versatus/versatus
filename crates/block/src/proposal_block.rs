@@ -5,10 +5,8 @@ use secp256k1::{
     Message,
 };
 use serde::{Deserialize, Serialize};
-use sha256::digest;
 use utils::{create_payload, hash_data};
-use vrrb_core::claim::Claim;
-use vrrb_core::txn::TransactionDigest;
+use vrrb_core::{claim::Claim, txn::TransactionDigest};
 
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
@@ -26,6 +24,7 @@ pub struct ProposalBlock {
 }
 
 impl ProposalBlock {
+
     pub fn build(
         ref_block: RefHash,
         round: u128,
@@ -35,9 +34,11 @@ impl ProposalBlock {
         from: Claim,
         secret_key: SecretKeyBytes,
     ) -> ProposalBlock {
+
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = secret_key.sign_ecdsa(payload).to_string();
         let hash = hash_data!(round, epoch, txns, claims, from, signature);
+        let hash_string = format!("{:x}", hash);
 
         ProposalBlock {
             ref_block,
@@ -45,7 +46,7 @@ impl ProposalBlock {
             epoch,
             txns,
             claims,
-            hash,
+            hash: hash_string,
             from,
             signature,
         }
@@ -65,9 +66,9 @@ impl ProposalBlock {
 
         let curr_set: LinkedHashSet<&TransactionDigest> = { curr_txns.iter().map(|(id, _)| id).collect() };
 
-        let prev_confirmed: LinkedHashSet<&TransactionDigest> = {
+        let prev_confirmed: LinkedHashSet<TransactionDigest> = {
             let intersection = curr_set.intersection(&prev_block_set);
-            intersection.into_iter().map(|id| id.clone()).collect()
+            intersection.into_iter().map(|id| id.clone().to_owned()).collect()
         };
 
         self.txns.retain(|id, _| prev_confirmed.contains(id));

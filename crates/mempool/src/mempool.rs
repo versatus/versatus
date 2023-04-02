@@ -1,3 +1,4 @@
+#![allow(unused_imports, deprecated_in_future, deprecated)]
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,

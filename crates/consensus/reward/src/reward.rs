@@ -1,3 +1,4 @@
+#![allow(deprecated, deprecated_in_future)]
 //FEATURE TAG(S): Rewards, Block Structure
 
 use serde::{Deserialize, Serialize};

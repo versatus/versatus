@@ -1,5 +1,6 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
+#![allow(unused_imports)]
 
 use std::fmt;
 
@@ -72,21 +73,21 @@ impl Block {
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|(txn)| std::mem::size_of_val(&txn))
+                .map(|txn| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
 
             Block::Proposal { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|(txn)| std::mem::size_of_val(&txn))
+                .map(|txn| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
 
             Block::Genesis { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|(txn)| std::mem::size_of_val(&txn))
+                .map(|txn| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
         }
     }
