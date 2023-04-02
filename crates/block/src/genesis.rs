@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use primitives::SecretKey as SecretKeyBytes;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;

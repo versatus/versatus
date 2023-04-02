@@ -1,14 +1,13 @@
-use std::error::Error;
-use events::Event;
-use block::{Block, ConvergenceBlock, ProposalBlock};
-use bulldag::graph::BullDag;
+use block::ConvergenceBlock;
 use crate::conflict_resolver::Resolver;
-
 /// A trait that can be implemented on any type that can build blocks.
 /// For current purposes, this is to be implemented on both Miner struct 
 /// and Harvester. 
 ///     
 /// ```
+/// use miner::conflict_resolver::Resolver;
+/// use block::ConvergenceBlock;
+///
 /// pub trait BlockBuilder: Resolver {
 ///     type BlockType;
 ///     type RefType;

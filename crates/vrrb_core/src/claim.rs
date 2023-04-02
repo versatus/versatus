@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Sha256, Digest};
 use ethereum_types::U256;
-use sha256::digest;
 
-use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable, keypair::Keypair};
+use crate::{ownable::Ownable, verifiable::Verifiable, keypair::Keypair};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
@@ -51,6 +50,10 @@ impl Claim {
             // collects threshold of votes on its validity
             eligible: true,
         }
+    }
+
+    pub fn get_ballot_info(&self) -> (U256, Claim) {
+        (self.hash, self.clone())
     }
 
     /// Uses XOR of the ClaimHash as a U256 against a block seed of u64

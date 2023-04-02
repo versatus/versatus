@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
-
 use ethereum_types::U256;
-use vrrb_core::claim::Claim;
 
 /// A trait that can be implemented on any type that may need to resolve 
 /// any kind of conflict in the process of working. In particular, the 
@@ -14,23 +12,27 @@ use vrrb_core::claim::Claim;
 /// of transactions that it may want to include in a block to only those 
 /// that it has a high probability of winning. 
 /// ```
+/// use std::collections::BTreeMap;
+/// use ethereum_types::U256;
+/// 
+///
 /// pub trait Resolver {
-///   type ProposalInner;
-///   type Identified: IntoIterator;
-///   type SourceInner;
+///   type Proposal;
+///   type Identified;
+///   type Source;
 ///   type BallotInfo; 
 ///
-///    fn identify<I: IntoIterator<Item = Self::ProposalInner>>(&self, proposals: &I) -> &Self::Identified;
-///    fn resolve<I: IntoIterator<Item = Self::ProposalInner>>(&self, proposals: &I) -> &I;
-///    fn resolve_earlier<I: IntoIterator<Item = Self::ProposalInner>>(&self, proposals: &I) -> &I;
-///    fn get_sources<I: IntoIterator<Item = Self::SourceInner>>(&self, proposals: &I) -> &I;
-///    fn get_election_results<I: IntoIterator<Item = Self::BallotInfo>>(&self, proposers: &I) -> BTreeMap<U256, Self::BallotInfo>; 
-///    fn get_proposers<I: IntoIterator<Item = Self::ProposalInner>, E: IntoIterator<Item = Self::BallotInfo>>(&self, proposals: &I) -> &E; 
+///    fn identify(&self, proposals: &Vec<Self::Proposal>) -> Self::Identified;
+///    fn resolve(&self, proposals: &Vec<Self::Proposal>, round: u128) -> Vec<Self::Proposal>;
+///    fn resolve_earlier(&self, proposals: &Vec<Self::Proposal>, round: u128) -> Vec<Self::Proposal>;
+///    fn get_sources(&self, proposals: &Vec<Self::Proposal>) -> Vec<Self::Proposal>;
+///    fn get_election_results(&self, proposers: &Vec<Self::Proposal>) -> BTreeMap<U256, Self::BallotInfo>; 
+///    fn get_proposers(&self, proposals: &Vec<Self::Proposal>) -> Vec<Self::BallotInfo>; 
 ///    fn append_winner(&self, conflicts: &mut Self::Identified, election_results: &mut BTreeMap<U256, Self::BallotInfo>); 
-///    fn resolve_current<I: IntoIterator<Item = Self::ProposalInner>>(&self, current: &mut I, conflicts: &Self::Identified);
-///    fn split_proposals_by_round<I: IntoIterator<Item = Self::ProposalInner>>(
-///        &self, proposals: &I
-///    ) -> (I, I) {
+///    fn resolve_current(&self, current: &mut Vec<Self::Proposal>, conflicts: &Self::Identified);
+///    fn split_proposals_by_round(
+///        &self, proposals: &Vec<Self::Proposal>
+///    ) -> (Vec<Self::Proposal>, Vec<Self::Proposal>) {
 ///        (vec![], vec![])
 ///    }
 /// }
@@ -40,22 +42,23 @@ use vrrb_core::claim::Claim;
 // TODO: This should be moved to a separate crate
 // TODO: We should add a basic doctest example of implementing this
 pub trait Resolver {
-    type ProposalInner;
-    type Identified: IntoIterator + Default;
-    type SourceInner;
+    type Proposal;
+    type Identified;
+    type Source;
     type BallotInfo;
     
-    fn identify<I: IntoIterator<Item = Self::ProposalInner>>(&self, proposals: &I) -> &Self::Identified;
-    fn resolve<I: IntoIterator<Item = Self::ProposalInner>>(&self, proposals: &I) -> &I;
-    fn resolve_earlier<I: IntoIterator<Item = Self::ProposalInner>>(&self, proposals: &I) -> &I;
-    fn get_sources<I: IntoIterator<Item = Self::SourceInner>>(&self, proposals: &I) -> &I;
-    fn get_election_results<I: IntoIterator<Item = Self::BallotInfo>>(&self, proposers: &I) -> BTreeMap<U256, Self::BallotInfo>; 
-    fn get_proposers<I: IntoIterator<Item = Self::ProposalInner>, E: IntoIterator<Item = Self::BallotInfo>>(&self, proposals: &I) -> &E; 
+    fn identify(&self, proposals: &Vec<Self::Proposal>) -> Self::Identified;
+    fn resolve(&self, proposals: &Vec<Self::Proposal>, round: u128, seed: u64) -> Vec<Self::Proposal>;
+    fn resolve_earlier(&self, proposals: &Vec<Self::Proposal>, round: u128) -> Vec<Self::Proposal>;
+    fn get_sources(&self, proposals: &Self::Proposal) -> Vec<Self::Source>;
+    fn get_election_results(&self, proposers: &Vec<Self::BallotInfo>, seed: u64) -> BTreeMap<U256, Self::BallotInfo>; 
+    fn get_proposers(&self, proposals: &Vec<Self::Proposal>) -> Vec<Self::BallotInfo>; 
     fn append_winner(&self, conflicts: &mut Self::Identified, election_results: &mut BTreeMap<U256, Self::BallotInfo>); 
-    fn resolve_current<I: IntoIterator<Item = Self::ProposalInner>>(&self, current: &mut I, conflicts: &Self::Identified);
-    fn split_proposals_by_round<I: IntoIterator<Item = Self::ProposalInner>>(
-        &self, proposals: &I
-    ) -> (I, I) {
+    fn resolve_current(&self, current: &mut Vec<Self::Proposal>, conflicts: &Self::Identified);
+    #[allow(unused)]
+    fn split_proposals_by_round(
+        &self, proposals: &Vec<Self::Proposal>
+    ) -> (Vec<Self::Proposal>, Vec<Self::Proposal>) {
         (vec![], vec![])
     }
 }

@@ -1,53 +1,21 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt,
-};
+use std::collections::{HashMap, HashSet};
 
-use bulldag::{
-    graph::BullDag,
-    index::Index,
-    vertex::{Direction, Vertex},
-};
-use primitives::{
-    Epoch,
-    RawSignature,
-    SecretKey as SecretKeyBytes,
-    GENESIS_EPOCH,
-    SECOND,
-    VALIDATOR_THRESHOLD,
-};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
 use serde::{Deserialize, Serialize};
-use sha256::digest;
-use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable,
     claim::Claim,
-    keypair::KeyPair,
     txn::{Txn, TransactionDigest},
-    verifiable::Verifiable,
 };
 use tokio::task::JoinHandle;
 use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;
-use crate::{
-    genesis,
-    header::BlockHeader,
-    invalid::{BlockError, InvalidBlockErrorReason},
-};
 
 pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
 pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
@@ -58,7 +26,7 @@ pub type NextEpochAdjustment = i128;
 pub type ClaimHash = String;
 pub type RefHash = String;
 pub type TxnList = LinkedHashMap<TransactionDigest, Txn>;
-pub type ClaimList = LinkedHashMap<ClaimHash, Claim>;
+pub type ClaimList = LinkedHashMap<String, Claim>;
 pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TransactionDigest>>;
 pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
 pub type BlockHash = String;
