@@ -7,8 +7,7 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data};
-use vrrb_core::claim::Claim;
-use vrrb_core::txn::TransactionDigest;
+use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
 
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
@@ -59,7 +58,13 @@ impl ProposalBlock {
     ) -> ProposalBlock {
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = secret_key.sign_ecdsa(payload).to_string();
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
+        let hashable_txns: Vec<(String, Txn)> = {
+            txns.clone().iter().map(|(k, v)| {
+                (k.digest_string(), v.clone())
+            }).collect()
+        };
+        let hash = hash_data!(round, epoch, hashable_txns, claims, from, signature);
+        let hash_string = format!("{:x}", hash);
 
         ProposalBlock {
             ref_block,
