@@ -42,31 +42,121 @@ impl<'a> BlockBuilder for Miner<'a> {
 
 
     fn get_references(&self) -> Option<Vec<Self::RefType>> {
-        let last_block = self.last_block.clone();
-        if let Some(last_block) = last_block {
-            let idx = last_block.get_hash();
+        if let Ok(bulldag) = self.dag.read() {
+            if let Some(vtx) = self.get_last_block_vertex(None) {
+                let p_ids = vtx.get_references();
+                let mut proposals = Vec::new();
+                p_ids.iter().for_each(|idx| {
+                if let Some(vtx) = bulldag.get_vertex(idx.to_string()) {
+                    match vtx.get_data() {
+                        Block::Proposal { ref block } => {
+                            proposals.push(block.clone());
+                        },
+                        _ => {}
+                    }
+                }});
+                
+                let orphans = self.get_orphaned_references(
+                    vtx.get_index(), 
+                    0, 
+                    5
+                );
+                proposals.extend(orphans);
+                return Some(proposals)
+            } 
+        }
+
+        return None
+    }
+
+    /// Gets all the orphaned ProposalBlocks from the past n rounds.
+    fn get_orphaned_references(
+        &self, 
+        idx: RefHash, 
+        current_round: usize, 
+        n_rounds: usize
+    ) -> Vec<Self::RefType> {
+
+        let source_cbs = self.get_n_rounds_convergence(idx, current_round, n_rounds);
+        let mut orphaned = vec![];
+
+        source_cbs.iter().for_each(|ref_hash| {
+            if let Ok(guard) = self.dag.read() {
+                if let Some(vtx) = guard.get_vertex(ref_hash.clone().to_string()) {
+                    let references = vtx.get_references();
+                    for ref_hash in references {
+                        if let Some(vtx) = guard.get_vertex(ref_hash.clone().to_string()) {
+                            if let Block::Proposal { block } = vtx.get_data() { 
+                                if vtx.get_references().len() == 0 {
+                                    orphaned.push(block.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        orphaned
+    }
+
+    /// Gets the ConvegenceBlock from the past n rounds.
+    fn get_n_rounds_convergence(&self, idx: RefHash, current_round: usize, n_rounds: usize) -> HashSet<RefHash> {
+        if current_round > n_rounds {
+            return HashSet::new() 
+        }
+
+        let mut source_cbs = HashSet::new();
+        
+        if let Ok(guard) = self.dag.read() {
+            if let Some(vtx) = guard.get_vertex(idx) {
+                if let Block::Convergence { .. } = vtx.get_data() {
+                    let sources = vtx.get_sources();
+                    sources.iter().for_each(|ref_hash| {
+                        if let Some(vtx) = guard.get_vertex(ref_hash.clone().to_string()) {
+                            if let Block::Proposal { .. } = vtx.get_data() {
+                                let sources = vtx.get_sources();
+                                for source in sources {
+                                    source_cbs.insert(source.to_string());
+                                }
+                            }
+                        }
+                    });
+
+                    source_cbs.iter().for_each(|ref_hash| {
+                        source_cbs.extend(
+                            self.get_n_rounds_convergence(
+                                ref_hash.clone().to_string(), current_round + 1, n_rounds
+                            )
+                        )
+                    });
+                }
+            }
+        }
+        
+        return source_cbs 
+    }
+
+    /// Gets the vertex from the last Convergence (or Genesis) block.
+    fn get_last_block_vertex(&self, idx: Option<RefHash>) -> Option<Vertex<Block, String>> {
+        if let Some(idx) = idx {
             if let Ok(bulldag) = self.dag.read() {
                 if let Some(vtx) = bulldag.get_vertex(idx) {
-                    let p_ids = vtx.get_references();
-                    let mut proposals = Vec::new();
-                    p_ids.iter().for_each(|idx| {
-                        if let Some(vtx) = bulldag.get_vertex(idx.to_string()) {
-                            match vtx.get_data() {
-                                Block::Proposal { ref block } => {
-                                    proposals.push(block.clone());
-                                },
-                                _ => {}
-                            }
-                    }});
-                    return Some(proposals)
-                } else {
-                    return None
+                    return Some(vtx.clone())
                 }
-            } else {
-                return None 
+            }
+        } else {
+            let last_block = self.last_block.clone();
+            if let Some(last_block) = last_block {
+                let idx = last_block.get_hash();
+                if let Ok(bulldag) = self.dag.read() {
+                    if let Some(vtx) = bulldag.get_vertex(idx) {
+                        return Some(vtx.clone())
+                    }
+                }
+            }
         }
-    }
-    None
+        None
     }
 }
 
