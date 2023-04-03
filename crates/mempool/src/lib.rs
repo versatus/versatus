@@ -3,12 +3,8 @@ pub mod mempool;
 
 // TODO: merge pool w Mempool later on
 pub mod pool;
-use anyhow::{Context, Result};
-use reqwest::StatusCode;
 
 pub use crate::mempool::*;
-// use serde_json::{Error as JsonError, json};
-// use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod tests {

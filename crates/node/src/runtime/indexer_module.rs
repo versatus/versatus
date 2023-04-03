@@ -108,7 +108,7 @@ impl Handler<Event> for IndexerModule {
     }
 }
 
-// #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use serial_test::serial;
     use theater::ActorImpl;
