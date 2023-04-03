@@ -23,14 +23,10 @@ use block::{
     GenesisBlock,
     ProposalBlock,
     RefHash,
-    TxnId,
-    TxnList,
+    TxnList, InnerBlock,
 };
-use bulldag::{
-    graph::BullDag,
-    vertex::{Direction, Vertex},
-};
-use primitives::{Address, Epoch, PublicKey, SecretKey, Signature};
+use bulldag::graph::BullDag;
+use primitives::{Address, Epoch, PublicKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -82,17 +78,43 @@ pub struct MinerConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct Miner {
+pub struct Miner<'a> {
     secret_key: MinerSk,
     public_key: MinerPk,
     address: Address,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    pub last_block: Option<ConvergenceBlock>,
+    pub last_block: Option<&'a dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>,
     pub status: MinerStatus,
 }
 
-impl Miner {
+/// Method Implementations for the Miner Struct
+impl<'a> Miner<'a> {
+    /// Creates a new instance of a `Miner`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use vrrb_core::keypair::Keypair;
+    /// use primitives::Address;
+    /// use miner::miner::{MinerConfig, Miner};
+    /// use bulldag::graph::BullDag;
+    /// use std::sync::{Arc, RwLock};
+    /// 
+    /// let keypair = Keypair::random(); 
+    /// let (secret_key, public_key) = keypair.miner_kp;
+    /// let address = Address::new(public_key.clone());
+    /// let dag = Arc::new(RwLock::new(BullDag::new()));
+    /// let config = MinerConfig {
+    ///     secret_key,
+    ///     public_key,
+    ///     dag,
+    /// };
+    ///
+    /// let miner = Miner::new(config);
+    ///
+    /// assert_eq!(miner.address(), address); 
+    /// ```
     pub fn new(config: MinerConfig) -> Self {
         let public_key = config.public_key.clone();
         let address = Address::new(config.public_key.clone());
@@ -349,17 +371,47 @@ impl Miner {
 
     pub(crate) fn build_header(&self, ref_hashes: Vec<RefHash>, txns_hash: String, claims_hash: String) -> Option<BlockHeader> {
 
-        BlockHeader::new(
-            self.last_block.clone(),
-            ref_hashes.to_owned(),
-            self.claim.clone(),
-            self.secret_key.clone(),
-            txns_hash,
-            claims_hash,
-            self.next_epoch_adjustment,
-        )
+        if let (Some(block), None) = self.convert_last_block_to_static() {
+            return BlockHeader::new(
+                block.into(),
+                ref_hashes.to_owned(),
+                self.claim.clone(),
+                self.secret_key.clone(),
+                txns_hash,
+                claims_hash,
+                self.next_epoch_adjustment,
+            )
+        } 
+
+        if let (None, Some(block)) = self.convert_last_block_to_static() {
+            return BlockHeader::new(
+                block.into(),
+                ref_hashes.to_owned(),
+                self.claim.clone(),
+                self.secret_key.clone(),
+                txns_hash,
+                claims_hash,
+                self.next_epoch_adjustment
+            ) 
+        }
+        
+        return None
     }
 
+    pub(crate) fn convert_last_block_to_static(&self) -> (Option<GenesisBlock>, Option<ConvergenceBlock>) {
+        if let Some(block) = self.last_block.clone() {
+            if block.is_genesis() {
+                return (block.into_static_genesis(), None)
+            } else {
+                return (None, block.into_static_convergence())
+            }
+        } else {
+            return (None, None)
+        }
+    }
+
+    /// Hashes the current `ConvergenceBlock` being mined using 
+    /// the fields from the `BlockHeader`
     pub(crate) fn hash_block(&self, header: &BlockHeader) -> String {
         let block_hash = hash_data!(
             header.ref_hashes,
@@ -377,6 +429,27 @@ impl Miner {
         );
 
         format!("{:x}", block_hash)
+    }
+
+    /// Gets the current election `seed` from the `last_block.header.next_block_seed`
+    /// field
+    pub(crate) fn get_seed(&self) -> u64 {
+        if let Some(last_block) = self.last_block.clone() {
+            return last_block.get_header().next_block_seed
+        } 
+
+        u32::MAX as u64
+    }
+
+    /// Gets the current election `round` from the `last_block.header.round` field
+    /// and adds `1` to it.
+    pub(crate) fn get_round(&self) -> u128 {
+
+        if let Some(last_block) = self.last_block.clone() {
+            return last_block.get_header().round + 1
+        }
+
+        0u128
     }
 }
 
