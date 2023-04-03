@@ -41,6 +41,7 @@ pub struct Node {
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
+    indexer_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -68,6 +69,7 @@ impl Node {
         let reputation_events_rx = event_router.subscribe();
         let jsonrpc_events_rx = event_router.subscribe();
         let dkg_events_rx = event_router.subscribe();
+        let indexer_events_rx = event_router.subscribe();
 
         let (
             updated_config,
@@ -77,6 +79,7 @@ impl Node {
             jsonrpc_server_handle,
             miner_handle,
             dkg_handle,
+            indexer_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -87,6 +90,7 @@ impl Node {
             miner_events_rx,
             jsonrpc_events_rx,
             dkg_events_rx,
+            indexer_events_rx,
         )
         .await?;
 
@@ -109,6 +113,7 @@ impl Node {
             control_rx,
             events_tx,
             miner_handle,
+            indexer_handle,
             keypair,
         })
     }

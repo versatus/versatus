@@ -10,30 +10,6 @@ pub use crate::mempool::*;
 // use serde_json::{Error as JsonError, json};
 // use serde::{Deserialize, Serialize};
 
-pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
-    let url = "http://localhost:3444/transactions"; // TODO: Move to config
-    let req_json =
-        serde_json::to_string(txn_record).context("Failed to serialize txn_record to json")?;
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(url)
-        .header("Content-Type", "application/json")
-        .body(req_json)
-        .send()
-        .await
-        .context("Request error")?;
-
-    if response.status().is_success() {
-        Ok(response.status())
-    } else {
-        Err(anyhow::anyhow!(
-            "Unexpected status code: {}",
-            response.status()
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
 

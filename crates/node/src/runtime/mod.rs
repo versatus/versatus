@@ -20,6 +20,7 @@ use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    indexer_module::IndexerModuleConfig,
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
@@ -54,8 +55,10 @@ pub async fn setup_runtime_components(
     miner_events_rx: Receiver<Event>,
     jsonrpc_events_rx: Receiver<Event>,
     dkg_events_rx: Receiver<Event>,
+    indexer_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -132,6 +135,9 @@ pub async fn setup_runtime_components(
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
 
+    let indexer_handle =
+        setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
+
     Ok((
         config,
         mempool_handle,
@@ -139,6 +145,7 @@ pub async fn setup_runtime_components(
         gossip_handle,
         jsonrpc_server_handle,
         miner_handle,
+        indexer_handle,
         None,
     ))
 }
@@ -341,6 +348,29 @@ fn setup_dkg_module(
             "Failed to instantiate dkg module",
         )))
     }
+}
+
+fn setup_indexer_module(
+    config: &NodeConfig,
+    mut indexer_events_rx: Receiver<Event>,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let config = IndexerModuleConfig {
+        mempool_read_handle_factory,
+    };
+
+    let mut module = indexer_module::IndexerModule::new(config);
+
+    let mut indexer_module_actor = ActorImpl::new(module);
+
+    let indexer_handle = tokio::spawn(async move {
+        indexer_module_actor
+            .start(&mut indexer_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    Ok(Some(indexer_handle))
 }
 
 fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {

@@ -196,17 +196,6 @@ impl LeftRightMempool {
             .append(MempoolOp::Add(txn_record.to_owned()))
             .publish();
 
-        tokio::spawn(async move {
-            match create_tx_indexer(&txn_record).await {
-                Ok(_) => {
-                    info!("Successfully sent TxnRecord to block explorer indexer");
-                },
-                Err(e) => {
-                    warn!("Error sending TxnRecord to block explorer indexer {}", e);
-                },
-            }
-        });
-
         Ok(self.size_in_kilobytes())
     }
 

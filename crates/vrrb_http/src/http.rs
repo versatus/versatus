@@ -30,11 +30,6 @@ impl HttpClientBuilder {
         self
     }
 
-    // pub fn set_header(mut self, name: &str, value: &str) -> Self {
-    //     self.headers.insert(name, value.parse().unwrap());
-    //     self
-    // }
-
     pub fn build(self) -> HttpClient {
         HttpClient {
             base_url: self.base_url,
@@ -52,6 +47,10 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
+    // pub fn set_header(mut self, name: &str, value: &str) {
+    //     self.headers.insert(name, value.parse().unwrap());
+    // }
+
     pub async fn request(&self, method: Method, path: &str) -> RequestBuilder {
         let url = self.base_url.join(path).unwrap();
         self.client

@@ -21,19 +21,14 @@ use crate::{
 };
 
 pub struct IndexerModuleConfig {
-    pub mempool: LeftRightMempool,
-    pub events_tx: EventBroadcastSender,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 #[derive(Debug)]
 pub struct IndexerModule {
-    // mempool: LeftRightMempool,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    // events_tx: EventBroadcastSender,
-    cutoff_transaction: Option<TransactionDigest>,
     indexer_client: IndexerClient,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 }
@@ -44,11 +39,8 @@ impl IndexerModule {
 
         Self {
             id: uuid::Uuid::new_v4().to_string(),
-            // mempool: config.mempool,
-            // events_tx: config.events_tx,
             status: ActorState::Stopped,
             label: String::from("Indexer"),
-            cutoff_transaction: None,
             indexer_client: IndexerClient::new(indexer_config).unwrap(),
             mempool_read_handle_factory: config.mempool_read_handle_factory,
         }
@@ -89,11 +81,11 @@ impl Handler<Event> for IndexerModule {
                 return Ok(ActorState::Stopped);
             },
 
-            Event::NewTxnCreated(txn) => {
+            Event::TxnAddedToMempool(transaction_digest) => {
                 info!("Sending transaction to indexer: NewTxnCreated");
 
-                let txn_records = self.mempool_read_handle_factory.entries().clone();
-                let txn_record = txn_records.get(&txn.id());
+                let txn_records = self.mempool_read_handle_factory.entries();
+                let txn_record = txn_records.get(&transaction_digest);
 
                 let client = self.indexer_client.clone();
                 match client.post_tx(txn_record.unwrap()).await {
