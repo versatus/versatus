@@ -19,10 +19,11 @@ use block::{
     GenesisBlock,
     ProposalBlock,
     RefHash,
-    TxnList,
+    TxnList, InnerBlock,
 };
 use bulldag::graph::BullDag;
 use primitives::{Address, Epoch, PublicKey, Signature};
+use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
     hashes::{sha256 as s256, Hash},
@@ -122,19 +123,19 @@ pub struct MinerConfig {
 /// }
 ///
 #[derive(Debug, Clone)]
-pub struct Miner {
+pub struct Miner<'a> {
     secret_key: MinerSk,
     public_key: MinerPk,
     address: Address,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    pub last_block: Option<ConvergenceBlock>,
+    pub last_block: Option<&'a dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>,
     pub status: MinerStatus,
     pub next_epoch_adjustment: i128,
 }
 
 /// Method Implementations for the Miner Struct
-impl Miner {
+impl<'a> Miner<'a> {
     /// Creates a new instance of a `Miner`
     ///
     /// # Example
@@ -453,10 +454,9 @@ impl Miner {
         claims_hash: String
     ) -> Option<BlockHeader> {
 
-        if let Some(block) = self.last_block.clone() {
-
+        if let (Some(block), None) = self.convert_last_block_to_static() {
             return BlockHeader::new(
-                Block::Convergence { block: block.clone() },
+                block.into(),
                 ref_hashes.to_owned(),
                 self.claim.clone(),
                 self.secret_key.clone(),
@@ -465,8 +465,32 @@ impl Miner {
                 self.next_epoch_adjustment,
             )
         } 
+
+        if let (None, Some(block)) = self.convert_last_block_to_static() {
+            return BlockHeader::new(
+                block.into(),
+                ref_hashes.to_owned(),
+                self.claim.clone(),
+                self.secret_key.clone(),
+                txns_hash,
+                claims_hash,
+                self.next_epoch_adjustment
+            ) 
+        }
         
         return None
+    }
+
+    pub(crate) fn convert_last_block_to_static(&self) -> (Option<GenesisBlock>, Option<ConvergenceBlock>) {
+        if let Some(block) = self.last_block.clone() {
+            if block.is_genesis() {
+                return (block.into_static_genesis(), None)
+            } else {
+                return (None, block.into_static_convergence())
+            }
+        } else {
+            return (None, None)
+        }
     }
 
     /// Hashes the current `ConvergenceBlock` being mined using 
@@ -494,7 +518,7 @@ impl Miner {
     /// field
     pub(crate) fn get_seed(&self) -> u64 {
         if let Some(last_block) = self.last_block.clone() {
-            return last_block.header.next_block_seed
+            return last_block.get_header().next_block_seed
         } 
 
         u32::MAX as u64
@@ -505,7 +529,7 @@ impl Miner {
     pub(crate) fn get_round(&self) -> u128 {
 
         if let Some(last_block) = self.last_block.clone() {
-            return last_block.header.round + 1
+            return last_block.get_header().round + 1
         }
 
         0u128

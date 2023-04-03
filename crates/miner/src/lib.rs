@@ -19,12 +19,25 @@ pub mod v2 {
 #[cfg(test)]
 mod tests {
     #![allow(unused, deprecated, deprecated_in_future)]
+    use bulldag::vertex::Vertex;
+    use patriecia::common::Key;
     use primitives::Address;
+    use ritelinked::LinkedHashMap;
     use secp256k1::Message;
     use vrrb_core::{keypair::Keypair, claim::Claim};
     use sha2::{Digest, Sha256};
+    use block::{Block, ProposalBlock};
+    use tokio;
 
-    use crate::{test_helpers::{mine_genesis, create_miner, create_miner_from_keypair, create_keypair, create_and_sign_message}, MinerConfig};
+    use crate::{
+        test_helpers::{
+            mine_genesis, 
+            create_miner, 
+            create_miner_from_keypair, 
+            create_keypair, 
+            create_and_sign_message, MinerDag, create_miner_return_dag, build_proposal_block, add_edges_to_dag
+        }, MinerConfig
+    };
 
     #[test]
     fn test_create_miner() {
@@ -75,15 +88,46 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_timestamp() {
-        let miner = create_miner();
-        let timestamp = miner.get_timestamp();
+    fn test_mine_valid_convergence_block_empty_proposals() {
+        let (mut miner, mut dag) = create_miner_return_dag();
+        let keypair = Keypair::random();
+        let other_miner = create_miner_from_keypair(&keypair); 
         
-        assert_eq!(timestamp, timestamp as u128);
-    }
+        let genesis = mine_genesis();
+        if let Some(genesis) = genesis {
+            miner.last_block = Some(&genesis);
+            let gblock = Block::Genesis { block: genesis.clone() };
+            let gvtx: Vertex<Block, String> = gblock.into();
+            let prop1 = ProposalBlock::build(
+                genesis.hash.clone(),
+                0,
+                0,
+                LinkedHashMap::new(),
+                LinkedHashMap::new(),
+                other_miner.claim.clone(),
+                keypair.miner_kp.0.clone()
+            );
+            let pblock = Block::Proposal { block: prop1.clone() };
+            let pvtx: Vertex<Block, String> = pblock.into(); 
+            if let Ok(mut guard) = dag.write() {
+                let edge = (&gvtx, &pvtx);
+                guard.add_edge(edge);
+            }
 
-    #[test]
-    fn test_mine_valid_convergence_block_empty_proposals() {}
+            let convergence = miner.try_mine(); 
+            if let Ok(cblock) = convergence {
+                let cvtx: Vertex<Block, String> = cblock.into();
+                if let Ok(mut guard) = dag.write() {
+                    let edge = (&pvtx, &cvtx);
+                    guard.add_edge(edge);
+                }
+            }
+
+            if let Ok(guard) = dag.read() {
+                assert_eq!(guard.len(), 3);
+            }
+        }
+    }
 
     #[test]
     fn test_mine_valid_convergence_block_from_proposals_w_no_conflicts() {
@@ -116,9 +160,9 @@ pub(crate) mod test_helpers {
         Block,
         GenesisBlock,
         ProposalBlock,
-        TxnList,
+        TxnList, ConvergenceBlock,
     };
-    use bulldag::graph::BullDag;
+    use bulldag::{graph::BullDag, vertex::Vertex};
     use primitives::{Address, PublicKey, SecretKey, Signature};
     use secp256k1::Message;
     use sha2::{Digest, Sha256};
@@ -134,7 +178,20 @@ pub(crate) mod test_helpers {
     /// Move this into primitives and call it simply `BlockDag`
     pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
 
-    pub(crate) fn create_miner() -> Miner {
+    /// Helper struct to build out DAG for testing 
+    ///
+    /// fields:
+    ///     `genesis: Option<Vertex<Block, String>>`
+    ///     `proposals: Vec<Vec<Vertex<Block, String>>>`
+    ///     `convergence: Vec<Vec<Vertex<Block, String>>>`
+    #[derive(Debug, Clone)]
+    pub(crate) struct BatchEdges {
+        genesis: Option<Vertex<Block, String>>,
+        proposals: Vec<Vec<Vertex<Block, String>>>,
+        convergence: Vec<Vertex<Block, String>>
+    }
+
+    pub(crate) fn create_miner() -> Miner<'static> {
         let (secret_key, public_key) = create_keypair();
         let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
 
@@ -294,5 +351,94 @@ pub(crate) mod test_helpers {
         let mut miner = create_miner();
         //TODO: Add Mock Convergence Block with round height of 29.999999mm
         miner.try_mine()
+    }
+
+    pub(crate) fn create_miner_return_dag() -> (Miner<'static>, MinerDag) {
+        let mut miner = create_miner();
+        let dag = miner.dag.clone();
+
+        (miner, dag)
+    }
+
+    pub(crate) fn add_edges_to_dag(
+        dag: &mut MinerDag, 
+        genesis: bool, 
+        n_proposals: u32, 
+        n_rounds: u32, 
+    ) {
+        let mut batch = BatchEdges {
+            genesis: None,
+            proposals: vec![],
+            convergence: vec![],
+        };
+        
+        let genesis: Option<Vertex<Block, String>> = {
+            if genesis {
+                if let Some(genesis) = mine_genesis() {
+                    let gblock = Block::Genesis { block: genesis.clone() };
+                    Some(gblock.clone().into())
+                } else {
+                    None
+                }
+            } else {
+                None 
+            }
+        };
+
+        batch.genesis = genesis;
+
+        if batch.genesis.is_none() {
+            return 
+        }
+
+        for round in (0..n_rounds).into_iter() {  
+            if round == 0 {
+                match batch.genesis.clone().unwrap().get_data() {
+                    Block::Genesis { ref block } => {
+                        let proposals: Vec<Vertex<Block, String>> = (0..n_proposals)
+                            .into_iter()
+                            .map(|_| {
+                                let proposal = build_proposal_block(
+                                    &block.hash, 5, 4, round as u128, 0
+                                    ).unwrap();  
+                                let block = Block::from(proposal);
+                                block.into()
+                            }).collect();
+    
+                        batch.proposals.push(proposals);
+                        
+                        let mut miner = create_miner();
+                        miner.dag = dag.clone();
+                        if let Ok(block) = miner.try_mine() {
+                            batch.convergence.push(block.into());
+                        }
+                    },
+                    _ => {}
+                }
+            } else {
+                match batch.convergence.clone()[round as usize].get_data() {
+                    Block::Convergence { ref block } => {
+                        let proposals: Vec<Vertex<Block, String>> = (0..n_proposals)
+                            .into_iter()
+                            .map(|_| {
+                                let proposal = build_proposal_block(
+                                    &block.hash, 5, 4, round as u128, 0
+                                    ).unwrap();  
+                                let block = Block::from(proposal);
+                                block.into()
+                            }).collect();
+    
+                        batch.proposals.push(proposals);
+
+                        let mut miner = create_miner();
+                        miner.dag = dag.clone();
+                        if let Ok(block) = miner.try_mine() {
+                            batch.convergence.push(block.into());
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
     }
 }
