@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use reqwest::{header, Client, Method, RequestBuilder, Response, Url};
+use telemetry;
 
 #[derive(Debug, Clone)]
 pub struct HttpClientBuilder {
@@ -10,8 +11,15 @@ pub struct HttpClientBuilder {
 }
 
 impl HttpClientBuilder {
-    pub fn new(base_url: &SocketAddr) -> Result<Self, reqwest::Error> {
-        let base_url = Url::parse(&format!("http://{}", base_url)).unwrap();
+    pub fn new(_base_url: String) -> Result<Self, reqwest::Error> {
+        let base_url = match Url::parse(&_base_url) {
+            Ok(base_url) => base_url,
+            Err(e) => {
+                eprintln!("Error parsing URL: {}", _base_url);
+                eprintln!("Error parsing URL: {}", e);
+                panic!("Failed to parse URL");
+            },
+        };
 
         let client = Client::new();
         let headers = reqwest::header::HeaderMap::new();
@@ -92,7 +100,8 @@ mod tests {
 
         // let base_url = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
         // 3444);
-        let http_client = HttpClientBuilder::new(mock_server.address())
+        let url = format!("{}{}", "http://", mock_server.address().to_string());
+        let http_client = HttpClientBuilder::new(url)
             .unwrap()
             .default_headers()
             .build();
@@ -112,7 +121,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let http_client = HttpClientBuilder::new(mock_server.address())
+        let url = format!("{}{}", "http://", mock_server.address().to_string());
+        let http_client = HttpClientBuilder::new(url)
             .unwrap()
             .default_headers()
             .build();

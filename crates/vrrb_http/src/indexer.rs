@@ -10,14 +10,14 @@ use crate::http;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexerClientConfig {
-    pub base_url: SocketAddr,
+    pub base_url: String,
 }
 
 impl Default for IndexerClientConfig {
     fn default() -> Self {
-        let base_url = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3444);
-
-        Self { base_url }
+        Self {
+            base_url: "http://localhost:3444".to_owned(),
+        }
     }
 }
 
@@ -28,7 +28,7 @@ pub struct IndexerClient {
 
 impl IndexerClient {
     pub fn new(config: IndexerClientConfig) -> Result<Self, reqwest::Error> {
-        let client = HttpClientBuilder::new(&config.base_url)?
+        let client = HttpClientBuilder::new(config.base_url)?
             .default_headers()
             .build();
         // .map_err(|e| Error::from(e))?;
@@ -69,11 +69,9 @@ mod tests {
     async fn test_post_tx_success() {
         let mock_server = MockServer::start().await;
 
-        let base_url = mock_server.address();
+        let url = format!("{}{}", "http://", mock_server.address().to_string());
 
-        let config = IndexerClientConfig {
-            base_url: *base_url,
-        };
+        let config = IndexerClientConfig { base_url: url };
         let client = IndexerClient::new(config).unwrap();
 
         let txn = Txn::default();
@@ -106,6 +104,8 @@ mod tests {
     async fn test_post_tx_failure() {
         let mock_server = wiremock::MockServer::start().await;
 
+        let url = format!("{}{}", "http://", mock_server.address().to_string());
+
         let mock = wiremock::Mock::given(wiremock::matchers::method("POST"))
             .and(wiremock::matchers::path("/transactions"))
             .respond_with(wiremock::ResponseTemplate::new(500));
@@ -114,9 +114,7 @@ mod tests {
 
         let base_url = mock_server.address();
 
-        let indexer_config = IndexerClientConfig {
-            base_url: *base_url,
-        };
+        let indexer_config = IndexerClientConfig { base_url: url };
         let indexer_client = IndexerClient::new(indexer_config).unwrap();
 
         let txn = Txn::default();

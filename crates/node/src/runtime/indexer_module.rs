@@ -166,7 +166,7 @@ mod tests {
 
         // indexer_module.status();
 
-        ctrl_tx.send(Event::Stop.into()).unwrap();
+        ctrl_tx.send(Event::Stop).unwrap();
         indexer_handle.await.unwrap();
     }
 }
