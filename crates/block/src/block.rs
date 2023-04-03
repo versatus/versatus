@@ -45,6 +45,7 @@ pub trait InnerBlock: std::fmt::Debug {
     fn get_next_block_reward(&self) -> Self::RewardType;
     fn is_genesis(&self) -> bool;
     fn get_hash(&self) -> String;
+    fn get_ref_hashes(&self) -> Vec<String>;
     fn into_static_convergence(&self) -> Option<ConvergenceBlock>;
     fn into_static_genesis(&self) -> Option<GenesisBlock>;
 }
@@ -157,6 +158,10 @@ impl InnerBlock for ConvergenceBlock {
     fn into_static_genesis(&self) -> Option<GenesisBlock> {
         None
     }
+
+    fn get_ref_hashes(&self) -> Vec<String> {
+        self.header.ref_hashes.clone()
+    }
 }
 
 impl InnerBlock for GenesisBlock {
@@ -189,6 +194,10 @@ impl InnerBlock for GenesisBlock {
     
     fn into_static_genesis(&self) -> Option<GenesisBlock> {
         Some(self.clone())
+    }
+
+    fn get_ref_hashes(&self) -> Vec<String> {
+        self.header.ref_hashes.clone()
     }
 }
 
