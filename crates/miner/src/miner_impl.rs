@@ -7,7 +7,7 @@ use ritelinked::LinkedHashSet;
 use vrrb_core::{claim::Claim, txn::TransactionDigest};
 
 
-impl BlockBuilder for Miner {
+impl<'a> BlockBuilder for Miner<'a> {
     type BlockType = ConvergenceBlock;
     type RefType = ProposalBlock;
 
@@ -15,9 +15,8 @@ impl BlockBuilder for Miner {
     /// `ConvergenceBlock` is certified and appended to the `Dag`
     /// We should make sure that the new `ConvergenceBlock` is actually
     /// pulled from the `miner.dag` instance instead of just passing it 
-    /// into this method. 
-    fn update(&mut self, new_block: &ConvergenceBlock, adjustment: &i128) {
-        self.last_block = Some(new_block.clone());
+    // into this method. 
+    fn update(&mut self, adjustment: &i128) {
         self.next_epoch_adjustment = *adjustment;
     }
 
@@ -43,6 +42,7 @@ impl BlockBuilder for Miner {
                 certificate: None,
             })
         } else {
+            println!("Couldn't find references");
             return None
         }
     }
@@ -56,9 +56,10 @@ impl BlockBuilder for Miner {
     /// been referenced. We need to add this functionality so that 
     /// blocks don't get "orphaned"
     fn get_references(&self) -> Option<Vec<Self::RefType>> {
+        println!("Getting last block");
         let last_block = self.last_block.clone();
         if let Some(last_block) = last_block {
-            let idx = last_block.hash;
+            let idx = last_block.get_hash();
             if let Ok(bulldag) = self.dag.read() {
                 if let Some(vtx) = bulldag.get_vertex(idx) {
                     let p_ids = vtx.get_references();
@@ -80,12 +81,12 @@ impl BlockBuilder for Miner {
                 return None 
         }
     }
-
+    println!("Couldn't find last block");
     None
     }
 }
 
-impl Resolver for Miner {
+impl<'a> Resolver for Miner<'a> {
     type Proposal = ProposalBlock;
     type Identified = HashMap<TransactionDigest, Conflict>;
     type Source = ConvergenceBlock;
@@ -311,7 +312,7 @@ impl Resolver for Miner {
         if let Some(last_block) = self.last_block.clone() {
             let (mut curr, mut prev) = (Vec::new(), Vec::new());
             for block in proposals.into_iter() {
-                if block.is_current_round(last_block.header.round) {
+                if block.is_current_round(last_block.get_header().round) {
                     curr.push(block.clone());
                 } else {
                     prev.push(block.clone());

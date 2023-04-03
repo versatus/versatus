@@ -1,9 +1,10 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
-#![allow(unused_imports)]
+
 
 use std::fmt;
 
+use bulldag::vertex::Vertex;
 use primitives::{Epoch, SecretKey as SecretKeyBytes};
 use reward::reward::Reward;
 #[cfg(mainnet)]
@@ -35,7 +36,7 @@ use crate::{
     ProposalBlock,
 };
 
-pub trait InnerBlock {
+pub trait InnerBlock: std::fmt::Debug {
     type Header;
     type RewardType;
 
@@ -44,6 +45,8 @@ pub trait InnerBlock {
     fn get_next_block_reward(&self) -> Self::RewardType;
     fn is_genesis(&self) -> bool;
     fn get_hash(&self) -> String;
+    fn into_static_convergence(&self) -> Option<ConvergenceBlock>;
+    fn into_static_genesis(&self) -> Option<GenesisBlock>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -73,21 +76,21 @@ impl Block {
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|txn| std::mem::size_of_val(&txn))
+                .map(|(txn)| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
 
             Block::Proposal { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|txn| std::mem::size_of_val(&txn))
+                .map(|(txn)| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
 
             Block::Genesis { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|txn| std::mem::size_of_val(&txn))
+                .map(|(txn)| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
         }
     }
@@ -146,6 +149,14 @@ impl InnerBlock for ConvergenceBlock {
     fn get_hash(&self) -> String {
         self.hash.clone()
     }
+
+    fn into_static_convergence(&self) -> Option<ConvergenceBlock> {
+        Some(self.clone())
+    }
+    
+    fn into_static_genesis(&self) -> Option<GenesisBlock> {
+        None
+    }
 }
 
 impl InnerBlock for GenesisBlock {
@@ -170,5 +181,29 @@ impl InnerBlock for GenesisBlock {
 
     fn get_hash(&self) -> String {
         self.hash.clone()
+    }
+
+    fn into_static_convergence(&self) -> Option<ConvergenceBlock> {
+        None
+    }
+    
+    fn into_static_genesis(&self) -> Option<GenesisBlock> {
+        Some(self.clone())
+    }
+}
+
+impl From<Block> for Vertex<Block, String> {
+    fn from(item: Block) -> Vertex<Block, String> {
+        match item {
+            Block::Convergence { ref block } => {
+                return Vertex::new(item.clone(), block.hash.clone());
+            },
+            Block::Proposal { ref block } => {
+                return Vertex::new(item.clone(), block.hash.clone());
+            },
+            Block::Genesis { ref block } => {
+                return Vertex::new(item.clone(), block.hash.clone());
+            }
+        }
     }
 }

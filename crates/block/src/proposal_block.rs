@@ -10,6 +10,28 @@ use vrrb_core::{claim::Claim, txn::TransactionDigest};
 
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
+/// A Block type that goes between two ConvergenceBlocks in the 
+/// VRRB Dag.
+///
+/// ```
+/// use serde::{Serialize, Deserialize};
+/// use block::{BlockHash, RefHash, TxnList};
+/// use primitives::Epoch;
+///
+/// #[derive(Clone, Debug, Serialize, Deserialize)]
+/// #[repr(C)]
+/// pub struct ProposalBlock {
+///     pub ref_block: RefHash;
+///     pub round: u128,
+///     pub epoch: Epoch,
+///     pub txns: TxnList,
+///     pub claims: ClaimList,
+///     pub from: Claim,
+///     pub hash: BlockHash,
+///     pub signature: String,
+/// }
+/// ```
+///
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
 pub struct ProposalBlock {

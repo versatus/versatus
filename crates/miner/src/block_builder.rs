@@ -1,4 +1,3 @@
-use block::ConvergenceBlock;
 use crate::conflict_resolver::Resolver;
 /// A trait that can be implemented on any type that can build blocks.
 /// For current purposes, this is to be implemented on both Miner struct 
@@ -12,7 +11,7 @@ use crate::conflict_resolver::Resolver;
 ///     type BlockType;
 ///     type RefType;
 ///     
-///     fn update(&mut self, new_block: &ConvergenceBlock, adjustment: &i128);
+///     fn update(&mut self, adjustment: &i128);
 ///     fn build(&self) -> Option<Self::BlockType>;
 ///     fn get_references(&self) -> Vec<Self::RefType>; 
 /// }
@@ -22,7 +21,7 @@ pub trait BlockBuilder: Resolver {
     type BlockType;
     type RefType;
 
-    fn update(&mut self, new_block: &ConvergenceBlock, adjustment: &i128); 
+    fn update(&mut self, adjustment: &i128); 
     fn build(&self) -> Option<Self::BlockType>;
     fn get_references(&self) -> Option<Vec<Self::RefType>>;
 }
