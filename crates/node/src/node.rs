@@ -28,7 +28,7 @@ pub struct Node {
     event_router_handle: JoinHandle<()>,
     running_status: RuntimeModuleState,
     control_rx: UnboundedReceiver<Event>,
-    events_tx: UnboundedSender<DirectedEvent>,
+    events_tx: UnboundedSender<Event>,
 
     // TODO: make this private
     pub keypair: KeyPair,
@@ -38,7 +38,6 @@ pub struct Node {
     state_handle: Option<JoinHandle<Result<()>>>,
     mempool_handle: Option<JoinHandle<Result<()>>>,
     gossip_handle: Option<JoinHandle<Result<()>>>,
-    broadcast_controller_handle: Option<JoinHandle<Result<()>>>,
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
@@ -53,29 +52,28 @@ impl Node {
         let vm = None;
         let keypair = config.keypair.clone();
 
-        let (events_tx, mut events_rx) = unbounded_channel::<DirectedEvent>();
+        let (events_tx, mut events_rx) = unbounded_channel::<Event>();
         let mut event_router = Self::setup_event_routing_system();
 
-        let mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
-        let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
-        let network_events_rx = event_router.subscribe(&Topic::Network)?;
-        let controller_events_rx = event_router.subscribe(&Topic::Network)?;
-        let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mempool_events_rx = event_router.subscribe();
+        let vrrbdb_events_rx = event_router.subscribe();
+        let network_events_rx = event_router.subscribe();
+        let controller_events_rx = event_router.subscribe();
+        let miner_events_rx = event_router.subscribe();
 
-        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
-        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
-        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
-        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
-        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
-        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
-        let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
+        let farmer_events_rx = event_router.subscribe();
+        let harvester_events_rx = event_router.subscribe();
+        let mrc_events_rx = event_router.subscribe();
+        let cm_events_rx = event_router.subscribe();
+        let reputation_events_rx = event_router.subscribe();
+        let jsonrpc_events_rx = event_router.subscribe();
+        let dkg_events_rx = event_router.subscribe();
 
         let (
             updated_config,
             mempool_handle,
             state_handle,
             gossip_handle,
-            broadcast_controller_handle,
             jsonrpc_server_handle,
             miner_handle,
             dkg_handle,
@@ -106,7 +104,6 @@ impl Node {
             mempool_handle,
             jsonrpc_server_handle,
             gossip_handle,
-            broadcast_controller_handle,
             dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
@@ -130,7 +127,7 @@ impl Node {
 
         info!("node received stop signal");
 
-        self.events_tx.send((Topic::Control, Event::Stop))?;
+        self.events_tx.send(Event::Stop)?;
 
         if let Some(handle) = self.state_handle {
             handle.await??;
@@ -219,15 +216,7 @@ impl Node {
     }
 
     fn setup_event_routing_system() -> EventRouter {
-        let mut event_router = EventRouter::new();
-        event_router.add_topic(Topic::Control, Some(1));
-        event_router.add_topic(Topic::State, Some(1));
-        event_router.add_topic(Topic::Internal, Some(100));
-        event_router.add_topic(Topic::External, Some(100));
-        event_router.add_topic(Topic::Network, Some(100));
-        event_router.add_topic(Topic::Consensus, Some(100));
-        event_router.add_topic(Topic::Storage, Some(100));
-        event_router.add_topic(Topic::Throttle, Some(100));
+        let mut event_router = EventRouter::default();
 
         event_router
     }

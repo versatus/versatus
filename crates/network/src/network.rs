@@ -10,10 +10,17 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
-use qp2p::{Config, Connection, ConnectionIncoming, Endpoint, IncomingConnections, RetryConfig};
+pub use qp2p::{
+    Config,
+    Connection,
+    ConnectionIncoming,
+    Endpoint,
+    IncomingConnections,
+    RetryConfig,
+};
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info, instrument};
+use telemetry::{error, info};
 use tokio::net::UdpSocket;
 
 use crate::{
@@ -53,20 +60,11 @@ pub struct BroadcastEngine {
     pub raptor_num_packet_blast: usize,
 }
 
-// TODO: replace the one above with this
-// pub struct BroadcastEngine {
-//     pub peer_connection_list: HashMap<SocketAddr, Connection>,
-//     pub raptor_list: HashSet<SocketAddr>,
-//     pub endpoint: (Endpoint, IncomingConnections),
-//     pub raptor_udp_port: u16,
-//     pub raptor_num_packet_blast: usize,
-//     pub harvester_endpoints: (Endpoint, IncomingConnections),
-// }
-
 const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
 
 impl BroadcastEngine {
     /// Create a new broadcast engine for each node
+    #[telemetry::instrument]
     pub async fn new(raptor_udp_port: u16, raptor_num_packet_blast: usize) -> Result<Self> {
         let (node, incoming_conns, _) = Self::new_endpoint(raptor_udp_port).await?;
 
@@ -79,6 +77,7 @@ impl BroadcastEngine {
         })
     }
 
+    #[telemetry::instrument]
     async fn new_endpoint(
         port: u16,
     ) -> Result<(
@@ -112,6 +111,7 @@ impl BroadcastEngine {
     ///
     /// * `address`: A vector of SocketAddr, which is the address of the peer
     ///   you want to connect to.
+    #[telemetry::instrument]
     pub async fn add_peer_connection(
         &mut self,
         address: Vec<SocketAddr>,
@@ -129,12 +129,11 @@ impl BroadcastEngine {
                 .insert(addr.to_owned(), connection);
         }
 
-        // std::mem::drop(peers);
-
         Ok(BroadcastStatus::ConnectionEstablished)
     }
 
-    pub async fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) {
+    #[telemetry::instrument]
+    pub fn add_raptor_peers(&mut self, address: Vec<SocketAddr>) {
         self.raptor_list.extend(address)
     }
 
@@ -143,12 +142,8 @@ impl BroadcastEngine {
     /// Arguments:
     ///
     /// * `address`: The address of the peer to be removed.
+    #[telemetry::instrument]
     pub fn remove_peer_connection(&mut self, address: Vec<SocketAddr>) -> Result<()> {
-        // let mut peers = self.peer_connection_list.lock().map_err(|err| {
-        //     error!("error acquiring lock on peer connection list: {err}");
-        //     BroadcastError::Other(err.to_string())
-        // })?;
-
         for addr in address.iter() {
             self.peer_connection_list.retain(|address, connection| {
                 info!("closed connection with: {addr}");
@@ -170,6 +165,7 @@ impl BroadcastEngine {
     /// Returns:
     ///
     /// A future that resolves to a BroadcastStatus
+    #[telemetry::instrument(name = "quic_broadcast")]
     pub async fn quic_broadcast(&self, message: Message) -> Result<BroadcastStatus> {
         let mut futs = FuturesUnordered::new();
 
@@ -210,6 +206,7 @@ impl BroadcastEngine {
     /// Returns:
     ///
     /// A future that resolves to a BroadcastStatus
+    #[telemetry::instrument(name = "send_data_via_quic")]
     pub async fn send_data_via_quic(
         &self,
         message: Message,
@@ -240,6 +237,7 @@ impl BroadcastEngine {
     /// Returns:
     ///
     /// The return type is a future of type BroadcastStatus.
+    #[telemetry::instrument(name = "unreliable_broadcast")]
     pub async fn unreliable_broadcast(
         &self,
         data: Vec<u8>,
@@ -303,6 +301,7 @@ impl BroadcastEngine {
     ///
     /// a future that resolves to a result. The result is either an error or a
     /// unit.
+    #[telemetry::instrument(name = "process_received_packets")]
     pub async fn process_received_packets(
         &self,
         port: u16,
@@ -374,7 +373,8 @@ impl BroadcastEngine {
         }
     }
 
-    pub fn get_incomming_connections(&mut self) -> &mut IncomingConnections {
+    #[telemetry::instrument(name = "get_incoming_connections")]
+    pub fn get_incoming_connections(&mut self) -> &mut IncomingConnections {
         &mut self.endpoint.1
     }
 
@@ -382,6 +382,7 @@ impl BroadcastEngine {
         self.endpoint.0.local_addr()
     }
 
+    #[telemetry::instrument(name = "get_address_for_packet_shards")]
     fn get_address_for_packet_shards(
         &self,
         packet_index: usize,
@@ -478,7 +479,7 @@ mod tests {
 
         // Peer 2 gets an incoming connection
         let mut peer2_incoming_messages =
-            if let Some((_, incoming)) = b2.get_incomming_connections().next().await {
+            if let Some((_, incoming)) = b2.get_incoming_connections().next().await {
                 incoming
             } else {
                 panic!("No incoming connection");
@@ -493,7 +494,7 @@ mod tests {
 
         // Peer 2 gets an incoming connection
         let mut peer3_incoming_messages =
-            if let Some((_, incoming)) = b3.get_incomming_connections().next().await {
+            if let Some((_, incoming)) = b3.get_incoming_connections().next().await {
                 incoming
             } else {
                 panic!("No incoming connection");

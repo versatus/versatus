@@ -17,13 +17,10 @@ use primitives::{
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
-    broadcast::{self, Sender},
+    broadcast::{self, Receiver, Sender},
     mpsc::{UnboundedReceiver, UnboundedSender},
 };
-use vrrb_core::{
-    account::Account,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -52,7 +49,7 @@ pub struct PeerData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SyncPeerData {
-    pub address: String,
+    pub address: SocketAddr,
     pub raptor_udp_port: u16,
     pub quic_port: u16,
     pub node_type: NodeType,
@@ -134,6 +131,8 @@ pub enum Event {
     SlashClaims(Vec<String>),
     CheckAbandoned,
     SyncPeers(Vec<SyncPeerData>),
+    EmptyPeerSync,
+    PeerSyncFailed(Vec<SocketAddr>),
     PeerRequestedStateSync(PeerData),
 
     //Event to tell Farmer node to sign the Transaction
@@ -222,62 +221,59 @@ pub enum Topic {
 /// between runtime modules.
 pub struct EventRouter {
     /// Map of async transmitters to various runtime modules
-    topics: HashMap<Topic, Sender<Event>>,
+    _topics: HashMap<Topic, Sender<Event>>,
+
+    /// Event broadcast sender
+    sender: Sender<Event>,
 }
 
-pub type DirectedEvent = (Topic, Event);
+pub const DEFAULT_BUFFER: usize = 1000;
+
+#[deprecated]
+pub type DirectedEvent = Event;
 
 impl Default for EventRouter {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl EventRouter {
-    pub fn new() -> Self {
+    pub fn new(buffer: Option<usize>) -> Self {
+        let buffer = buffer.unwrap_or(DEFAULT_BUFFER);
+        let (sender, _) = broadcast::channel(buffer);
+
         Self {
-            topics: HashMap::new(),
+            _topics: HashMap::new(),
+            sender,
         }
     }
 
-    pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {
-        let buffer = size.unwrap_or(1);
-        let (tx, _) = broadcast::channel(buffer);
+    #[deprecated]
+    pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {}
 
-        self.topics.insert(topic, tx);
-    }
-
-    pub fn subscribe(
-        &self,
-        topic: &Topic,
-    ) -> std::result::Result<broadcast::Receiver<Event>, Error> {
-        if let Some(sender) = self.topics.get(topic) {
-            Ok(sender.subscribe())
-        } else {
-            Err(Error::Other(format!("unable to subscribe to {topic:?}")))
-        }
+    pub fn subscribe(&self) -> Receiver<Event> {
+        self.sender.subscribe()
     }
 
     /// Starts the event router, distributing all incomming events to all
     /// subscribers
-    pub async fn start(&mut self, event_rx: &mut UnboundedReceiver<DirectedEvent>) {
-        while let Some((topic, event)) = event_rx.recv().await {
+    pub async fn start(&mut self, event_rx: &mut UnboundedReceiver<Event>) {
+        while let Some(event) = event_rx.recv().await {
             if event == Event::Stop {
                 info!("event router received stop signal");
-                self.fan_out_event(Event::Stop, &topic);
+                self.fan_out_event(Event::Stop);
 
                 return;
             }
 
-            self.fan_out_event(event, &topic);
+            self.fan_out_event(event);
         }
     }
 
-    fn fan_out_event(&mut self, event: Event, topic: &Topic) {
-        if let Some(topic_sender) = self.topics.get_mut(topic) {
-            if let Err(err) = topic_sender.send(event.clone()) {
-                error!("failed to send event {event:?} to topic {topic:?}: {err:?}");
-            }
+    fn fan_out_event(&mut self, event: Event) {
+        if let Err(err) = self.sender.send(event.clone()) {
+            error!("failed to broadcast event {event:?}: {err:?}");
         }
     }
 }
@@ -297,6 +293,7 @@ impl QuorumCertifiedTxn {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
 
@@ -305,28 +302,17 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn should_susbcribe_to_topics() {
-        let mut router = EventRouter::new();
-
-        router.add_topic(Topic::Control, None);
-
-        router.subscribe(&Topic::Control).unwrap();
-    }
-
-    #[tokio::test]
     async fn should_stop_when_issued_stop_event() {
-        let (event_tx, mut event_rx) = unbounded_channel::<DirectedEvent>();
-        let mut router = EventRouter::new();
+        let (event_tx, mut event_rx) = unbounded_channel::<Event>();
+        let mut router = EventRouter::default();
 
-        router.add_topic(Topic::Control, Some(10));
-
-        let mut subscriber_rx = router.subscribe(&Topic::Control).unwrap();
+        let mut subscriber_rx = router.subscribe();
 
         let handle = tokio::spawn(async move {
             router.start(&mut event_rx).await;
         });
 
-        event_tx.send((Topic::Control, Event::Stop)).unwrap();
+        event_tx.send(Event::Stop).unwrap();
 
         handle.await.unwrap();
 
