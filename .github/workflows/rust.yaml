@@ -4,6 +4,10 @@ name: Rust
 
 jobs:
     pr-health-checks:
+        runs-on: ubuntu-latest
+            permissions:
+              contents: read
+              packages: write
         name: PR health checks
         runs-on: ubuntu-latest
         steps:
