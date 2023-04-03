@@ -95,9 +95,10 @@ impl FarmerModule {
                 JobResult::Votes((votes, farmer)) => {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::Vote(vote.clone(), QuorumType::Harvester, farmer),
+                            let _ = broadcast_events_tx.send(Event::Vote(
+                                vote.clone(),
+                                QuorumType::Harvester,
+                                farmer,
                             ));
                         }
                     }

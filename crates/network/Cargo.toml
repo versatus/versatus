@@ -21,6 +21,7 @@ serde = { workspace = true }
 qp2p = { workspace = true }
 bytes = { workspace = true }
 telemetry = { workspace = true }
+tracing = { workspace = true }
 vrrb_core = { workspace = true }
 primitives = { workspace = true }
 block = { workspace = true }
@@ -28,3 +29,4 @@ bincode = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 events = { workspace = true }
+theater = { workspace = true }
