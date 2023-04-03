@@ -1,11 +1,12 @@
 use std::net::SocketAddr;
-
 use async_trait::async_trait;
 use bytes::Bytes;
+use crossbeam_channel::unbounded;
 use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
+    packet::RaptorBroadCastedData,
 };
 use telemetry::{error, info, warn};
 use theater::{ActorLabel, ActorState, Handler};
@@ -31,7 +32,7 @@ const RAPTOR_ERASURE_COUNT: u32 = 3000;
 
 #[derive(Debug)]
 pub struct BroadcastEngineController {
-    engine: BroadcastEngine,
+    pub engine: BroadcastEngine,
     events_tx: EventBroadcastSender,
 }
 
@@ -41,18 +42,11 @@ pub struct BroadcastEngineControllerConfig {
     pub events_tx: EventBroadcastSender,
 }
 
-impl BroadcastEngineControllerConfig {
-    pub fn local_addr(&self) -> SocketAddr {
-        self.engine.local_addr()
-    }
-}
 
 impl BroadcastEngineController {
-    pub fn new(config: BroadcastEngineControllerConfig) -> Self {
-        let engine = config.engine;
-        let events_tx = config.events_tx;
-
-        Self { engine, events_tx }
+    pub fn new(engine: BroadcastEngine) -> Self {
+        let addr = engine.local_addr();
+        Self { engine, addr }
     }
 
     pub async fn listen(

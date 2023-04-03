@@ -50,7 +50,6 @@ const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 -
 /// Below is the type that shall be used to broadcast RaptorQ Data
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RaptorBroadCastedData {
-    Txn(Txn),
     Block(Block),
 }
 
@@ -258,23 +257,25 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
 }
 
 /// It receives packets from the `receiver` channel, checks if the packet is a
-/// duplicate, and if not, it checks if the packet is a forwarder packet. If it
-/// is, it forwards the packet to the `forwarder` channel. If it is not, it
-/// checks if the packet is a new batch. If it is, it creates a new decoder
-/// for the batch. If it is not, it adds the packet to the decoder. If the
-/// decoder is complete, it sends the decoded file to the `file_send` channel
+/// forwarder packet, if it is, it forwards the packet to the `forwarder`
+/// channel, if it is not, it checks if the packet is a new batch or not, if it
+/// is, it creates a new decoder for the batch, if it is not, it decodes the
+/// packet and if the decoding is successful, it sends the decoded data to the
+/// `batch_send` channel
 ///
 /// Arguments:
 ///
 /// * `receiver`: Receiver<([u8; 1280], usize)>
-/// * `batch_id_hashset`: A hashset that contains the batch_ids of all the
-///   batches that have been
-/// reassembled.
-/// * `decoder_hash`: A hashmap that stores the batch_id as the key and a tuple
-///   of the number of packets
-/// received and the decoder as the value.
-/// * `forwarder`: Sender<Vec<u8>>
-/// * `file_send`: Sender<(String, Vec<u8>)>
+/// * `batch_id_hashset`: This is a hashset which contains the batch_id of the
+///   packets which have been
+/// decoded.
+/// * `decoder_hash`: This is a hashmap which stores the batch_id as key and a
+///   tuple of (number of
+/// packets received, decoder) as value.
+/// * `forwarder`: This is the channel that is used to forward the packets to
+///   other nodes.
+/// * `batch_send`: This is the channel that sends the decoded data to the
+///   `batch_handler`
 pub fn reassemble_packets(
     receiver: Receiver<([u8; 1280], usize)>,
     batch_id_hashset: &mut HashSet<[u8; BATCH_ID_SIZE]>,

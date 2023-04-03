@@ -44,6 +44,7 @@ pub struct Node {
     quorum_election_handle: Option<JoinHandle<Result<()>>>,
     farmer_handle: Option<JoinHandle<Result<()>>>,
     harvester_handle: Option<JoinHandle<Result<()>>>,
+    raptor_handle: Option<std::thread::JoinHandle<bool>>,
 }
 
 impl Node {
@@ -82,6 +83,7 @@ impl Node {
             quorum_election_handle,
             farmer_handle,
             harvester_handle,
+            raptor_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -123,6 +125,7 @@ impl Node {
             keypair,
             miner_election_handle,
             quorum_election_handle,
+            raptor_handle,
         })
     }
 
