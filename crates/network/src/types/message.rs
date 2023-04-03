@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use events::{Event, PeerData, Vote};
-use primitives::{FarmerQuorumThreshold, NodeType, QuorumType};
+use primitives::{FarmerQuorumThreshold, NodeType, PublicKey, QuorumType};
 use serde::{Deserialize, Serialize};
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
@@ -13,16 +13,25 @@ pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
 
+/// Represents an empty, often invalid Message
+pub const NULL_MESSAGE: Message = Message {
+    id: uuid::Uuid::nil(),
+    data: MessageBody::Empty,
+    timestamp: 0,
+};
 
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Message {
     pub id: MessageId,
     pub data: MessageBody,
+    pub timestamp: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+// TODO: fix generic body type
+// pub enum MessageBody<D: Serialize + Deserialize> {
 pub enum MessageBody {
     InvalidBlock {
         block_height: u128,
@@ -82,6 +91,7 @@ pub enum MessageBody {
         socket_addr: SocketAddr,
     },
     AddPeer {
+        // TODO: figure out what to do with this public key field
         // pub_key: PublicKey,
         peer_id: primitives::PeerId,
         socket_addr: SocketAddr,
@@ -96,7 +106,6 @@ pub enum MessageBody {
         sender_id: u16,
         ack: Vec<u8>,
     },
-
     Vote {
         vote: Vote,
         quorum_type: QuorumType,
@@ -105,9 +114,15 @@ pub enum MessageBody {
     Empty,
 }
 
+impl Default for MessageBody {
+    fn default() -> Self {
+        MessageBody::Empty
+    }
+}
+
 impl From<Vec<u8>> for MessageBody {
     fn from(data: Vec<u8>) -> Self {
-        serde_json::from_slice::<MessageBody>(&data).unwrap_or(MessageBody::Empty)
+        serde_json::from_slice::<MessageBody>(&data).unwrap_or_default()
     }
 }
 
@@ -125,6 +140,16 @@ pub trait AsMessage {
 }
 
 impl Message {
+    pub fn new(msg: MessageBody) -> Self {
+        let timestamp = chrono::Utc::now().timestamp();
+
+        Message {
+            id: Uuid::new_v4(),
+            data: msg,
+            timestamp,
+        }
+    }
+
     /// Serializes a Message struct into a vector of bytes
     pub fn as_bytes(&self) -> Vec<u8> {
         self.clone().into()
@@ -135,29 +160,26 @@ impl Message {
         Self::from(data.to_vec())
     }
 
-    pub fn new(msg: MessageBody) -> Self {
-        Message {
-            id: Uuid::new_v4(),
-            data: msg,
-        }
+    /// Deserializes a JSON-encoded byte array into a Message struct
+    pub fn from_json_bytes(data: &[u8]) -> Message {
+        serde_json::from_slice(data).unwrap_or_default()
+    }
+
+    /// Serializes a Message struct into a JSON-encoded vector of bytes
+    pub fn as_json_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(&self).unwrap_or_default()
     }
 }
 
-/// Represents an empty, often invalid Message
-pub const NULL_MESSAGE: Message = Message {
-    id: uuid::Uuid::nil(),
-    data: MessageBody::Empty,
-};
-
 impl From<Vec<u8>> for Message {
     fn from(data: Vec<u8>) -> Self {
-        serde_json::from_slice::<Message>(&data).unwrap_or(NULL_MESSAGE)
+        bincode::deserialize(&data).unwrap_or_default()
     }
 }
 
 impl From<Message> for Vec<u8> {
     fn from(msg: Message) -> Self {
-        serde_json::to_vec(&msg).unwrap_or_default()
+        bincode::serialize(&msg).unwrap_or_default()
     }
 }
 

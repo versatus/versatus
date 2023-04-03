@@ -45,7 +45,7 @@ pub struct RpcTransactionRecord {
 impl From<Txn> for RpcTransactionRecord {
     fn from(txn: Txn) -> Self {
         Self {
-            id: txn.digest().to_string(),
+            id: txn.id().to_string(),
             timestamp: txn.timestamp(),
             sender_address: txn.sender_address(),
             sender_public_key: txn.sender_public_key().to_string(),

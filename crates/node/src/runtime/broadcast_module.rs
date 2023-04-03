@@ -203,7 +203,7 @@ mod tests {
         events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
         events_tx.send(Event::Stop).unwrap();
 
-        let evt = internal_events_rx.recv().await.unwrap();
+        internal_events_rx.recv().await.unwrap();
 
         handle.await.unwrap();
     }

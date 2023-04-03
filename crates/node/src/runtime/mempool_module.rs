@@ -47,8 +47,6 @@ impl MempoolModule {
     }
 }
 
-impl MempoolModule {}
-
 #[async_trait]
 impl Handler<Event> for MempoolModule {
     fn id(&self) -> ActorId {

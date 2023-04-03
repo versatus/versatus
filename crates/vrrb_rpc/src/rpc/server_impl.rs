@@ -55,9 +55,9 @@ impl RpcApiServer for RpcServerImpl {
 
     async fn create_txn(&self, args: NewTxnArgs) -> Result<RpcTransactionRecord, Error> {
         let txn = Txn::new(args);
-        let event = Event::NewTxnCreated(txn.clone());
+        let txn_created_event = Event::NewTxnCreated(txn.clone());
 
-        debug!("{:?}", event);
+        debug!("{:?}", txn_created_event);
 
         if self.events_tx.is_closed() {
             let err = Error::Custom("event router is closed".to_string());
@@ -67,8 +67,9 @@ impl RpcApiServer for RpcServerImpl {
             return Err(err);
         }
 
-        self.events_tx.send(event).map_err(|err| {
+        self.events_tx.send(txn_created_event).map_err(|err| {
             error!("could not queue transaction to mempool: {err}");
+            dbg!("error");
             Error::Custom(err.to_string())
         })?;
 

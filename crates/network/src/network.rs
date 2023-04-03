@@ -474,7 +474,6 @@ mod tests {
 
         let tst_msg = test_message();
         let _ = b1.quic_broadcast(tst_msg.clone()).await;
-
         let _ = b1.quic_broadcast(tst_msg.clone()).await;
 
         // Peer 2 gets an incoming connection

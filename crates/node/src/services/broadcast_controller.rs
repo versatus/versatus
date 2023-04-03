@@ -73,6 +73,8 @@ impl BroadcastEngineController {
     }
 
     async fn handle_network_event(&self, message: Message) -> Result<()> {
+        dbg!(&message);
+
         match message.data {
             MessageBody::InvalidBlock { .. } => {},
             MessageBody::Disconnect { .. } => {},
@@ -89,7 +91,9 @@ impl BroadcastEngineController {
             MessageBody::DKGPartCommitment { .. } => {},
             MessageBody::DKGPartAcknowledgement { .. } => {},
             MessageBody::Vote { .. } => {},
-            MessageBody::Empty => {},
+            MessageBody::Empty => {
+                dbg!("Empty message received");
+            },
         };
 
         Ok(())
@@ -98,6 +102,17 @@ impl BroadcastEngineController {
     async fn handle_internal_event(&mut self, event: Event) -> Result<()> {
         match event {
             Event::Stop => Ok(()),
+            Event::NewTxnCreated(txn) => {
+                dbg!("New txn created");
+
+                // TODO: refactor this message
+                let message = Message::new(MessageBody::Empty);
+
+                let status = self.engine.quic_broadcast(message).await?;
+                dbg!(status);
+
+                Ok(())
+            },
             Event::PartMessage(sender_id, part_commitment) => {
                 let status = self
                     .engine

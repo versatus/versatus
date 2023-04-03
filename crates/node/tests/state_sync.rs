@@ -8,14 +8,16 @@ use jsonrpsee::{core::client::Subscription, ws_client::WsClientBuilder};
 use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
 use primitives::generate_account_keypair;
 use secp256k1::Message;
+use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_config::NodeConfig;
 use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
-#[ignore]
 async fn nodes_can_synchronize_state() {
+    // TelemetrySubscriber::init(std::io::stdout).unwrap();
+
     // NOTE: two instances of a config are required because the node will create a
     // data directory for the database which cannot be the same for both nodes
     let node_config_1 = create_mock_full_node_config();
@@ -46,7 +48,7 @@ async fn nodes_can_synchronize_state() {
         vrrb_node_2.wait().await.unwrap();
     });
 
-    for _ in 0..1_00 {
+    for i in 0..1 {
         let (sk, pk) = generate_account_keypair();
 
         let signature =
@@ -66,6 +68,8 @@ async fn nodes_can_synchronize_state() {
             })
             .await
             .unwrap();
+
+        dbg!("txn {:?} created", i);
     }
 
     let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
