@@ -57,7 +57,7 @@ pub type PoolType = IndexMap<TransactionDigest, TxnRecord, FxBuildHasher>;
 pub enum TxnStatus {
     #[default]
     Pending,
-    Valdating,
+    Validating,
     Validated,
     Rejected,
 }
