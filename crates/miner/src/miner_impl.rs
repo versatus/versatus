@@ -42,7 +42,6 @@ impl<'a> BlockBuilder for Miner<'a> {
                 certificate: None,
             })
         } else {
-            println!("Couldn't find references");
             return None
         }
     }
@@ -56,7 +55,6 @@ impl<'a> BlockBuilder for Miner<'a> {
     /// been referenced. We need to add this functionality so that 
     /// blocks don't get "orphaned"
     fn get_references(&self) -> Option<Vec<Self::RefType>> {
-        println!("Getting last block");
         let last_block = self.last_block.clone();
         if let Some(last_block) = last_block {
             let idx = last_block.get_hash();
@@ -81,7 +79,6 @@ impl<'a> BlockBuilder for Miner<'a> {
                 return None 
         }
     }
-    println!("Couldn't find last block");
     None
     }
 }
