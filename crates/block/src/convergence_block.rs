@@ -1,54 +1,21 @@
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt,
-};
-
-use bulldag::{
-    graph::BullDag,
-    index::Index,
-    vertex::{Direction, Vertex},
-};
 use primitives::{
     Epoch,
-    RawSignature,
     SecretKey as SecretKeyBytes,
-    GENESIS_EPOCH,
-    SECOND,
-    VALIDATOR_THRESHOLD,
 };
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
+use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
 use serde::{Deserialize, Serialize};
-use sha256::digest;
-use utils::{create_payload, hash_data};
-use vrrb_core::{
-    accountable::Accountable,
-    claim::Claim,
-    keypair::KeyPair,
-    txn::Txn,
-    verifiable::Verifiable,
-};
-use vrrb_core::txn::TransactionDigest;
+use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
 
 #[cfg(mainnet)]
 use crate::genesis;
 use crate::{
-    genesis,
     header::BlockHeader,
-    invalid::{BlockError, InvalidBlockErrorReason},
     Block,
     BlockHash,
     Certificate,
-    ClaimHash,
-    Conflict,
-    ConflictList,
     ConsolidatedClaims,
     ConsolidatedTxns,
     GenesisBlock,

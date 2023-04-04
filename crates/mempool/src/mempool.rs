@@ -8,12 +8,9 @@ use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info, warn};
-use tokio;
 use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
 use super::error::MempoolError;
-use crate::create_tx_indexer;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
