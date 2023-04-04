@@ -7,7 +7,10 @@ use reward::reward::GENESIS_REWARD;
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
-use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
+use vrrb_core::{
+    claim::Claim,
+    txn::{Txn, TransactionDigest},
+};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -18,9 +21,6 @@ use crate::{
     Certificate,
     ConsolidatedClaims,
     ConsolidatedTxns,
-    GenesisBlock,
-    ProposalBlock,
-    RefHash,
 };
 
 pub struct MineArgs<'a> {
