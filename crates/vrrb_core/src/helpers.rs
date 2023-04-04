@@ -5,7 +5,7 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ritelinked::LinkedHashMap;
 use secp256k1::generate_keypair;
 
-use crate::{txn::Txn, Error};
+use crate::{txn::{Txn, TransactionDigest}, Error};
 
 pub fn gen_hex_encoded_string<T: AsRef<[u8]>>(data: T) -> String {
     hex::encode(data)
@@ -32,7 +32,7 @@ macro_rules! is_enum_variant {
     };
 }
 
-pub fn size_of_txn_list(txns: &LinkedHashMap<String, Txn>) -> usize {
+pub fn size_of_txn_list(txns: &LinkedHashMap<TransactionDigest, Txn>) -> usize {
     txns.iter()
         .map(|(_, set)| set)
         .map(|txn| std::mem::size_of_val(&txn))

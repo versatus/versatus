@@ -1,15 +1,10 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    thread,
-};
+use std::borrow::BorrowMut;
 
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
-use lr_trie::ReadHandleFactory;
+use events::{Event, QuorumCertifiedTxn, Vote, VoteReceipt};
 use mempool::mempool::{LeftRightMempool, TxnStatus};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::{
     FarmerQuorumThreshold,
     GroupPublicKey,
@@ -17,14 +12,11 @@ use primitives::{
     NodeIdx,
     PeerId,
     QuorumType,
-    RawSignature,
 };
-use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serde::{Deserialize, Serialize};
-use signer::signer::{SignatureProvider, Signer};
+use signer::signer::SignatureProvider;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::{broadcast::error::TryRecvError, mpsc::UnboundedSender};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
 use vrrb_core::{
     bloom::Bloom,
@@ -33,9 +25,7 @@ use vrrb_core::{
 
 use crate::{
     farmer_module::PULL_TXN_BATCH_SIZE,
-    result::Result,
     scheduler::{Job, JobResult},
-    NodeError,
 };
 
 /// `FarmerHarvesterModule` is reponsible for voting of transactions,certifying
@@ -93,8 +83,8 @@ pub struct FarmerHarvesterModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-    clear_filter_rx: tokio::sync::mpsc::UnboundedReceiver<DirectedEvent>,
+    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    clear_filter_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
     farmer_quorum_threshold: FarmerQuorumThreshold,
     harvester_quorum_threshold: HarvesterQuorumThreshold,
     sync_jobs_sender: Sender<Job>,
@@ -111,8 +101,8 @@ impl FarmerHarvesterModule {
         group_public_key: GroupPublicKey,
         farmer_id: PeerId,
         farmer_node_idx: NodeIdx,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-        clear_filter_rx: tokio::sync::mpsc::UnboundedReceiver<DirectedEvent>,
+        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+        clear_filter_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
         farmer_quorum_threshold: FarmerQuorumThreshold,
         harvester_quorum_threshold: HarvesterQuorumThreshold,
         sync_jobs_sender: Sender<Job>,
@@ -153,7 +143,7 @@ impl FarmerHarvesterModule {
 
     fn process_sync_job_status(
         &mut self,
-        broadcast_events_tx: UnboundedSender<DirectedEvent>,
+        broadcast_events_tx: UnboundedSender<Event>,
         sync_jobs_status_receiver: Receiver<JobResult>,
     ) {
         loop {
@@ -162,11 +152,13 @@ impl FarmerHarvesterModule {
                 JobResult::Votes((votes, farmer_quorum_threshold)) => {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send(Event::Vote(
-                                vote.clone(),
-                                QuorumType::Harvester,
-                                farmer_quorum_threshold,
-                            ));
+                            let _ = broadcast_events_tx.send(
+                                Event::Vote(
+                                    vote.clone(),
+                                    QuorumType::Harvester,
+                                    farmer_quorum_threshold,
+                                )
+                            );
                         }
                     }
                 },
@@ -339,32 +331,30 @@ pub type QuorumPubkey = String;
 mod tests {
     use std::{
         collections::{HashMap, HashSet},
-        env,
-        net::{IpAddr, Ipv4Addr},
-        process::exit,
         thread,
-        time::{Duration, SystemTime, UNIX_EPOCH},
+        time::{SystemTime, UNIX_EPOCH},
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
-    use events::{DirectedEvent, Event, PeerData, Vote};
+    use events::{Event, Vote};
     use lazy_static::lazy_static;
-    use primitives::{NodeType, QuorumType::Farmer};
+    use primitives::QuorumType::Farmer;
     use secp256k1::Message;
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
+    use signer::signer::Signer;
     use validator::{
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,
     };
-    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+    use vrrb_core::{is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
 
     #[tokio::test]
     async fn farmer_harvester_runtime_module_starts_and_stops() {
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
@@ -416,10 +406,10 @@ mod tests {
 
     #[tokio::test]
     async fn farmer_harvester_farm_cast_vote() {
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (sync_jobs_status_sender, sync_jobs_status_receiver) =
@@ -531,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn farmer_harvester_harvest_votes() {
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
         let mut farmers = vec![];
         let mut broadcast_rxs = vec![];
@@ -539,8 +529,8 @@ mod tests {
         let mut tmp = vec![];
         while dkg_engines.len() > 0 {
             let (broadcast_events_tx, mut broadcast_events_rx) =
-                tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-            let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+                tokio::sync::mpsc::unbounded_channel::<Event>();
+            let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
             let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
             let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
             let (sync_jobs_status_sender, sync_jobs_status_receiver) =
@@ -562,7 +552,7 @@ mod tests {
             });
 
             let (broadcast_events_tx, mut broadcast_events_rx) =
-                tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+                tokio::sync::mpsc::unbounded_channel::<Event>();
             broadcast_rxs.push(broadcast_events_rx);
             let dkg_engine = dkg_engines.pop().unwrap();
             let group_public_key = dkg_engine
@@ -683,7 +673,7 @@ mod tests {
                 if let JobResult::Votes((votes, threshold)) = job_status {
                     let vote = votes.get(0).unwrap().as_ref().unwrap().clone();
                     ballot.push(vote.clone());
-                    for ((sig_provider, farmer_id, farmer_node_idx, group_public_key)) in
+                    for (sig_provider, farmer_id, farmer_node_idx, group_public_key) in
                         tmp.into_iter()
                     {
                         if farmer_node_idx == 0 {

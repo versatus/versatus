@@ -2,10 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use primitives::Address;
-use sha2::Digest;
 use storage_utils::{Result, StorageError};
-use vrrb_core::account::{Account, UpdateArgs};
-
 use crate::RocksDbAdapter;
 
 mod state_store_rh;
@@ -122,7 +119,7 @@ impl StateStore {
         failed_inserts
     }
 
-    /// Retain returns new StateDb with witch all Accounts that fulfill `filter`
+    /// Retain returns new StateDb with which all Accounts that fulfill `filter`
     /// cloned to it.
     pub fn retain<F>(&self, _filter: F) -> StateStore
     where

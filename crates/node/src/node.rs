@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{DirectedEvent, Event, EventRouter, Topic};
+use events::{Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -11,11 +11,10 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    farmer_harvester_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -41,6 +40,9 @@ pub struct Node {
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
+    miner_election_handle: Option<JoinHandle<Result<()>>>,
+    quorum_election_handle: Option<JoinHandle<Result<()>>>,
+    conflict_resolution_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -53,7 +55,7 @@ impl Node {
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = unbounded_channel::<Event>();
-        let mut event_router = Self::setup_event_routing_system();
+        let mut event_router = Self::setup_event_routing_system(config.buffer);
 
         let mempool_events_rx = event_router.subscribe();
         let vrrbdb_events_rx = event_router.subscribe();
@@ -68,6 +70,9 @@ impl Node {
         let reputation_events_rx = event_router.subscribe();
         let jsonrpc_events_rx = event_router.subscribe();
         let dkg_events_rx = event_router.subscribe();
+        let miner_election_events_rx = event_router.subscribe();
+        let quorum_election_events_rx = event_router.subscribe();
+        let conflict_resolution_events_rx = event_router.subscribe();
 
         let (
             updated_config,
@@ -77,6 +82,9 @@ impl Node {
             jsonrpc_server_handle,
             miner_handle,
             dkg_handle,
+            miner_election_handle,
+            quorum_election_handle,
+            conflict_resolution_handle
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -87,6 +95,9 @@ impl Node {
             miner_events_rx,
             jsonrpc_events_rx,
             dkg_events_rx,
+            miner_election_events_rx,
+            quorum_election_events_rx,
+            conflict_resolution_events_rx,
         )
         .await?;
 
@@ -104,12 +115,16 @@ impl Node {
             mempool_handle,
             jsonrpc_server_handle,
             gossip_handle,
+            //broadcast_controller_handle,
             dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,
             miner_handle,
             keypair,
+            miner_election_handle,
+            quorum_election_handle,
+            conflict_resolution_handle,
         })
     }
 
@@ -215,8 +230,14 @@ impl Node {
         self.config.jsonrpc_server_address
     }
 
-    fn setup_event_routing_system() -> EventRouter {
-        let mut event_router = EventRouter::default();
+    fn setup_event_routing_system(buffer: Option<usize>) -> EventRouter {
+        let mut event_router = EventRouter::new(buffer);
+        event_router.add_topic(Topic::Control, Some(1));
+        event_router.add_topic(Topic::State, Some(1));
+        event_router.add_topic(Topic::Network, Some(100));
+        event_router.add_topic(Topic::Consensus, Some(100));
+        event_router.add_topic(Topic::Storage, Some(100));
+        event_router.add_topic(Topic::Throttle, Some(100));
 
         event_router
     }

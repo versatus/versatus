@@ -8,12 +8,10 @@ use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info, warn};
-use tokio;
+use telemetry::{info, warn};
 use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
-use super::error::MempoolError;
-use crate::create_tx_indexer;
+use super::{error::MempoolError, create_tx_indexer};
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
@@ -191,13 +189,13 @@ impl LeftRightMempool {
 
     pub fn insert(&mut self, txn: Txn) -> Result<usize> {
         let txn_record = TxnRecord::new(txn);
-
         self.write
             .append(MempoolOp::Add(txn_record.to_owned()))
             .publish();
-
+        
+        let indexer_txn_record = txn_record.clone();
         tokio::spawn(async move {
-            match create_tx_indexer(&txn_record).await {
+            match create_tx_indexer(&indexer_txn_record).await {
                 Ok(_) => {
                     info!("Successfully sent TxnRecord to block explorer indexer");
                 },
@@ -206,6 +204,7 @@ impl LeftRightMempool {
                 },
             }
         });
+        self.write.append(MempoolOp::Add(txn_record)).publish();
 
         Ok(self.size_in_kilobytes())
     }
@@ -330,11 +329,11 @@ impl LeftRightMempool {
     /// Was the Txn validated ? And when ?
     // TODO: rethink validated txn storage
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        match self.get(&txn.digest()) {
+        match self.get(&txn.id) {
             Some(found) if matches!(found.status, TxnStatus::Validated) => {
                 Ok(found.validated_timestamp)
             },
-            _ => Err(MempoolError::TransactionNotFound(txn.digest())),
+            _ => Err(MempoolError::TransactionNotFound(txn.id.clone())),
         }
     }
 

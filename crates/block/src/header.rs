@@ -1,27 +1,23 @@
 // FEATURE TAG(S): Block Structure, Rewards
 use chrono;
-use primitives::{Epoch, SecretKey, SerializedSecretKey};
+use primitives::{Epoch, SecretKey};
 use reward::reward::Reward;
 use secp256k1::{
     hashes::{sha256 as s256, Hash},
     Message,
 };
 use serde::{Deserialize, Serialize};
-use sha256::digest;
 use utils::{create_payload, hash_data};
-use vrrb_core::{claim::Claim, keypair::KeyPair};
+use vrrb_core::claim::Claim;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::{
     block::Block,
-    ConvergenceBlock,
-    GenesisBlock,
     InnerBlock,
     NextEpochAdjustment,
-    ProposalBlock,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct BlockHeader {
     // TODO: Replace tx hash with tx trie root???
     // TODO: Replace claim hash with claim trie root???
@@ -54,19 +50,19 @@ impl BlockHeader {
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
-        let ref_hashes = vec![hash_data!("Genesis_Ref_Hash")];
+        let ref_hashes = vec![format!("{:x}", hash_data!("Genesis_Ref_Hash".to_string()))];
         let message = {
-            hash_data!(ref_hashes, hash_data!("Genesis_Last_Hash"))
-                .as_bytes()
-                .to_vec()
+            let genesis_message = format!("{:x}", hash_data!("Genesis_Last_Hash".to_string()));
+            let hash = hash_data!(ref_hashes, genesis_message);
+            let hash_string = format!("{:x}", hash); 
+            hash_string.as_bytes().to_vec()
         };
 
         let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
-
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 
         let timestamp = chrono::Utc::now().timestamp();
-        let txn_hash = hash_data!("Genesis_Txn_Hash");
+        let txn_hash = format!("{:x}", hash_data!("Genesis_Txn_Hash".to_string()));
         let block_reward = Reward::genesis(Some(miner_claim.address.clone()));
         let block_height = 0;
         let next_block_reward = Reward::default();
@@ -115,6 +111,8 @@ impl BlockHeader {
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> Option<BlockHeader> {
         // Get the last block
+        let timestamp = chrono::Utc::now().timestamp();
+
         let last_block: &dyn InnerBlock<Header = BlockHeader, RewardType = Reward> = {
             match last_block {
                 Block::Convergence { ref block } => block,
@@ -133,7 +131,7 @@ impl BlockHeader {
         // last_block.certificate
         let message = {
             let hash = hash_data!(last_block.get_hash(), ref_hashes);
-            hash.as_bytes().to_vec()
+            hash
         };
 
         let sk_bytes = &secret_key.secret_bytes();
@@ -141,9 +139,6 @@ impl BlockHeader {
         // Generate next_block_seed
         let mut vrf = VVRF::new(&message, sk_bytes);
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
-
-        // generate timestamp
-        let timestamp = chrono::Utc::now().timestamp();
 
         // Get current block reward, which is last_block.next_block_reward
         let mut block_reward = last_block.get_next_block_reward();
@@ -158,7 +153,7 @@ impl BlockHeader {
 
         // Get current epoch which is the same as last epoch unless it's an
         // epoch change block.
-        let epoch = last_block.get_header().epoch;
+        let epoch = block_reward.epoch;
         // Get the reward for current block which is last_block.round + 1
         let round = last_block.get_header().round + 1;
 

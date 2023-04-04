@@ -1,11 +1,13 @@
+use primitives::Address;
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
 /// permissionless Proof of Claim Miner Election algorithm
 use serde_json;
-use sha256::digest;
+use sha2::{Sha256, Digest};
+use ethereum_types::U256;
 
-use crate::{nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
+use crate::{ownable::Ownable, verifiable::Verifiable, keypair::Keypair};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
@@ -22,37 +24,48 @@ pub struct InvalidClaimError {
 pub struct Claim {
     pub public_key: String,
     pub address: String,
-    pub hash: String,
-    pub nonce: u128,
+    pub hash: U256,
     pub eligible: bool,
 }
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(public_key: String, address: String, claim_nonce: u128) -> Claim {
+    pub fn new(public_key: String, address: String) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
-        let iters = if let Some(n) = claim_nonce.checked_mul(10) {
-            n
-        } else {
-            claim_nonce
-        };
-
-        let mut hash = public_key.clone();
         // sequentially hash the public key the correct number of times
         // for the given nonce.
-        (0..iters).for_each(|_| {
-            hash = digest(hash.as_bytes());
-        });
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.clone());
 
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
         Claim {
             public_key,
             address,
             hash,
-            nonce: claim_nonce,
+            // Consider setting to false by default 
+            // and having it be set to true when harvester 
+            // collects threshold of votes on its validity
             eligible: true,
         }
+    }
+
+    pub fn get_ballot_info(&self) -> (U256, Claim) {
+        (self.hash, self.clone())
+    }
+
+    /// Uses XOR of the ClaimHash as a U256 against a block seed of u64
+    /// U256 is represented as a [u64; 4] so we XOR each of the 4
+    /// u64 values in the U256 against the block seed.
+    pub fn get_election_result(&self, block_seed: u64) -> (U256, Claim) {
+        let mut xor_val = [0u64; 4];
+        self.hash.0.iter().enumerate().for_each(|(idx, x)| {
+           xor_val[idx] = x ^ block_seed; 
+        });
+
+        (U256(xor_val), self.clone())
     }
 
     /// Calculates the claims pointer sum
@@ -61,10 +74,10 @@ impl Claim {
     // network) by concurrently calculating the index position of each matched
     // character, and summing the total at the end after every match position
     // has been discovered, or returning None if we can't match a character.
+    #[deprecated(note = "Please use get_election_result")]
     pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
+        
         // get the hexadecimal format of the block seed
-        // TODO: Make the block seed hexadecimal to begin with in the `Block` itself
-        // No reason for miners to have to do this conversion.
         let block_seed_hex = format!("{block_seed:x}");
         // Get the length of the hexadecimal representation of the block seed
         // for later use
@@ -73,10 +86,14 @@ impl Claim {
         let mut pointers = vec![];
         // iterate through (and enumerate for index position) the characters
         // of the block seed.
+        let mut hash_bytes = [0u8; 32];
+        self.hash.to_big_endian(&mut hash_bytes);
+        let hash_string = hex::encode(hash_bytes);
+
         block_seed_hex.chars().enumerate().for_each(|(idx, c)| {
             // Check if the character is in the claim hash, and save the index position into
             // a variable `n`.
-            let res = self.hash.find(c);
+            let res = hash_string.find(c);
             if let Some(n) = res {
                 // convert `n` to a u128 and calculate an integer overflow safe
                 // exponential of the `n` to the power of idx
@@ -144,12 +161,13 @@ impl Verifiable for Claim {
         true
     }
 
-    #[allow(unused_variables)]
     fn valid(
         &self,
         item: &Self::Item,
         dependancies: &Self::Dependencies,
     ) -> Result<bool, InvalidClaimError> {
+        let _ = item;
+        let _ = dependancies;
         Ok(true)
     }
 }
@@ -162,25 +180,11 @@ impl Ownable for Claim {
     }
 }
 
-/// Implements the Nonceble train on the `Claim`
-impl Nonceable for Claim {
-    fn nonceable(&self) -> bool {
-        true
-    }
-
-    fn nonce_up(&mut self) {
-        self.nonce += 1;
-        let iters = if let Some(n) = self.nonce.checked_mul(10) {
-            n
-        } else {
-            self.nonce
-        };
-
-        let mut hash = self.public_key.clone();
-        (0..iters).for_each(|_| {
-            hash = digest(hash.as_bytes());
-        });
-
-        self.hash = hash;
+impl From<Keypair> for Claim {
+    fn from(item: Keypair) -> Claim {
+        Claim::new(
+           item.miner_kp.1.to_string(),
+           Address::new(item.miner_kp.1).to_string(),
+        )
     }
 }

@@ -1,29 +1,34 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::convergence_block::ConvergenceBlock;
+use block::{Conflict, Block};
 use primitives::{
-    Address,
-    ByteVec,
-    FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
-    NodeIdx,
-    NodeType,
-    PeerId,
-    QuorumPublicKey,
-    QuorumType,
-    RawSignature,
-    TxHashString,
+    Address, 
+    ByteVec, 
+    FarmerQuorumThreshold, 
+    NodeIdx, 
+    NodeType, 
+    PeerId, 
+    QuorumPublicKey, 
+    QuorumType, 
+    RawSignature, 
+    LastBlockHeight,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
-    broadcast::{self, Receiver, Sender},
-    mpsc::{UnboundedReceiver, UnboundedSender},
+    broadcast::{
+        self, Sender, Receiver
+    },
+    mpsc::{
+        UnboundedReceiver, 
+        UnboundedSender
+    },
 };
-use vrrb_core::txn::{TransactionDigest, Txn};
+use ethereum_types::U256;
+
+use vrrb_core::{txn::{TransactionDigest, Txn}, keypair::Keypair, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("io error: {0}")]
@@ -35,10 +40,12 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
-
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
+pub type BlockBytes = Vec<u8>;
+pub type HeaderBytes = Vec<u8>;
+pub type ConflictBytes = Vec<u8>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
@@ -49,7 +56,7 @@ pub struct PeerData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SyncPeerData {
-    pub address: SocketAddr,
+    pub address: String,
     pub raptor_udp_port: u16,
     pub quic_port: u16,
     pub node_type: NodeType,
@@ -84,6 +91,8 @@ pub struct BlockVote {
     pub convergence_block: SerializedConvergenceBlock,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
+    // May want to serialize this as a vector of bytes
+    pub execution_result: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
@@ -131,8 +140,6 @@ pub enum Event {
     SlashClaims(Vec<String>),
     CheckAbandoned,
     SyncPeers(Vec<SyncPeerData>),
-    EmptyPeerSync,
-    PeerSyncFailed(Vec<SocketAddr>),
     PeerRequestedStateSync(PeerData),
 
     //Event to tell Farmer node to sign the Transaction
@@ -178,6 +185,20 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
+    // May want to just use the `BlockHeader` struct to reduce 
+    // the overhead of deserializing
+    MinerElection(HeaderBytes),
+    MinedBlock(Block),
+    // We make this the ClaimHash or Claim instead of the NodeId
+    ElectedMiner((U256, Claim)),
+
+    ElectedQuorum(quorum::quorum::Quorum),
+
+    QuorumElection(Keypair,LastBlockHeight),
+    // May want to just use the ConflictList & `BlockHeader` types 
+    // to reduce the overhead of deserializing
+    ConflictResolution(ConflictBytes, HeaderBytes),
+    ResolvedConflict(Conflict),
 }
 
 impl From<&theater::Message> for Event {

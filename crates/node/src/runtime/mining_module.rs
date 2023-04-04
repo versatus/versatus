@@ -1,13 +1,12 @@
 use async_trait::async_trait;
-use block::Block;
-use events::{DirectedEvent, Event};
+use events::Event;
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use tokio::sync::broadcast::{error::TryRecvError, Receiver};
 use vrrb_core::txn::Txn;
+use std::marker::Send;
 
 use crate::EventBroadcastSender;
 
@@ -21,6 +20,8 @@ pub struct MiningModule {
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 }
+
+unsafe impl Send for MiningModule {}
 
 #[derive(Debug, Clone)]
 pub struct MiningModuleConfig {
@@ -51,7 +52,10 @@ impl MiningModule {
         // TODO: drain mempool instead then commit changes
         handle
             .drain(..cutoff_idx)
-            .map(|(id, record)| record.txn)
+            .map(|(id, record)| {
+                dbg!(id);
+                record.txn
+            })
             .collect()
     }
 
@@ -96,24 +100,17 @@ impl Handler<Event> for MiningModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            // Event::TxnAddedToMempool(txn_digest) => {
-            Event::TxnAddedToMempool(_) => {},
-            Event::MempoolSizeThesholdReached { cutoff_transaction } => {
-                let handle = self.mempool_read_handle_factory.handle();
-
-                if let Some(idx) = handle.get_index_of(&cutoff_transaction) {
-                    let transaction_snapshot = self.take_snapshot_until_cutoff(idx);
-
-                    self.mark_snapshot_transactions(idx);
-                } else {
-                    telemetry::error!(
-                        "Could not find index of cutoff transaction to produce a block"
-                    );
-                }
-            },
-
-            Event::BlockConfirmed(_) => {
-                // do something
+            Event::ElectedMiner((winning_pointer_sum, winner_claim)) => {
+                if self.miner.check_claim(winner_claim.hash) {
+                    let cblock = self.miner.try_mine();
+                    if let Ok(cblock) = cblock {
+                        let _ = self.events_tx.send(
+                            Event::MinedBlock(
+                                cblock.clone()
+                            )
+                        );
+                    }
+                };
             },
             Event::NoOp => {},
             // _ => telemetry::warn!("unrecognized command received: {:?}", event),
