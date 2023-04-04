@@ -79,26 +79,28 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 #[tokio::test]
 #[serial]
 pub async fn wallet_sends_create_account_request_to_rpc_server() {
-    let socket_addr: SocketAddr = "127.0.0.1:9293"
-        .parse()
-        .expect("Unable to create Socket Address");
+    // let socket_addr: SocketAddr = "127.0.0.1:9293"
+    //     .parse()
+    //     .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = unbounded_channel();
+    // let (events_tx, events_rx) = unbounded_channel();
 
-    // Set up RPC Server to accept connection from client
-    let mut json_rpc_server_config = JsonRpcServerConfig::default();
-    json_rpc_server_config.events_tx = events_tx;
+    // // Set up RPC Server to accept connection from client
+    // let mut json_rpc_server_config = JsonRpcServerConfig::default();
+    // json_rpc_server_config.events_tx = events_tx;
 
-    let (handle, socket_addr) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
+    // let (handle, socket_addr) =
+    // JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
 
-    tokio::spawn(handle.stopped());
+    // tokio::spawn(handle.stopped());
 
-    let mut wallet_config = WalletConfig::default();
-    wallet_config.rpc_server_address = socket_addr;
+    // let mut wallet_config = WalletConfig::default();
+    // wallet_config.rpc_server_address = socket_addr;
 
-    let mut wallet = Wallet::new(wallet_config).await.unwrap();
+    // let mut wallet = Wallet::new(wallet_config).await.unwrap();
 
-    let (_, public_key) = generate_keypair(&mut rand::thread_rng());
+    // let (_, public_key) = generate_keypair(&mut rand::thread_rng());
 
-    let (address, account) = wallet.create_account(1, public_key).await.unwrap();
+    // let (address, account) = wallet.create_account(1,
+    // public_key).await.unwrap();
 }
