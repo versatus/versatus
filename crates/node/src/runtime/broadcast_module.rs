@@ -166,9 +166,9 @@ mod tests {
 
         db_config.with_path(db_path);
 
-        let db = VrrbDb::new(db_config);
+        // let db = VrrbDb::new(db_config);
 
-        let vrrbdb_read_handle = db.read_handle();
+        // let vrrbdb_read_handle = db.read_handle();
 
         // let config = BroadcastModuleConfig {
         //     events_tx: internal_events_tx,
