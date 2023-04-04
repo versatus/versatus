@@ -48,7 +48,6 @@ pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
 // TODO: Consider moving that to genesis_config.yaml
-#[allow(unused)]
 const GENESIS_ALLOWED_MINERS: [&str; 2] = [
     "82104DeE06aa223eC9574a8b2De4fB440630c300",
     "F4ccb23f9A2b10b165965e2a4555EC25615c29BE",
@@ -80,7 +79,8 @@ pub enum MinerStatus {
 /// use std::sync::{Arc, RwLock};
 /// use bulldag::graph::BullDag;
 /// use primitives::Address;
-/// use block::Block;
+/// use reward::reward::Reward;
+/// use block::{Block, header::BlockHeader};
 ///
 /// #[derive(Debug)]
 /// pub struct MinerConfig {
@@ -106,7 +106,8 @@ pub struct MinerConfig {
 /// use vrrb_core::{claim::Claim, keypair::{MinerPk, MinerSk}};
 /// use primitives::Address;
 /// use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder, miner::MinerStatus};
-/// use block::{Block, ConvergenceBlock};
+/// use block::{Block, ConvergenceBlock, header::BlockHeader, InnerBlock};
+/// use reward::reward::Reward;
 /// use std::sync::{Arc, RwLock};
 /// use bulldag::graph::BullDag;
 ///
@@ -117,25 +118,25 @@ pub struct MinerConfig {
 ///     address: Address,
 ///     pub claim: Claim,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>,
-///     pub last_block: Option<ConvergenceBlock>,
+///     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
 ///     pub status: MinerStatus,
 ///     pub next_epoch_adjustment: i128,
 /// }
 ///
 #[derive(Debug, Clone)]
-pub struct Miner<'a> {
+pub struct Miner {
     secret_key: MinerSk,
     public_key: MinerPk,
     address: Address,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    pub last_block: Option<&'a dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>,
+    pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
     pub status: MinerStatus,
     pub next_epoch_adjustment: i128,
 }
 
 /// Method Implementations for the Miner Struct
-impl<'a> Miner<'a> {
+impl Miner {
     /// Creates a new instance of a `Miner`
     ///
     /// # Example
@@ -206,6 +207,16 @@ impl<'a> Miner<'a> {
     /// Gets a local current timestamp
     pub fn get_timestamp(&self) -> u128 {
         chrono::Utc::now().timestamp() as u128
+    }
+
+    /// Get the next_epoch_adjustment 
+    pub fn next_epoch_adjustment(&self) -> i128 {
+        self.next_epoch_adjustment
+    }
+
+    /// Set the next_epoch_adjustment
+    pub fn set_next_epoch_adjustment(&mut self, adjustment: i128) {
+        self.next_epoch_adjustment += adjustment;
     }
 
     /// Attempts to mine a `ConvergenceBlock` using the 
@@ -534,5 +545,6 @@ impl<'a> Miner<'a> {
 
         0u128
     }
+
 }
 

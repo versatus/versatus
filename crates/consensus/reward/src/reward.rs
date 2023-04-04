@@ -1,4 +1,3 @@
-#![allow(deprecated, deprecated_in_future)]
 //FEATURE TAG(S): Rewards, Block Structure
 
 use serde::{Deserialize, Serialize};
@@ -54,7 +53,7 @@ impl Reward {
     pub fn genesis(miner: Option<String>) -> Reward {
         Reward {
             current_block: 0,
-            epoch: 1,
+            epoch: 0,
             next_epoch_block: NUMBER_OF_BLOCKS_PER_EPOCH,
             miner,
             amount: BASELINE_REWARD,

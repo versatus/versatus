@@ -153,7 +153,7 @@ impl BlockHeader {
 
         // Get current epoch which is the same as last epoch unless it's an
         // epoch change block.
-        let epoch = last_block.get_header().epoch;
+        let epoch = block_reward.epoch;
         // Get the reward for current block which is last_block.round + 1
         let round = last_block.get_header().round + 1;
 
