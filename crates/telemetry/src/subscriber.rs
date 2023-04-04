@@ -47,6 +47,10 @@ impl TelemetrySubscriber {
     }
 }
 
+pub fn init_tokio_console() {
+    console_subscriber::init();
+}
+
 #[cfg(test)]
 mod tests {
 

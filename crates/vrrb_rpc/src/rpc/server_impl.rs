@@ -69,7 +69,6 @@ impl RpcApiServer for RpcServerImpl {
 
         self.events_tx.send(txn_created_event).map_err(|err| {
             error!("could not queue transaction to mempool: {err}");
-            dbg!("error");
             Error::Custom(err.to_string())
         })?;
 

@@ -7,7 +7,7 @@ use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
 };
-use telemetry::{error, info, warn};
+use telemetry::{debug, error, info, warn};
 
 use crate::{EventBroadcastSender, NodeError, Result};
 
@@ -48,12 +48,10 @@ impl BroadcastEngineController {
         mut events_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {
         loop {
-            dbg!("made it here");
             tokio::select! {
 
                 Some((conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
 
-                dbg!(&conn, &conn_incoming);
 
                 match self.map_network_conn_to_message(conn_incoming).await {
                     Ok(message) => {
@@ -78,7 +76,7 @@ impl BroadcastEngineController {
     }
 
     async fn handle_network_event(&self, message: Message) -> Result<()> {
-        dbg!(&message);
+        debug!("{:?}", &message);
 
         match message.data {
             MessageBody::InvalidBlock { .. } => {},
@@ -97,7 +95,7 @@ impl BroadcastEngineController {
             MessageBody::DKGPartAcknowledgement { .. } => {},
             MessageBody::Vote { .. } => {},
             MessageBody::Empty => {
-                dbg!("Empty message received");
+                debug!("Empty message received");
             },
         };
 
@@ -108,13 +106,12 @@ impl BroadcastEngineController {
         match event {
             Event::Stop => Ok(()),
             Event::NewTxnCreated(txn) => {
-                dbg!("New txn created");
-
                 // TODO: refactor this message
                 let message = Message::new(MessageBody::Empty);
 
                 let status = self.engine.quic_broadcast(message).await?;
-                dbg!(status);
+
+                debug!(status);
 
                 Ok(())
             },

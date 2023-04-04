@@ -11,6 +11,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 #[tokio::test]
 async fn nodes_can_synchronize_state() {
     // TelemetrySubscriber::init(std::io::stdout).unwrap();
+    // telemetry::init_tokio_console();
 
     // NOTE: two instances of a config are required because the node will create a
     // data directory for the database which cannot be the same for both nodes
@@ -62,8 +63,6 @@ async fn nodes_can_synchronize_state() {
             })
             .await
             .unwrap();
-
-        dbg!("txn {:?} created", i);
     }
 
     let mempool_snapshot = client_2.get_full_mempool().await.unwrap();

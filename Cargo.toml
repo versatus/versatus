@@ -177,7 +177,7 @@ timer = "0.2.0"
 laminar = "0.5.0"
 futures = { version = "0.3.24", features = ["thread-pool"] }
 qp2p = "0.30.0"
-
+console-subscriber = "0.1.8"
 
 [dev-dependencies]
 cuckoofilter.workspace = true
