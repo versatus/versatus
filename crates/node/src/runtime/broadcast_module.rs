@@ -157,7 +157,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn test_broadcast_module() {
-        // let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
+        let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
 
         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
 
