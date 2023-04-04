@@ -176,7 +176,7 @@ mod tests {
 
         ////////////////////////////////////////////////////////////////
 
-        let db_config = VrrbDbConfig::default();
+        let mut db_config = VrrbDbConfig::default();
 
         let temp_dir_path = std::env::temp_dir();
         let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
