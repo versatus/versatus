@@ -74,6 +74,7 @@ pub struct NodeConfig {
 
     pub keypair: Keypair,
 
+    pub buffer: Option<usize>,
     #[builder(default = "false")]
     pub disable_networking: bool,
 }
@@ -145,6 +146,7 @@ impl Default for NodeConfig {
             bootstrap_config: None,
             keypair: Keypair::random(),
             disable_networking: false,
+            buffer: None,
         }
     }
 }

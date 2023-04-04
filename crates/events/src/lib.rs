@@ -11,6 +11,7 @@ use primitives::{
     QuorumPublicKey, 
     QuorumType, 
     RawSignature, 
+    LastBlockHeight,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};

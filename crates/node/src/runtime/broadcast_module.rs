@@ -40,7 +40,6 @@ pub struct BroadcastModuleConfig {
 #[derive(Debug)]
 pub struct BroadcastModule {
     id: Uuid,
-    status: ActorState,
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
