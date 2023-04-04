@@ -29,6 +29,7 @@ fn transactions_can_be_added() {
         state_store_path: None,
         transaction_store_path: None,
         event_store_path: None,
+        claim_store_path: None,
     });
 
     let txn1 = generate_random_valid_transaction();

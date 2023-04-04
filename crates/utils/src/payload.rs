@@ -1,10 +1,3 @@
-#![allow(unused_imports)]
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
-use sha256::digest;
-
 #[macro_export]
 macro_rules! create_payload {
     ($($x:expr),*) => {{
@@ -20,14 +13,24 @@ macro_rules! create_payload {
 
 #[macro_export]
 macro_rules! hash_data {
-    ($($x:expr),*) => {{
+    ($($item:expr),+) => {{
+        use sha2::{Digest, Sha256};
+        use serde::{de::DeserializeOwned, Serialize};
+        use serde_json::to_vec;
 
-        let mut payload = String::new();
+        fn update_hasher_with_item<T: Serialize + DeserializeOwned>(
+            hasher: &mut Sha256, item: &T
+        ) {
+            let serialized = serde_json::to_vec(item).unwrap();
+            hasher.update(&serialized);
+        }
 
+        let mut hasher = Sha256::new();
         $(
-            payload.push_str(&format!("{:?}", $x));
-        )*
+            update_hasher_with_item(&mut hasher, &$item);
+        )+
 
-        digest(payload.as_bytes())
+        hasher.finalize()
     }};
 }
+

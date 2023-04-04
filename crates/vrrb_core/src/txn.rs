@@ -1,3 +1,4 @@
+#![allow(deprecated, deprecated_in_future)]
 use std::{
     collections::HashMap,
     fmt::{self, Display, Formatter},
@@ -16,7 +17,6 @@ use primitives::{
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sha256::digest;
 use utils::hash_data;
 
 use crate::{
@@ -255,14 +255,16 @@ impl Txn {
     }
 
     pub fn build_payload(&self) -> String {
-        hash_data!(
+        let hash = hash_data!(
             self.sender_address.clone(),
             self.sender_public_key.clone(),
             self.receiver_address.clone(),
             self.token.clone(),
             self.amount.clone(),
             self.nonce.clone()
-        )
+        );
+
+        format!("{:x}", hash)
     }
 
     fn from_byte_slice(data: ByteSlice) -> Self {
@@ -284,18 +286,14 @@ impl Txn {
     #[deprecated(note = "will be removed from Txn struct soon")]
     pub fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
-        if let payload = self.build_payload() {
-            let message = Message::from_slice(payload.as_bytes());
-            match message {
-                Ok(msg) => {
-                    let sig = sk.sign_ecdsa(msg);
-                    self.signature = sig.into();
-                },
-                _ => { /*TODO return Result<(), SignatureError>*/ },
-            }
-        } else {
-            self.build_payload();
-            self.sign(sk);
+        let payload = self.build_payload(); 
+        let message = Message::from_slice(payload.as_bytes());
+        match message {
+            Ok(msg) => {
+                let sig = sk.sign_ecdsa(msg);
+                self.signature = sig.into();
+            },
+            _ => { /*TODO return Result<(), SignatureError>*/ },
         }
     }
 }
