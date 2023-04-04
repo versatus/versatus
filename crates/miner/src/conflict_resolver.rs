@@ -55,10 +55,10 @@ pub trait Resolver {
     fn get_proposers(&self, proposals: &Vec<Self::Proposal>) -> Vec<Self::BallotInfo>; 
     fn append_winner(&self, conflicts: &mut Self::Identified, election_results: &mut BTreeMap<U256, Self::BallotInfo>); 
     fn resolve_current(&self, current: &mut Vec<Self::Proposal>, conflicts: &Self::Identified);
-    #[allow(unused)]
     fn split_proposals_by_round(
         &self, proposals: &Vec<Self::Proposal>
     ) -> (Vec<Self::Proposal>, Vec<Self::Proposal>) {
+        let _ = proposals;
         (vec![], vec![])
     }
 }
