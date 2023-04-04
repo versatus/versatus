@@ -9,7 +9,7 @@ use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
-    txn::{Txn, TransactionDigest},
+    txn::Txn,
 };
 use tokio::task::JoinHandle;
 use std::{error::Error, hash::{Hash, Hasher}};
