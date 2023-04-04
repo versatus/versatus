@@ -53,10 +53,10 @@ impl Default for JsonRpcServerConfig {
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
         let mut vrrbdb_config = VrrbDbConfig::default();
 
-        let temp_dir_path = std::env::temp_dir();
-        let db_path = temp_dir_path.join("/something_else");
+        // let temp_dir_path = std::env::temp_dir();
+        // let db_path = temp_dir_path.join("/something_else");
 
-        vrrbdb_config.path = db_path;
+        // vrrbdb_config.path = db_path;
 
         let vrrbdb = VrrbDb::new(vrrbdb_config);
         let vrrbdb_read_handle = vrrbdb.read_handle();
