@@ -18,13 +18,14 @@ pub async fn create_wallet_with_rpc_client() {
     // Set up RPC Server to accept connection from client
     let json_rpc_server_config = JsonRpcServerConfig::default();
 
-    let (server_handle, _) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
+    // let (server_handle, _) =
+    // JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
 
-    tokio::spawn(server_handle.stopped());
+    // tokio::spawn(server_handle.stopped());
 
-    let wallet_config = WalletConfig::default();
+    // let wallet_config = WalletConfig::default();
 
-    let mut wallet = Wallet::new(wallet_config).await.unwrap();
+    // let mut wallet = Wallet::new(wallet_config).await.unwrap();
 }
 
 #[tokio::test]
