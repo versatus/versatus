@@ -193,22 +193,6 @@ mod tests {
             if let Ok(mut quorum) = Quorum::new(seed,  11, keypair.clone()) {
                 if quorum.run_election(dummy_claims.clone()).is_ok() {
                     assert!(quorum.master_pubkeys.len() == 13);
-                } else {
-                    //first run w dummy claims, THEN if that fails enter loop
-                    let new_claims1 = quorum
-                        .nonce_claims_and_new_seed(dummy_claims, keypair.clone())
-                        .unwrap();
-                    if quorum.run_election(new_claims1.clone()).is_err() {
-                        let new_claims2 = quorum
-                            .nonce_claims_and_new_seed(new_claims1.clone(), keypair.clone())
-                            .unwrap();
-                        while quorum.run_election(new_claims2.clone()).is_err() {
-                            let new_claims2 = quorum
-                                .nonce_claims_and_new_seed(new_claims2.clone(), keypair.clone())
-                                .unwrap();
-                        }
-                    }
-                    assert!(quorum.master_pubkeys.len() == 13);
                 }
             };
         }

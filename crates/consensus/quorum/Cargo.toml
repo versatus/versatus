@@ -16,4 +16,5 @@ thiserror = { workspace = true }
 rand = { workspace = true }
 sha256 = { workspace = true }
 hex = { workspace = true }
-
+ethereum-types = { workspace = true }
+serde = { workspace = true }

@@ -59,13 +59,13 @@ impl Claim {
     /// Uses XOR of the ClaimHash as a U256 against a block seed of u64
     /// U256 is represented as a [u64; 4] so we XOR each of the 4
     /// u64 values in the U256 against the block seed.
-    pub fn get_election_result(&self, block_seed: u64) -> U256 {
+    pub fn get_election_result(&self, block_seed: u64) -> (U256, Claim) {
         let mut xor_val = [0u64; 4];
         self.hash.0.iter().enumerate().for_each(|(idx, x)| {
            xor_val[idx] = x ^ block_seed; 
         });
 
-        U256(xor_val)
+        (U256(xor_val), self.clone())
     }
 
     /// Calculates the claims pointer sum

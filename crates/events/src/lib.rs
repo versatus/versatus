@@ -1,20 +1,31 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
-use primitives::{Address, ByteVec, FarmerQuorumThreshold, HarvesterQuorumThreshold, NodeIdx, NodeType, PeerId, NodeId, QuorumPublicKey, QuorumType, RawSignature, TransactionDigest, TxHashString, LastBlockHeight};
+use block::Conflict;
+use primitives::{
+    Address, 
+    ByteVec, 
+    FarmerQuorumThreshold, 
+    NodeIdx, 
+    NodeType, 
+    PeerId, 
+    QuorumPublicKey, 
+    QuorumType, 
+    RawSignature, 
+};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
-use tokio::{
-    sync::{
-        broadcast::{self, Sender},
-        mpsc::{UnboundedReceiver, UnboundedSender},
+use tokio::sync::{
+    broadcast::{
+        self, Sender, Receiver
     },
-    task::JoinHandle,
+    mpsc::{
+        UnboundedReceiver, 
+        UnboundedSender
+    },
 };
-use vrrb_core::{
-    account::Account, txn::{TransactionDigest, Txn},
-};
-use vrrb_core::keypair::{Keypair, MinerPk};
+use ethereum_types::U256;
+
+use vrrb_core::{txn::{TransactionDigest, Txn}, keypair::Keypair, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
@@ -177,7 +188,7 @@ pub enum Event {
     // the overhead of deserializing
     MinerElection(HeaderBytes),
     // We make this the ClaimHash or Claim instead of the NodeId
-    ElectedMiner((U256, NodeId)),
+    ElectedMiner((U256, Claim)),
 
     ElectedQuorum(quorum::quorum::Quorum),
 
