@@ -314,12 +314,12 @@ fn elect_miner(claims: HashMap<NodeId, Claim>, block_seed: u64) -> BTreeMap<U256
     claims
         .iter()
         .filter(|(_, claim)| claim.eligible)
-        .map(|(nodeid, claim)| single_miner_results(claim, nodeid, block_seed))
+        .map(|(_, claim)| single_miner_results(claim, block_seed))
         .collect()
 }
 
-fn single_miner_results(claim: Claim, node_id: NodeId, block_seed: u64) -> (U256, NodeId) {
-    (claim.get_election_result(block_seed), node_id)
+fn single_miner_results(claim: Claim, block_seed: u64) -> (U256, Claim) {
+    (claim.get_election_result(block_seed), claim)
 }
 
 fn get_winner(results: &mut BTreeMap<U256, NodeId>) -> (U256, NodeId) {

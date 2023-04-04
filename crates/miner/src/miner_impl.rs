@@ -318,7 +318,7 @@ impl Resolver for Miner {
     ) -> BTreeMap<U256, Self::BallotInfo> {
         
         proposers.iter().map(|(claim, ref_hash)| {
-            (claim.get_election_result(seed), (claim.clone(), ref_hash.clone()))
+            (claim.get_election_result(seed).0, (claim.clone(), ref_hash.clone()))
         }).collect() 
     }
 
