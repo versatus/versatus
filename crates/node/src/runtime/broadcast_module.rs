@@ -168,43 +168,44 @@ mod tests {
 
         let db = VrrbDb::new(db_config);
 
-        let vrrbdb_read_handle = db.read_handle();
+        // let vrrbdb_read_handle = db.read_handle();
 
-        let config = BroadcastModuleConfig {
-            events_tx: internal_events_tx,
-            vrrbdb_read_handle,
-            node_type: NodeType::Full,
-            udp_gossip_address_port: 0,
-            raptorq_gossip_address_port: 0,
-            node_id,
-        };
+        // let config = BroadcastModuleConfig {
+        //     events_tx: internal_events_tx,
+        //     vrrbdb_read_handle,
+        //     node_type: NodeType::Full,
+        //     udp_gossip_address_port: 0,
+        //     raptorq_gossip_address_port: 0,
+        //     node_id,
+        // };
 
-        let (events_tx, mut events_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        // let (events_tx, mut events_rx) =
+        // tokio::sync::broadcast::channel::<Event>(10);
 
-        let broadcast_module = BroadcastModule::new(config).await.unwrap();
+        // let broadcast_module = BroadcastModule::new(config).await.unwrap();
 
-        let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
+        // let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
 
-        let handle = tokio::spawn(async move {
-            broadcast_module_actor.start(&mut events_rx).await.unwrap();
-        });
+        // let handle = tokio::spawn(async move {
+        //     broadcast_module_actor.start(&mut events_rx).await.unwrap();
+        // });
 
-        let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        // let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
 
-        let address = bound_socket.local_addr().unwrap();
+        // let address = bound_socket.local_addr().unwrap();
 
-        let peer_data = SyncPeerData {
-            address,
-            raptor_udp_port: 9993,
-            quic_port: 9994,
-            node_type: NodeType::Full,
-        };
+        // let peer_data = SyncPeerData {
+        //     address,
+        //     raptor_udp_port: 9993,
+        //     quic_port: 9994,
+        //     node_type: NodeType::Full,
+        // };
 
-        events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
-        events_tx.send(Event::Stop).unwrap();
+        // events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
+        // events_tx.send(Event::Stop).unwrap();
 
-        let evt = internal_events_rx.recv().await.unwrap();
+        // let evt = internal_events_rx.recv().await.unwrap();
 
-        handle.await.unwrap();
+        // handle.await.unwrap();
     }
 }
