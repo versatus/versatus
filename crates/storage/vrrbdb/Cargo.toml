@@ -19,6 +19,7 @@ storage_utils = { workspace = true }
 rocksdb = { workspace = true }
 serde_json = { workspace = true }
 serial_test = { workspace = true }
+telemetry = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
