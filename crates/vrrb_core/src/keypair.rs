@@ -3,6 +3,7 @@ use std::{
     io::{Read, Write},
     path::Path,
     str::FromStr,
+    hash::{Hash, Hasher}
 };
 
 use hbbft::crypto::{
@@ -430,6 +431,25 @@ impl Serialize for Keypair {
         s.serialize_field("validator_kp", &validator_kp_serializable)?;
 
         s.end()
+    }
+}
+
+impl Hash for KeyPair {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash miner_kp
+        let miner_sk_serialized = serde_json::to_string(&self.miner_kp.0).unwrap();
+        miner_sk_serialized.hash(state);
+
+        let miner_pk_serialized = serde_json::to_string(&self.miner_kp.1).unwrap();
+        miner_pk_serialized.hash(state);
+
+        // Hash validator_kp
+        let wrapped_validator_sk = SerdeSecret(&self.validator_kp.0);
+        let validator_sk_serialized = serde_json::to_string(&wrapped_validator_sk).unwrap();
+        validator_sk_serialized.hash(state);
+
+        let validator_pk_serialized = serde_json::to_string(&self.validator_kp.1).unwrap();
+        validator_pk_serialized.hash(state);
     }
 }
 
