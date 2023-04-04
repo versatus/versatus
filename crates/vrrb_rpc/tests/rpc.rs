@@ -2,6 +2,7 @@ use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use primitives::{generate_account_keypair, generate_mock_account_keypair, Address};
 use secp256k1::{rand::rngs::mock, Message};
+use serial_test::serial;
 use tokio::sync::{broadcast::channel, mpsc::unbounded_channel};
 use vrrb_core::txn::{generate_txn_digest_vec, null_txn, NewTxnArgs, Token};
 use vrrb_rpc::rpc::{
@@ -13,6 +14,7 @@ use vrrb_rpc::rpc::{
 mod common;
 
 #[tokio::test]
+#[serial]
 async fn server_can_publish_transactions_to_be_created() {
     let socket_addr: SocketAddr = "127.0.0.1:0"
         .parse()

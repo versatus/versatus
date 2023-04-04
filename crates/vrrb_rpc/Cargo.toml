@@ -32,3 +32,4 @@ sha2 = { workspace = true }
 [dev-dependencies]
 hyper = { workspace = true }
 reqwest = { workspace = true }
+serial_test = { workspace = true }

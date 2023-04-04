@@ -146,6 +146,7 @@ mod tests {
 
     use events::{Event, SyncPeerData};
     use primitives::NodeType;
+    use serial_test::serial;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use telemetry::TelemetrySubscriber;
     use theater::{Actor, ActorImpl};
@@ -154,58 +155,75 @@ mod tests {
     use super::{BroadcastModule, BroadcastModuleConfig};
 
     #[tokio::test]
+    #[serial]
     async fn test_broadcast_module() {
         // let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
 
         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
 
-        let mut db_config = VrrbDbConfig::default();
+        ////////////////////////////////////////////////////////////////
+
+        // let temp_dir_path = std::env::temp_dir();
+        // let state_backup_path =
+        // temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+
+        // let db = VrrbDb::new(VrrbDbConfig {
+        //     path: state_backup_path,
+        //     state_store_path: None,
+        //     transaction_store_path: None,
+        //     event_store_path: None,
+        // });
+
+        ////////////////////////////////////////////////////////////////
+
+        let db_config = VrrbDbConfig::default();
 
         let temp_dir_path = std::env::temp_dir();
         let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
 
         db_config.with_path(db_path);
 
-        // let db = VrrbDb::new(db_config);
+        let db = VrrbDb::new(db_config);
 
-        // let vrrbdb_read_handle = db.read_handle();
+        ////////////////////////////////////////////////////////////////
 
-        // let config = BroadcastModuleConfig {
-        //     events_tx: internal_events_tx,
-        //     vrrbdb_read_handle,
-        //     node_type: NodeType::Full,
-        //     udp_gossip_address_port: 0,
-        //     raptorq_gossip_address_port: 0,
-        //     node_id,
-        // };
+        let vrrbdb_read_handle = db.read_handle();
 
-        // let (events_tx, mut events_rx) =
-        // tokio::sync::broadcast::channel::<Event>(10);
+        let config = BroadcastModuleConfig {
+            events_tx: internal_events_tx,
+            vrrbdb_read_handle,
+            node_type: NodeType::Full,
+            udp_gossip_address_port: 0,
+            raptorq_gossip_address_port: 0,
+            node_id,
+        };
 
-        // let broadcast_module = BroadcastModule::new(config).await.unwrap();
+        let (events_tx, mut events_rx) = tokio::sync::broadcast::channel::<Event>(10);
 
-        // let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
+        let broadcast_module = BroadcastModule::new(config).await.unwrap();
 
-        // let handle = tokio::spawn(async move {
-        //     broadcast_module_actor.start(&mut events_rx).await.unwrap();
-        // });
+        let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
 
-        // let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let handle = tokio::spawn(async move {
+            broadcast_module_actor.start(&mut events_rx).await.unwrap();
+        });
 
-        // let address = bound_socket.local_addr().unwrap();
+        let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
 
-        // let peer_data = SyncPeerData {
-        //     address,
-        //     raptor_udp_port: 9993,
-        //     quic_port: 9994,
-        //     node_type: NodeType::Full,
-        // };
+        let address = bound_socket.local_addr().unwrap();
 
-        // events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
-        // events_tx.send(Event::Stop).unwrap();
+        let peer_data = SyncPeerData {
+            address,
+            raptor_udp_port: 9993,
+            quic_port: 9994,
+            node_type: NodeType::Full,
+        };
 
-        // let evt = internal_events_rx.recv().await.unwrap();
+        events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
+        events_tx.send(Event::Stop).unwrap();
 
-        // handle.await.unwrap();
+        let evt = internal_events_rx.recv().await.unwrap();
+
+        handle.await.unwrap();
     }
 }
