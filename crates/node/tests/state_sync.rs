@@ -1,16 +1,10 @@
-use std::{
-    env,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-};
-
 use events::Event;
-use jsonrpsee::{core::client::Subscription, ws_client::WsClientBuilder};
-use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
+use jsonrpsee::{core::client::ClientT, ws_client::WsClient};
+use node::{test_utils::create_mock_full_node_config, Node, RuntimeModuleState};
 use primitives::generate_account_keypair;
 use secp256k1::Message;
 use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;
-use vrrb_config::NodeConfig;
 use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
@@ -48,7 +42,7 @@ async fn nodes_can_synchronize_state() {
         vrrb_node_2.wait().await.unwrap();
     });
 
-    for i in 0..1 {
+    for i in 0..100 {
         let (sk, pk) = generate_account_keypair();
 
         let signature =

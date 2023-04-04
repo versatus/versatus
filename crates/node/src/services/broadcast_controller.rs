@@ -48,11 +48,16 @@ impl BroadcastEngineController {
         mut events_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
     ) -> Result<()> {
         loop {
+            dbg!("made it here");
             tokio::select! {
+
                 Some((conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
+
+                dbg!(&conn, &conn_incoming);
+
                 match self.map_network_conn_to_message(conn_incoming).await {
                     Ok(message) => {
-                        self.handle_network_event(message).await;
+                        self.handle_network_event(message).await?;
                     },
                      Err(err) => {
                         error!("unable to map connection into message: {err}");
@@ -64,7 +69,7 @@ impl BroadcastEngineController {
                         info!("Stopping broadcast controller");
                         break
                     }
-                    self.handle_internal_event(event).await;
+                    self.handle_internal_event(event).await?;
                 },
             };
         }

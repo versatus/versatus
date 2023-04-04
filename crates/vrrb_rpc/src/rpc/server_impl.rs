@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::Event;
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
@@ -27,7 +27,7 @@ pub struct RpcServerImpl {
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
-    pub events_tx: UnboundedSender<DirectedEvent>,
+    pub events_tx: UnboundedSender<Event>,
 }
 
 #[async_trait]

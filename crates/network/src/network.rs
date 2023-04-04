@@ -66,12 +66,14 @@ impl BroadcastEngine {
     /// Create a new broadcast engine for each node
     #[telemetry::instrument]
     pub async fn new(raptor_udp_port: u16, raptor_num_packet_blast: usize) -> Result<Self> {
-        let (node, incoming_conns, _) = Self::new_endpoint(raptor_udp_port).await?;
+        // let (node_endpoint, incoming_conns, _) =
+        // Self::new_endpoint(raptor_udp_port).await?;
+        let (node_endpoint, incoming_conns) = Self::new_endpoint(raptor_udp_port).await?;
 
         Ok(Self {
             peer_connection_list: HashMap::new(),
             raptor_list: HashSet::new(),
-            endpoint: (node, incoming_conns),
+            endpoint: (node_endpoint, incoming_conns),
             raptor_udp_port,
             raptor_num_packet_blast,
         })
@@ -83,23 +85,25 @@ impl BroadcastEngine {
     ) -> Result<(
         Endpoint,
         IncomingConnections,
-        Option<(Connection, ConnectionIncoming)>,
+        // Option<(Connection, ConnectionIncoming)>,
     )> {
-        let (endpoint, incoming_connections, conn_opts) = Endpoint::new_peer(
-            (Ipv6Addr::LOCALHOST, port),
-            &[],
-            Config {
-                retry_config: RetryConfig {
-                    retrying_max_elapsed_time: Duration::from_millis(500),
-                    ..RetryConfig::default()
-                },
-                keep_alive_interval: Some(Duration::from_secs(5)),
-                ..Config::default()
+        let opts = Config {
+            retry_config: RetryConfig {
+                retrying_max_elapsed_time: Duration::from_millis(500),
+                ..RetryConfig::default()
             },
-        )
-        .await?;
+            keep_alive_interval: Some(Duration::from_secs(5)),
+            ..Config::default()
+        };
 
-        Ok((endpoint, incoming_connections, conn_opts))
+        let addr = (Ipv6Addr::LOCALHOST, port);
+        let contacts = vec![];
+
+        // let (endpoint, incoming_connections, conn_opts) =
+        let (endpoint, incoming_connections, _) = Endpoint::new_peer(addr, &contacts, opts).await?;
+
+        // Ok((endpoint, incoming_connections, conn_opts))
+        Ok((endpoint, incoming_connections))
     }
 
     /// This function takes a vector of socket addresses and attempts to
@@ -508,11 +512,11 @@ mod tests {
     }
 
     pub fn test_message() -> Message {
-        let msg = Message {
+        Message {
             id: uuid::Uuid::new_v4(),
             data: MessageBody::Empty,
-        };
-        msg
+            timestamp: chrono::Utc::now().timestamp(),
+        }
     }
 
     trait Timeout: Sized {
