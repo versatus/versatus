@@ -52,10 +52,11 @@ pub trait Resolver {
     fn get_election_results<I: IntoIterator<Item = Self::BallotInfo>>(&self, proposers: &I) -> BTreeMap<U256, Self::BallotInfo>; 
     fn get_proposers<I: IntoIterator<Item = Self::ProposalInner>, E: IntoIterator<Item = Self::BallotInfo>>(&self, proposals: &I) -> &E; 
     fn append_winner(&self, conflicts: &mut Self::Identified, election_results: &mut BTreeMap<U256, Self::BallotInfo>); 
-    fn resolve_current<I: IntoIterator<Item = Self::ProposalInner>>(&self, current: &mut I, conflicts: &Self::Identified);
-    fn split_proposals_by_round<I: IntoIterator<Item = Self::ProposalInner>>(
-        &self, proposals: &I
-    ) -> (I, I) {
+    fn resolve_current(&self, current: &mut Vec<Self::Proposal>, conflicts: &Self::Identified);
+    fn split_proposals_by_round(
+        &self, proposals: &Vec<Self::Proposal>
+    ) -> (Vec<Self::Proposal>, Vec<Self::Proposal>) {
+        let _ = proposals;
         (vec![], vec![])
     }
 }

@@ -158,12 +158,13 @@ impl Verifiable for Claim {
         true
     }
 
-    #[allow(unused_variables)]
     fn valid(
         &self,
         item: &Self::Item,
         dependancies: &Self::Dependencies,
     ) -> Result<bool, InvalidClaimError> {
+        let _ = item;
+        let _ = dependancies;
         Ok(true)
     }
 }

@@ -69,6 +69,24 @@ pub enum MinerStatus {
     Waiting
 }
 
+/// A config struct that is used to consolidate arguments 
+/// passed into `Miner::new()` method
+///
+/// ```
+/// use vrrb_core::keypair::{MinerPk, MinerSk};
+/// use std::sync::{Arc, RwLock};
+/// use bulldag::graph::BullDag;
+/// use primitives::Address;
+/// use reward::reward::Reward;
+/// use block::{Block, header::BlockHeader};
+///
+/// #[derive(Debug)]
+/// pub struct MinerConfig {
+///     pub secret_key: MinerSk,
+///     pub public_key: MinerPk,
+///     pub dag: Arc<RwLock<BullDag<Block, String>>>
+/// }
+///
 #[derive(Debug)]
 pub struct MinerConfig {
     pub secret_key: MinerSk,
@@ -77,19 +95,46 @@ pub struct MinerConfig {
     pub dag: Arc<RwLock<Bulldag<Block, String>>>
 }
 
+
+/// Miner struct which exposes methods to mine convergence blocks 
+/// via its implementation of the `BlockBuilder` trait, which requires
+/// implementation of `Resolver` trait to expose methods to resolve 
+/// conflicts between proposal blocks
+///
+/// ```
+/// use vrrb_core::{claim::Claim, keypair::{MinerPk, MinerSk}};
+/// use primitives::Address;
+/// use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder, miner::MinerStatus};
+/// use block::{Block, ConvergenceBlock, header::BlockHeader, InnerBlock};
+/// use reward::reward::Reward;
+/// use std::sync::{Arc, RwLock};
+/// use bulldag::graph::BullDag;
+///
+/// #[derive(Debug, Clone)]
+/// pub struct Miner {
+///     secret_key: MinerSk,
+///     public_key: MinerPk,
+///     address: Address,
+///     pub claim: Claim,
+///     pub dag: Arc<RwLock<BullDag<Block, String>>>,
+///     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
+///     pub status: MinerStatus,
+///     pub next_epoch_adjustment: i128,
+/// }
+///
 #[derive(Debug, Clone)]
-pub struct Miner<'a> {
+pub struct Miner {
     secret_key: MinerSk,
     public_key: MinerPk,
     address: Address,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    pub last_block: Option<&'a dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>,
+    pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
     pub status: MinerStatus,
 }
 
 /// Method Implementations for the Miner Struct
-impl<'a> Miner<'a> {
+impl Miner {
     /// Creates a new instance of a `Miner`
     ///
     /// # Example
@@ -158,6 +203,19 @@ impl<'a> Miner<'a> {
         chrono::Utc::now().timestamp() as u128
     }
 
+    /// Get the next_epoch_adjustment 
+    pub fn next_epoch_adjustment(&self) -> i128 {
+        self.next_epoch_adjustment
+    }
+
+    /// Set the next_epoch_adjustment
+    pub fn set_next_epoch_adjustment(&mut self, adjustment: i128) {
+        self.next_epoch_adjustment += adjustment;
+    }
+
+    /// Attempts to mine a `ConvergenceBlock` using the 
+    /// `miner.mine_convergence_block()` method, which in turn uses the 
+    /// `<Miner as BlockBuilder>::build()` method
     pub fn try_mine(
         &mut self
     ) -> Result<Block, MinerError> {
@@ -451,5 +509,6 @@ impl<'a> Miner<'a> {
 
         0u128
     }
+
 }
 

@@ -1,9 +1,3 @@
-#![allow(unused_imports)]
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
-
 #[macro_export]
 macro_rules! create_payload {
     ($($x:expr),*) => {{

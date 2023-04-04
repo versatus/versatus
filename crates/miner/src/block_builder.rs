@@ -1,7 +1,9 @@
 use std::collections::HashSet;
 
-use block::{RefHash, Block};
+use block::{RefHash, Block, header::BlockHeader, InnerBlock};
 use bulldag::vertex::Vertex;
+use reward::reward::Reward;
+use std::sync::Arc;
 
 use crate::conflict_resolver::Resolver;
 
@@ -24,7 +26,11 @@ pub trait BlockBuilder: Resolver {
     type BlockType;
     type RefType;
 
-    fn update(&mut self, adjustment: &i128); 
+    fn update(
+        &mut self, 
+        last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
+        adjustment: &i128
+    ); 
     fn build(&self) -> Option<Self::BlockType>;
     fn get_references(&self) -> Option<Vec<Self::RefType>>;
 
@@ -49,6 +55,6 @@ pub trait BlockBuilder: Resolver {
         let _ = idx;
         let _ = current_round;
         let _ = n_rounds;
-        vec![]
+        HashSet::new()
     }
 }

@@ -1,8 +1,15 @@
 use crate::{block_builder::BlockBuilder, Miner, conflict_resolver::Resolver};
-use block::{ConvergenceBlock, ProposalBlock};
+use block::{Block, ConvergenceBlock, ProposalBlock, ConflictList, Conflict, RefHash, InnerBlock, header::BlockHeader};
+use reward::reward::Reward;
+use std::collections::{BTreeMap, HashSet, HashMap};
+use bulldag::vertex::{Direction, Vertex};
+use ethereum_types::U256;
+use ritelinked::LinkedHashSet;
+use vrrb_core::{claim::Claim, txn::TransactionDigest};
+use std::sync::Arc;
 
 
-impl<'a> BlockBuilder for Miner<'a> {
+impl BlockBuilder for Miner {
     type BlockType = ConvergenceBlock;
     type RefType = ProposalBlock;
 
@@ -11,24 +18,28 @@ impl<'a> BlockBuilder for Miner<'a> {
     /// We should make sure that the new `ConvergenceBlock` is actually
     /// pulled from the `miner.dag` instance instead of just passing it 
     // into this method. 
-    fn update(&mut self, adjustment: &i128) {
+    fn update(
+        &mut self, 
+        last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>, 
+        adjustment: &i128
+    ) {
+        self.last_block = last_block;
         self.next_epoch_adjustment = *adjustment;
     }
 
     fn build(&self) -> Option<Self::BlockType> {
         let proposals = self.get_references();
         if let Some(proposals) = proposals {
-
-            let resolved = self.resolve(&proposals);
-            let txns = self.consolidate_txns(&proposals);
-            let claims = self.consolidate_claims(&proposals);
-            let ref_hashes = self.get_ref_hashes(&proposals);
-            let txn_hash = self.get_txn_hash(&txns);
-            let claim_hash = self.get_claim_hash(&claims);
-            let header = self.build_header(ref_hashes, txns_hash, claims_hash)?;
+            let resolved = self.resolve(&proposals, self.get_round(), self.get_seed());
+            let txns = self.consolidate_txns(&resolved);
+            let claims = self.consolidate_claims(&resolved);
+            let ref_hashes = self.get_ref_hashes(&resolved);
+            let txns_hash = self.get_txn_hash(&txns);
+            let claims_hash = self.get_claim_hash(&claims);
+            let header = self.build_header(ref_hashes.clone(), txns_hash, claims_hash)?;
             let hash = self.hash_block(&header);
 
-            Some(ConvergenceBlock { 
+            return Some(ConvergenceBlock { 
                 header,
                 txns,
                 claims,
@@ -43,98 +54,26 @@ impl<'a> BlockBuilder for Miner<'a> {
 
     fn get_references(&self) -> Option<Vec<Self::RefType>> {
         if let Ok(bulldag) = self.dag.read() {
-            if let Some(vtx) = self.get_last_block_vertex(None) {
-                let p_ids = vtx.get_references();
-                let mut proposals = Vec::new();
-                p_ids.iter().for_each(|idx| {
-                if let Some(vtx) = bulldag.get_vertex(idx.to_string()) {
+            
+            let leaf_ids = bulldag.get_leaves();
+            let mut proposals = Vec::new();
+            
+            leaf_ids.iter().for_each(|leaf| {
+                if let Some(vtx) = bulldag.get_vertex(leaf.clone()) {
                     match vtx.get_data() {
-                        Block::Proposal { ref block } => {
+                        Block::Proposal { block } => {
                             proposals.push(block.clone());
                         },
                         _ => {}
                     }
-                }});
-                
-                let orphans = self.get_orphaned_references(
-                    vtx.get_index(), 
-                    0, 
-                    5
-                );
-                proposals.extend(orphans);
-                return Some(proposals)
-            } 
-        }
+                }
+            });
+
+            return Some(proposals)
+
+        } 
 
         return None
-    }
-
-    /// Gets all the orphaned ProposalBlocks from the past n rounds.
-    fn get_orphaned_references(
-        &self, 
-        idx: RefHash, 
-        current_round: usize, 
-        n_rounds: usize
-    ) -> Vec<Self::RefType> {
-
-        let source_cbs = self.get_n_rounds_convergence(idx, current_round, n_rounds);
-        let mut orphaned = vec![];
-
-        source_cbs.iter().for_each(|ref_hash| {
-            if let Ok(guard) = self.dag.read() {
-                if let Some(vtx) = guard.get_vertex(ref_hash.clone().to_string()) {
-                    let references = vtx.get_references();
-                    for ref_hash in references {
-                        if let Some(vtx) = guard.get_vertex(ref_hash.clone().to_string()) {
-                            if let Block::Proposal { block } = vtx.get_data() { 
-                                if vtx.get_references().len() == 0 {
-                                    orphaned.push(block.clone());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        orphaned
-    }
-
-    /// Gets the ConvegenceBlock from the past n rounds.
-    fn get_n_rounds_convergence(&self, idx: RefHash, current_round: usize, n_rounds: usize) -> HashSet<RefHash> {
-        if current_round > n_rounds {
-            return HashSet::new() 
-        }
-
-        let mut source_cbs = HashSet::new();
-        
-        if let Ok(guard) = self.dag.read() {
-            if let Some(vtx) = guard.get_vertex(idx) {
-                if let Block::Convergence { .. } = vtx.get_data() {
-                    let sources = vtx.get_sources();
-                    sources.iter().for_each(|ref_hash| {
-                        if let Some(vtx) = guard.get_vertex(ref_hash.clone().to_string()) {
-                            if let Block::Proposal { .. } = vtx.get_data() {
-                                let sources = vtx.get_sources();
-                                for source in sources {
-                                    source_cbs.insert(source.to_string());
-                                }
-                            }
-                        }
-                    });
-
-                    source_cbs.iter().for_each(|ref_hash| {
-                        source_cbs.extend(
-                            self.get_n_rounds_convergence(
-                                ref_hash.clone().to_string(), current_round + 1, n_rounds
-                            )
-                        )
-                    });
-                }
-            }
-        }
-        
-        return source_cbs 
     }
 
     /// Gets the vertex from the last Convergence (or Genesis) block.
@@ -160,7 +99,7 @@ impl<'a> BlockBuilder for Miner<'a> {
     }
 }
 
-impl<'a> Resolver for Miner<'a> {
+impl Resolver for Miner {
     type Proposal = ProposalBlock;
     type Identified = HashMap<TransactionDigest, Conflict>;
     type SourceInner = ConvergenceBlock;
@@ -216,20 +155,20 @@ impl<'a> Resolver for Miner<'a> {
     /// It then resolves all conflicts in the current round blocks, by removing 
     /// the txns associated with the block proposed by the losing party in the 
     /// conflict resolution protocol.
-    fn resolve<I>(&self, proposals: &I) -> &I 
-    where 
-        I: IntoIterator<Item=Self::ProposalInner>
-    {
-        let (curr, prev) = self.split_proposals_by_round(proposals);
-        let prev_resolved = self.resolve_earlier(&prev);
+    fn resolve(
+        &self, 
+        proposals: &Vec<Self::Proposal>, 
+        round: u128, 
+        seed: u64
+    ) -> Vec<Self::Proposal> {
+        let (mut curr, prev) = self.split_proposals_by_round(proposals);
+        let prev_resolved = self.resolve_earlier(&prev, round);
+        curr.extend(prev_resolved.clone());
         let mut conflicts = self.identify(&curr);
-
         let proposers = self.get_proposers(&curr); 
-
         // Construct a BTreeMap of all election results
         let mut election_results = self.get_election_results(proposers); 
         let mut curr_resolved = curr.clone();
-        curr_resolved.extend(prev_resolved);
 
         // Iterate, mutably through all the conflicts identified
         self.append_winner(&mut conflicts, &mut election_results);
@@ -311,7 +250,9 @@ impl<'a> Resolver for Miner<'a> {
             // Get every block between current proposal and proposals source;
             // if the source exists
             let source_refs: Vec<String> = match source_vtx {
-                Some(vtx) => bulldag.trace(&vtx, Direction::Reference),
+                Some(vtx) => {
+                    bulldag.trace(&vtx, Direction::Reference)
+                },
                 None => {
                     vec![]
                 },
