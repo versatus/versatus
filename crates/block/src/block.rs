@@ -17,6 +17,8 @@ use crate::{
     ProposalBlock,
 };
 
+use bulldag::vertex::Vertex;
+
 pub trait InnerBlock: std::fmt::Debug {
     type Header;
     type RewardType;

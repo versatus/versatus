@@ -24,7 +24,7 @@ pub type MinerPk = secp256k1::PublicKey;
 pub type SecretKeys = (MinerSk, Validator_Sk);
 pub type PublicKeys = (MinerPk, Validator_Pk);
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
     pub validator_kp: (Validator_Sk, Validator_Pk),
