@@ -1,5 +1,5 @@
 use patriecia::db::Database;
-use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
+use primitives::{base, get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
 use storage_utils::{get_node_data_dir, StorageError};
 use telemetry::error;

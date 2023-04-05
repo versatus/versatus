@@ -1,23 +1,30 @@
 use std::collections::BTreeMap;
 
-use crossbeam_channel::{Receiver, Sender};
-use events::Vote;
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use dashmap::DashMap;
+use events::{QuorumCertifiedTxn, Vote, VoteReceipt};
+use indexmap::IndexMap;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
 use primitives::{
     base::PeerId as PeerID,
     ByteVec,
     FarmerQuorumThreshold,
+    HarvesterQuorumThreshold,
+    QuorumType,
     RawSignature,
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use tracing::error;
 use validator::{
-    txn_validator::StateSnapshot,
+    txn_validator::{StateSnapshot, TxnFees},
     validator_core_manager::ValidatorCoreManager,
 };
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{
+    bloom::Bloom,
+    txn::{TransactionDigest, Txn},
+};
 
 
 /// `JobSchedulerController` is a struct that contains a `JobScheduler`, a

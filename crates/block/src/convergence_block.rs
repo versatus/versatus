@@ -7,10 +7,7 @@ use reward::reward::GENESIS_REWARD;
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
-use vrrb_core::{
-    claim::Claim,
-    txn::{Txn, TransactionDigest},
-};
+use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -21,6 +18,9 @@ use crate::{
     Certificate,
     ConsolidatedClaims,
     ConsolidatedTxns,
+    GenesisBlock,
+    ProposalBlock,
+    RefHash,
 };
 
 pub struct MineArgs<'a> {
@@ -40,7 +40,7 @@ pub struct MineArgs<'a> {
     pub next_epoch_adjustment: i128,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[repr(C)]
 pub struct ConvergenceBlock {
     pub header: BlockHeader,

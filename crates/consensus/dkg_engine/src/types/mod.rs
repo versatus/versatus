@@ -5,7 +5,7 @@ use hbbft::{
     crypto::{PublicKey, PublicKeySet, SecretKey, SecretKeyShare},
     sync_key_gen::{Ack, Part, SyncKeyGen},
 };
-use primitives::{NodeIdx, NodeType};
+use primitives::{NodeIdx, NodeType, QuorumType};
 use rand::rngs::OsRng;
 use thiserror::Error;
 

@@ -14,5 +14,3 @@ vrrb_core = { workspace = true }
 secp256k1 = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }
-bulldag = { workspace = true }
-block = { workspace = true }

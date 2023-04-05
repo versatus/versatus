@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventRouter, Topic};
+use events::{DirectedEvent, Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -11,10 +11,11 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_harvester_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState
+    RuntimeModuleState, farmer_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -42,7 +43,7 @@ pub struct Node {
     dkg_handle: Option<JoinHandle<Result<()>>>,
     miner_election_handle: Option<JoinHandle<Result<()>>>,
     quorum_election_handle: Option<JoinHandle<Result<()>>>,
-    conflict_resolution_handle: Option<JoinHandle<Result<()>>>,
+    conflict_resolution_handle: Option<Join<Result<()>>>,
 }
 
 impl Node {
@@ -55,24 +56,24 @@ impl Node {
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = unbounded_channel::<Event>();
-        let mut event_router = Self::setup_event_routing_system(config.buffer);
+        let mut event_router = Self::setup_event_routing_system();
 
-        let mempool_events_rx = event_router.subscribe();
-        let vrrbdb_events_rx = event_router.subscribe();
-        let network_events_rx = event_router.subscribe();
-        let controller_events_rx = event_router.subscribe();
-        let miner_events_rx = event_router.subscribe();
+        let mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let network_events_rx = event_router.subscribe(&Topic::Network)?;
+        let controller_events_rx = event_router.subscribe(&Topic::Network)?;
+        let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
 
-        let farmer_events_rx = event_router.subscribe();
-        let harvester_events_rx = event_router.subscribe();
-        let mrc_events_rx = event_router.subscribe();
-        let cm_events_rx = event_router.subscribe();
-        let reputation_events_rx = event_router.subscribe();
-        let jsonrpc_events_rx = event_router.subscribe();
-        let dkg_events_rx = event_router.subscribe();
-        let miner_election_events_rx = event_router.subscribe();
-        let quorum_election_events_rx = event_router.subscribe();
-        let conflict_resolution_events_rx = event_router.subscribe();
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
+        let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
+        let miner_election_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let quorum_election_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let conflict_resolution_events_rx = event_router.subscribe(&Topic::Consensus)?;
 
         let (
             updated_config,
@@ -96,7 +97,7 @@ impl Node {
             jsonrpc_events_rx,
             dkg_events_rx,
             miner_election_events_rx,
-            quorum_election_events_rx,
+            quorum_election_events_rx
             conflict_resolution_events_rx,
         )
         .await?;
@@ -115,7 +116,7 @@ impl Node {
             mempool_handle,
             jsonrpc_server_handle,
             gossip_handle,
-            //broadcast_controller_handle,
+            broadcast_controller_handle,
             dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
@@ -230,8 +231,8 @@ impl Node {
         self.config.jsonrpc_server_address
     }
 
-    fn setup_event_routing_system(buffer: Option<usize>) -> EventRouter {
-        let mut event_router = EventRouter::new(buffer);
+    fn setup_event_routing_system() -> EventRouter {
+        let mut event_router = EventRouter::new();
         event_router.add_topic(Topic::Control, Some(1));
         event_router.add_topic(Topic::State, Some(1));
         event_router.add_topic(Topic::Network, Some(100));

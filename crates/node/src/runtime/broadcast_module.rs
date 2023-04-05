@@ -1,7 +1,9 @@
-use std::{net::SocketAddr, time::Duration};
+use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult, time::Duration};
 
 use async_trait::async_trait;
-use events::Event;
+use block::Block;
+use bytes::Bytes;
+use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
@@ -10,12 +12,23 @@ use primitives::{NodeType, PeerId};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::{error, instrument};
 use theater::{ActorLabel, ActorState, Handler};
+use tokio::{
+    sync::{
+        broadcast::{
+            error::{RecvError, TryRecvError},
+            Receiver,
+        },
+        mpsc::{channel, Receiver as MpscReceiver, Sender},
+    },
+    task::JoinHandle,
+    time::timeout,
+};
 use uuid::Uuid;
 
-use crate::{NodeError, Result};
+use crate::{NodeError, Result, RuntimeModuleState};
 
 pub struct BroadcastModuleConfig {
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub udp_gossip_address_port: u16,
@@ -27,10 +40,23 @@ pub struct BroadcastModuleConfig {
 #[derive(Debug)]
 pub struct BroadcastModule {
     id: Uuid,
-    events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    status: ActorState,
+    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
     status: ActorState,
+}
+
+const PACKET_TIMEOUT_DURATION: u64 = 10;
+
+trait Timeout: Sized {
+    fn timeout(self) -> tokio::time::Timeout<Self>;
+}
+
+impl<F: std::future::Future> Timeout for F {
+    fn timeout(self) -> tokio::time::Timeout<Self> {
+        tokio::time::timeout(Duration::from_secs(PACKET_TIMEOUT_DURATION), self)
+    }
 }
 
 const PACKET_TIMEOUT_DURATION: u64 = 10;
@@ -74,7 +100,7 @@ impl BroadcastModule {
         loop {
             if let Some((_, mut incoming)) = self
                 .broadcast_engine
-                .get_incoming_connections()
+                .get_incomming_connections()
                 .next()
                 .await
             {
@@ -206,7 +232,7 @@ impl Handler<Event> for BroadcastModule {
                     },
                 }
             },
-            // Broadcasting the Convergence block to the peers.
+            /// Broadcasting the Convergence block to the peers.
             Event::BlockConfirmed(block) => {
                 let status = self
                     .broadcast_engine
@@ -233,12 +259,11 @@ impl Handler<Event> for BroadcastModule {
 
 #[cfg(test)]
 mod tests {
-    use events::{Event, SyncPeerData};
+    use std::io::stdout;
+    use events::Event;
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use tokio::sync::mpsc::unbounded_channel;
-    use tokio::net::UdpSocket;
-    use theater::{ActorImpl, Actor};
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 
@@ -283,7 +308,7 @@ mod tests {
         let address = bound_socket.local_addr().unwrap();
 
         let peer_data = SyncPeerData {
-            address: address.to_string(),
+            address,
             raptor_udp_port: 9993,
             quic_port: 9994,
             node_type: NodeType::Full,

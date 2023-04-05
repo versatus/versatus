@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
 use patriecia::inner::InnerTrie;
 use primitives::NodeId;
+use sha2::Digest;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 

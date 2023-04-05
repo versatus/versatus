@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
+use hbbft::sync_key_gen::{Error, PartOutcome, SyncKeyGen};
 use primitives::NodeType;
 use rand::rngs::OsRng;
 

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::{Conflict, Block};
+use block::Conflict;
 use primitives::{
     Address, 
     ByteVec, 
@@ -11,7 +11,6 @@ use primitives::{
     QuorumPublicKey, 
     QuorumType, 
     RawSignature, 
-    LastBlockHeight,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
@@ -188,7 +187,6 @@ pub enum Event {
     // May want to just use the `BlockHeader` struct to reduce 
     // the overhead of deserializing
     MinerElection(HeaderBytes),
-    MinedBlock(Block),
     // We make this the ClaimHash or Claim instead of the NodeId
     ElectedMiner((U256, Claim)),
 
