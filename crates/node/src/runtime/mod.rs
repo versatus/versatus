@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, sync::{Arc, RwLock}};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
+
 use block::Block;
 use bulldag::graph::BullDag;
 use events::{Event, EventRouter};
@@ -19,24 +23,24 @@ use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    election_module::{ElectionModule, ElectionModuleConfig, QuorumElection, QuorumElectionResult},
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule, election_module::{
-        ElectionModuleConfig, 
-        ElectionModule, 
-        QuorumElection, 
-        QuorumElectionResult
-    },
+    state_module::StateModule,
 };
 use crate::{
-    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE, 
-    dkg_module::DkgModuleConfig, EventBroadcastSender, NodeError, Result
+    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
+    dkg_module::DkgModuleConfig,
+    election_module::{MinerElection, MinerElectionResult},
+    EventBroadcastSender,
+    NodeError,
+    Result,
 };
-use crate::election_module::{MinerElection, MinerElectionResult};
 
 pub mod broadcast_module;
 pub mod credit_model_module;
 pub mod dkg_module;
+pub mod election_module;
 pub mod farmer_harvester_module;
 pub mod farmer_module;
 pub mod mempool_module;
@@ -44,7 +48,6 @@ pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
-pub mod election_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -72,6 +75,8 @@ pub async fn setup_runtime_components(
     Option<JoinHandle<Result<()>>>,
 )> {
     let mut config = original_config.clone();
+
+    let dag = Arc::new(RwLock::new(BullDag::new()));
 
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
@@ -135,6 +140,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
+        dag,
         miner_events_rx,
     )?;
 
@@ -142,27 +148,27 @@ pub async fn setup_runtime_components(
 
     let claim: Claim = config.keypair.clone().into();
     let miner_election_handle = setup_miner_election_module(
-        &config, 
-        events_tx.clone(), 
-        miner_election_events_rx, 
+        &config,
+        events_tx.clone(),
+        miner_election_events_rx,
         state_read_handle.clone(),
-        claim.clone()
+        claim.clone(),
     )?;
-    
+
     let quorum_election_handle = setup_quorum_election_module(
-        &config, 
-        events_tx.clone(), 
+        &config,
+        events_tx.clone(),
         quorum_election_events_rx,
         state_read_handle.clone(),
-        claim.clone()
+        claim.clone(),
     )?;
 
     let conflict_resolution_handle = setup_conflict_resolution_module(
-        &config, 
-        events_tx.clone(), 
+        &config,
+        events_tx.clone(),
         conflict_resolution_events_rx,
         state_read_handle.clone(),
-        cliam.clone()
+        cliam.clone(),
     )?;
 
     Ok((
@@ -175,7 +181,7 @@ pub async fn setup_runtime_components(
         dkg_handle,
         miner_election_handle,
         quorum_election_handle,
-        conflict_resolution_handle
+        conflict_resolution_handle,
     ))
 }
 
@@ -272,7 +278,8 @@ async fn setup_rpc_api_server(
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: Receiver<Event>,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> { let jsonrpc_server_config = JsonRpcServerConfig {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+    let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
         node_type: config.node_type,
         events_tx,
@@ -303,6 +310,7 @@ fn setup_mining_module(
     events_tx: UnboundedSender<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     mut miner_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let (_, miner_secret_key) = config.keypair.get_secret_keys();
@@ -313,7 +321,7 @@ fn setup_mining_module(
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
-        dag: config.dag.clone(),
+        dag: dag.clone(),
     };
 
     let miner = miner::Miner::new(miner_config);
@@ -385,28 +393,25 @@ fn setup_miner_election_module(
     db_read_handle: VrrbDbReadHandle,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
         local_claim,
     };
-    
+
     let module: ElectionModule<MinerElection, MinerElectionResult> = {
-        ElectionModule::<MinerElection, MinerElectionResult>::new(
-            ElectionModuleConfig {
-               db_read_handle,
-               events_tx,
-               local_claim
-            }
-        )
+        ElectionModule::<MinerElection, MinerElectionResult>::new(ElectionModuleConfig {
+            db_read_handle,
+            events_tx,
+            local_claim,
+        })
     };
 
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
         miner_election_module_actor
             .start(&mut miner_election_events_rx)
-            .await 
+            .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
@@ -425,22 +430,20 @@ fn setup_quorum_election_module(
         events_tx,
         local_claim,
     };
-    
+
     let module: ElectionModule<QuorumElection, QuorumElectionResult> = {
-        ElectionModule::<QuorumElection, QuorumElectionResult>::new(
-            ElectionModuleConfig {
-                db_read_handle,
-                events_tx,
-                local_claim,
-            }
-        )
+        ElectionModule::<QuorumElection, QuorumElectionResult>::new(ElectionModuleConfig {
+            db_read_handle,
+            events_tx,
+            local_claim,
+        })
     };
 
     let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
         quorum_election_module_actor
             .start(&mut quorum_election_events_rx)
-            .await 
+            .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 

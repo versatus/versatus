@@ -14,7 +14,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState
+    RuntimeModuleState,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -84,7 +84,7 @@ impl Node {
             dkg_handle,
             miner_election_handle,
             quorum_election_handle,
-            conflict_resolution_handle
+            conflict_resolution_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -231,14 +231,6 @@ impl Node {
     }
 
     fn setup_event_routing_system(buffer: Option<usize>) -> EventRouter {
-        let mut event_router = EventRouter::new(buffer);
-        event_router.add_topic(Topic::Control, Some(1));
-        event_router.add_topic(Topic::State, Some(1));
-        event_router.add_topic(Topic::Network, Some(100));
-        event_router.add_topic(Topic::Consensus, Some(100));
-        event_router.add_topic(Topic::Storage, Some(100));
-        event_router.add_topic(Topic::Throttle, Some(100));
-
-        event_router
+        EventRouter::default()
     }
 }
