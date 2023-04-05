@@ -1,11 +1,9 @@
 use std::net::AddrParseError;
 
-use network::{config::BroadcastError, types::config::BroadCastError};
+use network::config::BroadcastError;
 use thiserror::Error;
-use tokio::sync::{
-    broadcast::error::RecvError,
-    mpsc::error::{SendError, TryRecvError},
-};
+use tokio::sync::mpsc::error::TryRecvError;
+use theater::TheaterError;
 
 #[derive(Debug, Error)]
 pub enum NodeError {
