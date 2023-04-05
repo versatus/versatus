@@ -1,21 +1,12 @@
-use std::{hash::Hash, path::PathBuf};
-
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
-use lr_trie::ReadHandleFactory;
+use events::Event;
 use mempool::LeftRightMempool;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::broadcast::error::TryRecvError;
-use vrrb_core::txn::{TransactionDigest, Txn};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use vrrb_core::txn::TransactionDigest;
 
 use crate::{
-    result::Result,
     EventBroadcastSender,
-    NodeError,
-    RuntimeModule,
     MEMPOOL_THRESHOLD_SIZE,
 };
 
@@ -92,7 +83,7 @@ impl Handler<Event> for MempoolModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
-                    .send((Topic::Consensus, Event::TxnAddedToMempool(txn_hash.clone())))
+                    .send(Event::TxnAddedToMempool(txn_hash.clone()))
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Transaction {} sent to mempool", txn_hash);
@@ -104,12 +95,11 @@ impl Handler<Event> for MempoolModule {
                     self.cutoff_transaction = Some(txn_hash.clone());
 
                     self.events_tx
-                        .send((
-                            Topic::Consensus,
+                        .send(
                             Event::MempoolSizeThesholdReached {
                                 cutoff_transaction: txn_hash,
                             },
-                        ))
+                        )
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },

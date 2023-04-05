@@ -33,7 +33,7 @@ pub trait InnerBlock: std::fmt::Debug {
     fn into_static_genesis(&self) -> Option<GenesisBlock>;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Hash, Deserialize, PartialEq, Eq)]
 #[repr(C)]
 pub enum Block {
     Convergence { block: ConvergenceBlock },

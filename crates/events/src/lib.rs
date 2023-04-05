@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::Conflict;
+use block::{Conflict, Block};
 use primitives::{
     Address, 
     ByteVec, 
@@ -188,6 +188,7 @@ pub enum Event {
     // May want to just use the `BlockHeader` struct to reduce 
     // the overhead of deserializing
     MinerElection(HeaderBytes),
+    MinedBlock(Block),
     // We make this the ClaimHash or Claim instead of the NodeId
     ElectedMiner((U256, Claim)),
 

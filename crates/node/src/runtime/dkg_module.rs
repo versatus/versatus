@@ -11,7 +11,7 @@ use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgResult},
 };
-use events::{Event, SyncPeerData, Topic};
+use events::{Event, SyncPeerData};
 use hbbft::crypto::{PublicKey, SecretKeyShare};
 use laminar::{Config, Packet, Socket, SocketEvent};
 use crossbeam_channel::Sender;
@@ -30,7 +30,7 @@ use primitives::{
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
 
 use crate::{result::Result, NodeError};
@@ -188,7 +188,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send((Topic::Network, Event::SyncPeers(peers)));
+                                                .send(Event::SyncPeers(peers));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");

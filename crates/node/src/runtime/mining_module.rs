@@ -1,13 +1,12 @@
 use async_trait::async_trait;
-use block::{Block, convergence_block};
-use events::{DirectedEvent, Event};
+use events::Event;
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use tokio::sync::broadcast::{error::TryRecvError, Receiver};
 use vrrb_core::txn::Txn;
+use std::marker::Send;
 
 use crate::EventBroadcastSender;
 
@@ -21,6 +20,8 @@ pub struct MiningModule {
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 }
+
+unsafe impl Send for MiningModule {}
 
 #[derive(Debug, Clone)]
 pub struct MiningModuleConfig {
@@ -99,19 +100,17 @@ impl Handler<Event> for MiningModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            Event::ElectedMiner((winner_claim_hash, winner_node_id)) => {
-                if self.miner.check_claim(winner_claim_hash) {
-                    let _ = self.events_tx.send(self.miner.get_dag());
+            Event::ElectedMiner((winning_pointer_sum, winner_claim)) => {
+                if self.miner.check_claim(winner_claim.hash) {
+                    let cblock = self.miner.try_mine();
+                    if let Ok(cblock) = cblock {
+                        let _ = self.events_tx.send(
+                            Event::MinedBlock(
+                                cblock.clone()
+                            )
+                        );
+                    }
                 };
-            },
-            Event::DagSnapshot(dag) => {
-                if let Some(convergence_block) = self.miner.mine_convergence_block(
-                    proposals, chain, next_epoch_adjustment
-                ) {
-                    let _ = self.events_tx.send(
-                        Event::MinedBlock(convergence_block)
-                    );
-                }
             },
             Event::NoOp => {},
             // _ => telemetry::warn!("unrecognized command received: {:?}", event),
