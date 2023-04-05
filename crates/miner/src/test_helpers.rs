@@ -6,14 +6,13 @@ use block::{
     Block,
     GenesisBlock,
     ProposalBlock,
-    TxnList, ConvergenceBlock, InnerBlock, header::BlockHeader,
+    TxnList, InnerBlock,
 };
 use bulldag::{graph::BullDag, vertex::Vertex};
 use primitives::{Address, PublicKey, SecretKey, Signature};
-use reward::reward::Reward;
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use vrrb_core::{
     claim::Claim,
     helpers::size_of_txn_list,

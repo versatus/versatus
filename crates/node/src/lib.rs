@@ -8,7 +8,7 @@ mod runtime_module;
 pub mod services;
 pub mod test_utils;
 
-use events::{DirectedEvent, Event};
+use events::Event;
 
 pub use node_type::*;
 pub use result::*;
@@ -18,7 +18,7 @@ pub use services::*;
 
 pub use crate::node::*;
 
-pub(crate) type EventBroadcastSender = tokio::sync::mpsc::UnboundedSender<DirectedEvent>;
+pub(crate) type EventBroadcastSender = tokio::sync::mpsc::UnboundedSender<Event>;
 pub(crate) type EventBroadcastReceiver = tokio::sync::broadcast::Receiver<Event>;
 
 /// The maximum size in kilobytes of transactions that can be in the mempool at

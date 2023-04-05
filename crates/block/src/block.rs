@@ -3,38 +3,21 @@
 
 
 use std::fmt;
-
-use bulldag::vertex::Vertex;
-use primitives::{Epoch, SecretKey as SecretKeyBytes};
 use reward::reward::Reward;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-use ritelinked::LinkedHashMap;
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
 use serde::{Deserialize, Serialize};
-use sha256::digest;
-use utils::{create_payload, hash_data};
-use vrrb_core::{
-    accountable::Accountable,
-    claim::Claim,
-    keypair::KeyPair,
-    txn::Txn,
-    verifiable::Verifiable,
-};
 
 #[cfg(mainnet)]
 use crate::genesis;
 use crate::{
-    genesis,
     header::BlockHeader,
-    invalid::{BlockError, InvalidBlockErrorReason},
     ConvergenceBlock,
     GenesisBlock,
     ProposalBlock,
 };
+
+use bulldag::vertex::Vertex;
 
 pub trait InnerBlock: std::fmt::Debug {
     type Header;
@@ -50,7 +33,7 @@ pub trait InnerBlock: std::fmt::Debug {
     fn into_static_genesis(&self) -> Option<GenesisBlock>;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Hash, Deserialize, PartialEq, Eq)]
 #[repr(C)]
 pub enum Block {
     Convergence { block: ConvergenceBlock },
@@ -77,21 +60,21 @@ impl Block {
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|(txn)| std::mem::size_of_val(&txn))
+                .map(|txn| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
 
             Block::Proposal { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|(txn)| std::mem::size_of_val(&txn))
+                .map(|txn| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
 
             Block::Genesis { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|(txn)| std::mem::size_of_val(&txn))
+                .map(|txn| std::mem::size_of_val(&txn))
                 .fold(0, |acc, item| acc + item),
         }
     }

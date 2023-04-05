@@ -1,4 +1,3 @@
-
 mod claim_store;
 mod event_store;
 pub mod result;

@@ -1,4 +1,3 @@
-#![allow(deprecated, deprecated_in_future)]
 //FEATURE TAG(S): Left-Right Mempool, Validator Cores, Tx Validation, Tx Writes
 // to Confirmed, Block Validation & Confirmation, Block Structure
 use std::{cmp::Eq, hash::Hash};

@@ -2,10 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use primitives::Address;
-use sha2::Digest;
 use storage_utils::{Result, StorageError};
-use vrrb_core::account::{Account, UpdateArgs};
-
 use crate::RocksDbAdapter;
 
 mod state_store_rh;

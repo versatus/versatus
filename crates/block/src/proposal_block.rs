@@ -32,7 +32,7 @@ use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 /// }
 /// ```
 ///
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Hash, PartialEq, Eq, Deserialize)]
 #[repr(C)]
 pub struct ProposalBlock {
     pub ref_block: RefHash,

@@ -1,9 +1,11 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    time::Duration,
+    time::Duration, sync::{Arc, RwLock},
 };
 
+use bulldag::graph::BullDag;
+use block::Block;
 use derive_builder::Builder;
 use primitives::{NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
@@ -24,6 +26,8 @@ pub struct NodeConfig {
     pub data_dir: PathBuf,
 
     pub db_path: PathBuf,
+
+    pub dag: Arc<RwLock<BullDag<Block, String>>>,
 
     /// Address the node listens for network events through RaptorQ
     pub raptorq_gossip_address: SocketAddr,
@@ -74,6 +78,7 @@ pub struct NodeConfig {
 
     pub keypair: Keypair,
 
+    pub buffer: Option<usize>,
     #[builder(default = "false")]
     pub disable_networking: bool,
 }
@@ -145,6 +150,8 @@ impl Default for NodeConfig {
             bootstrap_config: None,
             keypair: Keypair::random(),
             disable_networking: false,
+            buffer: None,
+            dag: Arc::new(RwLock::new(BullDag::new()))
         }
     }
 }
