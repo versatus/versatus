@@ -331,7 +331,6 @@ impl DkgModule {
     }
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Data {
     Request(RendezvousRequest),
@@ -392,8 +391,6 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
-
->>>>>>> d47861a (Feat change claimpointers to xor (#205))
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {
