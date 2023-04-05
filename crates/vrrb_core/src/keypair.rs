@@ -3,6 +3,7 @@ use std::{
     io::{Read, Write},
     path::Path,
     str::FromStr,
+    hash::{Hash, Hasher}
 };
 
 use hbbft::crypto::{
@@ -12,7 +13,7 @@ use hbbft::crypto::{
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::storage_utils;
@@ -412,6 +413,43 @@ pub fn write_keypair_file<F: AsRef<Path>>(
         Err(_) => Err(KeyPairError::IOError(
             "Failed to open directory for storage of  secret key".to_string(),
         )),
+    }
+}
+
+impl Serialize for Keypair {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer 
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut s = serializer.serialize_struct("Keypair", 2)?;
+
+        s.serialize_field("miner_kp", &self.miner_kp)?;
+        let wrapped_validator_sk = SerdeSecret(&self.validator_kp.0);
+        let validator_kp_serializable = (&wrapped_validator_sk, &self.validator_kp.1);
+        s.serialize_field("validator_kp", &validator_kp_serializable)?;
+
+        s.end()
+    }
+}
+
+impl Hash for KeyPair {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash miner_kp
+        let miner_sk_serialized = serde_json::to_string(&self.miner_kp.0).unwrap();
+        miner_sk_serialized.hash(state);
+
+        let miner_pk_serialized = serde_json::to_string(&self.miner_kp.1).unwrap();
+        miner_pk_serialized.hash(state);
+
+        // Hash validator_kp
+        let wrapped_validator_sk = SerdeSecret(&self.validator_kp.0);
+        let validator_sk_serialized = serde_json::to_string(&wrapped_validator_sk).unwrap();
+        validator_sk_serialized.hash(state);
+
+        let validator_pk_serialized = serde_json::to_string(&self.validator_kp.1).unwrap();
+        validator_pk_serialized.hash(state);
     }
 }
 

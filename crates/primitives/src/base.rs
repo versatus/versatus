@@ -52,3 +52,4 @@ pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
 pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
+pub type LastBlockHeight = u128;

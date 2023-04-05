@@ -48,8 +48,8 @@ pub struct DkgModuleConfig {
 pub struct DkgModule {
     pub dkg_engine: DkgEngine,
     pub quorum_type: Option<QuorumType>,
-    pub rendzevous_local_addr: SocketAddr,
-    pub rendzevous_server_addr: SocketAddr,
+    pub rendezvous_local_addr: SocketAddr,
+    pub rendezvous_server_addr: SocketAddr,
     pub quic_port: u16,
     pub socket: Socket,
     status: ActorState,
@@ -64,8 +64,8 @@ impl DkgModule {
         node_type: NodeType,
         secret_key: hbbft::crypto::SecretKey,
         config: DkgModuleConfig,
-        rendzevous_local_addr: SocketAddr,
-        rendzevous_server_addr: SocketAddr,
+        rendezvous_local_addr: SocketAddr,
+        rendezvous_server_addr: SocketAddr,
         quic_port: u16,
         broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     ) -> Result<DkgModule> {
@@ -79,7 +79,7 @@ impl DkgModule {
             },
         );
         let socket_result = Socket::bind_with_config(
-            rendzevous_local_addr,
+            rendezvous_local_addr,
             Config {
                 blocking_mode: false,
                 idle_connection_timeout: Duration::from_secs(5),
@@ -101,8 +101,8 @@ impl DkgModule {
             Ok(socket) => Ok(Self {
                 dkg_engine: engine,
                 quorum_type: config.quorum_type,
-                rendzevous_local_addr,
-                rendzevous_server_addr,
+                rendezvous_local_addr,
+                rendezvous_server_addr,
                 quic_port,
                 socket,
                 status: ActorState::Stopped,
@@ -146,8 +146,8 @@ impl DkgModule {
         Self {
             dkg_engine,
             quorum_type: Some(QuorumType::Farmer),
-            rendzevous_local_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
-            rendzevous_server_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            rendezvous_local_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
+            rendezvous_server_addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
             quic_port: 9090,
             socket,
             status: ActorState::Stopped,
@@ -161,14 +161,14 @@ impl DkgModule {
         String::from("DKG module")
     }
 
-    pub fn process_rendzevous_response(&self) {
+    pub fn process_rendezvous_response(&self) {
         let receiver = self.socket.get_event_receiver();
         let sender = self.socket.get_packet_sender();
         loop {
             if let Ok(event) = receiver.recv() {
                 match event {
                     SocketEvent::Packet(packet) => {
-                        if packet.addr() == self.rendzevous_server_addr {
+                        if packet.addr() == self.rendezvous_server_addr {
                             if let Ok(payload_response) =
                                 bincode::deserialize::<Data>(packet.payload())
                             {
@@ -190,7 +190,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send(Event::SyncPeers(peers));
+                                                .send((Topic::Network, Event::SyncPeers(peers)));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -253,7 +253,7 @@ impl DkgModule {
                                         harvester_public_key.to_bytes().to_vec(),
                                     ))){
                                 let _ = sender.send(Packet::reliable_ordered(
-                                    self.rendzevous_server_addr,
+                                    self.rendezvous_server_addr,
                                     data,
                                     None,
                                 ));
@@ -270,7 +270,7 @@ impl DkgModule {
                                             quorum_key.public_key().to_bytes().to_vec(),
                                         ))){
                                                    let _ = sender.send(Packet::reliable_ordered(
-                                        self.rendzevous_server_addr,
+                                        self.rendezvous_server_addr,
                                         data,
                                         None,
                                     ));
@@ -302,8 +302,8 @@ impl DkgModule {
                                                 signature,
                                                 msg_bytes,
                                                 SyncPeerData {
-                                                    address: self.rendzevous_local_addr,
-                                                    raptor_udp_port: self.rendzevous_local_addr.port(),
+                                                    address: self.rendezvous_local_addr.to_string(),
+                                                    raptor_udp_port: self.rendezvous_local_addr.port(),
                                                     quic_port: self.quic_port,
                                                     node_type: self.dkg_engine.node_type,
                                                 },
@@ -311,7 +311,7 @@ impl DkgModule {
                                         ));
                                         if let Ok(payload) = payload_result {
                                             let _ = sender.send(Packet::reliable_ordered(
-                                                self.rendzevous_server_addr,
+                                                self.rendezvous_server_addr,
                                                 payload,
                                                 None,
                                             ));
@@ -329,6 +329,37 @@ impl DkgModule {
             }
         }
     }
+}
+
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Data {
+    Request(RendezvousRequest),
+    Response(RendezvousResponse),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousRequest {
+    Ping,
+    Peers(Vec<u8>),
+    Namespace(NodeTypeBytes, QuorumPublicKey),
+    RegisterPeer(
+        QuorumPublicKey,
+        NodeTypeBytes,
+        PKShareBytes,
+        RawSignature,
+        PayloadBytes,
+        SyncPeerData,
+    ),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum RendezvousResponse {
+    Pong,
+    RequestPeers(QuorumPublicKey),
+    Peers(Vec<SyncPeerData>),
+    PeerRegistered,
+    NamespaceRegistered,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -361,6 +392,8 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
+
+>>>>>>> d47861a (Feat change claimpointers to xor (#205))
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {

@@ -26,3 +26,5 @@ vrrb_vrf = { workspace = true }
 bulldag = { workspace = true }
 sha2 = { workspace = true }
 chrono = { workspace = true }
+tokio = { workspace = true }
+ethereum-types = { workspace = true }

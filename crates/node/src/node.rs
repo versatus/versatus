@@ -15,7 +15,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState, farmer_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -42,6 +42,9 @@ pub struct Node {
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
     indexer_handle: Option<JoinHandle<Result<()>>>,
+    miner_election_handle: Option<JoinHandle<Result<()>>>,
+    quorum_election_handle: Option<JoinHandle<Result<()>>>,
+    conflict_resolution_handle: Option<Join<Result<()>>>,
 }
 
 impl Node {
@@ -56,19 +59,22 @@ impl Node {
         let (events_tx, mut events_rx) = unbounded_channel::<Event>();
         let mut event_router = Self::setup_event_routing_system();
 
-        let mempool_events_rx = event_router.subscribe();
-        let vrrbdb_events_rx = event_router.subscribe();
-        let network_events_rx = event_router.subscribe();
-        let controller_events_rx = event_router.subscribe();
-        let miner_events_rx = event_router.subscribe();
+        let mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
+        let network_events_rx = event_router.subscribe(&Topic::Network)?;
+        let controller_events_rx = event_router.subscribe(&Topic::Network)?;
+        let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
 
-        let farmer_events_rx = event_router.subscribe();
-        let harvester_events_rx = event_router.subscribe();
-        let mrc_events_rx = event_router.subscribe();
-        let cm_events_rx = event_router.subscribe();
-        let reputation_events_rx = event_router.subscribe();
-        let jsonrpc_events_rx = event_router.subscribe();
-        let dkg_events_rx = event_router.subscribe();
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mrc_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let cm_events_rx = event_router.subscribe(&Topic::Throttle)?;
+        let reputation_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
+        let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
+        let miner_election_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let quorum_election_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let conflict_resolution_events_rx = event_router.subscribe(&Topic::Consensus)?;
         let indexer_events_rx = event_router.subscribe();
 
         let (
@@ -80,6 +86,9 @@ impl Node {
             miner_handle,
             dkg_handle,
             indexer_handle,
+            miner_election_handle,
+            quorum_election_handle,
+            conflict_resolution_handle
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -91,6 +100,9 @@ impl Node {
             jsonrpc_events_rx,
             dkg_events_rx,
             indexer_events_rx,
+            miner_election_events_rx,
+            quorum_election_events_rx
+            conflict_resolution_events_rx,
         )
         .await?;
 
@@ -108,6 +120,7 @@ impl Node {
             mempool_handle,
             jsonrpc_server_handle,
             gossip_handle,
+            broadcast_controller_handle,
             dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
@@ -115,6 +128,9 @@ impl Node {
             miner_handle,
             indexer_handle,
             keypair,
+            miner_election_handle,
+            quorum_election_handle,
+            conflict_resolution_handle,
         })
     }
 
@@ -221,7 +237,13 @@ impl Node {
     }
 
     fn setup_event_routing_system() -> EventRouter {
-        let mut event_router = EventRouter::default();
+        let mut event_router = EventRouter::new();
+        event_router.add_topic(Topic::Control, Some(1));
+        event_router.add_topic(Topic::State, Some(1));
+        event_router.add_topic(Topic::Network, Some(100));
+        event_router.add_topic(Topic::Consensus, Some(100));
+        event_router.add_topic(Topic::Storage, Some(100));
+        event_router.add_topic(Topic::Throttle, Some(100));
 
         event_router
     }

@@ -1,10 +1,10 @@
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{claim::Claim, nonceable::Nonceable, ownable::Ownable};
+use crate::{claim::Claim, ownable::Ownable};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Ledger<C: Clone + Ownable + Nonceable + Serialize> {
+pub struct Ledger<C: Clone + Ownable + Serialize> {
     pub credits: LinkedHashMap<String, u128>,
     pub debits: LinkedHashMap<String, u128>,
     pub claims: LinkedHashMap<String, C>,

@@ -31,14 +31,13 @@ pub struct NodeConfig {
     /// Address the node listens for network events through udp2p
     pub udp_gossip_address: SocketAddr,
 
-    /// This is the address that the node will use to connect to the rendzevous
+    /// This is the address that the node will use to connect to the rendezvous
     /// server.
     pub rendezvous_local_address: SocketAddr,
 
-    /// This is the address that the node will use to connect to the rendzevous
+    /// This is the address that the node will use to connect to the rendezvous
     /// server.
     pub rendezvous_server_address: SocketAddr,
-
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
     //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
