@@ -1,4 +1,4 @@
-use primitives::{Address, SecretKey, NodeId};
+use primitives::{Address, NodeId, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
 use vrrb_core::{
@@ -70,10 +70,10 @@ pub fn generate_random_valid_transaction() -> Txn {
 }
 
 pub fn generate_random_claim() -> Claim {
-    let keypair = Keypair::random(); 
+    let keypair = Keypair::random();
 
     Claim::new(
-        keypair.miner_kp.1.clone().to_string(), 
-        Address::new(keypair.miner_kp.1).to_string(), 
-    ) 
+        keypair.miner_kp.1.clone().to_string(),
+        Address::new(keypair.miner_kp.1).to_string(),
+    )
 }

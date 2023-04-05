@@ -5,7 +5,10 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ritelinked::LinkedHashMap;
 use secp256k1::generate_keypair;
 
-use crate::{txn::{Txn, TransactionDigest}, Error};
+use crate::{
+    txn::{TransactionDigest, Txn},
+    Error,
+};
 
 pub fn gen_hex_encoded_string<T: AsRef<[u8]>>(data: T) -> String {
     hex::encode(data)

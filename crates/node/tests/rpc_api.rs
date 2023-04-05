@@ -1,9 +1,5 @@
 use events::Event;
-use node::{
-    test_utils::create_mock_full_node_config, 
-    Node, NodeType, 
-    RuntimeModuleState
-};
+use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
 use serial_test::serial;
 use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;

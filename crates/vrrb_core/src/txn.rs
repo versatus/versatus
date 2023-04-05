@@ -286,7 +286,7 @@ impl Txn {
     #[deprecated(note = "will be removed from Txn struct soon")]
     pub fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
-        let payload = self.build_payload(); 
+        let payload = self.build_payload();
         let message = Message::from_slice(payload.as_bytes());
         match message {
             Ok(msg) => {

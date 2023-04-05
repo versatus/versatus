@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
+
 use dkg_engine::test_utils;
 use events::Event;
 use hbbft::crypto::SecretKey;
@@ -198,4 +199,3 @@ async fn dkg_runtime_handle_all_acks_generate_keyset() {
     ctrl_tx.send(Event::Stop).unwrap();
     handle.await.unwrap();
 }
-

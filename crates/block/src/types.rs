@@ -1,18 +1,21 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+    hash::{Hash, Hasher},
+};
 
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
+use tokio::task::JoinHandle;
 use vrrb_core::{
     claim::Claim,
-    txn::{Txn, TransactionDigest},
+    txn::{TransactionDigest, Txn},
 };
-use tokio::task::JoinHandle;
-use std::{error::Error, hash::{Hash, Hasher}};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -34,7 +37,7 @@ pub type QuorumId = String;
 pub type QuorumPubkey = String;
 pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
-pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>; 
+pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
@@ -67,7 +70,7 @@ impl Hash for Conflict {
 
             b.0.hash(&mut b_hasher);
             b.1.hash(&mut b_hasher);
-            
+
             let a_key = a_hasher.finish();
             let b_key = b_hasher.finish();
 

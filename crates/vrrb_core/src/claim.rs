@@ -1,13 +1,13 @@
+use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
 /// permissionless Proof of Claim Miner Election algorithm
 use serde_json;
-use sha2::{Sha256, Digest};
-use ethereum_types::U256;
+use sha2::{Digest, Sha256};
 
-use crate::{ownable::Ownable, verifiable::Verifiable, keypair::Keypair};
+use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
@@ -45,8 +45,8 @@ impl Claim {
             public_key,
             address,
             hash,
-            // Consider setting to false by default 
-            // and having it be set to true when harvester 
+            // Consider setting to false by default
+            // and having it be set to true when harvester
             // collects threshold of votes on its validity
             eligible: true,
         }
@@ -62,7 +62,7 @@ impl Claim {
     pub fn get_election_result(&self, block_seed: u64) -> (U256, Claim) {
         let mut xor_val = [0u64; 4];
         self.hash.0.iter().enumerate().for_each(|(idx, x)| {
-           xor_val[idx] = x ^ block_seed; 
+            xor_val[idx] = x ^ block_seed;
         });
 
         (U256(xor_val), self.clone())
@@ -76,7 +76,6 @@ impl Claim {
     // has been discovered, or returning None if we can't match a character.
     #[deprecated(note = "Please use get_election_result")]
     pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
-        
         // get the hexadecimal format of the block seed
         let block_seed_hex = format!("{block_seed:x}");
         // Get the length of the hexadecimal representation of the block seed
@@ -183,8 +182,8 @@ impl Ownable for Claim {
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
         Claim::new(
-           item.miner_kp.1.to_string(),
-           Address::new(item.miner_kp.1).to_string(),
+            item.miner_kp.1.to_string(),
+            Address::new(item.miner_kp.1).to_string(),
         )
     }
 }

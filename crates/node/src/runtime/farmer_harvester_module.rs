@@ -152,13 +152,11 @@ impl FarmerHarvesterModule {
                 JobResult::Votes((votes, farmer_quorum_threshold)) => {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send(
-                                Event::Vote(
-                                    vote.clone(),
-                                    QuorumType::Harvester,
-                                    farmer_quorum_threshold,
-                                )
-                            );
+                            let _ = broadcast_events_tx.send(Event::Vote(
+                                vote.clone(),
+                                QuorumType::Harvester,
+                                farmer_quorum_threshold,
+                            ));
                         }
                     }
                 },
@@ -340,8 +338,8 @@ mod tests {
     use lazy_static::lazy_static;
     use primitives::QuorumType::Farmer;
     use secp256k1::Message;
-    use theater::{Actor, ActorImpl};
     use signer::signer::Signer;
+    use theater::{Actor, ActorImpl};
     use validator::{
         txn_validator::{StateSnapshot, TxnValidator},
         validator_core_manager::ValidatorCoreManager,

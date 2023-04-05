@@ -27,8 +27,7 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().serialize().to_vec();
-            let claim: Claim =
-                Claim::new(hex::encode(public_key), TEST_ADDR.to_string());
+            let claim: Claim = Claim::new(hex::encode(public_key), TEST_ADDR.to_string());
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -48,7 +47,7 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            if let Ok(mut quorum) = Quorum::new(seed,  11, keypair) {
+            if let Ok(mut quorum) = Quorum::new(seed, 11, keypair) {
                 assert!(quorum.run_election(dummy_claims).is_err());
             };
         }
@@ -135,7 +134,7 @@ mod tests {
         let seed = Quorum::generate_seed(payload1, keypair.clone());
 
         if let Ok(seed) = seed {
-            assert!(Quorum::new(seed,  0, keypair).is_err());
+            assert!(Quorum::new(seed, 0, keypair).is_err());
         }
     }
 
@@ -162,7 +161,7 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            assert!(Quorum::new(seed,  11, keypair).is_err());
+            assert!(Quorum::new(seed, 11, keypair).is_err());
         }
     }
 
@@ -190,7 +189,7 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            if let Ok(mut quorum) = Quorum::new(seed,  11, keypair.clone()) {
+            if let Ok(mut quorum) = Quorum::new(seed, 11, keypair.clone()) {
                 if quorum.run_election(dummy_claims.clone()).is_ok() {
                     assert!(quorum.master_pubkeys.len() == 13);
                 }
@@ -206,10 +205,7 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(
-                public_key.to_string(),
-                TEST_ADDR.to_string().clone()
-            );
+            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string().clone());
             //let boxed_claim = Box::new(claim);
 
             dummy_claims1.push(claim.clone());
@@ -231,8 +227,8 @@ mod tests {
 
         if let Ok(seed1) = Quorum::generate_seed(payload.clone(), keypair.clone()) {
             if let Ok(seed2) = Quorum::generate_seed(payload.clone(), keypair.clone()) {
-                if let Ok(mut quorum1) = Quorum::new(seed1, 11,  keypair.clone()) {
-                    if let Ok(mut quorum2) = Quorum::new(seed2, 11,  keypair) {
+                if let Ok(mut quorum1) = Quorum::new(seed1, 11, keypair.clone()) {
+                    if let Ok(mut quorum2) = Quorum::new(seed2, 11, keypair) {
                         if let Ok(q1) = quorum1.run_election(dummy_claims1) {
                             if let Ok(q2) = quorum2.run_election(dummy_claims2) {
                                 assert!(q1.master_pubkeys == q2.master_pubkeys);

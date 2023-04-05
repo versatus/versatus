@@ -139,7 +139,7 @@ mod tests {
 
     use events::Event;
     use serial_test::serial;
-    use theater::{ActorImpl, Actor};
+    use theater::{Actor, ActorImpl};
 
     use super::*;
 
@@ -193,8 +193,7 @@ mod tests {
             tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, events_node_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (events_node_tx, events_node_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let mut swarm_module = SwarmModule::new(
             SwarmModuleConfig {
@@ -256,8 +255,7 @@ mod tests {
         let (ctrl_boot_strap_tx, ctrl_boot_strap_rx) = tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, events_node_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (events_node_tx, events_node_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let mut swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 port: 0,

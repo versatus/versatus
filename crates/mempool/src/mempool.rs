@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use telemetry::{info, warn};
 use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
-use super::{error::MempoolError, create_tx_indexer};
+use super::{create_tx_indexer, error::MempoolError};
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
@@ -192,7 +192,7 @@ impl LeftRightMempool {
         self.write
             .append(MempoolOp::Add(txn_record.to_owned()))
             .publish();
-        
+
         let indexer_txn_record = txn_record.clone();
         tokio::spawn(async move {
             match create_tx_indexer(&indexer_txn_record).await {

@@ -149,7 +149,8 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::MinerElection(header_bytes) => {
-                let header_result: serde_json::Result<BlockHeader> = serde_json::from_slice(&header_bytes);
+                let header_result: serde_json::Result<BlockHeader> =
+                    serde_json::from_slice(&header_bytes);
 
                 if let Ok(header) = header_result {
                     let claims = self.db_read_handle.claim_store_values();
@@ -219,7 +220,6 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
                         }
                     }
                 }
-
             },
 
             _ => {},
@@ -243,10 +243,9 @@ fn get_winner(election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
     loop {
         if let Some((pointer_sum, claim)) = iter.next() {
             first = (pointer_sum.clone(), claim.clone());
-            break
+            break;
         }
     }
 
-    return first
+    return first;
 }
-

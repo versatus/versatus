@@ -5,10 +5,7 @@ use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::txn::TransactionDigest;
 
-use crate::{
-    EventBroadcastSender,
-    MEMPOOL_THRESHOLD_SIZE,
-};
+use crate::{EventBroadcastSender, MEMPOOL_THRESHOLD_SIZE};
 
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,
@@ -95,11 +92,9 @@ impl Handler<Event> for MempoolModule {
                     self.cutoff_transaction = Some(txn_hash.clone());
 
                     self.events_tx
-                        .send(
-                            Event::MempoolSizeThesholdReached {
-                                cutoff_transaction: txn_hash,
-                            },
-                        )
+                        .send(Event::MempoolSizeThesholdReached {
+                            cutoff_transaction: txn_hash,
+                        })
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },

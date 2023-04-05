@@ -4,19 +4,11 @@ use crossbeam_channel::{Receiver, Sender};
 use events::Vote;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
-use primitives::{
-    base::PeerId as PeerID,
-    ByteVec,
-    FarmerQuorumThreshold,
-    RawSignature,
-};
+use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, RawSignature};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use tracing::error;
-use validator::{
-    txn_validator::StateSnapshot,
-    validator_core_manager::ValidatorCoreManager,
-};
+use validator::{txn_validator::StateSnapshot, validator_core_manager::ValidatorCoreManager};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 

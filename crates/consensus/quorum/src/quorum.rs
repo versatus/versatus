@@ -1,8 +1,9 @@
+use ethereum_types::U256;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair, ownable::Ownable};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
-use ethereum_types::U256;
-use serde::{Serialize, Deserialize};
+
 use crate::election::Election;
 
 ///Error type for Quorum
@@ -53,7 +54,7 @@ impl Election for Quorum {
     ///a miner calls this fxn to generate a u64 seed for the election using the
     /// vrrb_vrf crate
     fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, InvalidQuorum> {
-        if !Quorum::is_valid_height( payload.0) {
+        if !Quorum::is_valid_height(payload.0) {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
         let mut vvrf = VVRF::new(
@@ -66,7 +67,7 @@ impl Election for Quorum {
         }
 
         let mut random_number = vvrf.generate_u64();
-        while random_number < u32::MAX  as u64{
+        while random_number < u32::MAX as u64 {
             random_number = vvrf.generate_u64();
         }
         Ok(random_number)
@@ -95,11 +96,7 @@ impl Election for Quorum {
 impl Quorum {
     ///makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
-    pub fn new(
-        seed: u64,
-        height: u128,
-        kp: KeyPair,
-    ) -> Result<Quorum, InvalidQuorum> {
+    pub fn new(seed: u64, height: u128, kp: KeyPair) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::is_valid_height(height) {
             Err(InvalidQuorum::InvalidChildBlockError())
         } else {
@@ -113,7 +110,8 @@ impl Quorum {
         }
     }
 
-    ///checks if the child block height is valid ,its used at seed and quorum creation
+    ///checks if the child block height is valid ,its used at seed and quorum
+    /// creation
     pub fn is_valid_height(height: Height) -> bool {
         height > 0
     }
@@ -145,9 +143,10 @@ impl Quorum {
 
         let num_claims = ((claims.len() as f32) * 0.51).ceil() as usize;
 
-        let mut claim_tuples: Vec<(U256, Claim)> = claims.iter().map(|claim| {
-            claim.get_election_result(self.quorum_seed as u64)
-        }).collect();
+        let mut claim_tuples: Vec<(U256, Claim)> = claims
+            .iter()
+            .map(|claim| claim.get_election_result(self.quorum_seed as u64))
+            .collect();
 
         if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
@@ -169,7 +168,7 @@ impl Quorum {
 
     pub fn get_trusted_peers(&mut self, claims: Vec<Claim>) -> Self {
         //get the weighted value hashmap
-        //calcualte all the t values 
+        //calcualte all the t values
 
         todo!();
     }

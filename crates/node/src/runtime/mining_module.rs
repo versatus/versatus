@@ -1,3 +1,5 @@
+use std::marker::Send;
+
 use async_trait::async_trait;
 use events::Event;
 use mempool::MempoolReadHandleFactory;
@@ -6,7 +8,6 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::txn::Txn;
-use std::marker::Send;
 
 use crate::EventBroadcastSender;
 
@@ -104,11 +105,7 @@ impl Handler<Event> for MiningModule {
                 if self.miner.check_claim(winner_claim.hash) {
                     let cblock = self.miner.try_mine();
                     if let Ok(cblock) = cblock {
-                        let _ = self.events_tx.send(
-                            Event::MinedBlock(
-                                cblock.clone()
-                            )
-                        );
+                        let _ = self.events_tx.send(Event::MinedBlock(cblock.clone()));
                     }
                 };
             },

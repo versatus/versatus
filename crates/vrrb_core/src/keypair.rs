@@ -1,9 +1,9 @@
 use std::{
     fs::OpenOptions,
+    hash::{Hash, Hasher},
     io::{Read, Write},
     path::Path,
     str::FromStr,
-    hash::{Hash, Hasher}
 };
 
 use hbbft::crypto::{
@@ -419,7 +419,7 @@ pub fn write_keypair_file<F: AsRef<Path>>(
 impl Serialize for Keypair {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer 
+        S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
 

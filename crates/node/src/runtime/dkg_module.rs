@@ -1,12 +1,7 @@
-use std::{
-    net::SocketAddr,
-    thread,
-    thread::sleep,
-    time::Duration,
-};
+use std::{net::SocketAddr, thread, thread::sleep, time::Duration};
 
 use async_trait::async_trait;
-use crossbeam_channel::{select, unbounded};
+use crossbeam_channel::{select, unbounded, Sender};
 use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgResult},
@@ -14,7 +9,6 @@ use dkg_engine::{
 use events::{Event, SyncPeerData};
 use hbbft::crypto::{PublicKey, SecretKeyShare};
 use laminar::{Config, Packet, Socket, SocketEvent};
-use crossbeam_channel::Sender;
 use primitives::{
     NodeIdx,
     NodeType,
@@ -119,7 +113,7 @@ impl DkgModule {
         events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
         broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> Self {
-        use std::net::{Ipv4Addr, IpAddr};
+        use std::net::{IpAddr, Ipv4Addr};
 
         let mut socket = Socket::bind_with_config(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
@@ -217,30 +211,30 @@ impl DkgModule {
 
     pub fn send_register_retrieve_peers_request(&self) {
         let sender = self.socket.get_packet_sender();
-    
+
         let (tx1, rx1) = unbounded();
         let (tx2, rx2) = unbounded();
-    
+
         // Spawning threads for retrieve peers request and register request
         spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST), tx1);
         spawn_interval_thread(Duration::from_secs(REGISTER_REQUEST), tx2);
-    
+
         loop {
             loop {
                 select! {
                     recv(rx1) -> _ => {
                         send_retrieve_peers_request(
-                            &sender, 
-                            self.rendezvous_server_addr, 
+                            &sender,
+                            self.rendezvous_server_addr,
                             &self.dkg_engine
                         );
                     },
                     recv(rx2) -> _ => {
                         send_register_request(
-                            &sender, 
-                            self.rendezvous_server_addr, 
-                            &self.dkg_engine, 
-                            self.rendezvous_local_addr, 
+                            &sender,
+                            self.rendezvous_server_addr,
+                            &self.dkg_engine,
+                            self.rendezvous_local_addr,
                             self.quic_port
                         );
                     },
@@ -248,7 +242,7 @@ impl DkgModule {
             }
         }
     }
-}    
+}
 
 fn spawn_interval_thread(interval: Duration, tx: Sender<()>) {
     thread::spawn(move || loop {
@@ -258,9 +252,9 @@ fn spawn_interval_thread(interval: Duration, tx: Sender<()>) {
 }
 
 fn send_retrieve_peers_request(
-    sender: &Sender<Packet>, 
-    rendezvous_server_addr: SocketAddr, 
-    dkg_engine: &DkgEngine
+    sender: &Sender<Packet>,
+    rendezvous_server_addr: SocketAddr,
+    dkg_engine: &DkgEngine,
 ) {
     let quorum_key = if dkg_engine.node_type == NodeType::Farmer {
         dkg_engine.harvester_public_key
@@ -276,42 +270,28 @@ fn send_retrieve_peers_request(
         if let Ok(data) = bincode::serialize(&Data::Request(RendezvousRequest::Peers(
             harvester_public_key.to_bytes().to_vec(),
         ))) {
-            let _ = sender.send(Packet::reliable_ordered(
-                rendezvous_server_addr,
-                data,
-                None,
-            ));
+            let _ = sender.send(Packet::reliable_ordered(rendezvous_server_addr, data, None));
         }
     }
 }
 
 fn send_namespace_registration(
-    sender: &Sender<Packet>, 
-    rendezvous_server_addr: SocketAddr, 
-    dkg_engine: &DkgEngine, 
-    quorum_key: &PublicKey
+    sender: &Sender<Packet>,
+    rendezvous_server_addr: SocketAddr,
+    dkg_engine: &DkgEngine,
+    quorum_key: &PublicKey,
 ) {
-    if let Ok(data) = bincode::serialize(
-        &Data::Request(
-            RendezvousRequest::Namespace(
-                dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                quorum_key.to_bytes().to_vec(),
-            )
-        )
-    ) {
-        let _ = sender.send(Packet::reliable_ordered(
-            rendezvous_server_addr,
-            data,
-            None,
-        ));
+    if let Ok(data) = bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
+        dkg_engine.node_type.to_string().as_bytes().to_vec(),
+        quorum_key.to_bytes().to_vec(),
+    ))) {
+        let _ = sender.send(Packet::reliable_ordered(rendezvous_server_addr, data, None));
 
         thread::sleep(Duration::from_secs(5));
     }
 }
 
-fn generate_random_payload(
-    secret_key_share: &SecretKeyShare
-) -> (Vec<u8>, Vec<u8>) {
+fn generate_random_payload(secret_key_share: &SecretKeyShare) -> (Vec<u8>, Vec<u8>) {
     let message: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(15)
@@ -327,31 +307,29 @@ fn generate_random_payload(
 }
 
 fn send_register_peer_payload(
-    sender: &Sender<Packet>, 
-    rendezvous_server_addr: SocketAddr, 
-    dkg_engine: &DkgEngine, 
-    secret_key_share: &SecretKeyShare, 
-    msg_bytes: Vec<u8>, 
-    signature: Vec<u8>, 
-    quorum_key: &PublicKey, 
-    rendezvous_local_addr: SocketAddr, 
-    quic_port: u16
+    sender: &Sender<Packet>,
+    rendezvous_server_addr: SocketAddr,
+    dkg_engine: &DkgEngine,
+    secret_key_share: &SecretKeyShare,
+    msg_bytes: Vec<u8>,
+    signature: Vec<u8>,
+    quorum_key: &PublicKey,
+    rendezvous_local_addr: SocketAddr,
+    quic_port: u16,
 ) {
-    let payload_result = bincode::serialize(&Data::Request(
-        RendezvousRequest::RegisterPeer(
-            quorum_key.to_bytes().to_vec(),
-            dkg_engine.node_type.to_string().as_bytes().to_vec(),
-            secret_key_share.public_key_share().to_bytes().to_vec(),
-            signature,
-            msg_bytes,
-            SyncPeerData {
-                address: rendezvous_local_addr.to_string(),
-                raptor_udp_port: rendezvous_local_addr.port(),
-                quic_port,
-                node_type: dkg_engine.node_type,
-            },
-        ),
-    ));
+    let payload_result = bincode::serialize(&Data::Request(RendezvousRequest::RegisterPeer(
+        quorum_key.to_bytes().to_vec(),
+        dkg_engine.node_type.to_string().as_bytes().to_vec(),
+        secret_key_share.public_key_share().to_bytes().to_vec(),
+        signature,
+        msg_bytes,
+        SyncPeerData {
+            address: rendezvous_local_addr.to_string(),
+            raptor_udp_port: rendezvous_local_addr.port(),
+            quic_port,
+            node_type: dkg_engine.node_type,
+        },
+    )));
     if let Ok(payload) = payload_result {
         let _ = sender.send(Packet::reliable_ordered(
             rendezvous_server_addr,
@@ -362,42 +340,40 @@ fn send_register_peer_payload(
 }
 
 fn send_register_request(
-    sender: &Sender<Packet>, 
-    rendezvous_server_addr: SocketAddr, 
-    dkg_engine: &DkgEngine, 
-    rendezvous_local_addr: SocketAddr, 
-    quic_port: u16
+    sender: &Sender<Packet>,
+    rendezvous_server_addr: SocketAddr,
+    dkg_engine: &DkgEngine,
+    rendezvous_local_addr: SocketAddr,
+    quic_port: u16,
 ) {
     match dkg_engine.dkg_state.public_key_set.clone() {
         Some(quorum_key) => {
             send_namespace_registration(
-                sender, 
-                rendezvous_server_addr, 
-                dkg_engine, 
-                &quorum_key.public_key()
+                sender,
+                rendezvous_server_addr,
+                dkg_engine,
+                &quorum_key.public_key(),
             );
 
             if let Some(secret_key_share) = &dkg_engine.dkg_state.secret_key_share {
-
-                let (msg_bytes, signature) = generate_random_payload(
-                    secret_key_share
-                );
+                let (msg_bytes, signature) = generate_random_payload(secret_key_share);
 
                 send_register_peer_payload(
-                    sender, 
-                    rendezvous_server_addr, 
-                    dkg_engine, 
-                    secret_key_share, 
-                    msg_bytes, 
-                    signature, 
-                    &quorum_key.public_key(), 
-                    rendezvous_local_addr, quic_port
+                    sender,
+                    rendezvous_server_addr,
+                    dkg_engine,
+                    secret_key_share,
+                    msg_bytes,
+                    signature,
+                    &quorum_key.public_key(),
+                    rendezvous_local_addr,
+                    quic_port,
                 );
             }
-        }
+        },
         None => {
             error!("Cannot proceed with registration since current node is not part of any quorum");
-        }
+        },
     }
 }
 
@@ -576,4 +552,3 @@ impl Handler<Event> for DkgModule {
         Ok(ActorState::Running)
     }
 }
-

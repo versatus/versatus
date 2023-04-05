@@ -4,7 +4,8 @@
 /// checkpoints in the state.
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::{
-    mem, sync::{Arc, RwLock},
+    mem,
+    sync::{Arc, RwLock},
 };
 
 use block::{
@@ -17,11 +18,13 @@ use block::{
     ConsolidatedTxns,
     ConvergenceBlock,
     GenesisBlock,
+    InnerBlock,
     ProposalBlock,
     RefHash,
-    TxnList, InnerBlock,
+    TxnList,
 };
 use bulldag::graph::BullDag;
+use ethereum_types::U256;
 use primitives::{Address, Epoch, PublicKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -30,16 +33,15 @@ use secp256k1::{
     Message,
 };
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use utils::{create_payload, hash_data};
 use vrrb_core::{
     claim::Claim,
     keypair::{MinerPk, MinerSk},
     txn::Txn,
 };
-use sha2::{Digest, Sha256};
-use ethereum_types::U256;
 
-use crate::{result::MinerError, block_builder::BlockBuilder};
+use crate::{block_builder::BlockBuilder, result::MinerError};
 
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 pub const NANO: u128 = 1;
@@ -57,13 +59,12 @@ const GENESIS_ALLOWED_MINERS: [&str; 2] = [
 /// status of the local mining unit.
 /// ```
 /// use serde::{Deserialize, Serialize};
-/// 
+///
 /// #[derive(Debug, Clone, Serialize, Deserialize)]
 /// pub enum MinerStatus {
 ///     Mining,
 ///     Waiting,
 /// }
-///
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MinerStatus {
@@ -71,7 +72,7 @@ pub enum MinerStatus {
     Waiting,
 }
 
-/// A config struct that is used to consolidate arguments 
+/// A config struct that is used to consolidate arguments
 /// passed into `Miner::new()` method
 ///
 /// ```
@@ -88,18 +89,17 @@ pub enum MinerStatus {
 ///     pub public_key: MinerPk,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>
 /// }
-///
 #[derive(Debug)]
 pub struct MinerConfig {
     pub secret_key: MinerSk,
     pub public_key: MinerPk,
-    pub dag: Arc<RwLock<BullDag<Block, String>>>
+    pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
 
-/// Miner struct which exposes methods to mine convergence blocks 
+/// Miner struct which exposes methods to mine convergence blocks
 /// via its implementation of the `BlockBuilder` trait, which requires
-/// implementation of `Resolver` trait to expose methods to resolve 
+/// implementation of `Resolver` trait to expose methods to resolve
 /// conflicts between proposal blocks
 ///
 /// ```
@@ -122,7 +122,6 @@ pub struct MinerConfig {
 ///     pub status: MinerStatus,
 ///     pub next_epoch_adjustment: i128,
 /// }
-///
 #[derive(Debug, Clone)]
 pub struct Miner {
     secret_key: MinerSk,
@@ -142,13 +141,14 @@ impl Miner {
     /// # Example
     ///
     /// ```
-    /// use vrrb_core::keypair::Keypair;
-    /// use primitives::Address;
-    /// use miner::miner::{MinerConfig, Miner};
-    /// use bulldag::graph::BullDag;
     /// use std::sync::{Arc, RwLock};
-    /// 
-    /// let keypair = Keypair::random(); 
+    ///
+    /// use bulldag::graph::BullDag;
+    /// use miner::miner::{Miner, MinerConfig};
+    /// use primitives::Address;
+    /// use vrrb_core::keypair::Keypair;
+    ///
+    /// let keypair = Keypair::random();
     /// let (secret_key, public_key) = keypair.miner_kp;
     /// let address = Address::new(public_key.clone());
     /// let dag = Arc::new(RwLock::new(BullDag::new()));
@@ -160,14 +160,11 @@ impl Miner {
     ///
     /// let miner = Miner::new(config);
     ///
-    /// assert_eq!(miner.address(), address); 
+    /// assert_eq!(miner.address(), address);
     /// ```
     pub fn new(config: MinerConfig) -> Self {
         let address = Address::new(config.public_key.clone());
-        let claim = Claim::new(
-            config.public_key.to_string(),
-            address.clone().to_string()
-        );
+        let claim = Claim::new(config.public_key.to_string(), address.clone().to_string());
 
         Miner {
             secret_key: config.secret_key,
@@ -193,10 +190,7 @@ impl Miner {
 
     /// Generates a `Claim` from the `miner.public_key` and `miner.address`
     pub fn generate_claim(&self) -> Claim {
-        Claim::new(
-            self.public_key().to_string(),
-            self.address().to_string(),
-        )
+        Claim::new(self.public_key().to_string(), self.address().to_string())
     }
 
     /// Signs a message using the `miner.secret_key`
@@ -209,7 +203,7 @@ impl Miner {
         chrono::Utc::now().timestamp() as u128
     }
 
-    /// Get the next_epoch_adjustment 
+    /// Get the next_epoch_adjustment
     pub fn next_epoch_adjustment(&self) -> i128 {
         self.next_epoch_adjustment
     }
@@ -219,27 +213,29 @@ impl Miner {
         self.next_epoch_adjustment += adjustment;
     }
 
-    /// Attempts to mine a `ConvergenceBlock` using the 
-    /// `miner.mine_convergence_block()` method, which in turn uses the 
+    /// Attempts to mine a `ConvergenceBlock` using the
+    /// `miner.mine_convergence_block()` method, which in turn uses the
     /// `<Miner as BlockBuilder>::build()` method
-    pub fn try_mine(
-        &mut self
-    ) -> Result<Block, MinerError> {
+    pub fn try_mine(&mut self) -> Result<Block, MinerError> {
         self.set_status(MinerStatus::Mining);
         if let Some(convergence_block) = self.mine_convergence_block() {
-            Ok(Block::Convergence { block: convergence_block })
+            Ok(Block::Convergence {
+                block: convergence_block,
+            })
         } else {
-            Err(MinerError::Other("Convergence Block Mining Failed".to_string()))
+            Err(MinerError::Other(
+                "Convergence Block Mining Failed".to_string(),
+            ))
         }
     }
 
     /// Checks if the local `claim.hash` matches the `winner`
-    /// This is triggered by the `MiningModule` `Actor` when 
-    /// it receives the results from the `ElectionModule<MinerElection, MinerElectionResult>`
-    /// `Actor`. If it returns `true` then the local `Miner` calls `try_mine`
-    /// which returns a `Block`, and can then subsequently be wrapped in an 
-    /// `Event` to be sent to the `BroadcastModule` to send to the proper peer(s)
-    /// for certification.
+    /// This is triggered by the `MiningModule` `Actor` when
+    /// it receives the results from the `ElectionModule<MinerElection,
+    /// MinerElectionResult>` `Actor`. If it returns `true` then the local
+    /// `Miner` calls `try_mine` which returns a `Block`, and can then
+    /// subsequently be wrapped in an `Event` to be sent to the
+    /// `BroadcastModule` to send to the proper peer(s) for certification.
     pub fn check_claim(&self, winner: U256) -> bool {
         winner == self.claim.hash
     }
@@ -252,9 +248,7 @@ impl Miner {
 
     /// Builds a convergence block using the `<Miner as BlockBuilder>::build()`
     /// method.
-    pub fn mine_convergence_block(
-        &self
-    ) -> Option<ConvergenceBlock> {
+    pub fn mine_convergence_block(&self) -> Option<ConvergenceBlock> {
         self.build()
     }
 
@@ -269,7 +263,6 @@ impl Miner {
         claims: ClaimList,
         from: Claim,
     ) -> ProposalBlock {
-
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = self.secret_key.sign_ecdsa(payload).to_string();
         let hash = hash_data!(round, epoch, txns, claims, from, signature);
@@ -285,7 +278,7 @@ impl Miner {
             signature,
         }
     }
-    
+
     /// This method has been deprecated and will be removed soon
     #[allow(path_statements)]
     #[deprecated(note = "Building proposal blocks will be done in Harvester")]
@@ -322,7 +315,6 @@ impl Miner {
         })
     }
 
-    
     /// This method has been deprecated and will be removed soon
     #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
@@ -384,30 +376,22 @@ impl Miner {
 
     /// Consolidates all the `Txn`s in unreferenced `ProposalBlock`s
     /// into a single list of `proposal_block.hash -> txn.id`
-    pub(crate) fn consolidate_txns(
-        &self, 
-        proposals: &Vec<ProposalBlock>
-    ) -> ConsolidatedTxns {
-
-        proposals.iter()
+    pub(crate) fn consolidate_txns(&self, proposals: &Vec<ProposalBlock>) -> ConsolidatedTxns {
+        proposals
+            .iter()
             .map(|block| {
-                let txn_list = block.txns.iter()
-                    .map(|(id, _)| { 
-                        id.clone()
-                    }).collect();
+                let txn_list = block.txns.iter().map(|(id, _)| id.clone()).collect();
 
-            (block.hash.clone(), txn_list)
-        }).collect()
+                (block.hash.clone(), txn_list)
+            })
+            .collect()
     }
 
     /// Consolidates all the `Claims` in the unreferenced `ProposalBlock`s
     /// into a single listt of `proposal_block.hash -> claim.hash`
-    pub(crate) fn consolidate_claims(
-        &self,
-        proposals: &Vec<ProposalBlock>
-    ) -> ConsolidatedClaims {
-
-        proposals.iter()
+    pub(crate) fn consolidate_claims(&self, proposals: &Vec<ProposalBlock>) -> ConsolidatedClaims {
+        proposals
+            .iter()
             .map(|block| {
                 let claim_hashes: LinkedHashSet<ClaimHash> = block
                     .claims
@@ -415,18 +399,17 @@ impl Miner {
                     .map(|(claim_hash, _)| claim_hash.clone())
                     .collect();
 
-            (block.hash.clone(), claim_hashes)
-        }).collect()
+                (block.hash.clone(), claim_hashes)
+            })
+            .collect()
     }
 
     /// Returns all the unreferenced `ProposalBlock`s hashes in a `Vec`
     pub(crate) fn get_ref_hashes(&self, proposals: &Vec<ProposalBlock>) -> Vec<RefHash> {
-        proposals.iter().map(|b| {
-            b.hash.clone()
-        }).collect()
+        proposals.iter().map(|b| b.hash.clone()).collect()
     }
 
-    /// Hashes and returns a hexadecimal string representation of the hash of 
+    /// Hashes and returns a hexadecimal string representation of the hash of
     /// the consolidated `Txn`s
     pub(crate) fn get_txn_hash(&self, txns: &ConsolidatedTxns) -> String {
         let mut txn_hasher = Sha256::new();
@@ -434,24 +417,23 @@ impl Miner {
         let txns_hash = {
             if let Ok(serialized_txns) = serde_json::to_string(txns) {
                 txn_hasher.update(serialized_txns.as_bytes());
-            } 
+            }
             txn_hasher.finalize()
         };
 
         format!("{:x}", txns_hash)
     }
 
-    /// Hashes and returns a hexadecimal string representation of the hash of 
+    /// Hashes and returns a hexadecimal string representation of the hash of
     /// the consolidated `Claim`s
     pub(crate) fn get_claim_hash(&self, claims: &ConsolidatedClaims) -> String {
-
         let mut claim_hasher = Sha256::new();
 
         let claims_hash = {
             if let Ok(serialized_claims) = serde_json::to_string(claims) {
                 claim_hasher.update(serialized_claims.as_bytes());
             }
-            claim_hasher.finalize() 
+            claim_hasher.finalize()
         };
 
         format!("{:x}", claims_hash)
@@ -459,12 +441,11 @@ impl Miner {
 
     /// Builds a `BlockHeader` for the `ConvergenceBlock` being mined.
     pub(crate) fn build_header(
-        &self, 
-        ref_hashes: Vec<RefHash>, 
-        txns_hash: String, 
-        claims_hash: String
+        &self,
+        ref_hashes: Vec<RefHash>,
+        txns_hash: String,
+        claims_hash: String,
     ) -> Option<BlockHeader> {
-
         if let (Some(block), None) = self.convert_last_block_to_static() {
             return BlockHeader::new(
                 block.into(),
@@ -474,8 +455,8 @@ impl Miner {
                 txns_hash,
                 claims_hash,
                 self.next_epoch_adjustment,
-            )
-        } 
+            );
+        }
 
         if let (None, Some(block)) = self.convert_last_block_to_static() {
             return BlockHeader::new(
@@ -485,26 +466,28 @@ impl Miner {
                 self.secret_key.clone(),
                 txns_hash,
                 claims_hash,
-                self.next_epoch_adjustment
-            ) 
+                self.next_epoch_adjustment,
+            );
         }
-        
-        return None
+
+        return None;
     }
 
-    pub(crate) fn convert_last_block_to_static(&self) -> (Option<GenesisBlock>, Option<ConvergenceBlock>) {
+    pub(crate) fn convert_last_block_to_static(
+        &self,
+    ) -> (Option<GenesisBlock>, Option<ConvergenceBlock>) {
         if let Some(block) = self.last_block.clone() {
             if block.is_genesis() {
-                return (block.into_static_genesis(), None)
+                return (block.into_static_genesis(), None);
             } else {
-                return (None, block.into_static_convergence())
+                return (None, block.into_static_convergence());
             }
         } else {
-            return (None, None)
+            return (None, None);
         }
     }
 
-    /// Hashes the current `ConvergenceBlock` being mined using 
+    /// Hashes the current `ConvergenceBlock` being mined using
     /// the fields from the `BlockHeader`
     pub(crate) fn hash_block(&self, header: &BlockHeader) -> String {
         let block_hash = hash_data!(
@@ -525,26 +508,23 @@ impl Miner {
         format!("{:x}", block_hash)
     }
 
-    /// Gets the current election `seed` from the `last_block.header.next_block_seed`
-    /// field
+    /// Gets the current election `seed` from the
+    /// `last_block.header.next_block_seed` field
     pub(crate) fn get_seed(&self) -> u64 {
         if let Some(last_block) = self.last_block.clone() {
-            return last_block.get_header().next_block_seed
-        } 
+            return last_block.get_header().next_block_seed;
+        }
 
         u32::MAX as u64
     }
 
-    /// Gets the current election `round` from the `last_block.header.round` field
-    /// and adds `1` to it.
+    /// Gets the current election `round` from the `last_block.header.round`
+    /// field and adds `1` to it.
     pub(crate) fn get_round(&self) -> u128 {
-
         if let Some(last_block) = self.last_block.clone() {
-            return last_block.get_header().round + 1
+            return last_block.get_header().round + 1;
         }
 
         0u128
     }
-
 }
-
