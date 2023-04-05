@@ -1,7 +1,6 @@
-use std::net::SocketAddr;
-
 use reqwest::{header, Client, Method, RequestBuilder, Response, Url};
-use telemetry;
+
+use crate::{Error, Result};
 
 #[derive(Debug, Clone)]
 pub struct HttpClientBuilder {
@@ -11,14 +10,10 @@ pub struct HttpClientBuilder {
 }
 
 impl HttpClientBuilder {
-    pub fn new(_base_url: String) -> Result<Self, reqwest::Error> {
+    pub fn new(_base_url: String) -> Result<Self> {
         let base_url = match Url::parse(&_base_url) {
             Ok(base_url) => base_url,
-            Err(e) => {
-                eprintln!("Error parsing URL: {}", _base_url);
-                eprintln!("Error parsing URL: {}", e);
-                panic!("Failed to parse URL");
-            },
+            Err(e) => return Err(Error::UrlError(e)),
         };
 
         let client = Client::new();
@@ -66,16 +61,21 @@ impl HttpClient {
             .headers(self.headers.clone())
     }
 
-    pub async fn get(&self, path: &str) -> Result<Response, reqwest::Error> {
-        self.request(Method::GET, path).await.send().await
+    pub async fn get(&self, path: &str) -> Result<Response> {
+        self.request(Method::GET, path)
+            .await
+            .send()
+            .await
+            .map_err(|e| Error::RequestError(e))
     }
 
-    pub async fn post(&self, path: &str, body: &str) -> Result<Response, reqwest::Error> {
+    pub async fn post(&self, path: &str, body: &str) -> Result<Response> {
         self.request(Method::POST, path)
             .await
             .body(body.to_owned())
             .send()
             .await
+            .map_err(|e| Error::RequestError(e))
     }
 }
 

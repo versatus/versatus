@@ -1,12 +1,11 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use anyhow::{anyhow, Result};
 use http::{HttpClient, HttpClientBuilder};
 use mempool::TxnRecord;
 use reqwest::StatusCode;
 use serde_json;
 
-use crate::http;
+use crate::{http, Error, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexerClientConfig {
@@ -27,26 +26,23 @@ pub struct IndexerClient {
 }
 
 impl IndexerClient {
-    pub fn new(config: IndexerClientConfig) -> Result<Self, reqwest::Error> {
+    pub fn new(config: IndexerClientConfig) -> Result<Self> {
         let client = HttpClientBuilder::new(config.base_url)?
             .default_headers()
             .build();
-        // .map_err(|e| Error::from(e))?;
 
         Ok(Self { client })
     }
 
-    pub async fn post_tx(mut self, txn_record: &TxnRecord) -> Result<StatusCode, reqwest::Error> {
-        let req_json = serde_json::to_string(txn_record)
-            .map_err(|e| anyhow!("Failed to serialize txn_record to json: {}", e));
+    pub async fn post_tx(mut self, txn_record: &TxnRecord) -> Result<StatusCode> {
+        let req_json = serde_json::to_string(txn_record).map_err(|e| Error::SerdeJson(e));
 
         let response = self
             .client
             .post("/transactions", &req_json.unwrap())
-            .await
-            .map_err(|e| anyhow!("Failed to serialize txn_record to json: {}", e));
+            .await?;
 
-        Ok(response.unwrap().status())
+        Ok(response.status())
     }
 }
 
