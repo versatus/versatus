@@ -44,16 +44,12 @@ members = [
     "crates/miner",
     "crates/wallet",
     "crates/mempool",
-    "crates/vrrb_lib",
-    "crates/vrrb_cli",
-    "crates/vrrb_gui",
     "crates/network",
     "crates/node",
     "crates/storage",
     "crates/storage/lr_trie",
     "crates/storage/vrrbdb",
     "crates/storage/utils",
-    "crates/syncing",
     "crates/telemetry",
     "crates/utils",
     "crates/vrrb_http"
@@ -72,20 +68,10 @@ miner = { path = "crates/miner" }
 wallet = { path = "crates/wallet" }
 mempool = { path = "crates/mempool" }
 network = { path = "crates/network" }
-syncing = { path = "crates/syncing" }
 telemetry = { path = "crates/telemetry" }
 validator = { path = "crates/validator" }
 utils = { path = "crates/utils" }
 events = { path = "crates/events" }
-
-# NOTE: potentially deprecated
-vrrb_lib = { path = "crates/vrrb_lib" }
-
-# NOTE: potentially deprecated
-vrrb_cli = { path = "crates/vrrb_cli" }
-
-# NOTE: potentially deprecated
-vrrb_gui = { path = "crates/vrrb_gui" }
 
 storage = { path = "crates/storage" }
 vrrbdb = { path = "crates/storage/vrrbdb" }
@@ -110,7 +96,7 @@ theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
-rendezvous_dht={git="https://github.com/vrrb-io/rendezvous_dht"}
+rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
