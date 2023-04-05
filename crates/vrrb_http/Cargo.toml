@@ -13,6 +13,6 @@ anyhow = { workspace = true }
 mempool = { workspace = true }
 vrrb_core = { workspace = true }
 telemetry = { workspace = true }
-wiremock = { version = "0.5.17" }
 thiserror = { workspace = true }
-url = { version = "2.3.1" }
+wiremock = { workspace = true }
+url = { workspace = true }
