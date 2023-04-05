@@ -20,7 +20,6 @@ use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
 use serde::{Deserialize, Serialize};
 use telemetry::error;
 use tokio::net::UdpSocket;
-use vrrb_core::txn::Txn;
 
 /// Maximum over-the-wire size of a Transaction
 ///   1280 is IPv6 minimum MTU

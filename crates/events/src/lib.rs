@@ -1,6 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 use block::{Conflict, Block};
 use ethereum_types::U256;
+
 use primitives::{
     Address,
     ByteVec,
@@ -108,6 +109,21 @@ pub struct QuorumCertifiedTxn {
     signature: RawSignature,
 }
 
+/// `JobResult` is an enum that represents the possible results of a job that is
+/// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
+pub enum JobResult {
+    Votes((Vec<Option<Vote>>, FarmerQuorumThreshold)),
+    CertifiedTxn(
+        Vec<Vote>,
+        RawSignature,
+        TransactionDigest,
+        String,
+        Vec<u8>,
+        Txn,
+    ),
+}
+
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Event {
@@ -178,6 +194,7 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
+
     // May want to just use the `BlockHeader` struct to reduce 
     // the overhead of deserializing
     MinerElection(HeaderBytes),
@@ -191,6 +208,8 @@ pub enum Event {
     ResolvedConflict(Conflict),
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
+    ProcessedVotes(JobResult),
+    CertifiedTxn(JobResult),
 }
 
 impl From<&theater::Message> for Event {
@@ -228,6 +247,7 @@ pub enum Topic {
     Storage,
     Consensus,
     Throttle,
+    Transactions,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction
@@ -319,7 +339,7 @@ mod tests {
         let (event_tx, mut event_rx) = unbounded_channel::<Event>();
         let mut router = EventRouter::default();
 
-        let mut subscriber_rx = router.subscribe();
+        let mut subscriber_rx = router.subscribe(&Topic::Control);
 
         let handle = tokio::spawn(async move {
             router.start(&mut event_rx).await;

@@ -24,7 +24,6 @@ use telemetry::{error, info, instrument};
 use tokio::net::UdpSocket;
 
 use crate::{
-
     config::BroadcastError,
     message::Message,
     packet::{
@@ -101,6 +100,7 @@ impl BroadcastEngine {
         .await?;
         Ok((endpoint, incoming_connections, conn_opts))
     }
+
     /// > This function takes a vector of socket addresses and attempts to
     /// > connect to each one. If the
     /// connection is successful, it adds the connection to the peer connection
@@ -136,7 +136,7 @@ impl BroadcastEngine {
         self.raptor_list.extend(address)
     }
 
-    /// > This function removes a peer connection from the peer connection list
+    ///  This function removes a peer connection from the peer connection list
     ///
     /// Arguments:
     ///
@@ -282,7 +282,6 @@ impl BroadcastEngine {
         Ok(BroadcastStatus::Success)
     }
 
-
     /// It receives packets from the socket, and sends them to the reassembler
     /// thread
     ///
@@ -334,7 +333,6 @@ impl BroadcastEngine {
                 drop(assemble_send);
                 drop(fwd_send);
                 drop(batch_send);
-
             }
         });
 
@@ -375,7 +373,8 @@ impl BroadcastEngine {
         self.endpoint.0.local_addr()
     }
 
-    /// > This function takes a packet index and the total number of peers and returns a list of
+    /// > This function takes a packet index and the total number of peers and
+    /// > returns a list of
     /// addresses to send the packet to
     ///
     /// Arguments:
@@ -393,7 +392,7 @@ impl BroadcastEngine {
     ) -> Vec<SocketAddr> {
         let mut addresses = Vec::new();
         let number_of_peers = (total_peers as f32 * 0.10).ceil() as usize;
-        let raptor_list_cloned:Vec<SocketAddr> = self.raptor_list.iter().cloned().collect();
+        let raptor_list_cloned: Vec<SocketAddr> = self.raptor_list.iter().cloned().collect();
 
         for i in 0..number_of_peers {
             if let Some(address) = raptor_list_cloned.get(packet_index % (total_peers + i)) {
@@ -407,7 +406,12 @@ impl BroadcastEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::{assert_eq, net::{Ipv6Addr, SocketAddr}, panic, time::Duration};
+    use std::{
+        assert_eq,
+        net::{Ipv6Addr, SocketAddr},
+        panic,
+        time::Duration,
+    };
 
     use bytes::Bytes;
 

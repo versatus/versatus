@@ -6,7 +6,7 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
+use events::{DirectedEvent, Event, JobResult, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
 use lr_trie::ReadHandleFactory;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -35,12 +35,7 @@ use vrrb_core::{
     txn::{TransactionDigest, Txn},
 };
 
-use crate::{
-    farmer_module::PULL_TXN_BATCH_SIZE,
-    result::Result,
-    scheduler::{Job, JobResult},
-    NodeError,
-};
+use crate::{farmer_module::PULL_TXN_BATCH_SIZE, result::Result, scheduler::Job, NodeError};
 
 
 /// `HarvesterModule` is responsible for
@@ -95,8 +90,6 @@ pub struct HarvesterModule {
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    sync_jobs_status_receiver: Receiver<JobResult>,
-    async_jobs_status_receiver: Receiver<JobResult>,
 }
 
 
@@ -110,8 +103,6 @@ impl HarvesterModule {
         quorum_threshold: HarvesterQuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
-        sync_jobs_status_receiver: Receiver<JobResult>,
-        async_jobs_status_receiver: Receiver<JobResult>,
     ) -> Self {
         let lrmpooldb = Some(LeftRightMempool::new());
 
@@ -131,8 +122,6 @@ impl HarvesterModule {
             votes_pool: DashMap::new(),
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver: sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver: async_jobs_status_receiver.clone(),
         };
         harvester
     }
@@ -265,6 +254,35 @@ impl Handler<Event> for HarvesterModule {
                     }
                 }
             },
+            Event::CertifiedTxn(job_result) => {
+                if let JobResult::CertifiedTxn(
+                    votes,
+                    certificate,
+                    txn_id,
+                    farmer_quorum_key,
+                    farmer_id,
+                    txn,
+                ) = job_result
+                {
+                    let vote_receipts = votes
+                        .iter()
+                        .map(|v| VoteReceipt {
+                            farmer_id: v.farmer_id.clone(),
+                            farmer_node_id: v.farmer_node_id,
+                            signature: v.signature.clone(),
+                        })
+                        .collect::<Vec<VoteReceipt>>();
+                    self.quorum_certified_txns.push(QuorumCertifiedTxn::new(
+                        farmer_id,
+                        vote_receipts,
+                        txn,
+                        certificate,
+                    ));
+                    let _ = self
+                        .certified_txns_filter
+                        .push(&(txn_id, farmer_quorum_key));
+                }
+            },
             Event::PullQuorumCertifiedTxns(num_of_txns) => {
                 self.quorum_certified_txns
                     .iter()
@@ -330,8 +348,6 @@ mod tests {
             2,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver.clone(),
         );
         let mut harvester_swarm_module = ActorImpl::new(harvester_swarm_module);
 
