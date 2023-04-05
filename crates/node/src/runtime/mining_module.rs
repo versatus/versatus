@@ -119,12 +119,8 @@ impl Handler<Event> for MiningModule {
                     );
                 }
             },
-            Event::MinerElection() => {
-                
-            },
-            Event::ResolvedConflict(conflict) => {
-
-            }
+            Event::MinerElection() => {},
+            Event::ResolvedConflict(conflict) => {},
             Event::BlockConfirmed(_) => {
                 // do something
             },
