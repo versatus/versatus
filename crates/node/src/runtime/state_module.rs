@@ -1,21 +1,18 @@
-use std::{hash::Hash, path::PathBuf};
-
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::Event;
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
 use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::broadcast::error::TryRecvError;
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{account::Account, serde_helpers::decode_from_binary_byte_slice, txn::Txn};
 
-use crate::{result::Result, NodeError, RuntimeModule};
+use crate::{result::Result, NodeError};
 
 pub struct StateModuleConfig {
     pub db: VrrbDb,
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
 }
 
 #[derive(Debug)]
@@ -24,7 +21,7 @@ pub struct StateModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
 }
 
 /// StateModule manages all state persistence and updates within VrrbNodes
@@ -158,10 +155,10 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
-    use events::{DirectedEvent, Event};
+    use events::Event;
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
     use vrrb_core::txn::null_txn;
 
     use super::*;
@@ -171,7 +168,7 @@ mod tests {
     async fn state_runtime_module_starts_and_stops() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let db_config = VrrbDbConfig::default();
 
@@ -200,7 +197,7 @@ mod tests {
     async fn state_runtime_receives_new_txn_event() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let db_config = VrrbDbConfig::default();
 
@@ -229,7 +226,7 @@ mod tests {
     async fn state_runtime_can_publish_events() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
         let db_config = VrrbDbConfig::default();
 

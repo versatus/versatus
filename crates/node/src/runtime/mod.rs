@@ -304,7 +304,6 @@ fn setup_mining_module(
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut miner_events_rx: Receiver<Event>,
-    dag: Arc<RwLock<BullDag<Block, String>>>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let (_, miner_secret_key) = config.keypair.get_secret_keys();
     let (_, miner_public_key) = config.keypair.get_public_keys();
@@ -394,7 +393,13 @@ fn setup_miner_election_module(
     };
     
     let module: ElectionModule<MinerElection, MinerElectionResult> = {
-        ElectionModule::new(ElectionModuleConfig)
+        ElectionModule::<MinerElection, MinerElectionResult>::new(
+            ElectionModuleConfig {
+               db_read_handle,
+               events_tx,
+               local_claim
+            }
+        )
     };
 
     let mut miner_election_module_actor = ActorImpl::new(module);

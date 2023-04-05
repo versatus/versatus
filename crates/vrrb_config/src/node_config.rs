@@ -151,6 +151,7 @@ impl Default for NodeConfig {
             keypair: Keypair::random(),
             disable_networking: false,
             buffer: None,
+            dag: Arc::new(RwLock::new(BullDag::new()))
         }
     }
 }
