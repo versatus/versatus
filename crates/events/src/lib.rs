@@ -81,14 +81,12 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
-    pub execution_result: Option<String>,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
+
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,
 }
-
-pub type SerializedConvergenceBlock = ByteVec;
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct BlockVote {
@@ -103,16 +101,6 @@ pub struct BlockVote {
 }
 
 pub type SerializedConvergenceBlock = ByteVec;
-
-#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
-pub struct BlockVote {
-    pub harvester_id: Vec<u8>,
-    pub harvester_node_id: NodeIdx,
-    pub signature: RawSignature,
-    pub convergence_block: SerializedConvergenceBlock,
-    pub quorum_public_key: Vec<u8>,
-    pub quorum_threshold: usize,
-}
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct VoteReceipt {
