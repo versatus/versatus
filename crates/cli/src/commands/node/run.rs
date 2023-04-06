@@ -111,6 +111,7 @@ impl From<RunOpts> for NodeConfig {
             raptorq_gossip_address: opts.raptorq_gossip_address,
             udp_gossip_address: opts.udp_gossip_address,
             rendezvous_local_address: opts.rendezvous_local_address,
+            rendezvous_server_address: opts.rendezvous_server_address,
             http_api_address: opts.http_api_address,
             http_api_title,
             http_api_version: opts.http_api_version,
@@ -128,7 +129,6 @@ impl From<RunOpts> for NodeConfig {
             // a hack, but it works for now.
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
-            rendezvous_server_address: opts.rendezvous_server_address,
         }
     }
 }
