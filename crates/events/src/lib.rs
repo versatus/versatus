@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::{
     sync::{
-        broadcast::{self, Sender},
-        mpsc::{UnboundedReceiver, UnboundedSender},
+        broadcast::{self, Receiver, Sender},
+        mpsc::UnboundedSender,
     },
     task::JoinHandle,
 };

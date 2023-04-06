@@ -77,7 +77,7 @@ pub struct Certificate {
     pub next_root_hash: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[repr(C)]
 pub struct Conflict {
     pub txn_id: TransactionDigest,
