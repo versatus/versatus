@@ -391,12 +391,6 @@ fn setup_miner_election_module(
         ) 
     };
 
-    let module: ElectionModule<MinerElection, MinerElectionResult> = { 
-        ElectionModule::<MinerElection, MinerElectionResult>::new(
-            module_config
-        ) 
-    };
-
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
         miner_election_module_actor
