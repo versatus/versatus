@@ -1,12 +1,11 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
+use block::Conflict;
 use ethereum_types::U256;
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
     NodeId,
     NodeIdx,
     NodeType,
@@ -14,23 +13,14 @@ use primitives::{
     QuorumPublicKey,
     QuorumType,
     RawSignature,
-    TxHashString,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
-use tokio::{
-    sync::{
-        broadcast::{self, Receiver, Sender},
-        mpsc::UnboundedSender,
-    },
-    task::JoinHandle,
+use tokio::sync::{
+    broadcast::{self, Receiver, Sender},
+    mpsc::UnboundedSender,
 };
-use vrrb_core::{
-    account::Account,
-    claim::Claim,
-    keypair::Keypair,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
