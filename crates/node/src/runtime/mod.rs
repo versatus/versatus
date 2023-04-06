@@ -375,6 +375,7 @@ fn setup_dkg_module(
 }
 
 fn setup_miner_election_module(
+    config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
     mut miner_election_events_rx: Receiver<Event>,
     db_read_handle: VrrbDbReadHandle,
