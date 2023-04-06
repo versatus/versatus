@@ -23,7 +23,6 @@ use block::{
     GenesisBlock,
     ProposalBlock,
     RefHash,
-    TxnId,
     TxnList,
 };
 use bulldag::{
@@ -43,9 +42,9 @@ use utils::{create_payload, hash_data};
 use vrrb_core::{
     claim::Claim,
     keypair::{MinerPk, MinerSk},
-    txn::Txn,
+    txn::{TransactionDigest, Txn}
 };
-
+use ethereum_types::U256;
 use crate::result::MinerError;
 
 // TODO: replace Pool with LeftRightMempool if suitable
@@ -89,8 +88,8 @@ pub struct Miner {
 pub struct MineArgs<'a> {
     pub claim: Claim,
     pub last_block: Block,
-    pub txns: LinkedHashMap<String, Txn>,
-    pub claims: LinkedHashMap<String, Claim>,
+    pub txns: LinkedHashMap<TransactionDigest, Txn>,
+    pub claims: LinkedHashMap<U256, Claim>,
     pub claim_list_hash: Option<String>,
     #[deprecated(
         note = "will be removed, unnecessary as last block needed to mine and contains next block reward"
@@ -166,8 +165,9 @@ impl Miner {
         let txns: ConsolidatedTxns = resolved_txns
             .iter()
             .map(|block| {
-                let txn_list = block.txns.iter().map(|(id, _)| id.clone()).collect();
-
+                let txn_list = block.txns.iter().map(|(id, _)| {
+                    id.clone()
+                }).collect();
                 (block.hash.clone(), txn_list)
             })
             .collect();
@@ -341,7 +341,7 @@ impl Miner {
         );
 
         let mut claims = LinkedHashMap::new();
-        claims.insert(claim.clone().public_key, claim);
+        claims.insert(claim.hash.clone(), claim);
 
         #[cfg(mainnet)]
         let txns = genesis::generate_genesis_txns();
@@ -466,7 +466,7 @@ impl Miner {
             while let Some((id, conflict)) = conflict_iter.next() {
                 if Some(block.hash.clone()) != conflict.winner {
                     // if it does insert into removals, otherwise ignore
-                    removals.insert(id.to_string());
+                    removals.insert(id.clone());
                 }
             }
 
@@ -500,12 +500,12 @@ impl Miner {
         let mut proposals = proposals.clone();
 
         // Flatten consolidated transactions from all previous blocks
-        let removals: LinkedHashSet<&TxnId> = {
+        let removals: LinkedHashSet<&TransactionDigest> = {
             // Get nested sets of all previous blocks
-            let sets: Vec<LinkedHashSet<&TxnId>> = prev_blocks
+            let sets: Vec<LinkedHashSet<&TransactionDigest>> = prev_blocks
                 .iter()
                 .map(|block| {
-                    let block_set: Vec<&LinkedHashSet<TxnId>> = {
+                    let block_set: Vec<&LinkedHashSet<TransactionDigest>> = {
                         block
                             .txns
                             .iter()
@@ -536,7 +536,9 @@ impl Miner {
         resolved
     }
 
-    fn identify_conflicts(&self, proposals: &Vec<ProposalBlock>) -> HashMap<TxnId, Conflict> {
+    fn identify_conflicts(
+        &self, proposals: &Vec<ProposalBlock>
+    ) -> HashMap<TransactionDigest, Conflict> {
         let mut conflicts: ConflictList = HashMap::new();
         proposals.iter().for_each(|block| {
             let mut txn_iter = block.txns.iter();
@@ -546,15 +548,17 @@ impl Miner {
 
             while let Some((id, _)) = txn_iter.next() {
                 let conflict = Conflict {
-                    txn_id: id.to_string(),
+                    txn_id: id.clone(),
                     proposers: proposer.clone(),
                     winner: None,
                 };
 
                 conflicts
-                    .entry(id.to_string())
+                    .entry(id.clone())
                     .and_modify(|e| {
-                        e.proposers.insert((block.from.clone(), block.hash.clone()));
+                        e.proposers.insert(
+                            (block.from.clone(), 
+                             block.hash.clone()));
                     })
                     .or_insert(conflict);
             }

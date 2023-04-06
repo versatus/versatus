@@ -6,6 +6,7 @@ use tokio::sync::{
     broadcast::error::RecvError,
     mpsc::error::{SendError, TryRecvError},
 };
+use theater::TheaterError;
 
 #[derive(Debug, Error)]
 pub enum NodeError {

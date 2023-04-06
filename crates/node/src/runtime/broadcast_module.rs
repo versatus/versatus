@@ -44,19 +44,6 @@ pub struct BroadcastModule {
     events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
-    status: ActorState,
-}
-
-const PACKET_TIMEOUT_DURATION: u64 = 10;
-
-trait Timeout: Sized {
-    fn timeout(self) -> tokio::time::Timeout<Self>;
-}
-
-impl<F: std::future::Future> Timeout for F {
-    fn timeout(self) -> tokio::time::Timeout<Self> {
-        tokio::time::timeout(Duration::from_secs(PACKET_TIMEOUT_DURATION), self)
-    }
 }
 
 const PACKET_TIMEOUT_DURATION: u64 = 10;
@@ -100,7 +87,7 @@ impl BroadcastModule {
         loop {
             if let Some((_, mut incoming)) = self
                 .broadcast_engine
-                .get_incomming_connections()
+                .get_incoming_connections()
                 .next()
                 .await
             {
@@ -203,12 +190,12 @@ impl Handler<Event> for BroadcastModule {
                 let mut quic_addresses = vec![];
                 let mut raptor_peer_list = vec![];
                 for peer in peers.iter() {
-                    if let Ok(addr) = peer.address.parse::<SocketAddr>() {
-                        quic_addresses.push(addr);
-                        let mut raptor_addr = addr.clone();
-                        raptor_addr.set_port(peer.raptor_udp_port);
-                        raptor_peer_list.push(raptor_addr);
-                    }
+                    let addr = peer.address;
+                    quic_addresses.push(addr);
+                    let mut raptor_addr = addr.clone();
+                    raptor_addr.set_port(peer.raptor_udp_port);
+                    raptor_peer_list.push(raptor_addr);
+                    
                 }
                 self.broadcast_engine.add_raptor_peers(raptor_peer_list);
                 self.broadcast_engine.add_peer_connection(quic_addresses);

@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
-    mpsc::UnboundedSender,
+    mpsc::{UnboundedSender, UnboundedReceiver},
 };
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -185,15 +185,14 @@ pub enum Event {
     // May want to just use the `BlockHeader` struct to reduce 
     // the overhead of deserializing
     MinerElection(HeaderBytes),
-    // We make this the ClaimHash or Claim instead of the NodeId
-    ElectedMiner((U256, NodeId)),
-    // May want to just use the `BlockHeader` struct to reduce 
-    // the overhead of deserializing
+    ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
     // May want to just use the ConflictList & `BlockHeader` types 
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),
     ResolvedConflict(Conflict),
+    EmptyPeerSync,
+    PeerSyncFailed(Vec<SocketAddr>),
 }
 
 impl From<&theater::Message> for Event {

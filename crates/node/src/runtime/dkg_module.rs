@@ -190,7 +190,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send((Topic::Network, Event::SyncPeers(peers)));
+                                                .send(Event::SyncPeers(peers));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -302,7 +302,7 @@ impl DkgModule {
                                                 signature,
                                                 msg_bytes,
                                                 SyncPeerData {
-                                                    address: self.rendezvous_local_addr.to_string(),
+                                                    address: self.rendezvous_local_addr,
                                                     raptor_udp_port: self.rendezvous_local_addr.port(),
                                                     quic_port: self.quic_port,
                                                     node_type: self.dkg_engine.node_type,
@@ -329,36 +329,6 @@ impl DkgModule {
             }
         }
     }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Data {
-    Request(RendezvousRequest),
-    Response(RendezvousResponse),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum RendezvousRequest {
-    Ping,
-    Peers(Vec<u8>),
-    Namespace(NodeTypeBytes, QuorumPublicKey),
-    RegisterPeer(
-        QuorumPublicKey,
-        NodeTypeBytes,
-        PKShareBytes,
-        RawSignature,
-        PayloadBytes,
-        SyncPeerData,
-    ),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum RendezvousResponse {
-    Pong,
-    RequestPeers(QuorumPublicKey),
-    Peers(Vec<SyncPeerData>),
-    PeerRegistered,
-    NamespaceRegistered,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
