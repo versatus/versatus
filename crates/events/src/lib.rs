@@ -1,19 +1,19 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
+use ethereum_types::U256;
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
+    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
-    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
-    TransactionDigest,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
@@ -26,9 +26,14 @@ use tokio::{
     task::JoinHandle,
 };
 use vrrb_core::{
-    account::Account, txn::{TransactionDigest, Txn},
+    account::Account,
+    claim::Claim,
+    keypair::Keypair,
+    txn::{TransactionDigest, Txn},
 };
+
 pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("io error: {0}")]
@@ -40,6 +45,7 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
+
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
@@ -204,60 +210,6 @@ pub enum Event {
     QuorumElection(HeaderBytes),
     ConflictResolution(ConflictBytes, HeaderBytes),
     ResolvedConflict(Conflict),
-    // SendTxn(u32, String, u128), // address number, receiver address, amount
-    // ProcessTxnValidator(Vec<u8>),
-    // PendingBlock(Vec<u8>, String),
-    // InvalidBlock(Vec<u8>),
-    // ProcessClaim(Vec<u8>),
-    // CheckStateUpdateStatus((u128, Vec<u8>, u128)),
-    // StateUpdateCompleted(Vec<u8>),
-    // StoreStateDbChunk(Vec<u8>, Vec<u8>, u32, u32),
-    // SendState(String, u128),
-    // SendMessage(SocketAddr, Message),
-    // GetBalance(u32),
-    // SendGenesis(String),
-    // SendStateComponents(String, Vec<u8>, String),
-    // GetStateComponents(String, Vec<u8>, String),
-    // RequestedComponents(String, Vec<u8>, String, String),
-    // StoreStateComponents(Vec<u8>, ComponentTypes),
-    // StoreChild(Vec<u8>),
-    // StoreParent(Vec<u8>),
-    // StoreGenesis(Vec<u8>),
-    // StoreLedger(Vec<u8>),
-    // StoreNetworkState(Vec<u8>),
-    // StateUpdateComponents(Vec<u8>, ComponentTypes),
-    // UpdateAppMiner(Vec<u8>),
-    // UpdateAppBlockchain(Vec<u8>),
-    // UpdateAppMessageCache(Vec<u8>),
-    // UpdateAppWallet(Vec<u8>),
-    // Publish(Vec<u8>),
-    // Gossip(Vec<u8>),
-    // AddNewPeer(String, String),
-    // AddKnownPeers(Vec<u8>),
-    // AddExplicitPeer(String, String),
-    // ProcessPacket((Packet, SocketAddr)),
-    // Bootstrap(String, String),
-    // SendPing(String),
-    // ReturnPong(Vec<u8>, String),
-    // InitHandshake(String),
-    // ReciprocateHandshake(String, String, String),
-    // CompleteHandshake(String, String, String),
-    // ProcessAck(String, u32, String),
-    // CleanInbox(String),
-    // StartMiner,
-    // GetHeight,
-    // MineBlock,
-    // MineGenesis,
-    // StopMine,
-    // GetState,
-    // ProcessBacklog,
-    // SendAddress,
-    // NonceUp,
-    // InitDKG,
-    // SendPartMessage(Vec<u8>),
-    // SendAckMessage(Vec<u8>),
-    // PublicKeySetSync,
->>>>>>> a1ff216 (scaffold integration with mining module)
 }
 
 impl From<&theater::Message> for Event {

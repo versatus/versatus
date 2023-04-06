@@ -4,6 +4,7 @@
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
+    error::Error,
     fmt,
 };
 
@@ -30,16 +31,15 @@ use secp256k1::{
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
+use tokio::task::JoinHandle;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
     accountable::Accountable,
     claim::Claim,
     keypair::KeyPair,
-    txn::{Txn, TransactionDigest},
+    txn::{TransactionDigest, Txn},
     verifiable::Verifiable,
 };
-use tokio::task::JoinHandle;
-use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -66,7 +66,7 @@ pub type QuorumId = String;
 pub type QuorumPubkey = String;
 pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
-pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>; 
+pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[repr(C)]

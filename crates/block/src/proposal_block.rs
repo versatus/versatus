@@ -7,9 +7,9 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use utils::{create_payload, hash_data};
-use vrrb_core::claim::Claim;
+use vrrb_core::{claim::Claim, txn::TransactionDigest};
 
-use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnId, TxnList};
+use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -55,24 +55,29 @@ impl ProposalBlock {
     }
 
     pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {
-        let sets: Vec<LinkedHashSet<&TxnId>> =
+        let sets: Vec<LinkedHashSet<&TransactionDigest>> =
             { prev_blocks.iter().map(|block| block.txn_id_set()).collect() };
 
-        let prev_block_set: LinkedHashSet<&TxnId> = { sets.into_iter().flatten().collect() };
+        let prev_block_set: LinkedHashSet<&TransactionDigest> =
+            { sets.into_iter().flatten().collect() };
 
         let curr_txns = self.txns.clone();
 
-        let curr_set: LinkedHashSet<&TxnId> = { curr_txns.iter().map(|(id, _)| id).collect() };
+        let curr_set: LinkedHashSet<&TransactionDigest> =
+            { curr_txns.iter().map(|(id, _)| id).collect() };
 
-        let prev_confirmed: LinkedHashSet<TxnId> = {
+        let prev_confirmed: LinkedHashSet<TransactionDigest> = {
             let intersection = curr_set.intersection(&prev_block_set);
-            intersection.into_iter().map(|id| id.to_string()).collect()
+            intersection
+                .into_iter()
+                .map(|id| id.to_owned().to_owned())
+                .collect()
         };
 
         self.txns.retain(|id, _| prev_confirmed.contains(id));
     }
 
-    pub fn txn_id_set(&self) -> LinkedHashSet<TxnId> {
+    pub fn txn_id_set(&self) -> LinkedHashSet<TransactionDigest> {
         self.txns.iter().map(|(id, _)| id.clone()).collect()
     }
 }
