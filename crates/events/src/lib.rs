@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
-    mpsc::UnboundedSender,
+    mpsc::{UnboundedSender, UnboundedReceiver},
 };
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -184,10 +184,12 @@ pub enum Event {
     UpdatedAccount(AccountBytes),
     MinerElection(HeaderBytes),
     // Should we make this the ClaimHash instead of the NodeId
-    ElectedMiner((U256, NodeId)),
+    ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
     ConflictResolution(ConflictBytes, HeaderBytes),
     ResolvedConflict(Conflict),
+    EmptyPeerSync,
+    PeerSyncFailed(Vec<SocketAddr>),
 }
 
 impl From<&theater::Message> for Event {

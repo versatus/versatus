@@ -126,7 +126,7 @@ impl BroadcastEngineController {
                 if peers.is_empty() {
                     warn!("No peers to sync with");
 
-                    self.events_tx.send(Event::EmptyPeerSync)?;
+                    self.events_tx.send(Event::EmptyPeerSync);
 
                     // TODO: revisit this return
                     return Ok(());
@@ -155,7 +155,9 @@ impl BroadcastEngineController {
                 if let Err(err) = peer_connection_result {
                     error!("unable to add peer connection: {err}");
 
-                    self.events_tx.send(Event::PeerSyncFailed(quic_addresses))?;
+                    self.events_tx.send(
+                        Event::PeerSyncFailed(quic_addresses)
+                    );
 
                     return Err(err.into());
                 }

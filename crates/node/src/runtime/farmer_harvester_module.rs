@@ -6,7 +6,7 @@ use std::{
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
+use events::{DirectedEvent, Event, QuorumCertifiedTxn, Vote, VoteReceipt};
 use lr_trie::ReadHandleFactory;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -162,14 +162,13 @@ impl FarmerHarvesterModule {
                 JobResult::Votes((votes, farmer_quorum_threshold)) => {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send((
-                                Topic::Network,
+                            let _ = broadcast_events_tx.send(
                                 Event::Vote(
                                     vote.clone(),
                                     QuorumType::Harvester,
                                     farmer_quorum_threshold,
                                 ),
-                            ));
+                            );
                         }
                     }
                 },
