@@ -5,7 +5,6 @@ use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
-    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
