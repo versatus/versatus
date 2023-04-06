@@ -99,6 +99,7 @@ pub async fn setup_runtime_components(
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<bool>>,
+
 )> {
     let mut config = original_config.clone();
 
@@ -241,8 +242,7 @@ pub async fn setup_runtime_components(
             harvester_events_rx,
         )?;
     };
-
-
+    
     let scheduler_handle = setup_scheduler_module(
         &config,
         if config.node_type==NodeType::Farmer{farmer_sync_jobs_receiver}else{harvester_sync_jobs_receiver},
@@ -266,6 +266,7 @@ pub async fn setup_runtime_components(
         farmer_handle,
         harvester_handle,
         Some(raptor_handle),
+        Some(scheduler_handle),
     ))
 }
 
@@ -336,11 +337,8 @@ async fn setup_state_store(
     }
 
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
-
     let vrrbdb_read_handle = db.read_handle();
-
     let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
-
     let mut state_module_actor = ActorImpl::new(state_module);
 
     let state_handle = tokio::spawn(async move {
@@ -582,21 +580,21 @@ fn setup_harvester_module(
 }
 
 
-fn setup_scheduler_module<'a>(
-    config: &'a NodeConfig,
+fn setup_scheduler_module(
+    config: &NodeConfig,
     sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
-    state_snapshot: &'a StateSnapshot,
     events_tx: UnboundedSender<DirectedEvent>,
-) -> JobSchedulerController<'a> {
+    vrrbdb_read_handle: VrrbDbReadHandle,
+) -> JobSchedulerController {
     let module = JobSchedulerController::new(
-        hex::decode(config.keypair.get_peer_id()).unwrap(),
+        hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
         events_tx,
         sync_jobs_receiver,
         async_jobs_receiver,
         validator_core_manager,
-        state_snapshot,
+        vrrbdb_read_handle,
     );
     module
 }

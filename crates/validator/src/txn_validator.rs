@@ -1,12 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
     result::Result as StdResult,
+    str::FromStr,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use left_right::ReadHandle;
 use lr_trie::LeftRightTrieError;
 use patriecia::{db::Database, error::TrieError, inner::InnerTrie};
+use primitives::Address;
 use vrrb_core::{
     account::Account,
     keypair::{KeyPair, MinerPk},
@@ -98,18 +100,21 @@ impl TxnValidator {
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
-    pub fn validate(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
-        self.validate_structure(state_snapshot, txn)
+    pub fn validate(&self, account_state: &HashMap<Address, Account>, txn: &Txn) -> Result<()> {
+        self.validate_structure(account_state, txn)
     }
 
     /// An entire Txn structure validator
-    pub fn validate_structure(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
-        self.validate_amount(state_snapshot, txn)
+    pub fn validate_structure(
+        &self,
+        account_state: &HashMap<Address, Account>,
+        txn: &Txn,
+    ) -> Result<()> {
+        self.validate_amount(account_state, txn)
             .and_then(|_| self.validate_public_key(txn))
             .and_then(|_| self.validate_sender_address(txn))
             .and_then(|_| self.validate_receiver_address(txn))
             .and_then(|_| self.validate_signature(txn))
-            .and_then(|_| self.validate_amount(state_snapshot, txn))
             .and_then(|_| self.validate_timestamp(txn))
     }
 
@@ -182,17 +187,23 @@ impl TxnValidator {
 
     /// Txn receiver validator
     // TODO, to be synchronized with transaction fees.
-    pub fn validate_amount(&self, state_snapshot: &StateSnapshot, txn: &Txn) -> Result<()> {
+    pub fn validate_amount(
+        &self,
+        account_state: &HashMap<Address, Account>,
+        txn: &Txn,
+    ) -> Result<()> {
         let address = txn.sender_address.clone();
-
-        let account = state_snapshot.get_account(&address)?;
-
-        if (account.credits - account.debits)
-            .checked_sub(txn.amount())
-            .is_none()
-        {
-            return Err(TxnValidatorError::TxnAmountIncorrect);
-        };
+        if let Ok(address) = secp256k1::PublicKey::from_str(address.as_str()) {
+            let account = account_state.get(&Address::new(address)).unwrap();
+            if (account.credits - account.debits)
+                .checked_sub(txn.amount())
+                .is_none()
+            {
+                return Err(TxnValidatorError::TxnAmountIncorrect);
+            };
+        } else {
+            return Err(TxnValidatorError::SenderAddressIncorrect);
+        }
 
         Ok(())
     }

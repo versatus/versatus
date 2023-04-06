@@ -198,6 +198,7 @@ mod tests {
     use lazy_static::lazy_static;
     use primitives::{NodeType, QuorumType::Farmer};
     use secp256k1::Message;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::ActorImpl;
     use validator::{
         txn_validator::{StateSnapshot, TxnValidator},
@@ -257,6 +258,13 @@ mod tests {
         let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let mut db_config = VrrbDbConfig::default();
+
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+        db_config.with_path(db_path);
+        let db = VrrbDb::new(db_config);
+        let vrrbdb_read_handle = db.read_handle();
 
         let mut job_scheduler = JobSchedulerController::new(
             vec![0],
@@ -264,7 +272,7 @@ mod tests {
             sync_jobs_receiver,
             async_jobs_receiver,
             ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap(),
-            &*STATE_SNAPSHOT,
+            vrrbdb_read_handle,
         );
         thread::spawn(move || {
             job_scheduler.execute_sync_jobs();

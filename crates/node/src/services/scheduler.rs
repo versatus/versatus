@@ -16,6 +16,7 @@ use primitives::{
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
+use storage::vrrbdb::VrrbDbReadHandle;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
 use validator::{
@@ -28,7 +29,8 @@ use vrrb_core::{
 };
 
 
-/// The `JobSchedulerController` job is the schedule the job on the scheduler
+/// The `JobSchedulerController` struct contains various fields related to job
+/// scheduling
 ///
 /// Properties:
 ///
@@ -37,33 +39,33 @@ use vrrb_core::{
 /// the scheduling and execution of jobs.
 /// * `events_tx`: `events_tx` is a variable of type
 ///   `UnboundedSender<DirectedEvent>`. It is used to
-/// send `DirectedEvent` messages to the event bus. The `UnboundedSender` type
-/// is a channel sender that can send an unlimited number of messages without
-/// blocking.
+/// send `DirectedEvent` messages to the event loop of the job scheduler. The
+/// `UnboundedSender` type is a channel sender that can send an unlimited number
+/// of messages without blocking.
 /// * `sync_jobs_receiver`: `sync_jobs_receiver` is a `Receiver` that receives
-///   `Job` objects for
-/// synchronous execution. The `JobSchedulerController` uses this receiver to
-/// receive jobs that need to be executed synchronously.
+///   synchronous jobs. A
+/// `Receiver` is a channel receiver used for receiving messages from a channel.
+/// In this case, it is used to receive `Job` objects that need to be executed
+/// synchronously.
 /// * `async_jobs_receiver`: `async_jobs_receiver` is a `Receiver` that receives
-///   `Job` objects for
-/// asynchronous execution. It is likely used in conjunction with
-/// `async_jobs_outputs_sender` to send the results of the executed jobs back to
-/// the caller.
+///   `Job` objects
+/// asynchronously. It is likely used to receive jobs that can be executed in
+/// parallel with other jobs, without blocking the main thread.
 /// * `validator_core_manager`: `validator_core_manager` is a property of type
 ///   `ValidatorCoreManager`.
-/// It is a struct that manages the core components of the validator, such as
-/// the block validator, the transaction pool, and the consensus engine. It
-/// provides an interface for interacting with these components and coordinating
-/// their activities. In the context
-/// * `state_snapshot`: `state_snapshot` is a reference to a `StateSnapshot`
-///   object.
-pub struct JobSchedulerController<'a> {
+/// It is likely a struct or an enum that manages the core functionality of the
+/// validator, such as validating transactions and blocks, maintaining the
+/// blockchain state, and communicating with other nodes in the network. It may
+/// also handle consensus algorithms and
+/// * `vrrbdb_read_handle`: `vrrbdb_read_handle` is a handle to read data from
+///   the VRRB database.
+pub struct JobSchedulerController {
     pub job_scheduler: JobScheduler,
     events_tx: UnboundedSender<DirectedEvent>,
     sync_jobs_receiver: Receiver<Job>,
     async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
-    pub state_snapshot: &'a StateSnapshot,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
 }
 
 pub enum Job {
@@ -98,14 +100,14 @@ pub enum Job {
 }
 
 
-impl<'a> JobSchedulerController<'a> {
+impl<'a> JobSchedulerController {
     pub fn new(
         peer_id: PeerID,
         events_tx: UnboundedSender<DirectedEvent>,
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
-        state_snapshot: &'a StateSnapshot,
+        vrrbdb_read_handle: VrrbDbReadHandle,
     ) -> Self {
         Self {
             job_scheduler: JobScheduler::new(peer_id),
@@ -113,7 +115,7 @@ impl<'a> JobSchedulerController<'a> {
             sync_jobs_receiver,
             async_jobs_receiver,
             validator_core_manager,
-            state_snapshot,
+            vrrbdb_read_handle,
         }
     }
 
@@ -132,7 +134,7 @@ impl<'a> JobSchedulerController<'a> {
                         let transactions: Vec<Txn> = txns.iter().map(|x| x.1.txn.clone()).collect();
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
-                            .validate(self.state_snapshot, transactions)
+                            .validate(&self.vrrbdb_read_handle.state_store_values(), transactions)
                             .into_iter()
                             .collect();
                         let backpressure = self.job_scheduler.calculate_back_pressure();
@@ -195,7 +197,10 @@ impl<'a> JobSchedulerController<'a> {
                         }
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
-                            .validate(self.state_snapshot, vec![txn.clone()])
+                            .validate(
+                                &self.vrrbdb_read_handle.state_store_values(),
+                                vec![txn.clone()],
+                            )
                             .into_iter()
                             .collect();
                         let validated = validated_txns.par_iter().any(|x| x.0.id() == txn.id());

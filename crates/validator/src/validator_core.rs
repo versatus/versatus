@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::mpsc::{channel, Receiver, RecvError, SendError, Sender},
     thread::{self, *},
 };
@@ -7,7 +7,8 @@ use std::{
 use left_right::{ReadHandle, ReadHandleFactory};
 use mempool::mempool::{FetchFiltered, *};
 use patriecia::{db::Database, inner::InnerTrie};
-use vrrb_core::txn::*;
+use primitives::Address;
+use vrrb_core::{account::Account, txn::*};
 
 use crate::txn_validator::{StateSnapshot, TxnValidator};
 
@@ -70,13 +71,12 @@ impl Core {
 
     pub fn process_transactions(
         &self,
-        state_snapshot: &StateSnapshot,
+        account_state: &HashMap<Address, Account>,
         batch: Vec<Txn>,
     ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
-        // ) -> HashSet<(Txn, bool)> {
         batch
             .into_iter()
-            .map(|txn| match self.validator.validate(state_snapshot, &txn) {
+            .map(|txn| match self.validator.validate(account_state, &txn) {
                 Ok(_) => (txn, Ok(())),
                 Err(err) => {
                     telemetry::error!("{err:?}");

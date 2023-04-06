@@ -6,10 +6,12 @@ use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
+    HarvesterQuorumThreshold,
     NodeIdx,
     NodeType,
     PeerId,
     QuorumPublicKey,
+    QuorumSize,
     QuorumThreshold,
     QuorumType,
     RawSignature,
@@ -209,6 +211,8 @@ pub enum Event {
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
     ProcessedVotes(JobResult),
+    FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
+    HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
     CertifiedTxn(JobResult),
 }
 

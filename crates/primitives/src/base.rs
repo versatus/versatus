@@ -47,6 +47,7 @@ pub enum QuorumType {
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;
+pub type QuorumSize = usize;
 
 pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
