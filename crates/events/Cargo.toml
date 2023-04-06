@@ -32,7 +32,6 @@ async-trait = { workspace = true }
 theater = { workspace = true }
 utils = { workspace = true }
 cuckoofilter = { workspace = true }
-quorum = { workspace = true }
 ethereum-types = { workspace = true }
 
 [dev-dependencies]
