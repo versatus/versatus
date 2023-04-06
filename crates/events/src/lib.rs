@@ -183,7 +183,6 @@ pub enum Event {
     // May want to just use the `BlockHeader` struct to reduce 
     // the overhead of deserializing
     MinerElection(HeaderBytes),
-    // Should we make this the ClaimHash instead of the NodeId
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
     // May want to just use the ConflictList & `BlockHeader` types 

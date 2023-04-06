@@ -29,6 +29,7 @@ mod tests {
     use sha256::digest;
     use utils::{create_payload, hash_data};
     use vrrb_core::txn::{Txn, TransactionDigest};
+    use ethereum_types::U256;
 
     use super::test_helpers::create_txns;
     use crate::test_helpers::{

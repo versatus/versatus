@@ -94,7 +94,7 @@ impl Node {
             jsonrpc_events_rx,
             dkg_events_rx,
             miner_election_events_rx,
-            quorum_election_events_rx
+            quorum_election_events_rx,
         )
         .await?;
 

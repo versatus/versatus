@@ -172,7 +172,6 @@ pub async fn setup_runtime_components(
         dkg_handle,
         miner_election_handle,
         quorum_election_handle,
-        conflict_resolution_handle,
     ))
 }
 
@@ -386,7 +385,14 @@ fn setup_miner_election_module(
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
+        local_claim
     };
+    let module: ElectionModule<MinerElection, MinerElectionResult> = { 
+        ElectionModule::<MinerElection, MinerElectionResult>::new(
+            module_config
+        ) 
+    };
+
     let module: ElectionModule<MinerElection, MinerElectionResult> = { 
         ElectionModule::<MinerElection, MinerElectionResult>::new(
             module_config
@@ -414,6 +420,7 @@ fn setup_quorum_election_module(
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
+        local_claim
     };
 
     let module: ElectionModule<QuorumElection, QuorumElectionResult> = { 
@@ -426,32 +433,6 @@ fn setup_quorum_election_module(
     let quorum_election_module_handle = tokio::spawn(async move {
         quorum_election_module_actor
             .start(&mut quorum_election_events_rx)
-    });
-
-    return Ok(Some(quorum_election_module_handle));
-}
-
-fn setup_conflict_resolution_module(
-    config: &NodeConfig,
-    events_tx: UnboundedSender<DirectedEvent>,
-    mut conflict_resolution_events_rx: Receiver<Event>,
-    db_read_handle: VrrbDbReadHandle,
-    local_claim: Claim,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module_config = ElectionModuleConfig {
-        db_read_handle,
-        events_tx,
-        local_claim,
-    };
-
-    let module: ElectionModule<ConflictResolution, ConflictResolutionResult> =
-        { ElectionModule::new(ElectionModuleConfig) };
-
-    let conflict_resolution_module_actor = ActorImpl::new(module);
-    let conflict_resolution_module_handle = tokio::spawn(async move {
-        conflict_resolution_module_actor
-            .start(&conflict_resolution_events_rx)
->>>>>>> 57f9ffd (update local with remote)
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });

@@ -33,6 +33,7 @@ pub struct QuorumElection;
 pub struct ElectionModuleConfig {
     pub db_read_handle: VrrbDbReadHandle,
     pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    pub local_claim: Claim,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
