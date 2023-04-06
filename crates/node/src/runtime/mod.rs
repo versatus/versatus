@@ -355,8 +355,8 @@ fn setup_dkg_module(
             /* Need to be decided either will be preconfigured or decided
              * by Bootstrap Node */
         },
-        config.rendzevous_local_address,
-        config.rendzevous_local_address,
+        config.rendezvous_local_address,
+        config.rendezvous_local_address,
         config.udp_gossip_address.port(),
         events_tx,
     );
