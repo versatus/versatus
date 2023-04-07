@@ -651,7 +651,7 @@ pub(crate) mod test_helpers {
         claim::Claim,
         helpers::size_of_txn_list,
         keypair::KeyPair,
-        txn::{NewTxnArgs, Token, Txn},
+        txn::{NewTxnArgs, Token, TransactionDigest, Txn},
     };
 
     use crate::{MineArgs, Miner, MinerConfig};
@@ -700,7 +700,7 @@ pub(crate) mod test_helpers {
         miner.mine_genesis_block(claim_list, 1)
     }
 
-    pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (String, Txn)> {
+    pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, Txn)> {
         (0..n)
             .map(|n| {
                 let (sk, pk) = create_keypair();
@@ -730,7 +730,7 @@ pub(crate) mod test_helpers {
 
                 let txn_hash = hash_data!(&txn);
 
-                (txn_hash, txn)
+                (txn_hash.into(), txn)
             })
             .into_iter()
     }

@@ -12,10 +12,11 @@ use vrrb_core::keypair::KeyPair;
 
 use crate::{
     farmer_harvester_module::QuorumMember,
+    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState, farmer_module::QuorumMember,
+    RuntimeModuleState,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -85,7 +86,7 @@ impl Node {
             dkg_handle,
             miner_election_handle,
             quorum_election_handle,
-            conflict_resolution_handle
+            conflict_resolution_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -97,7 +98,7 @@ impl Node {
             jsonrpc_events_rx,
             dkg_events_rx,
             miner_election_events_rx,
-            quorum_election_events_rx
+            quorum_election_events_rx,
             conflict_resolution_events_rx,
         )
         .await?;

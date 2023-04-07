@@ -1,19 +1,19 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use block::{convergence_block::ConvergenceBlock, Conflict, ResolvedConflicts};
+use ethereum_types::U256;
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
+    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
-    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
-    TransactionDigest,
     TxHashString,
 };
 use serde::{Deserialize, Serialize};
@@ -26,9 +26,14 @@ use tokio::{
     task::JoinHandle,
 };
 use vrrb_core::{
-    account::Account, txn::{TransactionDigest, Txn},
+    account::Account,
+    claim::Claim,
+    keypair::Keypair,
+    txn::{TransactionDigest, Txn},
 };
+
 pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("io error: {0}")]
@@ -40,6 +45,7 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
+
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
