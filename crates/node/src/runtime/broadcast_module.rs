@@ -246,6 +246,7 @@ impl Handler<Event> for BroadcastModule {
 #[cfg(test)]
 mod tests {
     use std::io::stdout;
+
     use events::Event;
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};

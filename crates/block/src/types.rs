@@ -38,11 +38,9 @@ use vrrb_core::{
     accountable::Accountable,
     claim::Claim,
     keypair::KeyPair,
-    txn::{Txn, TransactionDigest},
+    txn::{TransactionDigest, Txn},
     verifiable::Verifiable,
 };
-use tokio::task::JoinHandle;
-use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;

@@ -1,5 +1,4 @@
 use std::{collections::HashMap, net::SocketAddr};
-
 use block::Conflict;
 use ethereum_types::U256;
 use primitives::{
@@ -10,7 +9,6 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
-    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
@@ -24,6 +22,7 @@ use tokio::sync::{
 use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("io error: {0}")]
@@ -35,6 +34,7 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
+
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;

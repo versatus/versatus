@@ -5,7 +5,6 @@ use vrrb_core::{
     account::Account,
     claim::Claim,
     txn::{TransactionDigest, Txn},
-    claim::Claim,
 };
 
 use crate::{
@@ -22,13 +21,11 @@ pub struct VrrbDbReadHandle {
 }
 
 impl VrrbDbReadHandle {
-
     pub fn new(
         state_store_handle_factory: StateStoreReadHandleFactory,
         transaction_store_handle_factory: TransactionStoreReadHandleFactory,
         claim_store_handle_factory: ClaimStoreReadHandleFactory,
     ) -> Self {
-
         Self {
             state_store_handle_factory,
             transaction_store_handle_factory,
@@ -50,4 +47,3 @@ impl VrrbDbReadHandle {
         self.claim_store_handle_factory.handle().entries()
     }
 }
-

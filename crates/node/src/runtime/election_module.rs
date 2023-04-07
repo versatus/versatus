@@ -43,8 +43,8 @@ pub struct ElectionResult {
 }
 
 #[derive(Clone, Debug)]
-pub struct ElectionModule<E, T> 
-where 
+pub struct ElectionModule<E, T>
+where
     E: ElectionType,
     T: ElectionOutcome,
 {
