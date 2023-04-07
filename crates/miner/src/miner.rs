@@ -322,7 +322,6 @@ impl Miner {
         })
     }
 
-    
     /// This method has been deprecated and will be removed soon
     #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
