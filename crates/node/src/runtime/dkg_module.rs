@@ -1,7 +1,5 @@
 use std::{
-    hash::Hash,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
+    net::SocketAddr,
     thread,
     thread::sleep,
     time::Duration,
@@ -11,14 +9,11 @@ use async_trait::async_trait;
 use crossbeam_channel::{select, unbounded};
 use dkg_engine::{
     dkg::DkgGenerator,
-    types::{config::ThresholdConfig, DkgEngine, DkgError, DkgResult},
+    types::{config::ThresholdConfig, DkgEngine, DkgResult},
 };
-use events::{DirectedEvent, Event, SyncPeerData, Topic};
-use hbbft::{crypto::PublicKey, sync_key_gen::Part};
-use kademlia_dht::{Key, Node, NodeData};
-use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
-use lr_trie::ReadHandleFactory;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
+use events::{Event, SyncPeerData, Topic};
+use hbbft::crypto::PublicKey;
+use laminar::{Config, Packet, Socket, SocketEvent};
 use primitives::{
     NodeIdx,
     NodeType,
@@ -34,7 +29,7 @@ use primitives::{
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
 
 use crate::{result::Result, NodeError};
@@ -55,7 +50,7 @@ pub struct DkgModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
 }
 
 impl DkgModule {
@@ -67,7 +62,7 @@ impl DkgModule {
         rendezvous_local_addr: SocketAddr,
         rendezvous_server_addr: SocketAddr,
         quic_port: u16,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> Result<DkgModule> {
         let engine = DkgEngine::new(
             node_idx,
@@ -120,8 +115,8 @@ impl DkgModule {
     #[cfg(test)]
     pub fn make_engine(
         dkg_engine: DkgEngine,
-        events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+        events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> Self {
         let mut socket = Socket::bind_with_config(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
@@ -263,13 +258,12 @@ impl DkgModule {
                             },
                                           recv(rx2) ->_ =>   {
                 match self.dkg_engine.dkg_state.public_key_set.clone() {
-                                Some(quorum_key) => {
+                    Some(quorum_key) => {
                                     // Sending a request to the rendezvous server to register the namespace
-                                    if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
-                                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                                            quorum_key.public_key().to_bytes().to_vec(),
-                                        ))){
-                                                   let _ = sender.send(Packet::reliable_ordered(
+                        if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
+                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                                quorum_key.public_key().to_bytes().to_vec(),))) {
+                                   let _ = sender.send(Packet::reliable_ordered(
                                         self.rendezvous_server_addr,
                                         data,
                                         None,
@@ -278,54 +272,54 @@ impl DkgModule {
                                 }
 
 
-                                    if let Some(secret_key_share) = &self.dkg_engine.dkg_state.secret_key_share
-                                    {
-                                        // Generating a random string of 15 characters as payload.
-                                        let message: String = rand::thread_rng()
-                                            .sample_iter(&Alphanumeric)
-                                            .take(15)
-                                            .map(char::from)
-                                            .collect();
-                                        let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
-                                            m
-                                        } else {
-                                            vec![]
-                                        };
-                                        let signature =
-                                            secret_key_share.sign(message.clone()).to_bytes().to_vec();
-                                        /// Sending the Register Peer Payload   to the rendezvous server.
-                                        let payload_result = bincode::serialize(&Data::Request(
-                                            RendezvousRequest::RegisterPeer(
-                                                quorum_key.public_key().to_bytes().to_vec(),
-                                                self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                                                secret_key_share.public_key_share().to_bytes().to_vec(),
-                                                signature,
-                                                msg_bytes,
-                                                SyncPeerData {
-                                                    address: self.rendezvous_local_addr,
-                                                    raptor_udp_port: self.rendezvous_local_addr.port(),
-                                                    quic_port: self.quic_port,
-                                                    node_type: self.dkg_engine.node_type,
-                                                },
-                                            ),
+                                if let Some(secret_key_share) = &self.dkg_engine.dkg_state.secret_key_share
+                                {
+                                    // Generating a random string of 15 characters as payload.
+                                    let message: String = rand::thread_rng()
+                                        .sample_iter(&Alphanumeric)
+                                        .take(15)
+                                        .map(char::from)
+                                        .collect();
+                                    let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
+                                        m
+                                    } else {
+                                        vec![]
+                                    };
+                                    let signature =
+                                        secret_key_share.sign(message.clone()).to_bytes().to_vec();
+                                    /// Sending the Register Peer Payload   to the rendezvous server.
+                                    let payload_result = bincode::serialize(&Data::Request(
+                                        RendezvousRequest::RegisterPeer(
+                                            quorum_key.public_key().to_bytes().to_vec(),
+                                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                                            secret_key_share.public_key_share().to_bytes().to_vec(),
+                                            signature,
+                                            msg_bytes,
+                                            SyncPeerData {
+                                                address: self.rendezvous_local_addr,
+                                                raptor_udp_port: self.rendezvous_local_addr.port(),
+                                                quic_port: self.quic_port,
+                                                node_type: self.dkg_engine.node_type,
+                                            },
+                                        ),
+                                    ));
+                                    if let Ok(payload) = payload_result {
+                                        let _ = sender.send(Packet::reliable_ordered(
+                                            self.rendezvous_server_addr,
+                                            payload,
+                                            None,
                                         ));
-                                        if let Ok(payload) = payload_result {
-                                            let _ = sender.send(Packet::reliable_ordered(
-                                                self.rendezvous_server_addr,
-                                                payload,
-                                                None,
-                                            ));
-                                        }
                                     }
                                 }
-                                None => {
-                                    error!("Cannot proceed with registration since current node is not part of any quorum");
-                                }
                             }
+                            None => {
+                                error!("Cannot proceed with registration since current node is not part of any quorum");
+                            }
+                        }
 
-                            break;
-                            },
-                                }
+                        break;
+                    },
+                }
             }
         }
     }
@@ -361,6 +355,7 @@ pub enum RendezvousResponse {
     PeerRegistered,
     NamespaceRegistered,
 }
+
 
 #[async_trait]
 impl Handler<Event> for DkgModule {
@@ -509,31 +504,21 @@ impl Handler<Event> for DkgModule {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        borrow::{Borrow, BorrowMut},
-        env,
-        net::{IpAddr, Ipv4Addr},
-        pin::Pin,
-        sync::{Arc, Mutex},
-        task::{Context, Poll},
-        thread,
-        time::Duration,
-    };
+    use std::net::{IpAddr, Ipv4Addr};
 
     use dkg_engine::test_utils;
-    use events::{DirectedEvent, Event, PeerData};
+    use events::Event;
     use hbbft::crypto::SecretKey;
     use primitives::{NodeType, QuorumType::Farmer};
-    use theater::ActorImpl;
-    use tokio::{spawn, sync::mpsc::UnboundedReceiver};
+    use theater::{Actor, ActorImpl};
 
     use super::*;
 
     #[tokio::test]
     async fn dkg_runtime_module_starts_and_stops() {
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -568,9 +553,9 @@ mod tests {
     #[tokio::test]
     async fn dkg_runtime_dkg_init() {
         let (broadcast_events_tx, mut broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -628,9 +613,9 @@ mod tests {
     #[tokio::test]
     async fn dkg_runtime_dkg_ack() {
         let (broadcast_events_tx, mut broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -698,9 +683,9 @@ mod tests {
     #[tokio::test]
     async fn dkg_runtime_handle_all_acks_generate_keyset() {
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_module =
             DkgModule::make_engine(dkg_engines.pop().unwrap(), events_tx, broadcast_events_tx);
 

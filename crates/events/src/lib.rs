@@ -1,5 +1,5 @@
 use std::{collections::HashMap, net::SocketAddr};
-use block::Conflict;
+use block::{Conflict, Block};
 use ethereum_types::U256;
 use primitives::{
     Address,
@@ -74,6 +74,8 @@ pub struct Vote {
     pub execution_result: Option<String>,
 }
 
+pub type SerializedConvergenceBlock = ByteVec;
+
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct BlockVote {
     pub harvester_id: Vec<u8>,
@@ -85,8 +87,6 @@ pub struct BlockVote {
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,
 }
-
-pub type SerializedConvergenceBlock = ByteVec;
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct VoteReceipt {
@@ -184,6 +184,7 @@ pub enum Event {
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
     ElectedQuorum(Quorum),
+    MinedBlock(Block),
     // May want to just use the ConflictList & `BlockHeader` types 
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),

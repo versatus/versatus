@@ -2,53 +2,23 @@
 // genesis block and blocks being mined.
 
 use std::{
-    cmp::Ordering,
     collections::{HashMap, HashSet},
     error::Error,
-    fmt,
     hash::{Hash, Hasher},
 };
 
-use bulldag::{
-    graph::BullDag,
-    index::Index,
-    vertex::{Direction, Vertex},
-};
-use primitives::{
-    Epoch,
-    RawSignature,
-    SecretKey as SecretKeyBytes,
-    GENESIS_EPOCH,
-    SECOND,
-    VALIDATOR_THRESHOLD,
-};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use secp256k1::{
-    hashes::sha256 as s256,
-    Message,
-};
 use serde::{Deserialize, Serialize};
-use sha256::digest;
-use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable,
     claim::Claim,
-    keypair::KeyPair,
     txn::{Txn, TransactionDigest},
-    verifiable::Verifiable,
 };
 use tokio::task::JoinHandle;
 
 #[cfg(mainnet)]
 use crate::genesis;
-use crate::{
-    genesis,
-    header::BlockHeader,
-    invalid::{BlockError, InvalidBlockErrorReason},
-};
 
 pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
 pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
@@ -69,7 +39,7 @@ pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
 pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct Certificate {
     pub signature: String,

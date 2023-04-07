@@ -11,11 +11,10 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState,
+    RuntimeModuleState, farmer_module::QuorumMember,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for

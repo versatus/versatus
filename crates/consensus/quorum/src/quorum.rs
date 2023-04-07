@@ -161,7 +161,7 @@ impl Quorum {
         let pubkeys: Vec<String> = election_results 
             .iter()
             .map(|(_, claim)| {
-                claim.public_key.clone()
+                claim.public_key.clone().to_string()
             })
             .take(num_claims)
             .collect();

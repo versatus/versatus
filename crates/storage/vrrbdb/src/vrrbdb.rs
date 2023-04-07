@@ -6,7 +6,7 @@ use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
-    claim::Claim,
+    claim::{Claim, self},
     txn::Txn,
 };
 
@@ -89,20 +89,8 @@ impl VrrbDb {
         Self {
             state_store,
             transaction_store,
-            claim_store,
+            claim_store
         }
-    }
-
-    pub fn state_store(&self) -> &StateStore {
-        &self.state_store
-    }
-
-    pub fn transaction_store(&self) -> &TransactionStore {
-        &self.transaction_store
-    }
-
-    pub fn claim_store(&self) -> &ClaimStore {
-        &self.claim_store
     }
 
     /// Returns the current state store trie's root hash.

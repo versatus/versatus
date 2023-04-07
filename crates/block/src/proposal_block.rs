@@ -5,12 +5,11 @@ use secp256k1::{
     Message,
 };
 use serde::{Deserialize, Serialize};
-use sha256::digest;
 use utils::{create_payload, hash_data};
-use vrrb_core::{claim::Claim, txn::TransactionDigest};
+use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct ProposalBlock {
     pub ref_block: RefHash,
@@ -35,7 +34,21 @@ impl ProposalBlock {
     ) -> ProposalBlock {
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = secret_key.sign_ecdsa(payload).to_string();
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
+        let hashable_txns: Vec<(String, Txn)> = {
+            txns.clone().iter().map(|(k, v)| {
+                (k.digest_string(), v.clone())
+            }).collect()
+        };
+        let hash = hex::encode(
+            hash_data!(
+                round, 
+                epoch, 
+                hashable_txns, 
+                claims, 
+                from, 
+                signature
+            )
+        );
 
         ProposalBlock {
             ref_block,
@@ -54,8 +67,9 @@ impl ProposalBlock {
     }
 
     pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {
-        let sets: Vec<LinkedHashSet<&TransactionDigest>> =
-            { prev_blocks.iter().map(|block| block.txn_id_set()).collect() };
+        let sets: Vec<LinkedHashSet<&TransactionDigest>> ={ 
+            prev_blocks.iter().map(|block| block.txn_id_set()).collect() 
+        };
 
         let prev_block_set: LinkedHashSet<&TransactionDigest> =
             { sets.into_iter().flatten().collect() };

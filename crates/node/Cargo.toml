@@ -62,6 +62,7 @@ laminar = {workspace=true}
 ethereum-types = { workspace = true }
 quorum={ workspace = true }
 sha2 = { workspace = true }
+bulldag = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

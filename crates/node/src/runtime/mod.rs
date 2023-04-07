@@ -1,4 +1,7 @@
 use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
+use bulldag::graph::BullDag;
+use block::Block;
 
 use events::{Event, EventRouter};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
@@ -44,7 +47,6 @@ use crate::{
 pub mod broadcast_module;
 pub mod credit_model_module;
 pub mod dkg_module;
-pub mod election_module;
 pub mod farmer_harvester_module;
 pub mod farmer_module;
 pub mod mempool_module;
@@ -52,6 +54,7 @@ pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
+pub mod election_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -135,11 +138,15 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
+    let mut dag: Arc<RwLock<BullDag<Block, String>>>
+        = Arc::new(RwLock::new(BullDag::new()));
+
     let miner_handle = setup_mining_module(
         &config,
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
+        dag,
         miner_events_rx,
     )?;
 
@@ -298,17 +305,17 @@ fn setup_mining_module(
     events_tx: UnboundedSender<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     mut miner_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let (_, miner_secret_key) = config.keypair.get_secret_keys();
     let (_, miner_public_key) = config.keypair.get_public_keys();
 
     let address = Address::new(*miner_public_key).to_string();
-
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
-        address,
+        dag: dag.clone()
     };
 
     let miner = miner::Miner::new(miner_config);
