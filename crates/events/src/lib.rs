@@ -88,8 +88,6 @@ pub struct BlockVote {
     pub execution_result: Option<String>,
 }
 
-pub type SerializedConvergenceBlock = ByteVec;
-
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct VoteReceipt {
     /// The identity of the voter.
