@@ -766,7 +766,7 @@ pub(crate) mod test_helpers {
 
         let prop_block =
             miner.build_proposal_block(
-                ref_hash.clone(), round, epoch, txns.clone(), claims 
+                ref_hash.clone(), round, epoch, txns.clone(), claims
             );
 
         let total_txns_size = size_of_txn_list(&txns);
