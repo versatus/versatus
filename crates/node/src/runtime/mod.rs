@@ -147,7 +147,6 @@ pub async fn setup_runtime_components(
 
     let claim: Claim = config.keypair.clone().into();
     let miner_election_handle = setup_miner_election_module(
-        &config,
         events_tx.clone(),
         miner_election_events_rx,
         state_read_handle.clone(),
@@ -376,7 +375,6 @@ fn setup_dkg_module(
 }
 
 fn setup_miner_election_module(
-    config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
     mut miner_election_events_rx: Receiver<Event>,
     db_read_handle: VrrbDbReadHandle,
