@@ -1,5 +1,5 @@
 use std::{collections::HashMap, net::SocketAddr};
-use block::Conflict;
+use block::{Conflict, Block};
 use ethereum_types::U256;
 use primitives::{
     Address,
@@ -8,7 +8,6 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
-    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
@@ -50,7 +49,7 @@ pub struct PeerData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SyncPeerData {
-    pub address: String,
+    pub address: SocketAddr,
     pub raptor_udp_port: u16,
     pub quic_port: u16,
     pub node_type: NodeType,
@@ -185,6 +184,7 @@ pub enum Event {
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
     ElectedQuorum(Quorum),
+    MinedBlock(Block),
     // May want to just use the ConflictList & `BlockHeader` types 
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),

@@ -16,7 +16,6 @@ use primitives::{
 use secp256k1::{ecdsa::Signature, Message, Secp256k1};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sha256::digest;
 use utils::hash_data;
 
 use crate::{
@@ -255,14 +254,14 @@ impl Txn {
     }
 
     pub fn build_payload(&self) -> String {
-        hash_data!(
+        format!("{:x}", hash_data!(
             self.sender_address.clone(),
             self.sender_public_key.clone(),
             self.receiver_address.clone(),
             self.token.clone(),
             self.amount.clone(),
             self.nonce.clone()
-        )
+        ))
     }
 
     fn from_byte_slice(data: ByteSlice) -> Self {

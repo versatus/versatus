@@ -1,4 +1,4 @@
-use primitives::Address;
+use primitives::{Address, PublicKey};
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Sha256, Digest};
 use ethereum_types::U256;
-use sha256::digest;
 
 use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
@@ -23,8 +22,8 @@ pub struct InvalidClaimError {
 // TODO: Add staking to the claim.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Claim {
-    pub public_key: String,
-    pub address: String,
+    pub public_key: PublicKey,
+    pub address: Address,
     pub hash: U256,
     pub eligible: bool,
 }
@@ -32,13 +31,13 @@ pub struct Claim {
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(public_key: String, address: String) -> Claim {
+    pub fn new(public_key: PublicKey, address: Address) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
         // sequentially hash the public key the correct number of times
         // for the given nonce.
         let mut hasher = Sha256::new();
-        hasher.update(public_key.clone());
+        hasher.update(public_key.to_string().clone());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         Claim {
@@ -166,7 +165,8 @@ impl Verifiable for Claim {
 /// Implements the Ownable trait on a claim
 // TODO: Add more methods that make sense for Ownable to Ownable
 impl Ownable for Claim {
-    fn get_pubkey(&self) -> String {
+    type Pubkey = PublicKey;
+    fn get_pubkey(&self) -> PublicKey {
         self.public_key.clone()
     }
 }
@@ -174,8 +174,8 @@ impl Ownable for Claim {
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
         Claim::new(
-           item.miner_kp.1.to_string(),
-           Address::new(item.miner_kp.1).to_string(),
+           item.miner_kp.1.clone(),
+           Address::new(item.miner_kp.1),
         )
     }
 }

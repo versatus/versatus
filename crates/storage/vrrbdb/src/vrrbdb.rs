@@ -6,7 +6,7 @@ use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
-    claim::Claim,
+    claim::{Claim, self},
     txn::Txn,
 };
 
@@ -27,14 +27,6 @@ pub struct VrrbDbConfig {
     pub transaction_store_path: Option<String>,
     pub event_store_path: Option<String>,
     pub claim_store_path: Option<String>,
-}
-
-impl VrrbDbConfig {
-    pub fn with_path(&mut self, path: PathBuf) -> Self {
-        self.path = path;
-
-        self.clone()
-    }
 }
 
 impl VrrbDbConfig {
@@ -94,8 +86,11 @@ impl VrrbDb {
         transaction_store: TransactionStore,
         claim_store: ClaimStore,
     ) -> Self {
-        &self.claim_store
-        &self.claim_store 
+        Self {
+            state_store,
+            transaction_store,
+            claim_store
+        }
     }
 
     /// Returns the current state store trie's root hash.

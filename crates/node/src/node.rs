@@ -11,7 +11,6 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
@@ -57,11 +56,11 @@ impl Node {
         let (events_tx, mut events_rx) = unbounded_channel::<Event>();
         let mut event_router = Self::setup_event_routing_system();
 
-        let mempool_events_rx = event_router.subscribe(&Topic::Storage)?;
-        let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage)?;
-        let network_events_rx = event_router.subscribe(&Topic::Network)?;
-        let controller_events_rx = event_router.subscribe(&Topic::Network)?;
-        let miner_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let mempool_events_rx = event_router.subscribe();
+        let vrrbdb_events_rx = event_router.subscribe();
+        let network_events_rx = event_router.subscribe();
+        let controller_events_rx = event_router.subscribe();
+        let miner_events_rx = event_router.subscribe();
 
         let farmer_events_rx = event_router.subscribe();
         let harvester_events_rx = event_router.subscribe();
@@ -112,7 +111,6 @@ impl Node {
             mempool_handle,
             jsonrpc_server_handle,
             gossip_handle,
-            broadcast_controller_handle,
             dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,

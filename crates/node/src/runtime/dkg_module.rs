@@ -1,7 +1,5 @@
 use std::{
-    hash::Hash,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
+    net::SocketAddr,
     thread,
     thread::sleep,
     time::Duration,
@@ -11,14 +9,11 @@ use async_trait::async_trait;
 use crossbeam_channel::{select, unbounded};
 use dkg_engine::{
     dkg::DkgGenerator,
-    types::{config::ThresholdConfig, DkgEngine, DkgError, DkgResult},
+    types::{config::ThresholdConfig, DkgEngine, DkgResult},
 };
-use events::{DirectedEvent, Event, SyncPeerData, Topic};
-use hbbft::{crypto::PublicKey, sync_key_gen::Part};
-use kademlia_dht::{Key, Node, NodeData};
-use laminar::{Config, ErrorKind, Packet, Socket, SocketEvent};
-use lr_trie::ReadHandleFactory;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
+use events::{Event, SyncPeerData, Topic};
+use hbbft::crypto::PublicKey;
+use laminar::{Config, Packet, Socket, SocketEvent};
 use primitives::{
     NodeIdx,
     NodeType,
@@ -34,7 +29,7 @@ use primitives::{
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
 
 use crate::{result::Result, NodeError};
@@ -55,7 +50,7 @@ pub struct DkgModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
 }
 
 impl DkgModule {
@@ -67,7 +62,7 @@ impl DkgModule {
         rendezvous_local_addr: SocketAddr,
         rendezvous_server_addr: SocketAddr,
         quic_port: u16,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> Result<DkgModule> {
         let engine = DkgEngine::new(
             node_idx,
@@ -120,8 +115,8 @@ impl DkgModule {
     #[cfg(test)]
     pub fn make_engine(
         dkg_engine: DkgEngine,
-        events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+        events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     ) -> Self {
         let mut socket = Socket::bind_with_config(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
@@ -190,7 +185,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send((Topic::Network, Event::SyncPeers(peers)));
+                                                .send(Event::SyncPeers(peers));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -362,7 +357,6 @@ pub enum RendezvousResponse {
 }
 
 
->>>>>>> d47861a (Feat change claimpointers to xor (#205))
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {
@@ -510,31 +504,21 @@ impl Handler<Event> for DkgModule {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        borrow::{Borrow, BorrowMut},
-        env,
-        net::{IpAddr, Ipv4Addr},
-        pin::Pin,
-        sync::{Arc, Mutex},
-        task::{Context, Poll},
-        thread,
-        time::Duration,
-    };
+    use std::net::{IpAddr, Ipv4Addr};
 
     use dkg_engine::test_utils;
-    use events::{DirectedEvent, Event, PeerData};
+    use events::Event;
     use hbbft::crypto::SecretKey;
     use primitives::{NodeType, QuorumType::Farmer};
-    use theater::ActorImpl;
-    use tokio::{spawn, sync::mpsc::UnboundedReceiver};
+    use theater::{Actor, ActorImpl};
 
     use super::*;
 
     #[tokio::test]
     async fn dkg_runtime_module_starts_and_stops() {
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -569,9 +553,9 @@ mod tests {
     #[tokio::test]
     async fn dkg_runtime_dkg_init() {
         let (broadcast_events_tx, mut broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -629,9 +613,9 @@ mod tests {
     #[tokio::test]
     async fn dkg_runtime_dkg_ack() {
         let (broadcast_events_tx, mut broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -699,9 +683,9 @@ mod tests {
     #[tokio::test]
     async fn dkg_runtime_handle_all_acks_generate_keyset() {
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_module =
             DkgModule::make_engine(dkg_engines.pop().unwrap(), events_tx, broadcast_events_tx);
 

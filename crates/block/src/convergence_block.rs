@@ -1,59 +1,27 @@
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt,
-};
-
-use bulldag::{
-    graph::BullDag,
-    index::Index,
-    vertex::{Direction, Vertex},
-};
 use primitives::{
     Epoch,
-    RawSignature,
     SecretKey as SecretKeyBytes,
-    GENESIS_EPOCH,
-    SECOND,
-    VALIDATOR_THRESHOLD,
 };
+
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-use reward::reward::{Reward, NUMBER_OF_BLOCKS_PER_EPOCH};
+use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
 use serde::{Deserialize, Serialize};
-use sha256::digest;
-use utils::{create_payload, hash_data};
 use vrrb_core::{
-    accountable::Accountable,
     claim::Claim,
-    keypair::KeyPair,
     txn::{TransactionDigest, Txn},
-    verifiable::Verifiable,
 };
-use vrrb_core::txn::TransactionDigest;
 
 #[cfg(mainnet)]
 use crate::genesis;
 use crate::{
-    genesis,
     header::BlockHeader,
-    invalid::{BlockError, InvalidBlockErrorReason},
     Block,
     BlockHash,
     Certificate,
-    ClaimHash,
-    Conflict,
-    ConflictList,
     ConsolidatedClaims,
     ConsolidatedTxns,
-    GenesisBlock,
-    ProposalBlock,
-    RefHash,
 };
 
 pub struct MineArgs<'a> {
@@ -73,7 +41,7 @@ pub struct MineArgs<'a> {
     pub next_epoch_adjustment: i128,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct ConvergenceBlock {
     pub header: BlockHeader,
