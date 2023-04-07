@@ -19,9 +19,9 @@ use tokio::sync::{
     mpsc::{UnboundedSender, UnboundedReceiver},
 };
 use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
+use quorum::quorum::Quorum;
 
 pub type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("io error: {0}")]
@@ -33,7 +33,6 @@ pub enum Error {
     #[error("{0}")]
     Other(String),
 }
-
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
@@ -71,7 +70,6 @@ pub struct Vote {
     pub txn: Txn,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
-
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,
 }
@@ -185,6 +183,7 @@ pub enum Event {
     MinerElection(HeaderBytes),
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
+    ElectedQuorum(Quorum),
     // May want to just use the ConflictList & `BlockHeader` types 
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),

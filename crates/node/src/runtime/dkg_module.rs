@@ -331,6 +331,7 @@ impl DkgModule {
     }
 }
 
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Data {
     Request(RendezvousRequest),

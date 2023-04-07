@@ -32,15 +32,15 @@ use secp256k1::{
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use tokio::task::JoinHandle;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
     accountable::Accountable,
     claim::Claim,
     keypair::KeyPair,
-    txn::{TransactionDigest, Txn},
+    txn::{Txn, TransactionDigest},
     verifiable::Verifiable,
 };
+use tokio::task::JoinHandle;
 
 #[cfg(mainnet)]
 use crate::genesis;

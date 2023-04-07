@@ -1,11 +1,12 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{hash_map::DefaultHasher, BTreeMap, HashMap},
     error::Error,
     fmt::Debug,
+    hash::{Hash, Hasher},
 };
 
 use async_trait::async_trait;
-use block::{header::BlockHeader, Conflict, ConflictList, RefHash, ResolvedConflicts};
+use block::{header::BlockHeader, Conflict, ConflictList, RefHash, ResolvedConflicts, invalid::BlockError};
 use ethereum_types::U256;
 use events::{ConflictBytes, Event};
 use primitives::NodeId;
@@ -15,6 +16,11 @@ use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use vrrb_core::claim::Claim;
+use sha2::{Sha256, Digest};
+use quorum::{
+    quorum::{InvalidQuorum, Quorum}, 
+    election::Election
+};
 
 pub type Seed = u64;
 
@@ -65,7 +71,7 @@ impl ElectionModule<MinerElection, MinerElectionResult> {
             election_type: MinerElection,
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("State module"),
+            label: String::from("Election module"),
             db_read_handle: config.db_read_handle,
             local_claim: config.local_claim,
             outcome: None,
@@ -86,7 +92,7 @@ impl ElectionModule<QuorumElection, QuorumElectionResult> {
             election_type: QuorumElection,
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("State module"),
+            label: String::from("Election module"),
             db_read_handle: config.db_read_handle,
             local_claim: config.local_claim,
             outcome: None,
@@ -181,7 +187,22 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
 
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
-            //TODO: Implement
+            Event::QuorumElection(header_bytes) => {
+                let header_result: serde_json::Result<BlockHeader> = serde_json::from_slice(
+                    &header_bytes
+                );
+
+                if let Ok(header) = header_result {
+                    let claims = self.db_read_handle.claim_store_values();
+                    if let Ok(quorum) = elect_quorum(claims, header) {
+                        let _ = self.events_tx.send(
+                            Event::ElectedQuorum(quorum)
+                        );
+                    }
+                }
+
+            },
+
             _ => {},
         }
 
@@ -221,4 +242,26 @@ fn get_winner(
     }
 
     return first;
+}
+
+fn elect_quorum(
+    claims: HashMap<NodeId, Claim>,
+    header: BlockHeader,
+) -> Result<Quorum, InvalidQuorum> {
+    let last_block_height = header.block_height;
+    let seed = header.next_block_seed;
+
+    if let Ok(mut quorum) = Quorum::new(
+        seed, 
+        last_block_height 
+    ) {
+        let claim_vec: Vec<Claim> = claims.values()
+            .cloned()
+            .collect();
+        if let Ok(elected_quorum) = quorum.run_election(claim_vec) {
+            return Ok(elected_quorum.clone())
+        }
+    }
+
+    return Err(InvalidQuorum::InvalidSeedError())
 }

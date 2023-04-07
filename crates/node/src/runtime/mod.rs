@@ -31,7 +31,7 @@ use self::{
     },
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule,
+    state_module::StateModule
 };
 use crate::{
     EventBroadcastSender,
@@ -267,8 +267,7 @@ async fn setup_rpc_api_server(
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: Receiver<Event>,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-    let jsonrpc_server_config = JsonRpcServerConfig {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> { let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
         node_type: config.node_type,
         events_tx,
@@ -425,7 +424,7 @@ fn setup_quorum_election_module(
     let quorum_election_module_handle = tokio::spawn(async move {
         quorum_election_module_actor
             .start(&mut quorum_election_events_rx)
-            .await
+            .await 
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
