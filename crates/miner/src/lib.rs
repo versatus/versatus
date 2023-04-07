@@ -698,7 +698,7 @@ pub(crate) mod test_helpers {
                 .collect()
         };
 
-        miner.mine_genesis_block(claim_list, 1)
+        miner.mine_genesis_block(claim_list)
     }
 
     pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, Txn)> {
@@ -743,7 +743,7 @@ pub(crate) mod test_helpers {
             .map(|_| {
                 let (_, pk) = create_keypair();
                 let addr = create_address(&pk);
-                let claim = create_claim(&pk, &addr.to_string(), 1);
+                let claim = create_claim(&pk, &addr.to_string());
                 (claim.hash.clone(), claim)
             })
             .into_iter()
@@ -762,13 +762,13 @@ pub(crate) mod test_helpers {
         let nonce = 1;
 
         let claims = create_claims(n_claims).collect();
-        let hclaim = create_claim(&pk, &create_address(&pk).to_string(), 1);
+        let hclaim = create_claim(&pk, &create_address(&pk).to_string());
 
         let miner = create_miner();
 
         let prop_block =
             miner.build_proposal_block(
-                ref_hash.clone(), round, epoch, txns.clone(), claims, nonce
+                ref_hash.clone(), round, epoch, txns.clone(), claims
             );
 
         let total_txns_size = size_of_txn_list(&txns);
@@ -787,7 +787,7 @@ pub(crate) mod test_helpers {
     ) -> Option<ConvergenceBlock> {
         let (msk, mpk) = create_keypair();
         let maddr = create_address(&mpk).to_string();
-        let miner_claim = create_claim(&mpk, &maddr, 1);
+        let miner_claim = create_claim(&mpk, &maddr);
         let txns = create_txns(30).collect();
         let claims = create_claims(5).collect();
         let claim_list_hash = Some(hash_data!(claims));
@@ -856,7 +856,7 @@ pub(crate) mod test_helpers {
     ) -> Option<ConvergenceBlock> {
         let (msk, mpk) = create_keypair();
         let maddr = create_address(&mpk).to_string();
-        let miner_claim = create_claim(&mpk, &maddr, 1);
+        let miner_claim = create_claim(&mpk, &maddr);
 
         let txns = create_txns(30).collect();
         let claims = create_claims(5).collect();
