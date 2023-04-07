@@ -1,13 +1,13 @@
-use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
 /// permissionless Proof of Claim Miner Election algorithm
 use serde_json;
-use sha2::{Digest, Sha256};
+use sha2::{Sha256, Digest};
+use ethereum_types::U256;
 
-use crate::{keypair::Keypair, nonceable::Nonceable, ownable::Ownable, verifiable::Verifiable};
+use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
@@ -25,30 +25,25 @@ pub struct Claim {
     pub public_key: String,
     pub address: String,
     pub hash: U256,
-    pub nonce: u128,
     pub eligible: bool,
 }
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
     // TODO: Default nonce to 0
-    pub fn new(public_key: String, address: String, claim_nonce: u128) -> Claim {
+    pub fn new(public_key: String, address: String) -> Claim {
         // Calculate the number of times the pubkey should be hashed to generate the
         // claim hash
         // sequentially hash the public key the correct number of times
         // for the given nonce.
         let mut hasher = Sha256::new();
-        (0..claim_nonce).for_each(|_| {
-            hasher.update(public_key.clone());
-        });
-
+        hasher.update(public_key.clone());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         Claim {
             public_key,
             address,
             hash,
-            nonce: claim_nonce,
             eligible: true,
         }
     }
@@ -140,7 +135,6 @@ impl Claim {
             "pubkey".to_string(),
             "address".to_string(),
             "hash".to_string(),
-            "nonce".to_string(),
             "eligible".to_string(),
         ]
     }
@@ -178,9 +172,8 @@ impl Ownable for Claim {
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
         Claim::new(
-            item.miner_kp.1.to_string(),
-            Address::new(item.miner_kp.1).to_string(),
-            0,
+           item.miner_kp.1.to_string(),
+           Address::new(item.miner_kp.1).to_string(),
         )
     }
 }

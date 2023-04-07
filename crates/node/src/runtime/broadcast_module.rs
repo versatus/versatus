@@ -195,7 +195,6 @@ impl Handler<Event> for BroadcastModule {
                     let mut raptor_addr = addr.clone();
                     raptor_addr.set_port(peer.raptor_udp_port);
                     raptor_peer_list.push(raptor_addr);
-                    
                 }
                 self.broadcast_engine.add_raptor_peers(raptor_peer_list);
                 self.broadcast_engine.add_peer_connection(quic_addresses);

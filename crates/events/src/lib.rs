@@ -1,12 +1,10 @@
 use std::{collections::HashMap, net::SocketAddr};
-
 use block::Conflict;
 use ethereum_types::U256;
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
-    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
@@ -182,10 +180,13 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
+    // May want to just use the `BlockHeader` struct to reduce 
+    // the overhead of deserializing
     MinerElection(HeaderBytes),
-    // Should we make this the ClaimHash instead of the NodeId
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
+    // May want to just use the ConflictList & `BlockHeader` types 
+    // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),
     ResolvedConflict(Conflict),
     EmptyPeerSync,
