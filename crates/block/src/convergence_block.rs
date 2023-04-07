@@ -32,7 +32,7 @@ use vrrb_core::{
     accountable::Accountable,
     claim::Claim,
     keypair::KeyPair,
-    txn::Txn,
+    txn::{TransactionDigest, Txn},
     verifiable::Verifiable,
 };
 
@@ -53,7 +53,6 @@ use crate::{
     GenesisBlock,
     ProposalBlock,
     RefHash,
-    TxnId,
 };
 
 pub struct MineArgs<'a> {
@@ -88,7 +87,7 @@ impl ConvergenceBlock {
         self.certificate = Some(cert);
     }
 
-    pub fn txn_id_set(&self) -> LinkedHashSet<&TxnId> {
+    pub fn txn_id_set(&self) -> LinkedHashSet<&TransactionDigest> {
         self.txns.iter().flat_map(|(_, set)| set).collect()
     }
 }

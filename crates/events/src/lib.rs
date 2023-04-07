@@ -1,26 +1,26 @@
 use std::{collections::HashMap, net::SocketAddr};
 
-use block::convergence_block::ConvergenceBlock;
+use block::Conflict;
+use ethereum_types::U256;
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
+    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
-    TxHashString,
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
-    mpsc::{UnboundedReceiver, UnboundedSender},
+    mpsc::{UnboundedSender, UnboundedReceiver},
 };
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -39,6 +39,9 @@ pub enum Error {
 pub type Subscriber = UnboundedSender<Event>;
 pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
+pub type BlockBytes = Vec<u8>;
+pub type HeaderBytes = Vec<u8>;
+pub type ConflictBytes = Vec<u8>;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
@@ -70,11 +73,10 @@ pub struct Vote {
     pub txn: Txn,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
+
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,
 }
-
-pub type SerializedConvergenceBlock = ByteVec;
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct BlockVote {
@@ -84,7 +86,11 @@ pub struct BlockVote {
     pub convergence_block: SerializedConvergenceBlock,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
+    // May want to serialize this as a vector of bytes
+    pub execution_result: Option<String>,
 }
+
+pub type SerializedConvergenceBlock = ByteVec;
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct VoteReceipt {
@@ -131,8 +137,6 @@ pub enum Event {
     SlashClaims(Vec<String>),
     CheckAbandoned,
     SyncPeers(Vec<SyncPeerData>),
-    EmptyPeerSync,
-    PeerSyncFailed(Vec<SocketAddr>),
     PeerRequestedStateSync(PeerData),
 
     //Event to tell Farmer node to sign the Transaction
@@ -178,6 +182,14 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
+    MinerElection(HeaderBytes),
+    // Should we make this the ClaimHash instead of the NodeId
+    ElectedMiner((U256, Claim)),
+    QuorumElection(HeaderBytes),
+    ConflictResolution(ConflictBytes, HeaderBytes),
+    ResolvedConflict(Conflict),
+    EmptyPeerSync,
+    PeerSyncFailed(Vec<SocketAddr>),
 }
 
 impl From<&theater::Message> for Event {

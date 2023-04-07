@@ -1,15 +1,18 @@
 use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use lr_trie::H256;
-use primitives::Address;
+use primitives::{Address, NodeId};
 use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
+    claim::Claim,
     txn::Txn,
 };
 
 use crate::{
+    ClaimStore,
+    ClaimStoreReadHandleFactory,
     StateStore,
     StateStoreReadHandleFactory,
     TransactionStore,
@@ -23,6 +26,7 @@ pub struct VrrbDbConfig {
     pub state_store_path: Option<String>,
     pub transaction_store_path: Option<String>,
     pub event_store_path: Option<String>,
+    pub claim_store_path: Option<String>,
 }
 
 impl VrrbDbConfig {
@@ -44,6 +48,7 @@ impl Default for VrrbDbConfig {
             state_store_path: None,
             transaction_store_path: None,
             event_store_path: None,
+            claim_store_path: None,
         }
     }
 }
@@ -52,27 +57,39 @@ impl Default for VrrbDbConfig {
 pub struct VrrbDb {
     state_store: StateStore,
     transaction_store: TransactionStore,
+    claim_store: ClaimStore,
 }
 
 impl VrrbDb {
     pub fn new(config: VrrbDbConfig) -> Self {
         let state_store = StateStore::new(&config.path);
         let transaction_store = TransactionStore::new(&config.path);
+        let claim_store = ClaimStore::new(&config.path);
 
         Self {
             state_store,
             transaction_store,
+            claim_store,
         }
     }
 
     pub fn read_handle(&self) -> VrrbDbReadHandle {
-        VrrbDbReadHandle::new(self.state_store.factory(), self.transaction_store_factory())
+        VrrbDbReadHandle::new(
+            self.state_store.factory(),
+            self.transaction_store_factory(),
+            self.claim_store_factory(),
+        )
     }
 
-    pub fn new_with_stores(state_store: StateStore, transaction_store: TransactionStore) -> Self {
+    pub fn new_with_stores(
+        state_store: StateStore,
+        transaction_store: TransactionStore,
+        claim_store: ClaimStore,
+    ) -> Self {
         Self {
             state_store,
             transaction_store,
+            claim_store,
         }
     }
 
@@ -82,6 +99,10 @@ impl VrrbDb {
 
     pub fn transaction_store(&self) -> &TransactionStore {
         &self.transaction_store
+    }
+
+    pub fn claim_store(&self) -> &ClaimStore {
+        &self.claim_store
     }
 
     /// Returns the current state store trie's root hash.
@@ -94,6 +115,11 @@ impl VrrbDb {
         self.transaction_store.root_hash()
     }
 
+    /// Returns the claim store trie's root hash.
+    pub fn claims_root_hash(&self) -> Option<H256> {
+        self.claim_store.root_hash()
+    }
+
     /// Produces a reader factory that can be used to generate read handles into
     /// the state trie.
     pub fn state_store_factory(&self) -> StateStoreReadHandleFactory {
@@ -104,6 +130,12 @@ impl VrrbDb {
     /// the the transaction trie.
     pub fn transaction_store_factory(&self) -> TransactionStoreReadHandleFactory {
         self.transaction_store.factory()
+    }
+
+    /// Produces a reader factory that can be used to generate read_handles into
+    /// the claim trie
+    pub fn claim_store_factory(&self) -> ClaimStoreReadHandleFactory {
+        self.claim_store.factory()
     }
 
     /// Inserts an account to current state tree.
@@ -139,7 +171,7 @@ impl VrrbDb {
         self.transaction_store.insert(txn)
     }
 
-    /// Adds multiplpe accounts to current state tree. Does not check if
+    /// Adds multiplpe transactions to current state tree. Does not check if
     /// accounts involved in the transaction actually exist.
     pub fn extend_transactions_unchecked(&mut self, transactions: Vec<Txn>) {
         self.transaction_store.extend(transactions);
@@ -151,10 +183,30 @@ impl VrrbDb {
         self.transaction_store.insert(txn)
     }
 
-    /// Adds multiplpe accounts to current state tree. Does not check if
-    /// accounts involved in the transaction actually exist.
+    /// Adds multiplpe transactions to current transaction tree. Does not check
+    /// if accounts involved in the transaction actually exist.
     pub fn extend_transactions(&mut self, transactions: Vec<Txn>) {
         self.transaction_store.extend(transactions);
+    }
+
+    /// Inserts a confirmed claim to the current claim tree.
+    pub fn insert_claim_unchecked(&mut self, node_id: NodeId, claim: Claim) -> Result<()> {
+        self.claim_store.insert(node_id, claim)
+    }
+
+    /// Adds multiple claims to the current claim tree.  
+    pub fn extend_claims_unchecked(&mut self, claims: Vec<(NodeId, Claim)>) {
+        self.claim_store.extend(claims)
+    }
+
+    /// Inserts a confirmed claim into the claim tree.
+    pub fn insert_claim(&mut self, node_id: NodeId, claim: Claim) -> Result<()> {
+        self.claim_store.insert(node_id, claim)
+    }
+
+    /// Inserts multiple claims into the current claim trie
+    pub fn extend_claims(&mut self, claims: Vec<(NodeId, Claim)>) {
+        self.claim_store.extend(claims)
     }
 }
 
@@ -163,6 +215,7 @@ impl Clone for VrrbDb {
         Self {
             state_store: self.state_store.clone(),
             transaction_store: self.transaction_store.clone(),
+            claim_store: self.claim_store.clone(),
         }
     }
 }
@@ -177,6 +230,7 @@ impl Display for VrrbDb {
             .into_iter()
             .map(|(digest, txn)| (digest.to_string(), txn))
             .collect::<HashMap<String, Txn>>();
+        let claim_entries = self.claim_store_factory().handle().entries();
 
         let out = json!({
             "state": {
@@ -186,6 +240,10 @@ impl Display for VrrbDb {
             "transactions": {
                 "count": transaction_entries.len(),
                 "entries": transaction_entries,
+            },
+            "claims": {
+                "count": claim_entries.len(),
+                "entries": claim_entries,
             },
         });
 

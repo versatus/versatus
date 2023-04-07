@@ -11,7 +11,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    farmer_harvester_module::QuorumMember,
+    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
@@ -41,6 +41,8 @@ pub struct Node {
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
+    miner_election_handle: Option<JoinHandle<Result<()>>>,
+    quorum_election_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -68,6 +70,8 @@ impl Node {
         let reputation_events_rx = event_router.subscribe();
         let jsonrpc_events_rx = event_router.subscribe();
         let dkg_events_rx = event_router.subscribe();
+        let miner_election_events_rx = event_router.subscribe();
+        let quorum_election_events_rx = event_router.subscribe();
 
         let (
             updated_config,
@@ -77,6 +81,8 @@ impl Node {
             jsonrpc_server_handle,
             miner_handle,
             dkg_handle,
+            miner_election_handle,
+            quorum_election_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -87,6 +93,8 @@ impl Node {
             miner_events_rx,
             jsonrpc_events_rx,
             dkg_events_rx,
+            miner_election_events_rx,
+            quorum_election_events_rx,
         )
         .await?;
 
@@ -110,6 +118,8 @@ impl Node {
             events_tx,
             miner_handle,
             keypair,
+            miner_election_handle,
+            quorum_election_handle,
         })
     }
 
@@ -216,7 +226,13 @@ impl Node {
     }
 
     fn setup_event_routing_system() -> EventRouter {
-        let mut event_router = EventRouter::default();
+        let mut event_router = EventRouter::new(None);
+        event_router.add_topic(Topic::Control, Some(1));
+        event_router.add_topic(Topic::State, Some(1));
+        event_router.add_topic(Topic::Network, Some(100));
+        event_router.add_topic(Topic::Consensus, Some(100));
+        event_router.add_topic(Topic::Storage, Some(100));
+        event_router.add_topic(Topic::Throttle, Some(100));
 
         event_router
     }

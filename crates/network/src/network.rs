@@ -382,7 +382,6 @@ impl BroadcastEngine {
         self.endpoint.0.local_addr()
     }
 
-    #[telemetry::instrument(name = "get_address_for_packet_shards")]
     fn get_address_for_packet_shards(
         &self,
         packet_index: usize,

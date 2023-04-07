@@ -122,7 +122,7 @@ impl StateStore {
         failed_inserts
     }
 
-    /// Retain returns new StateDb with witch all Accounts that fulfill `filter`
+    /// Retain returns new StateDb with which all Accounts that fulfill `filter`
     /// cloned to it.
     pub fn retain<F>(&self, _filter: F) -> StateStore
     where

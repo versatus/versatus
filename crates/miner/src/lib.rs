@@ -17,7 +17,7 @@ pub mod v2 {
 mod tests {
     use std::{collections::HashMap, str::FromStr};
 
-    use block::{header::BlockHeader, Block, ConvergenceBlock};
+    use block::{TxnList, header::BlockHeader, Block, ConvergenceBlock};
     use bulldag::{graph::BullDag, vertex::Vertex};
     use primitives::{PublicKey, Signature};
     use reward::reward::Reward;
@@ -28,7 +28,8 @@ mod tests {
     };
     use sha256::digest;
     use utils::{create_payload, hash_data};
-    use vrrb_core::txn::Txn;
+    use vrrb_core::txn::{Txn, TransactionDigest};
+    use ethereum_types::U256;
 
     use super::test_helpers::create_txns;
     use crate::test_helpers::{
@@ -173,7 +174,7 @@ mod tests {
                 .unwrap()
                 .clone();
 
-            let txns: HashMap<String, Txn> = create_txns(5).collect();
+            let txns: TxnList = create_txns(5).collect();
             prop1.txns.extend(txns.clone());
             prop2.txns.extend(txns.clone());
 
@@ -264,7 +265,7 @@ mod tests {
                 let mut resolved_conflicts = cb.txns.clone();
                 resolved_conflicts.retain(|_, set| {
                     let conflicts = txns.keys().cloned().collect();
-                    let intersection: LinkedHashSet<&String> =
+                    let intersection: LinkedHashSet<&TransactionDigest> =
                         set.intersection(&conflicts).collect();
                     intersection.len() > 0
                 });
@@ -294,7 +295,7 @@ mod tests {
                 .unwrap()
                 .clone();
 
-            let txns: HashMap<String, Txn> = create_txns(5).collect();
+            let txns: HashMap<TransactionDigest, Txn> = create_txns(5).collect();
             prop1.txns.extend(txns.clone());
 
             let proposals = vec![prop1.clone(), prop2.clone()];
@@ -631,7 +632,6 @@ mod tests {
 }
 
 pub(crate) mod test_helpers {
-    use std::mem;
 
     use block::{
         invalid::InvalidBlockErrorReason,
@@ -651,8 +651,9 @@ pub(crate) mod test_helpers {
         claim::Claim,
         helpers::size_of_txn_list,
         keypair::KeyPair,
-        txn::{NewTxnArgs, Token, Txn},
+        txn::{NewTxnArgs, TransactionDigest, Txn},
     };
+    use ethereum_types::U256;
 
     use crate::{MineArgs, Miner, MinerConfig};
 
@@ -700,7 +701,7 @@ pub(crate) mod test_helpers {
         miner.mine_genesis_block(claim_list, 1)
     }
 
-    pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (String, Txn)> {
+    pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, Txn)> {
         (0..n)
             .map(|n| {
                 let (sk, pk) = create_keypair();
@@ -730,12 +731,14 @@ pub(crate) mod test_helpers {
 
                 let txn_hash = hash_data!(&txn);
 
-                (txn_hash, txn)
+                let digest: TransactionDigest = txn_hash.as_bytes().into();
+
+                (digest, txn)
             })
             .into_iter()
     }
 
-    pub(crate) fn create_claims(n: usize) -> impl Iterator<Item = (String, Claim)> {
+    pub(crate) fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
         (0..n)
             .map(|_| {
                 let (_, pk) = create_keypair();
@@ -764,7 +767,9 @@ pub(crate) mod test_helpers {
         let miner = create_miner();
 
         let prop_block =
-            miner.build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims, nonce);
+            miner.build_proposal_block(
+                ref_hash.clone(), round, epoch, txns.clone(), claims, nonce
+            );
 
         let total_txns_size = size_of_txn_list(&txns);
 
@@ -792,8 +797,12 @@ pub(crate) mod test_helpers {
 
         let mut reward = {
             match last_block {
-                Block::Convergence { ref block } => block.header.next_block_reward.clone(),
-                Block::Genesis { ref block } => block.header.next_block_reward.clone(),
+                Block::Convergence { ref block } => { 
+                    block.header.next_block_reward.clone()
+                }
+                Block::Genesis { ref block } => { 
+                    block.header.next_block_reward.clone()
+                }
                 _ => return None,
             }
         };
@@ -855,8 +864,12 @@ pub(crate) mod test_helpers {
 
         let mut reward = {
             match last_block {
-                Block::Convergence { ref block } => block.header.next_block_reward.clone(),
-                Block::Genesis { ref block } => block.header.next_block_reward.clone(),
+                Block::Convergence { ref block } => {
+                    block.header.next_block_reward.clone()
+                }
+                Block::Genesis { ref block } => {
+                    block.header.next_block_reward.clone()
+                }
                 _ => return None,
             }
         };
