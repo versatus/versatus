@@ -33,7 +33,7 @@ pub struct NodeConfig {
 
     /// This is the address that the node will use to connect to the rendezvous
     /// server.
-    pub rendzevous_local_address: SocketAddr,
+    pub rendezvous_local_address: SocketAddr,
 
     /// This is the address that the node will use to connect to the rendezvous
     /// server.
@@ -132,8 +132,8 @@ impl Default for NodeConfig {
                 .join("db"),
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             udp_gossip_address: ipv4_localhost_with_random_port,
-            rendzevous_local_address: ipv4_localhost_with_random_port,
-            rendzevous_server_address: ipv4_localhost_with_random_port,
+            rendezvous_local_address: ipv4_localhost_with_random_port,
+            rendezvous_server_address: ipv4_localhost_with_random_port,
             node_type: NodeType::Full,
             bootstrap_node_addresses: vec![],
             http_api_address: ipv4_localhost_with_random_port,

@@ -35,7 +35,6 @@ use vrrb_core::{
     txn::{TransactionDigest, Txn},
     verifiable::Verifiable,
 };
-use vrrb_core::txn::TransactionDigest;
 
 #[cfg(mainnet)]
 use crate::genesis;

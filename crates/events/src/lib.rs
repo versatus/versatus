@@ -8,7 +8,6 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
-    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
@@ -20,6 +19,7 @@ use tokio::sync::{
     mpsc::{UnboundedSender, UnboundedReceiver},
 };
 use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
+use quorum::quorum::Quorum;
 
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
@@ -49,7 +49,7 @@ pub struct PeerData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SyncPeerData {
-    pub address: String,
+    pub address: SocketAddr,
     pub raptor_udp_port: u16,
     pub quic_port: u16,
     pub node_type: NodeType,
@@ -68,24 +68,8 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: Txn,
-    pub execution_result: Option<String>,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
-    // May want to serialize this as a vector of bytes
-    pub execution_result: Option<String>,
-}
-
-pub type SerializedConvergenceBlock = ByteVec;
-
-#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
-pub struct BlockVote {
-    pub harvester_id: Vec<u8>,
-    pub harvester_node_id: NodeIdx,
-    pub signature: RawSignature,
-    pub convergence_block: SerializedConvergenceBlock,
-    pub quorum_public_key: Vec<u8>,
-    pub quorum_threshold: usize,
-
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,
 }
@@ -199,6 +183,7 @@ pub enum Event {
     MinerElection(HeaderBytes),
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
+    ElectedQuorum(Quorum),
     // May want to just use the ConflictList & `BlockHeader` types 
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),

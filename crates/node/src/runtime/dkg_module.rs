@@ -190,7 +190,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send((Topic::Network, Event::SyncPeers(peers)));
+                                                .send(Event::SyncPeers(peers));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");
@@ -362,38 +362,6 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Data {
-    Request(RendezvousRequest),
-    Response(RendezvousResponse),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum RendezvousRequest {
-    Ping,
-    Peers(Vec<u8>),
-    Namespace(NodeTypeBytes, QuorumPublicKey),
-    RegisterPeer(
-        QuorumPublicKey,
-        NodeTypeBytes,
-        PKShareBytes,
-        RawSignature,
-        PayloadBytes,
-        SyncPeerData,
-    ),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum RendezvousResponse {
-    Pong,
-    RequestPeers(QuorumPublicKey),
-    Peers(Vec<SyncPeerData>),
-    PeerRegistered,
-    NamespaceRegistered,
-}
-
-
->>>>>>> d47861a (Feat change claimpointers to xor (#205))
 #[async_trait]
 impl Handler<Event> for DkgModule {
     fn id(&self) -> ActorId {

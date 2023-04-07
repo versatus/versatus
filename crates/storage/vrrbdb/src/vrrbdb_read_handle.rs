@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use primitives::{Address, NodeId};
 use vrrb_core::{
     account::Account,
-    claim::Claim,
     txn::{TransactionDigest, Txn},
     claim::Claim,
 };

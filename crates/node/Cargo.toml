@@ -60,7 +60,8 @@ dashmap ={workspace=true}
 timer = {workspace=true}
 laminar = {workspace=true}
 ethereum-types = { workspace = true }
-quorum={workspace=true}
+quorum={ workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

@@ -32,7 +32,6 @@ use secp256k1::{
 };
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use tokio::task::JoinHandle;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
     accountable::Accountable,
@@ -42,7 +41,6 @@ use vrrb_core::{
     verifiable::Verifiable,
 };
 use tokio::task::JoinHandle;
-use std::error::Error;
 
 #[cfg(mainnet)]
 use crate::genesis;

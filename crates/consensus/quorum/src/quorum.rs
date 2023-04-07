@@ -1,8 +1,11 @@
-use std::u32::MAX as u32MAX;
+use std::collections::BTreeMap;
 
 use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
+use serde::{Serialize, Deserialize};
+use ethereum_types::U256;
+use primitives::PublicKey;
 
 use crate::election::Election;
 
@@ -29,13 +32,12 @@ pub enum InvalidQuorum {
 }
 
 ///Quorum struct which is created and modified when an election is run
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct Quorum {
     pub quorum_seed: u64,
     pub master_pubkeys: Vec<String>,
     pub quorum_pk: String,
     pub election_block_height: u128,
-    pub keypair: KeyPair,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -92,33 +94,6 @@ impl Election for Quorum {
 
         Ok(elected_quorum)
     }
-
-    fn nonce_claims_and_new_seed(
-        &mut self,
-        claims: Vec<Claim>,
-        kp: KeyPair,
-    ) -> Result<Vec<Claim>, InvalidQuorum> {
-        let seed = match Quorum::generate_seed(
-            (
-                self.election_block_height,
-                self.quorum_pk.clone(),
-            ),
-            kp,
-        ) {
-            Ok(seed) => seed,
-            Err(e) => return Err(e),
-        };
-        self.quorum_seed = seed;
-
-        let mut nonce_up_claims = Vec::new();
-
-        for claim in claims {
-            let mut nonce_up_claim = claim;
-            // nonce_up_claim.nonce += 1;
-            nonce_up_claims.push(nonce_up_claim);
-        }
-        Ok(nonce_up_claims)
-    }
 }
 
 impl Quorum {
@@ -126,8 +101,7 @@ impl Quorum {
     /// block timestamp
     pub fn new(
         seed: u64,
-        height: u128,
-        kp: KeyPair,
+        height: u128
     ) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::check_validity(height) {
             Err(InvalidQuorum::InvalidChildBlockError())
@@ -137,7 +111,6 @@ impl Quorum {
                 master_pubkeys: Vec::new(),
                 quorum_pk: String::new(),
                 election_block_height: height,
-                keypair: kp,
             })
         }
     }
@@ -174,23 +147,22 @@ impl Quorum {
 
         let num_claims = ((claims.len() as f32) * 0.51).ceil() as usize;
 
-        let mut claim_tuples: Vec<(u128, &String)> = Vec::new();
+        let election_results: BTreeMap<U256, Claim> = claims.iter()
+            .map(|claim| {
+                (claim.get_election_result(self.quorum_seed.clone()),
+                 claim.clone()
+                )
+            }).collect();
 
-        for x in 0..claims.len() {
-            if let Some(pointer) = claims[x].get_pointer(self.quorum_seed as u128) {
-                claim_tuples.push((pointer, &claims[x].public_key));
-            }
-        }
-
-        if claim_tuples.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
+        if election_results.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
         }
 
-        claim_tuples.sort_by_key(|claim_tuple| claim_tuple.0);
-
-        let pubkeys: Vec<String> = claim_tuples
-            .into_iter()
-            .map(|claim_tuple| claim_tuple.1.clone())
+        let pubkeys: Vec<String> = election_results 
+            .iter()
+            .map(|(_, claim)| {
+                claim.public_key.clone()
+            })
             .take(num_claims)
             .collect();
 

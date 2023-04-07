@@ -31,7 +31,7 @@ use self::{
     },
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule, election_module::{ElectionModuleConfig, ElectionModule, QuorumElection, QuorumElectionResult, ConflictResolutionResult, ConflictResolution},
+    state_module::StateModule
 };
 use crate::{
     EventBroadcastSender,
@@ -52,7 +52,6 @@ pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
-pub mod election_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -353,8 +352,8 @@ fn setup_dkg_module(
             /* Need to be decided either will be preconfigured or decided
              * by Bootstrap Node */
         },
-        config.rendzevous_local_address,
-        config.rendzevous_local_address,
+        config.rendezvous_local_address,
+        config.rendezvous_local_address,
         config.udp_gossip_address.port(),
         events_tx,
     );
@@ -426,35 +425,6 @@ fn setup_quorum_election_module(
         quorum_election_module_actor
             .start(&mut quorum_election_events_rx)
             .await 
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-
-    return Ok(Some(quorum_election_module_handle));
-}
-
-fn setup_conflict_resolution_module(
-    config: &NodeConfig,
-    events_tx: UnboundedSender<DirectedEvent>,
-    mut conflict_resolution_events_rx: Receiver<Event>,
-    db_read_handle: VrrbDbReadHandle,
-    local_claim: Claim,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module_config = ElectionModuleConfig {
-        db_read_handle,
-        events_tx,
-        local_claim,
-    };
-    
-    let module: ElectionModule<ConflictResolution, ConflictResolutionResult> = {
-        ElectionModule::new(ElectionModuleConfig)
-    };
-
-    let mut conflict_resolution_module_actor = ActorImpl::new(module);
-    let conflict_resolution_module_handle = tokio::spawn(async move {
-        conflict_resolution_module_actor
-            .start(&mut conflict_resolution_events_rx)
-            .await 
->>>>>>> 3845611 (Return type in functions where Txn ID is used,now is changed to Transaction Digest,Added Quorum Election to  Election module)
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
