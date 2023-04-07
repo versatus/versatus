@@ -285,7 +285,9 @@ impl Miner {
             signature,
         }
     }
-
+    
+    /// This method has been deprecated and will be removed soon
+    #[allow(path_statements)]
     #[deprecated(note = "Building proposal blocks will be done in Harvester")]
     pub fn build_proposal_block(
         &self,

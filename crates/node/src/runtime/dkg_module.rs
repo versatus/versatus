@@ -185,7 +185,7 @@ impl DkgModule {
                                         RendezvousResponse::Peers(peers) => {
                                             let _ = self
                                                 .broadcast_events_tx
-                                                .send((Topic::Network, Event::SyncPeers(peers)));
+                                                .send(Event::SyncPeers(peers));
                                         },
                                         RendezvousResponse::NamespaceRegistered => {
                                             info!("Namespace Registered");

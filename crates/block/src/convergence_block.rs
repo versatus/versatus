@@ -12,7 +12,6 @@ use vrrb_core::{
     claim::Claim,
     txn::{TransactionDigest, Txn},
 };
-use vrrb_core::txn::TransactionDigest;
 
 #[cfg(mainnet)]
 use crate::genesis;

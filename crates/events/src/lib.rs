@@ -8,7 +8,6 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
-    NodeId,
     QuorumPublicKey,
     QuorumType,
     RawSignature,
@@ -50,7 +49,7 @@ pub struct PeerData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SyncPeerData {
-    pub address: String,
+    pub address: SocketAddr,
     pub raptor_udp_port: u16,
     pub quic_port: u16,
     pub node_type: NodeType,
