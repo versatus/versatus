@@ -24,11 +24,11 @@ mod tests {
     fn not_enough_claims() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 
-        (0..3).for_each(|_| {
+        (0..3).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().serialize().to_vec();
             let claim: Claim =
-                Claim::new(hex::encode(public_key), TEST_ADDR.to_string());
+                Claim::new(hex::encode(public_key), TEST_ADDR.to_string(), i as u128);
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -58,10 +58,10 @@ mod tests {
     fn invalid_seed_block_height() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 
-        (0..3).for_each(|_| {
+        (0..3).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
@@ -86,10 +86,10 @@ mod tests {
     fn invalid_seed_block_timestamp() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 
-        (0..3).for_each(|_| {
+        (0..3).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
@@ -112,10 +112,10 @@ mod tests {
     #[test]
     fn invalid_election_block_height() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
-        (0..3).for_each(|_| {
+        (0..3).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
 
             dummy_claims.push(claim);
         });
@@ -142,10 +142,10 @@ mod tests {
     #[test]
     fn invalid_election_block_timestamp() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
-        (0..20).for_each(|_| {
+        (0..20).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -170,10 +170,10 @@ mod tests {
     #[ignore = "temporarily disabled while the crate is refactored"]
     fn elect_quorum() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
-        (0..25).for_each(|_| {
+        (0..25).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string(), i as u128);
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -219,12 +219,13 @@ mod tests {
         let mut dummy_claims1: Vec<Claim> = Vec::new();
         let mut dummy_claims2: Vec<Claim> = Vec::new();
 
-        (0..3).for_each(|_| {
+        (0..3).for_each(|i| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key();
             let claim: Claim = Claim::new(
                 public_key.to_string(),
-                TEST_ADDR.to_string().clone()
+                TEST_ADDR.to_string().clone(),
+                i as u128,
             );
             //let boxed_claim = Box::new(claim);
 

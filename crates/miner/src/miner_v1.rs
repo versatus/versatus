@@ -266,17 +266,17 @@ impl Miner {
 
     /// Increases the nonce and calculates the new hash for all claims
     /// This only occurs in the event that no claims return valid pointer sums.
-//    pub fn nonce_up(&mut self) {
-//        self.claim.nonce_up();
-//        let mut new_claim_map = LinkedHashMap::new();
-//        self.claim_map.clone().iter().for_each(|(pk, claim)| {
-//            let mut new_claim = claim.clone();
-//            new_claim.nonce_up();
-//            new_claim_map.insert(pk.clone(), new_claim.clone());
-//        });
-//
-//        self.claim_map = new_claim_map;
-//    }
+    pub fn nonce_up(&mut self) {
+        self.claim.nonce_up();
+        let mut new_claim_map = LinkedHashMap::new();
+        self.claim_map.clone().iter().for_each(|(pk, claim)| {
+            let mut new_claim = claim.clone();
+            new_claim.nonce_up();
+            new_claim_map.insert(pk.clone(), new_claim.clone());
+        });
+
+        self.claim_map = new_claim_map;
+    }
 
     /// Checks if the transaction has been confirmed
     //TODO: Either eliminate and replace, each miner should retain only

@@ -119,10 +119,11 @@ impl Miner {
         self.public_key.clone()
     }
 
-    pub fn generate_claim(&self) -> Claim {
+    pub fn generate_claim(&self, nonce: u128) -> Claim {
         Claim::new(
             self.public_key().to_string(),
             self.address().to_string(),
+            nonce,
         )
     }
 
@@ -280,10 +281,11 @@ impl Miner {
         epoch: Epoch,
         txns: TxnList,
         claims: ClaimList,
+        nonce: u128,
         // from: Claim,
         // secret_key: SecretKeyBytes,
     ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
-        let from = self.generate_claim();
+        let from = self.generate_claim(nonce);
         let payload = create_payload!(round, epoch, txns, claims, from);
         let signature = self.secret_key.sign_ecdsa(payload).to_string();
         let hash = hash_data!(round, epoch, txns, claims, from, signature);
@@ -308,13 +310,13 @@ impl Miner {
         })
     }
 
-    pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
+    pub fn mine_genesis_block(&self, claim_list: ClaimList, nonce: u128) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
         let seed = 0;
         let round = 0;
         let epoch = 0;
 
-        let claim = self.generate_claim();
+        let claim = self.generate_claim(nonce);
 
         let header = BlockHeader::genesis(
             seed,
