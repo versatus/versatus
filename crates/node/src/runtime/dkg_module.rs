@@ -1,18 +1,18 @@
 use std::{
-    net::SocketAddr,
+    net::{SocketAddr, Ipv4Addr, IpAddr},
     thread,
     thread::sleep,
     time::Duration,
 };
 
 use async_trait::async_trait;
-use crossbeam_channel::{select, unbounded};
+use crossbeam_channel::{select, unbounded, Sender};
 use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgResult},
 };
-use events::{Event, SyncPeerData, Topic};
-use hbbft::crypto::PublicKey;
+use events::{Event, SyncPeerData};
+use hbbft::crypto::{PublicKey, SecretKeyShare};
 use laminar::{Config, Packet, Socket, SocketEvent};
 use primitives::{
     NodeIdx,
@@ -196,7 +196,6 @@ impl DkgModule {
 
                                         _ => {},
                                     },
-                                    _ => {},
                                 }
                             }
                         } else {
@@ -214,116 +213,198 @@ impl DkgModule {
 
     pub fn send_register_retrieve_peers_request(&self) {
         let sender = self.socket.get_packet_sender();
-        let (tx1, rx1) = unbounded();
 
+        let (tx1, rx1) = unbounded();
         let (tx2, rx2) = unbounded();
 
-        thread::spawn(move || loop {
-            sleep(Duration::from_secs(RETRIEVE_PEERS_REQUEST));
-            let _ = tx1.send(());
-        });
-
-        thread::spawn(move || loop {
-            sleep(Duration::from_secs(REGISTER_REQUEST));
-            let _ = tx2.send(());
-        });
+        // Spawning threads for retrieve peers request and register request
+        spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST), tx1);
+        spawn_interval_thread(Duration::from_secs(REGISTER_REQUEST), tx2);
 
         loop {
             loop {
                 select! {
-                                           recv(rx1)->_  =>     {
-                              let quorum_key = if self.dkg_engine.node_type == NodeType::Farmer {
-                                //After Validator completes its DKG ,it will circulate its Public Key
-                                self.dkg_engine.harvester_public_key
-                            } else {
-                                if let Some(key) = &self.dkg_engine.dkg_state.public_key_set {
-                                    Some(key.public_key())
-                                } else {
-                                    None
-                                }
-                            };
-
-                            if let Some(harvester_public_key) = quorum_key {
-                            if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Peers(
-                                        harvester_public_key.to_bytes().to_vec(),
-                                    ))){
-                                let _ = sender.send(Packet::reliable_ordered(
-                                    self.rendezvous_server_addr,
-                                    data,
-                                    None,
-                                ));
-                            }
-
-                            }
-                            },
-                                          recv(rx2) ->_ =>   {
-                match self.dkg_engine.dkg_state.public_key_set.clone() {
-                    Some(quorum_key) => {
-                                    // Sending a request to the rendezvous server to register the namespace
-                        if let Ok(data)= bincode::serialize(&Data::Request(RendezvousRequest::Namespace(
-                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                                quorum_key.public_key().to_bytes().to_vec(),))) {
-                                   let _ = sender.send(Packet::reliable_ordered(
-                                        self.rendezvous_server_addr,
-                                        data,
-                                        None,
-                                    ));
-                                    thread::sleep(Duration::from_secs(5));
-                                }
-
-
-                                if let Some(secret_key_share) = &self.dkg_engine.dkg_state.secret_key_share
-                                {
-                                    // Generating a random string of 15 characters as payload.
-                                    let message: String = rand::thread_rng()
-                                        .sample_iter(&Alphanumeric)
-                                        .take(15)
-                                        .map(char::from)
-                                        .collect();
-                                    let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
-                                        m
-                                    } else {
-                                        vec![]
-                                    };
-                                    let signature =
-                                        secret_key_share.sign(message.clone()).to_bytes().to_vec();
-                                    /// Sending the Register Peer Payload   to the rendezvous server.
-                                    let payload_result = bincode::serialize(&Data::Request(
-                                        RendezvousRequest::RegisterPeer(
-                                            quorum_key.public_key().to_bytes().to_vec(),
-                                            self.dkg_engine.node_type.to_string().as_bytes().to_vec(),
-                                            secret_key_share.public_key_share().to_bytes().to_vec(),
-                                            signature,
-                                            msg_bytes,
-                                            SyncPeerData {
-                                                address: self.rendezvous_local_addr,
-                                                raptor_udp_port: self.rendezvous_local_addr.port(),
-                                                quic_port: self.quic_port,
-                                                node_type: self.dkg_engine.node_type,
-                                            },
-                                        ),
-                                    ));
-                                    if let Ok(payload) = payload_result {
-                                        let _ = sender.send(Packet::reliable_ordered(
-                                            self.rendezvous_server_addr,
-                                            payload,
-                                            None,
-                                        ));
-                                    }
-                                }
-                            }
-                            None => {
-                                error!("Cannot proceed with registration since current node is not part of any quorum");
-                            }
-                        }
-
-                        break;
+                    recv(rx1) -> _ => {
+                        send_retrieve_peers_request(
+                            &sender, 
+                            self.rendezvous_server_addr, 
+                            &self.dkg_engine
+                        );
+                    },
+                    recv(rx2) -> _ => {
+                        send_register_request(
+                            &sender, 
+                            self.rendezvous_server_addr, 
+                            &self.dkg_engine, 
+                            self.rendezvous_local_addr, 
+                            self.quic_port
+                        );
                     },
                 }
             }
         }
     }
 }
+
+fn spawn_interval_thread(interval: Duration, tx: Sender<()>) {
+    thread::spawn(move || loop {
+        sleep(interval);
+        let _ = tx.send(());
+    });
+}
+
+fn send_retrieve_peers_request(
+    sender: &Sender<Packet>, 
+    rendezvous_server_addr: SocketAddr, 
+    dkg_engine: &DkgEngine
+) {
+    let quorum_key = if dkg_engine.node_type == NodeType::Farmer {
+        dkg_engine.harvester_public_key
+    } else {
+        if let Some(key) = &dkg_engine.dkg_state.public_key_set {
+            Some(key.public_key())
+        } else {
+            None
+        }
+    };
+
+    if let Some(harvester_public_key) = quorum_key {
+        if let Ok(data) = bincode::serialize(&Data::Request(RendezvousRequest::Peers(
+            harvester_public_key.to_bytes().to_vec(),
+        ))) {
+            let _ = sender.send(Packet::reliable_ordered(
+                rendezvous_server_addr,
+                data,
+                None,
+            ));
+        }
+    }
+}
+
+fn send_namespace_registration(
+    sender: &Sender<Packet>, 
+    rendezvous_server_addr: SocketAddr, 
+    dkg_engine: &DkgEngine, 
+    quorum_key: &PublicKey
+) {
+
+    if let Ok(data) = bincode::serialize(
+        &Data::Request(
+            RendezvousRequest::Namespace(
+                dkg_engine.node_type.to_string().as_bytes().to_vec(),
+                quorum_key.to_bytes().to_vec(),
+            )
+        )
+    ) {
+        let _ = sender.send(Packet::reliable_ordered(
+            rendezvous_server_addr,
+            data,
+            None,
+        ));
+        thread::sleep(Duration::from_secs(5));
+    }
+}
+
+fn generate_random_payload(
+    secret_key_share: &SecretKeyShare
+) -> (Vec<u8>, Vec<u8>) {
+
+    let message: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(15)
+        .map(char::from)
+        .collect();
+
+    let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
+        m
+    } else {
+        vec![]
+    };
+
+    let signature = secret_key_share.sign(
+        message.clone()
+    ).to_bytes().to_vec();
+
+    (msg_bytes, signature)
+}
+
+fn send_register_peer_payload(
+    sender: &Sender<Packet>, 
+    rendezvous_server_addr: SocketAddr, 
+    dkg_engine: &DkgEngine, 
+    secret_key_share: &SecretKeyShare, 
+    msg_bytes: Vec<u8>, signature: Vec<u8>, 
+    quorum_key: &PublicKey, 
+    rendezvous_local_addr: SocketAddr, 
+    quic_port: u16
+) {
+    let payload_result = bincode::serialize(&Data::Request(
+        RendezvousRequest::RegisterPeer(
+            quorum_key.to_bytes().to_vec(),
+            dkg_engine.node_type.to_string().as_bytes().to_vec(),
+            secret_key_share.public_key_share().to_bytes().to_vec(),
+            signature,
+            msg_bytes,
+            SyncPeerData {
+                address: rendezvous_local_addr,
+                raptor_udp_port: rendezvous_local_addr.port(),
+                quic_port,
+                node_type: dkg_engine.node_type,
+            },
+        ),
+    ));
+    if let Ok(payload) = payload_result {
+        let _ = sender.send(Packet::reliable_ordered(
+            rendezvous_server_addr,
+            payload,
+            None,
+        ));
+    }
+}
+
+fn send_register_request(
+    sender: &Sender<Packet>, 
+    rendezvous_server_addr: SocketAddr, 
+    dkg_engine: &DkgEngine, 
+    rendezvous_local_addr: SocketAddr, 
+    quic_port: u16
+) {
+    match dkg_engine.dkg_state.public_key_set.clone() {
+        Some(quorum_key) => {
+
+            send_namespace_registration(
+                sender, 
+                rendezvous_server_addr, 
+                dkg_engine, 
+                &quorum_key.public_key()
+            );
+
+            if let Some(secret_key_share) = 
+                &dkg_engine.dkg_state.secret_key_share 
+            {
+                let (msg_bytes, signature) = generate_random_payload(
+                    secret_key_share
+                );
+                send_register_peer_payload(
+                    sender, 
+                    rendezvous_server_addr, 
+                    dkg_engine, 
+                    secret_key_share, 
+                    msg_bytes, 
+                    signature, 
+                    &quorum_key.public_key(), 
+                    rendezvous_local_addr, 
+                    quic_port
+                );
+            }
+        }
+        None => {
+            error!("Cannot proceed with registration since current node is not part of any quorum");
+        }
+    }
+}
+
+
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
