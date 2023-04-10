@@ -37,6 +37,7 @@ pub struct Node {
     state_handle: Option<JoinHandle<Result<()>>>,
     mempool_handle: Option<JoinHandle<Result<()>>>,
     gossip_handle: Option<JoinHandle<Result<()>>>,
+    broadcast_controller_handle: Option<JoinHandle<(Result<()>, Result<()>)>>,
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,

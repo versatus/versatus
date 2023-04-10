@@ -314,6 +314,8 @@ async fn setup_gossip_network(
             .engine
             .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
             .await;
+
+        let raptor_handle = raptor_handle.map_err(|x| NodeError::Broadcast(x));
         (broadcast_handle, raptor_handle)
     });
 
