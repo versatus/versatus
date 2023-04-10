@@ -50,10 +50,6 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
-    // pub fn set_header(mut self, name: &str, value: &str) {
-    //     self.headers.insert(name, value.parse().unwrap());
-    // }
-
     pub async fn request(&self, method: Method, path: &str) -> RequestBuilder {
         let url = self.base_url.join(path).unwrap();
         self.client
@@ -98,8 +94,6 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        // let base_url = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        // 3444);
         let url = format!("{}{}", "http://", mock_server.address().to_string());
         let http_client = HttpClientBuilder::new(url)
             .unwrap()
@@ -108,8 +102,9 @@ mod tests {
 
         let response = http_client.get("/test").await.unwrap();
         assert_eq!(response.status(), 200);
-        // let body = response.text().await.unwrap();
-        // assert_eq!(body, json!({"message": "Hello, World!"}));
+        let body_str = response.text().await.unwrap();
+        let body_json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+        assert_eq!(body_json, json!({"message": "Hello, World!"}));
     }
 
     #[tokio::test]
@@ -131,8 +126,8 @@ mod tests {
             .post("/test", "{\"message\":\"Hello, World!\"}")
             .await
             .unwrap();
-        assert_eq!(response.status(), 200);
-        // let body = response.json::<serde_json::Value>().await.unwrap();
-        // assert_eq!(body, json!({"success": true}));
+        let body_str = response.text().await.unwrap();
+        let body_json: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+        assert_eq!(body_json, json!({"success": true}));
     }
 }
