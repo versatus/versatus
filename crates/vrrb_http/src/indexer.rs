@@ -93,7 +93,6 @@ mod tests {
             .unwrap()
             .body
             .to_vec();
-        // assert_eq!(request_body, expected_body.as_bytes());
     }
 
     #[tokio::test]
@@ -119,7 +118,7 @@ mod tests {
 
         let result = indexer_client.post_tx(&txn_record).await;
 
-        // assert!(result.is_err());
+        assert_eq!(result.unwrap(), 500);
 
         let requests = mock_server.received_requests().await.unwrap();
         assert_eq!(requests.len(), 1);
