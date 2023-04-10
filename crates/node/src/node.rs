@@ -11,10 +11,11 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState, farmer_module::QuorumMember,
+    RuntimeModuleState,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -42,6 +43,7 @@ pub struct Node {
     dkg_handle: Option<JoinHandle<Result<()>>>,
     miner_election_handle: Option<JoinHandle<Result<()>>>,
     quorum_election_handle: Option<JoinHandle<Result<()>>>,
+    indexer_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -71,6 +73,7 @@ impl Node {
         let dkg_events_rx = event_router.subscribe();
         let miner_election_events_rx = event_router.subscribe();
         let quorum_election_events_rx = event_router.subscribe();
+        let indexer_events_rx = event_router.subscribe();
 
         let (
             updated_config,
@@ -82,6 +85,7 @@ impl Node {
             dkg_handle,
             miner_election_handle,
             quorum_election_handle,
+            indexer_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -94,6 +98,7 @@ impl Node {
             dkg_events_rx,
             miner_election_events_rx,
             quorum_election_events_rx,
+            indexer_events_rx,
         )
         .await?;
 
@@ -119,6 +124,7 @@ impl Node {
             keypair,
             miner_election_handle,
             quorum_election_handle,
+            indexer_handle,
         })
     }
 
