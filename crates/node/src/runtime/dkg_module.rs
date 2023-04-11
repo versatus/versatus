@@ -184,19 +184,17 @@ impl DkgModule {
         );
 
         loop {
-            loop {
-                select! {
-                    recv(rx1) -> _ => {
-                        self.send_retrieve_peers_request(
-                            &sender 
-                        );
-                    },
-                    recv(rx2) -> _ => {
-                        self.send_register_request(
-                            &sender, 
-                        );
-                    },
-                }
+            select! {
+                recv(rx1) -> _ => {
+                    self.send_retrieve_peers_request(
+                        &sender 
+                    );
+                },
+                recv(rx2) -> _ => {
+                    self.send_register_request(
+                        &sender, 
+                    );
+                },
             }
         }
     }
