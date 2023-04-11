@@ -6,28 +6,21 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::{
-    header::BlockHeader,
-    invalid::BlockError,
-    Conflict,
-    ConflictList,
-    RefHash,
-    ResolvedConflicts,
-};
+use block::{header::BlockHeader, Conflict, ConflictList, RefHash, ResolvedConflicts, invalid::BlockError};
 use ethereum_types::U256;
 use events::{ConflictBytes, Event};
 use primitives::NodeId;
-use quorum::{
-    election::Election,
-    quorum::{InvalidQuorum, Quorum},
-};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use vrrb_core::claim::Claim;
+use sha2::{Sha256, Digest};
+use quorum::{
+    quorum::{InvalidQuorum, Quorum}, 
+    election::Election
+};
 
 pub type Seed = u64;
 
@@ -147,8 +140,9 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::MinerElection(header_bytes) => {
-                let header_result: serde_json::Result<BlockHeader> =
-                    serde_json::from_slice(&header_bytes);
+                let header_result: serde_json::Result<BlockHeader> = serde_json::from_slice(
+                    &header_bytes
+                );
                 if let Ok(header) = header_result {
                     let claims = self.db_read_handle.claim_store_values();
                     let mut election_results: BTreeMap<U256, Claim> =
@@ -194,15 +188,19 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::QuorumElection(header_bytes) => {
-                let header_result: serde_json::Result<BlockHeader> =
-                    serde_json::from_slice(&header_bytes);
+                let header_result: serde_json::Result<BlockHeader> = serde_json::from_slice(
+                    &header_bytes
+                );
 
                 if let Ok(header) = header_result {
                     let claims = self.db_read_handle.claim_store_values();
                     if let Ok(quorum) = elect_quorum(claims, header) {
-                        let _ = self.events_tx.send(Event::ElectedQuorum(quorum));
+                        let _ = self.events_tx.send(
+                            Event::ElectedQuorum(quorum)
+                        );
                     }
                 }
+
             },
             _ => {},
         }
@@ -211,25 +209,34 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
     }
 }
 
-fn elect_miner(claims: HashMap<NodeId, Claim>, block_seed: u64) -> BTreeMap<U256, Claim> {
+fn elect_miner(
+    claims: HashMap<NodeId, Claim>, 
+    block_seed: u64
+) -> BTreeMap<U256, Claim> {
     claims
         .iter()
         .filter(|(_, claim)| claim.eligible)
-        .map(|(nodeid, claim)| single_miner_results(claim, block_seed))
-        .collect()
+        .map(|(nodeid, claim)| {
+            single_miner_results(claim, block_seed)
+        }).collect()
 }
 
-fn single_miner_results(claim: &Claim, block_seed: u64) -> (U256, Claim) {
-    (claim.get_election_result(block_seed), claim.clone())
+fn single_miner_results(
+    claim: &Claim, 
+    block_seed: u64
+) -> (U256, Claim) {
+    (claim.get_election_result(block_seed), claim.clone()) 
 }
 
-fn get_winner(election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
+fn get_winner(
+    election_results: &mut BTreeMap<U256, Claim>
+) -> (U256, Claim) {
     let mut iter = election_results.iter();
-    let first: (U256, Claim);
+    let mut first: (U256, Claim);
     loop {
         if let Some((pointer_sum, claim)) = iter.next() {
             first = (pointer_sum.clone(), claim.clone());
-            break;
+            break
         }
     }
 
@@ -243,12 +250,17 @@ fn elect_quorum(
     let last_block_height = header.block_height;
     let seed = header.next_block_seed;
 
-    if let Ok(mut quorum) = Quorum::new(seed, last_block_height) {
-        let claim_vec: Vec<Claim> = claims.values().cloned().collect();
+    if let Ok(mut quorum) = Quorum::new(
+        seed, 
+        last_block_height 
+    ) {
+        let claim_vec: Vec<Claim> = claims.values()
+            .cloned()
+            .collect();
         if let Ok(elected_quorum) = quorum.run_election(claim_vec) {
-            return Ok(elected_quorum.clone());
+            return Ok(elected_quorum.clone())
         }
     }
 
-    return Err(InvalidQuorum::InvalidSeedError());
+    return Err(InvalidQuorum::InvalidSeedError())
 }
