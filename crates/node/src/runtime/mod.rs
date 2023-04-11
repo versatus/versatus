@@ -138,8 +138,7 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
-    let mut dag: Arc<RwLock<BullDag<Block, String>>>
-        = Arc::new(RwLock::new(BullDag::new()));
+    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_handle = setup_mining_module(
         &config,
@@ -191,7 +190,7 @@ async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
     mut network_events_rx: Receiver<Event>,
-    mut controller_events_rx: Receiver<Event>,
+    controller_events_rx: Receiver<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
@@ -346,7 +345,7 @@ fn setup_dkg_module(
     events_tx: UnboundedSender<Event>,
     mut dkg_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = dkg_module::DkgModule::new(
+    let module = dkg_module::DkgModule::new(
         0,
         config.node_type,
         config.keypair.validator_kp.0.clone(),

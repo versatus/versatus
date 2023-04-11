@@ -283,7 +283,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+    let (ctrl_tx, ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
     let vrrb_node = Node::start(&node_config, ctrl_rx)
         .await
