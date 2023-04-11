@@ -1,15 +1,13 @@
 use std::sync::{Arc, RwLock};
 
-use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock, GenesisBlock};
+use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock};
 use bulldag::{graph::{BullDag, GraphError}, vertex::Vertex};
-use theater::{ActorState, ActorLabel, ActorId, Handler};
-use async_trait::async_trait;
-use events::Event;
-use telemetry::info;
+use theater::{ActorState, ActorLabel, ActorId};
 
 use crate::EventBroadcastSender;
 
-pub type Edge = (Vertex<Block, String>, Vertex<Block, String>); pub type Edges = Vec<Edge>;
+pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
+pub type Edges = Vec<Edge>;
 pub type GraphResult<T> = Result<T, GraphError>;
 
 pub struct DagModule {
