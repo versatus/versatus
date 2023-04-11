@@ -137,7 +137,7 @@ impl DkgModule {
                 max_unestablished_connections: 50,
             },
         )
-        .unwrap();
+            .unwrap();
         Self {
             dkg_engine,
             quorum_type: Some(QuorumType::Farmer),
@@ -174,12 +174,12 @@ impl DkgModule {
 
         // Spawning threads for retrieve peers request and register request
         DkgModule::spawn_interval_thread(
-            Duration::from_secs(RETRIEVE_PEERS_REQUEST), 
+            Duration::from_secs(RETRIEVE_PEERS_REQUEST),
             tx1
         );
 
         DkgModule::spawn_interval_thread(
-            Duration::from_secs(REGISTER_REQUEST), 
+            Duration::from_secs(REGISTER_REQUEST),
             tx2
         );
 
@@ -187,12 +187,12 @@ impl DkgModule {
             select! {
                 recv(rx1) -> _ => {
                     self.send_retrieve_peers_request(
-                        &sender 
+                        &sender
                     );
                 },
                 recv(rx2) -> _ => {
                     self.send_register_request(
-                        &sender, 
+                        &sender,
                     );
                 },
             }
@@ -200,8 +200,8 @@ impl DkgModule {
     }
 
     fn process_rendezvous_event(
-        &self, 
-        event: &SocketEvent, 
+        &self,
+        event: &SocketEvent,
         sender: &Sender<Packet>
     ) {
         match event {
@@ -215,22 +215,22 @@ impl DkgModule {
     }
 
     fn process_packet(
-        &self, 
+        &self,
         packet: &Packet,
         sender: &Sender<Packet>
     ) {
         if packet.addr() == self.rendezvous_server_addr {
             if let Ok(payload_response) =
-                bincode::deserialize::<Data>(packet.payload()) {
-                    self.process_payload_response(
-                        &payload_response, sender, packet
-                    );
+            bincode::deserialize::<Data>(packet.payload()) {
+                self.process_payload_response(
+                    &payload_response, sender, packet
+                );
             }
         }
     }
 
     fn process_payload_response(
-        &self, 
+        &self,
         payload_response: &Data,
         sender: &Sender<Packet>,
         packet: &Packet,
@@ -246,8 +246,8 @@ impl DkgModule {
     }
 
     fn process_request(
-        &self, 
-        request: &RendezvousRequest, 
+        &self,
+        request: &RendezvousRequest,
         sender: &Sender<Packet>,
         packet: &Packet
     ) {
@@ -266,8 +266,8 @@ impl DkgModule {
     }
 
     fn process_response(
-        &self, 
-        response: &RendezvousResponse, 
+        &self,
+        response: &RendezvousResponse,
     ) {
         match response {
 
@@ -287,7 +287,7 @@ impl DkgModule {
 
     fn send_retrieve_peers_request(
         &self,
-        sender: &Sender<Packet>, 
+        sender: &Sender<Packet>,
     ) {
         let quorum_key = if self.dkg_engine.node_type == NodeType::Farmer {
             self.dkg_engine.harvester_public_key
@@ -298,7 +298,7 @@ impl DkgModule {
                 None
             }
         };
-    
+
         if let Some(harvester_public_key) = quorum_key {
             if let Ok(data) = bincode::serialize(
                 &Data::Request(
@@ -320,28 +320,28 @@ impl DkgModule {
 
     fn send_register_request(
         &self,
-        sender: &Sender<Packet>, 
+        sender: &Sender<Packet>,
     ) {
         match self.dkg_engine.dkg_state.public_key_set.clone() {
             Some(quorum_key) => {
-    
+
                 self.send_namespace_registration(
-                    sender, 
+                    sender,
                     &quorum_key.public_key()
                 );
-    
-                if let Some(secret_key_share) = 
-                    self.dkg_engine.dkg_state.secret_key_share.clone() 
+
+                if let Some(secret_key_share) =
+                self.dkg_engine.dkg_state.secret_key_share.clone()
                 {
                     let (msg_bytes, signature) = self.generate_random_payload(
                         &secret_key_share
                     );
                     self.send_register_peer_payload(
-                        sender, 
-                        &secret_key_share, 
-                        msg_bytes, 
-                        signature, 
-                        &quorum_key.public_key(), 
+                        sender,
+                        &secret_key_share,
+                        msg_bytes,
+                        signature,
+                        &quorum_key.public_key(),
                     );
                 }
             }
@@ -353,10 +353,10 @@ impl DkgModule {
 
     fn send_namespace_registration(
         &self,
-        sender: &Sender<Packet>, 
+        sender: &Sender<Packet>,
         quorum_key: &PublicKey
     ) {
-    
+
         if let Ok(data) = bincode::serialize(
             &Data::Request(
                 RendezvousRequest::Namespace(
@@ -376,11 +376,11 @@ impl DkgModule {
 
     fn send_register_peer_payload(
         &self,
-        sender: &Sender<Packet>, 
-        secret_key_share: &SecretKeyShare, 
-        msg_bytes: Vec<u8>, 
-        signature: Vec<u8>, 
-        quorum_key: &PublicKey, 
+        sender: &Sender<Packet>,
+        secret_key_share: &SecretKeyShare,
+        msg_bytes: Vec<u8>,
+        signature: Vec<u8>,
+        quorum_key: &PublicKey,
     ) {
         let payload_result = bincode::serialize(&Data::Request(
             RendezvousRequest::RegisterPeer(
@@ -409,23 +409,23 @@ impl DkgModule {
     fn generate_random_payload(
         &self, secret_key_share: &SecretKeyShare
     ) -> (Vec<u8>, Vec<u8>) {
-    
+
         let message: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(15)
             .map(char::from)
             .collect();
-    
+
         let msg_bytes = if let Ok(m) = hex::decode(message.clone()) {
             m
         } else {
             vec![]
         };
-    
+
         let signature = secret_key_share.sign(
             message.clone()
         ).to_bytes().to_vec();
-    
+
         (msg_bytes, signature)
     }
 
@@ -650,7 +650,7 @@ mod tests {
             9092,
             broadcast_events_tx,
         )
-        .unwrap();
+            .unwrap();
         let mut dkg_module = ActorImpl::new(dkg_module);
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
@@ -687,7 +687,7 @@ mod tests {
             9091,
             broadcast_events_tx,
         )
-        .unwrap();
+            .unwrap();
         dkg_module
             .dkg_engine
             .add_peer_public_key(1, sec_key.public_key());
@@ -747,7 +747,7 @@ mod tests {
             9092,
             broadcast_events_tx.clone(),
         )
-        .unwrap();
+            .unwrap();
 
         dkg_module
             .dkg_engine
