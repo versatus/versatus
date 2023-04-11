@@ -174,7 +174,7 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
-    let mut dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_handle = setup_mining_module(
         &config,
@@ -265,7 +265,7 @@ async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
     mut network_events_rx: Receiver<Event>,
-    mut controller_events_rx: Receiver<Event>,
+    controller_events_rx: Receiver<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     raptor_sender: Sender<RaptorBroadCastedData>,
 ) -> Result<(
@@ -425,7 +425,7 @@ fn setup_dkg_module(
     events_tx: UnboundedSender<Event>,
     mut dkg_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = dkg_module::DkgModule::new(
+    let module = dkg_module::DkgModule::new(
         0,
         config.node_type,
         config.keypair.validator_kp.0.clone(),
@@ -516,10 +516,10 @@ fn setup_farmer_module(
     config: &NodeConfig,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    mut events_tx: EventBroadcastSender,
+    events_tx: EventBroadcastSender,
     mut farmer_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = farmer_module::FarmerModule::new(
+    let module = farmer_module::FarmerModule::new(
         None,
         vec![],
         config.keypair.get_peer_id().into_bytes(),
@@ -543,11 +543,11 @@ fn setup_farmer_module(
 fn setup_harvester_module(
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    mut broadcast_events_tx: EventBroadcastSender,
-    mut events_rx: UnboundedReceiver<DirectedEvent>,
+    broadcast_events_tx: EventBroadcastSender,
+    events_rx: UnboundedReceiver<DirectedEvent>,
     mut harvester_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = harvester_module::HarvesterModule::new(
+    let module = harvester_module::HarvesterModule::new(
         Bloom::new(10000),
         None,
         vec![],
