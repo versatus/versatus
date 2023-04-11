@@ -90,6 +90,7 @@ impl FarmerModule {
         };
         farmer
     }
+
     pub fn insert_txn(&mut self, txn: Txn) {
         let _ = self.tx_mempool.insert(txn);
     }
@@ -130,14 +131,6 @@ impl Handler<Event> for FarmerModule {
         self.status = actor_status;
     }
 
-    fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.name(),
-            self.label()
-        );
-    }
-
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::Stop => {
@@ -161,9 +154,10 @@ impl Handler<Event> for FarmerModule {
                 if let JobResult::Votes((votes, farmer)) = job_result {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = self.broadcast_events_tx.send((
-                                Topic::Network,
-                                Event::Vote(vote.clone(), QuorumType::Harvester, farmer),
+                            let _ = self.broadcast_events_tx.send(Event::Vote(
+                                vote.clone(),
+                                QuorumType::Harvester,
+                                farmer,
                             ));
                         }
                     }
@@ -174,6 +168,14 @@ impl Handler<Event> for FarmerModule {
         }
 
         Ok(ActorState::Running)
+    }
+
+    fn on_stop(&self) {
+        info!(
+            "{}-{} received stop signal. Stopping",
+            self.name(),
+            self.label()
+        );
     }
 }
 
@@ -194,25 +196,22 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
-    use events::{DirectedEvent, Event, PeerData, Vote};
+    use events::{Event, PeerData, Vote};
     use lazy_static::lazy_static;
-    use primitives::{NodeType, QuorumType::Farmer};
+    use primitives::{Address, NodeType, QuorumType::Farmer};
     use secp256k1::Message;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::ActorImpl;
-    use validator::{
-        txn_validator::{StateSnapshot, TxnValidator},
-        validator_core_manager::ValidatorCoreManager,
-    };
-    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+    use validator::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
+    use vrrb_core::{account::Account, cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
 
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
@@ -245,9 +244,7 @@ mod tests {
         handle.await.unwrap();
     }
     lazy_static! {
-        static ref STATE_SNAPSHOT: StateSnapshot = StateSnapshot {
-            accounts: HashMap::new(),
-        };
+        static ref STATE_SNAPSHOT: HashMap<Address, Account> = HashMap::new();
     }
 
     #[tokio::test]

@@ -11,10 +11,11 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState, farmer_module::QuorumMember,
+    RuntimeModuleState,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -32,12 +33,10 @@ pub struct Node {
     // TODO: make this private
     pub keypair: KeyPair,
 
-    // NOTE: optional node components
     vm: Option<Cpu>,
     state_handle: Option<JoinHandle<Result<()>>>,
     mempool_handle: Option<JoinHandle<Result<()>>>,
     gossip_handle: Option<JoinHandle<Result<()>>>,
-    broadcast_controller_handle: Option<JoinHandle<(Result<()>, Result<()>)>>,
     miner_handle: Option<JoinHandle<Result<()>>>,
     jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
     dkg_handle: Option<JoinHandle<Result<()>>>,
@@ -54,10 +53,8 @@ impl Node {
     pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
         // Copy the original config to avoid overriding the original
         let mut config = config.clone();
-
         let vm = None;
         let keypair = config.keypair.clone();
-
         let (events_tx, mut events_rx) = unbounded_channel::<Event>();
         let mut event_router = Self::setup_event_routing_system();
 
@@ -68,10 +65,10 @@ impl Node {
         let miner_events_rx = event_router.subscribe(&Topic::Consensus);
         let miner_election_events_rx = event_router.subscribe(&Topic::Consensus);
         let quorum_election_events_rx = event_router.subscribe(&Topic::Network);
-        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control)?;
-        let dkg_events_rx = event_router.subscribe(&Topic::Network)?;
-        let farmer_events_rx = event_router.subscribe(&Topic::Consensus)?;
-        let harvester_events_rx = event_router.subscribe(&Topic::Consensus)?;
+        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control);
+        let dkg_events_rx = event_router.subscribe(&Topic::Network);
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus);
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus);
 
         let (
             updated_config,
@@ -85,8 +82,8 @@ impl Node {
             quorum_election_handle,
             farmer_handle,
             harvester_handle,
-            raptor_handle,
             scheduler_handle,
+            raptor_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -112,22 +109,22 @@ impl Node {
 
         Ok(Self {
             config,
-            vm,
             event_router_handle,
-            state_handle,
-            mempool_handle,
-            jsonrpc_server_handle,
-            gossip_handle,
-            dkg_handle,
-            farmer_handle,
-            harvester_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,
-            miner_handle,
             keypair,
+            vm,
+            state_handle,
+            mempool_handle,
+            gossip_handle,
+            miner_handle,
+            jsonrpc_server_handle,
+            dkg_handle,
             miner_election_handle,
             quorum_election_handle,
+            farmer_handle,
+            harvester_handle,
             raptor_handle,
             scheduler_handle,
         })

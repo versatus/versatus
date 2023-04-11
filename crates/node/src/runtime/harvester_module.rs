@@ -289,7 +289,7 @@ impl Handler<Event> for HarvesterModule {
                     .take(num_of_txns)
                     .for_each(|txn| {
                         self.broadcast_events_tx
-                            .send((Topic::Storage, Event::QuorumCertifiedTxns(txn.clone())));
+                            .send(Event::QuorumCertifiedTxns(txn.clone()));
                     });
             },
             Event::NoOp => {},
@@ -316,14 +316,11 @@ mod tests {
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
     use events::{DirectedEvent, Event, PeerData, Vote};
     use lazy_static::lazy_static;
-    use primitives::{NodeType, QuorumType::Farmer};
+    use primitives::{Address, NodeType, QuorumType::Farmer};
     use secp256k1::Message;
     use theater::ActorImpl;
-    use validator::{
-        txn_validator::{StateSnapshot, TxnValidator},
-        validator_core_manager::ValidatorCoreManager,
-    };
-    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+    use validator::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
+    use vrrb_core::{account::Account, cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
@@ -364,8 +361,6 @@ mod tests {
         handle.await.unwrap();
     }
     lazy_static! {
-        static ref STATE_SNAPSHOT: StateSnapshot = StateSnapshot {
-            accounts: HashMap::new(),
-        };
+        static ref STATE_SNAPSHOT: HashMap<Address, Account> = HashMap::new();
     }
 }

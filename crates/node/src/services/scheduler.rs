@@ -1,32 +1,17 @@
 use std::collections::BTreeMap;
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use dashmap::DashMap;
-use events::{DirectedEvent, Event, JobResult, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
-use indexmap::IndexMap;
+use crossbeam_channel::Receiver;
+use events::{DirectedEvent, Event, JobResult, Vote};
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
-use primitives::{
-    base::PeerId as PeerID,
-    ByteVec,
-    FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
-    QuorumType,
-    RawSignature,
-};
+use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
-use validator::{
-    txn_validator::{StateSnapshot, TxnFees},
-    validator_core_manager::ValidatorCoreManager,
-};
-use vrrb_core::{
-    bloom::Bloom,
-    txn::{TransactionDigest, Txn},
-};
+use validator::validator_core_manager::ValidatorCoreManager;
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 
 /// The `JobSchedulerController` struct contains various fields related to job
@@ -61,7 +46,7 @@ use vrrb_core::{
 ///   the VRRB database.
 pub struct JobSchedulerController {
     pub job_scheduler: JobScheduler,
-    events_tx: UnboundedSender<DirectedEvent>,
+    events_tx: UnboundedSender<Event>,
     sync_jobs_receiver: Receiver<Job>,
     async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
@@ -103,7 +88,7 @@ pub enum Job {
 impl<'a> JobSchedulerController {
     pub fn new(
         peer_id: PeerID,
-        events_tx: UnboundedSender<DirectedEvent>,
+        events_tx: UnboundedSender<Event>,
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
@@ -174,13 +159,10 @@ impl<'a> JobSchedulerController {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            let _ = self.events_tx.send((
-                                Topic::Transactions,
-                                Event::ProcessedVotes(JobResult::Votes((
-                                    votes,
-                                    farmer_quorum_threshold,
-                                ))),
-                            ));
+                            let _ = self.events_tx.send(Event::ProcessedVotes(JobResult::Votes((
+                                votes,
+                                farmer_quorum_threshold,
+                            ))));
                         }
                     },
                     Job::CertifyTxn((
@@ -207,16 +189,15 @@ impl<'a> JobSchedulerController {
                         if validated {
                             let result = sig_provider.generate_quorum_signature(sig_shares.clone());
                             if let Ok(threshold_signature) = result {
-                                let _ = self.events_tx.send((
-                                    Topic::Transactions,
-                                    Event::CertifiedTxn(JobResult::CertifiedTxn(
+                                let _ = self.events_tx.send(Event::CertifiedTxn(
+                                    JobResult::CertifiedTxn(
                                         votes.clone(),
                                         threshold_signature,
                                         txn_id.clone(),
                                         farmer_quorum_key.clone(),
                                         farmer_id.clone(),
                                         txn.clone(),
-                                    )),
+                                    ),
                                 ));
                             } else {
                                 error!("Quorum signature generation failed");

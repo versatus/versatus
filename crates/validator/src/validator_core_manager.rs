@@ -6,7 +6,7 @@ use vrrb_core::{account::Account, txn::Txn};
 
 use crate::{
     result::{Result, ValidatorError},
-    txn_validator::{StateSnapshot, TxnValidator},
+    txn_validator::TxnValidator,
     validator_core::{Core, CoreError, CoreId},
 };
 

@@ -11,12 +11,7 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::{
-    result::Result,
-    EventBroadcastSender,
-    NodeError,
-    MEMPOOL_THRESHOLD_SIZE,
-};
+use crate::{result::Result, EventBroadcastSender, NodeError, MEMPOOL_THRESHOLD_SIZE};
 
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,
@@ -103,11 +98,9 @@ impl Handler<Event> for MempoolModule {
                     self.cutoff_transaction = Some(txn_hash.clone());
 
                     self.events_tx
-                        .send(
-                            Event::MempoolSizeThesholdReached {
-                                cutoff_transaction: txn_hash,
-                            },
-                        )
+                        .send(Event::MempoolSizeThesholdReached {
+                            cutoff_transaction: txn_hash,
+                        })
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },

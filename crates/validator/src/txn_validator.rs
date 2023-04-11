@@ -68,25 +68,6 @@ pub enum TxnValidatorError {
     AccountNotFound(String),
 }
 
-#[derive(Debug, Clone)]
-pub struct StateSnapshot {
-    pub accounts: HashMap<String, Account>,
-}
-
-impl StateSnapshot {
-    pub fn new() -> StateSnapshot {
-        StateSnapshot {
-            accounts: HashMap::new(),
-        }
-    }
-
-    pub fn get_account(&self, address: &str) -> Result<Account> {
-        self.accounts
-            .get(address)
-            .ok_or(TxnValidatorError::AccountNotFound(address.to_string()))
-            .cloned()
-    }
-}
 
 #[derive(Debug, Clone)]
 // TODO: make validator configurable

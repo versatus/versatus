@@ -10,7 +10,7 @@ use patriecia::{db::Database, inner::InnerTrie};
 use primitives::Address;
 use vrrb_core::{account::Account, txn::*};
 
-use crate::txn_validator::{StateSnapshot, TxnValidator};
+use crate::txn_validator::TxnValidator;
 
 /// Enum containing all messages related to controling the Core thread's
 #[derive(Debug, Clone, PartialEq, Eq)]
