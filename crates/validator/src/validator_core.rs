@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     sync::mpsc::{channel, Receiver, RecvError, SendError, Sender},
     thread::{self, *},
 };
@@ -7,10 +7,9 @@ use std::{
 use left_right::{ReadHandle, ReadHandleFactory};
 use mempool::mempool::{FetchFiltered, *};
 use patriecia::{db::Database, inner::InnerTrie};
-use primitives::Address;
-use vrrb_core::{account::Account, txn::*};
+use vrrb_core::txn::*;
 
-use crate::txn_validator::TxnValidator;
+use crate::txn_validator::{StateSnapshot, TxnValidator};
 
 /// Enum containing all messages related to controling the Core thread's
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,12 +70,13 @@ impl Core {
 
     pub fn process_transactions(
         &self,
-        account_state: &HashMap<Address, Account>,
+        state_snapshot: &StateSnapshot,
         batch: Vec<Txn>,
     ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
+        // ) -> HashSet<(Txn, bool)> {
         batch
             .into_iter()
-            .map(|txn| match self.validator.validate(account_state, &txn) {
+            .map(|txn| match self.validator.validate(state_snapshot, &txn) {
                 Ok(_) => (txn, Ok(())),
                 Err(err) => {
                     telemetry::error!("{err:?}");
