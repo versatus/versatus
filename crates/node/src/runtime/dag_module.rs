@@ -41,7 +41,7 @@ impl DagModule {
     ) -> GraphResult<()> {
         let block: Block = genesis.clone().into();
         let vtx: Vertex<Block, String> = block.into();
-        self.write_genesis(vtx)?;
+        self.write_genesis(&vtx)?;
         
         Ok(())
     }
