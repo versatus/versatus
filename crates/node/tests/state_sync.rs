@@ -48,7 +48,8 @@ async fn nodes_can_synchronize_state() {
     for _ in 0..1_00 {
         let (sk, pk) = generate_account_keypair();
 
-        let signature = sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+        let signature =
+            sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
 
         client_1
             .create_txn(NewTxnArgs {
@@ -67,6 +68,7 @@ async fn nodes_can_synchronize_state() {
     }
 
     let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
+
     assert!(!mempool_snapshot.is_empty());
 
     ctrl_tx_1.send(Event::Stop).unwrap();

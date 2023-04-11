@@ -1,57 +1,45 @@
-use std::{
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-    thread,
-};
-
-use block::Block;
+use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
 use bulldag::graph::BullDag;
-use crossbeam_channel::{unbounded, RecvError, Sender};
-use events::{DirectedEvent, Event, EventRouter, JobResult, Topic};
-use job_scheduler::JobScheduler;
+use block::Block;
+
+use events::{Event, EventRouter};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
-use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
-use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::{
-    storage_utils,
-    vrrbdb::{VrrbDbConfig, VrrbDbReadHandle},
-};
+use network::network::BroadcastEngine;
+use primitives::{Address, QuorumType::Farmer};
+use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use tokio::{
     sync::{
         broadcast::Receiver,
-        mpsc::{UnboundedReceiver, UnboundedSender},
+        mpsc::UnboundedSender,
     },
     task::JoinHandle,
 };
-use validator::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
 use vrrb_config::NodeConfig;
-use vrrb_core::{bloom::Bloom, claim::Claim};
+use vrrb_core::claim::Claim;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     election_module::{
-        ElectionModule,
-        ElectionModuleConfig,
         MinerElection,
         MinerElectionResult,
+        ElectionModule,
+        ElectionModuleConfig,
         QuorumElection,
         QuorumElectionResult,
     },
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule,
+    state_module::StateModule
 };
 use crate::{
-    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
-    dkg_module::DkgModuleConfig,
-    scheduler::{Job, JobSchedulerController},
-    EventBroadcastReceiver,
     EventBroadcastSender,
-    Node,
+    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
+    dkg_module::DkgModuleConfig,
     NodeError,
     Result,
 };
@@ -59,14 +47,14 @@ use crate::{
 pub mod broadcast_module;
 pub mod credit_model_module;
 pub mod dkg_module;
-pub mod election_module;
+pub mod farmer_harvester_module;
 pub mod farmer_module;
-pub mod harvester_module;
 pub mod mempool_module;
 pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
+pub mod election_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -80,8 +68,6 @@ pub async fn setup_runtime_components(
     dkg_events_rx: Receiver<Event>,
     miner_election_events_rx: Receiver<Event>,
     quorum_election_events_rx: Receiver<Event>,
-    farmer_events_rx: Receiver<Event>,
-    harvester_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
     Option<JoinHandle<Result<()>>>,
@@ -92,10 +78,6 @@ pub async fn setup_runtime_components(
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<thread::JoinHandle<()>>,
-    Option<thread::JoinHandle<bool>>,
 )> {
     let mut config = original_config.clone();
 
@@ -127,38 +109,21 @@ pub async fn setup_runtime_components(
     .await?;
 
     let mut gossip_handle = None;
-    let mut raptor_handle = None;
-    let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
+
     if !config.disable_networking {
-        let (new_gossip_handle, new_raptor_handle, gossip_addr) = setup_gossip_network(
+        let (new_gossip_handle, gossip_addr) = setup_gossip_network(
             &config,
             events_tx.clone(),
             network_events_rx,
             controller_events_rx,
             state_read_handle.clone(),
-            raptor_sender,
         )
         .await?;
+
         gossip_handle = new_gossip_handle;
-        raptor_handle = new_raptor_handle;
+        // broadcast_controller_handle = new_broadcast_controller_handle;
         config.udp_gossip_address = gossip_addr;
     }
-
-    let raptor_handle = thread::spawn({
-        let events_tx = events_tx.clone();
-        move || {
-            loop {
-                if let Ok(data) = raptor_receiver.recv() {
-                    match data {
-                        RaptorBroadCastedData::Block(block) => {
-                            let _ = events_tx.send(Event::BlockReceived(block));
-                        },
-                    }
-                }
-            }
-            return true;
-        }
-    });
 
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,
@@ -169,12 +134,12 @@ pub async fn setup_runtime_components(
     )
     .await?;
 
-
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
-    let mut dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+    let mut dag: Arc<RwLock<BullDag<Block, String>>>
+        = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_handle = setup_mining_module(
         &config,
@@ -186,6 +151,7 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
+
     let claim: Claim = config.keypair.clone().into();
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
@@ -201,43 +167,6 @@ pub async fn setup_runtime_components(
         state_read_handle.clone(),
         claim.clone(),
     )?;
-    let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-    let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-
-
-    let mut farmer_handle = None;
-    let mut harvester_handle = None;
-    let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-
-    if config.node_type == NodeType::Farmer {
-        farmer_handle = setup_farmer_module(
-            &config,
-            sync_jobs_sender.clone(),
-            async_jobs_sender.clone(),
-            events_tx.clone(),
-            farmer_events_rx,
-        )?;
-    } else {
-        harvester_handle = setup_harvester_module(
-            sync_jobs_sender,
-            async_jobs_sender,
-            events_tx.clone(),
-            events_rx,
-            harvester_events_rx,
-        )?;
-    };
-
-    let mut scheduler = setup_scheduler_module(
-        &config,
-        sync_jobs_receiver,
-        async_jobs_receiver,
-        ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap(),
-        events_tx.clone(),
-        state_read_handle.clone(),
-    );
-    let scheduler_handle = thread::spawn(move || {
-        scheduler.execute_sync_jobs();
-    });
 
     Ok((
         config,
@@ -249,15 +178,12 @@ pub async fn setup_runtime_components(
         dkg_handle,
         miner_election_handle,
         quorum_election_handle,
-        farmer_handle,
-        harvester_handle,
-        Some(scheduler_handle),
-        Some(raptor_handle),
     ))
 }
 
 fn setup_event_routing_system() -> EventRouter {
     let mut event_router = EventRouter::default();
+
     event_router
 }
 
@@ -267,12 +193,7 @@ async fn setup_gossip_network(
     mut network_events_rx: Receiver<Event>,
     mut controller_events_rx: Receiver<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
-    raptor_sender: Sender<RaptorBroadCastedData>,
-) -> Result<(
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<(Result<()>, Result<()>)>>,
-    SocketAddr,
-)> {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
         events_tx: events_tx.clone(),
         vrrbdb_read_handle,
@@ -285,23 +206,21 @@ async fn setup_gossip_network(
 
     let addr = broadcast_module.local_addr();
 
+    let (controller_tx, controller_rx) =
+        tokio::sync::mpsc::channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
+
     let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
         .await
         .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
+    // let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
 
-    let mut bcast_controller = BroadcastEngineController::new(broadcast_engine, events_tx.clone());
-
-    let broadcast_controller_handle = tokio::spawn(async move {
-        let broadcast_handle = bcast_controller.listen(controller_events_rx).await;
-        let raptor_handle = bcast_controller
-            .engine
-            .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
-            .await;
-
-        let raptor_handle = raptor_handle.map_err(|x| NodeError::Broadcast(x));
-        (broadcast_handle, raptor_handle)
-    });
+    // NOTE: starts the listening loop
+    // let broadcast_controller_handle = tokio::spawn(async move {
+    //     bcast_controller
+    //         .listen(controller_tx, controller_events_rx)
+    //         .await
+    // });
 
     let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
 
@@ -311,9 +230,10 @@ async fn setup_gossip_network(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
+
     Ok((
         Some(broadcast_handle),
-        Some(broadcast_controller_handle),
+        // Some(broadcast_controller_handle),
         addr,
     ))
 }
@@ -331,8 +251,11 @@ async fn setup_state_store(
     }
 
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+
     let vrrbdb_read_handle = db.read_handle();
+
     let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
+
     let mut state_module_actor = ActorImpl::new(state_module);
 
     let state_handle = tokio::spawn(async move {
@@ -351,8 +274,7 @@ async fn setup_rpc_api_server(
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: Receiver<Event>,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-    let jsonrpc_server_config = JsonRpcServerConfig {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> { let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
         node_type: config.node_type,
         events_tx,
@@ -393,7 +315,7 @@ fn setup_mining_module(
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
-        dag: dag.clone(),
+        dag: dag.clone()
     };
 
     let miner = miner::Miner::new(miner_config);
@@ -418,7 +340,6 @@ fn setup_mining_module(
 
     Ok(Some(miner_handle))
 }
-
 
 fn setup_dkg_module(
     config: &NodeConfig,
@@ -468,10 +389,13 @@ fn setup_miner_election_module(
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
-        local_claim,
+        local_claim
     };
-    let module: ElectionModule<MinerElection, MinerElectionResult> =
-        { ElectionModule::<MinerElection, MinerElectionResult>::new(module_config) };
+    let module: ElectionModule<MinerElection, MinerElectionResult> = { 
+        ElectionModule::<MinerElection, MinerElectionResult>::new(
+            module_config
+        ) 
+    };
 
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
@@ -494,100 +418,33 @@ fn setup_quorum_election_module(
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
-        local_claim,
+        local_claim
     };
 
-    let module: ElectionModule<QuorumElection, QuorumElectionResult> =
-        { ElectionModule::<QuorumElection, QuorumElectionResult>::new(module_config) };
+    let module: ElectionModule<QuorumElection, QuorumElectionResult> = { 
+        ElectionModule::<QuorumElection, QuorumElectionResult>::new(
+            module_config
+        )
+    };
 
     let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
         quorum_election_module_actor
             .start(&mut quorum_election_events_rx)
-            .await
+            .await 
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
     return Ok(Some(quorum_election_module_handle));
 }
 
-
-fn setup_farmer_module(
-    config: &NodeConfig,
-    sync_jobs_sender: Sender<Job>,
-    async_jobs_sender: Sender<Job>,
-    mut events_tx: EventBroadcastSender,
-    mut farmer_events_rx: Receiver<Event>,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = farmer_module::FarmerModule::new(
-        None,
-        vec![],
-        config.keypair.get_peer_id().into_bytes(),
-        0,
-        events_tx.clone(),
-        1,
-        sync_jobs_sender,
-        async_jobs_sender,
-    );
-
-    let mut farmer_module_actor = ActorImpl::new(module);
-    let farmer_handle = tokio::spawn(async move {
-        farmer_module_actor
-            .start(&mut farmer_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-    return Ok(Some(farmer_handle));
+fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
 }
 
-fn setup_harvester_module(
-    sync_jobs_sender: Sender<Job>,
-    async_jobs_sender: Sender<Job>,
-    mut broadcast_events_tx: EventBroadcastSender,
-    mut events_rx: UnboundedReceiver<DirectedEvent>,
-    mut harvester_events_rx: Receiver<Event>,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = harvester_module::HarvesterModule::new(
-        Bloom::new(10000),
-        None,
-        vec![],
-        events_rx,
-        broadcast_events_tx,
-        1,
-        sync_jobs_sender,
-        async_jobs_sender,
-    );
-
-    let mut harvester_module_actor = ActorImpl::new(module);
-    let harvester_handle = tokio::spawn(async move {
-        harvester_module_actor
-            .start(&mut harvester_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-    return Ok(Some(harvester_handle));
+fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    Ok(None)
 }
-
-
-fn setup_scheduler_module(
-    config: &NodeConfig,
-    sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
-    async_jobs_receiver: crossbeam_channel::Receiver<Job>,
-    validator_core_manager: ValidatorCoreManager,
-    events_tx: UnboundedSender<DirectedEvent>,
-    vrrbdb_read_handle: VrrbDbReadHandle,
-) -> JobSchedulerController {
-    let module = JobSchedulerController::new(
-        hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
-        events_tx,
-        sync_jobs_receiver,
-        async_jobs_receiver,
-        validator_core_manager,
-        vrrbdb_read_handle,
-    );
-    module
-}
-
 
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)

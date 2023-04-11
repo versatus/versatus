@@ -7,10 +7,9 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
-
 use vrrb_core::txn::Txn;
-use crate::EventBroadcastSender;
 
+use crate::EventBroadcastSender;
 
 #[derive(Debug)]
 pub struct MiningModule {
@@ -60,7 +59,8 @@ impl MiningModule {
     }
 
     fn mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
-        info!("Marking transactions as mined until index: {}", cutoff_idx);
+        telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
+        // TODO: run a batch update to mark txns as being processed
     }
 }
 
@@ -99,39 +99,16 @@ impl Handler<Event> for MiningModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-
             Event::ElectedMiner((winner_claim_hash, winner_claim)) => {
                 if self.miner.check_claim(winner_claim.hash) {
                     let mining_result = self.miner.try_mine();
-
+                    
                     if let Ok(block) = mining_result {
                         let _ = self.events_tx.send(
                             Event::MinedBlock(block.clone())
                         );
                     }
                 };
-            },
-            Event::TxnAddedToMempool(_) => {
-                // dbg!(txn_digest.to_string());
-            },
-            Event::MempoolSizeThesholdReached { cutoff_transaction } => {
-                let handle = self.mempool_read_handle_factory.handle();
-
-                if let Some(idx) = handle.get_index_of(&cutoff_transaction) {
-                    dbg!(handle.len());
-                    let transaction_snapshot = self.take_snapshot_until_cutoff(idx);
-                    dbg!(transaction_snapshot.len());
-                    dbg!(handle.len());
-
-                    self.mark_snapshot_transactions(idx);
-                } else {
-                    telemetry::error!(
-                        "Could not find index of cutoff transaction to produce a block"
-                    );
-                }
-            },
-            Event::BlockConfirmed(_) => {
-                // do something
             },
             Event::NoOp => {},
             // _ => telemetry::warn!("unrecognized command received: {:?}", event),
