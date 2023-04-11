@@ -20,7 +20,7 @@ pub use qp2p::{
 };
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info, instrument};
+use telemetry::{error, info};
 use tokio::net::UdpSocket;
 
 use crate::{
@@ -98,11 +98,12 @@ impl BroadcastEngine {
             },
         )
         .await?;
+
         Ok((endpoint, incoming_connections, conn_opts))
     }
 
-    /// > This function takes a vector of socket addresses and attempts to
-    /// > connect to each one. If the
+    /// This function takes a vector of socket addresses and attempts to
+    /// connect to each one. If the
     /// connection is successful, it adds the connection to the peer connection
     /// list
     ///
@@ -136,7 +137,7 @@ impl BroadcastEngine {
         self.raptor_list.extend(address)
     }
 
-    ///  This function removes a peer connection from the peer connection list
+    /// This function removes a peer connection from the peer connection list
     ///
     /// Arguments:
     ///
@@ -150,6 +151,7 @@ impl BroadcastEngine {
                 address != addr
             });
         }
+
         Ok(())
     }
 
@@ -166,9 +168,11 @@ impl BroadcastEngine {
     #[telemetry::instrument(name = "quic_broadcast")]
     pub async fn quic_broadcast(&self, message: Message) -> Result<BroadcastStatus> {
         let mut futs = FuturesUnordered::new();
+
         if self.peer_connection_list.is_empty() {
             return Err(BroadcastError::NoPeers);
         }
+
         for (addr, conn) in self.peer_connection_list.clone().into_iter() {
             let new_data = message.as_bytes().clone();
 
@@ -210,8 +214,10 @@ impl BroadcastEngine {
     ) -> Result<BroadcastStatus> {
         let msg = Bytes::from(message.as_bytes());
         let node = self.endpoint.0.clone();
+
         let conn = node.connect_to(&addr).await?;
         let conn = conn.0;
+
         let _ = conn.send((Bytes::new(), Bytes::new(), msg.clone())).await;
 
         Ok(BroadcastStatus::Success)
@@ -223,11 +229,10 @@ impl BroadcastEngine {
     ///
     /// Arguments:
     ///
-    /// * `data`: The data to be broadcasted.
+    /// * `message`: The message to be broadcasted.
     /// * `erasure_count`: The number of packets that can be lost and still be
     ///   able to reconstruct the
-    /// original data.
-    /// * `port`: The port on which the broadcast is to be done.
+    /// original message.
     ///
     /// Returns:
     ///
@@ -240,8 +245,10 @@ impl BroadcastEngine {
         port: u16,
     ) -> Result<BroadcastStatus> {
         info!("broadcasting to port {:?}", port);
+
         let batch_id = generate_batch_id();
         let chunks = split_into_packets(&data, batch_id, erasure_count);
+
         let ipv4_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let udp_socket = UdpSocket::bind(SocketAddr::new(ipv4_addr, port))
             .await
@@ -279,6 +286,7 @@ impl BroadcastEngine {
         }
 
         while (futs.next().await).is_some() {}
+
         Ok(BroadcastStatus::Success)
     }
 
@@ -309,7 +317,6 @@ impl BroadcastEngine {
             BroadcastError::Other(err.to_string())
         })?;
 
-
         info!("Listening on {}", port);
 
         let buf = [0; MTU_SIZE];
@@ -317,6 +324,7 @@ impl BroadcastEngine {
         let (forwarder_send, forwarder_receive) = unbounded();
         let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
         let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
+
         thread::spawn({
             let assemble_send = reassembler_channel_send.clone();
             let fwd_send = forwarder_send.clone();
@@ -340,6 +348,7 @@ impl BroadcastEngine {
         if self.raptor_list.is_empty() {
             return Err(BroadcastError::NoPeers);
         }
+
         self.raptor_list
             .iter()
             .for_each(|addr| nodes_ips_except_self.push(addr.to_string().as_bytes().to_vec()));
@@ -373,18 +382,6 @@ impl BroadcastEngine {
         self.endpoint.0.local_addr()
     }
 
-    /// > This function takes a packet index and the total number of peers and
-    /// > returns a list of
-    /// addresses to send the packet to
-    ///
-    /// Arguments:
-    ///
-    /// * `packet_index`: the index of the packet in the file
-    /// * `total_peers`: The total number of peers in the network
-    ///
-    /// Returns:
-    ///
-    /// A vector of socket addresses.
     fn get_address_for_packet_shards(
         &self,
         packet_index: usize,
@@ -392,14 +389,15 @@ impl BroadcastEngine {
     ) -> Vec<SocketAddr> {
         let mut addresses = Vec::new();
         let number_of_peers = (total_peers as f32 * 0.10).ceil() as usize;
-        let raptor_list_cloned: Vec<SocketAddr> = self.raptor_list.iter().cloned().collect();
+        let raptor_list_cloned: Vec<&SocketAddr> = self.raptor_list.iter().collect();
 
         for i in 0..number_of_peers {
             if let Some(address) = raptor_list_cloned.get(packet_index % (total_peers + i)) {
                 // TODO: refactor this double owning
-                addresses.push(address.clone());
+                addresses.push(address.to_owned().to_owned());
             }
         }
+
         addresses
     }
 }
@@ -407,9 +405,7 @@ impl BroadcastEngine {
 #[cfg(test)]
 mod tests {
     use std::{
-        assert_eq,
         net::{Ipv6Addr, SocketAddr},
-        panic,
         time::Duration,
     };
 
