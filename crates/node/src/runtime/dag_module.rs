@@ -1,8 +1,11 @@
 use std::sync::{Arc, RwLock};
 
-use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock};
+use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock, GenesisBlock};
 use bulldag::{graph::{BullDag, GraphError}, vertex::Vertex};
-use theater::{ActorState, ActorLabel, ActorId};
+use theater::{ActorState, ActorLabel, ActorId, Handler};
+use async_trait::async_trait;
+use events::Event;
+use telemetry::info;
 
 use crate::EventBroadcastSender;
 
@@ -30,6 +33,17 @@ impl DagModule {
             events_tx,
             dag
         }
+    }
+
+    pub fn append_genesis(
+        &mut self,
+        genesis: &GenesisBlock
+    ) -> GraphResult<()> {
+        let block: Block = genesis.clone().into();
+        let vtx: Vertex<Block, String> = block.into();
+        self.write_genesis(vtx)?;
+        
+        Ok(())
     }
 
     pub fn append_proposal(
@@ -100,7 +114,7 @@ impl DagModule {
     fn write_edge(
         &mut self, 
         edge: (&Vertex<Block, String>, &Vertex<Block, String>)
-    ) -> Result<(), GraphError> {
+    ) -> GraphResult<()> {
         if let Ok(mut guard) = self.dag.write() {
             guard.add_edge(edge);
             return Ok(())
@@ -112,7 +126,7 @@ impl DagModule {
     fn extend_edges(
         &mut self,
         edges: Edges
-    ) -> Result<(), GraphError> {
+    ) -> GraphResult<()> {
         let mut iter = edges.iter();
         
         while let Some((ref_block, vtx)) = iter.next() {
@@ -122,5 +136,86 @@ impl DagModule {
         }
 
         Ok(())
+    }
+
+    fn write_genesis(
+        &self,
+        vertex: &Vertex<Block, String>
+    ) -> GraphResult<()> {
+
+        if let Ok(mut guard) = self.dag.write() {
+            guard.add_vertex(vertex);
+
+            return Ok(());
+        }
+
+        return Err(GraphError::Other("Error getting write gurard".to_string()));
+    }
+}
+
+
+#[async_trait]
+impl Handler<Event> for DagModule {
+    fn id(&self) -> ActorId {
+        self.id.clone()
+    }
+
+    fn label(&self) -> ActorLabel {
+        self.label.clone()
+    }
+
+    fn status(&self) -> ActorState {
+        self.status.clone()
+    }
+
+    fn set_status(&mut self, actor_status: ActorState) {
+        self.status = actor_status;
+    }
+
+    fn on_start(&self) {
+        info!("{}-{} starting", self.label(), self.id(),);
+    }
+
+    fn on_stop(&self) {
+        info!(
+            "{}-{} received stop signal. Stopping",
+            self.label(),
+            self.id(),
+        );
+    }
+
+    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
+        match event {
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
+            },
+            Event::BlockReceived(block) => {
+                match block {
+                    Block::Genesis { block } => {
+                        self.append_genesis(&block);
+                    },
+                    Block::Proposal { block } => {
+                        if let Err(e) = self.append_proposal(&block) {
+                            let err_note = format!(
+                                "Encountered GraphError: {:?}", e
+                            );
+                            return Err(theater::TheaterError::Other(err_note));
+                        }
+                    },
+                    Block::Convergence { block } => {
+                        if let Err(e) = self.append_convergence(&block) {
+                            let err_note = format!(
+                                "Encountered GraphError: {:?}", e
+                            );
+                            return Err(theater::TheaterError::Other(err_note));
+                        }
+                    }
+                }
+            },
+            Event::NoOp => {},
+            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
+            _ => {},
+        }
+        Ok(ActorState::Running)
     }
 }

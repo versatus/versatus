@@ -124,7 +124,7 @@ pub enum Event {
     MempoolSizeThesholdReached {
         cutoff_transaction: TransactionDigest,
     },
-    BlockReceived,
+    BlockReceived(Block),
     BlockConfirmed(Vec<u8>),
     ClaimCreated(Vec<u8>),
     ClaimProcessed(Vec<u8>),
