@@ -107,7 +107,7 @@ impl Wallet {
             "DO NOT SHARE OR LOSE YOUR SECRET KEY:", &secret_key, &public_key,
         );
 
-        let wallet = Wallet {
+        let mut wallet = Wallet {
             secret_key,
             public_key,
             welcome_message,

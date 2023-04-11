@@ -17,7 +17,6 @@ use crate::{
     NextEpochAdjustment,
 };
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct BlockHeader {
     // TODO: Replace tx hash with tx trie root???
