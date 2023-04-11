@@ -51,6 +51,7 @@ pub enum BroadcastError {
     #[error("Endpoint error: {0}")]
     Endpoint(#[from] EndpointError),
 
+
     #[error("Udp Port already in use")]
     EaddrInUse,
 

@@ -31,6 +31,8 @@ theater = { workspace = true }
 utils = { workspace = true }
 cuckoofilter = { workspace = true }
 ethereum-types = { workspace = true }
+bs58 = { workspace = true }
+ring = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

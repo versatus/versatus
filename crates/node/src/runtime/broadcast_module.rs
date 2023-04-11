@@ -246,7 +246,9 @@ impl Handler<Event> for BroadcastModule {
 #[cfg(test)]
 mod tests {
     use std::io::stdout;
-    use events::Event;
+    use theater::{Actor, ActorImpl};
+    use tokio::net::UdpSocket;
+    use events::{Event, SyncPeerData};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use tokio::sync::mpsc::unbounded_channel;

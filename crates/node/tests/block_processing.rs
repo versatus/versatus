@@ -32,10 +32,8 @@ async fn process_full_node_event_flow() {
 
     for _ in 0..1_00 {
         let (sk, pk) = generate_account_keypair();
-
         let signature =
             sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
-
         client
             .create_txn(NewTxnArgs {
                 timestamp: 0,
