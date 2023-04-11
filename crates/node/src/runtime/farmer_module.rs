@@ -1,12 +1,9 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    thread,
-};
+use std::thread;
 
 use async_trait::async_trait;
 use crossbeam_channel::{Receiver, Sender};
 use dashmap::DashMap;
-use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
+use events::{DirectedEvent, Event, JobResult, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
 use lr_trie::ReadHandleFactory;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -26,14 +23,30 @@ use vrrb_core::{
     txn::{TransactionDigest, Txn},
 };
 
-use crate::{
-    result::Result,
-    scheduler::{Job, JobResult},
-    NodeError,
-};
+use crate::{result::Result, scheduler::Job, NodeError};
 
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
+pub const PULL_TXN_BATCH_SIZE: usize = 1000;
 
+/// `FarmerModule` is responsible for voting on transactions present in mempool
+///
+/// Properties:
+///
+/// * `tx_mempool`: This is the mempool that the farmer will use to store
+///   transactions.
+/// * `group_public_key`: The public key of the group that the farmer is a
+///   member of.
+/// * `sig_provider`: This is the signature provider that will be used to sign
+///   the transactions.
+/// * `farmer_id`: PeerId - The peer id of the farmer.
+/// * `farmer_node_idx`: NodeIdx - The index of the node in the network.
+/// * `status`: The current state of the actor.
+/// * `label`: The label of the actor.
+/// * `id`: ActorId - The unique identifier of the actor.
+/// * `broadcast_events_tx`: This is the channel that the farmer uses to send
+///   events to the network.
+/// * `quorum_threshold`: QuorumThreshold,
+/// * `sync_jobs_sender`: Sender<Job>
+/// * `async_jobs_sender`: Sender<Job>
 pub struct FarmerModule {
     pub tx_mempool: LeftRightMempool,
     pub group_public_key: GroupPublicKey,
@@ -47,8 +60,6 @@ pub struct FarmerModule {
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    sync_jobs_status_receiver: Receiver<JobResult>,
-    async_jobs_status_receiver: Receiver<JobResult>,
 }
 
 impl FarmerModule {
@@ -61,8 +72,6 @@ impl FarmerModule {
         quorum_threshold: QuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
-        sync_jobs_status_receiver: Receiver<JobResult>,
-        async_jobs_status_receiver: Receiver<JobResult>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
         let farmer = Self {
@@ -78,38 +87,8 @@ impl FarmerModule {
             quorum_threshold,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver: sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver: async_jobs_status_receiver.clone(),
         };
         farmer
-    }
-
-    fn process_sync_job_status(
-        &mut self,
-        broadcast_events_tx: UnboundedSender<DirectedEvent>,
-        sync_jobs_status_receiver: Receiver<JobResult>,
-    ) {
-        loop {
-            let job_result = sync_jobs_status_receiver.recv().unwrap();
-            match job_result {
-                JobResult::Votes((votes, farmer)) => {
-                    for vote_opt in votes.iter() {
-                        if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send(
-                                Event::Vote(
-                                    vote.clone(), 
-                                    QuorumType::Harvester, 
-                                    farmer
-                                )
-                            );
-                        }
-                    }
-                },
-                _ => {
-                    error!("Farmers can only vote on Transactions.")
-                },
-            }
-        }
     }
 
     pub fn insert_txn(&mut self, txn: Txn) {
@@ -152,14 +131,6 @@ impl Handler<Event> for FarmerModule {
         self.status = actor_status;
     }
 
-    fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.name(),
-            self.label()
-        );
-    }
-
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::Stop => {
@@ -178,11 +149,33 @@ impl Handler<Event> for FarmerModule {
                     )));
                 }
             },
+            Event::ProcessedVotes(job_result) => {
+                println!("Votes got :{:?}", job_result);
+                if let JobResult::Votes((votes, farmer)) = job_result {
+                    for vote_opt in votes.iter() {
+                        if let Some(vote) = vote_opt {
+                            let _ = self.broadcast_events_tx.send(Event::Vote(
+                                vote.clone(),
+                                QuorumType::Harvester,
+                                farmer,
+                            ));
+                        }
+                    }
+                }
+            },
             Event::NoOp => {},
             _ => {},
         }
 
         Ok(ActorState::Running)
+    }
+
+    fn on_stop(&self) {
+        info!(
+            "{}-{} received stop signal. Stopping",
+            self.name(),
+            self.label()
+        );
     }
 }
 
@@ -203,24 +196,22 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
-    use events::{DirectedEvent, Event, PeerData, Vote};
+    use events::{Event, PeerData, Vote};
     use lazy_static::lazy_static;
-    use primitives::{NodeType, QuorumType::Farmer};
+    use primitives::{Address, NodeType, QuorumType::Farmer};
     use secp256k1::Message;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::ActorImpl;
-    use validator::{
-        txn_validator::{StateSnapshot, TxnValidator},
-        validator_core_manager::ValidatorCoreManager,
-    };
-    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+    use validator::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
+    use vrrb_core::{account::Account, cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
 
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
@@ -237,8 +228,6 @@ mod tests {
             2,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver.clone(),
         );
         let mut farmer_swarm_module = ActorImpl::new(farmer_module);
 
@@ -255,9 +244,7 @@ mod tests {
         handle.await.unwrap();
     }
     lazy_static! {
-        static ref STATE_SNAPSHOT: StateSnapshot = StateSnapshot {
-            accounts: HashMap::new(),
-        };
+        static ref STATE_SNAPSHOT: HashMap<Address, Account> = HashMap::new();
     }
 
     #[tokio::test]
@@ -268,19 +255,21 @@ mod tests {
         let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (sync_jobs_status_sender, sync_jobs_status_receiver) =
-            crossbeam_channel::unbounded::<JobResult>();
-        let (async_jobs_status_sender, async_jobs_status_receiver) =
-            crossbeam_channel::unbounded::<JobResult>();
+        let mut db_config = VrrbDbConfig::default();
+
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+        db_config.with_path(db_path);
+        let db = VrrbDb::new(db_config);
+        let vrrbdb_read_handle = db.read_handle();
 
         let mut job_scheduler = JobSchedulerController::new(
             vec![0],
+            events_tx,
             sync_jobs_receiver,
             async_jobs_receiver,
-            sync_jobs_status_sender,
-            async_jobs_status_sender,
             ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap(),
-            &*STATE_SNAPSHOT,
+            vrrbdb_read_handle,
         );
         thread::spawn(move || {
             job_scheduler.execute_sync_jobs();
@@ -311,8 +300,6 @@ mod tests {
             2,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver.clone(),
         );
         let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
@@ -346,22 +333,16 @@ mod tests {
             });
             txns.insert(txn);
         }
-
         let _ = farmer.tx_mempool.extend(txns);
-
-        let mut farmer_swarm_module = ActorImpl::new(farmer);
+        let mut farmer_actor_module = ActorImpl::new(farmer);
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10000);
-        assert_eq!(farmer_swarm_module.status(), ActorState::Stopped);
+        assert_eq!(farmer_actor_module.status(), ActorState::Stopped);
         let handle = tokio::spawn(async move {
-            farmer_swarm_module.start(&mut ctrl_rx).await.unwrap();
-            assert_eq!(farmer_swarm_module.status(), ActorState::Terminating);
+            farmer_actor_module.start(&mut ctrl_rx).await.unwrap();
+            assert_eq!(farmer_actor_module.status(), ActorState::Terminating);
         });
         ctrl_tx.send(Event::Farm.into()).unwrap();
         ctrl_tx.send(Event::Stop.into()).unwrap();
-
         handle.await.unwrap();
-
-        let job_status = sync_jobs_status_receiver.recv().unwrap();
-        is_enum_variant!(job_status, JobResult::Votes { .. });
     }
 }

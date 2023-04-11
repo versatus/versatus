@@ -33,7 +33,6 @@ pub struct Node {
     // TODO: make this private
     pub keypair: KeyPair,
 
-    // NOTE: optional node components
     vm: Option<Cpu>,
     state_handle: Option<JoinHandle<Result<()>>>,
     mempool_handle: Option<JoinHandle<Result<()>>>,
@@ -43,6 +42,10 @@ pub struct Node {
     dkg_handle: Option<JoinHandle<Result<()>>>,
     miner_election_handle: Option<JoinHandle<Result<()>>>,
     quorum_election_handle: Option<JoinHandle<Result<()>>>,
+    farmer_handle: Option<JoinHandle<Result<()>>>,
+    harvester_handle: Option<JoinHandle<Result<()>>>,
+    raptor_handle: Option<std::thread::JoinHandle<bool>>,
+    scheduler_handle: Option<std::thread::JoinHandle<()>>,
     indexer_handle: Option<JoinHandle<Result<()>>>,
 }
 
@@ -51,28 +54,22 @@ impl Node {
     pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
         // Copy the original config to avoid overriding the original
         let mut config = config.clone();
-
         let vm = None;
         let keypair = config.keypair.clone();
-
         let (events_tx, mut events_rx) = unbounded_channel::<Event>();
         let mut event_router = Self::setup_event_routing_system();
 
-        let mempool_events_rx = event_router.subscribe();
-        let vrrbdb_events_rx = event_router.subscribe();
-        let network_events_rx = event_router.subscribe();
-        let controller_events_rx = event_router.subscribe();
-        let miner_events_rx = event_router.subscribe();
-
-        let farmer_events_rx = event_router.subscribe();
-        let harvester_events_rx = event_router.subscribe();
-        let mrc_events_rx = event_router.subscribe();
-        let cm_events_rx = event_router.subscribe();
-        let reputation_events_rx = event_router.subscribe();
-        let jsonrpc_events_rx = event_router.subscribe();
-        let dkg_events_rx = event_router.subscribe();
-        let miner_election_events_rx = event_router.subscribe();
-        let quorum_election_events_rx = event_router.subscribe();
+        let mempool_events_rx = event_router.subscribe(&Topic::Storage);
+        let vrrbdb_events_rx = event_router.subscribe(&Topic::Storage);
+        let network_events_rx = event_router.subscribe(&Topic::Network);
+        let controller_events_rx = event_router.subscribe(&Topic::Network);
+        let miner_events_rx = event_router.subscribe(&Topic::Consensus);
+        let miner_election_events_rx = event_router.subscribe(&Topic::Consensus);
+        let quorum_election_events_rx = event_router.subscribe(&Topic::Network);
+        let jsonrpc_events_rx = event_router.subscribe(&Topic::Control);
+        let dkg_events_rx = event_router.subscribe(&Topic::Network);
+        let farmer_events_rx = event_router.subscribe(&Topic::Consensus);
+        let harvester_events_rx = event_router.subscribe(&Topic::Consensus);
         let indexer_events_rx = event_router.subscribe();
 
         let (
@@ -85,6 +82,10 @@ impl Node {
             dkg_handle,
             miner_election_handle,
             quorum_election_handle,
+            farmer_handle,
+            harvester_handle,
+            scheduler_handle,
+            raptor_handle,
             indexer_handle,
         ) = setup_runtime_components(
             &config,
@@ -98,6 +99,8 @@ impl Node {
             dkg_events_rx,
             miner_election_events_rx,
             quorum_election_events_rx,
+            farmer_events_rx,
+            harvester_events_rx,
             indexer_events_rx,
         )
         .await?;
@@ -110,20 +113,24 @@ impl Node {
 
         Ok(Self {
             config,
-            vm,
             event_router_handle,
-            state_handle,
-            mempool_handle,
-            jsonrpc_server_handle,
-            gossip_handle,
-            dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,
-            miner_handle,
             keypair,
+            vm,
+            state_handle,
+            mempool_handle,
+            gossip_handle,
+            miner_handle,
+            jsonrpc_server_handle,
+            dkg_handle,
             miner_election_handle,
             quorum_election_handle,
+            farmer_handle,
+            harvester_handle,
+            raptor_handle,
+            scheduler_handle,
             indexer_handle,
         })
     }

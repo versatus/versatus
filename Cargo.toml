@@ -94,7 +94,7 @@ trecho = { git = "https://github.com/vrrb-io/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
+bulldag = { git = "https://github.com/vrrb-io/bulldag", branch="main"}
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 
@@ -188,6 +188,8 @@ futures = { version = "0.3.24", features = ["thread-pool"] }
 qp2p = "0.30.0"
 wiremock = "0.5.18"
 url = "2.3.1"
+bs58 = "0.4.0"
+ring = "0.16.20"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

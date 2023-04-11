@@ -2,10 +2,12 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use crossbeam_channel::unbounded;
 use events::{DirectedEvent, Event};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
+    packet::RaptorBroadCastedData,
 };
 use telemetry::{error, info, warn};
 use theater::{ActorLabel, ActorState, Handler};
@@ -31,34 +33,22 @@ const RAPTOR_ERASURE_COUNT: u32 = 3000;
 
 #[derive(Debug)]
 pub struct BroadcastEngineController {
-    engine: BroadcastEngine,
-    events_tx: EventBroadcastSender,
+    pub engine: BroadcastEngine,
+    pub events_tx: EventBroadcastSender,
 }
 
 #[derive(Debug)]
 pub struct BroadcastEngineControllerConfig {
     pub engine: BroadcastEngine,
-    pub events_tx: EventBroadcastSender,
 }
 
-impl BroadcastEngineControllerConfig {
-    pub fn local_addr(&self) -> SocketAddr {
-        self.engine.local_addr()
-    }
-}
 
 impl BroadcastEngineController {
-    pub fn new(config: BroadcastEngineControllerConfig) -> Self {
-        let engine = config.engine;
-        let events_tx = config.events_tx;
-
+    pub fn new(engine: BroadcastEngine, events_tx: EventBroadcastSender) -> Self {
         Self { engine, events_tx }
     }
 
-    pub async fn listen(
-        &mut self,
-        mut events_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-    ) -> Result<()> {
+    pub async fn listen(&mut self, mut events_rx: Receiver<Event>) -> Result<()> {
         loop {
             tokio::select! {
                 Some((conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
@@ -71,7 +61,7 @@ impl BroadcastEngineController {
                     }
                   }
                 },
-                Some(event) = events_rx.recv() => {
+                Ok(event) = events_rx.recv() => {
                     if matches!(event, Event::Stop) {
                         info!("Stopping broadcast controller");
                         break
@@ -125,7 +115,6 @@ impl BroadcastEngineController {
             Event::SyncPeers(peers) => {
                 if peers.is_empty() {
                     warn!("No peers to sync with");
-
                     self.events_tx.send(Event::EmptyPeerSync);
 
                     // TODO: revisit this return
@@ -155,9 +144,7 @@ impl BroadcastEngineController {
                 if let Err(err) = peer_connection_result {
                     error!("unable to add peer connection: {err}");
 
-                    self.events_tx.send(
-                        Event::PeerSyncFailed(quic_addresses)
-                    );
+                    self.events_tx.send(Event::PeerSyncFailed(quic_addresses));
 
                     return Err(err.into());
                 }

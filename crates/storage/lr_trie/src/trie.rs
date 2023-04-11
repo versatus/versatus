@@ -6,7 +6,7 @@ use left_right::{ReadHandle, WriteHandle};
 use patriecia::{db::Database, inner::InnerTrie};
 use serde::{Deserialize, Serialize};
 
-use crate::{InnerTrieWrapper, Operation, Proof, Result};
+use crate::{InnerTrieWrapper, LeftRightTrieError, Operation, Proof, Result};
 
 /// Concurrent generic Merkle Patricia Trie
 #[derive(Debug)]
@@ -64,14 +64,24 @@ where
         self.handle().root_hash().ok()
     }
 
-    pub fn get_proof(&self, key: K) -> Result<Vec<Proof>> {
-        todo!()
-        // self.handle().get_proof(key)
+    pub fn get_proof(&mut self, key: &K) -> Result<Vec<Proof>>
+    where
+        K: Serialize + Deserialize<'a>,
+        V: Serialize + Deserialize<'a>,
+    {
+        self.handle()
+            .get_proof::<K, V>(key)
+            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
-    pub fn verify_proof(&self, root: H256, key: K, proof: Vec<Proof>) -> Result<Option<Proof>> {
-        todo!()
-        // self.handle().verify_proof(root, key, proof)
+    pub fn verify_proof(&self, root: H256, key: &K, proof: Vec<Proof>) -> Result<Option<Proof>>
+    where
+        K: Serialize + Deserialize<'a>,
+        V: Serialize + Deserialize<'a>,
+    {
+        self.handle()
+            .verify_proof::<K, V>(root, key, proof)
+            .map_err(|err| LeftRightTrieError::Other(err.to_string()))
     }
 
     pub fn factory(&self) -> ReadHandleFactory<InnerTrie<D>> {

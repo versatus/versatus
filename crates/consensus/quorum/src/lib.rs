@@ -8,6 +8,7 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
+    use primitives::Address;
     use sha256::digest;
     use vrrb_core::{claim::Claim, keypair::KeyPair};
 
@@ -26,9 +27,8 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().serialize().to_vec();
-            let claim: Claim =
-                Claim::new(hex::encode(public_key), TEST_ADDR.to_string());
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -48,7 +48,7 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            if let Ok(mut quorum) = Quorum::new(seed,  11) {
+            if let Ok(mut quorum) = Quorum::new(seed, 11) {
                 assert!(quorum.run_election(dummy_claims).is_err());
             };
         }
@@ -60,8 +60,8 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
 
             dummy_claims.push(claim);
         });
@@ -88,8 +88,8 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
 
             dummy_claims.push(claim);
         });
@@ -114,8 +114,8 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
 
             dummy_claims.push(claim);
         });
@@ -135,7 +135,7 @@ mod tests {
         let seed = Quorum::generate_seed(payload1, keypair.clone());
 
         if let Ok(seed) = seed {
-            assert!(Quorum::new(seed,  0).is_err());
+            assert!(Quorum::new(seed, 0).is_err());
         }
     }
 
@@ -144,8 +144,8 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..20).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -162,7 +162,7 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            assert!(Quorum::new(seed,  11).is_err());
+            assert!(Quorum::new(seed, 11).is_err());
         }
     }
 
@@ -172,8 +172,8 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..25).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(public_key.to_string(), TEST_ADDR.to_string());
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -190,10 +190,10 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            if let Ok(mut quorum) = Quorum::new(seed,  11) {
+            if let Ok(mut quorum) = Quorum::new(seed, 11) {
                 if quorum.run_election(dummy_claims.clone()).is_ok() {
                     assert!(quorum.master_pubkeys.len() == 13);
-                } 
+                }
             };
         }
     }
@@ -205,13 +205,8 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key();
-            let claim: Claim = Claim::new(
-                public_key.to_string(),
-                TEST_ADDR.to_string().clone()
-            );
-            //let boxed_claim = Box::new(claim);
-
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
         });
