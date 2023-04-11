@@ -54,7 +54,6 @@ pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
-pub mod election_module;
 pub mod dag_module;
 
 pub async fn setup_runtime_components(
