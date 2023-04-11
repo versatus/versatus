@@ -74,7 +74,7 @@ impl FarmerModule {
         async_jobs_sender: Sender<Job>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
-        let farmer = Self {
+        let mut farmer = Self {
             sig_provider,
             tx_mempool: lrmpooldb,
             status: ActorState::Stopped,
