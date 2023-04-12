@@ -1,15 +1,13 @@
 use std::{
-    collections::HashSet,
-    sync::mpsc::{channel, Receiver, RecvError, SendError, Sender},
-    thread::{self, *},
+    collections::{HashMap, HashSet},
+    sync::mpsc::RecvError,
 };
 
 use left_right::{ReadHandle, ReadHandleFactory};
-use mempool::mempool::{FetchFiltered, *};
-use patriecia::{db::Database, inner::InnerTrie};
-use vrrb_core::txn::*;
+use primitives::Address;
+use vrrb_core::{account::Account, txn::*};
 
-use crate::txn_validator::{StateSnapshot, TxnValidator};
+use crate::txn_validator::TxnValidator;
 
 /// Enum containing all messages related to controling the Core thread's
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,17 +68,16 @@ impl Core {
 
     pub fn process_transactions(
         &self,
-        state_snapshot: &StateSnapshot,
+        account_state: &HashMap<Address, Account>,
         batch: Vec<Txn>,
     ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
         // ) -> HashSet<(Txn, bool)> {
         batch
             .into_iter()
-            .map(|txn| match self.validator.validate(state_snapshot, &txn) {
+            .map(|txn| match self.validator.validate(account_state, &txn) {
                 Ok(_) => (txn, Ok(())),
                 Err(err) => {
                     telemetry::error!("{err:?}");
-
                     (txn, Err(err))
                     // Should we send error?
                     // send_core_err_msg(id, &error_sender,

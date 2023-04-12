@@ -5,11 +5,12 @@ use std::{
 
 use block::Block;
 use bulldag::graph::BullDag;
+use crossbeam_channel::{unbounded, RecvError, Sender};
 use events::{Event, EventRouter};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::network::BroadcastEngine;
-use primitives::{Address, QuorumType::Farmer};
+use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
@@ -51,7 +52,6 @@ pub mod credit_model_module;
 pub mod dag_module;
 pub mod dkg_module;
 pub mod election_module;
-pub mod farmer_harvester_module;
 pub mod farmer_module;
 pub mod indexer_module;
 pub mod mempool_module;
@@ -72,9 +72,11 @@ pub async fn setup_runtime_components(
     dkg_events_rx: Receiver<Event>,
     miner_election_events_rx: Receiver<Event>,
     quorum_election_events_rx: Receiver<Event>,
+    farmer_events_rx: Receiver<Event>,
     indexer_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -172,6 +174,23 @@ pub async fn setup_runtime_components(
         state_read_handle.clone(),
         claim.clone(),
     )?;
+    let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+    let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+
+    let mut farmer_handle = None;
+    let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+
+    if config.node_type == NodeType::Farmer {
+        farmer_handle = setup_farmer_module(
+            &config,
+            sync_jobs_sender.clone(),
+            async_jobs_sender.clone(),
+            events_tx.clone(),
+            farmer_events_rx,
+        )?;
+    } else {
+        //Setup harvester
+    };
 
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
@@ -186,6 +205,7 @@ pub async fn setup_runtime_components(
         dkg_handle,
         miner_election_handle,
         quorum_election_handle,
+        farmer_handle,
         indexer_handle,
     ))
 }
@@ -442,6 +462,36 @@ fn setup_quorum_election_module(
     return Ok(Some(quorum_election_module_handle));
 }
 
+fn setup_farmer_module(
+    config: &NodeConfig,
+    sync_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
+    mut events_tx: EventBroadcastSender,
+    mut farmer_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let mut module = farmer_module::FarmerModule::new(
+        None,
+        vec![],
+        config.keypair.get_peer_id().into_bytes(),
+        // Farmer Node Idx should be updated either by Election or Bootstrap node should assign idx
+        0,
+        events_tx.clone(),
+        // Quorum Threshold should be updated on the election,
+        1,
+        sync_jobs_sender,
+        async_jobs_sender,
+    );
+    
+    let mut farmer_module_actor = ActorImpl::new(module);
+    let farmer_handle = tokio::spawn(async move {
+        farmer_module_actor
+            .start(&mut farmer_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+    return Ok(Some(farmer_handle));
+}
+    
 fn setup_indexer_module(
     config: &NodeConfig,
     mut indexer_events_rx: Receiver<Event>,
@@ -464,11 +514,7 @@ fn setup_indexer_module(
 
     Ok(Some(indexer_handle))
 }
-
-fn setup_farmer_module() -> Result<Option<JoinHandle<Result<()>>>> {
-    Ok(None)
-}
-
+   
 fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }

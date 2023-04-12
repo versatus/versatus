@@ -1,25 +1,31 @@
 use std::{collections::HashMap, net::SocketAddr};
-use block::{Conflict, Block};
+
+use block::{Block, Conflict};
 use ethereum_types::U256;
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
+    HarvesterQuorumThreshold,
     NodeIdx,
     NodeType,
     PeerId,
     QuorumPublicKey,
+    QuorumSize,
     QuorumType,
     RawSignature,
 };
+use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::sync::{
     broadcast::{self, Receiver, Sender},
-    mpsc::{UnboundedSender, UnboundedReceiver},
+    mpsc::{UnboundedReceiver, UnboundedSender},
 };
-use vrrb_core::{txn::{TransactionDigest, Txn}, claim::Claim};
-use quorum::quorum::Quorum;
+use vrrb_core::{
+    claim::Claim,
+    txn::{TransactionDigest, Txn},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
@@ -34,7 +40,6 @@ pub enum Error {
     Other(String),
 }
 pub type Subscriber = UnboundedSender<Event>;
-pub type Publisher = UnboundedSender<(Topic, Event)>;
 pub type AccountBytes = Vec<u8>;
 pub type BlockBytes = Vec<u8>;
 pub type HeaderBytes = Vec<u8>;
@@ -54,11 +59,6 @@ pub struct SyncPeerData {
     pub quic_port: u16,
     pub node_type: NodeType,
 }
-
-// NOTE: naming convention for events goes as follows:
-// <Subject><Verb, in past tense>, e.g. ObjectCreated
-// TODO: Replace Vec<u8>'s with proper data structs in enum wariants
-// once definitions of those are moved into primitives.
 
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct Vote {
@@ -107,6 +107,20 @@ pub struct QuorumCertifiedTxn {
     signature: RawSignature,
 }
 
+/// `JobResult` is an enum that represents the possible results of a job that is
+/// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
+pub enum JobResult {
+    Votes((Vec<Option<Vote>>, FarmerQuorumThreshold)),
+    CertifiedTxn(
+        Vec<Vote>,
+        RawSignature,
+        TransactionDigest,
+        String,
+        Vec<u8>,
+        Txn,
+    ),
+}
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Event {
@@ -178,19 +192,23 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
-    // May want to just use the `BlockHeader` struct to reduce 
+    // May want to just use the `BlockHeader` struct to reduce
     // the overhead of deserializing
     MinerElection(HeaderBytes),
     ElectedMiner((U256, Claim)),
     QuorumElection(HeaderBytes),
     ElectedQuorum(Quorum),
     MinedBlock(Block),
-    // May want to just use the ConflictList & `BlockHeader` types 
+    // May want to just use the ConflictList & `BlockHeader` types
     // to reduce the overhead of deserializing
     ConflictResolution(ConflictBytes, HeaderBytes),
     ResolvedConflict(Conflict),
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
+    ProcessedVotes(JobResult),
+    FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
+    HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
+    CertifiedTxn(JobResult),
 }
 
 impl From<&theater::Message> for Event {

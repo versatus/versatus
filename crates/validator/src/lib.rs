@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn should_validate_a_list_of_invalid_transactions() {
-        let mut valcore_manager = ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap();
+        let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
         let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
 
         let mut batch = vec![];

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{DirectedEvent, Event, EventRouter, Topic};
+use events::{Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
@@ -14,7 +14,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::setup_runtime_components,
     NodeType,
-    RuntimeModuleState, farmer_module::QuorumMember,
+    RuntimeModuleState,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -42,6 +42,7 @@ pub struct Node {
     dkg_handle: Option<JoinHandle<Result<()>>>,
     miner_election_handle: Option<JoinHandle<Result<()>>>,
     quorum_election_handle: Option<JoinHandle<Result<()>>>,
+    farmer_handle: Option<JoinHandle<Result<()>>>,
     indexer_handle: Option<JoinHandle<Result<()>>>,
 }
 
@@ -63,10 +64,6 @@ impl Node {
         let controller_events_rx = event_router.subscribe();
         let miner_events_rx = event_router.subscribe();
         let farmer_events_rx = event_router.subscribe();
-        let harvester_events_rx = event_router.subscribe();
-        let mrc_events_rx = event_router.subscribe();
-        let cm_events_rx = event_router.subscribe();
-        let reputation_events_rx = event_router.subscribe();
         let jsonrpc_events_rx = event_router.subscribe();
         let dkg_events_rx = event_router.subscribe();
         let miner_election_events_rx = event_router.subscribe();
@@ -83,6 +80,7 @@ impl Node {
             dkg_handle,
             miner_election_handle,
             quorum_election_handle,
+            farmer_handle,
             indexer_handle,
         ) = setup_runtime_components(
             &config,
@@ -96,6 +94,7 @@ impl Node {
             dkg_events_rx,
             miner_election_events_rx,
             quorum_election_events_rx,
+            farmer_events_rx,
             indexer_events_rx,
         )
         .await?;
@@ -122,6 +121,7 @@ impl Node {
             keypair,
             miner_election_handle,
             quorum_election_handle,
+            farmer_handle,
             indexer_handle,
         })
     }
