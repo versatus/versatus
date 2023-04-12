@@ -22,6 +22,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::claim::Claim;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
+use self::dag_module::DagModule;
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     election_module::{
@@ -74,8 +75,10 @@ pub async fn setup_runtime_components(
     quorum_election_events_rx: Receiver<Event>,
     farmer_events_rx: Receiver<Event>,
     indexer_events_rx: Receiver<Event>,
+    dag_module_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -153,7 +156,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
-        dag,
+        dag.clone(),
         miner_events_rx,
     )?;
 
@@ -195,6 +198,12 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
+    let dag_handle = setup_dag_module(
+        dag.clone(), 
+        events_tx.clone(), 
+        dag_module_events_rx
+    )?;
+
     Ok((
         config,
         mempool_handle,
@@ -207,6 +216,7 @@ pub async fn setup_runtime_components(
         quorum_election_handle,
         farmer_handle,
         indexer_handle,
+        dag_handle,
     ))
 }
 
@@ -489,9 +499,32 @@ fn setup_farmer_module(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
+
     return Ok(Some(farmer_handle));
 }
+
+fn setup_dag_module(
+    dag: Arc<RwLock<BullDag<Block, String>>>,
+    events_tx: UnboundedSender<Event>,
+    mut dag_module_events_rx: Receiver<Event>
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module = DagModule::new(
+        dag,
+        events_tx
+    );
+
+    let mut dag_module_actor = ActorImpl::new(module);
+    let dag_module_handle = tokio::spawn(async move {
+        dag_module_actor
+            .start(&mut dag_module_events_rx)
+            .await 
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
     
+    Ok(Some(dag_module_handle))
+}
+
 fn setup_indexer_module(
     config: &NodeConfig,
     mut indexer_events_rx: Receiver<Event>,
