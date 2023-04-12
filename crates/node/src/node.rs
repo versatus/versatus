@@ -12,7 +12,7 @@ use vrrb_core::keypair::KeyPair;
 
 use crate::{
     result::{NodeError, Result},
-    runtime::setup_runtime_components,
+    runtime::{setup_runtime_components, RuntimeHandle},
     NodeType,
     RuntimeModuleState,
 };
@@ -34,16 +34,17 @@ pub struct Node {
 
     // NOTE: optional node components
     vm: Option<Cpu>,
-    state_handle: Option<JoinHandle<Result<()>>>,
-    mempool_handle: Option<JoinHandle<Result<()>>>,
-    gossip_handle: Option<JoinHandle<Result<()>>>,
-    miner_handle: Option<JoinHandle<Result<()>>>,
-    jsonrpc_server_handle: Option<JoinHandle<Result<()>>>,
-    dkg_handle: Option<JoinHandle<Result<()>>>,
-    miner_election_handle: Option<JoinHandle<Result<()>>>,
-    quorum_election_handle: Option<JoinHandle<Result<()>>>,
-    farmer_handle: Option<JoinHandle<Result<()>>>,
-    indexer_handle: Option<JoinHandle<Result<()>>>,
+    state_handle: RuntimeHandle,
+    mempool_handle: RuntimeHandle,
+    gossip_handle: RuntimeHandle,
+    miner_handle: RuntimeHandle,
+    jsonrpc_server_handle: RuntimeHandle,
+    dkg_handle: RuntimeHandle,
+    miner_election_handle: RuntimeHandle,
+    quorum_election_handle: RuntimeHandle,
+    farmer_handle: RuntimeHandle,
+    indexer_handle: RuntimeHandle,
+    dag_handle: RuntimeHandle,
 }
 
 impl Node {
@@ -69,20 +70,9 @@ impl Node {
         let miner_election_events_rx = event_router.subscribe();
         let quorum_election_events_rx = event_router.subscribe();
         let indexer_events_rx = event_router.subscribe();
+        let dag_events_rx = event_router.subscribe();
 
-        let (
-            updated_config,
-            mempool_handle,
-            state_handle,
-            gossip_handle,
-            jsonrpc_server_handle,
-            miner_handle,
-            dkg_handle,
-            miner_election_handle,
-            quorum_election_handle,
-            farmer_handle,
-            indexer_handle,
-        ) = setup_runtime_components(
+        let runtime_components = setup_runtime_components(
             &config,
             events_tx.clone(),
             mempool_events_rx,
@@ -96,10 +86,11 @@ impl Node {
             quorum_election_events_rx,
             farmer_events_rx,
             indexer_events_rx,
+            dag_events_rx
         )
         .await?;
 
-        config = updated_config;
+        config = runtime_components.node_config;
 
         // TODO: report error from handle
         let event_router_handle =
@@ -109,20 +100,21 @@ impl Node {
             config,
             vm,
             event_router_handle,
-            state_handle,
-            mempool_handle,
-            jsonrpc_server_handle,
-            gossip_handle,
-            dkg_handle,
+            state_handle:  runtime_components.state_handle,
+            mempool_handle: runtime_components.mempool_handle,
+            jsonrpc_server_handle:  runtime_components.jsonrpc_server_handle,
+            gossip_handle: runtime_components.gossip_handle,
+            dkg_handle: runtime_components.dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             control_rx,
             events_tx,
-            miner_handle,
+            miner_handle: runtime_components.miner_handle,
             keypair,
-            miner_election_handle,
-            quorum_election_handle,
-            farmer_handle,
-            indexer_handle,
+            miner_election_handle: runtime_components.miner_election_handle,
+            quorum_election_handle: runtime_components.quorum_election_handle,
+            farmer_handle: runtime_components.farmer_handle,
+            indexer_handle: runtime_components.indexer_handle,
+            dag_handle: runtime_components.dag_handle,
         })
     }
 
