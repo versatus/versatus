@@ -1,7 +1,11 @@
-use std::sync::{Arc, RwLock};
+use std::{sync::{Arc, RwLock}, collections::BTreeMap};
 
 use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock, GenesisBlock};
 use bulldag::{graph::{BullDag, GraphError}, vertex::Vertex};
+use hbbft::crypto::{PublicKeySet, PublicKey, SIG_SIZE, SignatureShare, Signature};
+use primitives::{SignatureType, RawSignature, PayloadHash, NodeIdx};
+use signer::types::{SignerError, SignerResult};
+use dkg_engine::types::NodeID;
 use theater::{ActorState, ActorLabel, ActorId, Handler};
 use async_trait::async_trait;
 use events::Event;
@@ -32,13 +36,17 @@ pub type GraphResult<T> = Result<T, GraphError>;
 ///     events_tx: EventBroadcastSender,
 ///     dag: Arc<RwLock<BullDag<Block, String>>>,
 /// }
-///
+/// ```
 pub struct DagModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
     events_tx: EventBroadcastSender,
     dag: Arc<RwLock<BullDag<Block, String>>>,
+    peer_public_keys: BTreeMap<NodeID, PublicKey>,
+    public_key_set: Option<PublicKeySet>,
+    //harvester_pubkeys
+    //harvester_quorum_threshold_pubkey
 }
 
 impl DagModule {
@@ -46,13 +54,25 @@ impl DagModule {
         dag: Arc<RwLock<BullDag<Block, String>>>,
         events_tx: EventBroadcastSender
     ) -> Self {
+        let peer_public_keys: BTreeMap<NodeID, PublicKey> = BTreeMap::new();
         Self {
             status: ActorState::Stopped,
             label: String::from("Dag"),
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
-            dag
+            dag,
+            peer_public_keys,
+            public_key_set: None,
         }
+    }
+
+    pub fn set_harvester_pubkeys(
+        &mut self, 
+        public_key_set: PublicKeySet,
+        peer_public_keys: BTreeMap<NodeID, PublicKey>,
+    ) {
+        self.peer_public_keys = peer_public_keys;
+        self.public_key_set = Some(public_key_set);
     }
 
     pub fn append_genesis(
@@ -170,6 +190,87 @@ impl DagModule {
         }
 
         return Err(GraphError::Other("Error getting write gurard".to_string()));
+    }
+
+    fn verify_signature(
+        &self,
+        node_idx: NodeIdx,
+        payload_hash: PayloadHash,
+        signature: RawSignature,
+        signature_type: SignatureType,
+    ) -> SignerResult<bool> {
+        if signature.len() != SIG_SIZE {
+            return Err(SignerError::CorruptSignatureShare(
+                "Invalid Signature ,Size must be 96 bytes".to_string(),
+            ));
+        }
+        match signature_type {
+            SignatureType::PartialSignature => {
+                self.verify_partial_sig(node_idx, payload_hash, signature)
+            },
+            SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
+                self.verify_threshold_sig(payload_hash, signature)
+            }
+        }
+    }
+
+    fn verify_partial_sig(
+        &self,
+        node_idx: NodeIdx,
+        payload_hash: PayloadHash,
+        signature: RawSignature 
+    ) -> SignerResult<bool> {
+        let public_key_share = {
+            if let Some(public_key_share) = self.public_key_set.clone() {
+                public_key_share.public_key_share(node_idx as usize)
+            } else {
+                return Err(SignerError::GroupPublicKeyMissing)
+            }
+        };
+
+        let signature_arr: [u8; 96] = signature.try_into().unwrap();
+        match SignatureShare::from_bytes(signature_arr) {
+            Ok(sig_share) => {
+                return Ok(public_key_share.verify(&sig_share, payload_hash))
+            },
+            Err(e) => {
+                return Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing partial signature details : {:?}",
+                    e
+                )))
+            },
+        }
+    }
+
+    fn verify_threshold_sig(
+        &self,
+        payload_hash: PayloadHash,
+        signature: RawSignature
+    ) -> SignerResult<bool> {
+
+        let public_key_set = {
+            if let Some(public_key_set) = self.public_key_set.clone() {
+                public_key_set
+            } else {
+                return Err(SignerError::GroupPublicKeyMissing);
+            }
+        };
+        let signature_arr: [u8; 96] = signature.try_into().unwrap();
+        match Signature::from_bytes(signature_arr) {
+            Ok(signature) => {
+                return Ok(
+                    public_key_set
+                        .public_key()
+                        .verify(&signature, payload_hash)
+                )
+            },
+            Err(e) => {
+                return Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing threshold signature details : {:?}",
+                    e
+                )))
+            }
+        }
     }
 }
 
