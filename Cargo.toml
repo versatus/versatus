@@ -52,6 +52,7 @@ members = [
     "crates/storage/utils",
     "crates/telemetry",
     "crates/utils",
+    "crates/vrrb_http",
 ]
 
 [workspace.dependencies]
@@ -85,6 +86,7 @@ reward = { path = "crates/consensus/reward" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
+vrrb_http = { path = "crates/vrrb_http" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
@@ -184,6 +186,10 @@ timer = "0.2.0"
 laminar = "0.5.0"
 futures = { version = "0.3.24", features = ["thread-pool"] }
 qp2p = "0.30.0"
+wiremock = "0.5.18"
+url = "2.3.1"
+bs58 = "0.4.0"
+ring = "0.16.20"
 
 [dev-dependencies]
 cuckoofilter.workspace = true
