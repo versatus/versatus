@@ -32,14 +32,16 @@ use self::{
         QuorumElection,
         QuorumElectionResult,
     },
+    indexer_module::IndexerModuleConfig,
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
 };
 use crate::{
-    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
+    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     dkg_module::DkgModuleConfig,
-    scheduler::Job,
+    scheduler::{Job, JobSchedulerController},
+    EventBroadcastReceiver,
     EventBroadcastSender,
     NodeError,
     Result,
@@ -51,6 +53,7 @@ pub mod dag_module;
 pub mod dkg_module;
 pub mod election_module;
 pub mod farmer_module;
+pub mod indexer_module;
 pub mod mempool_module;
 pub mod mining_module;
 pub mod reputation_module;
@@ -70,8 +73,10 @@ pub async fn setup_runtime_components(
     miner_election_events_rx: Receiver<Event>,
     quorum_election_events_rx: Receiver<Event>,
     farmer_events_rx: Receiver<Event>,
+    indexer_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -187,6 +192,9 @@ pub async fn setup_runtime_components(
         //Setup harvester
     };
 
+    let indexer_handle =
+        setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
+
     Ok((
         config,
         mempool_handle,
@@ -198,6 +206,7 @@ pub async fn setup_runtime_components(
         miner_election_handle,
         quorum_election_handle,
         farmer_handle,
+        indexer_handle,
     ))
 }
 
@@ -472,7 +481,7 @@ fn setup_farmer_module(
         sync_jobs_sender,
         async_jobs_sender,
     );
-
+    
     let mut farmer_module_actor = ActorImpl::new(module);
     let farmer_handle = tokio::spawn(async move {
         farmer_module_actor
@@ -482,6 +491,30 @@ fn setup_farmer_module(
     });
     return Ok(Some(farmer_handle));
 }
+    
+fn setup_indexer_module(
+    config: &NodeConfig,
+    mut indexer_events_rx: Receiver<Event>,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let config = IndexerModuleConfig {
+        mempool_read_handle_factory,
+    };
+
+    let mut module = indexer_module::IndexerModule::new(config);
+
+    let mut indexer_module_actor = ActorImpl::new(module);
+
+    let indexer_handle = tokio::spawn(async move {
+        indexer_module_actor
+            .start(&mut indexer_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    Ok(Some(indexer_handle))
+}
+   
 fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }

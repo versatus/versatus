@@ -43,6 +43,7 @@ pub struct Node {
     miner_election_handle: Option<JoinHandle<Result<()>>>,
     quorum_election_handle: Option<JoinHandle<Result<()>>>,
     farmer_handle: Option<JoinHandle<Result<()>>>,
+    indexer_handle: Option<JoinHandle<Result<()>>>,
 }
 
 impl Node {
@@ -62,12 +63,12 @@ impl Node {
         let network_events_rx = event_router.subscribe();
         let controller_events_rx = event_router.subscribe();
         let miner_events_rx = event_router.subscribe();
-
         let farmer_events_rx = event_router.subscribe();
         let jsonrpc_events_rx = event_router.subscribe();
         let dkg_events_rx = event_router.subscribe();
         let miner_election_events_rx = event_router.subscribe();
         let quorum_election_events_rx = event_router.subscribe();
+        let indexer_events_rx = event_router.subscribe();
 
         let (
             updated_config,
@@ -80,6 +81,7 @@ impl Node {
             miner_election_handle,
             quorum_election_handle,
             farmer_handle,
+            indexer_handle,
         ) = setup_runtime_components(
             &config,
             events_tx.clone(),
@@ -93,6 +95,7 @@ impl Node {
             miner_election_events_rx,
             quorum_election_events_rx,
             farmer_events_rx,
+            indexer_events_rx,
         )
         .await?;
 
@@ -119,6 +122,7 @@ impl Node {
             miner_election_handle,
             quorum_election_handle,
             farmer_handle,
+            indexer_handle,
         })
     }
 
