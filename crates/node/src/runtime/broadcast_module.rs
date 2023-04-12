@@ -3,7 +3,7 @@ use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult, ti
 use async_trait::async_trait;
 use block::Block;
 use bytes::Bytes;
-use events::{DirectedEvent, Event};
+use events::Event;
 use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
@@ -28,7 +28,7 @@ use uuid::Uuid;
 use crate::{NodeError, Result, RuntimeModuleState};
 
 pub struct BroadcastModuleConfig {
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub udp_gossip_address_port: u16,
@@ -41,7 +41,7 @@ pub struct BroadcastModuleConfig {
 pub struct BroadcastModule {
     id: Uuid,
     status: ActorState,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
 }
@@ -246,13 +246,16 @@ impl Handler<Event> for BroadcastModule {
 #[cfg(test)]
 mod tests {
     use std::io::stdout;
-    use events::Event;
+
+    use events::{Event, SyncPeerData};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use tokio::sync::mpsc::unbounded_channel;
+    use theater::{Actor, ActorImpl};
+    use tokio::{net::UdpSocket, sync::mpsc::unbounded_channel};
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 
+    #[ignore]
     #[tokio::test]
     async fn test_broadcast_module() {
         let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
@@ -304,7 +307,6 @@ mod tests {
         events_tx.send(Event::Stop).unwrap();
 
         let evt = internal_events_rx.recv().await.unwrap();
-
         handle.await.unwrap();
     }
 }

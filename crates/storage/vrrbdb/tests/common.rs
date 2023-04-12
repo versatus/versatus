@@ -72,8 +72,5 @@ pub fn generate_random_valid_transaction() -> Txn {
 pub fn generate_random_claim() -> Claim {
     let keypair = Keypair::random();
 
-    Claim::new(
-        keypair.miner_kp.1.clone().to_string(),
-        Address::new(keypair.miner_kp.1).to_string(),
-    )
+    Claim::new(keypair.miner_kp.1.clone(), Address::new(keypair.miner_kp.1))
 }
