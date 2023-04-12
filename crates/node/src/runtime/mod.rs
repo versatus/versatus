@@ -1,8 +1,10 @@
-use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
-use bulldag::graph::BullDag;
-use block::Block;
+use std::{
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
 
+use block::Block;
+use bulldag::graph::BullDag;
 use events::{Event, EventRouter};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
@@ -12,10 +14,7 @@ use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use tokio::{
-    sync::{
-        broadcast::Receiver,
-        mpsc::UnboundedSender,
-    },
+    sync::{broadcast::Receiver, mpsc::UnboundedSender},
     task::JoinHandle,
 };
 use vrrb_config::NodeConfig;
@@ -25,47 +24,42 @@ use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     election_module::{
-        MinerElection,
-        MinerElectionResult,
         ElectionModule,
         ElectionModuleConfig,
+        MinerElection,
+        MinerElectionResult,
         QuorumElection,
         QuorumElectionResult,
     },
     indexer_module::IndexerModuleConfig,
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule
+    state_module::StateModule,
 };
 use crate::{
-    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
-    dkg_module::DkgModuleConfig,
-    EventBroadcastSender,
     broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
     dkg_module::DkgModuleConfig,
     scheduler::{Job, JobSchedulerController},
     EventBroadcastReceiver,
     EventBroadcastSender,
-    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
-    dkg_module::DkgModuleConfig,
     NodeError,
     Result,
 };
 
 pub mod broadcast_module;
 pub mod credit_model_module;
+pub mod dag_module;
 pub mod dkg_module;
 pub mod election_module;
+pub mod election_module;
 pub mod farmer_harvester_module;
-pub mod indexer_module;
 pub mod farmer_module;
+pub mod indexer_module;
 pub mod mempool_module;
 pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
-pub mod election_module;
-pub mod dag_module;
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -82,6 +76,7 @@ pub async fn setup_runtime_components(
     indexer_events_rx: Receiver<Event>,
 ) -> Result<(
     NodeConfig,
+    Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
     Option<JoinHandle<Result<()>>>,
@@ -289,7 +284,8 @@ async fn setup_rpc_api_server(
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: Receiver<Event>,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> { let jsonrpc_server_config = JsonRpcServerConfig {
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+    let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
         node_type: config.node_type,
         events_tx,
@@ -330,7 +326,7 @@ fn setup_mining_module(
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
-        dag: dag.clone()
+        dag: dag.clone(),
     };
 
     let miner = miner::Miner::new(miner_config);
@@ -404,13 +400,10 @@ fn setup_miner_election_module(
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
-        local_claim
+        local_claim,
     };
-    let module: ElectionModule<MinerElection, MinerElectionResult> = { 
-        ElectionModule::<MinerElection, MinerElectionResult>::new(
-            module_config
-        ) 
-    };
+    let module: ElectionModule<MinerElection, MinerElectionResult> =
+        { ElectionModule::<MinerElection, MinerElectionResult>::new(module_config) };
 
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
@@ -433,20 +426,17 @@ fn setup_quorum_election_module(
     let module_config = ElectionModuleConfig {
         db_read_handle,
         events_tx,
-        local_claim
+        local_claim,
     };
 
-    let module: ElectionModule<QuorumElection, QuorumElectionResult> = { 
-        ElectionModule::<QuorumElection, QuorumElectionResult>::new(
-            module_config
-        )
-    };
+    let module: ElectionModule<QuorumElection, QuorumElectionResult> =
+        { ElectionModule::<QuorumElection, QuorumElectionResult>::new(module_config) };
 
     let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
         quorum_election_module_actor
             .start(&mut quorum_election_events_rx)
-            .await 
+            .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
