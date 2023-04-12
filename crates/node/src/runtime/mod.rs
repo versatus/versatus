@@ -5,7 +5,7 @@ use std::{
 
 use block::Block;
 use bulldag::graph::BullDag;
-use crossbeam_channel::{unbounded, RecvError, Sender};
+use crossbeam_channel::Sender;
 use events::{Event, EventRouter};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
@@ -39,10 +39,9 @@ use self::{
     state_module::StateModule,
 };
 use crate::{
-    broadcast_controller::{BroadcastEngineController, BROADCAST_CONTROLLER_BUFFER_SIZE},
+    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
     dkg_module::DkgModuleConfig,
-    scheduler::{Job, JobSchedulerController},
-    EventBroadcastReceiver,
+    scheduler::Job,
     EventBroadcastSender,
     NodeError,
     Result,
@@ -61,6 +60,23 @@ pub mod reputation_module;
 pub mod state_module;
 pub mod swarm_module;
 
+pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
+
+pub struct RuntimeComponents {
+    pub node_config: NodeConfig,
+    pub mempool_handle: RuntimeHandle,
+    pub state_handle: RuntimeHandle,
+    pub gossip_handle: RuntimeHandle,
+    pub jsonrpc_server_handle: RuntimeHandle,
+    pub miner_handle: RuntimeHandle, 
+    pub dkg_handle: RuntimeHandle,
+    pub miner_election_handle: RuntimeHandle,
+    pub quorum_election_handle: RuntimeHandle,
+    pub farmer_handle: RuntimeHandle,
+    pub indexer_handle: RuntimeHandle,
+    pub dag_handle: RuntimeHandle,
+}
+
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
@@ -76,20 +92,7 @@ pub async fn setup_runtime_components(
     farmer_events_rx: Receiver<Event>,
     indexer_events_rx: Receiver<Event>,
     dag_module_events_rx: Receiver<Event>,
-) -> Result<(
-    NodeConfig,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<Result<()>>>,
-)> {
+) -> Result<RuntimeComponents> {
     let mut config = original_config.clone();
 
     let mempool = LeftRightMempool::new();
@@ -204,8 +207,8 @@ pub async fn setup_runtime_components(
         dag_module_events_rx
     )?;
 
-    Ok((
-        config,
+    let runtime_components = RuntimeComponents {
+        node_config: config,
         mempool_handle,
         state_handle,
         gossip_handle,
@@ -216,8 +219,10 @@ pub async fn setup_runtime_components(
         quorum_election_handle,
         farmer_handle,
         indexer_handle,
-        dag_handle,
-    ))
+        dag_handle
+    };
+
+    Ok(runtime_components)
 }
 
 fn setup_event_routing_system() -> EventRouter {
