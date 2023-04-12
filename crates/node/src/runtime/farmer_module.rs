@@ -1,39 +1,78 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    thread,
-};
-
 use async_trait::async_trait;
-use crossbeam_channel::{Receiver, Sender};
-use dashmap::DashMap;
-use events::{DirectedEvent, Event, QuorumCertifiedTxn, Topic, Vote, VoteReceipt};
-use lr_trie::ReadHandleFactory;
+use crossbeam_channel::Sender;
+use events::{Event, JobResult};
 use mempool::mempool::{LeftRightMempool, TxnStatus};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold, QuorumType, RawSignature};
-use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use serde::{Deserialize, Serialize};
-use signer::signer::{SignatureProvider, Signer};
+use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold, QuorumType};
+use signer::signer::SignatureProvider;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::{
-    broadcast::error::TryRecvError,
-    mpsc::{UnboundedReceiver, UnboundedSender},
-};
-use tracing::error;
-use vrrb_core::{
-    bloom::Bloom,
-    txn::{TransactionDigest, Txn},
-};
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use tokio::sync::mpsc::UnboundedSender;
+use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::{
-    result::Result,
-    scheduler::{Job, JobResult},
-    NodeError,
-};
+use crate::scheduler::Job;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
+/// The FarmerModule is responsible to validate and vote on transactions within
+/// mempool.
+///
+/// Properties:
+///
+/// * `tx_mempool`: `tx_mempool` is a `LeftRightMempool` struct that represents
+///   the transaction mempool
+/// of the `FarmerModule`. It is used to store and manage pending transactions
+/// before they are voted.
+/// * `group_public_key`: The `group_public_key` property is a distributed group
+///   generated public key used
+/// for combining votes on threshold.
+/// `quorum_threshold` property to determine the minimum number of votes
+/// required to certify Txn
+/// * `sig_provider`: The `sig_provider` property is an optional
+///   `SignatureProvider` that can be used to
+/// sign messages or transactions in the `FarmerModule`. It is likely used for
+/// cryptographic operations related to the farmer's participation in the
+/// network.
+/// * `farmer_id`: `farmer_id` is a variable of type `PeerId` which represents
+///   the unique identifier of
+/// the farmer node in the network. It is likely used to distinguish this node
+/// from other nodes in the network and to facilitate communication between
+/// nodes.
+/// * `farmer_node_idx`: `farmer_node_idx` is a property that represents the
+///   index of the farmer node in
+/// the network. It is likely used to identify the position of the farmer node
+/// in the network topology and to facilitate communication and coordination
+/// with other nodes in the network.
+/// * `status`: The `status` property is an instance of the `ActorState` enum,
+///   which represents the
+/// current state of the `FarmerModule` actor. The possible states are defined
+/// by the enum variants.
+/// * `label`: The `label` property is of type `ActorLabel` and is used to
+///   identify the type of actor
+/// this struct represents. It is likely an enum that defines different types of
+/// actors in the system.
+/// * `id`: The `id` property is an `ActorId` which is a unique identifier for
+///   the `FarmerModule` actor
+/// instance. It is used to distinguish this actor from other actors in the
+/// system.
+/// * `broadcast_events_tx`: `broadcast_events_tx` is an `UnboundedSender` that
+///   is used to send events
+/// to other actors in the system. It is unbounded, meaning that it can hold an
+/// unlimited number of events until they are consumed by the receiving actors.
+/// * `quorum_threshold`: The `quorum_threshold` property is a value that
+///   represents the minimum number
+/// of nodes required to reach consensus in the network. In other words, if the
+/// number of nodes that agree on a particular decision is less than the
+/// `quorum_threshold`, the decision is not considered valid. This is often used
+/// * `sync_jobs_sender`: `sync_jobs_sender` is a `Sender` object used to send
+///   synchronous jobs to the
+/// `FarmerModule` actor. It is used to communicate with other actors in the
+/// system and coordinate their actions. The `Sender` object is part of Rust's
+/// standard library and is used to send messages between
+/// * `async_jobs_sender`: `async_jobs_sender` is a property of the
+///   `FarmerModule` struct. It is of type
+/// `Sender<Job>`, which is a channel sender used to send asynchronous jobs to
+/// the module. This property is likely used to handle tasks that can be
+/// executed in the background without blocking the main
 pub struct FarmerModule {
     pub tx_mempool: LeftRightMempool,
     pub group_public_key: GroupPublicKey,
@@ -43,12 +82,10 @@ pub struct FarmerModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: UnboundedSender<DirectedEvent>,
+    broadcast_events_tx: UnboundedSender<Event>,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    sync_jobs_status_receiver: Receiver<JobResult>,
-    async_jobs_status_receiver: Receiver<JobResult>,
 }
 
 impl FarmerModule {
@@ -57,12 +94,10 @@ impl FarmerModule {
         group_public_key: GroupPublicKey,
         farmer_id: PeerId,
         farmer_node_idx: NodeIdx,
-        broadcast_events_tx: UnboundedSender<DirectedEvent>,
+        broadcast_events_tx: UnboundedSender<Event>,
         quorum_threshold: QuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
-        sync_jobs_status_receiver: Receiver<JobResult>,
-        async_jobs_status_receiver: Receiver<JobResult>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
         let farmer = Self {
@@ -78,44 +113,25 @@ impl FarmerModule {
             quorum_threshold,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver: sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver: async_jobs_status_receiver.clone(),
         };
         farmer
-    }
-
-    fn process_sync_job_status(
-        &mut self,
-        broadcast_events_tx: UnboundedSender<DirectedEvent>,
-        sync_jobs_status_receiver: Receiver<JobResult>,
-    ) {
-        loop {
-            let job_result = sync_jobs_status_receiver.recv().unwrap();
-            match job_result {
-                JobResult::Votes((votes, farmer)) => {
-                    for vote_opt in votes.iter() {
-                        if let Some(vote) = vote_opt {
-                            let _ = broadcast_events_tx.send(
-                                Event::Vote(
-                                    vote.clone(), 
-                                    QuorumType::Harvester, 
-                                    farmer
-                                )
-                            );
-                        }
-                    }
-                },
-                _ => {
-                    error!("Farmers can only vote on Transactions.")
-                },
-            }
-        }
     }
 
     pub fn insert_txn(&mut self, txn: Txn) {
         let _ = self.tx_mempool.insert(txn);
     }
 
+    /// This function updates the status of a transaction in a transaction
+    /// mempool.
+    ///
+    /// Arguments:
+    ///
+    /// * `txn_id`: The `txn_id` parameter is of type `TransactionDigest` and
+    ///   represents the unique
+    /// identifier of a transaction.
+    /// * `status`: The `status` parameter is of type `TxnStatus`, which is an
+    ///   enum representing the
+    /// status of a transaction.
     pub fn update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
         let txn_record_opt = self.tx_mempool.get(&txn_id);
         if let Some(mut txn_record) = txn_record_opt {
@@ -152,19 +168,13 @@ impl Handler<Event> for FarmerModule {
         self.status = actor_status;
     }
 
-    fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.name(),
-            self.label()
-        );
-    }
-
     async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
         match event {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
+            //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
+            // them to scheduler to get it validated and voted
             Event::Farm => {
                 let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
                 if let Some(sig_provider) = self.sig_provider.clone() {
@@ -178,11 +188,34 @@ impl Handler<Event> for FarmerModule {
                     )));
                 }
             },
+            // Receive the Vote from scheduler
+            Event::ProcessedVotes(job_result) => {
+                println!("Votes got :{:?}", job_result);
+                if let JobResult::Votes((votes, farmer_quorum_threshold)) = job_result {
+                    for vote_opt in votes.iter() {
+                        if let Some(vote) = vote_opt {
+                            let _ = self.broadcast_events_tx.send(Event::Vote(
+                                vote.clone(),
+                                QuorumType::Harvester,
+                                farmer_quorum_threshold,
+                            ));
+                        }
+                    }
+                }
+            },
             Event::NoOp => {},
             _ => {},
         }
 
         Ok(ActorState::Running)
+    }
+
+    fn on_stop(&self) {
+        info!(
+            "{}-{} received stop signal. Stopping",
+            self.name(),
+            self.label()
+        );
     }
 }
 
@@ -203,24 +236,22 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
-    use events::{DirectedEvent, Event, PeerData, Vote};
+    use events::{Event, PeerData, Vote};
     use lazy_static::lazy_static;
-    use primitives::{NodeType, QuorumType::Farmer};
+    use primitives::{Address, NodeType, QuorumType::Farmer};
     use secp256k1::Message;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::ActorImpl;
-    use validator::{
-        txn_validator::{StateSnapshot, TxnValidator},
-        validator_core_manager::ValidatorCoreManager,
-    };
-    use vrrb_core::{cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+    use validator::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
+    use vrrb_core::{account::Account, cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
 
     use super::*;
     use crate::scheduler::JobSchedulerController;
 
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
@@ -237,8 +268,6 @@ mod tests {
             2,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver.clone(),
         );
         let mut farmer_swarm_module = ActorImpl::new(farmer_module);
 
@@ -255,32 +284,32 @@ mod tests {
         handle.await.unwrap();
     }
     lazy_static! {
-        static ref STATE_SNAPSHOT: StateSnapshot = StateSnapshot {
-            accounts: HashMap::new(),
-        };
+        static ref STATE_SNAPSHOT: HashMap<Address, Account> = HashMap::new();
     }
 
     #[tokio::test]
     async fn farmer_farm_cast_vote() {
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+            tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (sync_jobs_status_sender, sync_jobs_status_receiver) =
-            crossbeam_channel::unbounded::<JobResult>();
-        let (async_jobs_status_sender, async_jobs_status_receiver) =
-            crossbeam_channel::unbounded::<JobResult>();
+
+        let mut db_config = VrrbDbConfig::default();
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+        db_config.with_path(db_path);
+        let db = VrrbDb::new(db_config);
+        let vrrbdb_read_handle = db.read_handle();
 
         let mut job_scheduler = JobSchedulerController::new(
             vec![0],
+            events_tx,
             sync_jobs_receiver,
             async_jobs_receiver,
-            sync_jobs_status_sender,
-            async_jobs_status_sender,
-            ValidatorCoreManager::new(TxnValidator::new(), 8).unwrap(),
-            &*STATE_SNAPSHOT,
+            ValidatorCoreManager::new(8).unwrap(),
+            vrrbdb_read_handle,
         );
         thread::spawn(move || {
             job_scheduler.execute_sync_jobs();
@@ -311,8 +340,6 @@ mod tests {
             2,
             sync_jobs_sender,
             async_jobs_sender,
-            sync_jobs_status_receiver.clone(),
-            async_jobs_status_receiver.clone(),
         );
         let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
@@ -358,10 +385,6 @@ mod tests {
         });
         ctrl_tx.send(Event::Farm.into()).unwrap();
         ctrl_tx.send(Event::Stop.into()).unwrap();
-
         handle.await.unwrap();
-
-        let job_status = sync_jobs_status_receiver.recv().unwrap();
-        is_enum_variant!(job_status, JobResult::Votes { .. });
     }
 }

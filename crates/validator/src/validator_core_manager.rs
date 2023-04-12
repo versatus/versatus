@@ -1,12 +1,13 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use primitives::Address;
 use rayon::ThreadPoolBuilder;
-use vrrb_core::txn::Txn;
+use vrrb_core::{account::Account, txn::Txn};
 
 use crate::{
     result::{Result, ValidatorError},
-    txn_validator::{StateSnapshot, TxnValidator},
-    validator_core::{Core, CoreError, CoreId},
+    txn_validator::TxnValidator,
+    validator_core::{Core, CoreId},
 };
 
 #[derive(Debug)]
@@ -16,9 +17,9 @@ pub struct ValidatorCoreManager {
 }
 
 impl ValidatorCoreManager {
-    pub fn new(validator: TxnValidator, cores: usize) -> Result<Self> {
+    pub fn new(cores: usize) -> Result<Self> {
         let core_pool = ThreadPoolBuilder::new()
-            .num_threads(4)
+            .num_threads(cores)
             .build()
             .map_err(|err| {
                 ValidatorError::Other(format!("Failed to create validator core pool: {}", err))
@@ -29,7 +30,7 @@ impl ValidatorCoreManager {
 
     pub fn validate(
         &mut self,
-        state_snapshot: &StateSnapshot,
+        account_state: &HashMap<Address, Account>,
         batch: Vec<Txn>,
     ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
         // ) -> HashSet<(Txn, bool)> {
@@ -38,8 +39,7 @@ impl ValidatorCoreManager {
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
             );
-
-            valcore.process_transactions(state_snapshot, batch)
+            valcore.process_transactions(account_state, batch)
         })
     }
 }

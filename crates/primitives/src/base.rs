@@ -43,7 +43,7 @@ pub enum QuorumType {
     Harvester,
 }
 
-
+pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;

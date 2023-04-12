@@ -2,57 +2,58 @@ use std::collections::BTreeMap;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use dashmap::DashMap;
-use events::{QuorumCertifiedTxn, Vote, VoteReceipt};
+use events::{Event, JobResult, QuorumCertifiedTxn, Vote, VoteReceipt};
 use indexmap::IndexMap;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
-use primitives::{
-    base::PeerId as PeerID,
-    ByteVec,
-    FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
-    QuorumType,
-    RawSignature,
-};
+use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
+use storage::vrrbdb::VrrbDbReadHandle;
+use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
-use validator::{
-    txn_validator::{StateSnapshot, TxnFees},
-    validator_core_manager::ValidatorCoreManager,
-};
-use vrrb_core::{
-    bloom::Bloom,
-    txn::{TransactionDigest, Txn},
-};
+use validator::validator_core_manager::ValidatorCoreManager;
+use vrrb_core::txn::{TransactionDigest, Txn};
 
-
-/// `JobSchedulerController` is a struct that contains a `JobScheduler`, a
-/// `Receiver<Job>` for synchronous jobs, a `Sender<JobResult>` for synchronous
-/// jobs, a `Receiver<Job>` for asynchronous jobs, a `Sender<JobResult>` for
-/// asynchronous jobs, a `ValidatorCoreManager`, and a `StateSnapshot`.
-///
+/// The `JobSchedulerController` to manage `JobScheduler`,
 /// Properties:
 ///
-/// * `job_scheduler`: The JobScheduler struct that we created earlier.
-/// * `sync_jobs_receiver`: Receiver<Job>
-/// * `sync_jobs_outputs_sender`: Sender<JobResult>
-/// * `async_jobs_receiver`: Receiver<Job>
-/// * `async_jobs_outputs_sender`: Sender<JobResult>
-/// * `validator_core_manager`: This is the validator core manager that we
-///   created in the previous
-/// section.
-/// * `state_snapshot`: A reference to the state snapshot that the job scheduler
-///   will use to execute
-/// jobs.
-pub struct JobSchedulerController<'a> {
+/// * `job_scheduler`: A property of type `JobScheduler`, which is likely a
+///   struct or class that manages
+/// scheduling and execution of jobs.
+/// * `events_tx`: `events_tx` is an `UnboundedSender` that is used to send
+///   events to the
+/// `JobSchedulerController`. It is a channel sender that can send an unlimited
+/// number of messages without blocking. This is useful for sending events
+/// asynchronously to the controller.
+/// * `sync_jobs_receiver`: `sync_jobs_receiver` is a `Receiver` that receives
+///   synchronous jobs. A
+/// `Receiver` is a channel receiver that can be used to receive values sent by
+/// a corresponding `Sender`. In this case, it is used to receive `Job` objects
+/// that need to be executed synchronously.
+/// * `async_jobs_receiver`: `async_jobs_receiver` is a `Receiver` that receives
+///   `Job` objects
+/// asynchronously. It is likely used in conjunction with the `JobScheduler` to
+/// handle and execute jobs in a concurrent manner.
+/// * `validator_core_manager`: `validator_core_manager` is a property of type
+///   `ValidatorCoreManager`.
+/// It is likely a struct or a class that manages the core functionality of a
+/// validator. This could include tasks such as validating transactions,
+/// managing the state of the blockchain, and communicating with other nodes in
+/// the network. The `Job
+/// * `vrrbdb_read_handle`: VrrbDbReadHandle is likely a handle or reference to
+///   a database read
+/// operation for a specific database. It could be used by the
+/// JobSchedulerController to retrieve data from the database as needed for its
+/// job scheduling tasks. The specific implementation and functionality of
+/// VrrbDbReadHandle would depend on
+pub struct JobSchedulerController {
     pub job_scheduler: JobScheduler,
+    events_tx: UnboundedSender<Event>,
     sync_jobs_receiver: Receiver<Job>,
-    sync_jobs_outputs_sender: Sender<JobResult>,
     async_jobs_receiver: Receiver<Job>,
-    async_jobs_outputs_sender: Sender<JobResult>,
     pub validator_core_manager: ValidatorCoreManager,
-    pub state_snapshot: &'a StateSnapshot,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
 }
 
 pub enum Job {
@@ -78,37 +79,22 @@ pub enum Job {
     ),
 }
 
-#[derive(Debug)]
-pub enum JobResult {
-    Votes((Vec<Option<Vote>>, FarmerQuorumThreshold)),
-    CertifiedTxn(
-        Vec<Vote>,
-        RawSignature,
-        TransactionDigest,
-        String,
-        Vec<u8>,
-        Txn,
-    ),
-}
-
-impl<'a> JobSchedulerController<'a> {
+impl JobSchedulerController {
     pub fn new(
         peer_id: PeerID,
+        events_tx: UnboundedSender<Event>,
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
-        sync_jobs_outputs_sender: Sender<JobResult>,
-        async_jobs_outputs_sender: Sender<JobResult>,
         validator_core_manager: ValidatorCoreManager,
-        state_snapshot: &'a StateSnapshot,
+        vrrbdb_read_handle: VrrbDbReadHandle,
     ) -> Self {
         Self {
             job_scheduler: JobScheduler::new(peer_id),
+            events_tx,
             sync_jobs_receiver,
             async_jobs_receiver,
-            sync_jobs_outputs_sender,
-            async_jobs_outputs_sender,
             validator_core_manager,
-            state_snapshot,
+            vrrbdb_read_handle,
         }
     }
 
@@ -127,9 +113,12 @@ impl<'a> JobSchedulerController<'a> {
                         let transactions: Vec<Txn> = txns.iter().map(|x| x.1.txn.clone()).collect();
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
-                            .validate(self.state_snapshot, transactions)
+                            .validate(&self.vrrbdb_read_handle.state_store_values(), transactions)
                             .into_iter()
                             .collect();
+
+                        //TODO  Add Delegation logic + Handling Double Spend by checking whether
+                        // Txn is intended to be validated by current validator
                         let backpressure = self.job_scheduler.calculate_back_pressure();
                         //Delegation Principle need to be done
                         let votes_result = self
@@ -154,7 +143,7 @@ impl<'a> JobSchedulerController<'a> {
                                                         txn,
                                                         quorum_public_key: quorum_public_key
                                                             .clone(),
-                                                        quorum_threshold: 2,
+                                                        quorum_threshold: farmer_quorum_threshold,
                                                         execution_result: None,
                                                     });
                                                 }
@@ -167,9 +156,10 @@ impl<'a> JobSchedulerController<'a> {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            let _ = self
-                                .sync_jobs_outputs_sender
-                                .send(JobResult::Votes((votes, farmer_quorum_threshold)));
+                            let _ = self.events_tx.send(Event::ProcessedVotes(JobResult::Votes((
+                                votes,
+                                farmer_quorum_threshold,
+                            ))));
                         }
                     },
                     Job::CertifyTxn((
@@ -186,22 +176,26 @@ impl<'a> JobSchedulerController<'a> {
                         }
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
-                            .validate(self.state_snapshot, vec![txn.clone()])
+                            .validate(
+                                &self.vrrbdb_read_handle.state_store_values(),
+                                vec![txn.clone()],
+                            )
                             .into_iter()
                             .collect();
                         let validated = validated_txns.par_iter().any(|x| x.0.id() == txn.id());
                         if validated {
                             let result = sig_provider.generate_quorum_signature(sig_shares.clone());
                             if let Ok(threshold_signature) = result {
-                                let _ =
-                                    self.sync_jobs_outputs_sender.send(JobResult::CertifiedTxn(
+                                let _ = self.events_tx.send(Event::CertifiedTxn(
+                                    JobResult::CertifiedTxn(
                                         votes.clone(),
                                         threshold_signature,
                                         txn_id.clone(),
                                         farmer_quorum_key.clone(),
                                         farmer_id.clone(),
                                         txn.clone(),
-                                    ));
+                                    ),
+                                ));
                             } else {
                                 error!("Quorum signature generation failed");
                             }
