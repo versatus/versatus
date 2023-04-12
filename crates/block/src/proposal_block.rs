@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use utils::{create_payload, hash_data};
 use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
+
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct ProposalBlock {

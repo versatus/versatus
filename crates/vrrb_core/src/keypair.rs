@@ -6,14 +6,12 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use bs58::encode;
 use hbbft::crypto::{
     serde_impl::SerdeSecret,
     PublicKey as Validator_Pk,
     SecretKey as Validator_Sk,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
-use ring::digest::{Context, SHA256};
 use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
 use serde::{Deserialize, ser::{Serialize, Serializer, SerializeStruct}};
 use thiserror::Error;
@@ -71,27 +69,6 @@ impl KeyPair {
             miner_kp: (miner_sk, miner_pk),
             validator_kp: (validator_sk, validator_pk),
         }
-    }
-
-    /// > The peer ID is the first 20 bytes of the SHA256 hash of the miner's
-    /// > public key, encoded using
-    /// base58
-    ///
-    /// Returns:
-    ///
-    /// The peer id is being returned.
-    pub fn get_peer_id(&self) -> String {
-        let miner_public_key = self.get_miner_public_key();
-
-        let mut context = Context::new(&SHA256);
-        context.update(miner_public_key.serialize().as_slice());
-        let hash = context.finish();
-
-        // Take the first 20 bytes of the hash
-        let peer_id = &hash.as_ref()[..20];
-
-        // Encode the peer ID using base58
-        encode(peer_id).into_string()
     }
 
     /// `new` takes a `SecretKey` and returns a `KeyPair`

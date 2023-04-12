@@ -62,7 +62,6 @@ mod tests {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
             let claim: Claim = Claim::new(public_key, Address::new(public_key));
-
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -90,7 +89,6 @@ mod tests {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
             let claim: Claim = Claim::new(public_key, Address::new(public_key));
-
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -116,7 +114,6 @@ mod tests {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
             let claim: Claim = Claim::new(public_key, Address::new(public_key));
-
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -207,6 +204,8 @@ mod tests {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
             let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            //let boxed_claim = Box::new(claim);
+
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
         });

@@ -1,18 +1,14 @@
 use std::{collections::HashMap, net::SocketAddr};
 use block::{Conflict, Block};
 use ethereum_types::U256;
-
 use primitives::{
     Address,
     ByteVec,
     FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
     NodeIdx,
     NodeType,
     PeerId,
     QuorumPublicKey,
-    QuorumSize,
-    QuorumThreshold,
     QuorumType,
     RawSignature,
 };
@@ -111,21 +107,6 @@ pub struct QuorumCertifiedTxn {
     signature: RawSignature,
 }
 
-/// `JobResult` is an enum that represents the possible results of a job that is
-/// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
-pub enum JobResult {
-    Votes((Vec<Option<Vote>>, FarmerQuorumThreshold)),
-    CertifiedTxn(
-        Vec<Vote>,
-        RawSignature,
-        TransactionDigest,
-        String,
-        Vec<u8>,
-        Txn,
-    ),
-}
-
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Event {
@@ -153,6 +134,7 @@ pub enum Event {
     CheckAbandoned,
     SyncPeers(Vec<SyncPeerData>),
     PeerRequestedStateSync(PeerData),
+
     //Event to tell Farmer node to sign the Transaction
     //the validator module has validated this transaction
     ValidTxn(TransactionDigest),
@@ -185,7 +167,7 @@ pub enum Event {
     GenerateKeySet,
     HarvesterPublicKey(Vec<u8>),
     Farm,
-    Vote(Vote, QuorumType, QuorumThreshold),
+    Vote(Vote, QuorumType, FarmerQuorumThreshold),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
@@ -196,7 +178,6 @@ pub enum Event {
 
     AccountUpdateRequested((Address, AccountBytes)),
     UpdatedAccount(AccountBytes),
-
     // May want to just use the `BlockHeader` struct to reduce 
     // the overhead of deserializing
     MinerElection(HeaderBytes),
@@ -210,10 +191,6 @@ pub enum Event {
     ResolvedConflict(Conflict),
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
-    ProcessedVotes(JobResult),
-    FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
-    HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
-    CertifiedTxn(JobResult),
 }
 
 impl From<&theater::Message> for Event {
@@ -251,7 +228,6 @@ pub enum Topic {
     Storage,
     Consensus,
     Throttle,
-    Transactions,
 }
 
 /// EventRouter is an internal message bus that coordinates interaction
@@ -289,7 +265,7 @@ impl EventRouter {
     #[deprecated]
     pub fn add_topic(&mut self, topic: Topic, size: Option<usize>) {}
 
-    pub fn subscribe(&self, x: &Topic) -> Receiver<Event> {
+    pub fn subscribe(&self) -> Receiver<Event> {
         self.sender.subscribe()
     }
 
@@ -343,7 +319,7 @@ mod tests {
         let (event_tx, mut event_rx) = unbounded_channel::<Event>();
         let mut router = EventRouter::default();
 
-        let mut subscriber_rx = router.subscribe(&Topic::Control);
+        let mut subscriber_rx = router.subscribe();
 
         let handle = tokio::spawn(async move {
             router.start(&mut event_rx).await;
@@ -366,6 +342,8 @@ mod tests {
 #[deprecated(note = "use Event instead")]
 #[derive(Debug, Clone)]
 pub enum Command {
+    //TODO: Replace standard types with custom types for better readability
+    // and to help engineers understand what the hell these items are.
     SendTxn(u32, String, u128), // address number, receiver address, amount
     ProcessTxn(Vec<u8>),
     ProcessTxnValidator(Vec<u8>),

@@ -9,7 +9,8 @@ use telemetry::info;
 
 use crate::EventBroadcastSender;
 
-pub type Edge = (Vertex<Block, String>, Vertex<Block, String>); pub type Edges = Vec<Edge>;
+pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
+pub type Edges = Vec<Edge>;
 pub type GraphResult<T> = Result<T, GraphError>;
 
 pub struct DagModule {

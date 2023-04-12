@@ -16,10 +16,10 @@ fn claims_can_be_added() {
     let claim4 = generate_random_claim();
     let claim5 = generate_random_claim();
 
-    db.insert_claim(claim1.public_key.to_string(), claim1)
+    db.insert_claim(claim1.address.public_key().to_string(), claim1)
         .unwrap();
 
-    db.insert_claim(claim2.public_key.to_string(), claim2)
+    db.insert_claim(claim2.address.public_key().to_string(), claim2)
         .unwrap();
 
     let entries = db.claim_store_factory().handle().entries();
