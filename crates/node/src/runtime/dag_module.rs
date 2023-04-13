@@ -1,11 +1,10 @@
-use std::{sync::{Arc, RwLock}, collections::BTreeMap};
+use std::sync::{Arc, RwLock};
 
-use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock, GenesisBlock};
+use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock, GenesisBlock, valid::{BlockValidationData, Valid}};
 use bulldag::{graph::{BullDag, GraphError}, vertex::Vertex};
-use hbbft::crypto::{PublicKeySet, PublicKey, SIG_SIZE, SignatureShare, Signature};
-use primitives::{SignatureType, RawSignature, PayloadHash, NodeIdx};
+use hbbft::crypto::{PublicKeySet, SIG_SIZE, SignatureShare, Signature};
+use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
-use dkg_engine::types::NodeID;
 use theater::{ActorState, ActorLabel, ActorId, Handler};
 use async_trait::async_trait;
 use events::Event;
@@ -28,6 +27,7 @@ pub type GraphResult<T> = Result<T, GraphError>;
 /// use bulldag::graph::BullDag;
 /// use node::EventBroadcastSender;
 /// use theater::{ActorState, ActorLabel, ActorId, Handler};
+/// use hbbft::crypto::PublicKeySet;
 ///
 /// pub struct DagModule {
 ///     status: ActorState,
@@ -35,18 +35,17 @@ pub type GraphResult<T> = Result<T, GraphError>;
 ///     id: ActorId,
 ///     events_tx: EventBroadcastSender,
 ///     dag: Arc<RwLock<BullDag<Block, String>>>,
+///     public_key_set: Option<PublicKeySet>
 /// }
 /// ```
 pub struct DagModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
+    #[allow(unused)]
     events_tx: EventBroadcastSender,
     dag: Arc<RwLock<BullDag<Block, String>>>,
-    peer_public_keys: BTreeMap<NodeID, PublicKey>,
     public_key_set: Option<PublicKeySet>,
-    //harvester_pubkeys
-    //harvester_quorum_threshold_pubkey
 }
 
 impl DagModule {
@@ -54,14 +53,12 @@ impl DagModule {
         dag: Arc<RwLock<BullDag<Block, String>>>,
         events_tx: EventBroadcastSender
     ) -> Self {
-        let peer_public_keys: BTreeMap<NodeID, PublicKey> = BTreeMap::new();
         Self {
             status: ActorState::Stopped,
             label: String::from("Dag"),
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
             dag,
-            peer_public_keys,
             public_key_set: None,
         }
     }
@@ -69,9 +66,7 @@ impl DagModule {
     pub fn set_harvester_pubkeys(
         &mut self, 
         public_key_set: PublicKeySet,
-        peer_public_keys: BTreeMap<NodeID, PublicKey>,
     ) {
-        self.peer_public_keys = peer_public_keys;
         self.public_key_set = Some(public_key_set);
     }
 
@@ -79,25 +74,35 @@ impl DagModule {
         &mut self,
         genesis: &GenesisBlock
     ) -> GraphResult<()> {
-        let block: Block = genesis.clone().into();
-        let vtx: Vertex<Block, String> = block.into();
-        self.write_genesis(&vtx)?;
+        let valid = self.check_valid_genesis(genesis); 
+
+        if valid {
+            let block: Block = genesis.clone().into();
+            let vtx: Vertex<Block, String> = block.into();
+            self.write_genesis(&vtx)?;
+        }
         
-        Ok(())
+        return Ok(())
     }
 
     pub fn append_proposal(
         &mut self, 
         proposal: &ProposalBlock) -> GraphResult<()> {
-        if let Ok(ref_block) = self.get_reference_block(
-            &proposal.ref_block
-        ) {
-            let block: Block = proposal.clone().into();
-            let vtx: Vertex<Block, String> = block.into();
-            let edge = (&ref_block, &vtx);
-            self.write_edge(edge)?; 
-        }; 
-
+       
+        let valid = self.check_valid_proposal(proposal);
+        
+        if valid {
+            if let Ok(ref_block) = self.get_reference_block(
+                &proposal.ref_block
+            ) {
+                let block: Block = proposal.clone().into();
+                let vtx: Vertex<Block, String> = block.into();
+                let edge = (&ref_block, &vtx);
+                self.write_edge(edge)?; 
+            } else { 
+                return Err(GraphError::NonExistentSource)
+            }
+        }
 
         Ok(())
     }
@@ -107,19 +112,23 @@ impl DagModule {
         convergence: &ConvergenceBlock
     ) -> GraphResult<()> {
 
-        let ref_blocks: Vec<Vertex<Block, String>> = self
-            .get_convergence_reference_blocks(
-                convergence
-        );
+        let valid = self.check_valid_convergence(convergence);
 
-        let block: Block = convergence.clone().into();
-        let vtx: Vertex<Block, String> = block.into();
-        let edges: Edges = ref_blocks.iter().map(|ref_block| {
-            (ref_block.clone(), vtx.clone())
-        }).collect();
+        if valid {
+            let ref_blocks: Vec<Vertex<Block, String>> = self
+                .get_convergence_reference_blocks(
+                    convergence
+            );
 
-        self.extend_edges(edges)?;
+            let block: Block = convergence.clone().into();
+            let vtx: Vertex<Block, String> = block.into();
+            let edges: Edges = ref_blocks.iter().map(|ref_block| {
+                (ref_block.clone(), vtx.clone())
+            }).collect();
 
+            self.extend_edges(edges)?;
+        }
+        
         Ok(())
     }
 
@@ -192,60 +201,93 @@ impl DagModule {
         return Err(GraphError::Other("Error getting write gurard".to_string()));
     }
 
+    fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
+        match self.verify_signature(block.get_validation_data()) {
+            Ok(true) => true,
+            _ => false
+        }
+    }
+
+    fn check_valid_proposal(&self, block: &ProposalBlock) -> bool {
+        match self.verify_signature(block.get_validation_data()) {
+            Ok(true) => true,
+            _ => false
+        }
+    }
+
+    fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
+        match self.verify_signature(block.get_validation_data()) {
+            Ok(true) => true,
+            _ => false
+        }
+    }
+
     fn verify_signature(
         &self,
-        node_idx: NodeIdx,
-        payload_hash: PayloadHash,
-        signature: RawSignature,
-        signature_type: SignatureType,
+        validation_data: BlockValidationData
     ) -> SignerResult<bool> {
-        if signature.len() != SIG_SIZE {
+        if validation_data.signature.clone().len() != SIG_SIZE {
             return Err(SignerError::CorruptSignatureShare(
                 "Invalid Signature ,Size must be 96 bytes".to_string(),
             ));
         }
-        match signature_type {
+        match validation_data.signature_type.clone() {
             SignatureType::PartialSignature => {
-                self.verify_partial_sig(node_idx, payload_hash, signature)
+                return self.verify_partial_sig(validation_data);
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-                self.verify_threshold_sig(payload_hash, signature)
+                return self.verify_threshold_sig(validation_data);
             }
         }
     }
 
     fn verify_partial_sig(
         &self,
-        node_idx: NodeIdx,
-        payload_hash: PayloadHash,
-        signature: RawSignature 
+        validation_data: BlockValidationData
     ) -> SignerResult<bool> {
         let public_key_share = {
             if let Some(public_key_share) = self.public_key_set.clone() {
-                public_key_share.public_key_share(node_idx as usize)
+                if let Some(idx) = validation_data.node_idx.clone() {
+                    public_key_share.public_key_share(idx as usize)
+                } else {
+                    return Err(SignerError::GroupPublicKeyMissing)
+                }
             } else {
                 return Err(SignerError::GroupPublicKeyMissing)
             }
         };
 
-        let signature_arr: [u8; 96] = signature.try_into().unwrap();
-        match SignatureShare::from_bytes(signature_arr) {
-            Ok(sig_share) => {
-                return Ok(public_key_share.verify(&sig_share, payload_hash))
-            },
-            Err(e) => {
-                return Err(SignerError::SignatureVerificationError(format!(
-                    "Error parsing partial signature details : {:?}",
-                    e
-                )))
-            },
+        if let Ok(signature_arr) = validation_data.signature.clone().try_into() {
+            let signature_arr: [u8; 96] = signature_arr;
+
+            match SignatureShare::from_bytes(signature_arr) {
+                Ok(sig_share) => {
+                    return Ok(
+                        public_key_share.verify(
+                            &sig_share, 
+                            validation_data.payload_hash.clone()
+                        )
+                    )
+                },
+                Err(e) => {
+                    return Err(SignerError::SignatureVerificationError(format!(
+                        "Error parsing partial signature details : {:?}",
+                        e
+                    )))
+                },
+            }
+        } else {
+            return Err(SignerError::PartialSignatureError(
+                format!(
+                    "Error parsing signature into array"
+                )
+            ))
         }
     }
 
     fn verify_threshold_sig(
         &self,
-        payload_hash: PayloadHash,
-        signature: RawSignature
+        validation_data: BlockValidationData
     ) -> SignerResult<bool> {
 
         let public_key_set = {
@@ -255,21 +297,30 @@ impl DagModule {
                 return Err(SignerError::GroupPublicKeyMissing);
             }
         };
-        let signature_arr: [u8; 96] = signature.try_into().unwrap();
-        match Signature::from_bytes(signature_arr) {
-            Ok(signature) => {
-                return Ok(
-                    public_key_set
-                        .public_key()
-                        .verify(&signature, payload_hash)
-                )
-            },
-            Err(e) => {
-                return Err(SignerError::SignatureVerificationError(format!(
-                    "Error parsing threshold signature details : {:?}",
-                    e
-                )))
+
+        if let Ok(signature_arr) = validation_data.signature.clone().try_into() {
+            let signature_arr: [u8; 96] = signature_arr;
+            match Signature::from_bytes(signature_arr) {
+                Ok(signature) => {
+                    return Ok(
+                        public_key_set
+                            .public_key()
+                            .verify(&signature, validation_data.payload_hash)
+                    )
+                },
+                Err(e) => {
+                    return Err(SignerError::SignatureVerificationError(format!(
+                        "Error parsing threshold signature details : {:?}",
+                        e
+                    )))
+                }
             }
+        } else {
+            return Err(SignerError::PartialSignatureError(
+                format!(
+                    "Error parsing signature into array"
+                )
+            ))
         }
     }
 }
@@ -313,7 +364,12 @@ impl Handler<Event> for DagModule {
             Event::BlockReceived(block) => {
                 match block {
                     Block::Genesis { block } => {
-                        self.append_genesis(&block);
+                        if let Err(e) = self.append_genesis(&block) {
+                            let err_note = format!(
+                                "Encountered GraphError: {:?}", e 
+                            );
+                            return Err(theater::TheaterError::Other(err_note));
+                        };
                     },
                     Block::Proposal { block } => {
                         if let Err(e) = self.append_proposal(&block) {
@@ -331,6 +387,12 @@ impl Handler<Event> for DagModule {
                             return Err(theater::TheaterError::Other(err_note));
                         }
                     }
+                }
+            },
+            Event::HarvesterPublicKey(pubkey_bytes) => {
+                if let Ok(public_key_set) = 
+                    serde_json::from_slice::<PublicKeySet>(&pubkey_bytes) {
+                    self.set_harvester_pubkeys(public_key_set)
                 }
             },
             Event::NoOp => {},
