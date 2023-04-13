@@ -15,16 +15,19 @@ use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use tokio::{
-    sync::{broadcast::Receiver, mpsc::UnboundedSender},
+    sync::{
+        broadcast::Receiver,
+        mpsc::{UnboundedReceiver, UnboundedSender},
+    },
     task::JoinHandle,
 };
 use vrrb_config::NodeConfig;
-use vrrb_core::claim::Claim;
+use vrrb_core::{bloom::Bloom, claim::Claim};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
-use self::dag_module::DagModule;
 use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+    dag_module::DagModule,
     election_module::{
         ElectionModule,
         ElectionModuleConfig,
@@ -41,6 +44,7 @@ use self::{
 use crate::{
     broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
     dkg_module::DkgModuleConfig,
+    farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::Job,
     EventBroadcastSender,
     NodeError,
@@ -53,6 +57,7 @@ pub mod dag_module;
 pub mod dkg_module;
 pub mod election_module;
 pub mod farmer_module;
+pub mod harvester_module;
 pub mod indexer_module;
 pub mod mempool_module;
 pub mod mining_module;
@@ -68,11 +73,12 @@ pub struct RuntimeComponents {
     pub state_handle: RuntimeHandle,
     pub gossip_handle: RuntimeHandle,
     pub jsonrpc_server_handle: RuntimeHandle,
-    pub miner_handle: RuntimeHandle, 
+    pub miner_handle: RuntimeHandle,
     pub dkg_handle: RuntimeHandle,
     pub miner_election_handle: RuntimeHandle,
     pub quorum_election_handle: RuntimeHandle,
     pub farmer_handle: RuntimeHandle,
+    pub harvester_handle: RuntimeHandle,
     pub indexer_handle: RuntimeHandle,
     pub dag_handle: RuntimeHandle,
 }
@@ -90,6 +96,7 @@ pub async fn setup_runtime_components(
     miner_election_events_rx: Receiver<Event>,
     quorum_election_events_rx: Receiver<Event>,
     farmer_events_rx: Receiver<Event>,
+    harvester_events_rx: Receiver<Event>,
     indexer_events_rx: Receiver<Event>,
     dag_module_events_rx: Receiver<Event>,
 ) -> Result<RuntimeComponents> {
@@ -184,8 +191,8 @@ pub async fn setup_runtime_components(
     let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
     let mut farmer_handle = None;
+    let mut harvester_handle = None;
     let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
-
     if config.node_type == NodeType::Farmer {
         farmer_handle = setup_farmer_module(
             &config,
@@ -196,16 +203,19 @@ pub async fn setup_runtime_components(
         )?;
     } else {
         //Setup harvester
+        harvester_handle = setup_harvester_module(
+            sync_jobs_sender,
+            async_jobs_sender,
+            events_tx.clone(),
+            events_rx,
+            harvester_events_rx,
+        )?
     };
 
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(
-        dag.clone(), 
-        events_tx.clone(), 
-        dag_module_events_rx
-    )?;
+    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_module_events_rx)?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -218,8 +228,9 @@ pub async fn setup_runtime_components(
         miner_election_handle,
         quorum_election_handle,
         farmer_handle,
+        harvester_handle,
         indexer_handle,
-        dag_handle
+        dag_handle,
     };
 
     Ok(runtime_components)
@@ -481,10 +492,10 @@ fn setup_farmer_module(
     config: &NodeConfig,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    mut events_tx: EventBroadcastSender,
+    events_tx: EventBroadcastSender,
     mut farmer_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let mut module = farmer_module::FarmerModule::new(
+    let module = farmer_module::FarmerModule::new(
         None,
         vec![],
         config.keypair.get_peer_id().into_bytes(),
@@ -496,7 +507,7 @@ fn setup_farmer_module(
         sync_jobs_sender,
         async_jobs_sender,
     );
-    
+
     let mut farmer_module_actor = ActorImpl::new(module);
     let farmer_handle = tokio::spawn(async move {
         farmer_module_actor
@@ -508,25 +519,49 @@ fn setup_farmer_module(
     return Ok(Some(farmer_handle));
 }
 
+fn setup_harvester_module(
+    sync_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
+    broadcast_events_tx: EventBroadcastSender,
+    events_rx: UnboundedReceiver<Event>,
+    mut harvester_events_rx: Receiver<Event>,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module = harvester_module::HarvesterModule::new(
+        Bloom::new(PULL_TXN_BATCH_SIZE),
+        None,
+        vec![],
+        events_rx,
+        broadcast_events_tx,
+        1,
+        sync_jobs_sender,
+        async_jobs_sender,
+    );
+    let mut harvester_module_actor = ActorImpl::new(module);
+    let harvester_handle = tokio::spawn(async move {
+        harvester_module_actor
+            .start(&mut harvester_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+    return Ok(Some(harvester_handle));
+}
+
 fn setup_dag_module(
     dag: Arc<RwLock<BullDag<Block, String>>>,
     events_tx: UnboundedSender<Event>,
-    mut dag_module_events_rx: Receiver<Event>
+    mut dag_module_events_rx: Receiver<Event>,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module = DagModule::new(
-        dag,
-        events_tx
-    );
+    let module = DagModule::new(dag, events_tx);
 
     let mut dag_module_actor = ActorImpl::new(module);
     let dag_module_handle = tokio::spawn(async move {
         dag_module_actor
             .start(&mut dag_module_events_rx)
-            .await 
+            .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    
+
     Ok(Some(dag_module_handle))
 }
 
@@ -552,10 +587,7 @@ fn setup_indexer_module(
 
     Ok(Some(indexer_handle))
 }
-   
-fn setup_harvester_module() -> Result<Option<JoinHandle<Result<()>>>> {
-    Ok(None)
-}
+
 
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)

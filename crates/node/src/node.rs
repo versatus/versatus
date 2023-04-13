@@ -43,6 +43,7 @@ pub struct Node {
     miner_election_handle: RuntimeHandle,
     quorum_election_handle: RuntimeHandle,
     farmer_handle: RuntimeHandle,
+    harvester_handle: RuntimeHandle,
     indexer_handle: RuntimeHandle,
     dag_handle: RuntimeHandle,
 }
@@ -65,6 +66,7 @@ impl Node {
         let controller_events_rx = event_router.subscribe();
         let miner_events_rx = event_router.subscribe();
         let farmer_events_rx = event_router.subscribe();
+        let harvester_events_rx = event_router.subscribe();
         let jsonrpc_events_rx = event_router.subscribe();
         let dkg_events_rx = event_router.subscribe();
         let miner_election_events_rx = event_router.subscribe();
@@ -85,8 +87,9 @@ impl Node {
             miner_election_events_rx,
             quorum_election_events_rx,
             farmer_events_rx,
+            harvester_events_rx,
             indexer_events_rx,
-            dag_events_rx
+            dag_events_rx,
         )
         .await?;
 
@@ -100,9 +103,9 @@ impl Node {
             config,
             vm,
             event_router_handle,
-            state_handle:  runtime_components.state_handle,
+            state_handle: runtime_components.state_handle,
             mempool_handle: runtime_components.mempool_handle,
-            jsonrpc_server_handle:  runtime_components.jsonrpc_server_handle,
+            jsonrpc_server_handle: runtime_components.jsonrpc_server_handle,
             gossip_handle: runtime_components.gossip_handle,
             dkg_handle: runtime_components.dkg_handle,
             running_status: RuntimeModuleState::Stopped,
@@ -113,6 +116,7 @@ impl Node {
             miner_election_handle: runtime_components.miner_election_handle,
             quorum_election_handle: runtime_components.quorum_election_handle,
             farmer_handle: runtime_components.farmer_handle,
+            harvester_handle: runtime_components.harvester_handle,
             indexer_handle: runtime_components.indexer_handle,
             dag_handle: runtime_components.dag_handle,
         })

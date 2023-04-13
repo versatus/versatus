@@ -9,15 +9,12 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use primitives::{AccountKeypair, Signature};
+    use primitives::{AccountKeypair, Address, Signature};
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use secp256k1::ecdsa;
-    use vrrb_core::{keypair::KeyPair, txn::*};
+    use vrrb_core::{account::Account, keypair::KeyPair, txn::*};
 
-    use crate::{
-        txn_validator::{StateSnapshot, TxnValidator},
-        validator_core_manager::ValidatorCoreManager,
-    };
+    use crate::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
 
     // TODO: Use proper txns when there will be proper txn validation
     // implemented
@@ -62,9 +59,7 @@ mod tests {
             batch.push(random_txn(&mut rng));
         }
 
-        let state_snapshot = StateSnapshot {
-            accounts: HashMap::new(),
-        };
+        let account_state: HashMap<Address, Account> = HashMap::new();
 
         let target = batch
             .iter()
@@ -79,7 +74,7 @@ mod tests {
             })
             .collect();
 
-        let validated = valcore_manager.validate(&state_snapshot, batch);
+        let validated = valcore_manager.validate(&account_state, batch);
         assert_eq!(validated, target);
     }
 }
