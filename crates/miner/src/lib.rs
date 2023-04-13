@@ -26,6 +26,7 @@ mod tests {
     use ritelinked::LinkedHashMap;
     use vrrb_core::{keypair::Keypair, claim::Claim, txn::{TransactionDigest, Txn}};
     use block::{Block, ProposalBlock};
+    use hbbft::crypto::SecretKeyShare;
 
     use crate::test_helpers::{
         mine_genesis, 
@@ -104,7 +105,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                keypair.miner_kp.0.clone()
+                SecretKeyShare::default(), 
             );
             let pblock = Block::Proposal { block: prop1.clone() };
             let pvtx: Vertex<Block, String> = pblock.into(); 
@@ -151,7 +152,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                m1kp.miner_kp.0.clone()
+                SecretKeyShare::default(),
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -160,7 +161,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                m2kp.miner_kp.0.clone()
+                SecretKeyShare::default(),
             );
 
             let pblock1 = Block::Proposal { block: prop1.clone() };

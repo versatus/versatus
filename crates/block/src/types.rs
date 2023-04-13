@@ -15,6 +15,8 @@ use vrrb_core::{
     claim::Claim,
     txn::{Txn, TransactionDigest},
 };
+use primitives::RawSignature;
+use hex::{decode, FromHexError};
 use tokio::task::JoinHandle;
 
 #[cfg(mainnet)]
@@ -79,5 +81,12 @@ impl Hash for Conflict {
         }
 
         self.winner.hash(state);
+    }
+}
+
+impl Certificate {
+    pub(crate) fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
+        let signature = hex::decode(self.signature.clone())?;
+        Ok(signature)
     }
 }

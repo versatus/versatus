@@ -1,11 +1,9 @@
-use primitives::{Epoch, SecretKey as SecretKeyBytes};
+use hex::FromHexError;
+use primitives::Epoch;
+use hbbft::crypto::{SecretKeyShare, SIG_SIZE};
 use ritelinked::LinkedHashSet;
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
 use serde::{Deserialize, Serialize};
-use utils::{create_payload, hash_data};
+use utils::hash_data;
 use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
@@ -30,15 +28,21 @@ impl ProposalBlock {
         txns: TxnList,
         claims: ClaimList,
         from: Claim,
-        secret_key: SecretKeyBytes,
+        secret_key: SecretKeyShare,
     ) -> ProposalBlock {
-        let payload = create_payload!(round, epoch, txns, claims, from);
-        let signature = secret_key.sign_ecdsa(payload).to_string();
+
         let hashable_txns: Vec<(String, Txn)> = {
             txns.clone().iter().map(|(k, v)| {
                 (k.digest_string(), v.clone())
             }).collect()
         };
+
+        let payload = hash_data!(round, epoch, hashable_txns, claims, from);
+
+        let signature = hex::encode(
+            secret_key.sign(payload).to_bytes().to_vec()
+        );
+
         let hash = hex::encode(
             hash_data!(
                 round, 
@@ -64,6 +68,27 @@ impl ProposalBlock {
 
     pub fn is_current_round(&self, round: u128) -> bool {
         self.round == round
+    }
+
+    pub fn decode_signature_share(&self) -> Result<[u8; 96], FromHexError> {
+        let byte_vec = hex::decode(&self.signature)?;
+
+        if byte_vec.len() != SIG_SIZE {
+            return Err(FromHexError::InvalidStringLength)
+        }
+
+        let mut byte_array: [u8; 96] = [0u8; 96];
+        (0..SIG_SIZE).into_iter().for_each(|i| {
+            byte_array[i] = byte_vec[i];
+        });
+
+        return Ok(byte_array)
+    }
+
+    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, Txn)> {
+        self.txns.clone().iter().map(|(k, v)| {
+            (k.digest_string(), v.clone())
+        }).collect()
     }
 
     pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {
