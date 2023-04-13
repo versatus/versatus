@@ -10,6 +10,7 @@ use block::{
 };
 use bulldag::{graph::BullDag, vertex::Vertex};
 use primitives::{Address, PublicKey, SecretKey, Signature};
+use hbbft::crypto::SecretKeyShare;
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
@@ -254,7 +255,7 @@ pub(crate) fn build_single_proposal_block(
     round: u128,
     epoch: u128,
     from: Claim,
-    sk: SecretKey,
+    sk: SecretKeyShare,
 ) -> ProposalBlock {
     let txns = create_txns(n_txns).collect();
     let claims = create_claims(n_claims).collect();
@@ -292,7 +293,7 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
             round, 
             epoch, 
             claim, 
-            keypair.miner_kp.0.clone()
+            SecretKeyShare::default()
         );
         prop
     }).collect()
@@ -399,7 +400,7 @@ pub(crate) fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
             LinkedHashMap::new(),
             LinkedHashMap::new(),
             miner.claim.clone(),
-            keypair.miner_kp.0.clone()
+            SecretKeyShare::default(),
         );
         let pblock = Block::Proposal { block: prop1.clone() };
         let pvtx: Vertex<Block, String> = pblock.into(); 
@@ -512,7 +513,7 @@ pub(crate) fn build_single_proposal_block_from_txns(
         round, 
         epoch, 
         miner.claim, 
-        kp.miner_kp.0
+        SecretKeyShare::default(),
     );
 
     prop.txns.extend(txns);

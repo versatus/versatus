@@ -46,7 +46,6 @@ impl BlockHeader {
         secret_key: SecretKey,
         claim_list_hash: String,
     ) -> BlockHeader {
-        //TODO: Replace rand::thread_rng() with VPRNG
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
