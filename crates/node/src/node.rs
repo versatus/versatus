@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use events::{Event, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
-    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    sync::mpsc::{channel, Sender, UnboundedReceiver},
     task::JoinHandle,
 };
 use trecho::vm::Cpu;
@@ -11,6 +11,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::{setup_runtime_components, RuntimeHandle},
     NodeType,
@@ -26,10 +27,10 @@ pub struct Node {
     config: NodeConfig,
 
     // NOTE: core node features
-    event_router_handle: JoinHandle<()>,
+    router_handle: JoinHandle<()>,
     running_status: RuntimeModuleState,
     control_rx: UnboundedReceiver<Event>,
-    events_tx: UnboundedSender<Event>,
+    events_tx: EventPublisher,
 
     // TODO: make this private
     pub keypair: KeyPair,
@@ -61,8 +62,9 @@ impl Node {
         let vm = None;
         let keypair = config.keypair.clone();
 
-        let (events_tx, mut events_rx) = unbounded_channel::<Event>();
-        let mut event_router = Self::setup_event_routing_system();
+        let (events_tx, mut events_rx) = channel::<Event>(1000);
+        let mut router = Self::setup_event_routing_system();
+        let sub = router.subscribe(None).unwrap();
 
         let mempool_events_rx = event_router.subscribe();
         let vrrbdb_events_rx = event_router.subscribe();
@@ -100,8 +102,7 @@ impl Node {
         config = runtime_components.node_config;
 
         // TODO: report error from handle
-        let event_router_handle =
-            tokio::spawn(async move { event_router.start(&mut events_rx).await });
+        let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
 
         Ok(Self {
             config,
@@ -169,7 +170,7 @@ impl Node {
             info!("rpc server shut down");
         }
 
-        self.event_router_handle.await?;
+        self.router_handle.await?;
 
         info!("node shutdown complete");
 
@@ -236,14 +237,6 @@ impl Node {
     }
 
     fn setup_event_routing_system() -> EventRouter {
-        let mut event_router = EventRouter::new(None);
-        event_router.add_topic(Topic::Control, Some(1));
-        event_router.add_topic(Topic::State, Some(1));
-        event_router.add_topic(Topic::Network, Some(100));
-        event_router.add_topic(Topic::Consensus, Some(100));
-        event_router.add_topic(Topic::Storage, Some(100));
-        event_router.add_topic(Topic::Throttle, Some(100));
-
-        event_router
+        Router::new()
     }
 }

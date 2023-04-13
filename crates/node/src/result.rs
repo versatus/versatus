@@ -29,6 +29,9 @@ pub enum NodeError {
     Event(#[from] events::Error),
 
     #[error("{0}")]
+    Messr(#[from] messr::Error),
+
+    #[error("{0}")]
     Core(#[from] vrrb_core::Error),
 
     #[error("{0}")]

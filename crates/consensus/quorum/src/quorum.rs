@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
+use ethereum_types::U256;
+use primitives::PublicKey;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
-use serde::{Serialize, Deserialize};
-use ethereum_types::U256;
-use primitives::PublicKey;
 
 use crate::election::Election;
 
@@ -57,7 +57,7 @@ impl Election for Quorum {
     ///a miner calls this fxn to generate a u64 seed for the election using the
     /// vrrb_vrf crate
     fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, InvalidQuorum> {
-        if !Quorum::check_validity( payload.0) {
+        if !Quorum::check_validity(payload.0) {
             return Err(InvalidQuorum::InvalidChildBlockError());
         }
         let mut vvrf = VVRF::new(
@@ -70,7 +70,7 @@ impl Election for Quorum {
         }
 
         let mut random_number = vvrf.generate_u64();
-        while random_number < u32::MAX  as u64{
+        while random_number < u32::MAX as u64 {
             random_number = vvrf.generate_u64();
         }
         Ok(random_number)
@@ -99,10 +99,7 @@ impl Election for Quorum {
 impl Quorum {
     ///makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
-    pub fn new(
-        seed: u64,
-        height: u128
-    ) -> Result<Quorum, InvalidQuorum> {
+    pub fn new(seed: u64, height: u128) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::check_validity(height) {
             Err(InvalidQuorum::InvalidChildBlockError())
         } else {
@@ -115,7 +112,8 @@ impl Quorum {
         }
     }
 
-    ///checks if the child block height is valid ,its used at seed and quorum creation
+    ///checks if the child block height is valid ,its used at seed and quorum
+    /// creation
     pub fn check_validity(height: Height) -> bool {
         height > 0
     }
@@ -147,22 +145,23 @@ impl Quorum {
 
         let num_claims = ((claims.len() as f32) * 0.51).ceil() as usize;
 
-        let election_results: BTreeMap<U256, Claim> = claims.iter()
+        let election_results: BTreeMap<U256, Claim> = claims
+            .iter()
             .map(|claim| {
-                (claim.get_election_result(self.quorum_seed.clone()),
-                 claim.clone()
+                (
+                    claim.get_election_result(self.quorum_seed.clone()),
+                    claim.clone(),
                 )
-            }).collect();
+            })
+            .collect();
 
         if election_results.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
         }
 
-        let pubkeys: Vec<String> = election_results 
+        let pubkeys: Vec<String> = election_results
             .iter()
-            .map(|(_, claim)| {
-                claim.public_key.clone().to_string()
-            })
+            .map(|(_, claim)| claim.public_key.clone().to_string())
             .take(num_claims)
             .collect();
 

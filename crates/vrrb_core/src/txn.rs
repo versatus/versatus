@@ -254,14 +254,17 @@ impl Txn {
     }
 
     pub fn build_payload(&self) -> String {
-        format!("{:x}", hash_data!(
-            self.sender_address.clone(),
-            self.sender_public_key.clone(),
-            self.receiver_address.clone(),
-            self.token.clone(),
-            self.amount.clone(),
-            self.nonce.clone()
-        ))
+        format!(
+            "{:x}",
+            hash_data!(
+                self.sender_address.clone(),
+                self.sender_public_key.clone(),
+                self.receiver_address.clone(),
+                self.token.clone(),
+                self.amount.clone(),
+                self.nonce.clone()
+            )
+        )
     }
 
     fn from_byte_slice(data: ByteSlice) -> Self {

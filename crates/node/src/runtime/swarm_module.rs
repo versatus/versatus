@@ -1,7 +1,7 @@
 use std::{hash::Hash, net::SocketAddr, path::PathBuf};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventPublisher};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -32,7 +32,7 @@ pub struct SwarmModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    events_tx: EventPublisher,
 }
 
 impl SwarmModule {
@@ -40,7 +40,7 @@ impl SwarmModule {
         config: SwarmModuleConfig,
         refresh_interval: Option<u64>,
         ping_interval: Option<u64>,
-        events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+        events_tx: EventPublisher,
     ) -> Result<Self> {
         let mut is_bootstrap_node = false;
         let node = if let Some(bootstrap_node) = config.bootstrap_node {
@@ -146,7 +146,7 @@ mod tests {
         time::Duration,
     };
 
-    use events::{DirectedEvent, Event, PeerData};
+    use events::{Event, PeerData};
     use primitives::NodeType;
     use serial_test::serial;
     use theater::ActorImpl;

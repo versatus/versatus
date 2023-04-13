@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use block::{Block, convergence_block};
-use events::{DirectedEvent, Event};
+use block::{convergence_block, Block};
+use events::{Event, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -9,14 +9,12 @@ use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tokio::sync::broadcast::{error::TryRecvError, Receiver};
 use vrrb_core::txn::Txn;
 
-use crate::EventBroadcastSender;
-
 #[derive(Debug)]
 pub struct MiningModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: EventBroadcastSender,
+    events_tx: EventPublisher,
     miner: Miner,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -24,7 +22,7 @@ pub struct MiningModule {
 
 #[derive(Debug, Clone)]
 pub struct MiningModuleConfig {
-    pub events_tx: EventBroadcastSender,
+    pub events_tx: EventPublisher,
     pub miner: Miner,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -102,11 +100,9 @@ impl Handler<Event> for MiningModule {
             Event::ElectedMiner((winner_claim_hash, winner_claim)) => {
                 if self.miner.check_claim(winner_claim.hash) {
                     let mining_result = self.miner.try_mine();
-                    
+
                     if let Ok(block) = mining_result {
-                        let _ = self.events_tx.send(
-                            Event::MinedBlock(block.clone())
-                        );
+                        let _ = self.events_tx.send(Event::MinedBlock(block.clone()));
                     }
                 };
             },

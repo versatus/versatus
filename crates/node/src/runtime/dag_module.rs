@@ -7,8 +7,14 @@ use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
 use theater::{ActorState, ActorLabel, ActorId, Handler};
 use async_trait::async_trait;
+use block::{Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock};
+use bulldag::{
+    graph::{BullDag, GraphError},
+    vertex::Vertex,
+};
 use events::Event;
 use telemetry::info;
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 
 use crate::EventBroadcastSender;
 
@@ -49,10 +55,7 @@ pub struct DagModule {
 }
 
 impl DagModule {
-    pub fn new(
-        dag: Arc<RwLock<BullDag<Block, String>>>,
-        events_tx: EventBroadcastSender
-    ) -> Self {
+    pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, events_tx: EventBroadcastSender) -> Self {
         Self {
             status: ActorState::Stopped,
             label: String::from("Dag"),
@@ -133,65 +136,54 @@ impl DagModule {
     }
 
     fn get_convergence_reference_blocks(
-        &self, convergence: &ConvergenceBlock
+        &self,
+        convergence: &ConvergenceBlock,
     ) -> Vec<Vertex<Block, String>> {
         convergence
             .get_ref_hashes()
             .iter()
-            .filter_map(|target| {
-                match self.get_reference_block(target) {
-                    Ok(value) => Some(value),
-                    Err(_) => None,
-                }
-            }).collect()
+            .filter_map(|target| match self.get_reference_block(target) {
+                Ok(value) => Some(value),
+                Err(_) => None,
+            })
+            .collect()
     }
 
-    fn get_reference_block(
-        &self, 
-        target: &String
-    ) -> GraphResult<Vertex<Block, String>> {
-
+    fn get_reference_block(&self, target: &String) -> GraphResult<Vertex<Block, String>> {
         if let Ok(guard) = self.dag.read() {
             if let Some(vtx) = guard.get_vertex(target.clone()) {
-                return Ok(vtx.clone())
+                return Ok(vtx.clone());
             }
         }
 
-        return Err(GraphError::NonExistentReference)
+        return Err(GraphError::NonExistentReference);
     }
 
     fn write_edge(
-        &mut self, 
-        edge: (&Vertex<Block, String>, &Vertex<Block, String>)
+        &mut self,
+        edge: (&Vertex<Block, String>, &Vertex<Block, String>),
     ) -> GraphResult<()> {
         if let Ok(mut guard) = self.dag.write() {
             guard.add_edge(edge);
-            return Ok(())
+            return Ok(());
         }
 
         return Err(GraphError::Other("Error getting write guard".to_string()));
     }
 
-    fn extend_edges(
-        &mut self,
-        edges: Edges
-    ) -> GraphResult<()> {
+    fn extend_edges(&mut self, edges: Edges) -> GraphResult<()> {
         let mut iter = edges.iter();
-        
+
         while let Some((ref_block, vtx)) = iter.next() {
             if let Err(e) = self.write_edge((ref_block, vtx)) {
-                return Err(e)
+                return Err(e);
             }
         }
 
         Ok(())
     }
 
-    fn write_genesis(
-        &self,
-        vertex: &Vertex<Block, String>
-    ) -> GraphResult<()> {
-
+    fn write_genesis(&self, vertex: &Vertex<Block, String>) -> GraphResult<()> {
         if let Ok(mut guard) = self.dag.write() {
             guard.add_vertex(vertex);
 
@@ -337,7 +329,6 @@ impl DagModule {
     }
 }
 
-
 #[async_trait]
 impl Handler<Event> for DagModule {
     fn id(&self) -> ActorId {
@@ -399,7 +390,13 @@ impl Handler<Event> for DagModule {
                             return Err(theater::TheaterError::Other(err_note));
                         }
                     }
-                }
+                },
+                Block::Convergence { block } => {
+                    if let Err(e) = self.append_convergence(&block) {
+                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        return Err(theater::TheaterError::Other(err_note));
+                    }
+                },
             },
             Event::HarvesterPublicKey(pubkey_bytes) => {
                 if let Ok(public_key_set) = 

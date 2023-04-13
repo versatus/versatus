@@ -1,7 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use mempool::LeftRightMempool;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -11,17 +11,11 @@ use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterE
 use tokio::sync::broadcast::error::TryRecvError;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::{
-    result::Result,
-    EventBroadcastSender,
-    NodeError,
-    RuntimeModule,
-    MEMPOOL_THRESHOLD_SIZE,
-};
+use crate::{result::Result, NodeError, RuntimeModule, MEMPOOL_THRESHOLD_SIZE};
 
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,
-    pub events_tx: EventBroadcastSender,
+    pub events_tx: EventPublisher,
 }
 
 #[derive(Debug)]
@@ -30,7 +24,7 @@ pub struct MempoolModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: EventBroadcastSender,
+    events_tx: EventPublisher,
     cutoff_transaction: Option<TransactionDigest>,
 }
 
@@ -104,11 +98,9 @@ impl Handler<Event> for MempoolModule {
                     self.cutoff_transaction = Some(txn_hash.clone());
 
                     self.events_tx
-                        .send(
-                            Event::MempoolSizeThesholdReached {
-                                cutoff_transaction: txn_hash,
-                            },
-                        )
+                        .send(Event::MempoolSizeThesholdReached {
+                            cutoff_transaction: txn_hash,
+                        })
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },

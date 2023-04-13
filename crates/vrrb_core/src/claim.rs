@@ -1,11 +1,11 @@
+use ethereum_types::U256;
 use primitives::{Address, PublicKey};
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
 /// permissionless Proof of Claim Miner Election algorithm
 use serde_json;
-use sha2::{Sha256, Digest};
-use ethereum_types::U256;
+use sha2::{Digest, Sha256};
 
 use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
@@ -68,7 +68,6 @@ impl Claim {
     // has been discovered, or returning None if we can't match a character.
     #[deprecated(note = "Please use get_election_result")]
     pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
-        
         // get the hexadecimal format of the block seed
         let block_seed_hex = format!("{block_seed:x}");
         // Get the length of the hexadecimal representation of the block seed
@@ -166,6 +165,7 @@ impl Verifiable for Claim {
 // TODO: Add more methods that make sense for Ownable to Ownable
 impl Ownable for Claim {
     type Pubkey = PublicKey;
+
     fn get_pubkey(&self) -> PublicKey {
         self.public_key.clone()
     }
@@ -173,9 +173,6 @@ impl Ownable for Claim {
 
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
-        Claim::new(
-           item.miner_kp.1.clone(),
-           Address::new(item.miner_kp.1),
-        )
+        Claim::new(item.miner_kp.1.clone(), Address::new(item.miner_kp.1))
     }
 }

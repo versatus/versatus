@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use events::{DirectedEvent, Event};
+use events::{Event, EventPublisher};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
@@ -21,7 +21,7 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use crate::{EventBroadcastSender, NodeError, Result};
+use crate::{NodeError, Result};
 
 pub const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10000;
 
@@ -38,7 +38,7 @@ pub struct BroadcastEngineController {
 #[derive(Debug)]
 pub struct BroadcastEngineControllerConfig {
     pub engine: BroadcastEngine,
-    pub events_tx: EventBroadcastSender,
+    pub events_tx: EventPublisher,
 }
 
 impl BroadcastEngineControllerConfig {

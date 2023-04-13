@@ -1,7 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
@@ -15,7 +15,7 @@ use crate::{result::Result, NodeError, RuntimeModule};
 
 pub struct StateModuleConfig {
     pub db: VrrbDb,
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    pub events_tx: EventPublisher,
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub struct StateModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    events_tx: EventPublisher,
 }
 
 /// StateModule manages all state persistence and updates within VrrbNodes
@@ -158,7 +158,7 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
-    use events::{DirectedEvent, Event};
+    use events::Event;
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;

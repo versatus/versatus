@@ -21,6 +21,7 @@ pub mod v2 {
 mod tests {
     use std::sync::Arc;
 
+    use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
     use primitives::Address;
     use ritelinked::LinkedHashMap;
@@ -29,15 +30,16 @@ mod tests {
     use hbbft::crypto::SecretKeyShare;
 
     use crate::test_helpers::{
-        mine_genesis, 
-        create_miner, 
-        create_miner_from_keypair, 
-        create_and_sign_message, 
-        create_miner_return_dag, build_single_proposal_block, 
-        create_miner_from_keypair_and_dag, 
-        create_miner_from_keypair_return_dag, 
-        build_single_proposal_block_from_txns, 
+        build_single_proposal_block,
+        build_single_proposal_block_from_txns,
+        create_and_sign_message,
+        create_miner,
+        create_miner_from_keypair,
+        create_miner_from_keypair_and_dag,
+        create_miner_from_keypair_return_dag,
+        create_miner_return_dag,
         create_txns,
+        mine_genesis,
     };
 
     #[test]
@@ -57,7 +59,7 @@ mod tests {
         let miner = create_miner_from_keypair(&kp);
 
         assert_eq!(miner.address(), address);
-    } 
+    }
 
     #[test]
     fn test_get_miner_publickey() {
@@ -82,7 +84,7 @@ mod tests {
         let from_miner = miner.sign_message(msg.clone());
 
         assert_eq!(from_miner, sig);
-            
+
         let valid = sig.verify(&msg, &kp.miner_kp.1);
         assert!(valid.is_ok());
     }
@@ -91,12 +93,14 @@ mod tests {
     fn test_mine_valid_convergence_block_empty_proposals() {
         let (mut miner, dag) = create_miner_return_dag();
         let keypair = Keypair::random();
-        let other_miner = create_miner_from_keypair(&keypair); 
-        
+        let other_miner = create_miner_from_keypair(&keypair);
+
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
-            let gblock = Block::Genesis { block: genesis.clone() };
+            let gblock = Block::Genesis {
+                block: genesis.clone(),
+            };
             let gvtx: Vertex<Block, String> = gblock.into();
             let prop1 = ProposalBlock::build(
                 genesis.hash.clone(),
@@ -107,14 +111,16 @@ mod tests {
                 other_miner.claim.clone(),
                 SecretKeyShare::default(), 
             );
-            let pblock = Block::Proposal { block: prop1.clone() };
-            let pvtx: Vertex<Block, String> = pblock.into(); 
+            let pblock = Block::Proposal {
+                block: prop1.clone(),
+            };
+            let pvtx: Vertex<Block, String> = pblock.into();
             if let Ok(mut guard) = dag.write() {
                 let edge = (&gvtx, &pvtx);
                 guard.add_edge(edge);
             }
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(cblock) = convergence {
                 let cvtx: Vertex<Block, String> = cblock.into();
                 if let Ok(mut guard) = dag.write() {
@@ -133,17 +139,16 @@ mod tests {
     fn test_mine_valid_convergence_block_from_proposals_w_no_conflicts() {
         let m1kp = Keypair::random();
         let m2kp = Keypair::random();
-        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp); 
-        let mut other_miner = create_miner_from_keypair_and_dag(
-            &m2kp, 
-            dag.clone()
-        ); 
-        
+        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
+        let mut other_miner = create_miner_from_keypair_and_dag(&m2kp, dag.clone());
+
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
             other_miner.last_block = Some(Arc::new(genesis.clone()));
-            let gblock = Block::Genesis { block: genesis.clone() };
+            let gblock = Block::Genesis {
+                block: genesis.clone(),
+            };
             let gvtx: Vertex<Block, String> = gblock.into();
             let prop1 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -164,10 +169,14 @@ mod tests {
                 SecretKeyShare::default(),
             );
 
-            let pblock1 = Block::Proposal { block: prop1.clone() };
-            let pvtx1: Vertex<Block, String> = pblock1.into(); 
-            let pblock2 = Block::Proposal { block: prop2.clone() };
-            let pvtx2: Vertex<Block, String> = pblock2.into(); 
+            let pblock1 = Block::Proposal {
+                block: prop1.clone(),
+            };
+            let pvtx1: Vertex<Block, String> = pblock1.into();
+            let pblock2 = Block::Proposal {
+                block: prop2.clone(),
+            };
+            let pvtx2: Vertex<Block, String> = pblock2.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 let edge2 = (&gvtx, &pvtx2);
@@ -175,7 +184,7 @@ mod tests {
                 guard.add_edge(edge2);
             }
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(cblock) = convergence {
                 let cvtx: Vertex<Block, String> = cblock.into();
                 if let Ok(mut guard) = dag.write() {
@@ -195,25 +204,29 @@ mod tests {
     #[test]
     fn test_mine_valid_convergence_block_from_proposals_conflicts_curr_round() {
         let m1kp = Keypair::random();
-        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp); 
-        
+        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
+
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
-            let gblock = Block::Genesis { block: genesis.clone() };
+            let gblock = Block::Genesis {
+                block: genesis.clone(),
+            };
             let gvtx: Vertex<Block, String> = gblock.into();
             let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
-            let prop1 = build_single_proposal_block_from_txns(
-                genesis.hash.clone(), txns.clone(), 0, 0
-            );
-            let prop2 = build_single_proposal_block_from_txns(
-                genesis.hash.clone(), txns.clone(), 0, 0
-            );
+            let prop1 =
+                build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
+            let prop2 =
+                build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
 
-            let pblock1 = Block::Proposal { block: prop1.clone() };
-            let pvtx1: Vertex<Block, String> = pblock1.into(); 
-            let pblock2 = Block::Proposal { block: prop2.clone() };
-            let pvtx2: Vertex<Block, String> = pblock2.into(); 
+            let pblock1 = Block::Proposal {
+                block: prop1.clone(),
+            };
+            let pvtx1: Vertex<Block, String> = pblock1.into();
+            let pblock2 = Block::Proposal {
+                block: prop2.clone(),
+            };
+            let pvtx2: Vertex<Block, String> = pblock2.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 let edge2 = (&gvtx, &pvtx2);
@@ -221,7 +234,7 @@ mod tests {
                 guard.add_edge(edge2);
             }
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(cblock) = convergence {
                 if let Block::Convergence { block } = cblock.clone() {
                     miner.last_block = Some(Arc::new(block));
@@ -236,10 +249,10 @@ mod tests {
 
                 match cblock {
                     Block::Convergence { ref block } => {
-                        let total_len: usize = block.txns.iter().map(|(_, v)| {v.len()}).sum();
+                        let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
                         assert_eq!(total_len, 15usize);
                     },
-                    _ => {}
+                    _ => {},
                 }
             }
 
@@ -252,28 +265,34 @@ mod tests {
     #[test]
     fn test_mine_valid_convergence_block_from_proposals_conflicts_prev_rounds() {
         let m1kp = Keypair::random();
-        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp); 
-        
+        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
+
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
-            let gblock = Block::Genesis { block: genesis.clone() };
+            let gblock = Block::Genesis {
+                block: genesis.clone(),
+            };
             let gvtx: Vertex<Block, String> = gblock.into();
             let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
-            let prop1 = build_single_proposal_block_from_txns(
-                genesis.hash.clone(), txns.clone(), 0, 0
-            );
-            let pblock1 = Block::Proposal { block: prop1.clone() };
-            let pvtx1: Vertex<Block, String> = pblock1.into(); 
+            let prop1 =
+                build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
+            let pblock1 = Block::Proposal {
+                block: prop1.clone(),
+            };
+            let pvtx1: Vertex<Block, String> = pblock1.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 guard.add_edge(edge1);
             }
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {
                 miner.last_block = Some(Arc::new(block.to_owned()));
-                let cvtx1: Vertex<Block, String> = Block::Convergence { block: block.clone() }.into();
+                let cvtx1: Vertex<Block, String> = Block::Convergence {
+                    block: block.clone(),
+                }
+                .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx1);
                     guard.add_edge(edge1);
@@ -281,21 +300,25 @@ mod tests {
             };
 
 
-            let prop2 = build_single_proposal_block_from_txns(
-                genesis.hash.clone(), txns.clone(), 0, 0
-            );
-            let pblock2 = Block::Proposal { block: prop2.clone() };
-            let pvtx2: Vertex<Block, String> = pblock2.into(); 
+            let prop2 =
+                build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
+            let pblock2 = Block::Proposal {
+                block: prop2.clone(),
+            };
+            let pvtx2: Vertex<Block, String> = pblock2.into();
 
             if let Ok(mut guard) = dag.write() {
                 let edge2 = (&gvtx, &pvtx2);
                 guard.add_edge(edge2);
             }
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {
                 miner.last_block = Some(Arc::new(block.to_owned()));
-                let cvtx2: Vertex<Block, String> = Block::Convergence { block: block.clone() }.into();
+                let cvtx2: Vertex<Block, String> = Block::Convergence {
+                    block: block.clone(),
+                }
+                .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge2 = (&pvtx2, &cvtx2);
                     guard.add_edge(edge2);
@@ -303,10 +326,10 @@ mod tests {
 
                 match convergence {
                     Ok(Block::Convergence { ref block }) => {
-                        let total_len: usize = block.txns.iter().map(|(_, v)| {v.len()}).sum();
+                        let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
                         assert_eq!(total_len, 5usize);
                     },
-                    _ => {}
+                    _ => {},
                 }
             }
 
@@ -319,31 +342,37 @@ mod tests {
     #[test]
     fn test_miner_handles_epoch_change() {
         let m1kp = Keypair::random();
-        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp); 
-        
+        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
+
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
-            let gblock = Block::Genesis { block: genesis.clone() };
+            let gblock = Block::Genesis {
+                block: genesis.clone(),
+            };
             let gvtx: Vertex<Block, String> = gblock.into();
             let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
-            let prop1 = build_single_proposal_block_from_txns(
-                genesis.hash.clone(), txns.clone(), 0, 0
-            );
-            let pblock1 = Block::Proposal { block: prop1.clone() };
-            let pvtx1: Vertex<Block, String> = pblock1.into(); 
+            let prop1 =
+                build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
+            let pblock1 = Block::Proposal {
+                block: prop1.clone(),
+            };
+            let pvtx1: Vertex<Block, String> = pblock1.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 guard.add_edge(edge1);
             }
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(Block::Convergence { mut block }) = convergence {
                 block.header.round = 29_999_998;
                 block.header.block_height = 29_999_998;
                 block.header.block_reward.current_block = 29_999_998;
                 miner.last_block = Some(Arc::new(block.to_owned()));
-                let cvtx1: Vertex<Block, String> = Block::Convergence { block: block.clone() }.into();
+                let cvtx1: Vertex<Block, String> = Block::Convergence {
+                    block: block.clone(),
+                }
+                .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx1);
                     guard.add_edge(edge1);
@@ -351,7 +380,7 @@ mod tests {
             };
 
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {
                 miner.last_block = Some(Arc::new(block.to_owned()));
                 assert_eq!(1, block.header.next_block_reward.epoch);
@@ -361,21 +390,23 @@ mod tests {
 
     #[test]
     fn test_miner_handles_utility_adjustment_upon_epoch_change() {
-
         let m1kp = Keypair::random();
-        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp); 
-        
+        let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
+
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
-            let gblock = Block::Genesis { block: genesis.clone() };
+            let gblock = Block::Genesis {
+                block: genesis.clone(),
+            };
             let gvtx: Vertex<Block, String> = gblock.into();
             let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
-            let prop1 = build_single_proposal_block_from_txns(
-                genesis.hash.clone(), txns.clone(), 0, 0
-            );
-            let pblock1 = Block::Proposal { block: prop1.clone() };
-            let pvtx1: Vertex<Block, String> = pblock1.into(); 
+            let prop1 =
+                build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
+            let pblock1 = Block::Proposal {
+                block: prop1.clone(),
+            };
+            let pvtx1: Vertex<Block, String> = pblock1.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 guard.add_edge(edge1);
@@ -383,13 +414,16 @@ mod tests {
 
             miner.set_next_epoch_adjustment(30_000_000_i128);
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(Block::Convergence { mut block }) = convergence {
                 block.header.round = 29_999_998;
                 block.header.block_height = 29_999_998;
                 block.header.block_reward.current_block = 29_999_998;
                 miner.last_block = Some(Arc::new(block.to_owned()));
-                let cvtx1: Vertex<Block, String> = Block::Convergence { block: block.clone() }.into();
+                let cvtx1: Vertex<Block, String> = Block::Convergence {
+                    block: block.clone(),
+                }
+                .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx1);
                     guard.add_edge(edge1);
@@ -397,7 +431,7 @@ mod tests {
             };
 
 
-            let convergence = miner.try_mine(); 
+            let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {
                 miner.last_block = Some(Arc::new(block.to_owned()));
                 assert_eq!(1, block.header.next_block_reward.epoch);

@@ -34,6 +34,7 @@ utils = { workspace = true }
 cuckoofilter = { workspace = true }
 ethereum-types = { workspace = true }
 quorum = { workspace = true }
+messr = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

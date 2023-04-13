@@ -32,9 +32,10 @@ impl ProposalBlock {
     ) -> ProposalBlock {
 
         let hashable_txns: Vec<(String, Txn)> = {
-            txns.clone().iter().map(|(k, v)| {
-                (k.digest_string(), v.clone())
-            }).collect()
+            txns.clone()
+                .iter()
+                .map(|(k, v)| (k.digest_string(), v.clone()))
+                .collect()
         };
 
         let payload = hash_data!(round, epoch, hashable_txns, claims, from);
@@ -92,9 +93,8 @@ impl ProposalBlock {
     }
 
     pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {
-        let sets: Vec<LinkedHashSet<&TransactionDigest>> ={ 
-            prev_blocks.iter().map(|block| block.txn_id_set()).collect() 
-        };
+        let sets: Vec<LinkedHashSet<&TransactionDigest>> =
+            { prev_blocks.iter().map(|block| block.txn_id_set()).collect() };
 
         let prev_block_set: LinkedHashSet<&TransactionDigest> =
             { sets.into_iter().flatten().collect() };

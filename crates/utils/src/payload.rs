@@ -39,4 +39,3 @@ macro_rules! hash_data {
         hasher.finalize()
     }};
 }
-
