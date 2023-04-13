@@ -155,9 +155,7 @@ impl BroadcastEngineController {
                 if let Err(err) = peer_connection_result {
                     error!("unable to add peer connection: {err}");
 
-                    self.events_tx.send(
-                        Event::PeerSyncFailed(quic_addresses)
-                    );
+                    self.events_tx.send(Event::PeerSyncFailed(quic_addresses));
 
                     return Err(err.into());
                 }
@@ -168,12 +166,11 @@ impl BroadcastEngineController {
 
                 Ok(())
             },
-            Event::Vote(vote, quorum_type, farmer_quorum_threshold) => {
+            Event::Vote(vote, farmer_quorum_threshold) => {
                 let status = self
                     .engine
                     .quic_broadcast(Message::new(MessageBody::Vote {
                         vote,
-                        quorum_type,
                         farmer_quorum_threshold,
                     }))
                     .await?;

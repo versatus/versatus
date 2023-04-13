@@ -99,7 +99,6 @@ pub enum MessageBody {
 
     Vote {
         vote: Vote,
-        quorum_type: QuorumType,
         farmer_quorum_threshold: FarmerQuorumThreshold,
     },
     Empty,

@@ -103,7 +103,7 @@ pub struct QuorumCertifiedTxn {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
-    txn: Txn,
+    pub txn: Txn,
     /// Threshold Signature
     signature: RawSignature,
 }
@@ -182,8 +182,8 @@ pub enum Event {
     GenerateKeySet,
     HarvesterPublicKey(Vec<u8>),
     Farm,
-    Vote(Vote, QuorumType, FarmerQuorumThreshold),
-    PullQuorumCertifiedTxns(usize),
+    Vote(Vote, FarmerQuorumThreshold),
+    MineProposalBlock,
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
     ConfirmedTxns(Vec<(String, QuorumPublicKey)>),

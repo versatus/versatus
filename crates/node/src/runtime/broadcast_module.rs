@@ -199,12 +199,11 @@ impl Handler<Event> for BroadcastModule {
                 self.broadcast_engine.add_raptor_peers(raptor_peer_list);
                 self.broadcast_engine.add_peer_connection(quic_addresses);
             },
-            Event::Vote(vote, quorum_type, farmer_quorum_threshold) => {
+            Event::Vote(vote, farmer_quorum_threshold) => {
                 let status = self
                     .broadcast_engine
                     .quic_broadcast(Message::new(MessageBody::Vote {
                         vote,
-                        quorum_type,
                         farmer_quorum_threshold,
                     }))
                     .await;

@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use crossbeam_channel::Sender;
 use events::{Event, JobResult};
 use mempool::mempool::{LeftRightMempool, TxnStatus};
-use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold, QuorumType};
+use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
@@ -190,15 +190,12 @@ impl Handler<Event> for FarmerModule {
             },
             // Receive the Vote from scheduler
             Event::ProcessedVotes(job_result) => {
-                println!("Votes got :{:?}", job_result);
                 if let JobResult::Votes((votes, farmer_quorum_threshold)) = job_result {
                     for vote_opt in votes.iter() {
                         if let Some(vote) = vote_opt {
-                            let _ = self.broadcast_events_tx.send(Event::Vote(
-                                vote.clone(),
-                                QuorumType::Harvester,
-                                farmer_quorum_threshold,
-                            ));
+                            let _ = self
+                                .broadcast_events_tx
+                                .send(Event::Vote(vote.clone(), farmer_quorum_threshold));
                         }
                     }
                 }
@@ -228,25 +225,29 @@ pub type QuorumPubkey = String;
 mod tests {
     use std::{
         collections::{HashMap, HashSet},
-        env,
-        net::{IpAddr, Ipv4Addr},
-        process::exit,
         thread,
-        time::{Duration, SystemTime, UNIX_EPOCH},
+        time::{SystemTime, UNIX_EPOCH},
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
-    use events::{Event, PeerData, Vote};
+    use events::{Event, JobResult};
     use lazy_static::lazy_static;
-    use primitives::{Address, NodeType, QuorumType::Farmer};
+    use primitives::Address;
     use secp256k1::Message;
+    use signer::signer::SignatureProvider;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use theater::ActorImpl;
-    use validator::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
-    use vrrb_core::{account::Account, cache, is_enum_variant, keypair::KeyPair, txn::NewTxnArgs};
+    use theater::{Actor, ActorImpl, ActorState};
+    use validator::validator_core_manager::ValidatorCoreManager;
+    use vrrb_core::{
+        account::Account,
+        keypair::KeyPair,
+        txn::{NewTxnArgs, Txn},
+    };
 
-    use super::*;
-    use crate::scheduler::JobSchedulerController;
+    use crate::{
+        farmer_module::FarmerModule,
+        scheduler::{Job, JobSchedulerController},
+    };
 
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
