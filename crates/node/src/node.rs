@@ -69,7 +69,6 @@ impl Node {
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
-
         let mut router = EventRouter::new();
 
         let runtime_components =
@@ -226,5 +225,9 @@ impl Node {
 
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
+    }
+
+    fn setup_event_routing_system() -> EventRouter {
+        Router::new()
     }
 }

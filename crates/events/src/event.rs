@@ -91,8 +91,7 @@ pub enum Event {
     GenerateKeySet,
     HarvesterPublicKey(Vec<u8>),
     Farm,
-    Vote(Vote, FarmerQuorumThreshold),
-    MineProposalBlock,
+    Vote(Vote, QuorumType, FarmerQuorumThreshold),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
