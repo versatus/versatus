@@ -2,6 +2,7 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use block::{Block, Conflict};
 use ethereum_types::U256;
+use hbbft::crypto::PublicKeySet;
 use primitives::{
     Address,
     ByteVec,
