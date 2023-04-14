@@ -118,7 +118,9 @@ impl JobSchedulerController {
                             .collect();
 
                         //TODO  Add Delegation logic + Handling Double Spend by checking whether
-                        // Txn is intended to be validated by current validator
+                        // MagLev Hashing over( Quorum Keys) to identify whether current farmer
+                        // quorum is supposed to vote on txn Txn is intended
+                        // to be validated by current validator
                         let backpressure = self.job_scheduler.calculate_back_pressure();
                         //Delegation Principle need to be done
                         let votes_result = self
