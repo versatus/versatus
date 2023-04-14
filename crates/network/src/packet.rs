@@ -50,7 +50,6 @@ const PAYLOAD_SIZE: usize = MTU_SIZE - PACKET_SNO - BATCH_ID_SIZE - FLAGS - 40 -
 /// Below is the type that shall be used to broadcast RaptorQ Data
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum RaptorBroadCastedData {
-    Txn(Txn),
     Block(Block),
 }
 
