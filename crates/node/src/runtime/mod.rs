@@ -1,15 +1,16 @@
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
+    thread,
 };
 
 use block::Block;
 use bulldag::graph::BullDag;
-use crossbeam_channel::Sender;
+use crossbeam_channel::{unbounded, Sender};
 use events::{Event, EventRouter};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
-use network::network::BroadcastEngine;
+use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
@@ -42,7 +43,11 @@ use self::{
     state_module::StateModule,
 };
 use crate::{
-    broadcast_controller::BROADCAST_CONTROLLER_BUFFER_SIZE,
+    broadcast_controller::{
+        BroadcastEngineController,
+        BroadcastEngineControllerConfig,
+        BROADCAST_CONTROLLER_BUFFER_SIZE,
+    },
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::Job,
@@ -66,6 +71,7 @@ pub mod state_module;
 pub mod swarm_module;
 
 pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
+pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 
 pub struct RuntimeComponents {
     pub node_config: NodeConfig,
@@ -81,6 +87,7 @@ pub struct RuntimeComponents {
     pub harvester_handle: RuntimeHandle,
     pub indexer_handle: RuntimeHandle,
     pub dag_handle: RuntimeHandle,
+    pub raptor_handle: RaptorHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -130,21 +137,39 @@ pub async fn setup_runtime_components(
     .await?;
 
     let mut gossip_handle = None;
-
+    let mut raptor_handle = None;
+    let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
     if !config.disable_networking {
-        let (new_gossip_handle, gossip_addr) = setup_gossip_network(
+        let (new_gossip_handle, new_raptor_handle, gossip_addr) = setup_gossip_network(
             &config,
             events_tx.clone(),
             network_events_rx,
             controller_events_rx,
             state_read_handle.clone(),
+            raptor_sender,
         )
         .await?;
 
         gossip_handle = new_gossip_handle;
-        // broadcast_controller_handle = new_broadcast_controller_handle;
+        raptor_handle = new_raptor_handle;
         config.udp_gossip_address = gossip_addr;
     }
+
+    let raptor_handle = thread::spawn({
+        let events_tx = events_tx.clone();
+        move || {
+            loop {
+                if let Ok(data) = raptor_receiver.recv() {
+                    match data {
+                        RaptorBroadCastedData::Block(block) => {
+                            let _ = events_tx.send(Event::BlockReceived(block));
+                        },
+                    }
+                }
+            }
+            return true;
+        }
+    });
 
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,
@@ -231,6 +256,7 @@ pub async fn setup_runtime_components(
         harvester_handle,
         indexer_handle,
         dag_handle,
+        raptor_handle: Some(raptor_handle),
     };
 
     Ok(runtime_components)
@@ -241,14 +267,18 @@ fn setup_event_routing_system() -> EventRouter {
 
     event_router
 }
-
 async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: UnboundedSender<Event>,
     mut network_events_rx: Receiver<Event>,
-    controller_events_rx: Receiver<Event>,
+    mut controller_events_rx: Receiver<Event>,
     vrrbdb_read_handle: VrrbDbReadHandle,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+    raptor_sender: Sender<RaptorBroadCastedData>,
+) -> Result<(
+    Option<JoinHandle<Result<()>>>,
+    Option<JoinHandle<(Result<()>, Result<()>)>>,
+    SocketAddr,
+)> {
     let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
         events_tx: events_tx.clone(),
         vrrbdb_read_handle,
@@ -261,21 +291,25 @@ async fn setup_gossip_network(
 
     let addr = broadcast_module.local_addr();
 
-    let (controller_tx, controller_rx) =
-        tokio::sync::mpsc::channel::<Event>(BROADCAST_CONTROLLER_BUFFER_SIZE);
-
     let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
         .await
         .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
-    // let mut bcast_controller = BroadcastEngineController::new(broadcast_engine);
 
-    // NOTE: starts the listening loop
-    // let broadcast_controller_handle = tokio::spawn(async move {
-    //     bcast_controller
-    //         .listen(controller_tx, controller_events_rx)
-    //         .await
-    // });
+    let mut bcast_controller = BroadcastEngineController::new(
+        BroadcastEngineControllerConfig::new(broadcast_engine, events_tx.clone()),
+    );
+
+    let broadcast_controller_handle = tokio::spawn(async move {
+        let broadcast_handle = bcast_controller.listen(controller_events_rx).await;
+        let raptor_handle = bcast_controller
+            .engine
+            .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
+            .await;
+
+        let raptor_handle = raptor_handle.map_err(|x| NodeError::Broadcast(x));
+        (broadcast_handle, raptor_handle)
+    });
 
     let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
 
@@ -285,13 +319,13 @@ async fn setup_gossip_network(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
-
     Ok((
         Some(broadcast_handle),
-        // Some(broadcast_controller_handle),
+        Some(broadcast_controller_handle),
         addr,
     ))
 }
+
 
 async fn setup_state_store(
     config: &NodeConfig,

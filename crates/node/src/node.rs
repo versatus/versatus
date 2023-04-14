@@ -14,6 +14,7 @@ use crate::{
     result::{NodeError, Result},
     runtime::{setup_runtime_components, RuntimeHandle},
     NodeType,
+    RaptorHandle,
     RuntimeModuleState,
 };
 
@@ -46,6 +47,7 @@ pub struct Node {
     harvester_handle: RuntimeHandle,
     indexer_handle: RuntimeHandle,
     dag_handle: RuntimeHandle,
+    raptor_handle: RaptorHandle,
 }
 
 impl Node {
@@ -119,6 +121,7 @@ impl Node {
             harvester_handle: runtime_components.harvester_handle,
             indexer_handle: runtime_components.indexer_handle,
             dag_handle: runtime_components.dag_handle,
+            raptor_handle: runtime_components.raptor_handle,
         })
     }
 

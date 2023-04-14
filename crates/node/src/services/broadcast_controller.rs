@@ -31,7 +31,7 @@ const RAPTOR_ERASURE_COUNT: u32 = 3000;
 
 #[derive(Debug)]
 pub struct BroadcastEngineController {
-    engine: BroadcastEngine,
+    pub engine: BroadcastEngine,
     events_tx: EventBroadcastSender,
 }
 
@@ -42,6 +42,10 @@ pub struct BroadcastEngineControllerConfig {
 }
 
 impl BroadcastEngineControllerConfig {
+    pub fn new(engine: BroadcastEngine, events_tx: EventBroadcastSender) -> Self {
+        Self { engine, events_tx }
+    }
+
     pub fn local_addr(&self) -> SocketAddr {
         self.engine.local_addr()
     }
@@ -55,10 +59,7 @@ impl BroadcastEngineController {
         Self { engine, events_tx }
     }
 
-    pub async fn listen(
-        &mut self,
-        mut events_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
-    ) -> Result<()> {
+    pub async fn listen(&mut self, mut events_rx: Receiver<Event>) -> Result<()> {
         loop {
             tokio::select! {
                 Some((conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
@@ -71,7 +72,7 @@ impl BroadcastEngineController {
                     }
                   }
                 },
-                Some(event) = events_rx.recv() => {
+                Ok(event) = events_rx.recv() => {
                     if matches!(event, Event::Stop) {
                         info!("Stopping broadcast controller");
                         break
