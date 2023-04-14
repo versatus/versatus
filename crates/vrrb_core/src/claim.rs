@@ -9,6 +9,11 @@ use sha2::{Digest, Sha256};
 
 use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
 
+pub enum StakeUpdate {
+    Add(u128),
+    Withdrawal(u128),
+    Slash(f64),
+}
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,6 +31,7 @@ pub struct Claim {
     pub address: Address,
     pub hash: U256,
     pub eligible: bool,
+    stake: u128,
 }
 
 impl Claim {
@@ -45,6 +51,7 @@ impl Claim {
             address,
             hash,
             eligible: true,
+            stake: 0
         }
     }
 
@@ -58,6 +65,27 @@ impl Claim {
         });
 
         U256(xor_val)
+    }
+
+    pub fn update_stake(&mut self, update: StakeUpdate) {
+        match update {
+            StakeUpdate::Add(value) => {
+                if let Some(val) = self.stake.checked_add(value) {
+                    self.stake = val
+                }
+            },
+            StakeUpdate::Withdrawal(value) => {
+                if let Some(val) = self.stake.checked_sub(value) {
+                    self.stake = val
+                }
+            },
+            StakeUpdate::Slash(pct) => {
+                let slash = (self.stake as f64) * pct; 
+                if let Some(val) = self.stake.checked_sub(slash as u128) {
+                    self.stake = val
+                }
+            }
+        }
     }
 
     /// Calculates the claims pointer sum
