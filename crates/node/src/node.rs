@@ -16,6 +16,7 @@ use crate::{
     NodeType,
     RaptorHandle,
     RuntimeModuleState,
+    SchedulerHandle,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -48,6 +49,7 @@ pub struct Node {
     indexer_handle: RuntimeHandle,
     dag_handle: RuntimeHandle,
     raptor_handle: RaptorHandle,
+    scheduler_handle: SchedulerHandle,
 }
 
 impl Node {
@@ -122,6 +124,7 @@ impl Node {
             indexer_handle: runtime_components.indexer_handle,
             dag_handle: runtime_components.dag_handle,
             raptor_handle: runtime_components.raptor_handle,
+            scheduler_handle: runtime_components.scheduler_handle,
         })
     }
 

@@ -22,6 +22,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
+use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
 use vrrb_core::{bloom::Bloom, claim::Claim};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
@@ -50,7 +51,7 @@ use crate::{
     },
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
-    scheduler::Job,
+    scheduler::{Job, JobSchedulerController},
     EventBroadcastSender,
     NodeError,
     Result,
@@ -72,6 +73,7 @@ pub mod swarm_module;
 
 pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
+pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
 
 pub struct RuntimeComponents {
     pub node_config: NodeConfig,
@@ -88,6 +90,7 @@ pub struct RuntimeComponents {
     pub indexer_handle: RuntimeHandle,
     pub dag_handle: RuntimeHandle,
     pub raptor_handle: RaptorHandle,
+    pub scheduler_handle: SchedulerHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -236,7 +239,17 @@ pub async fn setup_runtime_components(
             harvester_events_rx,
         )?
     };
-
+    let mut scheduler = setup_scheduler_module(
+        &config,
+        sync_jobs_receiver,
+        async_jobs_receiver,
+        ValidatorCoreManager::new(8).unwrap(),
+        events_tx.clone(),
+        state_read_handle.clone(),
+    );
+    let scheduler_handle = thread::spawn(move || {
+        scheduler.execute_sync_jobs();
+    });
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
@@ -257,6 +270,7 @@ pub async fn setup_runtime_components(
         indexer_handle,
         dag_handle,
         raptor_handle: Some(raptor_handle),
+        scheduler_handle: Some(scheduler_handle),
     };
 
     Ok(runtime_components)
@@ -620,6 +634,25 @@ fn setup_indexer_module(
     });
 
     Ok(Some(indexer_handle))
+}
+
+fn setup_scheduler_module(
+    config: &NodeConfig,
+    sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
+    async_jobs_receiver: crossbeam_channel::Receiver<Job>,
+    validator_core_manager: ValidatorCoreManager,
+    events_tx: EventBroadcastSender,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+) -> JobSchedulerController {
+    let module = JobSchedulerController::new(
+        hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
+        events_tx,
+        sync_jobs_receiver,
+        async_jobs_receiver,
+        validator_core_manager,
+        vrrbdb_read_handle,
+    );
+    module
 }
 
 
