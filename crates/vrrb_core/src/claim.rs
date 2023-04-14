@@ -24,7 +24,6 @@ pub struct InvalidClaimError {
 /// The claim object that stores the key information used to mine blocks,
 /// calculate whether or not you are an entitled miner, and to share with
 /// network
-// TODO: Add staking to the claim.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Claim {
     pub public_key: PublicKey,
