@@ -35,12 +35,7 @@ pub struct Claim {
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
-    // TODO: Default nonce to 0
     pub fn new(public_key: PublicKey, address: Address) -> Claim {
-        // Calculate the number of times the pubkey should be hashed to generate the
-        // claim hash
-        // sequentially hash the public key the correct number of times
-        // for the given nonce.
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         let result = hasher.finalize();
@@ -66,6 +61,11 @@ impl Claim {
         U256(xor_val)
     }
 
+    /// Takes a StakeUpdate enum and adds/withdrawals or slashes 
+    /// the given claim's stake. This method is used within the 
+    /// state module to update a claim that has a transaction
+    /// pointing to it, and has been included in a certified 
+    /// convergence block.
     pub fn update_stake(&mut self, update: StakeUpdate) {
         match update {
             StakeUpdate::Add(value) => {
@@ -87,56 +87,30 @@ impl Claim {
         }
     }
 
-    /// Calculates the claims pointer sum
-    // TODO: Rename to `get_pointer_sum` to better represent the purpose of the
-    // function. This can be made significantly faster (if necessary to scale
-    // network) by concurrently calculating the index position of each matched
-    // character, and summing the total at the end after every match position
-    // has been discovered, or returning None if we can't match a character.
     #[deprecated(note = "Please use get_election_result")]
     pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
-        // get the hexadecimal format of the block seed
         let block_seed_hex = format!("{block_seed:x}");
-        // Get the length of the hexadecimal representation of the block seed
-        // for later use
         let block_seed_string_len = block_seed_hex.chars().count();
-        // declare an empty mutable vector to stash pointers into.
         let mut pointers = vec![];
-        // iterate through (and enumerate for index position) the characters
-        // of the block seed.
         let mut hash_bytes = [0u8; 32];
         self.hash.to_big_endian(&mut hash_bytes);
         let hash_string = hex::encode(hash_bytes);
 
         block_seed_hex.chars().enumerate().for_each(|(idx, c)| {
-            // Check if the character is in the claim hash, and save the index position into
-            // a variable `n`.
             let res = hash_string.find(c);
             if let Some(n) = res {
-                // convert `n` to a u128 and calculate an integer overflow safe
-                // exponential of the `n` to the power of idx
                 let n = n as u128;
                 let n = n.checked_pow(idx as u32);
-                // If there is no integer overflow (which there never should be)
-                // add it to the buffer.
                 if let Some(n) = n {
                     pointers.push(n);
                 }
             }
         });
 
-        // If the length of the pointer buffer is the same length
-        // as the block seed hex string then calculate the sum as a u128
-        // TODO: use integer overflow safe sum, though there should never be
-        // an integer overflow with the pointer sum being a u128, it is better
-        // to be safe than sorry.
         if pointers.len() == block_seed_string_len {
             let pointer: u128 = pointers.iter().sum();
             Some(pointer)
         } else {
-            // If the length of the pointer buffer is not the same length
-            // as the block seed hex string, return None, not every character was
-            // matched.
             None
         }
     }
@@ -168,7 +142,6 @@ impl Claim {
 }
 
 /// Implements Verifiable trait on Claim
-// TODO: Need to actually implement the valid method
 impl Verifiable for Claim {
     type Dependencies = (Option<Vec<u8>>, Option<Vec<u8>>);
     type Error = InvalidClaimError;
