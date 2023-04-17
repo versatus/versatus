@@ -2,9 +2,22 @@ use hbbft::crypto::Signature as Certificate;
 use primitives::{Address, Signature};
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use utils::hash_data;
 
 use crate::keypair::{MinerPk, MinerSk};
+
+#[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize, Eq)]
+pub enum StakeError {
+    #[error("StakeError: The payload was not able to be converted into a valid message")]
+    InvalidPayload,
+    #[error("StakeError: The signature was invalid for the given message and public key")]
+    InvalidSignature,
+    #[error("StakError: The stake transaction has not been certified")]
+    UncertifiedStake,
+    #[error("StakeError: {0}")]
+    Other(String),
+}
 
 /// Provides an enum with the 3 different types of StakeUpdates that
 /// are possible, and a inner value which is the amount (for Add and
@@ -179,5 +192,18 @@ impl Stake {
     /// Adds a certificate to the instance.
     pub fn certify(&mut self, certificate: Certificate) {
         self.certificate = Some(certificate);
+    }
+
+    /// Verifies the signature of the StakeTransaction
+    pub fn verify(&self) -> Result<(), StakeError> {
+        let payload = self.get_payload();
+        if let Ok(message) = Message::from_slice(&payload) {
+            self.signature
+                .verify(&message, &self.get_pubkey())
+                .map_err(|_| StakeError::InvalidSignature)?;
+            return Ok(());
+        }
+
+        Err(StakeError::InvalidPayload)
     }
 }
