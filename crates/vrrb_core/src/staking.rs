@@ -1,4 +1,3 @@
-use hbbft::crypto::Signature as Certificate;
 use primitives::{Address, Signature};
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
@@ -6,6 +5,10 @@ use thiserror::Error;
 use utils::hash_data;
 
 use crate::keypair::{MinerPk, MinerSk};
+
+/// Represents a byte array that can be converted into a
+/// ThresholdSignature
+pub type Certificate = Vec<u8>;
 
 #[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize, Eq)]
 pub enum StakeError {
@@ -15,6 +18,8 @@ pub enum StakeError {
     InvalidSignature,
     #[error("StakError: The stake transaction has not been certified")]
     UncertifiedStake,
+    #[error("StakError: The certificate is invalid")]
+    InvalidCertificate,
     #[error("StakeError: {0}")]
     Other(String),
 }
@@ -92,7 +97,7 @@ impl Stake {
     /// ```
     /// use primitives::Address;
     /// use vrrb_core::{
-    ///     keypair::{KeyPair, MinerPk, MinerSk},
+    ///     keypair::MinerSk,
     ///     staking::{Stake, StakeUpdate},
     /// };
     ///
@@ -190,8 +195,14 @@ impl Stake {
     }
 
     /// Adds a certificate to the instance.
-    pub fn certify(&mut self, certificate: Certificate) {
+    pub fn certify(&mut self, certificate: Certificate) -> Result<(), StakeError> {
+        if certificate.len() != 96 {
+            return Err(StakeError::InvalidCertificate);
+        }
+
         self.certificate = Some(certificate);
+
+        return Ok(());
     }
 
     /// Verifies the signature of the StakeTransaction
@@ -205,5 +216,100 @@ impl Stake {
         }
 
         Err(StakeError::InvalidPayload)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use primitives::Address;
+
+    use super::*;
+    use crate::{keypair::KeyPair, staking::StakeUpdate};
+
+
+    #[test]
+    fn should_create_new_stake() {
+        let keypair = KeyPair::random();
+        let sk = keypair.miner_kp.0.clone();
+        let pk = keypair.miner_kp.1.clone();
+        let amount = StakeUpdate::Add(10_000u128);
+        let from = Address::new(pk.clone());
+
+        let stake = Stake::new(amount, sk, pk, from, None);
+
+        assert!(stake.is_some());
+    }
+
+    #[test]
+    fn should_add_certificate_to_stake() {
+        let keypair = KeyPair::random();
+        let sk = keypair.miner_kp.0.clone();
+        let pk = keypair.miner_kp.1.clone();
+        let amount = StakeUpdate::Add(10_000u128);
+        let from = Address::new(pk.clone());
+
+        let mut stake = Stake::new(amount, sk, pk, from, None).unwrap();
+
+        stake.certify(vec![0u8; 96]).unwrap();
+
+        assert!(stake.get_certificate().is_some());
+    }
+
+    #[test]
+    fn should_verify_signature() {
+        let keypair = KeyPair::random();
+        let sk = keypair.miner_kp.0.clone();
+        let pk = keypair.miner_kp.1.clone();
+        let amount = StakeUpdate::Add(10_000u128);
+        let from = Address::new(pk.clone());
+
+        let stake = Stake::new(amount, sk, pk, from, None).unwrap();
+
+        assert!(stake.verify().is_ok())
+    }
+
+    #[test]
+    fn from_and_to_should_be_the_same() {
+        let keypair = KeyPair::random();
+        let sk = keypair.miner_kp.0.clone();
+        let pk = keypair.miner_kp.1.clone();
+        let amount = StakeUpdate::Add(10_000u128);
+        let from = Address::new(pk.clone());
+
+        let stake = Stake::new(amount, sk, pk, from, None).unwrap();
+
+        assert_eq!(stake.get_sender(), stake.get_receiver())
+    }
+
+    #[test]
+    fn from_and_to_should_be_the_different() {
+        let receiver_kp = KeyPair::random();
+        let receiver_address = Address::new(receiver_kp.miner_kp.1.clone());
+        let keypair = KeyPair::random();
+        let sk = keypair.miner_kp.0.clone();
+        let pk = keypair.miner_kp.1.clone();
+        let amount = StakeUpdate::Add(10_000u128);
+        let from = Address::new(pk.clone());
+
+        let stake = Stake::new(amount, sk, pk, from, Some(receiver_address)).unwrap();
+
+        assert_ne!(stake.get_sender(), stake.get_receiver())
+    }
+
+    #[test]
+    fn should_not_add_certificate_to_stake() {
+        let keypair = KeyPair::random();
+        let sk = keypair.miner_kp.0.clone();
+        let pk = keypair.miner_kp.1.clone();
+        let amount = StakeUpdate::Add(10_000u128);
+        let from = Address::new(pk.clone());
+
+        let mut stake = Stake::new(amount, sk, pk, from, None).unwrap();
+
+        let result = stake.certify(vec![0u8; 32]);
+
+        assert!(result.is_err());
+        assert!(stake.get_certificate().is_none());
     }
 }
