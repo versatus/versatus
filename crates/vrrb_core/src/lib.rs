@@ -11,6 +11,7 @@ pub mod nonceable;
 pub mod ownable;
 pub mod result;
 pub mod serde_helpers;
+pub mod staking;
 pub mod storage_utils;
 pub mod txn;
 pub mod updateable;

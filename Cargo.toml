@@ -98,6 +98,7 @@ bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
+decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",

@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Digest, Sha256};
 
-use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
+use crate::{
+    keypair::Keypair,
+    ownable::Ownable,
+    staking::{Stake, StakeUpdate},
+    verifiable::Verifiable,
+};
 
-pub enum StakeUpdate {
-    Add(u128),
-    Withdrawal(u128),
-    Slash(f64),
-}
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,6 +31,7 @@ pub struct Claim {
     pub hash: U256,
     pub eligible: bool,
     stake: u128,
+    stake_txns: Vec<Stake>,
 }
 
 impl Claim {
@@ -45,7 +46,8 @@ impl Claim {
             address,
             hash,
             eligible: true,
-            stake: 0
+            stake: 0,
+            stake_txns: vec![],
         }
     }
 
@@ -61,30 +63,45 @@ impl Claim {
         U256(xor_val)
     }
 
-    /// Takes a StakeUpdate enum and adds/withdrawals or slashes 
-    /// the given claim's stake. This method is used within the 
+    /// Takes a StakeUpdate enum and adds/withdrawals or slashes
+    /// the given claim's stake. This method is used within the
     /// state module to update a claim that has a transaction
-    /// pointing to it, and has been included in a certified 
+    /// pointing to it, and has been included in a certified
     /// convergence block.
-    pub fn update_stake(&mut self, update: StakeUpdate) {
-        match update {
-            StakeUpdate::Add(value) => {
-                if let Some(val) = self.stake.checked_add(value) {
-                    self.stake = val
-                }
-            },
-            StakeUpdate::Withdrawal(value) => {
-                if let Some(val) = self.stake.checked_sub(value) {
-                    self.stake = val
-                }
-            },
-            StakeUpdate::Slash(pct) => {
-                let slash = (self.stake as f64) * pct; 
-                if let Some(val) = self.stake.checked_sub(slash as u128) {
-                    self.stake = val
-                }
-            }
+    pub fn update_stake(&mut self, stake_txn: Stake) {
+        if let Some(_) = stake_txn.get_certificate() {
+            self.stake_txns.push(stake_txn.clone());
+            self.stake = self.check_stake_utxo();
         }
+    }
+
+    /// Checks the cumulative value of a nodes stake by calculating
+    /// the UTXO of the stake transactions.
+    fn check_stake_utxo(&self) -> u128 {
+        self.stake_txns
+            .iter()
+            .fold(0u128, |mut acc, val| match val.get_amount() {
+                StakeUpdate::Add(value) => {
+                    if let Some(v) = acc.checked_add(value) {
+                        acc = v;
+                    }
+                    acc
+                },
+                StakeUpdate::Withdrawal(value) => {
+                    if let Some(v) = acc.checked_sub(value) {
+                        acc = v;
+                    }
+                    acc
+                },
+                StakeUpdate::Slash(pct) => self.slash_calculator(pct, acc),
+            })
+    }
+
+    /// Returns the slashed value of a nodes stake after a slashing
+    /// event.
+    fn slash_calculator(&self, pct: u8, value: u128) -> u128 {
+        let slash = (value as f64) * (pct as f64 / 100f64);
+        return value - slash as u128;
     }
 
     #[deprecated(note = "Please use get_election_result")]
