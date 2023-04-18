@@ -1,21 +1,17 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    time::Duration,
 };
 
-use clap::{Parser, Subcommand};
 use config::{Config, ConfigError, File};
 use events::Event;
-use hbbft::crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey};
 use node::{Node, NodeType};
 use primitives::{DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
-use secp256k1::{rand, Secp256k1};
 use serde::Deserialize;
-use telemetry::{error, info, warn};
+use telemetry::{info, warn};
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
-use vrrb_core::keypair::{self, read_keypair_file, write_keypair_file, Keypair};
+use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 use crate::result::{CliError, Result};
 
@@ -287,7 +283,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 
     let vrrb_node = Node::start(&node_config, ctrl_rx)
         .await
-        .map_err(|err| CliError::Other(String::from("failed to listen for ctrl+c")))?;
+        .map_err(|_| CliError::Other(String::from("failed to listen for ctrl+c")))?;
 
     let node_type = vrrb_node.node_type();
 
@@ -306,7 +302,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
         .send(Event::Stop)
         .map_err(|err| CliError::Other(format!("failed to send stop event to node: {err}")))?;
 
-    node_handle
+    _ = node_handle
         .await
         .map_err(|err| CliError::Other(format!("failed to join node task handle: {err}")))?;
 
