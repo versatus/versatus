@@ -144,8 +144,6 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
 
             Ok(())
         },
-
-        _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
     }
 }
 
