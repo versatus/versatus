@@ -330,46 +330,33 @@ impl Handler<EventMessage> for DagModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            // Event::BlockReceived(block) => {
-            //     match block {
-            //         Block::Genesis { block } => {
-            //             if let Err(e) = self.append_genesis(&block) {
-            //                 let err_note = format!(
-            //                     "Encountered GraphError: {:?}", e
-            //                 );
-            //                 return Err(theater::TheaterError::Other(err_note));
-            //             };
-            //         },
-            //         Block::Proposal { block } => {
-            //             if let Err(e) = self.append_proposal(&block) {
-            //                 let err_note = format!(
-            //                     "Encountered GraphError: {:?}", e
-            //                 );
-            //                 return Err(theater::TheaterError::Other(err_note));
-            //             }
-            //         },
-            //         Block::Convergence { block } => {
-            //             if let Err(e) = self.append_convergence(&block) {
-            //                 let err_note = format!(
-            //                     "Encountered GraphError: {:?}", e
-            //                 );
-            //                 return Err(theater::TheaterError::Other(err_note));
-            //             }
-            //         }
-            //     },
-            //     Block::Convergence { block } => {
-            //         if let Err(e) = self.append_convergence(&block) {
-            //             let err_note = format!("Encountered GraphError: {:?}", e);
-            //             return Err(theater::TheaterError::Other(err_note));
-            //         }
-            //     },
-            // },
+            Event::BlockReceived(block) => match block {
+                Block::Genesis { block } => {
+                    if let Err(e) = self.append_genesis(&block) {
+                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        return Err(theater::TheaterError::Other(err_note));
+                    };
+                },
+                Block::Proposal { block } => {
+                    if let Err(e) = self.append_proposal(&block) {
+                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        return Err(theater::TheaterError::Other(err_note));
+                    }
+                },
+                Block::Convergence { block } => {
+                    if let Err(e) = self.append_convergence(&block) {
+                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        return Err(theater::TheaterError::Other(err_note));
+                    }
+                },
+            },
             Event::HarvesterPublicKey(pubkey_bytes) => {
                 if let Ok(public_key_set) = serde_json::from_slice::<PublicKeySet>(&pubkey_bytes) {
                     self.set_harvester_pubkeys(public_key_set)
                 }
             },
             Event::NoOp => {},
+            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
             _ => {},
         }
         Ok(ActorState::Running)
