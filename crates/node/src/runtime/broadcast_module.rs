@@ -307,10 +307,14 @@ mod tests {
             quic_port: 9994,
             node_type: NodeType::Full,
         };
+
         events_tx
             .send(Event::SyncPeers(vec![peer_data]).into())
             .unwrap();
         events_tx.send(Event::Stop.into()).unwrap();
+
+        let evt = internal_events_rx.recv().await.unwrap();
+
         handle.await.unwrap();
     }
 }
