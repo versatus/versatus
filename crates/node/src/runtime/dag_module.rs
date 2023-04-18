@@ -356,6 +356,7 @@ impl Handler<EventMessage> for DagModule {
                 }
             },
             Event::NoOp => {},
+            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
             _ => {},
         }
         Ok(ActorState::Running)
