@@ -265,7 +265,7 @@ impl Handler<EventMessage> for HarvesterModule {
 mod tests {
     use std::collections::HashMap;
 
-    use events::{Event, JobResult, DEFAULT_BUFFER};
+    use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
     use theater::{Actor, ActorImpl, ActorState};
@@ -282,6 +282,7 @@ mod tests {
 
         let (sync_jobs_status_sender, sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
+
         let (async_jobs_status_sender, async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
 
@@ -297,7 +298,8 @@ mod tests {
         );
         let mut harvester_swarm_module = ActorImpl::new(harvester_swarm_module);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) =
+            tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
 
         assert_eq!(harvester_swarm_module.status(), ActorState::Stopped);
 

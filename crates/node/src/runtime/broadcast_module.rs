@@ -257,7 +257,8 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_broadcast_module() {
-        let (internal_events_tx, mut internal_events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
+        let (internal_events_tx, mut internal_events_rx) =
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
 
@@ -281,7 +282,8 @@ mod tests {
             node_id,
         };
 
-        let (events_tx, mut events_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (events_tx, mut events_rx) =
+            tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let broadcast_module = BroadcastModule::new(config).await.unwrap();
 
@@ -302,8 +304,10 @@ mod tests {
             node_type: NodeType::Full,
         };
 
-        events_tx.send(Event::SyncPeers(vec![peer_data])).unwrap();
-        events_tx.send(Event::Stop).unwrap();
+        events_tx
+            .send(Event::SyncPeers(vec![peer_data]).into())
+            .unwrap();
+        events_tx.send(Event::Stop.into()).unwrap();
 
         let evt = internal_events_rx.recv().await.unwrap();
         handle.await.unwrap();

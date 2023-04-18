@@ -231,7 +231,7 @@ mod tests {
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
-    use events::{Event, JobResult};
+    use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
     use secp256k1::Message;
@@ -252,7 +252,7 @@ mod tests {
 
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -273,7 +273,8 @@ mod tests {
         );
         let mut farmer_swarm_module = ActorImpl::new(farmer_module);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) =
+            tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
 
         assert_eq!(farmer_swarm_module.status(), ActorState::Stopped);
 
@@ -291,10 +292,13 @@ mod tests {
 
     #[tokio::test]
     async fn farmer_farm_cast_vote() {
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
         let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::unbounded_channel::<Event>();
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
+        let (_, clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
@@ -379,12 +383,14 @@ mod tests {
         let _ = farmer.tx_mempool.extend(txns);
 
         let mut farmer_swarm_module = ActorImpl::new(farmer);
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10000);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<EventMessage>(10000);
         assert_eq!(farmer_swarm_module.status(), ActorState::Stopped);
+
         let handle = tokio::spawn(async move {
             farmer_swarm_module.start(&mut ctrl_rx).await.unwrap();
             assert_eq!(farmer_swarm_module.status(), ActorState::Terminating);
         });
+
         ctrl_tx.send(Event::Farm.into()).unwrap();
         ctrl_tx.send(Event::Stop.into()).unwrap();
         handle.await.unwrap();

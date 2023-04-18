@@ -180,7 +180,7 @@ mod tests {
 
         let mut state_module = ActorImpl::new(state_module);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         assert_eq!(state_module.status(), ActorState::Stopped);
 
@@ -209,7 +209,7 @@ mod tests {
 
         let mut state_module = ActorImpl::new(state_module);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         assert_eq!(state_module.status(), ActorState::Stopped);
 
@@ -217,8 +217,11 @@ mod tests {
             state_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
-        ctrl_tx.send(Event::Stop).unwrap();
+        ctrl_tx
+            .send(Event::NewTxnCreated(null_txn()).into())
+            .unwrap();
+
+        ctrl_tx.send(Event::Stop.into()).unwrap();
 
         handle.await.unwrap();
     }
@@ -228,7 +231,7 @@ mod tests {
     async fn state_runtime_can_publish_events() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
@@ -242,7 +245,7 @@ mod tests {
             let res = events_rx.recv().await;
         });
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         assert_eq!(state_module.status(), ActorState::Stopped);
 
@@ -252,8 +255,11 @@ mod tests {
 
         // TODO: implement all state && validation ops
 
-        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
-        ctrl_tx.send(Event::Stop).unwrap();
+        ctrl_tx
+            .send(Event::NewTxnCreated(null_txn()).into())
+            .unwrap();
+
+        ctrl_tx.send(Event::Stop.into()).unwrap();
 
         handle.await.unwrap();
         events_handle.await.unwrap();
