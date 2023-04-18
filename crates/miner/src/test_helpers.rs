@@ -11,8 +11,8 @@ use block::{
 };
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use primitives::{Address, PublicKey, SecretKey, Signature};
 use hbbft::crypto::SecretKeyShare;
+use primitives::{Address, PublicKey, SecretKey, Signature};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
@@ -271,23 +271,24 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
     round: u128,
     epoch: u128,
 ) -> Vec<ProposalBlock> {
-    
-    (0..n_blocks).into_iter().map(|n| {
-
-        let keypair = Keypair::random();
-        let address = Address::new(keypair.miner_kp.1.clone());
-        let claim = Claim::new(keypair.miner_kp.1.clone(), address);
-        let prop = build_single_proposal_block(
-            last_block_hash.clone(), 
-            n_txns, 
-            n_claims, 
-            round, 
-            epoch, 
-            claim, 
-            SecretKeyShare::default()
-        );
-        prop
-    }).collect()
+    (0..n_blocks)
+        .into_iter()
+        .map(|n| {
+            let keypair = Keypair::random();
+            let address = Address::new(keypair.miner_kp.1.clone());
+            let claim = Claim::new(keypair.miner_kp.1.clone(), address);
+            let prop = build_single_proposal_block(
+                last_block_hash.clone(),
+                n_txns,
+                n_claims,
+                round,
+                epoch,
+                claim,
+                SecretKeyShare::default(),
+            );
+            prop
+        })
+        .collect()
 }
 
 /// A recursive helper function that takes in a mutable
@@ -515,12 +516,12 @@ pub(crate) fn build_single_proposal_block_from_txns(
     let kp = Keypair::random();
     let miner = create_miner_from_keypair(&kp);
     let mut prop = build_single_proposal_block(
-        last_block_hash, 
-        5, 
-        4, 
-        round, 
-        epoch, 
-        miner.claim, 
+        last_block_hash,
+        5,
+        4,
+        round,
+        epoch,
+        miner.claim,
         SecretKeyShare::default(),
     );
 

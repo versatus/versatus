@@ -23,11 +23,14 @@ mod tests {
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
+    use hbbft::crypto::SecretKeyShare;
     use primitives::Address;
     use ritelinked::LinkedHashMap;
-    use vrrb_core::{keypair::Keypair, claim::Claim, txn::{TransactionDigest, Txn}};
-    use block::{Block, ProposalBlock};
-    use hbbft::crypto::SecretKeyShare;
+    use vrrb_core::{
+        claim::Claim,
+        keypair::Keypair,
+        txn::{TransactionDigest, Txn},
+    };
 
     use crate::test_helpers::{
         build_single_proposal_block,
@@ -109,7 +112,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                SecretKeyShare::default(), 
+                SecretKeyShare::default(),
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),

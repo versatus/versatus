@@ -1,10 +1,14 @@
+use hbbft::crypto::{SecretKeyShare, SIG_SIZE};
 use hex::FromHexError;
 use primitives::Epoch;
-use hbbft::crypto::{SecretKeyShare, SIG_SIZE};
 use ritelinked::LinkedHashSet;
 use serde::{Deserialize, Serialize};
 use utils::hash_data;
-use vrrb_core::{claim::Claim, txn::{Txn, TransactionDigest}};
+use vrrb_core::{
+    claim::Claim,
+    txn::{TransactionDigest, Txn},
+};
+
 use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
@@ -30,7 +34,6 @@ impl ProposalBlock {
         from: Claim,
         secret_key: SecretKeyShare,
     ) -> ProposalBlock {
-
         let hashable_txns: Vec<(String, Txn)> = {
             txns.clone()
                 .iter()
@@ -40,20 +43,16 @@ impl ProposalBlock {
 
         let payload = hash_data!(round, epoch, hashable_txns, claims, from);
 
-        let signature = hex::encode(
-            secret_key.sign(payload).to_bytes().to_vec()
-        );
+        let signature = hex::encode(secret_key.sign(payload).to_bytes().to_vec());
 
-        let hash = hex::encode(
-            hash_data!(
-                round, 
-                epoch, 
-                hashable_txns, 
-                claims, 
-                from, 
-                signature
-            )
-        );
+        let hash = hex::encode(hash_data!(
+            round,
+            epoch,
+            hashable_txns,
+            claims,
+            from,
+            signature
+        ));
 
         ProposalBlock {
             ref_block,
@@ -75,7 +74,7 @@ impl ProposalBlock {
         let byte_vec = hex::decode(&self.signature)?;
 
         if byte_vec.len() != SIG_SIZE {
-            return Err(FromHexError::InvalidStringLength)
+            return Err(FromHexError::InvalidStringLength);
         }
 
         let mut byte_array: [u8; 96] = [0u8; 96];
@@ -83,13 +82,15 @@ impl ProposalBlock {
             byte_array[i] = byte_vec[i];
         });
 
-        return Ok(byte_array)
+        return Ok(byte_array);
     }
 
     pub(crate) fn get_hashable_txns(&self) -> Vec<(String, Txn)> {
-        self.txns.clone().iter().map(|(k, v)| {
-            (k.digest_string(), v.clone())
-        }).collect()
+        self.txns
+            .clone()
+            .iter()
+            .map(|(k, v)| (k.digest_string(), v.clone()))
+            .collect()
     }
 
     pub fn remove_confirmed_txs(&mut self, prev_blocks: Vec<ConvergenceBlock>) {

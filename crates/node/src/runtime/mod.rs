@@ -403,6 +403,7 @@ async fn setup_rpc_api_server(
             .await
             .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
 
+<<<<<<< HEAD
     let jsonrpc_server_handle = Some(tokio::spawn(async move {
         jsonrpc_server_handle.stopped().await;
 
