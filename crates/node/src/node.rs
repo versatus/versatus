@@ -226,8 +226,4 @@ impl Node {
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
     }
-
-    fn setup_event_routing_system() -> EventRouter {
-        Router::new()
-    }
 }

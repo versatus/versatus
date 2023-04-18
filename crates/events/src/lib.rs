@@ -5,8 +5,17 @@ use ethereum_types::U256;
 use hbbft::crypto::PublicKeySet;
 use messr::Router;
 use primitives::{
-    Address, ByteVec, FarmerQuorumThreshold, HarvesterQuorumThreshold, NodeIdx, NodeType, PeerId,
-    QuorumPublicKey, QuorumSize, QuorumType, RawSignature,
+    Address,
+    ByteVec,
+    FarmerQuorumThreshold,
+    HarvesterQuorumThreshold,
+    NodeIdx,
+    NodeType,
+    PeerId,
+    QuorumPublicKey,
+    QuorumSize,
+    QuorumType,
+    RawSignature,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
@@ -22,12 +31,7 @@ use vrrb_core::{
 
 mod event;
 mod event_data;
-<<<<<<< HEAD
 pub use crate::{event::*, event_data::*};
-=======
-use crate::event::*;
-use crate::event_data::*;
->>>>>>> b0dee0d (wip integration)
 
 pub const DEFAULT_BUFFER: usize = 1000;
 
