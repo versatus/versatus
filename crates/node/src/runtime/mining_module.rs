@@ -49,10 +49,7 @@ impl MiningModule {
         // TODO: drain mempool instead then commit changes
         handle
             .drain(..cutoff_idx)
-            .map(|(id, record)| {
-                dbg!(id);
-                record.txn
-            })
+            .map(|(id, record)| record.txn)
             .collect()
     }
 

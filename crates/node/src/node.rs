@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventPublisher, EventRouter};
+use events::{Event, EventMessage, EventPublisher, EventRouter};
 use jsonrpsee::server::ServerHandle;
 use telemetry::info;
 use tokio::{
@@ -140,6 +140,22 @@ impl Node {
             handle.await??;
             info!("shutdown complete for gossip module");
         }
+
+        if let Some(handle) = self.dag_handle {
+            handle.await??;
+            info!("shutdown complete for dag module");
+        }
+
+        if let Some(handle) = self.quorum_election_handle {
+            handle.await??;
+            info!("shutdown complete for quorum election module");
+        }
+
+        // TODO: refactor this into a tokio task
+        // if let Some(handle) = self.raptor_handle {
+        //     handle.join();
+        //     info!("shutdown complete for raptorq module");
+        // }
 
         if let Some(handle) = self.jsonrpc_server_handle {
             handle.await??;

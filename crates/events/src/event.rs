@@ -148,7 +148,10 @@ impl From<Event> for Vec<u8> {
 
 impl From<Event> for messr::Message<Event> {
     fn from(evt: Event) -> Self {
-        messr::Message::new(None, evt)
+        match evt {
+            Event::Stop => messr::Message::stop_signal(None),
+            _ => messr::Message::new(None, evt),
+        }
     }
 }
 
