@@ -1,5 +1,6 @@
 use std::net::AddrParseError;
 
+use events::EventMessage;
 use network::config::BroadcastError;
 use theater::TheaterError;
 use thiserror::Error;
@@ -17,7 +18,10 @@ pub enum NodeError {
     AddrParse(#[from] AddrParseError),
 
     #[error("{0}")]
-    Storage(#[from] vrrb_core::storage_utils::StorageError),
+    CoreStorage(#[from] vrrb_core::storage_utils::StorageError),
+
+    #[error("{0}")]
+    Storage(#[from] storage::storage_utils::StorageError),
 
     #[error("{0}")]
     Broadcast(#[from] BroadcastError),
@@ -26,7 +30,16 @@ pub enum NodeError {
     TryRecv(#[from] TryRecvError),
 
     #[error("{0}")]
-    Event(#[from] events::Error),
+    BroadcastSend(#[from] tokio::sync::broadcast::error::SendError<EventMessage>),
+
+    #[error("{0}")]
+    MpscSend(#[from] tokio::sync::mpsc::error::SendError<EventMessage>),
+
+    #[error("{0}")]
+    TaskJoin(#[from] tokio::task::JoinError),
+
+    #[error("{0}")]
+    JsonRpc(#[from] vrrb_rpc::ApiError),
 
     #[error("{0}")]
     Messr(#[from] messr::Error),

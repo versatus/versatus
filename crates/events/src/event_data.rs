@@ -4,8 +4,15 @@ use block::{Block, Conflict};
 use ethereum_types::U256;
 use messr::router::Router;
 use primitives::{
-    Address, ByteVec, FarmerQuorumThreshold, NodeIdx, NodeType, PeerId, QuorumPublicKey,
-    QuorumType, RawSignature,
+    Address,
+    ByteVec,
+    FarmerQuorumThreshold,
+    NodeIdx,
+    NodeType,
+    PeerId,
+    QuorumPublicKey,
+    QuorumType,
+    RawSignature,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
@@ -81,7 +88,7 @@ pub struct QuorumCertifiedTxn {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
-    txn: Txn,
+    pub txn: Txn,
     /// Threshold Signature
     signature: RawSignature,
 }
@@ -100,4 +107,19 @@ impl QuorumCertifiedTxn {
             signature,
         }
     }
+}
+
+// `JobResult` is an enum that represents the possible results of a job that is
+/// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
+pub enum JobResult {
+    Votes((Vec<Option<Vote>>, FarmerQuorumThreshold)),
+    CertifiedTxn(
+        Vec<Vote>,
+        RawSignature,
+        TransactionDigest,
+        String,
+        Vec<u8>,
+        Txn,
+    ),
 }

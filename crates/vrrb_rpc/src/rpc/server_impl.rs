@@ -59,7 +59,7 @@ impl RpcApiServer for RpcServerImpl {
 
         debug!("{:?}", event);
 
-        self.events_tx.send(event.into()).map_err(|err| {
+        self.events_tx.send(event.into()).await.map_err(|err| {
             error!("could not queue transaction to mempool: {err}");
             Error::Custom(err.to_string())
         })?;
@@ -75,10 +75,13 @@ impl RpcApiServer for RpcServerImpl {
 
         debug!("{:?}", event);
 
-        self.events_tx.send(event.clone().into()).map_err(|err| {
-            error!("could not create account: {err}");
-            Error::Custom(err.to_string())
-        })?;
+        self.events_tx
+            .send(event.clone().into())
+            .await
+            .map_err(|err| {
+                error!("could not create account: {err}");
+                Error::Custom(err.to_string())
+            })?;
 
         telemetry::info!("requested account creation for address: {}", address);
 
@@ -96,7 +99,7 @@ impl RpcApiServer for RpcServerImpl {
 
         let event = Event::AccountUpdateRequested((addr, account_bytes));
 
-        self.events_tx.send(event.into()).map_err(|err| {
+        self.events_tx.send(event.into()).await.map_err(|err| {
             error!("could not update account: {err}");
             Error::Custom(err.to_string())
         })?;

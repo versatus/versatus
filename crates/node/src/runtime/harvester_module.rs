@@ -3,7 +3,16 @@ use std::thread;
 use async_trait::async_trait;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
-use events::{Event, JobResult, QuorumCertifiedTxn, Vote, VoteReceipt};
+use events::{
+    Event,
+    EventMessage,
+    EventPublisher,
+    EventSubscriber,
+    JobResult,
+    QuorumCertifiedTxn,
+    Vote,
+    VoteReceipt,
+};
 use primitives::{GroupPublicKey, HarvesterQuorumThreshold, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
@@ -24,7 +33,6 @@ use crate::{farmer_module::PULL_TXN_BATCH_SIZE, result::Result, scheduler::Job, 
 /// of the bloom filter is set to 500000, which means that it can store up to
 /// 500000 elements with a low probability of false positives.
 pub const CERTIFIED_TXNS_FILTER_SIZE: usize = 500000;
-
 
 /// The HarvesterModule struct contains various fields related to transaction
 /// certification and mining proposal blocks,
@@ -86,21 +94,20 @@ pub struct HarvesterModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: UnboundedSender<Event>,
-    events_rx: UnboundedReceiver<Event>,
+    broadcast_events_tx: EventPublisher,
+    events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
 }
-
 
 impl HarvesterModule {
     pub fn new(
         certified_txns_filter: Bloom,
         sig_provider: Option<SignatureProvider>,
         group_public_key: GroupPublicKey,
-        events_rx: UnboundedReceiver<Event>,
-        broadcast_events_tx: UnboundedSender<Event>,
+        events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+        broadcast_events_tx: EventPublisher,
         quorum_threshold: HarvesterQuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
@@ -130,7 +137,7 @@ impl HarvesterModule {
 }
 
 #[async_trait]
-impl Handler<Event> for HarvesterModule {
+impl Handler<EventMessage> for HarvesterModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -147,8 +154,8 @@ impl Handler<Event> for HarvesterModule {
         self.status = actor_status;
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
@@ -230,7 +237,7 @@ impl Handler<Event> for HarvesterModule {
                 txns.clone().for_each(|txn| {
                     let _ = self
                         .broadcast_events_tx
-                        .send(Event::QuorumCertifiedTxns(txn.clone()));
+                        .send(Event::QuorumCertifiedTxns(txn.clone()).into());
                     let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
                 });
                 let txns = txns.collect::<Vec<&QuorumCertifiedTxn>>();
@@ -258,7 +265,7 @@ impl Handler<Event> for HarvesterModule {
 mod tests {
     use std::collections::HashMap;
 
-    use events::{Event, JobResult};
+    use events::{Event, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
     use theater::{Actor, ActorImpl, ActorState};
@@ -268,15 +275,16 @@ mod tests {
 
     #[tokio::test]
     async fn harvester_runtime_module_starts_and_stops() {
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (_, events_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (_, events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let (sync_jobs_status_sender, sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
         let (async_jobs_status_sender, async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
+
         let harvester_swarm_module = HarvesterModule::new(
             Bloom::new(10000),
             None,

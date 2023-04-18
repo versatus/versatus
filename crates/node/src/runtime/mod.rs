@@ -1,20 +1,21 @@
 use std::{
     net::SocketAddr,
-    sync::{Arc, RwLock},
+    sync::{mpsc, Arc, RwLock},
     thread,
 };
 
 use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::{unbounded, Sender};
-use events::{Event, EventRouter};
+use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
+use jsonrpsee::server::ServerHandle;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorImpl, Handler};
+use theater::{Actor, ActorImpl};
 use tokio::{
     sync::{
         broadcast::Receiver,
@@ -52,7 +53,6 @@ use crate::{
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::{Job, JobSchedulerController},
-    EventBroadcastSender,
     NodeError,
     Result,
 };
@@ -75,6 +75,7 @@ pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
 
+#[derive(Debug)]
 pub struct RuntimeComponents {
     pub node_config: NodeConfig,
     pub mempool_handle: RuntimeHandle,
@@ -95,22 +96,24 @@ pub struct RuntimeComponents {
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
-    events_tx: UnboundedSender<Event>,
-    mut mempool_events_rx: Receiver<Event>,
-    vrrbdb_events_rx: Receiver<Event>,
-    network_events_rx: Receiver<Event>,
-    controller_events_rx: Receiver<Event>,
-    miner_events_rx: Receiver<Event>,
-    jsonrpc_events_rx: Receiver<Event>,
-    dkg_events_rx: Receiver<Event>,
-    miner_election_events_rx: Receiver<Event>,
-    quorum_election_events_rx: Receiver<Event>,
-    farmer_events_rx: Receiver<Event>,
-    harvester_events_rx: Receiver<Event>,
-    indexer_events_rx: Receiver<Event>,
-    dag_module_events_rx: Receiver<Event>,
+    router: &EventRouter,
+    events_tx: EventPublisher,
 ) -> Result<RuntimeComponents> {
     let mut config = original_config.clone();
+
+    let mut mempool_events_rx = router.subscribe(None)?;
+    let vrrbdb_events_rx = router.subscribe(None)?;
+    let network_events_rx = router.subscribe(None)?;
+    let controller_events_rx = router.subscribe(None)?;
+    let miner_events_rx = router.subscribe(None)?;
+    let farmer_events_rx = router.subscribe(None)?;
+    let harvester_events_rx = router.subscribe(None)?;
+    let jsonrpc_events_rx = router.subscribe(None)?;
+    let dkg_events_rx = router.subscribe(None)?;
+    let miner_election_events_rx = router.subscribe(None)?;
+    let quorum_election_events_rx = router.subscribe(None)?;
+    let indexer_events_rx = router.subscribe(None)?;
+    let dag_events_rx = router.subscribe(None)?;
 
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
@@ -161,15 +164,20 @@ pub async fn setup_runtime_components(
     let raptor_handle = thread::spawn({
         let events_tx = events_tx.clone();
         move || {
+            let events_tx = events_tx.clone();
             loop {
+                let events_tx = events_tx.clone();
                 if let Ok(data) = raptor_receiver.recv() {
                     match data {
                         RaptorBroadCastedData::Block(block) => {
-                            let _ = events_tx.send(Event::BlockReceived(block));
+                            tokio::spawn(async move {
+                                let _ = events_tx.send(Event::BlockReceived(block).into()).await;
+                            });
                         },
                     }
                 }
             }
+
             return true;
         }
     });
@@ -215,12 +223,15 @@ pub async fn setup_runtime_components(
         state_read_handle.clone(),
         claim.clone(),
     )?;
+
     let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
     let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
     let mut farmer_handle = None;
     let mut harvester_handle = None;
-    let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+
+    let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+
     if config.node_type == NodeType::Farmer {
         farmer_handle = setup_farmer_module(
             &config,
@@ -239,6 +250,7 @@ pub async fn setup_runtime_components(
             harvester_events_rx,
         )?
     };
+
     let mut scheduler = setup_scheduler_module(
         &config,
         sync_jobs_receiver,
@@ -250,10 +262,11 @@ pub async fn setup_runtime_components(
     let scheduler_handle = thread::spawn(move || {
         scheduler.execute_sync_jobs();
     });
+
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_module_events_rx)?;
+    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx)?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -283,9 +296,9 @@ fn setup_event_routing_system() -> EventRouter {
 }
 async fn setup_gossip_network(
     config: &NodeConfig,
-    events_tx: UnboundedSender<Event>,
-    mut network_events_rx: Receiver<Event>,
-    mut controller_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut network_events_rx: EventSubscriber,
+    mut controller_events_rx: EventSubscriber,
     vrrbdb_read_handle: VrrbDbReadHandle,
     raptor_sender: Sender<RaptorBroadCastedData>,
 ) -> Result<(
@@ -332,6 +345,7 @@ async fn setup_gossip_network(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
+
     Ok((
         Some(broadcast_handle),
         Some(broadcast_controller_handle),
@@ -341,8 +355,8 @@ async fn setup_gossip_network(
 
 async fn setup_state_store(
     config: &NodeConfig,
-    events_tx: EventBroadcastSender,
-    mut state_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut state_events_rx: EventSubscriber,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
     let mut vrrbdb_config = VrrbDbConfig::default();
@@ -371,10 +385,10 @@ async fn setup_state_store(
 
 async fn setup_rpc_api_server(
     config: &NodeConfig,
-    events_tx: EventBroadcastSender,
+    events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
-    mut jsonrpc_events_rx: Receiver<Event>,
+    mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let jsonrpc_server_config = JsonRpcServerConfig {
         address: config.jsonrpc_server_address,
@@ -393,18 +407,20 @@ async fn setup_rpc_api_server(
         jsonrpc_server_handle.stopped().await;
 
         Ok(())
-    }));
+    });
+
+    let jsonrpc_server_handle = Some(jsonrpc_server_handle);
 
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
 fn setup_mining_module(
     config: &NodeConfig,
-    events_tx: UnboundedSender<Event>,
+    events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     dag: Arc<RwLock<BullDag<Block, String>>>,
-    mut miner_events_rx: Receiver<Event>,
+    mut miner_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let (_, miner_secret_key) = config.keypair.get_secret_keys();
     let (_, miner_public_key) = config.keypair.get_public_keys();
@@ -441,8 +457,8 @@ fn setup_mining_module(
 
 fn setup_dkg_module(
     config: &NodeConfig,
-    events_tx: UnboundedSender<Event>,
-    mut dkg_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut dkg_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = dkg_module::DkgModule::new(
         0,
@@ -462,6 +478,7 @@ fn setup_dkg_module(
         config.udp_gossip_address.port(),
         events_tx,
     );
+
     if let Ok(dkg_module) = module {
         let mut dkg_module_actor = ActorImpl::new(dkg_module);
         let dkg_handle = tokio::spawn(async move {
@@ -479,8 +496,8 @@ fn setup_dkg_module(
 }
 
 fn setup_miner_election_module(
-    events_tx: UnboundedSender<Event>,
-    mut miner_election_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut miner_election_events_rx: EventSubscriber,
     db_read_handle: VrrbDbReadHandle,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
@@ -505,8 +522,8 @@ fn setup_miner_election_module(
 
 fn setup_quorum_election_module(
     config: &NodeConfig,
-    events_tx: UnboundedSender<Event>,
-    mut quorum_election_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut quorum_election_events_rx: EventSubscriber,
     db_read_handle: VrrbDbReadHandle,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
@@ -534,8 +551,8 @@ fn setup_farmer_module(
     config: &NodeConfig,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    events_tx: EventBroadcastSender,
-    mut farmer_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut farmer_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = farmer_module::FarmerModule::new(
         None,
@@ -564,9 +581,9 @@ fn setup_farmer_module(
 fn setup_harvester_module(
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
-    broadcast_events_tx: EventBroadcastSender,
-    events_rx: UnboundedReceiver<Event>,
-    mut harvester_events_rx: Receiver<Event>,
+    broadcast_events_tx: EventPublisher,
+    events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
         Bloom::new(PULL_TXN_BATCH_SIZE),
@@ -590,8 +607,8 @@ fn setup_harvester_module(
 
 fn setup_dag_module(
     dag: Arc<RwLock<BullDag<Block, String>>>,
-    events_tx: UnboundedSender<Event>,
-    mut dag_module_events_rx: Receiver<Event>,
+    events_tx: EventPublisher,
+    mut dag_module_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = DagModule::new(dag, events_tx);
 
@@ -608,7 +625,7 @@ fn setup_dag_module(
 
 fn setup_indexer_module(
     config: &NodeConfig,
-    mut indexer_events_rx: Receiver<Event>,
+    mut indexer_events_rx: EventSubscriber,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let config = IndexerModuleConfig {
@@ -634,7 +651,7 @@ fn setup_scheduler_module(
     sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
-    events_tx: EventBroadcastSender,
+    events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
 ) -> JobSchedulerController {
     let module = JobSchedulerController::new(

@@ -1,7 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
-use events::{Event, EventPublisher};
+use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use mempool::LeftRightMempool;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -41,10 +41,8 @@ impl MempoolModule {
     }
 }
 
-impl MempoolModule {}
-
 #[async_trait]
-impl Handler<Event> for MempoolModule {
+impl Handler<EventMessage> for MempoolModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -69,8 +67,8 @@ impl Handler<Event> for MempoolModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
@@ -86,7 +84,8 @@ impl Handler<Event> for MempoolModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
-                    .send(Event::TxnAddedToMempool(txn_hash.clone()))
+                    .send(Event::TxnAddedToMempool(txn_hash.clone()).into())
+                    .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Transaction {} sent to mempool", txn_hash);
@@ -97,10 +96,13 @@ impl Handler<Event> for MempoolModule {
                     info!("mempool threshold reached");
                     self.cutoff_transaction = Some(txn_hash.clone());
 
+                    let event = Event::MempoolSizeThesholdReached {
+                        cutoff_transaction: txn_hash,
+                    };
+
                     self.events_tx
-                        .send(Event::MempoolSizeThesholdReached {
-                            cutoff_transaction: txn_hash,
-                        })
+                        .send(event.into())
+                        .await
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },

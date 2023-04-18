@@ -3,7 +3,7 @@ use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult, ti
 use async_trait::async_trait;
 use block::Block;
 use bytes::Bytes;
-use events::Event;
+use events::{Event, EventMessage, EventPublisher};
 use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
@@ -28,7 +28,7 @@ use uuid::Uuid;
 use crate::{NodeError, Result, RuntimeModuleState};
 
 pub struct BroadcastModuleConfig {
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    pub events_tx: EventPublisher,
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub udp_gossip_address_port: u16,
@@ -41,7 +41,7 @@ pub struct BroadcastModuleConfig {
 pub struct BroadcastModule {
     id: Uuid,
     status: ActorState,
-    events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
 }
@@ -129,7 +129,7 @@ impl BroadcastModule {
 const RAPTOR_ERASURE_COUNT: u32 = 3000;
 
 #[async_trait]
-impl Handler<Event> for BroadcastModule {
+impl Handler<EventMessage> for BroadcastModule {
     fn id(&self) -> theater::ActorId {
         self.id.to_string()
     }
@@ -147,8 +147,8 @@ impl Handler<Event> for BroadcastModule {
     }
 
     #[instrument]
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::PartMessage(sender_id, part_commitment) => {
                 let status = self
                     .broadcast_engine
@@ -246,18 +246,18 @@ impl Handler<Event> for BroadcastModule {
 mod tests {
     use std::io::stdout;
 
-    use events::{Event, SyncPeerData};
+    use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl};
-    use tokio::{net::UdpSocket, sync::mpsc::unbounded_channel};
+    use tokio::{net::UdpSocket, sync::broadcast::channel};
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 
     #[ignore]
     #[tokio::test]
     async fn test_broadcast_module() {
-        let (internal_events_tx, mut internal_events_rx) = unbounded_channel();
+        let (internal_events_tx, mut internal_events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
 

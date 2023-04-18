@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use dashmap::DashMap;
-use events::{Event, JobResult, QuorumCertifiedTxn, Vote, VoteReceipt};
+use events::{Event, EventPublisher, JobResult, QuorumCertifiedTxn, Vote, VoteReceipt};
 use indexmap::IndexMap;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
@@ -49,7 +49,7 @@ use vrrb_core::txn::{TransactionDigest, Txn};
 /// VrrbDbReadHandle would depend on
 pub struct JobSchedulerController {
     pub job_scheduler: JobScheduler,
-    events_tx: UnboundedSender<Event>,
+    events_tx: EventPublisher,
     sync_jobs_receiver: Receiver<Job>,
     async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
@@ -82,7 +82,7 @@ pub enum Job {
 impl JobSchedulerController {
     pub fn new(
         peer_id: PeerID,
-        events_tx: UnboundedSender<Event>,
+        events_tx: EventPublisher,
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
@@ -158,10 +158,12 @@ impl JobSchedulerController {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            let _ = self.events_tx.send(Event::ProcessedVotes(JobResult::Votes((
-                                votes,
-                                farmer_quorum_threshold,
-                            ))));
+                            let _ = self.events_tx.send(
+                                Event::ProcessedVotes(
+                                    JobResult::Votes((votes, farmer_quorum_threshold)).into(),
+                                )
+                                .into(),
+                            );
                         }
                     },
                     Job::CertifyTxn((
@@ -188,16 +190,17 @@ impl JobSchedulerController {
                         if validated {
                             let result = sig_provider.generate_quorum_signature(sig_shares.clone());
                             if let Ok(threshold_signature) = result {
-                                let _ = self.events_tx.send(Event::CertifiedTxn(
-                                    JobResult::CertifiedTxn(
+                                let _ = self.events_tx.send(
+                                    Event::CertifiedTxn(JobResult::CertifiedTxn(
                                         votes.clone(),
                                         threshold_signature,
                                         txn_id.clone(),
                                         farmer_quorum_key.clone(),
                                         farmer_id.clone(),
                                         txn.clone(),
-                                    ),
-                                ));
+                                    ))
+                                    .into(),
+                                );
                             } else {
                                 error!("Quorum signature generation failed");
                             }

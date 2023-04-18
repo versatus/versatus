@@ -4,16 +4,21 @@ use block::{Block, Conflict};
 use ethereum_types::U256;
 use messr::router::Router;
 use primitives::{
-    Address, ByteVec, FarmerQuorumThreshold, NodeIdx, NodeType, PeerId, QuorumPublicKey,
-    QuorumType, RawSignature,
+    Address,
+    ByteVec,
+    FarmerQuorumThreshold,
+    HarvesterQuorumThreshold,
+    NodeIdx,
+    NodeType,
+    PeerId,
+    QuorumPublicKey,
+    QuorumSize,
+    QuorumType,
+    RawSignature,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
-use tokio::sync::{
-    broadcast::{self, Receiver, Sender},
-    mpsc::{UnboundedReceiver, UnboundedSender},
-};
 use vrrb_core::{
     claim::Claim,
     txn::{TransactionDigest, Txn},
@@ -86,7 +91,8 @@ pub enum Event {
     GenerateKeySet,
     HarvesterPublicKey(Vec<u8>),
     Farm,
-    Vote(Vote, QuorumType, FarmerQuorumThreshold),
+    Vote(Vote, FarmerQuorumThreshold),
+    MineProposalBlock,
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
@@ -110,6 +116,10 @@ pub enum Event {
     ResolvedConflict(Conflict),
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
+    ProcessedVotes(JobResult),
+    FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
+    HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
+    CertifiedTxn(JobResult),
 }
 
 impl From<&theater::Message> for Event {
@@ -144,6 +154,17 @@ impl From<Event> for messr::Message<Event> {
 
 impl From<messr::MessageData<Event>> for Event {
     fn from(md: messr::MessageData<Event>) -> Self {
+        match md {
+            messr::MessageData::Data(evt) => evt,
+            messr::MessageData::StopSignal => Event::Stop,
+            _ => Event::NoOp,
+        }
+    }
+}
+
+impl From<messr::Message<Event>> for Event {
+    fn from(message: messr::Message<Event>) -> Self {
+        let md = message.data;
         match md {
             messr::MessageData::Data(evt) => evt,
             messr::MessageData::StopSignal => Event::Stop,

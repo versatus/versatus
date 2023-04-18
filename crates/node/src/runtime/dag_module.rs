@@ -1,29 +1,30 @@
 use std::sync::{Arc, RwLock};
 
-use block::{Block, ProposalBlock, ConvergenceBlock, InnerBlock, GenesisBlock, valid::{BlockValidationData, Valid}};
-use bulldag::{graph::{BullDag, GraphError}, vertex::Vertex};
-use hbbft::crypto::{PublicKeySet, SIG_SIZE, SignatureShare, Signature};
-use primitives::SignatureType;
-use signer::types::{SignerError, SignerResult};
-use theater::{ActorState, ActorLabel, ActorId, Handler};
 use async_trait::async_trait;
-use block::{Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock};
+use block::{
+    valid::{BlockValidationData, Valid},
+    Block,
+    ConvergenceBlock,
+    GenesisBlock,
+    InnerBlock,
+    ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use events::Event;
+use events::{Event, EventMessage, EventPublisher};
+use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
+use primitives::SignatureType;
+use signer::types::{SignerError, SignerResult};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-
-use crate::EventBroadcastSender;
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
 pub type GraphResult<T> = Result<T, GraphError>;
 
-
-/// The runtime module that manages the DAG, both exposing 
+/// The runtime module that manages the DAG, both exposing
 /// data within and appending blocks to it.
 ///
 /// ```
@@ -31,17 +32,17 @@ pub type GraphResult<T> = Result<T, GraphError>;
 ///
 /// use block::Block;
 /// use bulldag::graph::BullDag;
-/// use node::EventBroadcastSender;
-/// use theater::{ActorState, ActorLabel, ActorId, Handler};
 /// use hbbft::crypto::PublicKeySet;
+/// use node::EventBroadcastSender;
+/// use theater::{ActorId, ActorLabel, ActorState, Handler};
 ///
 /// pub struct DagModule {
 ///     status: ActorState,
 ///     label: ActorLabel,
 ///     id: ActorId,
-///     events_tx: EventBroadcastSender,
+///     events_tx: EventPublisher,
 ///     dag: Arc<RwLock<BullDag<Block, String>>>,
-///     public_key_set: Option<PublicKeySet>
+///     public_key_set: Option<PublicKeySet>,
 /// }
 /// ```
 pub struct DagModule {
@@ -49,13 +50,13 @@ pub struct DagModule {
     label: ActorLabel,
     id: ActorId,
     #[allow(unused)]
-    events_tx: EventBroadcastSender,
+    events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
 }
 
 impl DagModule {
-    pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, events_tx: EventBroadcastSender) -> Self {
+    pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, events_tx: EventPublisher) -> Self {
         Self {
             status: ActorState::Stopped,
             label: String::from("Dag"),
@@ -66,72 +67,56 @@ impl DagModule {
         }
     }
 
-    pub fn set_harvester_pubkeys(
-        &mut self, 
-        public_key_set: PublicKeySet,
-    ) {
+    pub fn set_harvester_pubkeys(&mut self, public_key_set: PublicKeySet) {
         self.public_key_set = Some(public_key_set);
     }
 
-    pub fn append_genesis(
-        &mut self,
-        genesis: &GenesisBlock
-    ) -> GraphResult<()> {
-        let valid = self.check_valid_genesis(genesis); 
+    pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
+        let valid = self.check_valid_genesis(genesis);
 
         if valid {
             let block: Block = genesis.clone().into();
             let vtx: Vertex<Block, String> = block.into();
             self.write_genesis(&vtx)?;
         }
-        
-        return Ok(())
+
+        return Ok(());
     }
 
-    pub fn append_proposal(
-        &mut self, 
-        proposal: &ProposalBlock) -> GraphResult<()> {
-       
+    pub fn append_proposal(&mut self, proposal: &ProposalBlock) -> GraphResult<()> {
         let valid = self.check_valid_proposal(proposal);
-        
+
         if valid {
-            if let Ok(ref_block) = self.get_reference_block(
-                &proposal.ref_block
-            ) {
+            if let Ok(ref_block) = self.get_reference_block(&proposal.ref_block) {
                 let block: Block = proposal.clone().into();
                 let vtx: Vertex<Block, String> = block.into();
                 let edge = (&ref_block, &vtx);
-                self.write_edge(edge)?; 
-            } else { 
-                return Err(GraphError::NonExistentSource)
+                self.write_edge(edge)?;
+            } else {
+                return Err(GraphError::NonExistentSource);
             }
         }
 
         Ok(())
     }
 
-    pub fn append_convergence(
-        &mut self,
-        convergence: &ConvergenceBlock
-    ) -> GraphResult<()> {
-
+    pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<()> {
         let valid = self.check_valid_convergence(convergence);
 
         if valid {
-            let ref_blocks: Vec<Vertex<Block, String>> = self
-                .get_convergence_reference_blocks(
-                    convergence
-            );
+            let ref_blocks: Vec<Vertex<Block, String>> =
+                self.get_convergence_reference_blocks(convergence);
 
             let block: Block = convergence.clone().into();
             let vtx: Vertex<Block, String> = block.into();
-            let edges: Edges = ref_blocks.iter().map(|ref_block| {
-                (ref_block.clone(), vtx.clone())
-            }).collect();
+            let edges: Edges = ref_blocks
+                .iter()
+                .map(|ref_block| (ref_block.clone(), vtx.clone()))
+                .collect();
 
             self.extend_edges(edges)?;
         }
-        
+
         Ok(())
     }
 
@@ -197,10 +182,10 @@ impl DagModule {
         if let Ok(validation_data) = block.get_validation_data() {
             match self.verify_signature(validation_data) {
                 Ok(true) => return true,
-                _ => return false
+                _ => return false,
             }
         } else {
-            return false
+            return false;
         }
     }
 
@@ -208,10 +193,10 @@ impl DagModule {
         if let Ok(validation_data) = block.get_validation_data() {
             match self.verify_signature(validation_data) {
                 Ok(true) => return true,
-                _ => return false
+                _ => return false,
             }
         } else {
-            return false
+            return false;
         }
     }
 
@@ -219,17 +204,14 @@ impl DagModule {
         if let Ok(validation_data) = block.get_validation_data() {
             match self.verify_signature(validation_data) {
                 Ok(true) => return true,
-                _ => return false
+                _ => return false,
             }
         } else {
-            return false
+            return false;
         }
     }
 
-    fn verify_signature(
-        &self,
-        validation_data: BlockValidationData
-    ) -> SignerResult<bool> {
+    fn verify_signature(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         if validation_data.signature.clone().len() != SIG_SIZE {
             return Err(SignerError::CorruptSignatureShare(
                 "Invalid Signature ,Size must be 96 bytes".to_string(),
@@ -241,23 +223,20 @@ impl DagModule {
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
                 return self.verify_threshold_sig(validation_data);
-            }
+            },
         }
     }
 
-    fn verify_partial_sig(
-        &self,
-        validation_data: BlockValidationData
-    ) -> SignerResult<bool> {
+    fn verify_partial_sig(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         let public_key_share = {
             if let Some(public_key_share) = self.public_key_set.clone() {
                 if let Some(idx) = validation_data.node_idx.clone() {
                     public_key_share.public_key_share(idx as usize)
                 } else {
-                    return Err(SignerError::GroupPublicKeyMissing)
+                    return Err(SignerError::GroupPublicKeyMissing);
                 }
             } else {
-                return Err(SignerError::GroupPublicKeyMissing)
+                return Err(SignerError::GroupPublicKeyMissing);
             }
         };
 
@@ -267,10 +246,7 @@ impl DagModule {
             match SignatureShare::from_bytes(signature_arr) {
                 Ok(sig_share) => {
                     return Ok(
-                        public_key_share.verify(
-                            &sig_share, 
-                            validation_data.payload_hash.clone()
-                        )
+                        public_key_share.verify(&sig_share, validation_data.payload_hash.clone())
                     )
                 },
                 Err(e) => {
@@ -281,19 +257,13 @@ impl DagModule {
                 },
             }
         } else {
-            return Err(SignerError::PartialSignatureError(
-                format!(
-                    "Error parsing signature into array"
-                )
-            ))
+            return Err(SignerError::PartialSignatureError(format!(
+                "Error parsing signature into array"
+            )));
         }
     }
 
-    fn verify_threshold_sig(
-        &self,
-        validation_data: BlockValidationData
-    ) -> SignerResult<bool> {
-
+    fn verify_threshold_sig(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         let public_key_set = {
             if let Some(public_key_set) = self.public_key_set.clone() {
                 public_key_set
@@ -306,31 +276,27 @@ impl DagModule {
             let signature_arr: [u8; 96] = signature_arr;
             match Signature::from_bytes(signature_arr) {
                 Ok(signature) => {
-                    return Ok(
-                        public_key_set
-                            .public_key()
-                            .verify(&signature, validation_data.payload_hash)
-                    )
+                    return Ok(public_key_set
+                        .public_key()
+                        .verify(&signature, validation_data.payload_hash))
                 },
                 Err(e) => {
                     return Err(SignerError::SignatureVerificationError(format!(
                         "Error parsing threshold signature details : {:?}",
                         e
                     )))
-                }
+                },
             }
         } else {
-            return Err(SignerError::PartialSignatureError(
-                format!(
-                    "Error parsing signature into array"
-                )
-            ))
+            return Err(SignerError::PartialSignatureError(format!(
+                "Error parsing signature into array"
+            )));
         }
     }
 }
 
 #[async_trait]
-impl Handler<Event> for DagModule {
+impl Handler<EventMessage> for DagModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -359,53 +325,51 @@ impl Handler<Event> for DagModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            Event::BlockReceived(block) => {
-                match block {
-                    Block::Genesis { block } => {
-                        if let Err(e) = self.append_genesis(&block) {
-                            let err_note = format!(
-                                "Encountered GraphError: {:?}", e 
-                            );
-                            return Err(theater::TheaterError::Other(err_note));
-                        };
-                    },
-                    Block::Proposal { block } => {
-                        if let Err(e) = self.append_proposal(&block) {
-                            let err_note = format!(
-                                "Encountered GraphError: {:?}", e
-                            );
-                            return Err(theater::TheaterError::Other(err_note));
-                        }
-                    },
-                    Block::Convergence { block } => {
-                        if let Err(e) = self.append_convergence(&block) {
-                            let err_note = format!(
-                                "Encountered GraphError: {:?}", e
-                            );
-                            return Err(theater::TheaterError::Other(err_note));
-                        }
-                    }
-                },
-                Block::Convergence { block } => {
-                    if let Err(e) = self.append_convergence(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
-                        return Err(theater::TheaterError::Other(err_note));
-                    }
-                },
-            },
+            // Event::BlockReceived(block) => {
+            //     match block {
+            //         Block::Genesis { block } => {
+            //             if let Err(e) = self.append_genesis(&block) {
+            //                 let err_note = format!(
+            //                     "Encountered GraphError: {:?}", e
+            //                 );
+            //                 return Err(theater::TheaterError::Other(err_note));
+            //             };
+            //         },
+            //         Block::Proposal { block } => {
+            //             if let Err(e) = self.append_proposal(&block) {
+            //                 let err_note = format!(
+            //                     "Encountered GraphError: {:?}", e
+            //                 );
+            //                 return Err(theater::TheaterError::Other(err_note));
+            //             }
+            //         },
+            //         Block::Convergence { block } => {
+            //             if let Err(e) = self.append_convergence(&block) {
+            //                 let err_note = format!(
+            //                     "Encountered GraphError: {:?}", e
+            //                 );
+            //                 return Err(theater::TheaterError::Other(err_note));
+            //             }
+            //         }
+            //     },
+            //     Block::Convergence { block } => {
+            //         if let Err(e) = self.append_convergence(&block) {
+            //             let err_note = format!("Encountered GraphError: {:?}", e);
+            //             return Err(theater::TheaterError::Other(err_note));
+            //         }
+            //     },
+            // },
             Event::HarvesterPublicKey(pubkey_bytes) => {
-                if let Ok(public_key_set) = 
-                    serde_json::from_slice::<PublicKeySet>(&pubkey_bytes) {
+                if let Ok(public_key_set) = serde_json::from_slice::<PublicKeySet>(&pubkey_bytes) {
                     self.set_harvester_pubkeys(public_key_set)
                 }
             },
             Event::NoOp => {},
-            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
             _ => {},
         }
         Ok(ActorState::Running)

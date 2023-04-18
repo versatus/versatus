@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use block::{convergence_block, Block};
-use events::{Event, EventPublisher};
+use events::{Event, EventMessage, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -63,7 +63,7 @@ impl MiningModule {
 }
 
 #[async_trait]
-impl Handler<Event> for MiningModule {
+impl Handler<EventMessage> for MiningModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -92,8 +92,8 @@ impl Handler<Event> for MiningModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
@@ -102,17 +102,24 @@ impl Handler<Event> for MiningModule {
                     let mining_result = self.miner.try_mine();
 
                     if let Ok(block) = mining_result {
-                        let _ = self.events_tx.send(Event::MinedBlock(block.clone()));
+                        let _ = self
+                            .events_tx
+                            .send(Event::MinedBlock(block.clone()).into())
+                            .await
+                            .map_err(|err| {
+                                theater::TheaterError::Other(format!(
+                                    "failed to send mined block to event bus: {err}"
+                                ))
+                            });
                     }
                 };
             },
             Event::NoOp => {},
-            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
             _ => {},
         }
         Ok(ActorState::Running)
     }
 }
 
-unsafe impl Sync for MiningModule {}
+// TODO: figure out how to avoid this
 unsafe impl Send for MiningModule {}

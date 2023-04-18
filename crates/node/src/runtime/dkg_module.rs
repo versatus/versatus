@@ -11,7 +11,7 @@ use dkg_engine::{
     dkg::DkgGenerator,
     types::{config::ThresholdConfig, DkgEngine, DkgResult},
 };
-use events::{Event, SyncPeerData};
+use events::{Event, EventMessage, EventPublisher, SyncPeerData};
 use hbbft::crypto::{PublicKey, SecretKeyShare};
 use laminar::{Config, Packet, Socket, SocketEvent};
 use primitives::{
@@ -29,7 +29,7 @@ use primitives::{
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use tracing::error;
 
 use crate::{result::Result, NodeError};
@@ -50,7 +50,7 @@ pub struct DkgModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    broadcast_events_tx: EventPublisher,
 }
 
 impl DkgModule {
@@ -62,7 +62,7 @@ impl DkgModule {
         rendezvous_local_addr: SocketAddr,
         rendezvous_server_addr: SocketAddr,
         quic_port: u16,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+        broadcast_events_tx: EventPublisher,
     ) -> Result<DkgModule> {
         let engine = DkgEngine::new(
             node_idx,
@@ -115,8 +115,8 @@ impl DkgModule {
     #[cfg(test)]
     pub fn make_engine(
         dkg_engine: DkgEngine,
-        events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
-        broadcast_events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+        events_tx: EventPublisher,
+        broadcast_events_tx: EventPublisher,
     ) -> Self {
         let mut socket = Socket::bind_with_config(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
@@ -243,7 +243,7 @@ impl DkgModule {
             RendezvousResponse::Peers(peers) => {
                 let _ = self
                     .broadcast_events_tx
-                    .send(Event::SyncPeers(peers.clone()));
+                    .send(Event::SyncPeers(peers.clone()).into());
             },
             RendezvousResponse::NamespaceRegistered => {
                 info!("Namespace Registered");
@@ -373,7 +373,6 @@ impl DkgModule {
     }
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Data {
     Request(RendezvousRequest),
@@ -404,9 +403,8 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
-
 #[async_trait]
-impl Handler<Event> for DkgModule {
+impl Handler<EventMessage> for DkgModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -431,8 +429,8 @@ impl Handler<Event> for DkgModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
@@ -449,7 +447,14 @@ impl Handler<Event> for DkgModule {
                                 if let Ok(part_committment_bytes) = bincode::serialize(&part) {
                                     let _ = self
                                         .broadcast_events_tx
-                                        .send(Event::PartMessage(node_idx, part_committment_bytes));
+                                        .send(
+                                            Event::PartMessage(node_idx, part_committment_bytes)
+                                                .into(),
+                                        )
+                                        .await.map_err(|e| {
+                                            error!("Error occured while sending part message to broadcast event channel {:?}", e);
+                                            TheaterError::Other(format!("{:?}", e))
+                                        });
                                 }
                             }
                         },
@@ -494,11 +499,16 @@ impl Handler<Event> for DkgModule {
                                     .get(&(sender_id, self.dkg_engine.node_idx))
                                 {
                                     if let Ok(ack_bytes) = bincode::serialize(&ack) {
-                                        let _ = self.broadcast_events_tx.send(Event::SendAck(
+                                        let event = Event::SendAck(
                                             self.dkg_engine.node_idx,
                                             sender_id,
                                             ack_bytes,
-                                        ));
+                                        );
+
+                                        let _ = self.broadcast_events_tx.send(event.into()).await.map_err(|e| {
+                                            error!("Error occured while sending ack message to broadcast event channel {:?}", e);
+                                            TheaterError::Other(format!("{:?}", e))
+                                        });
                                     };
                                 }
                             },

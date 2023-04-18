@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use crossbeam_channel::Sender;
-use events::{Event, JobResult};
+use events::{Event, EventMessage, EventPublisher, JobResult};
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
@@ -82,7 +82,7 @@ pub struct FarmerModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    broadcast_events_tx: UnboundedSender<Event>,
+    broadcast_events_tx: EventPublisher,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
@@ -94,7 +94,7 @@ impl FarmerModule {
         group_public_key: GroupPublicKey,
         farmer_id: PeerId,
         farmer_node_idx: NodeIdx,
-        broadcast_events_tx: UnboundedSender<Event>,
+        broadcast_events_tx: EventPublisher,
         quorum_threshold: QuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
@@ -151,7 +151,7 @@ impl FarmerModule {
 }
 
 #[async_trait]
-impl Handler<Event> for FarmerModule {
+impl Handler<EventMessage> for FarmerModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -168,8 +168,8 @@ impl Handler<Event> for FarmerModule {
         self.status = actor_status;
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
@@ -195,7 +195,8 @@ impl Handler<Event> for FarmerModule {
                         if let Some(vote) = vote_opt {
                             let _ = self
                                 .broadcast_events_tx
-                                .send(Event::Vote(vote.clone(), farmer_quorum_threshold));
+                                .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
+                                .await;
                         }
                     }
                 }

@@ -1,7 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
-use events::{Event, EventPublisher};
+use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
@@ -59,19 +59,17 @@ impl StateModule {
         self.db.read_handle()
     }
 
-    fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
+    async fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
         let txn_hash = txn.id();
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 
         //TODO: call checked methods instead
-        self.db
-            .insert_transaction(txn)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        self.db.insert_transaction(txn)?;
 
-        self.events_tx
-            .send(Event::TxnAddedToMempool(txn_hash))
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let event = Event::TxnAddedToMempool(txn_hash);
+
+        self.events_tx.send(event.into()).await?;
 
         Ok(())
     }
@@ -90,7 +88,7 @@ impl StateModule {
 }
 
 #[async_trait]
-impl Handler<Event> for StateModule {
+impl Handler<EventMessage> for StateModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -115,14 +113,15 @@ impl Handler<Event> for StateModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
 
             Event::TxnValidated(txn) => {
                 self.confirm_txn(txn)
+                    .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
@@ -158,7 +157,7 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
-    use events::Event;
+    use events::{Event, DEFAULT_BUFFER};
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
@@ -171,7 +170,7 @@ mod tests {
     async fn state_runtime_module_starts_and_stops() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
@@ -200,7 +199,7 @@ mod tests {
     async fn state_runtime_receives_new_txn_event() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
@@ -229,7 +228,7 @@ mod tests {
     async fn state_runtime_can_publish_events() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
