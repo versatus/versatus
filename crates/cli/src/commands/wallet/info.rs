@@ -1,8 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
-use primitives::{PublicKey, SecretKey};
-use secp256k1::{generate_keypair, rand};
-use wallet::v2::{Wallet, WalletConfig};
+use wallet::v2::Wallet;
 
 use crate::result::{CliError, Result};
 

@@ -16,3 +16,6 @@ run/
 crates/hbbft
 tmp_key
 .vrrb/
+
+.idea
+*.DS_Store
