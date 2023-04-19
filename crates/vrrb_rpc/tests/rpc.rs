@@ -1,8 +1,9 @@
 use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
+use events::{EventMessage, DEFAULT_BUFFER};
 use primitives::{generate_account_keypair, generate_mock_account_keypair, Address};
 use secp256k1::{rand::rngs::mock, Message};
-use tokio::sync::{broadcast::channel, mpsc::unbounded_channel};
+use tokio::sync::mpsc::{channel, unbounded_channel};
 use vrrb_core::txn::{generate_txn_digest_vec, null_txn, NewTxnArgs, Token};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
@@ -18,7 +19,7 @@ async fn server_can_publish_transactions_to_be_created() {
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = unbounded_channel();
+    let (events_tx, events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();

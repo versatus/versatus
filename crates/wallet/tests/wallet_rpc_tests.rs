@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use primitives::{PublicKey, SecretKey};
 use secp256k1::{generate_keypair, Message, Secp256k1};
 use serial_test::serial;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::sync::mpsc::{channel, unbounded_channel, UnboundedSender};
 use vrrb_core::{helpers::read_or_generate_keypair_file, keypair::Keypair, txn::Token};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
@@ -34,7 +34,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = unbounded_channel();
+    let (events_tx, events_rx) = channel(100);
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();
@@ -83,7 +83,7 @@ pub async fn wallet_sends_create_account_request_to_rpc_server() {
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = unbounded_channel();
+    let (events_tx, events_rx) = channel(100);
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();
