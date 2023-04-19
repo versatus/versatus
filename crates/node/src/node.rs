@@ -149,6 +149,11 @@ impl Node {
             info!("shutdown complete for state management module ");
         }
 
+        if let Some(handle) = self.mempool_handle {
+            handle.await??;
+            info!("shutdown complete for mempool module ");
+        }
+
         if let Some(handle) = self.miner_handle {
             handle.await??;
             info!("shutdown complete for mining module ");

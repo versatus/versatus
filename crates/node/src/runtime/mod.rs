@@ -309,7 +309,6 @@ async fn setup_gossip_network(
         .await
         .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
-
     let mut bcast_controller = BroadcastEngineController::new(
         BroadcastEngineControllerConfig::new(broadcast_engine, events_tx.clone()),
     );
@@ -339,7 +338,6 @@ async fn setup_gossip_network(
         addr,
     ))
 }
-
 
 async fn setup_state_store(
     config: &NodeConfig,
@@ -392,12 +390,8 @@ async fn setup_rpc_api_server(
             .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
 
     let jsonrpc_server_handle = Some(tokio::spawn(async move {
-        if let Ok(evt) = jsonrpc_events_rx.recv().await {
-            if let Event::Stop = evt {
-                jsonrpc_server_handle.stop();
-                return Ok(());
-            }
-        }
+        jsonrpc_server_handle.stopped().await;
+
         Ok(())
     }));
 
@@ -609,7 +603,6 @@ fn setup_dag_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-
     Ok(Some(dag_module_handle))
 }
 
@@ -654,7 +647,6 @@ fn setup_scheduler_module(
     );
     module
 }
-
 
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
