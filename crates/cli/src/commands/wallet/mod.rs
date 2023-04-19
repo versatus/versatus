@@ -187,7 +187,3 @@ fn restore_accounts_and_addresses(
 
     Ok((accounts, addresses))
 }
-
-// fn load_account_secret_key() {
-//     //
-// }
