@@ -404,6 +404,9 @@ async fn setup_rpc_api_server(
     let jsonrpc_server_handle = tokio::spawn(async move {
         jsonrpc_server_handle.stopped().await;
 
+        Ok(())
+    });
+
     let jsonrpc_server_handle = Some(jsonrpc_server_handle);
 
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
