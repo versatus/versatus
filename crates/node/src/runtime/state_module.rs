@@ -1,7 +1,7 @@
 use std::{hash::Hash, path::PathBuf};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
@@ -15,7 +15,7 @@ use crate::{result::Result, NodeError, RuntimeModule};
 
 pub struct StateModuleConfig {
     pub db: VrrbDb,
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    pub events_tx: EventPublisher,
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub struct StateModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: tokio::sync::mpsc::UnboundedSender<DirectedEvent>,
+    events_tx: EventPublisher,
 }
 
 /// StateModule manages all state persistence and updates within VrrbNodes
@@ -59,19 +59,17 @@ impl StateModule {
         self.db.read_handle()
     }
 
-    fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
+    async fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
         let txn_hash = txn.id();
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 
         //TODO: call checked methods instead
-        self.db
-            .insert_transaction(txn)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        self.db.insert_transaction(txn)?;
 
-        self.events_tx
-            .send(Event::TxnAddedToMempool(txn_hash))
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let event = Event::TxnAddedToMempool(txn_hash);
+
+        self.events_tx.send(event.into()).await?;
 
         Ok(())
     }
@@ -90,7 +88,7 @@ impl StateModule {
 }
 
 #[async_trait]
-impl Handler<Event> for StateModule {
+impl Handler<EventMessage> for StateModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -115,14 +113,15 @@ impl Handler<Event> for StateModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
 
             Event::TxnValidated(txn) => {
                 self.confirm_txn(txn)
+                    .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
@@ -158,7 +157,7 @@ impl Handler<Event> for StateModule {
 mod tests {
     use std::env;
 
-    use events::{DirectedEvent, Event};
+    use events::{Event, DEFAULT_BUFFER};
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
@@ -171,7 +170,7 @@ mod tests {
     async fn state_runtime_module_starts_and_stops() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
@@ -181,7 +180,7 @@ mod tests {
 
         let mut state_module = ActorImpl::new(state_module);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         assert_eq!(state_module.status(), ActorState::Stopped);
 
@@ -200,7 +199,7 @@ mod tests {
     async fn state_runtime_receives_new_txn_event() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
@@ -210,7 +209,7 @@ mod tests {
 
         let mut state_module = ActorImpl::new(state_module);
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         assert_eq!(state_module.status(), ActorState::Stopped);
 
@@ -218,8 +217,11 @@ mod tests {
             state_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
-        ctrl_tx.send(Event::Stop).unwrap();
+        ctrl_tx
+            .send(Event::NewTxnCreated(null_txn()).into())
+            .unwrap();
+
+        ctrl_tx.send(Event::Stop.into()).unwrap();
 
         handle.await.unwrap();
     }
@@ -229,7 +231,7 @@ mod tests {
     async fn state_runtime_can_publish_events() {
         let temp_dir_path = env::temp_dir().join("state.json");
 
-        let (events_tx, mut events_rx) = tokio::sync::mpsc::unbounded_channel::<DirectedEvent>();
+        let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
@@ -243,7 +245,7 @@ mod tests {
             let res = events_rx.recv().await;
         });
 
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         assert_eq!(state_module.status(), ActorState::Stopped);
 
@@ -253,8 +255,11 @@ mod tests {
 
         // TODO: implement all state && validation ops
 
-        ctrl_tx.send(Event::NewTxnCreated(null_txn())).unwrap();
-        ctrl_tx.send(Event::Stop).unwrap();
+        ctrl_tx
+            .send(Event::NewTxnCreated(null_txn()).into())
+            .unwrap();
+
+        ctrl_tx.send(Event::Stop.into()).unwrap();
 
         handle.await.unwrap();
         events_handle.await.unwrap();

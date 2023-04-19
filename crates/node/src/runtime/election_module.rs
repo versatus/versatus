@@ -15,7 +15,7 @@ use block::{
     ResolvedConflicts,
 };
 use ethereum_types::U256;
-use events::{ConflictBytes, Event};
+use events::{ConflictBytes, Event, EventMessage, EventPublisher};
 use primitives::NodeId;
 use quorum::{
     election::Election,
@@ -45,7 +45,7 @@ pub struct QuorumElection;
 
 pub struct ElectionModuleConfig {
     pub db_read_handle: VrrbDbReadHandle,
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    pub events_tx: EventPublisher,
     pub local_claim: Claim,
 }
 
@@ -69,7 +69,7 @@ where
     pub db_read_handle: VrrbDbReadHandle,
     pub local_claim: Claim,
     pub outcome: Option<T>,
-    pub events_tx: tokio::sync::mpsc::UnboundedSender<Event>,
+    pub events_tx: EventPublisher,
 }
 
 impl ElectionModule<MinerElection, MinerElectionResult> {
@@ -119,7 +119,7 @@ impl ElectionOutcome for MinerElectionResult {}
 impl ElectionOutcome for QuorumElectionResult {}
 
 #[async_trait]
-impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
+impl Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -144,18 +144,23 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::MinerElection(header_bytes) => {
                 let header_result: serde_json::Result<BlockHeader> =
                     serde_json::from_slice(&header_bytes);
+
                 if let Ok(header) = header_result {
                     let claims = self.db_read_handle.claim_store_values();
                     let mut election_results: BTreeMap<U256, Claim> =
                         elect_miner(claims, header.block_seed);
+
                     let winner = get_winner(&mut election_results);
 
-                    let _ = self.events_tx.send(Event::ElectedMiner(winner));
+                    let _ = self
+                        .events_tx
+                        .send(Event::ElectedMiner(winner).into())
+                        .await;
                 }
             },
             _ => {},
@@ -166,7 +171,7 @@ impl Handler<Event> for ElectionModule<MinerElection, MinerElectionResult> {
 }
 
 #[async_trait]
-impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
+impl Handler<EventMessage> for ElectionModule<QuorumElection, QuorumElectionResult> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -191,16 +196,20 @@ impl Handler<Event> for ElectionModule<QuorumElection, QuorumElectionResult> {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::QuorumElection(header_bytes) => {
                 let header_result: serde_json::Result<BlockHeader> =
                     serde_json::from_slice(&header_bytes);
 
                 if let Ok(header) = header_result {
                     let claims = self.db_read_handle.claim_store_values();
+
                     if let Ok(quorum) = elect_quorum(claims, header) {
-                        let _ = self.events_tx.send(Event::ElectedQuorum(quorum));
+                        let _ = self
+                            .events_tx
+                            .send(Event::ElectedQuorum(quorum).into())
+                            .await;
                     }
                 }
             },

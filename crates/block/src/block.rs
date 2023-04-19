@@ -8,15 +8,10 @@ use reward::reward::Reward;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use serde::{Deserialize, Serialize};
+
 #[cfg(mainnet)]
 use crate::genesis;
-
-use crate::{
-    header::BlockHeader,
-    ConvergenceBlock,
-    GenesisBlock,
-    ProposalBlock,
-};
+use crate::{header::BlockHeader, ConvergenceBlock, GenesisBlock, ProposalBlock};
 
 pub trait InnerBlock: std::fmt::Debug + Send {
     type Header;
@@ -136,7 +131,7 @@ impl InnerBlock for ConvergenceBlock {
     fn into_static_convergence(&self) -> Option<ConvergenceBlock> {
         Some(self.clone())
     }
-    
+
     fn into_static_genesis(&self) -> Option<GenesisBlock> {
         None
     }
@@ -173,7 +168,7 @@ impl InnerBlock for GenesisBlock {
     fn into_static_convergence(&self) -> Option<ConvergenceBlock> {
         None
     }
-    
+
     fn into_static_genesis(&self) -> Option<GenesisBlock> {
         Some(self.clone())
     }
@@ -194,7 +189,7 @@ impl From<Block> for Vertex<Block, String> {
             },
             Block::Genesis { ref block } => {
                 return Vertex::new(item.clone(), block.hash.clone());
-            }
+            },
         }
     }
 }

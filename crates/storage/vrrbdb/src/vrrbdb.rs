@@ -6,7 +6,7 @@ use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
-    claim::{Claim, self},
+    claim::{self, Claim},
     txn::Txn,
 };
 
@@ -89,7 +89,7 @@ impl VrrbDb {
         Self {
             state_store,
             transaction_store,
-            claim_store
+            claim_store,
         }
     }
 

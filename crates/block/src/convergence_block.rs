@@ -1,11 +1,7 @@
-use primitives::{
-    Epoch,
-    SecretKey as SecretKeyBytes,
-};
-
+use primitives::{Epoch, SecretKey as SecretKeyBytes};
+use reward::reward::Reward;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
-use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{

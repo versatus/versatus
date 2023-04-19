@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventPublisher, DEFAULT_BUFFER};
 use jsonrpsee::{
     core::Error,
     server::{ServerBuilder, ServerHandle, SubscriptionSink},
@@ -10,7 +10,7 @@ use jsonrpsee::{
 use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory};
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::sync::mpsc::channel;
 use vrrb_core::{account::Account, txn::NewTxnArgs};
 
 use crate::rpc::{api::RpcApiServer, server_impl::RpcServerImpl};
@@ -21,7 +21,7 @@ pub struct JsonRpcServerConfig {
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
-    pub events_tx: UnboundedSender<Event>,
+    pub events_tx: EventPublisher,
 }
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ impl Default for JsonRpcServerConfig {
         let mempool_read_handle_factory = mempool.factory();
 
         let node_type = NodeType::RPCNode;
-        let (events_tx, _) = unbounded_channel();
+        let (events_tx, _) = channel(DEFAULT_BUFFER);
 
         JsonRpcServerConfig {
             address,

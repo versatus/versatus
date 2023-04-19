@@ -1,9 +1,10 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventRouter, Topic};
+use events::{Event, EventMessage, EventPublisher, EventRouter};
+use jsonrpsee::server::ServerHandle;
 use telemetry::info;
 use tokio::{
-    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    sync::mpsc::{channel, Sender, UnboundedReceiver},
     task::JoinHandle,
 };
 use trecho::vm::Cpu;
@@ -11,6 +12,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::{setup_runtime_components, RuntimeHandle},
     NodeType,
@@ -26,10 +28,10 @@ pub struct Node {
     config: NodeConfig,
 
     // NOTE: core node features
-    event_router_handle: JoinHandle<()>,
+    router_handle: JoinHandle<()>,
     running_status: RuntimeModuleState,
     control_rx: UnboundedReceiver<Event>,
-    events_tx: UnboundedSender<Event>,
+    events_tx: EventPublisher,
 
     // TODO: make this private
     pub keypair: KeyPair,
@@ -52,71 +54,46 @@ pub struct Node {
     scheduler_handle: SchedulerHandle,
 }
 
+pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
+
 impl Node {
     /// Initializes and returns a new Node instance
-    pub async fn start(config: &NodeConfig, control_rx: UnboundedReceiver<Event>) -> Result<Self> {
-        // Copy the original config to avoid overriding the original
+    pub async fn start(
+        config: &NodeConfig,
+        control_rx: UnboundedControlEventReceiver,
+    ) -> Result<Self> {
+        // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
         let vm = None;
         let keypair = config.keypair.clone();
 
-        let (events_tx, mut events_rx) = unbounded_channel::<Event>();
-        let mut event_router = Self::setup_event_routing_system();
+        let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
 
-        let mempool_events_rx = event_router.subscribe();
-        let vrrbdb_events_rx = event_router.subscribe();
-        let network_events_rx = event_router.subscribe();
-        let controller_events_rx = event_router.subscribe();
-        let miner_events_rx = event_router.subscribe();
-        let farmer_events_rx = event_router.subscribe();
-        let harvester_events_rx = event_router.subscribe();
-        let jsonrpc_events_rx = event_router.subscribe();
-        let dkg_events_rx = event_router.subscribe();
-        let miner_election_events_rx = event_router.subscribe();
-        let quorum_election_events_rx = event_router.subscribe();
-        let indexer_events_rx = event_router.subscribe();
-        let dag_events_rx = event_router.subscribe();
+        let mut router = EventRouter::new();
 
-        let runtime_components = setup_runtime_components(
-            &config,
-            events_tx.clone(),
-            mempool_events_rx,
-            vrrbdb_events_rx,
-            network_events_rx,
-            controller_events_rx,
-            miner_events_rx,
-            jsonrpc_events_rx,
-            dkg_events_rx,
-            miner_election_events_rx,
-            quorum_election_events_rx,
-            farmer_events_rx,
-            harvester_events_rx,
-            indexer_events_rx,
-            dag_events_rx,
-        )
-        .await?;
+        let runtime_components =
+            setup_runtime_components(&config, &router, events_tx.clone()).await?;
 
         config = runtime_components.node_config;
 
         // TODO: report error from handle
-        let event_router_handle =
-            tokio::spawn(async move { event_router.start(&mut events_rx).await });
+        let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
 
         Ok(Self {
             config,
             vm,
-            event_router_handle,
+            keypair,
+            events_tx,
+            control_rx,
+            router_handle,
             state_handle: runtime_components.state_handle,
             mempool_handle: runtime_components.mempool_handle,
             jsonrpc_server_handle: runtime_components.jsonrpc_server_handle,
             gossip_handle: runtime_components.gossip_handle,
             dkg_handle: runtime_components.dkg_handle,
             running_status: RuntimeModuleState::Stopped,
-            control_rx,
-            events_tx,
             miner_handle: runtime_components.miner_handle,
-            keypair,
             miner_election_handle: runtime_components.miner_election_handle,
             quorum_election_handle: runtime_components.quorum_election_handle,
             farmer_handle: runtime_components.farmer_handle,
@@ -142,7 +119,7 @@ impl Node {
 
         info!("node received stop signal");
 
-        self.events_tx.send(Event::Stop)?;
+        self.events_tx.send(Event::Stop.into()).await?;
 
         if let Some(handle) = self.state_handle {
             handle.await??;
@@ -164,12 +141,28 @@ impl Node {
             info!("shutdown complete for gossip module");
         }
 
+        if let Some(handle) = self.dag_handle {
+            handle.await??;
+            info!("shutdown complete for dag module");
+        }
+
+        if let Some(handle) = self.quorum_election_handle {
+            handle.await??;
+            info!("shutdown complete for quorum election module");
+        }
+
+        // TODO: refactor this into a tokio task
+        // if let Some(handle) = self.raptor_handle {
+        //     handle.join();
+        //     info!("shutdown complete for raptorq module");
+        // }
+
         if let Some(handle) = self.jsonrpc_server_handle {
             handle.await??;
             info!("rpc server shut down");
         }
 
-        self.event_router_handle.await?;
+        self.router_handle.await?;
 
         info!("node shutdown complete");
 
@@ -233,17 +226,5 @@ impl Node {
 
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
-    }
-
-    fn setup_event_routing_system() -> EventRouter {
-        let mut event_router = EventRouter::new(None);
-        event_router.add_topic(Topic::Control, Some(1));
-        event_router.add_topic(Topic::State, Some(1));
-        event_router.add_topic(Topic::Network, Some(100));
-        event_router.add_topic(Topic::Consensus, Some(100));
-        event_router.add_topic(Topic::Storage, Some(100));
-        event_router.add_topic(Topic::Throttle, Some(100));
-
-        event_router
     }
 }
