@@ -25,7 +25,7 @@ pub async fn exec(
     let (_, account) = wallet
         .create_account(alias, public_key)
         .await
-        .map_err(|_| CliError::Other("unable to create account in state".to_string()))?;
+        .map_err(|err| CliError::Other(format!("unable to create account in state: {err}")))?;
 
     write_keypair_file(key_path, &(secret_key, public_key))
         .map_err(|err| CliError::Other(format!("unable to write keypair file: {err}")))?;

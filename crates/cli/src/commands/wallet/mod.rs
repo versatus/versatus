@@ -140,7 +140,7 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             Ok(())
         },
         WalletCmd::GetMempool { limit } => {
-            let _ = get_mempool::exec(&mut wallet, limit).await?;
+            get_mempool::exec(&mut wallet, limit).await?;
 
             Ok(())
         },

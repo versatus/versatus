@@ -10,7 +10,9 @@ pub(crate) async fn exec(
         serde_json::to_string_pretty(&result).map_err(|e| CliError::Other(e.to_string()))?;
 
     println!("{}", ser_result);
-    println!("{:?}", limit);
+
+    let displayable_limit = limit.unwrap_or(0);
+    println!("{}", displayable_limit);
 
     Ok(())
 }
