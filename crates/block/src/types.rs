@@ -7,17 +7,17 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use hex::{decode, FromHexError};
+use primitives::RawSignature;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
+use tokio::task::JoinHandle;
 use vrrb_core::{
     claim::Claim,
-    txn::{Txn, TransactionDigest},
+    txn::{TransactionDigest, Txn},
 };
-use primitives::RawSignature;
-use hex::{decode, FromHexError};
-use tokio::task::JoinHandle;
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -61,7 +61,8 @@ pub struct Conflict {
 impl Hash for Conflict {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.txn_id.hash(state);
-        // Here we sort the elements by their derived hash values to ensure consistent hashing
+        // Here we sort the elements by their derived hash values to ensure consistent
+        // hashing
         let mut sorted_proposers: Vec<_> = self.proposers.iter().collect();
         sorted_proposers.sort_unstable_by(|a, b| {
             let mut hasher_a = std::collections::hash_map::DefaultHasher::new();

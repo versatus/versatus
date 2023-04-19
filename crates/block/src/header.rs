@@ -11,11 +11,7 @@ use utils::{create_payload, hash_data};
 use vrrb_core::claim::Claim;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
-use crate::{
-    block::Block,
-    InnerBlock,
-    NextEpochAdjustment,
-};
+use crate::{block::Block, InnerBlock, NextEpochAdjustment};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct BlockHeader {
@@ -63,12 +59,8 @@ impl BlockHeader {
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 
         let timestamp = chrono::Utc::now().timestamp();
-        let txn_hash = hex::encode(
-            hash_data!("Genesis_Txn_Hash".to_string())
-        );
-        let block_reward = Reward::genesis(
-            Some(miner_claim.address.to_string())
-        );
+        let txn_hash = hex::encode(hash_data!("Genesis_Txn_Hash".to_string()));
+        let block_reward = Reward::genesis(Some(miner_claim.address.to_string()));
         let block_height = 0;
         let next_block_reward = Reward::default();
 
@@ -133,9 +125,7 @@ impl BlockHeader {
         // get the message; TODO: replace ref_hashes with
         // last_block.certificate
         let message = {
-            let hash = hex::encode(
-                hash_data!(last_block.get_hash(), ref_hashes)
-            );
+            let hash = hex::encode(hash_data!(last_block.get_hash(), ref_hashes));
             hash.as_bytes().to_vec()
         };
 

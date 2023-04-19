@@ -53,17 +53,18 @@ signer = { workspace = true }
 indexmap = { workspace = true }
 raptorq = { workspace = true }
 crossbeam-channel = { workspace = true }
-job_scheduler={workspace=true}
-rayon = {workspace=true}
-lazy_static = {workspace=true}
-dashmap ={workspace=true}
-timer = {workspace=true}
-laminar = {workspace=true}
+job_scheduler = { workspace = true }
+rayon = { workspace = true }
+lazy_static = { workspace = true }
+dashmap = { workspace = true }
+timer = { workspace = true }
+laminar = { workspace = true }
 ethereum-types = { workspace = true }
-quorum={ workspace = true }
+quorum = { workspace = true }
 sha2 = { workspace = true }
 bulldag = { workspace = true }
 vrrb_http = { workspace = true }
+messr = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

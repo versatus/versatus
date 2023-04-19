@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr, str::FromStr};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventPublisher};
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType};
@@ -27,7 +27,7 @@ pub struct RpcServerImpl {
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
-    pub events_tx: UnboundedSender<DirectedEvent>,
+    pub events_tx: EventPublisher,
 }
 
 #[async_trait]
@@ -59,15 +59,7 @@ impl RpcApiServer for RpcServerImpl {
 
         debug!("{:?}", event);
 
-        if self.events_tx.is_closed() {
-            let err = Error::Custom("event router is closed".to_string());
-
-            error!("failed to publish write: {:?}", err);
-
-            return Err(err);
-        }
-
-        self.events_tx.send(event).map_err(|err| {
+        self.events_tx.send(event.into()).await.map_err(|err| {
             error!("could not queue transaction to mempool: {err}");
             Error::Custom(err.to_string())
         })?;
@@ -83,10 +75,13 @@ impl RpcApiServer for RpcServerImpl {
 
         debug!("{:?}", event);
 
-        self.events_tx.send(event.clone()).map_err(|err| {
-            error!("could not create account: {err}");
-            Error::Custom(err.to_string())
-        })?;
+        self.events_tx
+            .send(event.clone().into())
+            .await
+            .map_err(|err| {
+                error!("could not create account: {err}");
+                Error::Custom(err.to_string())
+            })?;
 
         telemetry::info!("requested account creation for address: {}", address);
 
@@ -104,7 +99,7 @@ impl RpcApiServer for RpcServerImpl {
 
         let event = Event::AccountUpdateRequested((addr, account_bytes));
 
-        self.events_tx.send(event).map_err(|err| {
+        self.events_tx.send(event.into()).await.map_err(|err| {
             error!("could not update account: {err}");
             Error::Custom(err.to_string())
         })?;

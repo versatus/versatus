@@ -1,7 +1,7 @@
 use std::{hash::Hash, path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
-use events::{DirectedEvent, Event, Topic};
+use events::{Event, EventMessage};
 use lr_trie::ReadHandleFactory;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -12,13 +12,7 @@ use tokio::{runtime::Runtime, sync::broadcast::error::TryRecvError};
 use vrrb_core::txn::{TransactionDigest, Txn};
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
 
-use crate::{
-    result::Result,
-    EventBroadcastSender,
-    NodeError,
-    RuntimeModule,
-    MEMPOOL_THRESHOLD_SIZE,
-};
+use crate::{result::Result, NodeError, RuntimeModule, MEMPOOL_THRESHOLD_SIZE};
 
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -50,7 +44,7 @@ impl IndexerModule {
 impl IndexerModule {}
 
 #[async_trait]
-impl Handler<Event> for IndexerModule {
+impl Handler<EventMessage> for IndexerModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -75,8 +69,8 @@ impl Handler<Event> for IndexerModule {
         );
     }
 
-    async fn handle(&mut self, event: Event) -> theater::Result<ActorState> {
-        match event {
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
@@ -110,6 +104,7 @@ impl Handler<Event> for IndexerModule {
 
 #[cfg(test)]
 mod tests {
+    use events::DEFAULT_BUFFER;
     use serial_test::serial;
     use theater::ActorImpl;
 
@@ -153,7 +148,7 @@ mod tests {
         assert_eq!(indexer_module.label(), "Indexer");
         assert_eq!(indexer_module.status(), ActorState::Stopped);
 
-        let (ctrl_tx, mut indexer_events_rx) = tokio::sync::broadcast::channel::<Event>(10);
+        let (ctrl_tx, mut indexer_events_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
 
         let mut indexer_module_actor = ActorImpl::new(indexer_module);
 
@@ -164,7 +159,7 @@ mod tests {
                 .unwrap()
         });
 
-        ctrl_tx.send(Event::Stop).unwrap();
+        ctrl_tx.send(Event::Stop.into()).unwrap();
         indexer_handle.await.unwrap();
     }
 }
