@@ -164,13 +164,19 @@ impl Signer for SignatureProvider {
         // map of signature shares.
         let sig_shares: BTreeMap<usize, SignatureShare> = signature_shares
             .iter()
-            .map(|(x, sig_share_bytes)| {
-                let signature_arr: [u8; 96] = sig_share_bytes.clone().try_into().unwrap();
-                let sig_share_result = SignatureShare::from_bytes(signature_arr).unwrap();
-                (*x as usize, sig_share_result)
+            .filter_map(|(x, sig_share_bytes)| {
+                match TryInto::<[u8; 96]>::try_into(sig_share_bytes.as_slice()) {
+                    Ok(signature_arr) => {
+                        if let Ok(sig_share_result) = SignatureShare::from_bytes(signature_arr) {
+                            Some((*x as usize, sig_share_result))
+                        } else {
+                            None
+                        }
+                    },
+                    Err(_) => None,
+                }
             })
             .collect();
-
         let result = dkg_state.public_key_set.as_ref();
         //Construction of combining t+1 valid shares to form threshold
         let combine_signature_result = match result {
@@ -275,18 +281,19 @@ impl Signer for SignatureProvider {
                     Some(public_key_share) => public_key_share.public_key_share(node_idx as usize),
                     None => return Err(SignerError::GroupPublicKeyMissing),
                 };
-                let signature_arr: [u8; 96] = signature.try_into().unwrap();
-                let sig_share_result = SignatureShare::from_bytes(signature_arr);
-                let sig_share = match sig_share_result {
-                    Ok(sig_share) => sig_share,
-                    Err(e) => {
-                        return Err(SignerError::SignatureVerificationError(format!(
-                            "Error parsing partial signature details : {:?}",
-                            e
-                        )))
-                    },
-                };
-                Ok(public_key_share.verify(&sig_share, payload_hash))
+                if let Ok(signature_arr) = TryInto::<[u8; 96]>::try_into(signature.as_slice()) {
+                    if let Ok(sig_share) = SignatureShare::from_bytes(signature_arr) {
+                        Ok(public_key_share.verify(&sig_share, payload_hash))
+                    } else {
+                        return Err(SignerError::CorruptSignatureShare(String::from(
+                            "Corrupt signature share",
+                        )));
+                    }
+                } else {
+                    return Err(SignerError::PartialSignatureError(String::from(
+                        "Signature must be 96 byte array",
+                    )));
+                }
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
                 let public_key_set_opt = dkg_state.public_key_set.clone();
@@ -297,19 +304,19 @@ impl Signer for SignatureProvider {
                     Some(public_key_set) => public_key_set,
                     None => return Err(SignerError::GroupPublicKeyMissing),
                 };
-                let signature_arr: [u8; 96] = signature.try_into().unwrap();
-                let sig_share_result = Signature::from_bytes(signature_arr);
-                let signature = match sig_share_result {
-                    Ok(signature) => signature,
-                    Err(e) => {
-                        return Err(SignerError::SignatureVerificationError(format!(
-                            "Error parsing threshold signature details : {:?}",
-                            e
-                        )))
-                    },
-                };
-
-                Ok(public_key_set.public_key().verify(&signature, payload_hash))
+                if let Ok(signature_arr) = TryInto::<[u8; 96]>::try_into(signature.as_slice()) {
+                    if let Ok(signature) = Signature::from_bytes(signature_arr) {
+                        Ok(public_key_set.public_key().verify(&signature, payload_hash))
+                    } else {
+                        return Err(SignerError::ThresholdSignatureError(String::from(
+                            "Corrupt signature",
+                        )));
+                    }
+                } else {
+                    return Err(SignerError::ThresholdSignatureError(String::from(
+                        "Signature must be 96 byte array",
+                    )));
+                }
             },
         }
     }
@@ -361,10 +368,7 @@ mod tests {
             },
         };
         let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
-        assert_eq!(
-            result,
-            Err(crate::types::SignerError::SecretKeyShareMissing)
-        );
+        assert_eq!(result, Err(SignerError::SecretKeyShareMissing));
     }
 
     #[tokio::test]
@@ -491,7 +495,7 @@ mod tests {
         assert_eq!(sig_status.is_err(), true);
         assert!(is_enum_variant!(
             sig_status,
-            Err(SignerError::SignatureVerificationError { .. })
+            Err(SignerError::ThresholdSignatureError { .. })
         ));
     }
 }

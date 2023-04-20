@@ -10,6 +10,8 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
+use primitives::{DEFAULT_CONNECTION_TIMEOUT_IN_SECS, NUMBER_OF_NETWORK_PACKETS};
+use qp2p::ConnectionError;
 pub use qp2p::{
     Config,
     Connection,
@@ -21,7 +23,7 @@ pub use qp2p::{
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, time::error::Elapsed};
 
 use crate::{
     config::BroadcastError,
@@ -50,7 +52,18 @@ pub enum BroadcastType {
     ReliableUDP,
     UnreliableUDP,
 }
+trait Timeout: Sized {
+    fn timeout(self) -> tokio::time::Timeout<Self>;
+}
 
+impl<F: std::future::Future> Timeout for F {
+    fn timeout(self) -> tokio::time::Timeout<Self> {
+        tokio::time::timeout(
+            Duration::from_secs(DEFAULT_CONNECTION_TIMEOUT_IN_SECS),
+            self,
+        )
+    }
+}
 #[derive(Debug)]
 pub struct BroadcastEngine {
     pub peer_connection_list: HashMap<SocketAddr, Connection>,
@@ -117,19 +130,22 @@ impl BroadcastEngine {
         address: Vec<SocketAddr>,
     ) -> Result<BroadcastStatus> {
         for addr in address.iter() {
-            // TODO: revisit to make it handle errors robustly as it currently fails even if
-            // a single connection fails
-            let (connection, _) = self.endpoint.0.connect_to(addr).await.map_err(|err| {
-                error!("failed to connect with {addr}: {err}");
-
-                BroadcastError::Connection(err)
-            })?;
-
-            self.peer_connection_list
-                .insert(addr.to_owned(), connection);
+            let connection_result = self.endpoint.0.connect_to(addr).timeout().await;
+            match connection_result {
+                Ok(con_result) => {
+                    let (connection, _) = con_result.map_err(|err| {
+                        error!("failed to connect with {addr}: {err}");
+                        BroadcastError::Connection(err)
+                    })?;
+                    self.peer_connection_list
+                        .insert(addr.to_owned(), connection);
+                },
+                Err(e) => {
+                    error!("Connection error  {addr}: {e}");
+                },
+            }
         }
-
-        Ok(BroadcastStatus::ConnectionEstablished)
+        return Ok(BroadcastStatus::Success);
     }
 
     #[telemetry::instrument]
@@ -406,14 +422,19 @@ impl BroadcastEngine {
 mod tests {
     use std::{
         net::{Ipv6Addr, SocketAddr},
+        thread,
         time::Duration,
     };
 
+    use block::{header::BlockHeader, Block, ConvergenceBlock};
     use bytes::Bytes;
+    use crossbeam_channel::unbounded;
+    use vrrb_core::{claim::Claim, txn::Txn};
 
     use crate::{
         message::{Message, MessageBody},
-        network::BroadcastEngine,
+        network::{BroadcastEngine, Timeout},
+        packet::RaptorBroadCastedData,
     };
 
     #[tokio::test]
@@ -513,15 +534,5 @@ mod tests {
             data: MessageBody::Empty,
         };
         msg
-    }
-
-    trait Timeout: Sized {
-        fn timeout(self) -> tokio::time::Timeout<Self>;
-    }
-
-    impl<F: std::future::Future> Timeout for F {
-        fn timeout(self) -> tokio::time::Timeout<Self> {
-            tokio::time::timeout(Duration::from_secs(5), self)
-        }
     }
 }

@@ -19,6 +19,7 @@ pub const NUMBER_OF_NETWORK_PACKETS: usize = 32;
 pub const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";
 pub const DEFAULT_VRRB_DB_PATH: &str = ".vrrb/node/db";
 pub const DEFAULT_VRRB_WALLET_DATA_DIR_PATH: &str = ".vrrb/wallet";
+pub const DEFAULT_CONNECTION_TIMEOUT_IN_SECS: u64 = 2;
 
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
