@@ -10,7 +10,7 @@ use network::{
 };
 use primitives::{NodeType, PeerId};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::{error, instrument};
+use telemetry::{error, info, instrument};
 use theater::{ActorLabel, ActorState, Handler};
 use tokio::{
     sync::{
@@ -80,7 +80,7 @@ impl BroadcastModule {
     }
 
     pub fn name(&self) -> String {
-        "BroadcastModule".to_string()
+        "Broadcast".to_string()
     }
 
     pub async fn process_received_msg(&mut self) {
@@ -144,6 +144,10 @@ impl Handler<EventMessage> for BroadcastModule {
 
     fn set_status(&mut self, actor_status: ActorState) {
         self.status = actor_status;
+    }
+
+    fn on_start(&self) {
+        info!("{}-{} starting", self.label(), self.id(),);
     }
 
     #[instrument]

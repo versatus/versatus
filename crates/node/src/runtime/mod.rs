@@ -108,7 +108,7 @@ pub async fn setup_runtime_components(
     let miner_events_rx = router.subscribe(None)?;
     let farmer_events_rx = router.subscribe(None)?;
     let harvester_events_rx = router.subscribe(None)?;
-    let jsonrpc_events_rx = router.subscribe(None)?;
+    let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
     let dkg_events_rx = router.subscribe(None)?;
     let miner_election_events_rx = router.subscribe(None)?;
     let quorum_election_events_rx = router.subscribe(None)?;
@@ -320,6 +320,8 @@ async fn setup_gossip_network(
         .await
         .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
+    let broadcast_resolved_addr = broadcast_engine.local_addr();
+
     let mut bcast_controller = BroadcastEngineController::new(
         BroadcastEngineControllerConfig::new(broadcast_engine, events_tx.clone()),
     );
@@ -343,6 +345,8 @@ async fn setup_gossip_network(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
+
+    info!("Broadcast engine listening on {}", broadcast_resolved_addr);
 
     Ok((
         Some(broadcast_handle),
@@ -378,6 +382,8 @@ async fn setup_state_store(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
+    info!("State store is operational");
+
     Ok((vrrbdb_read_handle, Some(state_handle)))
 }
 
@@ -402,10 +408,20 @@ async fn setup_rpc_api_server(
             .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
 
     let jsonrpc_server_handle = tokio::spawn(async move {
-        jsonrpc_server_handle.stopped().await;
+        if let Ok(evt) = jsonrpc_events_rx.recv().await {
+            if let Event::Stop = evt.into() {
+                jsonrpc_server_handle.stop();
+                return Ok(());
+            }
+        }
 
         Ok(())
     });
+
+    info!(
+        "JSON-RPC server started at {}",
+        resolved_jsonrpc_server_addr
+    );
 
     let jsonrpc_server_handle = Some(jsonrpc_server_handle);
 

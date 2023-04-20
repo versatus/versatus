@@ -41,7 +41,7 @@ impl StateModule {
 
 impl StateModule {
     fn name(&self) -> String {
-        String::from("State module")
+        String::from("State")
     }
 
     /// Produces a reader factory that can be used to generate read handles into
@@ -100,6 +100,10 @@ impl Handler<EventMessage> for StateModule {
 
     fn set_status(&mut self, actor_status: ActorState) {
         self.status = actor_status;
+    }
+
+    fn on_start(&self) {
+        info!("{}-{} starting", self.label(), self.id(),);
     }
 
     fn on_stop(&self) {

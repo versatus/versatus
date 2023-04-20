@@ -55,6 +55,10 @@ impl Handler<EventMessage> for MempoolModule {
         self.status.clone()
     }
 
+    fn on_start(&self) {
+        info!("{}-{} starting", self.label(), self.id(),);
+    }
+
     fn set_status(&mut self, actor_status: ActorState) {
         self.status = actor_status;
     }

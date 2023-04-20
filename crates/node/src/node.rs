@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventMessage, EventPublisher, EventRouter};
+use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
 use jsonrpsee::server::ServerHandle;
 use telemetry::info;
 use tokio::{
@@ -65,11 +65,14 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
+        info!("Configuring Node {}", &config.id);
+
         let vm = None;
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
         let mut router = EventRouter::new();
+        router.add_topic(Topic::from("json-rpc-api-control"), Some(1));
 
         let runtime_components =
             setup_runtime_components(&config, &router, events_tx.clone()).await?;
@@ -78,6 +81,8 @@ impl Node {
 
         // TODO: report error from handle
         let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
+
+        info!("Node {} is ready", config.id);
 
         Ok(Self {
             config,
@@ -108,7 +113,11 @@ impl Node {
         // TODO: notify bootstrap nodes that this node is joining the network so they
         // can add it to their peer list
 
+        info!("Launching Node {}", self.id());
+
         self.running_status = RuntimeModuleState::Running;
+
+        info!("Node {} is up and running", self.id());
 
         // NOTE: wait for stop signal
         self.control_rx
@@ -116,38 +125,41 @@ impl Node {
             .await
             .ok_or_else(|| NodeError::Other(String::from("failed to receive control signal")))?;
 
-        info!("node received stop signal");
+        info!("Node received stop signal");
 
         self.events_tx.send(Event::Stop.into()).await?;
 
+        let message = EventMessage::new(Some("json-rpc-api-control".into()), Event::Stop);
+        self.events_tx.send(message).await?;
+
         if let Some(handle) = self.state_handle {
             handle.await??;
-            info!("shutdown complete for state management module ");
+            info!("Shutdown complete for State module ");
         }
 
         if let Some(handle) = self.mempool_handle {
             handle.await??;
-            info!("shutdown complete for mempool module ");
+            info!("Shutdown complete for Mempool module ");
         }
 
         if let Some(handle) = self.miner_handle {
             handle.await??;
-            info!("shutdown complete for mining module ");
+            info!("Shutdown complete for Mining module ");
         }
 
         if let Some(handle) = self.gossip_handle {
             handle.await??;
-            info!("shutdown complete for gossip module");
+            info!("Shutdown complete for Broadcast module");
         }
 
         if let Some(handle) = self.dag_handle {
             handle.await??;
-            info!("shutdown complete for dag module");
+            info!("Shutdown complete for Dag module");
         }
 
         if let Some(handle) = self.quorum_election_handle {
             handle.await??;
-            info!("shutdown complete for quorum election module");
+            info!("Shutdown complete for Quorum election module");
         }
 
         // TODO: refactor this into a tokio task
