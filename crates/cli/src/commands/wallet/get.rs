@@ -1,9 +1,6 @@
-use std::net::SocketAddr;
-
-use primitives::{Address, PublicKey, SecretKey};
-use secp256k1::hashes::serde_impl;
+use primitives::Address;
 use vrrb_core::account::Account;
-use wallet::v2::{Wallet, WalletConfig};
+use wallet::v2::Wallet;
 
 use crate::result::{CliError, Result};
 

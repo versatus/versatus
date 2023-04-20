@@ -11,5 +11,8 @@ pub(crate) async fn exec(
 
     println!("{}", ser_result);
 
+    let displayable_limit = limit.unwrap_or(0);
+    println!("{}", displayable_limit);
+
     Ok(())
 }

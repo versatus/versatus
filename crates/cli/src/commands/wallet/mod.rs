@@ -4,11 +4,10 @@ mod info;
 mod new;
 mod transfer;
 
-use std::{collections::HashMap, hash::Hash, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 use primitives::Address;
-use secp256k1::{generate_keypair, rand};
 use serde_json;
 use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file, txn::Token};
 use wallet::v2::{AddressAlias, Wallet, WalletConfig};
@@ -141,12 +140,10 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             Ok(())
         },
         WalletCmd::GetMempool { limit } => {
-            let mempool = get_mempool::exec(&mut wallet, limit).await?;
+            get_mempool::exec(&mut wallet, limit).await?;
 
             Ok(())
         },
-
-        _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
     }
 }
 
@@ -179,7 +176,7 @@ fn restore_accounts_and_addresses(
         let account: Account = serde_json::from_str(&account_string)
             .map_err(|err| CliError::Other(err.to_string()))?;
 
-        let (secret, public) = read_or_generate_keypair_file(&path.join("keys"))
+        let (_, public) = read_or_generate_keypair_file(&path.join("keys"))
             .map_err(|err| CliError::Other(err.to_string()))?;
 
         let address = Address::new(public.clone());
@@ -189,8 +186,4 @@ fn restore_accounts_and_addresses(
     }
 
     Ok((accounts, addresses))
-}
-
-fn load_account_secret_key() {
-    //
 }

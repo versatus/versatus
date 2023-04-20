@@ -1,10 +1,6 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
-use primitives::{PublicKey, SecretKey};
-use secp256k1::{generate_keypair, rand};
-use vrrb_core::txn::{Token, TransactionDigest};
+use vrrb_core::txn::Token;
 use vrrb_rpc::rpc::api::RpcTransactionDigest;
-use wallet::v2::{Wallet, WalletConfig};
+use wallet::v2::Wallet;
 
 use crate::result::CliError;
 
