@@ -9,12 +9,24 @@ pub enum Environment {
 }
 
 pub const VRRB_ENVIRONMENT_VAR_NAME: &str = "VRRB_ENVIRONMENT";
+pub const VRRB_PRETTY_PRINT_LOGS_VAR_NAME: &str = "VRRB_PRETTY_PRINT_LOGS";
 
 pub fn get_vrrb_environment() -> Environment {
     std::env::var(VRRB_ENVIRONMENT_VAR_NAME)
         .unwrap_or(Environment::default().to_string())
         .parse()
         .unwrap_or(Environment::default())
+}
+
+pub fn get_pretty_print_logs() -> bool {
+    std::env::var(VRRB_PRETTY_PRINT_LOGS_VAR_NAME)
+        .unwrap_or("false".to_string())
+        .parse()
+        .unwrap_or(false)
+}
+
+pub fn set_pretty_print_logs() {
+    std::env::set_var(VRRB_PRETTY_PRINT_LOGS_VAR_NAME, "true");
 }
 
 impl Display for Environment {

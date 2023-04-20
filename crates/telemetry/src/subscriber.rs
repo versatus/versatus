@@ -1,4 +1,4 @@
-use primitives::Environment;
+use primitives::{get_pretty_print_logs, Environment};
 use thiserror::Error;
 use tracing_subscriber::{
     fmt::MakeWriter,
@@ -31,17 +31,29 @@ impl TelemetrySubscriber {
         let environ = primitives::get_vrrb_environment();
         let is_local_env = matches!(environ, Environment::Local);
 
-        let sub = tracing_subscriber::fmt()
-            .with_writer(out)
-            .with_file(is_local_env)
-            .with_line_number(is_local_env)
-            .json()
-            .with_current_span(false)
-            .flatten_event(true)
-            .with_span_list(false)
-            .finish();
+        let pretty_print_logs = get_pretty_print_logs();
 
-        sub.try_init()?;
+        if pretty_print_logs {
+            let sub = tracing_subscriber::fmt()
+                .with_writer(out)
+                .with_file(is_local_env)
+                .with_line_number(is_local_env)
+                .finish();
+
+            sub.try_init()?;
+        } else {
+            let sub = tracing_subscriber::fmt()
+                .with_writer(out)
+                .with_file(is_local_env)
+                .with_line_number(is_local_env)
+                .json()
+                .with_current_span(false)
+                .flatten_event(true)
+                .with_span_list(false)
+                .finish();
+
+            sub.try_init()?;
+        }
 
         Ok(())
     }

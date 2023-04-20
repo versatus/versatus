@@ -39,6 +39,7 @@ pub type EventRouter = Router<Event>;
 pub type EventMessage = messr::Message<Event>;
 pub type EventPublisher = Sender<EventMessage>;
 pub type EventSubscriber = Receiver<EventMessage>;
+pub type Topic = messr::Topic;
 
 #[cfg(test)]
 mod tests {
