@@ -69,7 +69,6 @@ impl Node {
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
-
         let mut router = EventRouter::new();
 
         let runtime_components =

@@ -7,7 +7,12 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use sha2::{Digest, Sha256};
 
-use crate::{keypair::Keypair, ownable::Ownable, verifiable::Verifiable};
+use crate::{
+    keypair::Keypair,
+    ownable::Ownable,
+    staking::{Stake, StakeError, StakeUpdate},
+    verifiable::Verifiable,
+};
 
 /// A custom error type for invalid claims that are used/attempted to be used
 /// in the mining of a block.
@@ -19,23 +24,19 @@ pub struct InvalidClaimError {
 /// The claim object that stores the key information used to mine blocks,
 /// calculate whether or not you are an entitled miner, and to share with
 /// network
-// TODO: Add staking to the claim.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Claim {
     pub public_key: PublicKey,
     pub address: Address,
     pub hash: U256,
     pub eligible: bool,
+    stake: u128,
+    stake_txns: Vec<Stake>,
 }
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
-    // TODO: Default nonce to 0
     pub fn new(public_key: PublicKey, address: Address) -> Claim {
-        // Calculate the number of times the pubkey should be hashed to generate the
-        // claim hash
-        // sequentially hash the public key the correct number of times
-        // for the given nonce.
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         let result = hasher.finalize();
@@ -45,6 +46,8 @@ impl Claim {
             address,
             hash,
             eligible: true,
+            stake: 0,
+            stake_txns: vec![],
         }
     }
 
@@ -60,56 +63,98 @@ impl Claim {
         U256(xor_val)
     }
 
-    /// Calculates the claims pointer sum
-    // TODO: Rename to `get_pointer_sum` to better represent the purpose of the
-    // function. This can be made significantly faster (if necessary to scale
-    // network) by concurrently calculating the index position of each matched
-    // character, and summing the total at the end after every match position
-    // has been discovered, or returning None if we can't match a character.
+    /// Takes a StakeUpdate enum and adds/withdrawals or slashes
+    /// the given claim's stake. This method is used within the
+    /// state module to update a claim that has a transaction
+    /// pointing to it, and has been included in a certified
+    /// convergence block.
+    pub fn update_stake(&mut self, stake_txn: Stake) -> Result<(), StakeError> {
+        if !self.depositing_claim(&stake_txn) {
+            return Err(StakeError::Other(
+                "This claim is not the intended receiver of the stake transaction".to_string(),
+            ));
+        }
+
+        if let Some(_) = stake_txn.get_certificate() {
+            let prev_stake = self.stake;
+            self.stake_txns.push(stake_txn.clone());
+            self.stake = self.check_stake_utxo();
+
+            if self.stake == prev_stake {
+                self.stake_txns.pop();
+            }
+
+            return Ok(());
+        }
+
+        return Err(StakeError::UncertifiedStake);
+    }
+
+    fn depositing_claim(&self, stake_txn: &Stake) -> bool {
+        stake_txn.get_sender() == self.address
+    }
+
+    /// Checks the cumulative value of a nodes stake by calculating
+    /// the UTXO of the stake transactions.
+    fn check_stake_utxo(&self) -> u128 {
+        self.stake_txns
+            .iter()
+            .fold(0u128, |mut acc, val| match val.get_amount() {
+                StakeUpdate::Add(value) => {
+                    if let Some(v) = acc.checked_add(value) {
+                        acc = v;
+                    }
+                    acc
+                },
+                StakeUpdate::Withdrawal(value) => {
+                    if let Some(v) = acc.checked_sub(value) {
+                        acc = v;
+                    }
+                    acc
+                },
+                StakeUpdate::Slash(pct) => self.slash_calculator(pct, acc),
+            })
+    }
+
+    /// Returns the slashed value of a nodes stake after a slashing
+    /// event.
+    fn slash_calculator(&self, pct: u8, value: u128) -> u128 {
+        let slash = (value as f64) * (pct as f64 / 100f64);
+        return value - slash as u128;
+    }
+
+    pub fn get_stake(&self) -> u128 {
+        self.stake
+    }
+
+    pub fn get_stake_txns(&self) -> Vec<Stake> {
+        self.stake_txns.clone()
+    }
+
     #[deprecated(note = "Please use get_election_result")]
     pub fn get_pointer(&self, block_seed: u128) -> Option<u128> {
-        // get the hexadecimal format of the block seed
         let block_seed_hex = format!("{block_seed:x}");
-        // Get the length of the hexadecimal representation of the block seed
-        // for later use
         let block_seed_string_len = block_seed_hex.chars().count();
-        // declare an empty mutable vector to stash pointers into.
         let mut pointers = vec![];
-        // iterate through (and enumerate for index position) the characters
-        // of the block seed.
         let mut hash_bytes = [0u8; 32];
         self.hash.to_big_endian(&mut hash_bytes);
         let hash_string = hex::encode(hash_bytes);
 
         block_seed_hex.chars().enumerate().for_each(|(idx, c)| {
-            // Check if the character is in the claim hash, and save the index position into
-            // a variable `n`.
             let res = hash_string.find(c);
             if let Some(n) = res {
-                // convert `n` to a u128 and calculate an integer overflow safe
-                // exponential of the `n` to the power of idx
                 let n = n as u128;
                 let n = n.checked_pow(idx as u32);
-                // If there is no integer overflow (which there never should be)
-                // add it to the buffer.
                 if let Some(n) = n {
                     pointers.push(n);
                 }
             }
         });
 
-        // If the length of the pointer buffer is the same length
-        // as the block seed hex string then calculate the sum as a u128
-        // TODO: use integer overflow safe sum, though there should never be
-        // an integer overflow with the pointer sum being a u128, it is better
-        // to be safe than sorry.
         if pointers.len() == block_seed_string_len {
             let pointer: u128 = pointers.iter().sum();
             Some(pointer)
         } else {
-            // If the length of the pointer buffer is not the same length
-            // as the block seed hex string, return None, not every character was
-            // matched.
             None
         }
     }
@@ -141,7 +186,6 @@ impl Claim {
 }
 
 /// Implements Verifiable trait on Claim
-// TODO: Need to actually implement the valid method
 impl Verifiable for Claim {
     type Dependencies = (Option<Vec<u8>>, Option<Vec<u8>>);
     type Error = InvalidClaimError;
@@ -174,5 +218,323 @@ impl Ownable for Claim {
 impl From<Keypair> for Claim {
     fn from(item: Keypair) -> Claim {
         Claim::new(item.miner_kp.1.clone(), Address::new(item.miner_kp.1))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::keypair::KeyPair;
+
+    #[test]
+    fn should_create_new_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1;
+        let address = Address::new(public_key.clone());
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+
+        let test_claim = Claim {
+            public_key: public_key.clone(),
+            address: address.clone(),
+            hash,
+            eligible: true,
+            stake: 0,
+            stake_txns: vec![],
+        };
+
+        let claim = Claim::new(public_key, address);
+
+        assert_eq!(test_claim, claim);
+    }
+
+    #[test]
+    fn stake_should_be_zero_by_default() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1;
+        let address = Address::new(public_key.clone());
+
+        let claim = Claim::new(public_key, address);
+
+        assert_eq!(0, claim.get_stake());
+    }
+
+    #[test]
+    fn stake_txns_should_be_empty_by_default() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1;
+        let address = Address::new(public_key.clone());
+
+        let claim = Claim::new(public_key, address);
+
+        assert_eq!(0, claim.get_stake_txns().len());
+    }
+
+    #[test]
+    fn should_return_election_result() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1;
+        let address = Address::new(public_key.clone());
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+
+        let mut xor_val = [0u64; 4];
+        let seed: u64 = u64::default();
+        hash.clone().0.iter().enumerate().for_each(|(idx, x)| {
+            xor_val[idx] = x ^ seed;
+        });
+
+        let test_election_result = U256(xor_val);
+
+        let claim = Claim::new(public_key, address);
+
+        let election_result = claim.get_election_result(seed);
+
+        assert_eq!(test_election_result, election_result)
+    }
+
+    #[test]
+    fn should_reject_uncertified_stake_from_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Add(10_000u128);
+
+        let stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address,
+            None,
+        )
+        .unwrap();
+
+        assert!(claim.update_stake(stake).is_err());
+        assert_eq!(claim.get_stake(), 0u128);
+    }
+
+    #[test]
+    fn should_add_stake_to_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Add(10_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address,
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 10_000u128);
+    }
+
+    #[test]
+    fn should_add_stake_txn_to_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Add(10_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address,
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake_txns().len(), 1);
+    }
+
+    #[test]
+    fn should_withdrawal_stake_from_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Add(10_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 10_000u128);
+
+        let amount = StakeUpdate::Withdrawal(5_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 5_000u128);
+        assert_eq!(claim.get_stake_txns().len(), 2);
+    }
+
+    #[test]
+    fn should_do_nothing_withdrawal_stake_from_claim_with_no_stake() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Withdrawal(5_000u128);
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 0u128);
+        assert_eq!(claim.get_stake_txns().len(), 0);
+    }
+
+    #[test]
+    fn should_slash_stake_from_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Add(10_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 10_000u128);
+
+        let amount = StakeUpdate::Slash(25u8);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 7_500u128);
+        assert_eq!(claim.get_stake_txns().len(), 2);
+    }
+
+    #[test]
+    fn should_do_nothing_slash_stake_from_claim_with_no_stake() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Slash(25u8);
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 0u128);
+        assert_eq!(claim.get_stake_txns().len(), 0);
+    }
+
+    #[test]
+    fn should_calculate_utxo_of_claim_stake() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key.clone());
+        let mut claim = Claim::new(public_key, address.clone());
+
+        let amount = StakeUpdate::Add(10_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 10_000u128);
+
+        let amount = StakeUpdate::Add(80_000u128);
+
+        let mut stake = Stake::new(
+            amount,
+            kp.miner_kp.0.clone(),
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            None,
+        )
+        .unwrap();
+
+        stake.certify(vec![0; 96]).unwrap();
+
+        assert!(claim.update_stake(stake).is_ok());
+        assert_eq!(claim.get_stake(), 90_000u128);
+        assert_eq!(claim.get_stake_txns().len(), 2);
     }
 }

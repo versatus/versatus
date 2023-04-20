@@ -1,5 +1,3 @@
-use std::{hash::Hash, path::PathBuf};
-
 use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
@@ -7,11 +5,10 @@ use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
 use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::broadcast::error::TryRecvError;
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{account::Account, serde_helpers::decode_from_binary_byte_slice, txn::Txn};
 
-use crate::{result::Result, NodeError, RuntimeModule};
+use crate::{result::Result, NodeError};
 
 pub struct StateModuleConfig {
     pub db: VrrbDb,
@@ -144,7 +141,6 @@ impl Handler<EventMessage> for StateModule {
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
-
             Event::NoOp => {},
             _ => {},
         }
@@ -200,7 +196,6 @@ mod tests {
         let temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
         let db_config = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);

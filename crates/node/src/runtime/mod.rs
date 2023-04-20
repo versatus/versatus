@@ -250,7 +250,6 @@ pub async fn setup_runtime_components(
             harvester_events_rx,
         )?
     };
-
     let mut scheduler = setup_scheduler_module(
         &config,
         sync_jobs_receiver,
@@ -262,7 +261,6 @@ pub async fn setup_runtime_components(
     let scheduler_handle = thread::spawn(move || {
         scheduler.execute_sync_jobs();
     });
-
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
