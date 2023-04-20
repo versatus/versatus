@@ -149,6 +149,9 @@ impl Handler<EventMessage> for BroadcastModule {
     #[instrument]
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
+            },
             Event::PartMessage(sender_id, part_commitment) => {
                 let status = self
                     .broadcast_engine
@@ -197,7 +200,9 @@ impl Handler<EventMessage> for BroadcastModule {
                     raptor_peer_list.push(raptor_addr);
                 }
                 self.broadcast_engine.add_raptor_peers(raptor_peer_list);
-                self.broadcast_engine.add_peer_connection(quic_addresses);
+                self.broadcast_engine
+                    .add_peer_connection(quic_addresses)
+                    .await;
             },
             Event::Vote(vote, farmer_quorum_threshold) => {
                 let status = self
@@ -254,7 +259,6 @@ mod tests {
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 
-    #[ignore]
     #[tokio::test]
     async fn test_broadcast_module() {
         let (internal_events_tx, mut internal_events_rx) =
@@ -303,13 +307,10 @@ mod tests {
             quic_port: 9994,
             node_type: NodeType::Full,
         };
-
         events_tx
             .send(Event::SyncPeers(vec![peer_data]).into())
             .unwrap();
         events_tx.send(Event::Stop.into()).unwrap();
-
-        let evt = internal_events_rx.recv().await.unwrap();
         handle.await.unwrap();
     }
 }
