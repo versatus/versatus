@@ -24,6 +24,10 @@ where
         self.cache.get(key)
     }
 
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.cache.get_mut(key)
+    }
+
     pub fn push(&mut self, key: K, value: V) {
         self.cache.insert(key, value);
     }
