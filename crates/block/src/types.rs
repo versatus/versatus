@@ -7,7 +7,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use hex::{decode, FromHexError};
+use hex::FromHexError;
 use primitives::RawSignature;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
