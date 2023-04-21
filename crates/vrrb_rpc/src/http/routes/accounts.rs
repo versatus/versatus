@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post, put, Route},
+    routing::{get, post, put},
     Extension,
     Json,
     Router,
