@@ -1,30 +1,8 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::net::SocketAddr;
 
-use block::{Block, Conflict};
-use ethereum_types::U256;
-use messr::router::Router;
-use primitives::{
-    Address,
-    ByteVec,
-    FarmerQuorumThreshold,
-    NodeIdx,
-    NodeType,
-    PeerId,
-    QuorumPublicKey,
-    QuorumType,
-    RawSignature,
-};
-use quorum::quorum::Quorum;
+use primitives::{ByteVec, FarmerQuorumThreshold, NodeIdx, NodeType, PeerId, RawSignature};
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info};
-use tokio::sync::{
-    broadcast::{self, Receiver, Sender},
-    mpsc::{UnboundedReceiver, UnboundedSender},
-};
-use vrrb_core::{
-    claim::Claim,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
