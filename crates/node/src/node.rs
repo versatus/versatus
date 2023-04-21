@@ -1,10 +1,9 @@
 use std::net::SocketAddr;
 
 use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
-use jsonrpsee::server::ServerHandle;
 use telemetry::info;
 use tokio::{
-    sync::mpsc::{channel, Sender, UnboundedReceiver},
+    sync::mpsc::{channel, UnboundedReceiver},
     task::JoinHandle,
 };
 use trecho::vm::Cpu;
@@ -12,7 +11,6 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    farmer_module::QuorumMember,
     result::{NodeError, Result},
     runtime::{setup_runtime_components, RuntimeHandle},
     NodeType,

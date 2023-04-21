@@ -6,7 +6,6 @@ use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::scheduler::Job;

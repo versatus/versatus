@@ -1,18 +1,11 @@
-use std::{hash::Hash, path::PathBuf, sync::Arc};
-
 use async_trait::async_trait;
 use events::{Event, EventMessage};
-use lr_trie::ReadHandleFactory;
-use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
+use mempool::MempoolReadHandleFactory;
 use telemetry::{info, warn};
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::{runtime::Runtime, sync::broadcast::error::TryRecvError};
-use vrrb_core::txn::{TransactionDigest, Txn};
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
 
-use crate::{result::Result, NodeError, RuntimeModule, MEMPOOL_THRESHOLD_SIZE};
+use crate::RuntimeModule;
 
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,

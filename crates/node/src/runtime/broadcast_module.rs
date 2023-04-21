@@ -1,8 +1,6 @@
-use std::{collections::HashSet, net::SocketAddr, result::Result as StdResult, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 
 use async_trait::async_trait;
-use block::Block;
-use bytes::Bytes;
 use events::{Event, EventMessage, EventPublisher};
 use network::{
     message::{Message, MessageBody},
@@ -12,20 +10,9 @@ use primitives::{NodeType, PeerId};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::{error, info, instrument};
 use theater::{ActorLabel, ActorState, Handler};
-use tokio::{
-    sync::{
-        broadcast::{
-            error::{RecvError, TryRecvError},
-            Receiver,
-        },
-        mpsc::{channel, Receiver as MpscReceiver, Sender},
-    },
-    task::JoinHandle,
-    time::timeout,
-};
 use uuid::Uuid;
 
-use crate::{NodeError, Result, RuntimeModuleState};
+use crate::{NodeError, Result};
 
 pub struct BroadcastModuleConfig {
     pub events_tx: EventPublisher,
@@ -109,8 +96,8 @@ impl BroadcastModule {
                                 MessageBody::RemovePeer { .. } => {},
                                 MessageBody::AddPeer { .. } => {},
                                 MessageBody::DKGPartCommitment {
-                                    part_commitment,
-                                    sender_id,
+                                    part_commitment: _,
+                                    sender_id: _,
                                 } => {},
                                 MessageBody::DKGPartAcknowledgement { .. } => {},
                                 MessageBody::Vote { .. } => {},

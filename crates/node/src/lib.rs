@@ -8,7 +8,7 @@ mod runtime_module;
 pub mod services;
 pub mod test_utils;
 
-use events::Event;
+
 pub use node_type::*;
 pub use result::*;
 pub use runtime::*;

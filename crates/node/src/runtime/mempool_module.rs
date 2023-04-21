@@ -1,17 +1,11 @@
-use std::{hash::Hash, path::PathBuf};
-
 use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
-use lr_trie::ReadHandleFactory;
 use mempool::LeftRightMempool;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
-use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::broadcast::error::TryRecvError;
-use vrrb_core::txn::{TransactionDigest, Txn};
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use vrrb_core::txn::TransactionDigest;
 
-use crate::{result::Result, NodeError, RuntimeModule, MEMPOOL_THRESHOLD_SIZE};
+use crate::{RuntimeModule, MEMPOOL_THRESHOLD_SIZE};
 
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,
@@ -82,7 +76,7 @@ impl Handler<EventMessage> for MempoolModule {
 
                 let txn_hash = txn.id();
 
-                let mempool_size = self
+                let _mempool_size = self
                     .mempool
                     .insert(txn)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;

@@ -1,6 +1,6 @@
 use std::{
     net::SocketAddr,
-    sync::{mpsc, Arc, RwLock},
+    sync::{Arc, RwLock},
     thread,
 };
 
@@ -8,7 +8,6 @@ use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::{unbounded, Sender};
 use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
-use jsonrpsee::server::ServerHandle;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
@@ -16,13 +15,7 @@ use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
-use tokio::{
-    sync::{
-        broadcast::Receiver,
-        mpsc::{UnboundedReceiver, UnboundedSender},
-    },
-    task::JoinHandle,
-};
+use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
 use vrrb_core::{bloom::Bloom, claim::Claim};
@@ -45,11 +38,7 @@ use self::{
     state_module::StateModule,
 };
 use crate::{
-    broadcast_controller::{
-        BroadcastEngineController,
-        BroadcastEngineControllerConfig,
-        BROADCAST_CONTROLLER_BUFFER_SIZE,
-    },
+    broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::{Job, JobSchedulerController},
@@ -288,7 +277,7 @@ pub async fn setup_runtime_components(
 }
 
 fn setup_event_routing_system() -> EventRouter {
-    let mut event_router = EventRouter::default();
+    let event_router = EventRouter::default();
 
     event_router
 }
@@ -296,7 +285,7 @@ async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut network_events_rx: EventSubscriber,
-    mut controller_events_rx: EventSubscriber,
+    controller_events_rx: EventSubscriber,
     vrrbdb_read_handle: VrrbDbReadHandle,
     raptor_sender: Sender<RaptorBroadCastedData>,
 ) -> Result<(
@@ -359,7 +348,7 @@ async fn setup_state_store(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut state_events_rx: EventSubscriber,
-    mempool_read_handle_factory: MempoolReadHandleFactory,
+    _mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
     let mut vrrbdb_config = VrrbDbConfig::default();
 
@@ -439,7 +428,7 @@ fn setup_mining_module(
     let (_, miner_secret_key) = config.keypair.get_secret_keys();
     let (_, miner_public_key) = config.keypair.get_public_keys();
 
-    let address = Address::new(*miner_public_key).to_string();
+    let _address = Address::new(*miner_public_key).to_string();
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
@@ -535,7 +524,7 @@ fn setup_miner_election_module(
 }
 
 fn setup_quorum_election_module(
-    config: &NodeConfig,
+    _config: &NodeConfig,
     events_tx: EventPublisher,
     mut quorum_election_events_rx: EventSubscriber,
     db_read_handle: VrrbDbReadHandle,
@@ -638,7 +627,7 @@ fn setup_dag_module(
 }
 
 fn setup_indexer_module(
-    config: &NodeConfig,
+    _config: &NodeConfig,
     mut indexer_events_rx: EventSubscriber,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
@@ -646,7 +635,7 @@ fn setup_indexer_module(
         mempool_read_handle_factory,
     };
 
-    let mut module = indexer_module::IndexerModule::new(config);
+    let module = indexer_module::IndexerModule::new(config);
 
     let mut indexer_module_actor = ActorImpl::new(module);
 

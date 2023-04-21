@@ -1,16 +1,13 @@
 use std::collections::BTreeMap;
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use dashmap::DashMap;
-use events::{Event, EventPublisher, JobResult, QuorumCertifiedTxn, Vote, VoteReceipt};
-use indexmap::IndexMap;
+use crossbeam_channel::Receiver;
+use events::{Event, EventPublisher, JobResult, Vote};
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
 use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
-use tokio::sync::mpsc::UnboundedSender;
 use tracing::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_core::txn::{TransactionDigest, Txn};
@@ -121,7 +118,7 @@ impl JobSchedulerController {
                         // MagLev Hashing over( Quorum Keys) to identify whether current farmer
                         // quorum is supposed to vote on txn Txn is intended
                         // to be validated by current validator
-                        let backpressure = self.job_scheduler.calculate_back_pressure();
+                        let _backpressure = self.job_scheduler.calculate_back_pressure();
                         //Delegation Principle need to be done
                         let votes_result = self
                             .job_scheduler

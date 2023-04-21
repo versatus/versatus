@@ -1,14 +1,10 @@
-use std::{hash::Hash, net::SocketAddr, path::PathBuf};
+use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use lr_trie::ReadHandleFactory;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, Message, TheaterError};
-use tokio::sync::broadcast::error::TryRecvError;
-use tracing::error;
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 
 use crate::{result::Result, NodeError};
 
