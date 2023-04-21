@@ -1,37 +1,10 @@
-use std::{collections::HashMap, net::SocketAddr};
-
-use block::{Block, Conflict};
-use ethereum_types::U256;
-use hbbft::crypto::PublicKeySet;
 use messr::Router;
-use primitives::{
-    Address,
-    ByteVec,
-    FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
-    NodeIdx,
-    NodeType,
-    PeerId,
-    QuorumPublicKey,
-    QuorumSize,
-    QuorumType,
-    RawSignature,
-};
-use quorum::quorum::Quorum;
-use serde::{Deserialize, Serialize};
-use telemetry::{error, info};
-use tokio::sync::{
-    broadcast::{self, Receiver},
-    mpsc::{Sender, UnboundedReceiver, UnboundedSender},
-};
-use vrrb_core::{
-    claim::Claim,
-    txn::{TransactionDigest, Txn},
-};
+use tokio::sync::{broadcast::Receiver, mpsc::Sender};
+
+pub use crate::{event::*, event_data::*};
 
 mod event;
 mod event_data;
-pub use crate::{event::*, event_data::*};
 
 pub const DEFAULT_BUFFER: usize = 1000;
 

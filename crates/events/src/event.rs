@@ -1,24 +1,16 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::net::SocketAddr;
 
 use block::{Block, Conflict};
 use ethereum_types::U256;
-use messr::router::Router;
 use primitives::{
     Address,
-    ByteVec,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
-    NodeIdx,
-    NodeType,
-    PeerId,
     QuorumPublicKey,
     QuorumSize,
-    QuorumType,
-    RawSignature,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
-use telemetry::{error, info};
 use vrrb_core::{
     claim::Claim,
     txn::{TransactionDigest, Txn},
