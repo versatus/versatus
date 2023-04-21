@@ -20,6 +20,8 @@ pub const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";
 pub const DEFAULT_VRRB_DB_PATH: &str = ".vrrb/node/db";
 pub const DEFAULT_VRRB_WALLET_DATA_DIR_PATH: &str = ".vrrb/wallet";
 pub const DEFAULT_CONNECTION_TIMEOUT_IN_SECS: u64 = 2;
+pub const RAPTOR_DECODER_CACHE_LIMIT: usize = 10000;
+pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;
 
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];

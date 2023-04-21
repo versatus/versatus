@@ -35,7 +35,6 @@ members = [
     "crates/consensus/job_pool",
     "crates/consensus/job_scheduler",
     "crates/consensus/vrrb_vrf",
-    "crates/executor",
     "crates/vrrb_core",
     "crates/cli",
     "crates/vrrb_config",

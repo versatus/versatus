@@ -20,7 +20,7 @@ use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
 use serde::{Deserialize, Serialize};
 use telemetry::error;
 use tokio::net::UdpSocket;
-use vrrb_core::txn::Txn;
+use vrrb_core::{cache::Cache, txn::Txn};
 
 /// Maximum over-the-wire size of a Transaction
 ///   1280 is IPv6 minimum MTU
@@ -256,28 +256,35 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
     }
 }
 
-/// It receives packets from the `receiver` channel, checks if the packet is a
-/// duplicate, and if not, it checks if the packet is a forwarder packet. If it
-/// is, it forwards the packet to the `forwarder` channel. If it is not, it
-/// checks if the packet is a new batch. If it is, it creates a new decoder
-/// for the batch. If it is not, it adds the packet to the decoder. If the
-/// decoder is complete, it sends the decoded file to the `file_send` channel
+
+/// This function receives packets, decodes them using a RaptorQ decoder, and
+/// forwards the decoded data to a batch send channel.
 ///
 /// Arguments:
 ///
-/// * `receiver`: Receiver<([u8; 1280], usize)>
-/// * `batch_id_hashset`: A hashset that contains the batch_ids of all the
-///   batches that have been
-/// reassembled.
-/// * `decoder_hash`: A hashmap that stores the batch_id as the key and a tuple
-///   of the number of packets
-/// received and the decoder as the value.
-/// * `forwarder`: Sender<Vec<u8>>
-/// * `file_send`: Sender<(String, Vec<u8>)>
+/// * `receiver`: A `Receiver` that receives tuples of a byte array of size 1280
+///   and a usize value.
+/// * `batch_id_hashset`: A mutable reference to a HashSet that stores the batch
+///   IDs of packets that
+/// have already been received and processed.
+/// * `decoder_hash_cache`: `decoder_hash_cache` is a mutable reference to a
+///   `Cache` data structure that
+/// maps a batch ID (represented as a `[u8; BATCH_ID_SIZE]` array) to a tuple
+/// containing the number of packets received so far for that batch and a
+/// `Decoder` object.
+/// * `forwarder`: `forwarder` is a `Sender` channel used to forward packets to
+///   another node in the
+/// network. It is used when a packet has a forward flag set to 1, indicating
+/// that it needs to be forwarded to another node. The `forwarder` channel
+/// allows the reassembled packets to
+/// * `batch_send`: `batch_send` is a `Sender` channel used to send decoded data
+///   to another part of the
+/// program. Specifically, it is used to send `RaptorBroadCastedData` structs
+/// that have been deserialized from received packets.
 pub fn reassemble_packets(
     receiver: Receiver<([u8; 1280], usize)>,
     batch_id_hashset: &mut HashSet<[u8; BATCH_ID_SIZE]>,
-    decoder_hash: &mut HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)>,
+    decoder_hash_cache: &mut Cache<[u8; BATCH_ID_SIZE], (usize, Decoder)>,
     forwarder: Sender<Vec<u8>>,
     batch_send: Sender<RaptorBroadCastedData>,
 ) {
@@ -307,7 +314,7 @@ pub fn reassemble_packets(
             }
         }
 
-        match decoder_hash.get_mut(&batch_id) {
+        match decoder_hash_cache.get_mut(&batch_id) {
             Some((num_packets, decoder)) => {
                 *num_packets += 1;
                 // Decoding the packet.
@@ -334,13 +341,13 @@ pub fn reassemble_packets(
                                 },
                             }
                         }
-                        decoder_hash.remove(&batch_id);
+                        decoder_hash_cache.remove(&batch_id);
                     }
                 }
             },
             None => {
                 // This is creating a new decoder for a new batch.
-                decoder_hash.insert(
+                decoder_hash_cache.push(
                     batch_id,
                     (
                         1_usize,

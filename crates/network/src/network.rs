@@ -10,7 +10,12 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
-use primitives::{DEFAULT_CONNECTION_TIMEOUT_IN_SECS, NUMBER_OF_NETWORK_PACKETS};
+use primitives::{
+    DEFAULT_CONNECTION_TIMEOUT_IN_SECS,
+    NUMBER_OF_NETWORK_PACKETS,
+    RAPTOR_DECODER_CACHE_LIMIT,
+    RAPTOR_DECODER_CACHE_TTL_IN_SECS,
+};
 use qp2p::ConnectionError;
 pub use qp2p::{
     Config,
@@ -24,6 +29,7 @@ use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
 use tokio::{net::UdpSocket, time::error::Elapsed};
+use vrrb_core::cache::Cache;
 
 use crate::{
     config::BroadcastError,
@@ -339,7 +345,9 @@ impl BroadcastEngine {
         let (reassembler_channel_send, reassembler_channel_receive) = unbounded();
         let (forwarder_send, forwarder_receive) = unbounded();
         let mut batch_id_store: HashSet<[u8; BATCH_ID_SIZE]> = HashSet::new();
-        let mut decoder_hash: HashMap<[u8; BATCH_ID_SIZE], (usize, Decoder)> = HashMap::new();
+
+        let mut decoder_hash_cache: Cache<[u8; BATCH_ID_SIZE], (usize, Decoder)> =
+            Cache::new(RAPTOR_DECODER_CACHE_LIMIT, RAPTOR_DECODER_CACHE_TTL_IN_SECS);
 
         thread::spawn({
             let assemble_send = reassembler_channel_send.clone();
@@ -350,7 +358,7 @@ impl BroadcastEngine {
                 reassemble_packets(
                     reassembler_channel_receive,
                     &mut batch_id_store,
-                    &mut decoder_hash,
+                    &mut decoder_hash_cache,
                     fwd_send.clone(),
                     batch_send.clone(),
                 );
