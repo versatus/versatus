@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     convert::TryInto,
     error::Error,
     fs,
@@ -20,7 +20,7 @@ use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
 use serde::{Deserialize, Serialize};
 use telemetry::error;
 use tokio::net::UdpSocket;
-use vrrb_core::{cache::Cache, txn::Txn};
+use vrrb_core::cache::Cache;
 
 /// Maximum over-the-wire size of a Transaction
 ///   1280 is IPv6 minimum MTU

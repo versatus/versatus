@@ -12,11 +12,9 @@ use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
 use primitives::{
     DEFAULT_CONNECTION_TIMEOUT_IN_SECS,
-    NUMBER_OF_NETWORK_PACKETS,
     RAPTOR_DECODER_CACHE_LIMIT,
     RAPTOR_DECODER_CACHE_TTL_IN_SECS,
 };
-use qp2p::ConnectionError;
 pub use qp2p::{
     Config,
     Connection,
@@ -28,7 +26,7 @@ pub use qp2p::{
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info};
-use tokio::{net::UdpSocket, time::error::Elapsed};
+use tokio::net::UdpSocket;
 use vrrb_core::cache::Cache;
 
 use crate::{
@@ -428,21 +426,13 @@ impl BroadcastEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        net::{Ipv6Addr, SocketAddr},
-        thread,
-        time::Duration,
-    };
+    use std::net::{Ipv6Addr, SocketAddr};
 
-    use block::{header::BlockHeader, Block, ConvergenceBlock};
     use bytes::Bytes;
-    use crossbeam_channel::unbounded;
-    use vrrb_core::{claim::Claim, txn::Txn};
 
     use crate::{
         message::{Message, MessageBody},
         network::{BroadcastEngine, Timeout},
-        packet::RaptorBroadCastedData,
     };
 
     #[tokio::test]

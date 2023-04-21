@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use events::{Event, PeerData, Vote};
-use primitives::{FarmerQuorumThreshold, NodeType, QuorumType};
+use primitives::{FarmerQuorumThreshold, NodeType};
 use serde::{Deserialize, Serialize};
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
