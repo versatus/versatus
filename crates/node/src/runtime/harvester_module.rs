@@ -1,15 +1,14 @@
-use std::thread;
-
 use async_trait::async_trait;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
+use decentrust::honest_peer::Update;
 use events::{
     Event,
     EventMessage,
     EventPublisher,
-    EventSubscriber,
     JobResult,
     QuorumCertifiedTxn,
+    ReputationUpdateEvent,
     Vote,
     VoteReceipt,
 };
@@ -17,14 +16,10 @@ use primitives::{GroupPublicKey, HarvesterQuorumThreshold, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::error;
-use vrrb_core::{
-    bloom::Bloom,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::{bloom::Bloom, txn::TransactionDigest};
 
-use crate::{farmer_module::PULL_TXN_BATCH_SIZE, result::Result, scheduler::Job, NodeError};
+use crate::{farmer_module::PULL_TXN_BATCH_SIZE, scheduler::Job};
 
 /// `CERTIFIED_TXNS_FILTER_SIZE` is a constant that defines the size of the
 /// bloom filter used by the `HarvesterModule` to store the certified
@@ -159,14 +154,14 @@ impl Handler<EventMessage> for HarvesterModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            /// The above code is handling an event of type `Vote` in a Rust
-            /// program. It checks the integrity of the vote by
-            /// verifying that it comes from the actual voter and prevents
-            /// double voting. It then adds the vote to a pool of votes for the
-            /// corresponding transaction and farmer quorum key. If
-            /// the number of votes in the pool reaches the farmer
-            /// quorum threshold, it sends a job to certify the transaction
-            /// using the provided signature provider.
+            // The above code is handling an event of type `Vote` in a Rust
+            // program. It checks the integrity of the vote by
+            // verifying that it comes from the actual voter and prevents
+            // double voting. It then adds the vote to a pool of votes for the
+            // corresponding transaction and farmer quorum key. If
+            // the number of votes in the pool reaches the farmer
+            // quorum threshold, it sends a job to certify the transaction
+            // using the provided signature provider.
             Event::Vote(vote, farmer_quorum_threshold) => {
                 //TODO Harvest should check for integrity of the vote by Voter( Does it vote
                 // truly comes from Voter Prevent Double Voting
@@ -200,7 +195,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     }
                 }
             },
-            /// This certifies txns once vote threshold is reached.
+            // This certifies txns once vote threshold is reached.
             Event::CertifiedTxn(job_result) => {
                 if let JobResult::CertifiedTxn(
                     votes,
@@ -221,17 +216,32 @@ impl Handler<EventMessage> for HarvesterModule {
                         .collect::<Vec<VoteReceipt>>();
                     self.quorum_certified_txns.push(QuorumCertifiedTxn::new(
                         farmer_id,
-                        vote_receipts,
+                        vote_receipts.clone(),
                         txn,
                         certificate,
                     ));
                     let _ = self
                         .certified_txns_filter
                         .push(&(txn_id, farmer_quorum_key));
+
+                    let _ = vote_receipts.clone().iter().map(|v| {
+                        if let Ok(node_id) = serde_json::from_slice(&v.farmer_id) {
+                            let rep_update = ReputationUpdateEvent {
+                                sender: None,
+                                peer: node_id,
+                                delta: 0.0001f64,
+                                update: Update::Increment,
+                            };
+                            if let Ok(rep_string) = serde_json::to_string(&rep_update) {
+                                let _ = self
+                                    .broadcast_events_tx
+                                    .send(Event::RepUpdate(rep_string.as_bytes().to_vec()).into());
+                            }
+                        }
+                    });
                 }
             },
-
-            /// Mines proposal block after every X seconds.
+            // Mines proposal block after every X seconds.
             Event::MineProposalBlock => {
                 let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
                 txns.clone().for_each(|txn| {
@@ -241,7 +251,6 @@ impl Handler<EventMessage> for HarvesterModule {
                     let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
                 });
                 let txns = txns.collect::<Vec<&QuorumCertifiedTxn>>();
-                //TODO: Build Proposal Blocks here
             },
             Event::NoOp => {},
             _ => {

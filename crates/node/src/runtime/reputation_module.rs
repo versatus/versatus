@@ -12,7 +12,7 @@ use decentrust::{
     honest_peer::{HonestPeer, Update},
     probabilistic::LightHonestPeer,
 };
-use events::{Event, EventMessage, EventPublisher};
+use events::{Event, EventMessage, EventPublisher, ReputationUpdateEvent};
 use num_traits::Bounded;
 use ordered_float::OrderedFloat;
 use primitives::NodeId;
@@ -20,14 +20,6 @@ use serde::{Deserialize, Serialize};
 use telemetry::info;
 use theater::{ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 
-/// A type used to encapsulate Reputation Updates
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReputationUpdateEvent {
-    pub sender: Option<NodeId>,
-    pub peer: NodeId,
-    pub delta: f64,
-    pub update: Update,
-}
 
 /// A configuration struct for the Reputation Module
 /// providing the data necessary to construct a new

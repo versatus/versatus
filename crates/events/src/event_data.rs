@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
-use primitives::{ByteVec, FarmerQuorumThreshold, NodeIdx, NodeType, PeerId, RawSignature};
+use decentrust::honest_peer::Update;
+use primitives::{ByteVec, FarmerQuorumThreshold, NodeId, NodeIdx, NodeType, PeerId, RawSignature};
 use serde::{Deserialize, Serialize};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
@@ -85,6 +86,15 @@ impl QuorumCertifiedTxn {
             signature,
         }
     }
+}
+
+/// A type used to encapsulate Reputation Updates
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReputationUpdateEvent {
+    pub sender: Option<NodeId>,
+    pub peer: NodeId,
+    pub delta: f64,
+    pub update: Update,
 }
 
 // `JobResult` is an enum that represents the possible results of a job that is

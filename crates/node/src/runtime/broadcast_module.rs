@@ -226,7 +226,7 @@ impl Handler<EventMessage> for BroadcastModule {
                     },
                 }
             },
-            /// Broadcasting the Convergence block to the peers.
+            // Broadcasting the Convergence block to the peers.
             Event::BlockConfirmed(block) => {
                 let status = self
                     .broadcast_engine
