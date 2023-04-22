@@ -6,7 +6,7 @@ use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
-    claim::{self, Claim},
+    claim::Claim,
     txn::Txn,
 };
 

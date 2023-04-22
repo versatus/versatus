@@ -1,17 +1,11 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use async_trait::async_trait;
-use events::{Event, EventPublisher, DEFAULT_BUFFER};
-use jsonrpsee::{
-    core::Error,
-    server::{ServerBuilder, ServerHandle, SubscriptionSink},
-    types::SubscriptionResult,
-};
-use mempool::{LeftRightMempool, Mempool, MempoolReadHandleFactory};
+use events::{EventPublisher, DEFAULT_BUFFER};
+use jsonrpsee::server::{ServerBuilder, ServerHandle};
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tokio::sync::mpsc::channel;
-use vrrb_core::{account::Account, txn::NewTxnArgs};
 
 use crate::rpc::{api::RpcApiServer, server_impl::RpcServerImpl};
 

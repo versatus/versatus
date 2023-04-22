@@ -1,5 +1,3 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
 use http::{HttpClient, HttpClientBuilder};
 use mempool::TxnRecord;
 use reqwest::StatusCode;
@@ -34,7 +32,7 @@ impl IndexerClient {
         Ok(Self { client })
     }
 
-    pub async fn post_tx(mut self, txn_record: &TxnRecord) -> Result<StatusCode> {
+    pub async fn post_tx(self, txn_record: &TxnRecord) -> Result<StatusCode> {
         let req_json = serde_json::to_string(txn_record).map_err(|e| Error::SerdeJson(e));
 
         let response = self

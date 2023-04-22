@@ -1,9 +1,4 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    thread,
-    thread::sleep,
-    time::Duration,
-};
+use std::{net::SocketAddr, thread, thread::sleep, time::Duration};
 
 use async_trait::async_trait;
 use crossbeam_channel::{select, unbounded, Sender};
@@ -458,7 +453,7 @@ impl Handler<EventMessage> for DkgModule {
                                 }
                             }
                         },
-                        Err(e) => {
+                        Err(_e) => {
                             error!("Error occured while generating synchronized keygen instance for node {:?}", self.dkg_engine.node_idx);
                         },
                     }

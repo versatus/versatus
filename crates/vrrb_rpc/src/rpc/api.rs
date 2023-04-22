@@ -1,8 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::collections::HashMap;
 
-use async_trait::async_trait;
-use jsonrpsee::{core::Error, proc_macros::rpc, types::SubscriptionResult};
-use primitives::{Address, NodeType, SerializedPublicKey};
+use jsonrpsee::{core::Error, proc_macros::rpc};
+use primitives::{Address, NodeType};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,

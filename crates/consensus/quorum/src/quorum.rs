@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use ethereum_types::U256;
-use primitives::PublicKey;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vrrb_core::{claim::Claim, keypair::KeyPair};
@@ -171,7 +170,7 @@ impl Quorum {
         Ok(self)
     }
 
-    pub fn get_trusted_peers(&mut self, claims: Vec<Claim>) -> Self {
+    pub fn get_trusted_peers(&mut self, _claims: Vec<Claim>) -> Self {
         //get the weighted value hashmap
         //calcualte all the t values
 

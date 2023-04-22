@@ -3,7 +3,6 @@ use std::{
     sync::mpsc::RecvError,
 };
 
-use left_right::{ReadHandle, ReadHandleFactory};
 use primitives::Address;
 use vrrb_core::{account::Account, txn::*};
 

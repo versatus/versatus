@@ -1,32 +1,23 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashMap},
-    error::Error,
+    collections::{BTreeMap, HashMap},
     fmt::Debug,
-    hash::{Hash, Hasher},
+    hash::Hasher,
 };
 
 use async_trait::async_trait;
-use block::{
-    header::BlockHeader,
-    invalid::BlockError,
-    Conflict,
-    ConflictList,
-    RefHash,
-    ResolvedConflicts,
-};
+use block::header::BlockHeader;
 use ethereum_types::U256;
-use events::{ConflictBytes, Event, EventMessage, EventPublisher};
+use events::{Event, EventMessage, EventPublisher};
 use primitives::NodeId;
 use quorum::{
     election::Election,
     quorum::{InvalidQuorum, Quorum},
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
-use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::claim::Claim;
 
 pub type Seed = u64;
@@ -224,7 +215,7 @@ fn elect_miner(claims: HashMap<NodeId, Claim>, block_seed: u64) -> BTreeMap<U256
     claims
         .iter()
         .filter(|(_, claim)| claim.eligible)
-        .map(|(nodeid, claim)| single_miner_results(claim, block_seed))
+        .map(|(_nodeid, claim)| single_miner_results(claim, block_seed))
         .collect()
 }
 

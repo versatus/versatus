@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    net::{SocketAddr, TcpListener, TcpStream},
+    net::{SocketAddr, TcpListener},
     time::Duration,
 };
 

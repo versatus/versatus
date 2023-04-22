@@ -9,14 +9,9 @@ use primitives::Address;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use telemetry::{debug, error};
+use telemetry::error;
 use thiserror::Error;
-use vrrb_core::{
-    account::Account,
-    helpers::write_keypair_file,
-    keypair::KeyPairError,
-    txn::{Token, TransactionDigest, Txn},
-};
+use vrrb_core::{account::Account, txn::Token};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionDigest, RpcTransactionRecord},
     client::create_client,
@@ -314,7 +309,7 @@ impl Wallet {
         let account = Account::new(public_key);
         let address = Address::new(public_key);
 
-        let result = self
+        let _result = self
             .client
             .create_account(address.clone(), account.clone())
             .await

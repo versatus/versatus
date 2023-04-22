@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use events::{Event, EventPublisher, EventSubscriber};
 use network::{
@@ -8,18 +7,6 @@ use network::{
     network::{BroadcastEngine, ConnectionIncoming},
 };
 use telemetry::{error, info, warn};
-use theater::{ActorLabel, ActorState, Handler};
-use tokio::{
-    sync::{
-        broadcast::{
-            error::{RecvError, TryRecvError},
-            Receiver,
-        },
-        mpsc::Sender,
-    },
-    task::JoinHandle,
-};
-use uuid::Uuid;
 
 use crate::{NodeError, Result};
 
@@ -62,7 +49,7 @@ impl BroadcastEngineController {
     pub async fn listen(&mut self, mut events_rx: EventSubscriber) -> Result<()> {
         loop {
             tokio::select! {
-                Some((conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
+                Some((_conn, conn_incoming)) = self.engine.get_incoming_connections().next() => {
                 match self.map_network_conn_to_message(conn_incoming).await {
                     Ok(message) => {
                         self.handle_network_event(message).await;

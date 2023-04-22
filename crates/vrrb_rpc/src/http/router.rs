@@ -1,5 +1,4 @@
 use axum::{routing::get, Router};
-use events::Event;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
@@ -8,7 +7,7 @@ use crate::http::{
     HttpApiRouterConfig,
 };
 
-pub fn create_router(config: &HttpApiRouterConfig) -> Router {
+pub fn create_router(_config: &HttpApiRouterConfig) -> Router {
     Router::new()
         .route("/", get(|| async { "index" }))
         .route("/health", get(health::health_check))

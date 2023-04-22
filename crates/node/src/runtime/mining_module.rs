@@ -1,12 +1,10 @@
 use async_trait::async_trait;
-use block::{convergence_block, Block};
 use events::{Event, EventMessage, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use tokio::sync::broadcast::{error::TryRecvError, Receiver};
 use vrrb_core::txn::Txn;
 
 #[derive(Debug)]
@@ -49,7 +47,7 @@ impl MiningModule {
         // TODO: drain mempool instead then commit changes
         handle
             .drain(..cutoff_idx)
-            .map(|(id, record)| record.txn)
+            .map(|(_id, record)| record.txn)
             .collect()
     }
 
@@ -94,7 +92,7 @@ impl Handler<EventMessage> for MiningModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            Event::ElectedMiner((winner_claim_hash, winner_claim)) => {
+            Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {
                 if self.miner.check_claim(winner_claim.hash) {
                     let mining_result = self.miner.try_mine();
 

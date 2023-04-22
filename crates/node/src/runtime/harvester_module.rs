@@ -1,5 +1,3 @@
-use std::thread;
-
 use async_trait::async_trait;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
@@ -7,7 +5,6 @@ use events::{
     Event,
     EventMessage,
     EventPublisher,
-    EventSubscriber,
     JobResult,
     QuorumCertifiedTxn,
     Vote,
@@ -17,14 +14,10 @@ use primitives::{GroupPublicKey, HarvesterQuorumThreshold, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tracing::error;
-use vrrb_core::{
-    bloom::Bloom,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::{bloom::Bloom, txn::TransactionDigest};
 
-use crate::{farmer_module::PULL_TXN_BATCH_SIZE, result::Result, scheduler::Job, NodeError};
+use crate::{farmer_module::PULL_TXN_BATCH_SIZE, scheduler::Job};
 
 /// `CERTIFIED_TXNS_FILTER_SIZE` is a constant that defines the size of the
 /// bloom filter used by the `HarvesterModule` to store the certified
@@ -240,7 +233,7 @@ impl Handler<EventMessage> for HarvesterModule {
                         .send(Event::QuorumCertifiedTxns(txn.clone()).into());
                     let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
                 });
-                let txns = txns.collect::<Vec<&QuorumCertifiedTxn>>();
+                let _txns = txns.collect::<Vec<&QuorumCertifiedTxn>>();
                 //TODO: Build Proposal Blocks here
             },
             Event::NoOp => {},

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use primitives::{NodeId, NodeIdentifier};

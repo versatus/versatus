@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use events::{Event, EventPublisher};
@@ -9,7 +9,6 @@ use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::{debug, error};
-use tokio::sync::mpsc::UnboundedSender;
 use vrrb_core::{
     account::Account,
     serde_helpers::encode_to_binary,
@@ -116,7 +115,7 @@ impl RpcApiServer for RpcServerImpl {
 
         let parsed_digest = transaction_digest
             .parse::<TransactionDigest>()
-            .map_err(|err| Error::Custom("unable to parse transaction digest".to_string()))?;
+            .map_err(|_err| Error::Custom("unable to parse transaction digest".to_string()))?;
 
         let values = self.vrrbdb_read_handle.transaction_store_values();
         let value = values.get(&parsed_digest);
