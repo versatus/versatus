@@ -439,6 +439,11 @@ where
                     }
                 }
             },
+            Event::GetBuckets => {
+                let buckets: Vec<(NodeId, usize)> =
+                    { self.bucketize_reputation_raw_global().collect() };
+                let _ = self.events_tx.send(Event::RepBuckets(buckets).into());
+            },
             Event::NoOp => {},
             _ => {},
         }

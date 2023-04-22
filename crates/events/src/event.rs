@@ -6,6 +6,7 @@ use primitives::{
     Address,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
+    NodeId,
     QuorumPublicKey,
     QuorumSize,
 };
@@ -115,6 +116,8 @@ pub enum Event {
     CertifiedTxn(JobResult),
     RepUpdate(RepUpdateBytes),
     InitRepUpdate(RepUpdateBytes),
+    GetBuckets,
+    RepBuckets(Vec<(NodeId, usize)>),
 }
 
 impl From<&theater::Message> for Event {
