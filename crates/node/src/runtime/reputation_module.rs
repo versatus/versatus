@@ -14,8 +14,20 @@ use decentrust::{
 };
 use events::{Event, EventMessage, EventPublisher};
 use num_traits::Bounded;
+use ordered_float::OrderedFloat;
+use primitives::NodeId;
+use serde::{Deserialize, Serialize};
 use telemetry::info;
 use theater::{ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+
+/// A type used to encapsulate Reputation Updates
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReputationUpdateEvent {
+    pub sender: Option<NodeId>,
+    pub peer: NodeId,
+    pub delta: f64,
+    pub update: Update,
+}
 
 /// A configuration struct for the Reputation Module
 /// providing the data necessary to construct a new
@@ -39,66 +51,41 @@ use theater::{ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 /// use buckets::bucketize::BucketizeSingle;
 /// use events::EventPublisher;
 ///
-/// pub struct ReputationModuleConfig<K, V, B>
+/// #[derive(Debug, Clone)]
+/// pub struct ReputationModuleConfig<B>
 /// where
-///     K: Hash, Eq, Clone, Debug + ToString
-///     V: AddAssign
-///     + DivAssign
-///     + SubAssign
-///     + Add<Output = V>
-///     + Sub<Output = V>
-///     + Mul<Output = V>
-///     + Div<Output = V>
-///     + Copy
-///     + Default
-///     + Bounded
-///     + Ord
-///     + Hash
-///     + Debug,
-///     + B: BucketizeSingle<V>,
+///     + B: BucketizeSingle<OrderedFloat<f64>> + Clone,
 /// {
 ///     
 ///    pub reputation_error_bound: f64,
 ///    pub reputation_probability: f64,
 ///    pub reputation_max_entries: f64,
-///    pub reputation_min: V,
-///    pub reputation_max: V,
+///    pub reputation_min: OrderedFloat<f64>,
+///    pub reputation_max: OrderedFloat<f64>,
 ///    pub credit_error_bound: f64,
 ///    pub credit_probability: f64,
 ///    pub credit_max_entries: f64,
-///    pub credit_min: V,
-///    pub credit_max: V,
+///    pub credit_min: OrderedFloat<f64>,
+///    pub credit_max: OrderedFloat<f64>,
 ///    pub events_tx: EventPublisher
 ///    pub bucketizer: B,
 /// }
 /// ```
-pub struct ReputationModuleConfig<V, B>
+#[derive(Debug, Clone)]
+pub struct ReputationModuleConfig<B>
 where
-    V: AddAssign
-        + DivAssign
-        + SubAssign
-        + Add<Output = V>
-        + Sub<Output = V>
-        + Mul<Output = V>
-        + Div<Output = V>
-        + Copy
-        + Default
-        + Bounded
-        + Ord
-        + Hash
-        + Debug,
-    B: BucketizeSingle<V> + Clone,
+    B: BucketizeSingle<OrderedFloat<f64>> + Clone,
 {
     pub reputation_error_bound: f64,
     pub reputation_probability: f64,
     pub reputation_max_entries: f64,
-    pub reputation_min: V,
-    pub reputation_max: V,
+    pub reputation_min: OrderedFloat<f64>,
+    pub reputation_max: OrderedFloat<f64>,
     pub credit_error_bound: f64,
     pub credit_probability: f64,
     pub credit_max_entries: f64,
-    pub credit_min: V,
-    pub credit_max: V,
+    pub credit_min: OrderedFloat<f64>,
+    pub credit_max: OrderedFloat<f64>,
     pub events_tx: EventPublisher,
     pub bucketizer: B,
 }
@@ -120,79 +107,37 @@ where
 /// use num_traits::Bounded;
 /// use theater::{ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 ///
-/// pub struct ReputationModule<K, V, B>
+/// pub struct ReputationModule<B>
 /// where
-///     K: Hash + Eq + Clone + Debug + ToString,
-///     V: AddAssign
-///         + DivAssign
-///         + SubAssign
-///         + Add<Output = V>
-///         + Sub<Output = V>
-///         + Mul<Output = V>
-///         + Div<Output = V>
-///         + Copy
-///         + Default
-///         + Bounded
-///         + Ord
-///         + Hash
-///         + Debug,
-///     B: BucketizeSingle<V>,
+///     B: BucketizeSingle<OrderedFloat<f64>>,
 /// {
 ///     status: ActorState,
 ///     label: ActorLabel,
 ///     id: ActorId,
 ///     events_tx: EventPublisher,
-///     reputation: LightHonestPeer<K, V>,
-///     credits: LightHonestPeer<K, V>,
+///     reputation: LightHonestPeer<NodeId, OrderedFloat<f64>>,
+///     credits: LightHonestPeer<NodeId, OrderedFloat<f64>>,
 ///     bucketizer: B,
-///     peer_set: HashSet<K>,
+///     peer_set: HashSet<NodeIde>,
 /// }
 /// ```
-pub struct ReputationModule<K, V, B>
+pub struct ReputationModule<B>
 where
-    K: Hash + Eq + Clone + Debug + ToString,
-    V: AddAssign
-        + DivAssign
-        + SubAssign
-        + Add<Output = V>
-        + Sub<Output = V>
-        + Mul<Output = V>
-        + Div<Output = V>
-        + Copy
-        + Default
-        + Bounded
-        + Ord
-        + Hash
-        + Debug,
-    B: BucketizeSingle<V>,
+    B: BucketizeSingle<OrderedFloat<f64>>,
 {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
-    reputation: LightHonestPeer<K, V>,
-    credits: LightHonestPeer<K, V>,
+    reputation: LightHonestPeer<NodeId, OrderedFloat<f64>>,
+    credits: LightHonestPeer<NodeId, OrderedFloat<f64>>,
     bucketizer: B,
-    peer_set: HashSet<K>,
+    peer_set: HashSet<NodeId>,
 }
 
-impl<K, V, B> ReputationModule<K, V, B>
+impl<B> ReputationModule<B>
 where
-    K: Hash + Eq + Clone + Debug + ToString,
-    V: AddAssign
-        + DivAssign
-        + SubAssign
-        + Add<Output = V>
-        + Sub<Output = V>
-        + Mul<Output = V>
-        + Div<Output = V>
-        + Copy
-        + Default
-        + Bounded
-        + Ord
-        + Hash
-        + Debug,
-    B: BucketizeSingle<V> + Clone,
+    B: BucketizeSingle<OrderedFloat<f64>> + Clone,
 {
     /// Creates a new `ReputationModule` struct with two
     /// `LightHonestPeer` instances and a Bucketizer,
@@ -242,22 +187,26 @@ where
     ///     >
     /// > = ReputationModule::new(&config);
     /// ```
-    pub fn new(config: ReputationModuleConfig<V, B>) -> Self {
-        let reputation: LightHonestPeer<K, V> = LightHonestPeer::new_from_bounds(
-            config.reputation_error_bound,
-            config.reputation_probability,
-            config.reputation_max_entries,
-            config.reputation_min,
-            config.reputation_max,
-        );
+    pub fn new(config: ReputationModuleConfig<B>) -> Self {
+        let reputation: LightHonestPeer<NodeId, OrderedFloat<f64>> = {
+            LightHonestPeer::new_from_bounds(
+                config.reputation_error_bound,
+                config.reputation_probability,
+                config.reputation_max_entries,
+                config.reputation_min,
+                config.reputation_max,
+            )
+        };
 
-        let credits: LightHonestPeer<K, V> = LightHonestPeer::new_from_bounds(
-            config.credit_error_bound,
-            config.credit_probability,
-            config.credit_max_entries,
-            config.credit_min,
-            config.credit_max,
-        );
+        let credits: LightHonestPeer<NodeId, OrderedFloat<f64>> = {
+            LightHonestPeer::new_from_bounds(
+                config.credit_error_bound,
+                config.credit_probability,
+                config.credit_max_entries,
+                config.credit_min,
+                config.credit_max,
+            )
+        };
 
         ReputationModule {
             id: uuid::Uuid::new_v4().to_string(),
@@ -271,143 +220,156 @@ where
         }
     }
 
-    fn init_local_reputation(&mut self, peer: &K, init_value: V) {
+    fn init_local_reputation(&mut self, peer: &NodeId, init_value: OrderedFloat<f64>) {
         self.reputation.init_local(peer, init_value);
     }
 
-    fn update_local_reputation(&mut self, receiver: &K, value: V, update: Update) {
+    fn update_local_reputation(
+        &mut self,
+        receiver: &NodeId,
+        value: OrderedFloat<f64>,
+        update: Update,
+    ) {
         self.reputation.update_local(receiver, value, update);
     }
 
-    fn get_reputation_raw_local(&self, key: &K) -> Option<V> {
+    fn get_reputation_raw_local(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.reputation.get_raw_local(key)
     }
 
-    fn get_reputation_normalized_local(&self, key: &K) -> Option<V> {
+    fn get_reputation_normalized_local(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.reputation.get_normalized_local(key)
     }
 
-    fn get_reputation_raw_local_map(&self) -> CountMinSketch<V> {
+    fn get_reputation_raw_local_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.reputation.get_raw_local_map()
     }
 
-    fn get_reputation_normalized_local_map(&self) -> CountMinSketch<V> {
+    fn get_reputation_normalized_local_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.reputation.get_normalized_local_map()
     }
 
-    fn init_global_reputation(&mut self, peer: &K, init_value: V) {
-        self.reputation.init_global(peer, init_value)
+    fn init_global_reputation(
+        &mut self,
+        sender: &NodeId,
+        peer: &NodeId,
+        init_value: OrderedFloat<f64>,
+    ) {
+        self.reputation.init_global(sender, peer, init_value)
     }
 
-    fn update_global_reputation(&mut self, sender: &K, receiver: &K, value: V, update: Update) {
+    fn update_global_reputation(
+        &mut self,
+        sender: &NodeId,
+        receiver: &NodeId,
+        value: OrderedFloat<f64>,
+        update: Update,
+    ) {
         self.reputation
             .update_global(sender, receiver, value, update);
     }
 
-    fn get_reputation_raw_global(&self, key: &K) -> Option<V> {
+    fn get_reputation_raw_global(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.reputation.get_raw_global(key)
     }
 
-    fn get_reputation_normalized_global(&self, key: &K) -> Option<V> {
+    fn get_reputation_normalized_global(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.reputation.get_normalized_global(key)
     }
 
-    fn get_reputation_global_local_map(&self) -> CountMinSketch<V> {
+    fn get_reputation_global_local_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.reputation.get_raw_global_map()
     }
 
-    fn get_reputation_normalized_global_map(&self) -> CountMinSketch<V> {
+    fn get_reputation_normalized_global_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.reputation.get_normalized_global_map()
     }
 
-    fn bucketize_reputation_raw_local(&self) -> impl Iterator<Item = (K, usize)> + '_ {
+    fn bucketize_reputation_raw_local(&self) -> impl Iterator<Item = (NodeId, usize)> + '_ {
         self.reputation
             .bucketize_local(self.peer_set.clone().into_iter(), self.bucketizer.clone())
     }
 
-    fn bucketize_reputation_normalized_local(&self) -> impl Iterator<Item = (K, usize)> + '_ {
+    fn bucketize_reputation_normalized_local(&self) -> impl Iterator<Item = (NodeId, usize)> + '_ {
         self.reputation
             .bucketize_normalized_local(self.peer_set.clone().into_iter(), self.bucketizer.clone())
     }
 
-    fn bucketize_reputation_raw_global(&self) -> impl Iterator<Item = (K, usize)> + '_ {
+    fn bucketize_reputation_raw_global(&self) -> impl Iterator<Item = (NodeId, usize)> + '_ {
         self.reputation
             .bucketize_global(self.peer_set.clone().into_iter(), self.bucketizer.clone())
     }
 
-    fn bucketize_reputation_normalized_global(&self) -> impl Iterator<Item = (K, usize)> + '_ {
+    fn bucketize_reputation_normalized_global(&self) -> impl Iterator<Item = (NodeId, usize)> + '_ {
         self.reputation
             .bucketize_normalized_global(self.peer_set.clone().into_iter(), self.bucketizer.clone())
     }
 
-    fn init_local_credit(&mut self, peer: &K, init_value: V) {
+    fn init_local_credit(&mut self, peer: &NodeId, init_value: OrderedFloat<f64>) {
         self.credits.init_local(peer, init_value);
     }
 
-    fn update_local_credit(&mut self, receiver: &K, value: V, update: Update) {
+    fn update_local_credit(&mut self, receiver: &NodeId, value: OrderedFloat<f64>, update: Update) {
         self.credits.update_local(receiver, value, update);
     }
 
-    fn get_credits_raw_local(&self, key: &K) -> Option<V> {
+    fn get_credits_raw_local(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.credits.get_raw_local(key)
     }
 
-    fn get_credits_normalized_local(&self, key: &K) -> Option<V> {
+    fn get_credits_normalized_local(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.credits.get_normalized_local(key)
     }
 
-    fn get_credits_raw_local_map(&self) -> CountMinSketch<V> {
+    fn get_credits_raw_local_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.credits.get_raw_local_map()
     }
 
-    fn get_credits_normalized_local_map(&self) -> CountMinSketch<V> {
+    fn get_credits_normalized_local_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.credits.get_normalized_local_map()
     }
 
-    fn init_credits_reputation(&mut self, peer: &K, init_value: V) {
-        self.reputation.init_global(peer, init_value)
+    fn init_global_credits(
+        &mut self,
+        sender: &NodeId,
+        peer: &NodeId,
+        init_value: OrderedFloat<f64>,
+    ) {
+        self.credits.init_global(sender, peer, init_value)
     }
 
-    fn update_credits_reputation(&mut self, sender: &K, receiver: &K, value: V, update: Update) {
+    fn update_global_credits(
+        &mut self,
+        sender: &NodeId,
+        receiver: &NodeId,
+        value: OrderedFloat<f64>,
+        update: Update,
+    ) {
         self.credits.update_global(sender, receiver, value, update);
     }
 
-    fn get_credits_raw_global(&self, key: &K) -> Option<V> {
+    fn get_credits_raw_global(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.credits.get_raw_global(key)
     }
 
-    fn get_credits_normalized_global(&self, key: &K) -> Option<V> {
+    fn get_credits_normalized_global(&self, key: &NodeId) -> Option<OrderedFloat<f64>> {
         self.credits.get_normalized_global(key)
     }
 
-    fn get_credits_global_local_map(&self) -> CountMinSketch<V> {
+    fn get_credits_global_local_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.credits.get_raw_global_map()
     }
 
-    fn get_credits_normalized_global_map(&self) -> CountMinSketch<V> {
+    fn get_credits_normalized_global_map(&self) -> CountMinSketch<OrderedFloat<f64>> {
         self.credits.get_normalized_global_map()
     }
 }
 
 
 #[async_trait]
-impl<K, V, B> Handler<EventMessage> for ReputationModule<K, V, B>
+impl<B> Handler<EventMessage> for ReputationModule<B>
 where
-    K: Hash + Eq + Clone + Debug + ToString,
-    V: AddAssign
-        + DivAssign
-        + SubAssign
-        + Add<Output = V>
-        + Sub<Output = V>
-        + Mul<Output = V>
-        + Div<Output = V>
-        + Copy
-        + Default
-        + Bounded
-        + Ord
-        + Hash
-        + Debug,
-    B: BucketizeSingle<V> + Clone,
+    B: BucketizeSingle<OrderedFloat<f64>> + Clone,
 {
     fn id(&self) -> ActorId {
         self.id.clone()
@@ -442,6 +404,41 @@ where
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
+            Event::RepUpdate(update_bytes) => {
+                if let Ok(rep_update) =
+                    serde_json::from_slice::<ReputationUpdateEvent>(&update_bytes)
+                {
+                    if let Some(sender) = rep_update.sender {
+                        self.update_global_reputation(
+                            &sender,
+                            &rep_update.peer,
+                            rep_update.delta.into(),
+                            rep_update.update,
+                        )
+                    } else {
+                        self.update_local_reputation(
+                            &rep_update.peer,
+                            rep_update.delta.into(),
+                            rep_update.update,
+                        )
+                    }
+                }
+            },
+            Event::InitRepUpdate(update_bytes) => {
+                if let Ok(rep_update) =
+                    serde_json::from_slice::<ReputationUpdateEvent>(&update_bytes)
+                {
+                    if let Some(sender) = rep_update.sender {
+                        self.init_global_reputation(
+                            &sender,
+                            &rep_update.peer,
+                            rep_update.delta.into(),
+                        );
+                    } else {
+                        self.init_local_reputation(&rep_update.peer, rep_update.delta.into());
+                    }
+                }
+            },
             Event::NoOp => {},
             _ => {},
         }
@@ -449,22 +446,4 @@ where
     }
 }
 
-unsafe impl<K, V, B> Send for ReputationModule<K, V, B>
-where
-    K: Hash + Eq + Clone + Debug + ToString,
-    V: AddAssign
-        + DivAssign
-        + SubAssign
-        + Add<Output = V>
-        + Sub<Output = V>
-        + Mul<Output = V>
-        + Div<Output = V>
-        + Copy
-        + Default
-        + Bounded
-        + Ord
-        + Hash
-        + Debug,
-    B: BucketizeSingle<V> + Clone,
-{
-}
+unsafe impl<B> Send for ReputationModule<B> where B: BucketizeSingle<OrderedFloat<f64>> + Clone {}

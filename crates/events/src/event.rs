@@ -22,6 +22,7 @@ pub type AccountBytes = Vec<u8>;
 pub type BlockBytes = Vec<u8>;
 pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
+pub type RepUpdateBytes = Vec<u8>;
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -112,6 +113,8 @@ pub enum Event {
     FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
     HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
     CertifiedTxn(JobResult),
+    RepUpdate(RepUpdateBytes),
+    InitRepUpdate(RepUpdateBytes),
 }
 
 impl From<&theater::Message> for Event {
