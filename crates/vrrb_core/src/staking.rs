@@ -1,4 +1,4 @@
-use primitives::{Address, Signature};
+use primitives::{Address, PayloadHash, QuorumPublicKey, Signature};
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -8,7 +8,10 @@ use crate::keypair::{MinerPk, MinerSk};
 
 /// Represents a byte array that can be converted into a
 /// ThresholdSignature
-pub type Certificate = Vec<u8>;
+pub type Certificate = (Vec<u8>, PayloadHash);
+pub const MIN_STAKE_FARMER: u128 = 10_000;
+pub const MIN_STAKE_VALIDATOR: u128 = 50_000;
+
 
 #[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize, Eq)]
 pub enum StakeError {
@@ -82,6 +85,7 @@ pub struct Stake {
     amount: StakeUpdate,
     timestamp: i64,
     signature: Signature,
+    validator_quorum_key: QuorumPublicKey,
     certificate: Option<Certificate>,
 }
 
@@ -97,7 +101,7 @@ impl Stake {
     /// ```
     /// use primitives::Address;
     /// use vrrb_core::{
-    ///     keypair::MinerSk,
+    ///     keypair::{KeyPair, MinerSk},
     ///     staking::{Stake, StakeUpdate},
     /// };
     ///
@@ -130,11 +134,24 @@ impl Stake {
                 amount,
                 timestamp,
                 signature,
+                validator_quorum_key: vec![],
                 certificate: None,
             });
         }
 
         return None;
+    }
+
+    /// This function returns the validator quorum public key which was used to
+    /// certify the stake .
+    ///
+    /// Returns:
+    ///
+    /// The `get_quorum_key` function is returning a clone of the
+    /// `validator_quorum_key` field of the current object, which is of type
+    /// `QuorumPublicKey`.
+    pub fn get_quorum_key(&self) -> QuorumPublicKey {
+        self.validator_quorum_key.clone()
     }
 
     /// returns the Stake public key which is used to verify
@@ -196,7 +213,7 @@ impl Stake {
 
     /// Adds a certificate to the instance.
     pub fn certify(&mut self, certificate: Certificate) -> Result<(), StakeError> {
-        if certificate.len() != 96 {
+        if certificate.0.len() != 96 {
             return Err(StakeError::InvalidCertificate);
         }
 
@@ -251,7 +268,7 @@ mod tests {
 
         let mut stake = Stake::new(amount, sk, pk, from, None).unwrap();
 
-        stake.certify(vec![0u8; 96]).unwrap();
+        stake.certify((vec![0u8; 96], vec![0u8; 32])).unwrap();
 
         assert!(stake.get_certificate().is_some());
     }
@@ -307,7 +324,7 @@ mod tests {
 
         let mut stake = Stake::new(amount, sk, pk, from, None).unwrap();
 
-        let result = stake.certify(vec![0u8; 32]);
+        let result = stake.certify((vec![0u8; 32], vec![0u8; 32]));
 
         assert!(result.is_err());
         assert!(stake.get_certificate().is_none());

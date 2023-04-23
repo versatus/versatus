@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use ethereum_types::U256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use vrrb_core::{claim::Claim, keypair::KeyPair};
+use vrrb_core::{
+    claim::{Claim, Eligibility},
+    keypair::KeyPair,
+};
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::election::Election;
@@ -124,7 +127,10 @@ impl Quorum {
         let mut eligible_claims = Vec::<Claim>::new();
         claims
             .into_iter()
-            .filter(|claim| claim.eligible)
+            .filter(|claim| {
+                (claim.eligibility == Eligibility::Harvester
+                    && claim.eligibility == Eligibility::Farmer)
+            })
             .for_each(|claim| {
                 eligible_claims.push(claim);
             });

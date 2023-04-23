@@ -24,6 +24,7 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 telemetry = { workspace = true }
 rayon = { workspace = true }
+hbbft = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
