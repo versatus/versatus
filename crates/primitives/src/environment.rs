@@ -13,14 +13,14 @@ pub const VRRB_PRETTY_PRINT_LOGS_VAR_NAME: &str = "VRRB_PRETTY_PRINT_LOGS";
 
 pub fn get_vrrb_environment() -> Environment {
     std::env::var(VRRB_ENVIRONMENT_VAR_NAME)
-        .unwrap_or(Environment::default().to_string())
+        .unwrap_or_else(|_| Environment::default().to_string())
         .parse()
-        .unwrap_or(Environment::default())
+        .unwrap_or_else(|_| Environment::default())
 }
 
 pub fn get_pretty_print_logs() -> bool {
     std::env::var(VRRB_PRETTY_PRINT_LOGS_VAR_NAME)
-        .unwrap_or("false".to_string())
+        .unwrap_or_else(|_| "false".to_string())
         .parse()
         .unwrap_or(false)
 }

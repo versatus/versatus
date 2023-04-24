@@ -487,6 +487,57 @@ impl FromStr for TransactionDigest {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CallArgs {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TransferArgs {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GenesisTransaction {
+    //
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SignedTransaction {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TransactionKind {
+    Genesis(GenesisTransaction),
+    TransferToken(TransferArgs),
+    TransferVrrb(usize),
+    Call(CallArgs),
+}
+
+#[derive(Debug, Clone)]
+pub struct TransactionBuilder {}
+
+impl TransactionBuilder {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn build(&self) -> crate::Result<SignedTransaction> {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct UnsignedTransaction {}
+
+#[derive(Debug, Clone)]
+pub struct TransactionSigner {}
+
+impl TransactionSigner {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn sign(&self, usigned_txn: UnsignedTransaction) -> crate::Result<SignedTransaction> {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -495,7 +546,7 @@ mod tests {
     fn test_txn_digest_serde() {
         let txn = Txn::default();
 
-        let txn_digest = txn.digest();
+        let txn_digest = txn.id();
         let txn_digest_str = txn_digest.to_string();
 
         let txn_digest_recovered = txn_digest_str.parse::<TransactionDigest>().unwrap();

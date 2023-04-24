@@ -29,12 +29,6 @@ pub type PayloadHash = ByteVec;
 pub type RawSignature = ByteVec;
 pub type PeerId = ByteVec;
 
-#[deprecated(note = "Use TransactionDigest instead")]
-pub type TxHash = ByteVec;
-
-#[deprecated(note = "Use TransactionDigest and call to_string on it instead")]
-pub type TxHashString = String;
-
 #[deprecated(note = "Use Digest instead")]
 pub type BlockHash = ByteVec;
 

@@ -4,10 +4,14 @@ use std::{
     time::Duration,
 };
 
+use events::Event;
 use primitives::NodeType;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, NodeConfigBuilder};
-use vrrb_core::keypair::Keypair;
+use vrrb_core::{keypair::Keypair, txn::Txn};
+
+use crate::Node;
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
@@ -67,4 +71,34 @@ pub fn create_mock_bootstrap_node_config() -> NodeConfig {
     node_config.node_type = NodeType::Bootstrap;
 
     node_config
+}
+
+pub async fn create_swarm_of_nodes(n: usize) -> Vec<(Node, UnboundedSender<Event>)> {
+    let mut nodes = Vec::with_capacity(n);
+
+    for i in 0..n {
+        let mut node_config = create_mock_full_node_config();
+
+        node_config.bootstrap_node_addresses = Vec::new();
+        node_config.node_type = NodeType::Full;
+
+        let (tx, mut rx) = unbounded_channel::<Event>();
+
+        let node = Node::start(&node_config, rx).await.unwrap();
+
+        nodes.push((node, tx));
+    }
+
+    nodes
+}
+
+pub async fn stop_swarm_of_nodes(txs: Vec<UnboundedSender<Event>>) {
+    for tx in txs {
+        tx.send(Event::Stop.into()).unwrap();
+    }
+}
+
+pub async fn generate_txns() -> Vec<Txn> {
+    //
+    todo!()
 }

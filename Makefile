@@ -63,7 +63,7 @@ run:
 	$(Q)echo "--- Done"
 
 run-test-cluster:
-	$(Q)sh infra/scripts/run_test_node.sh
+	$(Q)sh infra/scripts/run_test_cluster.sh
 	$(Q)echo "--- Done"
 
 test:
