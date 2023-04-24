@@ -4,9 +4,10 @@ use std::{
 };
 
 use primitives::Address;
-use vrrb_core::{account::Account, txn::*};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use vrrb_core::{account::Account, claim::Claim, txn::*};
 
-use crate::txn_validator::TxnValidator;
+use crate::{claim_validator::ClaimValidator, txn_validator::TxnValidator};
 
 /// Enum containing all messages related to controling the Core thread's
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,7 +45,8 @@ pub enum CoreError {
 #[derive(Debug, Clone)]
 pub struct Core {
     id: CoreId,
-    validator: TxnValidator,
+    txn_validator: TxnValidator,
+    claims_validator: ClaimValidator,
 }
 
 impl Core {
@@ -57,8 +59,12 @@ impl Core {
     ///   propagate it's errors to main thread
     // pub fn new<D: Database>(id: CoreId, error_sender: Sender<(CoreId,
     // CoreError)>) -> Self {
-    pub fn new(id: CoreId, validator: TxnValidator) -> Self {
-        Self { id, validator }
+    pub fn new(id: CoreId, txn_validator: TxnValidator, claims_validator: ClaimValidator) -> Self {
+        Self {
+            id,
+            txn_validator,
+            claims_validator,
+        }
     }
 
     pub fn id(&self) -> CoreId {
@@ -73,16 +79,51 @@ impl Core {
         // ) -> HashSet<(Txn, bool)> {
         batch
             .into_iter()
-            .map(|txn| match self.validator.validate(account_state, &txn) {
-                Ok(_) => (txn, Ok(())),
+            .map(
+                |txn| match self.txn_validator.validate(account_state, &txn) {
+                    Ok(_) => (txn, Ok(())),
+                    Err(err) => {
+                        telemetry::error!("{err:?}");
+                        (txn, Err(err))
+                        // Should we send error?
+                        // send_core_err_msg(id, &error_sender,
+                        // err);
+                    },
+                },
+            )
+            .collect::<HashSet<(Txn, crate::txn_validator::Result<()>)>>()
+    }
+
+    /// The function processes a batch of claims parallely using a claims
+    /// validator and returns a set of tuples containing the claim and the
+    /// result of the validation.
+    ///
+    /// Arguments:
+    ///
+    /// * `batch`: A vector of `Claim` objects that need to be processed
+    ///   parallely.
+    ///
+    /// Returns:
+    ///
+    /// The function `process_claims` returns a `HashSet` containing tuples of
+    /// `(Claim, Result<(), ClaimValidationError>)`. Each tuple represents a
+    /// claim from the input `batch` and the result of validating that claim
+    /// using the `claims_validator` field of the struct. If the validation is
+    /// successful, the result is `Ok(())`, otherwise it is an `Err` containing
+    /// a `ClaimValidationError`.
+    pub fn process_claims(
+        &self,
+        batch: Vec<Claim>,
+    ) -> HashSet<(Claim, crate::claim_validator::Result<()>)> {
+        batch
+            .par_iter()
+            .map(|claim| match self.claims_validator.validate(&claim) {
+                Ok(_) => (claim.clone(), Ok(())),
                 Err(err) => {
                     telemetry::error!("{err:?}");
-                    (txn, Err(err))
-                    // Should we send error?
-                    // send_core_err_msg(id, &error_sender,
-                    // err);
+                    (claim.clone(), Err(err))
                 },
             })
-            .collect::<HashSet<(Txn, crate::txn_validator::Result<()>)>>()
+            .collect::<HashSet<(Claim, crate::claim_validator::Result<()>)>>()
     }
 }

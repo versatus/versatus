@@ -18,7 +18,7 @@ use sha2::Digest;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use vrrb_core::claim::Claim;
+use vrrb_core::claim::{Claim, Eligibility};
 
 pub type Seed = u64;
 
@@ -214,7 +214,7 @@ impl Handler<EventMessage> for ElectionModule<QuorumElection, QuorumElectionResu
 fn elect_miner(claims: HashMap<NodeId, Claim>, block_seed: u64) -> BTreeMap<U256, Claim> {
     claims
         .iter()
-        .filter(|(_, claim)| claim.eligible)
+        .filter(|(_, claim)| claim.eligibility == Eligibility::Miner)
         .map(|(_nodeid, claim)| single_miner_results(claim, block_seed))
         .collect()
 }
