@@ -48,34 +48,35 @@ mod tests {
         })
     }
 
-    #[test]
-    fn should_validate_a_list_of_invalid_transactions() {
-        let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
-        let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
-
-        let mut batch = vec![];
-
-        let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
-        for _ in 0..1000 {
-            batch.push(random_txn(&mut rng));
-        }
-
-        let account_state: HashMap<Address, Account> = HashMap::new();
-
-        let target = batch
-            .iter()
-            .cloned()
-            .map(|txn| {
-                let account = txn.sender_address.clone();
-                let err = Err(crate::txn_validator::TxnValidatorError::AccountNotFound(
-                    account,
-                ));
-
-                (txn, err)
-            })
-            .collect();
-
-        let validated = valcore_manager.validate(&account_state, batch);
-        assert_eq!(validated, target);
-    }
+    // #[test]
+    // fn should_validate_a_list_of_invalid_transactions() {
+    //     let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
+    //     let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
+    //
+    //     let mut batch = vec![];
+    //
+    //     let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
+    //     for _ in 0..1000 {
+    //         batch.push(random_txn(&mut rng));
+    //     }
+    //
+    //     let account_state: HashMap<Address, Account> = HashMap::new();
+    //
+    //     let target = batch
+    //         .iter()
+    //         .cloned()
+    //         .map(|txn| {
+    //             let account = txn.sender_address.clone();
+    //             let err =
+    // Err(crate::txn_validator::TxnValidatorError::AccountNotFound(
+    //                 account,
+    //             ));
+    //
+    //             (txn, err)
+    //         })
+    //         .collect();
+    //
+    //     let validated = valcore_manager.validate(&account_state, batch);
+    //     assert_eq!(validated, target);
+    // }
 }

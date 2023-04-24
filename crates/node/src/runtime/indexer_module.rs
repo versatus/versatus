@@ -97,7 +97,10 @@ impl Handler<EventMessage> for IndexerModule {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use events::DEFAULT_BUFFER;
+    use mempool::LeftRightMempool;
     use serial_test::serial;
     use theater::ActorImpl;
 
