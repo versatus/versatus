@@ -2,9 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
-use vrrb_core::{account::Account, txn::Txn};
+use vrrb_core::{account::Account, claim::Claim, txn::Txn};
 
 use crate::{
+    claim_validator::ClaimValidator,
     result::{Result, ValidatorError},
     txn_validator::TxnValidator,
     validator_core::{Core, CoreId},
@@ -12,7 +13,6 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ValidatorCoreManager {
-    // core_pool: Vec<Core>,
     core_pool: rayon::ThreadPool,
 }
 
@@ -38,8 +38,23 @@ impl ValidatorCoreManager {
             let valcore = Core::new(
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
+                ClaimValidator,
             );
             valcore.process_transactions(account_state, batch)
+        })
+    }
+
+    pub fn validate_claims(
+        &mut self,
+        claims: Vec<Claim>,
+    ) -> HashSet<(Claim, crate::claim_validator::Result<()>)> {
+        self.core_pool.install(|| {
+            let valcore = Core::new(
+                self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
+                TxnValidator::new(),
+                ClaimValidator,
+            );
+            valcore.process_claims(claims)
         })
     }
 }

@@ -1,4 +1,5 @@
 // pub mod mempool_processor;
+pub mod claim_validator;
 pub mod result;
 pub mod txn_validator;
 pub mod validator_core;

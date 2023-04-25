@@ -29,10 +29,31 @@ pub struct Claim {
     pub public_key: PublicKey,
     pub address: Address,
     pub hash: U256,
-    pub eligible: bool,
+    pub eligibility: Eligibility,
     stake: u128,
     stake_txns: Vec<Stake>,
 }
+
+///Node has privileges to be Miner/Validator,Farmer or None
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Eligibility {
+    Harvester,
+    Miner,
+    Farmer,
+    None,
+}
+
+impl std::fmt::Display for Eligibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Eligibility::Harvester => write!(f, "Harvester"),
+            Eligibility::Farmer => write!(f, "Farmer"),
+            Eligibility::Miner => write!(f, "Miner"),
+            Eligibility::None => write!(f, "None"),
+        }
+    }
+}
+
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
@@ -45,7 +66,7 @@ impl Claim {
             public_key,
             address,
             hash,
-            eligible: true,
+            eligibility: Eligibility::None,
             stake: 0,
             stake_txns: vec![],
         }
@@ -240,7 +261,7 @@ mod tests {
             public_key: public_key.clone(),
             address: address.clone(),
             hash,
-            eligible: true,
+            eligibility: Eligibility::None,
             stake: 0,
             stake_txns: vec![],
         };
@@ -337,7 +358,8 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 10_000u128);
@@ -361,7 +383,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake_txns().len(), 1);
@@ -385,7 +407,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 10_000u128);
@@ -401,7 +423,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 5_000u128);
@@ -425,7 +447,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 0u128);
@@ -450,7 +472,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 10_000u128);
@@ -466,7 +488,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 7_500u128);
@@ -490,7 +512,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 0u128);
@@ -515,7 +537,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 10_000u128);
@@ -531,7 +553,7 @@ mod tests {
         )
         .unwrap();
 
-        stake.certify(vec![0; 96]).unwrap();
+        stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
         assert_eq!(claim.get_stake(), 90_000u128);
