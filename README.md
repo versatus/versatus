@@ -46,7 +46,7 @@ items that are less than 50% complete are marked as :x:, all items marked with
 | Block Indexer | Indexes, sequences and stores blocks for display in UIs that need access to block and transaction data | :construction: | :signal_strength: | | Block Explorer | Provides a web based user interface for scanning blocks, tracking transactions, etc. | :construction: | :signal_strength: | 
 | Node Metrics | Tracks the performance of a given node, cluster of nodes, and/or all nodes in the network | :x: | :signal_strength: | 
 | Wallet GUI | Provides a user interface for interacting with VRRB network | :x: | :computer: | 
-| Unikernel Compute Runtime | Enables programming language agnoostic compute in the VRRB network | :x: | :computer: | 
+| Unikernel Compute Runtime | Enables programming language agnostic compute in the VRRB network | :x: | :computer: | 
 
 ### Starting a Node
     In order to start a node, run `cargo run`
