@@ -102,9 +102,9 @@ mod tests {
 
         let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
-        let payload1 = (10, hash);
+        let payload1 = (0, hash);
 
-        assert!(Quorum::generate_seed(payload1, keypair).is_ok());
+        assert!(Quorum::generate_seed(payload1, keypair).is_err());
     }
 
     #[test]
