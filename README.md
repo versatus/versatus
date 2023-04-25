@@ -1,7 +1,10 @@
-![vrrb-logo](https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png#gh-dark-mode-only)
-![vrrb-logo](https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png#gh-light-mode-only)
+[//]: # (![vrrb-logo]&#40;https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png#gh-dark-mode-only&#41;)
+[//]: # (![vrrb-logo]&#40;https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png#gh-light-mode-only&#41;)
 
-
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png">
+  <img alt="Shows an illustrated sun in light color mode and a moon with stars in dark color mode." src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png">
+</picture>
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption. 
 VRRB is powered by a novel consensus mechanism called Proof-of-Claim, which 
