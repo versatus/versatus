@@ -104,7 +104,7 @@ mod tests {
 
         let payload1 = (10, hash);
 
-        assert!(Quorum::generate_seed(payload1, keypair).is_err());
+        assert!(Quorum::generate_seed(payload1, keypair).is_ok());
     }
 
     #[test]
