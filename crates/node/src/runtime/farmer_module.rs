@@ -289,119 +289,111 @@ mod tests {
         static ref STATE_SNAPSHOT: HashMap<Address, Account> = HashMap::new();
     }
 
-    // #[tokio::test]
-    // async fn farmer_farm_cast_vote() {
-    //     let (events_tx, _) =
-    // tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-    //
-    //     let (broadcast_events_tx, broadcast_events_rx) =
-    //         tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-    //
-    //     let (_, clear_filter_rx) =
-    // tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-    //
-    //     let (sync_jobs_sender, sync_jobs_receiver) =
-    // crossbeam_channel::unbounded::<Job>();     let (async_jobs_sender,
-    // async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-    //
-    //     let mut db_config = VrrbDbConfig::default();
-    //     let temp_dir_path = std::env::temp_dir();
-    //     let db_path =
-    // temp_dir_path.join(vrrb_core::helpers::generate_random_string());
-    //     db_config.with_path(db_path);
-    //     let db = VrrbDb::new(db_config);
-    //     let vrrbdb_read_handle = db.read_handle();
-    //
-    //     let mut job_scheduler = JobSchedulerController::new(
-    //         vec![0],
-    //         events_tx,
-    //         sync_jobs_receiver,
-    //         async_jobs_receiver,
-    //         ValidatorCoreManager::new(8).unwrap(),
-    //         vrrbdb_read_handle,
-    //     );
-    //     thread::spawn(move || {
-    //         job_scheduler.execute_sync_jobs();
-    //     });
-    //     let mut dkg_engines =
-    // test_utils::generate_dkg_engine_with_states().await;
-    //     let dkg_engine = dkg_engines.pop().unwrap();
-    //     let group_public_key = dkg_engine
-    //         .dkg_state
-    //         .public_key_set
-    //         .clone()
-    //         .unwrap()
-    //         .public_key()
-    //         .to_bytes()
-    //         .to_vec();
-    //     let sig_provider = SignatureProvider {
-    //         dkg_state:
-    // std::sync::Arc::new(std::sync::RwLock::new(dkg_engine.dkg_state)),
-    //         quorum_config: ThresholdConfig {
-    //             threshold: 2,
-    //             upper_bound: 4,
-    //         },
-    //     };
-    //     let mut farmer = FarmerModule::new(
-    //         Some(sig_provider),
-    //         group_public_key,
-    //         dkg_engine.secret_key.public_key().to_bytes().to_vec(),
-    //         1,
-    //         broadcast_events_tx,
-    //         2,
-    //         sync_jobs_sender,
-    //         async_jobs_sender,
-    //     );
-    //     let keypair = KeyPair::random();
-    //     let mut txns = HashSet::<Txn>::new();
-    //
-    //     let now = SystemTime::now()
-    //         .duration_since(UNIX_EPOCH)
-    //         .unwrap()
-    //         .as_nanos();
-    //
-    //     // let txn_id = String::from("1");
-    //     let sender_address = String::from("aaa1");
-    //     let receiver_address = String::from("bbb1");
-    //     let txn_amount: u128 = 1010101;
-    //
-    //     for n in 1..101 {
-    //         let sig =
-    // keypair.miner_kp.0.sign_ecdsa(Message::from_hashed_data::<
-    //             secp256k1::hashes::sha256::Hash,
-    //         >(
-    //             b"
-    // vrrb",
-    //         ));
-    //
-    //         let txn = Txn::new(NewTxnArgs {
-    //             timestamp: 0,
-    //             sender_address: String::from("aaa1"),
-    //             sender_public_key: keypair.get_miner_public_key().clone(),
-    //             receiver_address: receiver_address.clone(),
-    //             token: None,
-    //             amount: txn_amount + n,
-    //             validators: Some(HashMap::<String, bool>::new()),
-    //             nonce: 0,
-    //             signature: sig,
-    //         });
-    //         txns.insert(txn);
-    //     }
-    //
-    //     let _ = farmer.tx_mempool.extend(txns);
-    //
-    //     let mut farmer_swarm_module = ActorImpl::new(farmer);
-    //     let (ctrl_tx, mut ctrl_rx) =
-    // tokio::sync::broadcast::channel::<EventMessage>(10000);
-    //     assert_eq!(farmer_swarm_module.status(), ActorState::Stopped);
-    //
-    //     let handle = tokio::spawn(async move {
-    //         farmer_swarm_module.start(&mut ctrl_rx).await.unwrap();
-    //         assert_eq!(farmer_swarm_module.status(),
-    // ActorState::Terminating);     });
-    //
-    //     ctrl_tx.send(Event::Farm.into()).unwrap();
-    //     ctrl_tx.send(Event::Stop.into()).unwrap();
-    //     handle.await.unwrap();
-    // }
+    #[tokio::test]
+    async fn farmer_farm_cast_vote() {
+        let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
+        let (broadcast_events_tx, broadcast_events_rx) =
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
+        let (_, clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
+        let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+
+        let mut db_config = VrrbDbConfig::default();
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+        db_config.with_path(db_path);
+        let db = VrrbDb::new(db_config);
+        let vrrbdb_read_handle = db.read_handle();
+
+        let mut job_scheduler = JobSchedulerController::new(
+            vec![0],
+            events_tx,
+            sync_jobs_receiver,
+            async_jobs_receiver,
+            ValidatorCoreManager::new(8).unwrap(),
+            vrrbdb_read_handle,
+        );
+        thread::spawn(move || {
+            job_scheduler.execute_sync_jobs();
+        });
+        let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
+        let dkg_engine = dkg_engines.pop().unwrap();
+        let group_public_key = dkg_engine
+            .dkg_state
+            .public_key_set
+            .clone()
+            .unwrap()
+            .public_key()
+            .to_bytes()
+            .to_vec();
+        let sig_provider = SignatureProvider {
+            dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine.dkg_state)),
+            quorum_config: ThresholdConfig {
+                threshold: 2,
+                upper_bound: 4,
+            },
+        };
+        let mut farmer = FarmerModule::new(
+            Some(sig_provider),
+            group_public_key,
+            dkg_engine.secret_key.public_key().to_bytes().to_vec(),
+            1,
+            broadcast_events_tx,
+            2,
+            sync_jobs_sender,
+            async_jobs_sender,
+        );
+        let keypair = KeyPair::random();
+        let mut txns = HashSet::<Txn>::new();
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+
+        // let txn_id = String::from("1");
+        let sender_address = String::from("aaa1");
+        let receiver_address = String::from("bbb1");
+        let txn_amount: u128 = 1010101;
+
+        for n in 1..101 {
+            let sig = keypair.miner_kp.0.sign_ecdsa(Message::from_hashed_data::<
+                secp256k1::hashes::sha256::Hash,
+            >(
+                b"
+    vrrb",
+            ));
+
+            let txn = Txn::new(NewTxnArgs {
+                timestamp: 0,
+                sender_address: String::from("aaa1"),
+                sender_public_key: keypair.get_miner_public_key().clone(),
+                receiver_address: receiver_address.clone(),
+                token: None,
+                amount: txn_amount + n,
+                validators: Some(HashMap::<String, bool>::new()),
+                nonce: 0,
+                signature: sig,
+            });
+            txns.insert(txn);
+        }
+
+        let _ = farmer.tx_mempool.extend(txns);
+
+        let mut farmer_swarm_module = ActorImpl::new(farmer);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<EventMessage>(10000);
+        assert_eq!(farmer_swarm_module.status(), ActorState::Stopped);
+
+        let handle = tokio::spawn(async move {
+            farmer_swarm_module.start(&mut ctrl_rx).await.unwrap();
+            assert_eq!(farmer_swarm_module.status(), ActorState::Terminating);
+        });
+
+        ctrl_tx.send(Event::Farm.into()).unwrap();
+        ctrl_tx.send(Event::Stop.into()).unwrap();
+        handle.await.unwrap();
+    }
 }
