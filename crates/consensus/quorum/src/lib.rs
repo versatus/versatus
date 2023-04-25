@@ -81,31 +81,31 @@ mod tests {
         assert!(Quorum::generate_seed(payload1, keypair).is_err());
     }
 
-    //     #[test]
-    //     fn invalid_seed_block_timestamp() {
-    //         let mut dummy_claims: Vec<Claim> = Vec::new();
-    //
-    //         (0..3).for_each(|_| {
-    //             let keypair = KeyPair::random();
-    //             let public_key = keypair.get_miner_public_key().clone();
-    //             let claim: Claim = Claim::new(public_key,
-    // Address::new(public_key));             dummy_claims.push(claim);
-    //         });
-    //         let keypair = KeyPair::random();
-    //         let public_key = keypair.get_miner_public_key();
-    //         let mut hasher = DefaultHasher::new();
-    //         public_key.hash(&mut hasher);
-    //         let pubkey_hash = hasher.finish();
-    //
-    //         let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
-    //         pub_key_bytes.push(1u8);
-    //
-    //         let hash = digest(digest(&*pub_key_bytes).as_bytes());
-    //
-    //         let payload1 = (10, hash);
-    //
-    //         assert!(Quorum::generate_seed(payload1, keypair).is_err());
-    //     }
+    #[test]
+    fn invalid_seed_block_timestamp() {
+        let mut dummy_claims: Vec<Claim> = Vec::new();
+
+        (0..3).for_each(|_| {
+            let keypair = KeyPair::random();
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            dummy_claims.push(claim);
+        });
+        let keypair = KeyPair::random();
+        let public_key = keypair.get_miner_public_key();
+        let mut hasher = DefaultHasher::new();
+        public_key.hash(&mut hasher);
+        let pubkey_hash = hasher.finish();
+
+        let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
+
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
+
+        let payload1 = (10, hash);
+
+        assert!(Quorum::generate_seed(payload1, keypair).is_err());
+    }
 
     #[test]
     fn invalid_election_block_height() {
