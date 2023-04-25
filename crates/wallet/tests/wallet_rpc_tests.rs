@@ -8,25 +8,24 @@ use vrrb_core::{helpers::read_or_generate_keypair_file, keypair::Keypair, txn::T
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
-// #[tokio::test]
-// #[serial]
-// pub async fn create_wallet_with_rpc_client() {
-//     let socket_addr: SocketAddr = "127.0.0.1:9293"
-//         .parse()
-//         .expect("Unable to create Socket Address");
-//
-//     // Set up RPC Server to accept connection from client
-//     let json_rpc_server_config = JsonRpcServerConfig::default();
-//
-//     let (server_handle, _) =
-// JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
-//
-//     tokio::spawn(server_handle.stopped());
-//
-//     let wallet_config = WalletConfig::default();
-//
-//     let mut wallet = Wallet::new(wallet_config).await.unwrap();
-// }
+#[tokio::test]
+#[serial]
+pub async fn create_wallet_with_rpc_client() {
+    let socket_addr: SocketAddr = "127.0.0.1:9293"
+        .parse()
+        .expect("Unable to create Socket Address");
+
+    // Set up RPC Server to accept connection from client
+    let json_rpc_server_config = JsonRpcServerConfig::default();
+
+    let (server_handle, _) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
+
+    tokio::spawn(server_handle.stopped());
+
+    let wallet_config = WalletConfig::default();
+
+    let mut wallet = Wallet::new(wallet_config).await.unwrap();
+}
 
 #[tokio::test]
 #[serial]
