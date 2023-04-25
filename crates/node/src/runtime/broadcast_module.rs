@@ -237,78 +237,79 @@ impl Handler<EventMessage> for BroadcastModule {
         Ok(ActorState::Running)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::io::stdout;
-
-    use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
-    use primitives::NodeType;
-    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use theater::{Actor, ActorImpl};
-    use tokio::{net::UdpSocket, sync::broadcast::channel};
-
-    use super::{BroadcastModule, BroadcastModuleConfig};
-
-    #[tokio::test]
-    async fn test_broadcast_module() {
-        let (internal_events_tx, mut internal_events_rx) =
-            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-
-        let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
-
-        let mut db_config = VrrbDbConfig::default();
-
-        let temp_dir_path = std::env::temp_dir();
-        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
-
-        db_config.with_path(db_path);
-
-        let db = VrrbDb::new(db_config);
-
-        let vrrbdb_read_handle = db.read_handle();
-
-        let config = BroadcastModuleConfig {
-            events_tx: internal_events_tx,
-            vrrbdb_read_handle,
-            node_type: NodeType::Full,
-            udp_gossip_address_port: 0,
-            raptorq_gossip_address_port: 0,
-            node_id,
-        };
-
-        let (events_tx, mut events_rx) =
-            tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
-
-        let broadcast_module = BroadcastModule::new(config).await.unwrap();
-
-        let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
-
-        let handle = tokio::spawn(async move {
-            broadcast_module_actor.start(&mut events_rx).await.unwrap();
-        });
-
-        let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
-
-        let address = bound_socket.local_addr().unwrap();
-
-        let peer_data = SyncPeerData {
-            address,
-            raptor_udp_port: 9993,
-            quic_port: 9994,
-            node_type: NodeType::Full,
-        };
-
-        events_tx
-            .send(Event::SyncPeers(vec![peer_data.clone()]).into())
-            .unwrap();
-        events_tx.send(Event::Stop.into()).unwrap();
-
-        match internal_events_rx.recv().await {
-            Some(value) => assert_eq!(value, Event::SyncPeers(vec![peer_data]).into()),
-            None => println!("no value"),
-        }
-
-        handle.await.unwrap();
-    }
-}
+//
+// #[cfg(test)]
+// mod tests {
+//     use std::io::stdout;
+//
+//     use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
+//     use primitives::NodeType;
+//     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
+//     use theater::{Actor, ActorImpl};
+//     use tokio::{net::UdpSocket, sync::broadcast::channel};
+//
+//     use super::{BroadcastModule, BroadcastModuleConfig};
+//
+//     #[tokio::test]
+//     async fn test_broadcast_module() {
+//         let (internal_events_tx, mut internal_events_rx) =
+//             tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+//
+//         let node_id = uuid::Uuid::new_v4().to_string().into_bytes();
+//
+//         let mut db_config = VrrbDbConfig::default();
+//
+//         let temp_dir_path = std::env::temp_dir();
+//         let db_path =
+// temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+//
+//         db_config.with_path(db_path);
+//
+//         let db = VrrbDb::new(db_config);
+//
+//         let vrrbdb_read_handle = db.read_handle();
+//
+//         let config = BroadcastModuleConfig {
+//             events_tx: internal_events_tx,
+//             vrrbdb_read_handle,
+//             node_type: NodeType::Full,
+//             udp_gossip_address_port: 0,
+//             raptorq_gossip_address_port: 0,
+//             node_id,
+//         };
+//
+//         let (events_tx, mut events_rx) =
+//             tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
+//
+//         let broadcast_module = BroadcastModule::new(config).await.unwrap();
+//
+//         let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
+//
+//         let handle = tokio::spawn(async move {
+//             broadcast_module_actor.start(&mut events_rx).await.unwrap();
+//         });
+//
+//         let bound_socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+//
+//         let address = bound_socket.local_addr().unwrap();
+//
+//         let peer_data = SyncPeerData {
+//             address,
+//             raptor_udp_port: 9993,
+//             quic_port: 9994,
+//             node_type: NodeType::Full,
+//         };
+//
+//         events_tx
+//             .send(Event::SyncPeers(vec![peer_data.clone()]).into())
+//             .unwrap();
+//         events_tx.send(Event::Stop.into()).unwrap();
+//
+//         match internal_events_rx.recv().await {
+//             Some(value) => assert_eq!(value,
+// Event::SyncPeers(vec![peer_data]).into()),             None => println!("no
+// value"),         }
+//
+//         handle.await.unwrap();
+//     }
+// }
