@@ -2,7 +2,8 @@
 [//]: # (![vrrb-logo]&#40;https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png#gh-light-mode-only&#41;)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png">
   <img alt="Shows an illustrated sun in light color mode and a moon with stars in dark color mode." src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png">
 </picture>
 
