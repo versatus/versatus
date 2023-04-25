@@ -104,16 +104,23 @@ impl Default for RocksDbAdapter {
         options.create_if_missing(true);
         options.create_missing_column_families(true);
 
-        let db = new_db_instance(
+        let db_result = new_db_instance(
             options,
             DEFAULT_VRRB_DB_PATH.into(),
             DEFAULT_COLUMN_FAMILY_NAME,
-        )
-        .unwrap();
+        );
 
-        Self {
-            db,
-            column: DEFAULT_COLUMN_FAMILY_NAME.to_string(),
+        match db_result {
+            Ok(db) => Self {
+                db,
+                column: DEFAULT_COLUMN_FAMILY_NAME.to_string(),
+            },
+            Err(e) => {
+                // Handle the error here, for example by logging it and returning a default
+                // value
+                eprintln!("Failed to create database: {}", e);
+                Self::default()
+            },
         }
     }
 }

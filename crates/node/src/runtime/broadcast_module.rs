@@ -302,6 +302,7 @@ mod tests {
         events_tx
             .send(Event::SyncPeers(vec![peer_data.clone()]).into())
             .unwrap();
+
         events_tx.send(Event::Stop.into()).unwrap();
 
         match internal_events_rx.recv().await {
