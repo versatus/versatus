@@ -1,5 +1,5 @@
-![vrrb-logo dark-mode](https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png#gh-dark-mode-only)
-![vrrb-logo light-mode](https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png#gh-light-mode-only)
+![vrrb-logo](https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png#gh-dark-mode-only)
+![vrrb-logo](https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png#gh-light-mode-only)
 
 
 
