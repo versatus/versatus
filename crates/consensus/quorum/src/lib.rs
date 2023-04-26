@@ -135,34 +135,35 @@ mod tests {
             assert!(Quorum::new(seed, 0).is_err());
         }
     }
-    //
-    //     #[test]
-    //     fn invalid_election_block_timestamp() {
-    //         let mut dummy_claims: Vec<Claim> = Vec::new();
-    //         (0..20).for_each(|_| {
-    //             let keypair = KeyPair::random();
-    //             let public_key = keypair.get_miner_public_key().clone();
-    //             let claim: Claim = Claim::new(public_key,
-    // Address::new(public_key));             dummy_claims.push(claim);
-    //         });
-    //         let keypair = KeyPair::random();
-    //         let public_key = keypair.get_miner_public_key();
-    //         let mut hasher = DefaultHasher::new();
-    //         public_key.hash(&mut hasher);
-    //         let pubkey_hash = hasher.finish();
-    //
-    //         let mut pub_key_bytes =
-    // pubkey_hash.to_string().as_bytes().to_vec();         pub_key_bytes.
-    // push(1u8);
-    //
-    //         let hash = digest(digest(&*pub_key_bytes).as_bytes());
-    //
-    //         let payload1 = (10, hash);
-    //
-    //         if let Ok(seed) = Quorum::generate_seed(payload1,
-    // keypair.clone()) {             assert!(Quorum::new(seed,
-    // 11).is_err());         }
-    //     }
+
+    #[test]
+    fn invalid_election_block_timestamp() {
+        let mut dummy_claims: Vec<Claim> = Vec::new();
+        (0..20).for_each(|_| {
+            let keypair = KeyPair::random();
+            let public_key = keypair.get_miner_public_key().clone();
+            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            dummy_claims.push(claim);
+        });
+
+        let keypair = KeyPair::random();
+        let public_key = keypair.get_miner_public_key();
+        let mut hasher = DefaultHasher::new();
+        public_key.hash(&mut hasher);
+        let pubkey_hash = hasher.finish();
+
+        let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+        pub_key_bytes.push(1u8);
+
+        let hash = digest(digest(&*pub_key_bytes).as_bytes());
+
+        let payload1 = (10, hash);
+
+        if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
+            assert!(Quorum::new(seed, 0).is_err());
+        }
+    }
+
 
     #[test]
     #[ignore = "temporarily disabled while the crate is refactored"]
