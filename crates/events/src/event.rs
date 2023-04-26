@@ -1,19 +1,21 @@
 use std::net::SocketAddr;
 
-use block::{Block, Conflict};
+use block::{Block, Conflict, RefHash};
 use ethereum_types::U256;
 use primitives::{
     Address,
+    Epoch,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
     QuorumPublicKey,
     QuorumSize,
+    Round,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
-    txn::{TransactionDigest, Txn},
+    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
 use crate::event_data::*;
@@ -22,6 +24,7 @@ pub type AccountBytes = Vec<u8>;
 pub type BlockBytes = Vec<u8>;
 pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
+pub type MinerClaim = Claim;
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -84,7 +87,7 @@ pub enum Event {
     HarvesterPublicKey(Vec<u8>),
     Farm,
     Vote(Vote, FarmerQuorumThreshold),
-    MineProposalBlock,
+    MineProposalBlock(RefHash, Round, Epoch, Claim),
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
@@ -112,6 +115,8 @@ pub enum Event {
     FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
     HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
     CertifiedTxn(JobResult),
+    AddHarvesterPeer(SocketAddr),
+    RemoveHarvesterPeer(SocketAddr),
 }
 
 impl From<&theater::Message> for Event {

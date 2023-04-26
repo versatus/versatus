@@ -22,6 +22,7 @@ use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
 };
+use vrrb_core::keypair::Keypair;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -270,10 +271,12 @@ pub async fn setup_runtime_components(
     } else {
         //Setup harvester
         harvester_handle = setup_harvester_module(
+            &config,
             sync_jobs_sender,
             async_jobs_sender,
             events_tx.clone(),
             events_rx,
+            state_read_handle.clone(),
             harvester_events_rx,
         )?
     };
@@ -621,10 +624,12 @@ fn setup_farmer_module(
 }
 
 fn setup_harvester_module(
+    config: &NodeConfig,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    vrrb_db_handle: VrrbDbReadHandle,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -636,6 +641,8 @@ fn setup_harvester_module(
         1,
         sync_jobs_sender,
         async_jobs_sender,
+        vrrb_db_handle,
+        config.keypair.clone(),
     );
     let mut harvester_module_actor = ActorImpl::new(module);
     let harvester_handle = tokio::spawn(async move {

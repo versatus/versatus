@@ -29,7 +29,7 @@ mod tests {
     use vrrb_core::{
         claim::Claim,
         keypair::Keypair,
-        txn::{TransactionDigest, Txn},
+        txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
     };
 
     use crate::test_helpers::{
@@ -229,7 +229,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let prop2 =
@@ -290,7 +291,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -367,7 +369,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -416,7 +419,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {

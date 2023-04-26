@@ -1,21 +1,26 @@
 use async_trait::async_trait;
+use block::{Block, ClaimList, ProposalBlock, QuorumCertifiedTxnList, RefHash, TxnList};
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
-use events::{
-    Event,
-    EventMessage,
-    EventPublisher,
-    JobResult,
-    QuorumCertifiedTxn,
-    Vote,
-    VoteReceipt,
+use events::{Event, EventMessage, EventPublisher, JobResult, Vote};
+use primitives::{Epoch, GroupPublicKey, HarvesterQuorumThreshold, QuorumThreshold};
+use ritelinked::LinkedHashMap;
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
 };
-use primitives::{GroupPublicKey, HarvesterQuorumThreshold, QuorumThreshold};
 use signer::signer::SignatureProvider;
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use tracing::error;
-use vrrb_core::{bloom::Bloom, txn::TransactionDigest};
+use utils::{create_payload, hash_data};
+use vrrb_core::{
+    bloom::Bloom,
+    claim::Claim,
+    keypair::KeyPair,
+    txn::{QuorumCertifiedTxn, TransactionDigest, VoteReceipt},
+};
 
 use crate::{farmer_module::PULL_TXN_BATCH_SIZE, scheduler::Job};
 
@@ -49,6 +54,10 @@ pub const CERTIFIED_TXNS_FILTER_SIZE: usize = 500000;
 ///   holds a `SignatureProvider`
 /// object. This object is responsible for providing cryptographic signatures
 /// for convergence blocks
+///  * `vrrbdb_read_handle`: `vrrbdb_read_handle` is a handle to read data from
+///    a VRRB  database.
+/// This database is used to store and retrieve data related
+///  to the blockchain, such as transactions and blocks.
 /// * `status`: The status property is an instance of the ActorState enum, which
 ///   represents the current
 /// state of the HarvesterModule actor. The possible states are defined within
@@ -84,6 +93,7 @@ pub struct HarvesterModule {
     pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -92,6 +102,7 @@ pub struct HarvesterModule {
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
+    pub keypair: KeyPair,
 }
 
 impl HarvesterModule {
@@ -104,12 +115,15 @@ impl HarvesterModule {
         quorum_threshold: HarvesterQuorumThreshold,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
+        vrrbdb_read_handle: VrrbDbReadHandle,
+        keypair: KeyPair,
     ) -> Self {
         let quorum_certified_txns = Vec::new();
         let harvester = Self {
             quorum_certified_txns,
             certified_txns_filter,
             sig_provider,
+            vrrbdb_read_handle,
             status: ActorState::Stopped,
             label: String::from("FarmerHarvester"),
             id: uuid::Uuid::new_v4().to_string(),
@@ -120,6 +134,7 @@ impl HarvesterModule {
             votes_pool: DashMap::new(),
             sync_jobs_sender,
             async_jobs_sender,
+            keypair,
         };
         harvester
     }
@@ -152,14 +167,14 @@ impl Handler<EventMessage> for HarvesterModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            /// The above code is handling an event of type `Vote` in a Rust
-            /// program. It checks the integrity of the vote by
-            /// verifying that it comes from the actual voter and prevents
-            /// double voting. It then adds the vote to a pool of votes for the
-            /// corresponding transaction and farmer quorum key. If
-            /// the number of votes in the pool reaches the farmer
-            /// quorum threshold, it sends a job to certify the transaction
-            /// using the provided signature provider.
+            // The above code is handling an event of type `Vote` in a Rust
+            // program. It checks the integrity of the vote by
+            // verifying that it comes from the actual voter and prevents
+            // double voting. It then adds the vote to a pool of votes for the
+            // corresponding transaction and farmer quorum key. If
+            // the number of votes in the pool reaches the farmer
+            // quorum threshold, it sends a job to certify the transaction
+            // using the provided signature provider.
             Event::Vote(vote, farmer_quorum_threshold) => {
                 //TODO Harvest should check for integrity of the vote by Voter( Does it vote
                 // truly comes from Voter Prevent Double Voting
@@ -184,6 +199,7 @@ impl Handler<EventMessage> for HarvesterModule {
                                     farmer_quorum_key,
                                     vote.farmer_id.clone(),
                                     vote.txn,
+                                    farmer_quorum_threshold,
                                 )));
                             }
                         }
@@ -202,6 +218,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     farmer_quorum_key,
                     farmer_id,
                     txn,
+                    is_txn_valid,
                 ) = job_result
                 {
                     let vote_receipts = votes
@@ -217,6 +234,7 @@ impl Handler<EventMessage> for HarvesterModule {
                         vote_receipts,
                         txn,
                         certificate,
+                        is_txn_valid,
                     ));
                     let _ = self
                         .certified_txns_filter
@@ -225,16 +243,39 @@ impl Handler<EventMessage> for HarvesterModule {
             },
 
             /// Mines proposal block after every X seconds.
-            Event::MineProposalBlock => {
+            Event::MineProposalBlock(ref_hash, round, epoch, claim) => {
                 let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
-                txns.clone().for_each(|txn| {
-                    let _ = self
-                        .broadcast_events_tx
-                        .send(Event::QuorumCertifiedTxns(txn.clone()).into());
-                    let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
-                });
-                let _txns = txns.collect::<Vec<&QuorumCertifiedTxn>>();
-                //TODO: Build Proposal Blocks here
+
+                //Read updated claims
+                let claim_map = self.vrrbdb_read_handle.claim_store_values();
+                let claim_list = claim_map
+                    .iter()
+                    .map(|(node_id, claim)| (claim.hash, claim.clone()))
+                    .collect();
+
+                let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
+                    .into_iter()
+                    .map(|txn| {
+                        let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
+                        (txn.txn.id(), txn.clone())
+                    })
+                    .collect();
+
+                let proposal_block = ProposalBlock::build(
+                    ref_hash,
+                    round,
+                    epoch,
+                    txns_list,
+                    claim_list,
+                    claim,
+                    self.keypair.get_miner_secret_key(),
+                );
+                let _ = self.broadcast_events_tx.send(EventMessage::new(
+                    None,
+                    Event::MinedBlock(Block::Proposal {
+                        block: proposal_block,
+                    }),
+                ));
             },
             Event::NoOp => {},
             _ => {
@@ -261,8 +302,9 @@ mod tests {
     use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
     use theater::{Actor, ActorImpl, ActorState};
-    use vrrb_core::{account::Account, bloom::Bloom};
+    use vrrb_core::{account::Account, bloom::Bloom, keypair::Keypair};
 
     use crate::{harvester_module::HarvesterModule, scheduler::Job};
 
@@ -279,6 +321,18 @@ mod tests {
         let (async_jobs_status_sender, async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
 
+
+        let mut db_config = VrrbDbConfig::default();
+
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+
+        db_config.with_path(db_path);
+
+        let db = VrrbDb::new(db_config);
+
+        let vrrbdb_read_handle = db.read_handle();
+
         let harvester_swarm_module = HarvesterModule::new(
             Bloom::new(10000),
             None,
@@ -288,6 +342,8 @@ mod tests {
             2,
             sync_jobs_sender,
             async_jobs_sender,
+            vrrbdb_read_handle,
+            Keypair::random(),
         );
         let mut harvester_swarm_module = ActorImpl::new(harvester_swarm_module);
 
