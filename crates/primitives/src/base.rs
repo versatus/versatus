@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 /// The unit of time within VRRB.
 /// It lasts for some number
 pub type Epoch = u128;
-
+pub type Round = u128;
+pub type Seed = u64;
 pub const GENESIS_EPOCH: Epoch = 0;
 pub const GROSS_UTILITY_PERCENTAGE: f64 = 0.01;
 pub const PERCENTAGE_CHANGE_SUPPLY_CAP: f64 = 0.25;
@@ -28,6 +29,9 @@ pub type ByteSlice<'a> = &'a [u8];
 pub type PayloadHash = ByteVec;
 pub type RawSignature = ByteVec;
 pub type PeerId = ByteVec;
+pub type FarmerId = ByteVec;
+pub type IsTxnValid = bool;
+pub type PublicKeyShareVec = ByteVec;
 
 #[deprecated(note = "Use TransactionDigest instead")]
 pub type TxHash = ByteVec;

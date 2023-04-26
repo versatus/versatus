@@ -1,10 +1,12 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
+use block::ConvergenceBlock;
 use crossbeam_channel::Receiver;
 use events::{Event, EventPublisher, JobResult, Vote};
+use hbbft::crypto::SignatureShare;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
-use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold};
+use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -72,8 +74,10 @@ pub enum Job {
             String,
             Vec<u8>,
             Txn,
+            FarmerQuorumThreshold,
         ),
     ),
+    SignConvergenceBlock(SignatureProvider, ConvergenceBlock),
 }
 
 impl JobSchedulerController {
@@ -130,8 +134,8 @@ impl JobSchedulerController {
                                         receiver_farmer_id,
                                         |receiver_farmer_id: &mut Vec<u8>, txn| {
                                             let mut vote = None;
-                                            let txn = txn.0.clone();
-                                            if let Ok(txn_bytes) = bincode::serialize(&txn) {
+                                            let new_txn = txn.0.clone();
+                                            if let Ok(txn_bytes) = bincode::serialize(&new_txn) {
                                                 if let Ok(signature) = sig_provider
                                                     .generate_partial_signature(txn_bytes)
                                                 {
@@ -139,11 +143,12 @@ impl JobSchedulerController {
                                                         farmer_id: receiver_farmer_id.clone(),
                                                         farmer_node_id,
                                                         signature,
-                                                        txn,
+                                                        txn: new_txn,
                                                         quorum_public_key: quorum_public_key
                                                             .clone(),
                                                         quorum_threshold: farmer_quorum_threshold,
                                                         execution_result: None,
+                                                        is_txn_valid: txn.1.is_err(),
                                                     });
                                                 }
                                             }
@@ -171,10 +176,20 @@ impl JobSchedulerController {
                         farmer_quorum_key,
                         farmer_id,
                         txn,
+                        farmer_quorum_threshold,
                     )) => {
-                        let mut sig_shares = BTreeMap::new();
+                        let mut vote_shares: HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>> =
+                            HashMap::new();
                         for v in votes.iter() {
-                            sig_shares.insert(v.farmer_node_id, v.signature.clone());
+                            if let Some(votes) = vote_shares.get_mut(&v.is_txn_valid) {
+                                votes.insert(v.farmer_node_id, v.signature.clone());
+                            } else {
+                                let sig_shares_map: BTreeMap<NodeIdx, Vec<u8>> =
+                                    vec![(v.farmer_node_id, v.signature.clone())]
+                                        .into_iter()
+                                        .collect();
+                                vote_shares.insert(v.is_txn_valid, sig_shares_map);
+                            }
                         }
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
@@ -185,25 +200,60 @@ impl JobSchedulerController {
                             .into_iter()
                             .collect();
                         let validated = validated_txns.par_iter().any(|x| x.0.id() == txn.id());
+                        let most_votes_share = vote_shares
+                            .iter()
+                            .max_by_key(|(_, votes_map)| votes_map.len())
+                            .map(|(key, votes_map)| (*key, votes_map.clone()));
                         if validated {
-                            let result = sig_provider.generate_quorum_signature(sig_shares.clone());
-                            if let Ok(threshold_signature) = result {
-                                let _ = self.events_tx.send(
-                                    Event::CertifiedTxn(JobResult::CertifiedTxn(
-                                        votes.clone(),
-                                        threshold_signature,
-                                        txn_id.clone(),
-                                        farmer_quorum_key.clone(),
-                                        farmer_id.clone(),
-                                        txn.clone(),
-                                    ))
-                                    .into(),
+                            if let Some((is_txn_valid, votes_map)) = most_votes_share {
+                                let result = sig_provider.generate_quorum_signature(
+                                    farmer_quorum_threshold as u16,
+                                    votes_map.clone(),
                                 );
-                            } else {
-                                error!("Quorum signature generation failed");
+                                if let Ok(threshold_signature) = result {
+                                    let _ = self.events_tx.send(
+                                        Event::CertifiedTxn(JobResult::CertifiedTxn(
+                                            votes.clone(),
+                                            threshold_signature,
+                                            txn_id.clone(),
+                                            farmer_quorum_key.clone(),
+                                            farmer_id.clone(),
+                                            txn.clone(),
+                                            is_txn_valid,
+                                        ))
+                                        .into(),
+                                    );
+                                } else {
+                                    error!("Quorum signature generation failed");
+                                }
                             }
                         } else {
                             error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
+                        }
+                    },
+                    /// Job `SignConvergenceBlock` signs the  block hash and
+                    /// generates a partial signature for the block
+                    Job::SignConvergenceBlock(sig_provider, block) => {
+                        if let Ok(block_hash_bytes) = hex::decode(block.hash.clone()) {
+                            if let Ok(signature) =
+                                sig_provider.generate_partial_signature(block_hash_bytes)
+                            {
+                                if let Ok(dkg_state) = sig_provider.dkg_state.read() {
+                                    if let Some(secret_share) = &dkg_state.secret_key_share {
+                                        let _ = self.events_tx.send(
+                                            Event::ConvergenceBlockPartialSign(
+                                                JobResult::ConvergenceBlockPartialSign(
+                                                    block.hash,
+                                                    secret_share.public_key_share(),
+                                                    signature,
+                                                )
+                                                .into(),
+                                            )
+                                            .into(),
+                                        );
+                                    }
+                                }
+                            }
                         }
                     },
                 },

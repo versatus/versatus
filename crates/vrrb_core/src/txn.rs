@@ -11,7 +11,9 @@ use primitives::{
     ByteSlice,
     ByteVec,
     Digest as PrimitiveDigest,
+    NodeIdx,
     PublicKey,
+    RawSignature,
     SecretKey,
     DIGEST_LENGTH,
 };
@@ -98,13 +100,41 @@ impl Default for Token {
     }
 }
 
-impl Display for Token {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Token {{ name: {}, symbol: {}, decimals: {} }}",
-            self.name, self.symbol, self.decimals
-        )
+#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
+pub struct VoteReceipt {
+    /// The identity of the voter.
+    pub farmer_id: Vec<u8>,
+    pub farmer_node_id: NodeIdx,
+    /// Partial Signature
+    pub signature: RawSignature,
+}
+
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub struct QuorumCertifiedTxn {
+    sender_farmer_id: Vec<u8>,
+    /// All valid vote receipts
+    votes: Vec<VoteReceipt>,
+    pub txn: Txn,
+    /// Threshold Signature
+    signature: RawSignature,
+    pub is_txn_valid: bool,
+}
+
+impl QuorumCertifiedTxn {
+    pub fn new(
+        sender_farmer_id: Vec<u8>,
+        votes: Vec<VoteReceipt>,
+        txn: Txn,
+        signature: RawSignature,
+        is_txn_valid: bool,
+    ) -> QuorumCertifiedTxn {
+        QuorumCertifiedTxn {
+            sender_farmer_id,
+            votes,
+            txn,
+            signature,
+            is_txn_valid,
+        }
     }
 }
 
