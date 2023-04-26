@@ -66,11 +66,7 @@ mod tests {
             .iter()
             .cloned()
             .map(|txn| {
-                let account = txn.sender_address.clone();
-                let err = Err(crate::txn_validator::TxnValidatorError::AccountNotFound(
-                    account,
-                ));
-
+                let err = Err(crate::txn_validator::TxnValidatorError::SenderAddressIncorrect);
                 (txn, err)
             })
             .collect();

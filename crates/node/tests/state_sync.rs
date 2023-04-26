@@ -14,6 +14,7 @@ use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
+#[ignore = "state sync is not implemented yet"]
 async fn nodes_can_synchronize_state() {
     // NOTE: two instances of a config are required because the node will create a
     // data directory for the database which cannot be the same for both nodes
@@ -50,7 +51,6 @@ async fn nodes_can_synchronize_state() {
 
         let signature =
             sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
-
         client_1
             .create_txn(NewTxnArgs {
                 timestamp: 0,

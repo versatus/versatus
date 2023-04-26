@@ -78,7 +78,9 @@ async fn server_can_publish_transactions_to_be_created() {
     let mock_receiver_address =
         "028b0d9b8a79ef99e2d2c030123aef543ffa7e8583e480f229ae7fccd89c8ddbfa".to_string();
 
-    let mock_signature= "30440220029d8f55b771933f5bcea06771cda9fa793478317a5633407366d3f2186ac994022012f5bdc5217f192a34a62e9856c6efd9a0803e7a93bfaefb95783da29c52c3df".to_string();
+    let mock_signature=
+"30440220029d8f55b771933f5bcea06771cda9fa793478317a5633407366d3f2186ac994022012f5bdc5217f192a34a62e9856c6efd9a0803e7a93bfaefb95783da29c52c3df"
+.to_string();
 
     let mock_record = RpcTransactionRecord {
         id: mock_digest,
