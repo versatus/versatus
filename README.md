@@ -9,8 +9,8 @@
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption. 
 VRRB is powered by a novel consensus mechanism called Proof-of-Claim, which 
-feature dual-scalability for record-breaking TPS and fast time to finality. 
-VRRB offers a flexible, composable, safe programming language agnostic 
+features dual-scalability for record-breaking TPS and fast time to finality. 
+VRRB offers a flexible, composable and safe, (programming) language agnostic 
 compute platform powered by unikernel containers. The VRRB compute platform 
 takes web3 beyond the paradigm of ownership, tokenization and event 
 triggered transfers, offering a decentralized general execution environment 
@@ -30,6 +30,11 @@ _Items that are more than 50% complete are marked with :construction: while
 items that are less than 50% complete are marked as :x:, all items marked with
 :white_check_mark: are complete, tested, and integrated into the node runtime_
 
+:link: : Alphanet
+:signal_strength: Betanet
+:computer: Devnet
+:satellite: Mainnet
+
 | __Epic__   | _Description_ | State | Network |
 |------------|---------------|-------|---------|
 | Network | P2P Network enabling communication between network participants | :white_check_mark: | :link: |   
@@ -44,12 +49,15 @@ items that are less than 50% complete are marked as :x:, all items marked with
 | Miner Unit | Protocol for consolidating proposal blocks produced by miners into a single point of reference signifying the end of a round and finality of transactions (once certified)| :white_check_mark: | :link: | 
 | Scheduler | Decentralized task buffer and allocator to maximize efficiency of Farmer Quorum nodes | :white_check_mark: | :link: | 
 | Block Production | Enables harvesters to produce conflict minimized, extractable value maximized proposal blocks to be appended to the DAG | :white_check_mark: | :link: |
+| Token Emission Protocol | Ensures that proper number of tokens each block and epoch are produced | :white_check_mark: | :signal_strength: |
+| Fee & Rent Model | Provides economic incentives to operators beyond emission subsidy, provides token burning to limit inflation, and economic incentives to maintain speed at scale. Also provides economic incentives to developers to build small, composable applications | :x: | :signal_strength: |
 | Node CLI | Provides an interface for operators to spin up a VRRB node | :construction: | :link: | 
 | Wallet CLI | Provides an interface for users to interact with the VRRB network| :construction: | :link: | 
 | Reputation Tracking | Tracks the reputation of nodes, and the message credits, to align incentives, reduce malicious behavior and allow for dynamic stake calculation to prevent accumulation and centralization of staking nodes| :construction: | :signal_strength: | 
 | Dynamic Stake Calculator | Protocol to calculate minimum required stake of nodes in the network in order for the given nodes to become eligible as validators| :x: | :signal_strength: | 
 | Whistleblower Protocol | Protocol for reporting malicious behavior, and initiating a stake slashing vote | :x: | :computer: | 
-| Block Indexer | Indexes, sequences and stores blocks for display in UIs that need access to block and transaction data | :construction: | :signal_strength: | | Block Explorer | Provides a web based user interface for scanning blocks, tracking transactions, etc. | :construction: | :signal_strength: | 
+| Block Indexer | Indexes, sequences and stores blocks for display in UIs that need access to block and transaction data | :construction: | :signal_strength: | 
+| Block Explorer | Provides a web based user interface for scanning blocks, tracking transactions, etc. | :construction: | :signal_strength: | 
 | Node Metrics | Tracks the performance of a given node, cluster of nodes, and/or all nodes in the network | :x: | :signal_strength: | 
 | Wallet GUI | Provides a user interface for interacting with VRRB network | :x: | :computer: | 
 | Unikernel Compute Runtime | Enables programming language agnostic compute in the VRRB network | :x: | :computer: | 
