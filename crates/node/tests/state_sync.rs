@@ -14,6 +14,7 @@ use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
+#[ignore = "state sync is not implemented yet"]
 async fn nodes_can_synchronize_state() {
     // NOTE: two instances of a config are required because the node will create a
     // data directory for the database which cannot be the same for both nodes
@@ -66,7 +67,7 @@ async fn nodes_can_synchronize_state() {
             .unwrap();
     }
 
-    let mempool_snapshot = client_1.get_full_mempool().await.unwrap();
+    let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
 
     assert!(!mempool_snapshot.is_empty());
 
