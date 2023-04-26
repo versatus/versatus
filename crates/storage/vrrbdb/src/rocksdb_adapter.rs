@@ -116,9 +116,7 @@ impl Default for RocksDbAdapter {
                 column: DEFAULT_COLUMN_FAMILY_NAME.to_string(),
             },
             Err(e) => {
-                // Handle the error here, for example by logging it and returning a default
-                // value
-                eprintln!("Failed to create database: {}", e);
+                error!("Failed to create database: {}", e);
                 Self::default()
             },
         }

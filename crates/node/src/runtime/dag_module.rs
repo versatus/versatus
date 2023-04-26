@@ -23,29 +23,28 @@ use theater::{ActorId, ActorLabel, ActorState, Handler};
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
 pub type GraphResult<T> = Result<T, GraphError>;
-//
-// The runtime module that manages the DAG, both exposing
-// data within and appending blocks to it.
-//
-// ```
-// use std::sync::{Arc, RwLock};
-//
-// use block::Block;
-// use bulldag::graph::BullDag;
-// use events::EventPublisher;
-// use hbbft::crypto::PublicKeySet;
-// use node::EventBroadcastSender;
-// use theater::{ActorId, ActorLabel, ActorState, Handler};
-//
-// pub struct DagModule {
-//     status: ActorState,
-//     label: ActorLabel,
-//     id: ActorId,
-//     events_tx: EventPublisher,
-//     dag: Arc<RwLock<BullDag<Block, String>>>,
-//     public_key_set: Option<PublicKeySet>,
-// }
-// ```
+///
+/// The runtime module that manages the DAG, both exposing
+/// data within and appending blocks to it.
+///
+/// ```
+/// use std::sync::{Arc, RwLock};
+///
+/// use block::Block;
+/// use bulldag::graph::BullDag;
+/// use events::EventPublisher;
+/// use hbbft::crypto::PublicKeySet;
+/// use theater::{ActorId, ActorLabel, ActorState, Handler};
+///
+/// pub struct DagModule {
+///     status: ActorState,
+///     label: ActorLabel,
+///     id: ActorId,
+///     events_tx: EventPublisher,
+///     dag: Arc<RwLock<BullDag<Block, String>>>,
+///     public_key_set: Option<PublicKeySet>,
+/// }
+/// ```
 pub struct DagModule {
     status: ActorState,
     label: ActorLabel,
