@@ -3,26 +3,32 @@ on: [pull_request]
 name: Rust
 
 jobs:
-    pr-health-checks:
-        name: PR health checks
-        runs-on: ubuntu-latest
-        steps:
-            - name: Install dev-dependencies
-              run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
-            - name: Checkout sources
-              uses: actions/checkout@v2
-              with:
-                  submodules: true
+  pr-health-checks:
+    name: PR health checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: true
 
-            - name: Install stable toolchain
-              uses: actions-rs/toolchain@v1
-              with:
-                  profile: minimal
-                  toolchain: stable
-                  override: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
 
-            - name: cargo test
-              uses: actions-rs/cargo@v1
-              with:
-                  command: test
-                  args: --all
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all
+
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --all-targets -- -D warnings
