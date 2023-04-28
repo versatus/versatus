@@ -57,7 +57,7 @@ mod tests {
         let key = "1";
         filter
             .push(key)
-            .expect("test_insert_filter failed to push key");
+            .expect("test_delete_filter failed to push key");
         assert!(!filter.is_empty());
         filter.delete(key);
         assert!(filter.is_empty());
