@@ -1,5 +1,5 @@
 // TODO: Refactor and remove use of deprecated methods
-// #![allow(deprecated)]
+#![allow(deprecated)]
 
 use std::{
     collections::HashMap,
