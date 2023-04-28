@@ -1,3 +1,6 @@
+// TODO: Refactor and remove use of deprecated methods
+// #![allow(deprecated)]
+
 use std::{
     collections::HashMap,
     fmt::{self, Display, Formatter},
@@ -286,18 +289,13 @@ impl Txn {
     #[deprecated(note = "will be removed from Txn struct soon")]
     pub fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
-        if let payload = self.build_payload() {
-            let message = Message::from_slice(payload.as_bytes());
-            match message {
-                Ok(msg) => {
-                    let sig = sk.sign_ecdsa(msg);
-                    self.signature = sig.into();
-                },
-                _ => { /*TODO return Result<(), SignatureError>*/ },
-            }
-        } else {
-            self.build_payload();
-            self.sign(sk);
+        let message = Message::from_slice(self.build_payload().as_bytes());
+        match message {
+            Ok(msg) => {
+                let sig = sk.sign_ecdsa(msg);
+                self.signature = sig.into();
+            },
+            _ => { /*TODO return Result<(), SignatureError>*/ },
         }
     }
 }

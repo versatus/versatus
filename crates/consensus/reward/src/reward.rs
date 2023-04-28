@@ -91,6 +91,7 @@ impl Reward {
 
     #[deprecated(note = "replaced by generate_next_reward method")]
     pub fn update(&mut self, adjustment_to_next_epoch: i128) {
+        #[allow(deprecated)]
         self.new_epoch(adjustment_to_next_epoch);
     }
 
@@ -204,6 +205,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_reward_state_after_next_epoch() {
         let mut reward = Reward::genesis(Some("MINER_1".to_string()));
         reward.new_epoch(15);
@@ -211,6 +213,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_restored_reward_state() {
         let mut reward = Reward::genesis(Some("MINER".to_string()));
         reward.new_epoch(15);

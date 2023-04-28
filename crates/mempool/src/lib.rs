@@ -1,3 +1,6 @@
+// TODO: Refactor and remove use of deprecated methods and structs
+#![allow(deprecated)]
+
 pub mod error;
 pub mod mempool;
 
@@ -37,10 +40,7 @@ pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        collections::{HashMap, HashSet},
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::collections::{HashMap, HashSet};
 
     use primitives::Signature;
     use rand::{thread_rng, Rng};
@@ -87,7 +87,7 @@ mod tests {
         });
 
         let mut mpooldb = LeftRightMempool::new();
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn) {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 assert_eq!(1, mpooldb.size());
@@ -118,7 +118,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -127,7 +127,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -169,7 +169,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.insert(txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -178,7 +178,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
+        match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
             },
@@ -213,7 +213,7 @@ mod tests {
         let txn_id = txn.digest();
 
         let mut mpooldb = LeftRightMempool::new();
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -252,11 +252,6 @@ mod tests {
     async fn add_batch_of_transactions() {
         let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
         let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
@@ -299,7 +294,6 @@ mod tests {
 
         let record = map_values.get(index).unwrap().to_owned();
 
-        let txn_id = record.txn_id;
         let test_txn_amount = record.txn.amount();
 
         if let Some(txn_retrieved) = mpooldb.get_txn(&record.txn.digest()) {
@@ -314,10 +308,6 @@ mod tests {
     #[tokio::test]
     async fn remove_single_txn_by_id() {
         let keypair = KeyPair::random();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
         let txn1 = Txn::new(NewTxnArgs {
             timestamp: 0,
@@ -347,7 +337,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.insert(txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -356,7 +346,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
+        match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
             },
@@ -378,10 +368,6 @@ mod tests {
     #[tokio::test]
     async fn remove_single_txn() {
         let keypair = KeyPair::random();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
         let txn1 = Txn::new(NewTxnArgs {
             timestamp: 0,
@@ -409,7 +395,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.insert(txn1.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -418,7 +404,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
+        match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
             },
@@ -442,13 +428,6 @@ mod tests {
         let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        // let txn_id = String::from("1");
-        let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
 
@@ -469,7 +448,7 @@ mod tests {
         }
 
         let mut mpooldb = LeftRightMempool::new();
-        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
+        match mpooldb.extend(txns.clone()) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size());
             },
@@ -494,12 +473,6 @@ mod tests {
         let mut lrmpooldb = LeftRightMempool::new();
         let mut txns = HashSet::<Txn>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
 
@@ -519,7 +492,7 @@ mod tests {
             txns.insert(txn);
         }
 
-        match lrmpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
+        match lrmpooldb.extend(txns) {
             Ok(_) => {
                 assert_eq!(txn_id_max - 1, lrmpooldb.size());
             },

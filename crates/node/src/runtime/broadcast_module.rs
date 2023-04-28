@@ -28,8 +28,8 @@ pub struct BroadcastModuleConfig {
 pub struct BroadcastModule {
     id: Uuid,
     status: ActorState,
-    events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    _events_tx: EventPublisher,
+    _vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
 }
 
@@ -55,9 +55,9 @@ impl BroadcastModule {
 
         Ok(Self {
             id: Uuid::new_v4(),
-            events_tx: config.events_tx,
+            _events_tx: config.events_tx,
             status: ActorState::Stopped,
-            vrrbdb_read_handle: config.vrrbdb_read_handle,
+            _vrrbdb_read_handle: config.vrrbdb_read_handle,
             broadcast_engine,
         })
     }
@@ -193,7 +193,7 @@ impl Handler<EventMessage> for BroadcastModule {
                 self.broadcast_engine.add_raptor_peers(raptor_peer_list);
                 self.broadcast_engine
                     .add_peer_connection(quic_addresses)
-                    .await;
+                    .await?;
             },
             Event::Vote(vote, farmer_quorum_threshold) => {
                 let status = self
@@ -213,7 +213,7 @@ impl Handler<EventMessage> for BroadcastModule {
                     },
                 }
             },
-            /// Broadcasting the Convergence block to the peers.
+            // Broadcasting the Convergence block to the peers.
             Event::BlockConfirmed(block) => {
                 let status = self
                     .broadcast_engine
@@ -240,13 +240,11 @@ impl Handler<EventMessage> for BroadcastModule {
 
 #[cfg(test)]
 mod tests {
-    use std::io::stdout;
-
     use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl};
-    use tokio::{net::UdpSocket, sync::broadcast::channel};
+    use tokio::net::UdpSocket;
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 

@@ -1,3 +1,7 @@
+// TODO: Refactor and remove use of deprecated methods and unused helper
+// functions
+#![allow(deprecated)]
+#![allow(dead_code)]
 #![cfg(test)]
 use std::sync::{Arc, RwLock};
 
@@ -230,7 +234,7 @@ pub(crate) fn mine_convergence_block_epoch_change() -> Result<Block, MinerError>
 /// A helper function that creates a `Miner` and returns both the
 /// `Miner` and the `MinerDag`
 pub(crate) fn create_miner_return_dag() -> (Miner, MinerDag) {
-    let mut miner = create_miner();
+    let miner = create_miner();
     let dag = miner.dag.clone();
 
     (miner, dag)
@@ -273,7 +277,7 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
 ) -> Vec<ProposalBlock> {
     (0..n_blocks)
         .into_iter()
-        .map(|n| {
+        .map(|_| {
             let keypair = Keypair::random();
             let address = Address::new(keypair.miner_kp.1.clone());
             let claim = Claim::new(keypair.miner_kp.1.clone(), address);
@@ -366,7 +370,7 @@ pub(crate) fn build_multiple_rounds(
                 );
             };
         } else {
-            if let Some(hash) = add_genesis_to_dag(&mut dag.clone()) {
+            if add_genesis_to_dag(&mut dag.clone()).is_some() {
                 *round += 1usize;
                 build_multiple_rounds(
                     &mut dag.clone(),

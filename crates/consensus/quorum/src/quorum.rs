@@ -43,7 +43,6 @@ pub struct Quorum {
 }
 
 ///generic types from Election trait defined here for Quorums
-type Timestamp = u128;
 type Height = u128;
 type BlockHash = String;
 type Seed = u64;
@@ -128,8 +127,8 @@ impl Quorum {
         claims
             .into_iter()
             .filter(|claim| {
-                (claim.eligibility == Eligibility::Harvester
-                    && claim.eligibility == Eligibility::Farmer)
+                claim.eligibility == Eligibility::Harvester
+                    && claim.eligibility == Eligibility::Farmer
             })
             .for_each(|claim| {
                 eligible_claims.push(claim);

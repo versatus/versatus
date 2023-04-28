@@ -18,6 +18,7 @@ pub type Topic = messr::Topic;
 mod tests {
     use super::*;
 
+    #[test]
     fn event_can_turn_into_router_message() {
         let event = Event::NoOp;
         let message: messr::Message<Event> = event.into();
