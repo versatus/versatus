@@ -1,7 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png"
-  <img alt="VRRB Logo" src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png">
+  <source media="(prefers-color-scheme: dark)" srcset=https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png?raw=true">
+  <img alt="VRRB Logo" src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png?raw=true">
 </picture>
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption. 
