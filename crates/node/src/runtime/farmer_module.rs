@@ -360,10 +360,12 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
-            let sig = keypair
-                .miner_kp
-                .0
-                .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+            let sig = keypair.miner_kp.0.sign_ecdsa(Message::from_hashed_data::<
+                secp256k1::hashes::sha256::Hash,
+            >(
+                b"
+    vrrb",
+            ));
 
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,

@@ -102,7 +102,7 @@ mod tests {
 
         let hash = digest(digest(&*pub_key_bytes).as_bytes());
 
-        let payload1 = (10, hash);
+        let payload1 = (0, hash);
 
         assert!(Quorum::generate_seed(payload1, keypair).is_err());
     }
@@ -145,6 +145,7 @@ mod tests {
             let claim: Claim = Claim::new(public_key, Address::new(public_key));
             dummy_claims.push(claim);
         });
+
         let keypair = KeyPair::random();
         let public_key = keypair.get_miner_public_key();
         let mut hasher = DefaultHasher::new();
@@ -159,9 +160,10 @@ mod tests {
         let payload1 = (10, hash);
 
         if let Ok(seed) = Quorum::generate_seed(payload1, keypair.clone()) {
-            assert!(Quorum::new(seed, 11).is_err());
+            assert!(Quorum::new(seed, 0).is_err());
         }
     }
+
 
     #[test]
     #[ignore = "temporarily disabled while the crate is refactored"]
@@ -205,7 +207,6 @@ mod tests {
             let public_key = keypair.get_miner_public_key().clone();
             let claim: Claim = Claim::new(public_key, Address::new(public_key));
             //let boxed_claim = Box::new(claim);
-
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
         });

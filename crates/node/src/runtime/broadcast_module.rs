@@ -300,11 +300,18 @@ mod tests {
         };
 
         events_tx
-            .send(Event::SyncPeers(vec![peer_data]).into())
+            .send(Event::SyncPeers(vec![peer_data.clone()]).into())
             .unwrap();
+
         events_tx.send(Event::Stop.into()).unwrap();
 
-        let evt = internal_events_rx.recv().await.unwrap();
+        match internal_events_rx.recv().await {
+            Some(value) => assert_eq!(value, Event::SyncPeers(vec![peer_data]).into()),
+            None => println!(
+                "no
+value"
+            ),
+        }
 
         handle.await.unwrap();
     }
