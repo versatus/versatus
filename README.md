@@ -1,24 +1,8 @@
-[//]: # (![vrrb-logo]&#40;https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png#gh-dark-mode-only&#41;)
-[//]: # (![vrrb-logo]&#40;https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png#gh-light-mode-only&#41;)
-
-<img src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png" alt="Logo" title="Logo" id="logo" style="max-width: 100%;">
-<script>
-  function setLogoSrc() {
-    const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const logo = document.getElementById('logo');
-    if (isDarkMode) {
-      logo.src = "https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png"
-    } else {
-      logo.src = "https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png";
-    }
-  }
-  setLogoSrc();
-  if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addListener(setLogoSrc);
-    window.matchMedia('(prefers-color-scheme: light)').addListener(setLogoSrc);
-  }
-</script>
-
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png"
+  <img alt="VRRB Logo" src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png">
+</picture>
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption. 
 VRRB is powered by a novel consensus mechanism called Proof-of-Claim, which 
