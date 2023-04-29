@@ -81,8 +81,9 @@ items that are less than 50% complete are marked as :x:, all items marked with
 | Unikernel Compute Runtime | Enables programming language agnostic compute in the VRRB network | :x: | :computer: | 
 
 ### Starting a Node
-    In order to start a node, run `cargo run`
-    Running `cargo run -- -help` will display available cli flags for node configuration and management.
+
+In order to start a node, run `cargo run`
+Running `cargo run -- -help` will display available cli flags for node configuration and management.
 
 __The above builds and runs a VRRB node in `debug` mode__ to run in optimized
 release mode you must first build the release target using the following command:
