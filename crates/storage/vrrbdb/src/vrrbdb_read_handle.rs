@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use patriecia::db::Database;
 use primitives::{Address, NodeId};
 use vrrb_core::{
     account::Account,
@@ -14,15 +15,15 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct VrrbDbReadHandle {
-    state_store_handle_factory: StateStoreReadHandleFactory,
+pub struct VrrbDbReadHandle<D: Database> {
+    state_store_handle_factory: StateStoreReadHandleFactory<D>,
     transaction_store_handle_factory: TransactionStoreReadHandleFactory,
     claim_store_handle_factory: ClaimStoreReadHandleFactory,
 }
 
-impl VrrbDbReadHandle {
+impl<D: Database> VrrbDbReadHandle<D> {
     pub fn new(
-        state_store_handle_factory: StateStoreReadHandleFactory,
+        state_store_handle_factory: StateStoreReadHandleFactory<D>,
         transaction_store_handle_factory: TransactionStoreReadHandleFactory,
         claim_store_handle_factory: ClaimStoreReadHandleFactory,
     ) -> Self {

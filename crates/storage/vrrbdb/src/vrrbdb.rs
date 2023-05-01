@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use lr_trie::H256;
+use patriecia::db::Database;
 use primitives::{Address, NodeId};
 use serde_json::json;
 use storage_utils::{Result, StorageError};
@@ -21,23 +22,30 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct VrrbDbConfig {
+pub struct VrrbDbConfig<D: Database> {
     pub path: PathBuf,
     pub state_store_path: Option<String>,
     pub transaction_store_path: Option<String>,
     pub event_store_path: Option<String>,
     pub claim_store_path: Option<String>,
+    pub backing_db: Option<D>,
 }
 
-impl VrrbDbConfig {
+impl<D: Database> VrrbDbConfig<D> {
     pub fn with_path(&mut self, path: PathBuf) -> Self {
         self.path = path;
 
         self.clone()
     }
+
+    pub fn with_backing_db(&mut self, db: D) -> Self {
+        self.backing_db = Some(db);
+
+        self.clone()
+    }
 }
 
-impl Default for VrrbDbConfig {
+impl<D: Database> Default for VrrbDbConfig<D> {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -49,19 +57,22 @@ impl Default for VrrbDbConfig {
             transaction_store_path: None,
             event_store_path: None,
             claim_store_path: None,
+            backing_db: None,
         }
     }
 }
 
 #[derive(Debug)]
-pub struct VrrbDb {
-    state_store: StateStore,
+pub struct VrrbDb<D: Database> {
+    state_store: StateStore<D>,
     transaction_store: TransactionStore,
     claim_store: ClaimStore,
+    // transaction_store: TransactionStore<D>,
+    // claim_store: ClaimStore<D>,
 }
 
-impl VrrbDb {
-    pub fn new(config: VrrbDbConfig) -> Self {
+impl<D: Database> VrrbDb<D> {
+    pub fn new(config: VrrbDbConfig<D>) -> Self {
         let state_store = StateStore::new(&config.path);
         let transaction_store = TransactionStore::new(&config.path);
         let claim_store = ClaimStore::new(&config.path);
@@ -73,7 +84,7 @@ impl VrrbDb {
         }
     }
 
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn read_handle(&self) -> VrrbDbReadHandle<D> {
         VrrbDbReadHandle::new(
             self.state_store.factory(),
             self.transaction_store_factory(),
@@ -82,7 +93,7 @@ impl VrrbDb {
     }
 
     pub fn new_with_stores(
-        state_store: StateStore,
+        state_store: StateStore<D>,
         transaction_store: TransactionStore,
         claim_store: ClaimStore,
     ) -> Self {
@@ -110,7 +121,7 @@ impl VrrbDb {
 
     /// Produces a reader factory that can be used to generate read handles into
     /// the state trie.
-    pub fn state_store_factory(&self) -> StateStoreReadHandleFactory {
+    pub fn state_store_factory(&self) -> StateStoreReadHandleFactory<D> {
         self.state_store.factory()
     }
 
@@ -198,8 +209,8 @@ impl VrrbDb {
     }
 }
 
-impl Clone for VrrbDb {
-    fn clone(&self) -> VrrbDb {
+impl<D: Database> Clone for VrrbDb<D> {
+    fn clone(&self) -> Self {
         Self {
             state_store: self.state_store.clone(),
             transaction_store: self.transaction_store.clone(),
@@ -208,7 +219,7 @@ impl Clone for VrrbDb {
     }
 }
 
-impl Display for VrrbDb {
+impl<D: Database> Display for VrrbDb<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let state_entries = self.state_store_factory().handle().entries();
         let transaction_entries = self

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
+use patriecia::db::Database;
 use primitives::Address;
 use sha2::Digest;
 use storage_utils::{Result, StorageError};
@@ -15,11 +16,11 @@ pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct StateStore {
-    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter>,
+pub struct StateStore<D: Database> {
+    trie: LeftRightTrie<'static, Address, Account, D>,
 }
 
-impl Default for StateStore {
+impl<D: Database> Default for StateStore<D> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -34,9 +35,8 @@ impl Default for StateStore {
     }
 }
 
-impl StateStore {
+impl<D: Database> StateStore<D> {
     /// Returns new, empty instance of StateDb
-
     pub fn new(path: &PathBuf) -> Self {
         let path = path.join("state");
         let db_adapter = RocksDbAdapter::new(path.to_owned(), "state").unwrap_or_default();
@@ -45,9 +45,15 @@ impl StateStore {
         Self { trie }
     }
 
+    pub fn new_with_db_adapter(db_adapter: D) -> Self {
+        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+
+        Self { trie }
+    }
+
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> StateStoreReadHandle {
+    pub fn read_handle(&self) -> StateStoreReadHandle<D> {
         let inner = self.trie.handle();
         StateStoreReadHandle::new(inner)
     }
@@ -124,7 +130,7 @@ impl StateStore {
 
     /// Retain returns new StateDb with which all Accounts that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> StateStore
+    pub fn retain<F>(&self, _filter: F) -> StateStore<D>
     where
         F: FnMut(&Account) -> bool,
     {
@@ -267,7 +273,7 @@ impl StateStore {
         self.trie.extend(accounts)
     }
 
-    pub fn factory(&self) -> StateStoreReadHandleFactory {
+    pub fn factory(&self) -> StateStoreReadHandleFactory<D> {
         let inner = self.trie.factory();
 
         StateStoreReadHandleFactory::new(inner)
