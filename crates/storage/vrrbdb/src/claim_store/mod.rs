@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
+use patriecia::db::{Database, MemoryDB};
 use primitives::{NodeId, NodeIdentifier};
 use sha2::Digest;
 use storage_utils::{Result, StorageError};
@@ -14,32 +15,14 @@ pub use claim_store_rh::*;
 pub type Claims = Vec<Claim>;
 pub type FailedClaimUpdates = Vec<(NodeId, Claims, Result<()>)>;
 
-#[derive(Debug, Clone)]
-pub struct ClaimStore {
-    trie: LeftRightTrie<'static, NodeId, Claim, RocksDbAdapter>,
+#[derive(Debug, Clone, Default)]
+pub struct ClaimStore<D: Database> {
+    trie: LeftRightTrie<'static, NodeId, Claim, D>,
 }
 
-impl Default for ClaimStore {
-    fn default() -> Self {
-        let db_path = storage_utils::get_node_data_dir()
-            .unwrap_or_default()
-            .join("db")
-            .join("claim");
-
-        let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
-
-        let trie = LeftRightTrie::new(Arc::new(db_adapter));
-
-        Self { trie }
-    }
-}
-
-impl ClaimStore {
+impl<D: Database> ClaimStore<D> {
     /// Returns new, empty instance of ClaimDb
-
-    pub fn new(path: &PathBuf) -> Self {
-        let path = path.join("claim");
-        let db_adapter = RocksDbAdapter::new(path.to_owned(), "claim").unwrap_or_default();
+    pub fn new(db_adapter: D) -> Self {
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
@@ -47,7 +30,7 @@ impl ClaimStore {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> ClaimStoreReadHandle {
+    pub fn read_handle(&self) -> ClaimStoreReadHandle<D> {
         let inner = self.trie.handle();
         ClaimStoreReadHandle::new(inner)
     }
@@ -124,7 +107,7 @@ impl ClaimStore {
 
     /// Retain returns new ClaimDb with which all Claims that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> ClaimStore
+    pub fn retain<F>(&self, _filter: F) -> ClaimStore<D>
     where
         F: FnMut(&Claim) -> bool,
     {
@@ -275,7 +258,7 @@ impl ClaimStore {
         self.trie.extend(claims)
     }
 
-    pub fn factory(&self) -> ClaimStoreReadHandleFactory {
+    pub fn factory(&self) -> ClaimStoreReadHandleFactory<D> {
         let inner = self.trie.factory();
 
         ClaimStoreReadHandleFactory::new(inner)

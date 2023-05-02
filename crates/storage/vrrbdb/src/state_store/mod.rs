@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
-use patriecia::db::Database;
+use patriecia::db::{Database, MemoryDB};
 use primitives::Address;
 use sha2::Digest;
 use storage_utils::{Result, StorageError};
@@ -15,31 +15,14 @@ pub use state_store_rh::*;
 pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StateStore<D: Database> {
     trie: LeftRightTrie<'static, Address, Account, D>,
 }
 
-impl<D: Database> Default for StateStore<D> {
-    fn default() -> Self {
-        let db_path = storage_utils::get_node_data_dir()
-            .unwrap_or_default()
-            .join("db")
-            .join("state");
-
-        let db_adapter = RocksDbAdapter::new(db_path, "state").unwrap_or_default();
-
-        let trie = LeftRightTrie::new(Arc::new(db_adapter));
-
-        Self { trie }
-    }
-}
-
 impl<D: Database> StateStore<D> {
     /// Returns new, empty instance of StateDb
-    pub fn new(path: &PathBuf) -> Self {
-        let path = path.join("state");
-        let db_adapter = RocksDbAdapter::new(path.to_owned(), "state").unwrap_or_default();
+    pub fn new(db_adapter: D) -> Self {
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
@@ -90,7 +73,7 @@ impl<D: Database> StateStore<D> {
         Ok(())
     }
 
-    // Iterates over provided (PublicKey,DBRecord) pairs, inserting valid ones into
+    // Iterates over provided (PublicKey, DBRecord) pairs, inserting valid ones into
     // the db Returns Option with vec of NOT inserted (PublicKey,DBRecord,e)
     // pairs e being the error which prevented (PublicKey,DBRecord) from being
     // inserted

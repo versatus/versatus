@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
 use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::inner::InnerTrie;
+use patriecia::{db::Database, inner::InnerTrie};
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
-pub struct TransactionStoreReadHandle {
-    inner: InnerTrieWrapper<RocksDbAdapter>,
+pub struct TransactionStoreReadHandle<D: Database> {
+    inner: InnerTrieWrapper<D>,
 }
 
-impl TransactionStoreReadHandle {
-    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+impl<D: Database> TransactionStoreReadHandle<D> {
+    pub fn new(inner: InnerTrieWrapper<D>) -> Self {
         Self { inner }
     }
 
@@ -62,16 +62,16 @@ impl TransactionStoreReadHandle {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransactionStoreReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
+pub struct TransactionStoreReadHandleFactory<D: Database> {
+    inner: ReadHandleFactory<InnerTrie<D>>,
 }
 
-impl TransactionStoreReadHandleFactory {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+impl<D: Database> TransactionStoreReadHandleFactory<D> {
+    pub fn new(inner: ReadHandleFactory<InnerTrie<D>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> TransactionStoreReadHandle {
+    pub fn handle(&self) -> TransactionStoreReadHandle<D> {
         let handle = self
             .inner
             .handle()

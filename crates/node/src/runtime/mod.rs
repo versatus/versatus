@@ -25,11 +25,7 @@ use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     dag_module::DagModule,
     election_module::{
-        ElectionModule,
-        ElectionModuleConfig,
-        MinerElection,
-        MinerElectionResult,
-        QuorumElection,
+        ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult, QuorumElection,
         QuorumElectionResult,
     },
     indexer_module::IndexerModuleConfig,
@@ -42,8 +38,7 @@ use crate::{
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::{Job, JobSchedulerController},
-    NodeError,
-    Result,
+    NodeError, Result,
 };
 
 pub mod broadcast_module;
@@ -355,6 +350,23 @@ async fn setup_state_store(
     if config.db_path() != &vrrbdb_config.path {
         vrrbdb_config.with_path(config.db_path().to_path_buf());
     }
+
+    let state_db_adapter_path = config.db_path().join("state");
+    let state_db_adapter =
+        RocksDbAdapter::new(state_db_adapter_path.to_owned(), "state").unwrap_or_default();
+
+    let transaction_db_adapter_path = config.db_path().join("transactions");
+    let transaction_db_adapter =
+        RocksDbAdapter::new(transaction_db_adapter_path.to_owned(), "transactions")
+            .unwrap_or_default();
+
+    let claim_db_adapter_path = config.db_path().join("claim");
+    let claim_db_adapter =
+        RocksDbAdapter::new(claim_db_adapter_path.to_owned(), "claim").unwrap_or_default();
+
+    vrrbdb_config.state_store_backing_db = Some(state_db_adapter);
+    vrrbdb_config.transaction_store_backing_db = Some(transaction_db_adapter);
+    vrrbdb_config.claim_store_backing_db = Some(claim_db_adapter);
 
     let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
 
