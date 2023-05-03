@@ -161,9 +161,9 @@ mod tests {
     use std::env;
 
     use events::{Event, DEFAULT_BUFFER};
+    use patriecia::db::MemoryDB;
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
-    use patriecia::db::MemoryDB;
     use theater::ActorImpl;
     use vrrb_core::txn::null_txn;
 
@@ -176,7 +176,7 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig<MemoryDB>::default();
+        let db_config = VrrbDbConfig::<MemoryDB>::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -204,7 +204,7 @@ mod tests {
         let temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let db_config = VrrbDbConfig<MemoryDB>::default();
+        let db_config = VrrbDbConfig::<MemoryDB>::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -236,7 +236,7 @@ mod tests {
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig<MemoryDB>::default();
+        let db_config = VrrbDbConfig::<MemoryDB>::default();
 
         let db = VrrbDb::new(db_config);
 

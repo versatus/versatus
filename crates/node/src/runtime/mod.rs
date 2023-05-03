@@ -13,7 +13,7 @@ use miner::MinerConfig;
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use patriecia::db::Database;
 use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::vrrbdb::{RocksDbAdapter, VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
@@ -26,7 +26,11 @@ use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     dag_module::DagModule,
     election_module::{
-        ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult, QuorumElection,
+        ElectionModule,
+        ElectionModuleConfig,
+        MinerElection,
+        MinerElectionResult,
+        QuorumElection,
         QuorumElectionResult,
     },
     indexer_module::IndexerModuleConfig,
@@ -39,7 +43,8 @@ use crate::{
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::{Job, JobSchedulerController},
-    NodeError, Result,
+    NodeError,
+    Result,
 };
 
 pub mod broadcast_module;
@@ -277,7 +282,7 @@ fn setup_event_routing_system() -> EventRouter {
 
     event_router
 }
-async fn setup_gossip_network<D: Database>(
+async fn setup_gossip_network<'a, D: 'static + Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut network_events_rx: EventSubscriber,
@@ -340,12 +345,12 @@ async fn setup_gossip_network<D: Database>(
     ))
 }
 
-async fn setup_state_store(
+async fn setup_state_store<D: Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut state_events_rx: EventSubscriber,
     _mempool_read_handle_factory: MempoolReadHandleFactory,
-) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
+) -> Result<(VrrbDbReadHandle<D>, Option<JoinHandle<Result<()>>>)> {
     let mut vrrbdb_config = VrrbDbConfig::default();
 
     if config.db_path() != &vrrbdb_config.path {
@@ -393,7 +398,7 @@ async fn setup_state_store(
     Ok((vrrbdb_read_handle, Some(state_handle)))
 }
 
-async fn setup_rpc_api_server<D: Database>(
+async fn setup_rpc_api_server<'a, D: 'static + Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle<D>,
@@ -526,8 +531,8 @@ fn setup_miner_election_module<D: Database>(
         events_tx,
         local_claim,
     };
-    let module: ElectionModule<MinerElection, MinerElectionResult> =
-        { ElectionModule::<MinerElection, MinerElectionResult>::new(module_config) };
+    let module: ElectionModule<MinerElection, MinerElectionResult, D> =
+        { ElectionModule::<MinerElection, MinerElectionResult, D>::new(module_config) };
 
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
@@ -540,7 +545,7 @@ fn setup_miner_election_module<D: Database>(
     return Ok(Some(miner_election_module_handle));
 }
 
-fn setup_quorum_election_module(
+fn setup_quorum_election_module<D: Database>(
     _config: &NodeConfig,
     events_tx: EventPublisher,
     mut quorum_election_events_rx: EventSubscriber,
@@ -553,8 +558,8 @@ fn setup_quorum_election_module(
         local_claim,
     };
 
-    let module: ElectionModule<QuorumElection, QuorumElectionResult> =
-        { ElectionModule::<QuorumElection, QuorumElectionResult>::new(module_config) };
+    let module: ElectionModule<QuorumElection, QuorumElectionResult, D> =
+        { ElectionModule::<QuorumElection, QuorumElectionResult, D>::new(module_config) };
 
     let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
