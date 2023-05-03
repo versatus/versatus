@@ -66,7 +66,7 @@ items that are less than 50% complete are marked as :x:, all items marked with
 | Miner Unit | Protocol for consolidating proposal blocks produced by miners into a single point of reference signifying the end of a round and finality of transactions (once certified)| :white_check_mark: | :link: | 
 | Scheduler | Decentralized task buffer and allocator to maximize efficiency of Farmer Quorum nodes | :white_check_mark: | :link: | 
 | Block Production | Enables harvesters to produce conflict minimized, extractable value maximized proposal blocks to be appended to the DAG | :white_check_mark: | :link: |
-| Node CLI | Provides an interface for operators to spin up a VRRB node | :construction: | :link: | 
+| Node CLI | Provides an interface for operators to spin up a VRRB node | :white_check_mark: | :link: | 
 | Wallet CLI | Provides an interface for users to interact with the VRRB network| :construction: | :link: | 
 | Token Emission Protocol | Ensures that proper number of tokens each block and epoch are produced | :white_check_mark: | :signal_strength: |
 | Fee Model | Provides economic incentives to operators beyond emission subsidy, provides token burning to limit inflation, and economic incentives to maintain speed at scale | :x: | :signal_strength: |
