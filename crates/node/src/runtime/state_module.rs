@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
+use patriecia::{
+    db::{Database, MemoryDB},
+    inner::InnerTrie,
+};
 use primitives::Address;
 use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
@@ -10,14 +13,14 @@ use vrrb_core::{account::Account, serde_helpers::decode_from_binary_byte_slice, 
 
 use crate::{result::Result, NodeError};
 
-pub struct StateModuleConfig {
-    pub db: VrrbDb,
+pub struct StateModuleConfig<D: Database> {
+    pub db: VrrbDb<D>,
     pub events_tx: EventPublisher,
 }
 
 #[derive(Debug)]
-pub struct StateModule {
-    db: VrrbDb,
+pub struct StateModule<D: Database> {
+    db: VrrbDb<D>,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -27,8 +30,8 @@ pub struct StateModule {
 /// StateModule manages all state persistence and updates within VrrbNodes
 /// it runs as an indepdendant module such that it can be enabled and disabled
 /// as necessary.
-impl StateModule {
-    pub fn new(config: StateModuleConfig) -> Self {
+impl<D: Database> StateModule<D> {
+    pub fn new(config: StateModuleConfig<D>) -> Self {
         Self {
             db: config.db,
             events_tx: config.events_tx,
@@ -39,7 +42,7 @@ impl StateModule {
     }
 }
 
-impl StateModule {
+impl<D: Database> StateModule<D> {
     fn name(&self) -> String {
         String::from("State")
     }
@@ -52,7 +55,7 @@ impl StateModule {
         todo!()
     }
 
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn read_handle(&self) -> VrrbDbReadHandle<D> {
         self.db.read_handle()
     }
 
@@ -85,7 +88,7 @@ impl StateModule {
 }
 
 #[async_trait]
-impl Handler<EventMessage> for StateModule {
+impl<D: Database> Handler<EventMessage> for StateModule<D> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -160,6 +163,7 @@ mod tests {
     use events::{Event, DEFAULT_BUFFER};
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
+    use patriecia::db::MemoryDB;
     use theater::ActorImpl;
     use vrrb_core::txn::null_txn;
 
@@ -172,7 +176,7 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig::default();
+        let db_config = VrrbDbConfig<MemoryDB>::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -200,7 +204,7 @@ mod tests {
         let temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let db_config = VrrbDbConfig::default();
+        let db_config = VrrbDbConfig<MemoryDB>::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -232,7 +236,7 @@ mod tests {
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig::default();
+        let db_config = VrrbDbConfig<MemoryDB>::default();
 
         let db = VrrbDb::new(db_config);
 

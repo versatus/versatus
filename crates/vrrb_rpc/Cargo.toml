@@ -28,6 +28,7 @@ events = { workspace = true }
 secp256k1 = { workspace = true }
 sha256 = { workspace = true }
 sha2 = { workspace = true }
+patriecia = { workspace = true }
 
 [dev-dependencies]
 hyper = { workspace = true }

@@ -2,32 +2,33 @@ use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
+use patriecia::db::Database;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::txn::Txn;
 
 #[derive(Debug)]
-pub struct MiningModule {
+pub struct MiningModule<D: Database> {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
     miner: Miner,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 #[derive(Debug, Clone)]
-pub struct MiningModuleConfig {
+pub struct MiningModuleConfig<D: Database> {
     pub events_tx: EventPublisher,
     pub miner: Miner,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
-impl MiningModule {
-    pub fn new(cfg: MiningModuleConfig) -> Self {
+impl<D: Database> MiningModule<D> {
+    pub fn new(cfg: MiningModuleConfig<D>) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             label: String::from("Miner"),
@@ -39,7 +40,7 @@ impl MiningModule {
         }
     }
 }
-impl MiningModule {
+impl<D: Database> MiningModule<D> {
     // fn take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
     fn take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
         let mut handle = self.mempool_read_handle_factory.handle();
@@ -58,7 +59,7 @@ impl MiningModule {
 }
 
 #[async_trait]
-impl Handler<EventMessage> for MiningModule {
+impl<D: Database> Handler<EventMessage> for MiningModule<D> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -117,4 +118,4 @@ impl Handler<EventMessage> for MiningModule {
 }
 
 // TODO: figure out how to avoid this
-unsafe impl Send for MiningModule {}
+unsafe impl<D: Database> Send for MiningModule<D> {}

@@ -11,8 +11,9 @@ use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::MinerConfig;
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
+use patriecia::db::Database;
 use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{RocksDbAdapter, VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
@@ -276,12 +277,12 @@ fn setup_event_routing_system() -> EventRouter {
 
     event_router
 }
-async fn setup_gossip_network(
+async fn setup_gossip_network<D: Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut network_events_rx: EventSubscriber,
     controller_events_rx: EventSubscriber,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     raptor_sender: Sender<RaptorBroadCastedData>,
 ) -> Result<(
     Option<JoinHandle<Result<()>>>,
@@ -364,6 +365,10 @@ async fn setup_state_store(
     let claim_db_adapter =
         RocksDbAdapter::new(claim_db_adapter_path.to_owned(), "claim").unwrap_or_default();
 
+    dbg!(&state_db_adapter_path);
+    dbg!(&claim_db_adapter_path);
+    dbg!(&transaction_db_adapter_path);
+
     vrrbdb_config.state_store_backing_db = Some(state_db_adapter);
     vrrbdb_config.transaction_store_backing_db = Some(transaction_db_adapter);
     vrrbdb_config.claim_store_backing_db = Some(claim_db_adapter);
@@ -388,10 +393,10 @@ async fn setup_state_store(
     Ok((vrrbdb_read_handle, Some(state_handle)))
 }
 
-async fn setup_rpc_api_server(
+async fn setup_rpc_api_server<D: Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
@@ -429,10 +434,10 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-fn setup_mining_module(
+fn setup_mining_module<D: Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     mut miner_events_rx: EventSubscriber,
@@ -510,10 +515,10 @@ fn setup_dkg_module(
     }
 }
 
-fn setup_miner_election_module(
+fn setup_miner_election_module<D: Database>(
     events_tx: EventPublisher,
     mut miner_election_events_rx: EventSubscriber,
-    db_read_handle: VrrbDbReadHandle,
+    db_read_handle: VrrbDbReadHandle<D>,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module_config = ElectionModuleConfig {
@@ -539,7 +544,7 @@ fn setup_quorum_election_module(
     _config: &NodeConfig,
     events_tx: EventPublisher,
     mut quorum_election_events_rx: EventSubscriber,
-    db_read_handle: VrrbDbReadHandle,
+    db_read_handle: VrrbDbReadHandle<D>,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module_config = ElectionModuleConfig {
@@ -661,14 +666,14 @@ fn setup_indexer_module(
     Ok(Some(indexer_handle))
 }
 
-fn setup_scheduler_module(
+fn setup_scheduler_module<D: Database>(
     config: &NodeConfig,
     sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
-) -> JobSchedulerController {
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
+) -> JobSchedulerController<D> {
     let module = JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
         events_tx,

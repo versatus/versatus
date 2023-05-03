@@ -12,8 +12,13 @@ use vrrb_core::{
 };
 
 use crate::{
-    ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
-    TransactionStore, TransactionStoreReadHandleFactory, VrrbDbReadHandle,
+    ClaimStore,
+    ClaimStoreReadHandleFactory,
+    StateStore,
+    StateStoreReadHandleFactory,
+    TransactionStore,
+    TransactionStoreReadHandleFactory,
+    VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
@@ -32,15 +37,15 @@ impl<D: Database> VrrbDbConfig<D> {
     }
 }
 
-impl<D: Database> Default for VrrbDbConfig<D> {
+impl<D: Database + Default> Default for VrrbDbConfig<D> {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
             .join("db");
 
-        let state_store_backing_db = Some(MemoryDB::default());
-        let transaction_store_backing_db = Some(MemoryDB::default());
-        let claim_store_backing_db = Some(MemoryDB::default());
+        let state_store_backing_db = Some(D::default());
+        let transaction_store_backing_db = Some(D::default());
+        let claim_store_backing_db = Some(D::default());
 
         Self {
             path,

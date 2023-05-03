@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use events::{Event, EventPublisher};
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
+use patriecia::db::Database;
 use primitives::{Address, NodeType};
 use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
@@ -22,15 +23,15 @@ use super::{
 use crate::rpc::api::{FullStateSnapshot, RpcTransactionDigest, RpcTransactionRecord};
 
 #[derive(Debug, Clone)]
-pub struct RpcServerImpl {
+pub struct RpcServerImpl<D: Database> {
     pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub events_tx: EventPublisher,
 }
 
 #[async_trait]
-impl RpcApiServer for RpcServerImpl {
+impl<D: Database + 'static> RpcApiServer for RpcServerImpl<D> {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
         let values = self.vrrbdb_read_handle.state_store_values();
 

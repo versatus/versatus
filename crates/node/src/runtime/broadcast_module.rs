@@ -6,6 +6,7 @@ use network::{
     message::{Message, MessageBody},
     network::BroadcastEngine,
 };
+use patriecia::db::Database;
 use primitives::{NodeType, PeerId};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::{error, info, instrument};
@@ -14,10 +15,10 @@ use uuid::Uuid;
 
 use crate::{NodeError, Result};
 
-pub struct BroadcastModuleConfig {
+pub struct BroadcastModuleConfig<D: Database> {
     pub events_tx: EventPublisher,
     pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub udp_gossip_address_port: u16,
     pub raptorq_gossip_address_port: u16,
     pub node_id: PeerId,
@@ -25,11 +26,11 @@ pub struct BroadcastModuleConfig {
 
 // TODO: rename to GossipNetworkModule
 #[derive(Debug)]
-pub struct BroadcastModule {
+pub struct BroadcastModule<D: Database> {
     id: Uuid,
     status: ActorState,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     broadcast_engine: BroadcastEngine,
 }
 
@@ -45,8 +46,8 @@ impl<F: std::future::Future> Timeout for F {
     }
 }
 
-impl BroadcastModule {
-    pub async fn new(config: BroadcastModuleConfig) -> Result<Self> {
+impl<D: Database> BroadcastModule<D> {
+    pub async fn new(config: BroadcastModuleConfig<D>) -> Result<Self> {
         let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address_port, 32)
             .await
             .map_err(|err| {
@@ -116,7 +117,7 @@ impl BroadcastModule {
 const RAPTOR_ERASURE_COUNT: u32 = 3000;
 
 #[async_trait]
-impl Handler<EventMessage> for BroadcastModule {
+impl<D: Database> Handler<EventMessage> for BroadcastModule<D> {
     fn id(&self) -> theater::ActorId {
         self.id.to_string()
     }
