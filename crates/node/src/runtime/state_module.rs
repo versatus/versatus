@@ -5,7 +5,7 @@ use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
 use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{account::Account, serde_helpers::decode_from_binary_byte_slice, txn::Txn};
 
 use crate::{result::Result, NodeError};
@@ -19,7 +19,7 @@ pub struct StateModuleConfig {
 pub struct StateModule {
     db: VrrbDb,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
 }
@@ -33,7 +33,7 @@ impl StateModule {
             db: config.db,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
         }
     }
@@ -155,12 +155,10 @@ impl Handler<EventMessage> for StateModule {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-
     use events::{Event, DEFAULT_BUFFER};
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
     use vrrb_core::txn::null_txn;
 
     use super::*;
@@ -168,15 +166,13 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_module_starts_and_stops() {
-        let temp_dir_path = env::temp_dir().join("state.json");
-
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+        let state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -197,14 +193,12 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_receives_new_txn_event() {
-        let temp_dir_path = env::temp_dir().join("state.json");
-
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let db_config = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+        let state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -228,20 +222,18 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_can_publish_events() {
-        let temp_dir_path = env::temp_dir().join("state.json");
-
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let db_config = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+        let state_module = StateModule::new(StateModuleConfig { events_tx, db });
 
         let mut state_module = ActorImpl::new(state_module);
 
         let events_handle = tokio::spawn(async move {
-            let res = events_rx.recv().await;
+            events_rx.recv().await;
         });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);

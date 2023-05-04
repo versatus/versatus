@@ -48,7 +48,7 @@ pub struct JobSchedulerController {
     pub job_scheduler: JobScheduler,
     events_tx: EventPublisher,
     sync_jobs_receiver: Receiver<Job>,
-    async_jobs_receiver: Receiver<Job>,
+    _async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
 }
@@ -89,7 +89,7 @@ impl JobSchedulerController {
             job_scheduler: JobScheduler::new(peer_id),
             events_tx,
             sync_jobs_receiver,
-            async_jobs_receiver,
+            _async_jobs_receiver: async_jobs_receiver,
             validator_core_manager,
             vrrbdb_read_handle,
         }
