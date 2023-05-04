@@ -137,19 +137,9 @@ impl VrrbDb {
     }
 
     /// Updates an account on the current state tree.
-    pub fn update_account(&mut self, key: Address, account: Account) -> Result<()> {
+    pub fn update_account(&mut self, key: Address, args: UpdateArgs) -> Result<()> {
         self.state_store
-            .update(
-                key,
-                UpdateArgs {
-                    nonce: account.nonce + 1,
-                    credits: Some(account.credits),
-                    debits: Some(account.debits),
-                    storage: Some(account.storage),
-                    code: Some(account.code),
-                    digests: Some(account.digests),
-                },
-            )
+            .update(key, args)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
@@ -195,6 +185,11 @@ impl VrrbDb {
     /// Inserts multiple claims into the current claim trie
     pub fn extend_claims(&mut self, claims: Vec<(NodeId, Claim)>) {
         self.claim_store.extend(claims)
+    }
+
+    /// Updates a calim in the current claim trie.
+    pub fn update_claim(&mut self, _key: Address, _args: UpdateArgs) {
+        todo!()
     }
 }
 

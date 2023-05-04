@@ -102,13 +102,19 @@ impl StateModule {
             .into_iter()
             .for_each(|update| match &update.update_account {
                 UpdateAccount::Sender => {
-                    self.update_sender(update);
+                    if let Some(args) = self.get_sender_update_args(update) {
+                        self.db.update_account(update.address.clone(), args);
+                    }
                 },
                 UpdateAccount::Receiver => {
-                    self.update_receiver(update);
+                    if let Some(args) = self.get_receiver_update_args(update) {
+                        self.db.update_account(update.address.clone(), args);
+                    }
                 },
                 UpdateAccount::Claim => {
-                    self.update_claim(update);
+                    if let Some(args) = self.get_claim_update_args(update) {
+                        self.db.update_account(update.address.clone(), args);
+                    }
                 },
             });
 
@@ -125,75 +131,69 @@ impl StateModule {
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
-    fn update_account(&mut self, key: Address, account: Account) -> Result<()> {
-        self.db
-            .update_account(key, account)
-            .map_err(|err| NodeError::Other(err.to_string()))
+    fn update_claim(&mut self, update: StateUpdate) {
+        todo!()
     }
 
-    fn update_sender(&mut self, update: StateUpdate) {
-        let handle = self.get_state_store_handle();
-        if let Ok(mut account) = handle.get(&update.address) {
-            let mut nonce = account.nonce;
-            let credits = account.credits;
-            let mut debits = account.debits;
-            let mut storage = account.storage;
-            let mut code = account.code;
-            let mut digests = account.digests;
-
-            nonce += 1;
-            debits += update.amount;
-            storage = update.storage;
-            code = update.code;
-            digests.insert(nonce, update.digest);
-
-            let args = UpdateArgs {
-                nonce,
-                credits: None,
-                debits: Some(debits),
-                storage: Some(storage),
-                code: Some(code),
-                digests: Some(digests),
-            };
-
-            account.update(args);
-
-            self.db.update_account(update.address.clone(), account);
-        }
-    }
-
-    fn update_receiver(&mut self, update: StateUpdate) {
+    fn get_sender_update_args(&mut self, update: StateUpdate) -> Option<UpdateArgs> {
         let handle = self.get_state_store_handle();
         if let Ok(mut account) = handle.get(&update.address) {
             let mut nonce = account.nonce;
             let mut credits = account.credits;
             let debits = account.debits;
-            let mut storage = account.storage;
-            let mut code = account.code;
-            let mut digests = account.digests;
+            let mut storage = account.storage.clone();
+            let mut code = account.code.clone();
+            let mut digests = account.digests.clone();
 
             nonce += 1;
             credits += update.amount;
-            storage = update.storage;
-            code = update.code;
-            digests.insert(nonce, update.digest);
+            storage = update.storage.clone();
+            code = update.code.clone();
+            digests.insert(nonce, update.digest.clone());
 
-            let args = UpdateArgs {
+            return Some(UpdateArgs {
                 nonce,
                 credits: None,
                 debits: Some(debits),
-                storage: Some(storage),
-                code: Some(code),
-                digests: Some(digests),
-            };
-
-            account.update(args);
-
-            self.db.update_account(update.address.clone(), account);
+                storage: Some(storage.clone()),
+                code: Some(code.clone()),
+                digests: Some(digests.clone()),
+            });
         }
+
+        None
     }
 
-    fn update_claim(&mut self, update: StateUpdate) {
+    fn get_receiver_update_args(&mut self, update: StateUpdate) -> Option<UpdateArgs> {
+        let handle = self.get_state_store_handle();
+        if let Ok(mut account) = handle.get(&update.address) {
+            let mut nonce = account.nonce;
+            let mut credits = account.credits;
+            let debits = account.debits;
+            let mut storage = account.storage.clone();
+            let mut code = account.code.clone();
+            let mut digests = account.digests.clone();
+
+            nonce += 1;
+            credits += update.amount;
+            storage = update.storage.clone();
+            code = update.code.clone();
+            digests.insert(nonce, update.digest.clone());
+
+            return Some(UpdateArgs {
+                nonce,
+                credits: None,
+                debits: Some(debits),
+                storage: Some(storage.clone()),
+                code: Some(code.clone()),
+                digests: Some(digests.clone()),
+            });
+        }
+
+        None
+    }
+
+    fn get_claim_update_args(&mut self, update: StateUpdate) -> Option<UpdateArgs> {
         todo!()
     }
 
