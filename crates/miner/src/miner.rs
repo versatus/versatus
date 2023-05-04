@@ -49,12 +49,6 @@ pub const MICRO: u128 = NANO * 1000;
 pub const MILLI: u128 = MICRO * 1000;
 pub const SECOND: u128 = MILLI * 1000;
 
-// TODO: Consider moving that to genesis_config.yaml
-const GENESIS_ALLOWED_MINERS: [&str; 2] = [
-    "82104DeE06aa223eC9574a8b2De4fB440630c300",
-    "F4ccb23f9A2b10b165965e2a4555EC25615c29BE",
-];
-
 /// A basic enum to inform the system whether the current
 /// status of the local mining unit.
 /// ```
