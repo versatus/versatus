@@ -79,12 +79,12 @@ pub struct FarmerModule {
     pub farmer_id: PeerId,
     pub farmer_node_idx: NodeIdx,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
-    async_jobs_sender: Sender<Job>,
+    _async_jobs_sender: Sender<Job>,
 }
 
 impl FarmerModule {
@@ -103,7 +103,7 @@ impl FarmerModule {
             sig_provider,
             tx_mempool: lrmpooldb,
             status: ActorState::Stopped,
-            label: String::from("Farmer"),
+            _label: String::from("Farmer"),
             id: uuid::Uuid::new_v4().to_string(),
             group_public_key,
             farmer_id,
@@ -111,7 +111,7 @@ impl FarmerModule {
             broadcast_events_tx: broadcast_events_tx.clone(),
             quorum_threshold,
             sync_jobs_sender,
-            async_jobs_sender,
+            _async_jobs_sender: async_jobs_sender,
         };
         farmer
     }
@@ -226,7 +226,6 @@ mod tests {
     use std::{
         collections::{HashMap, HashSet},
         thread,
-        time::{SystemTime, UNIX_EPOCH},
     };
 
     use dkg_engine::{test_utils, types::config::ThresholdConfig};
@@ -252,13 +251,13 @@ mod tests {
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
-        let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (_, _clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (sync_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
 
-        let (sync_jobs_status_sender, sync_jobs_status_receiver) =
+        let (_sync_jobs_status_sender, _sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
-        let (async_jobs_status_sender, async_jobs_status_receiver) =
+        let (_async_jobs_status_sender, _async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
         let farmer_module = FarmerModule::new(
             None,
@@ -293,10 +292,9 @@ mod tests {
     async fn farmer_farm_cast_vote() {
         let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (_, clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (_, _clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -349,13 +347,6 @@ mod tests {
         let keypair = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        // let txn_id = String::from("1");
-        let sender_address = String::from("aaa1");
         let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
 

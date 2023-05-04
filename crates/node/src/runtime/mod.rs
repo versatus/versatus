@@ -132,10 +132,9 @@ pub async fn setup_runtime_components(
     .await?;
 
     let mut gossip_handle = None;
-    let mut raptor_handle = None;
     let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
     if !config.disable_networking {
-        let (new_gossip_handle, new_raptor_handle, gossip_addr) = setup_gossip_network(
+        let (new_gossip_handle, _, gossip_addr) = setup_gossip_network(
             &config,
             events_tx.clone(),
             network_events_rx,
@@ -146,7 +145,6 @@ pub async fn setup_runtime_components(
         .await?;
 
         gossip_handle = new_gossip_handle;
-        raptor_handle = new_raptor_handle;
         config.udp_gossip_address = gossip_addr;
     }
 
@@ -166,8 +164,6 @@ pub async fn setup_runtime_components(
                     }
                 }
             }
-
-            return true;
         }
     });
 
@@ -276,7 +272,7 @@ pub async fn setup_runtime_components(
     Ok(runtime_components)
 }
 
-fn setup_event_routing_system() -> EventRouter {
+fn _setup_event_routing_system() -> EventRouter {
     let event_router = EventRouter::default();
 
     event_router

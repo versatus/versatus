@@ -85,13 +85,13 @@ pub struct HarvesterModule {
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
-    events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
-    quorum_threshold: QuorumThreshold,
+    _events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    _quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
-    async_jobs_sender: Sender<Job>,
+    _async_jobs_sender: Sender<Job>,
 }
 
 impl HarvesterModule {
@@ -111,15 +111,15 @@ impl HarvesterModule {
             certified_txns_filter,
             sig_provider,
             status: ActorState::Stopped,
-            label: String::from("FarmerHarvester"),
+            _label: String::from("FarmerHarvester"),
             id: uuid::Uuid::new_v4().to_string(),
             group_public_key,
             broadcast_events_tx: broadcast_events_tx.clone(),
-            events_rx,
-            quorum_threshold,
+            _events_rx: events_rx,
+            _quorum_threshold: quorum_threshold,
             votes_pool: DashMap::new(),
             sync_jobs_sender,
-            async_jobs_sender,
+            _async_jobs_sender: async_jobs_sender,
         };
         harvester
     }
@@ -152,14 +152,14 @@ impl Handler<EventMessage> for HarvesterModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            /// The above code is handling an event of type `Vote` in a Rust
-            /// program. It checks the integrity of the vote by
-            /// verifying that it comes from the actual voter and prevents
-            /// double voting. It then adds the vote to a pool of votes for the
-            /// corresponding transaction and farmer quorum key. If
-            /// the number of votes in the pool reaches the farmer
-            /// quorum threshold, it sends a job to certify the transaction
-            /// using the provided signature provider.
+            // The above code is handling an event of type `Vote` in a Rust
+            // program. It checks the integrity of the vote by
+            // verifying that it comes from the actual voter and prevents
+            // double voting. It then adds the vote to a pool of votes for the
+            // corresponding transaction and farmer quorum key. If
+            // the number of votes in the pool reaches the farmer
+            // quorum threshold, it sends a job to certify the transaction
+            // using the provided signature provider.
             Event::Vote(vote, farmer_quorum_threshold) => {
                 //TODO Harvest should check for integrity of the vote by Voter( Does it vote
                 // truly comes from Voter Prevent Double Voting
@@ -193,7 +193,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     }
                 }
             },
-            /// This certifies txns once vote threshold is reached.
+            // This certifies txns once vote threshold is reached.
             Event::CertifiedTxn(job_result) => {
                 if let JobResult::CertifiedTxn(
                     votes,
@@ -224,7 +224,7 @@ impl Handler<EventMessage> for HarvesterModule {
                 }
             },
 
-            /// Mines proposal block after every X seconds.
+            // Mines proposal block after every X seconds.
             Event::MineProposalBlock => {
                 let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
                 txns.clone().for_each(|txn| {
@@ -269,14 +269,14 @@ mod tests {
     #[tokio::test]
     async fn harvester_runtime_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (sync_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
         let (_, events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (sync_jobs_status_sender, sync_jobs_status_receiver) =
+        let (_sync_jobs_status_sender, _sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
 
-        let (async_jobs_status_sender, async_jobs_status_receiver) =
+        let (_async_jobs_status_sender, _async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
 
         let harvester_swarm_module = HarvesterModule::new(

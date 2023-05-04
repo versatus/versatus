@@ -1,15 +1,8 @@
-use std::{
-    env,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-};
-
 use events::Event;
-use jsonrpsee::{core::client::Subscription, ws_client::WsClientBuilder};
-use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
+use node::{test_utils::create_mock_full_node_config, Node, RuntimeModuleState};
 use primitives::generate_account_keypair;
 use secp256k1::Message;
 use tokio::sync::mpsc::unbounded_channel;
-use vrrb_config::NodeConfig;
 use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 

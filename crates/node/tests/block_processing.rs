@@ -1,11 +1,7 @@
 use events::Event;
-use node::{
-    test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
-    Node,
-};
+use node::{test_utils::create_mock_bootstrap_node_config, Node};
 use primitives::generate_account_keypair;
 use secp256k1::Message;
-use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;
 use vrrb_core::txn::NewTxnArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
@@ -19,8 +15,6 @@ async fn process_full_node_event_flow() {
     let bootstrap_node = Node::start(&b_node_config, bootstrap_ctrl_rx)
         .await
         .unwrap();
-
-    let bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
 
     let client = create_client(bootstrap_node.jsonrpc_server_address())
         .await

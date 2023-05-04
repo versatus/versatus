@@ -1,9 +1,4 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    thread,
-    thread::sleep,
-    time::Duration,
-};
+use std::{net::SocketAddr, thread, thread::sleep, time::Duration};
 
 use async_trait::async_trait;
 use crossbeam_channel::{select, unbounded, Sender};
@@ -48,7 +43,7 @@ pub struct DkgModule {
     pub quic_port: u16,
     pub socket: Socket,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
 }
@@ -101,7 +96,7 @@ impl DkgModule {
                 quic_port,
                 socket,
                 status: ActorState::Stopped,
-                label: String::from("State"),
+                _label: String::from("State"),
                 id: uuid::Uuid::new_v4().to_string(),
                 broadcast_events_tx,
             }),
@@ -115,10 +110,12 @@ impl DkgModule {
     #[cfg(test)]
     pub fn make_engine(
         dkg_engine: DkgEngine,
-        events_tx: EventPublisher,
+        _events_tx: EventPublisher,
         broadcast_events_tx: EventPublisher,
     ) -> Self {
-        let mut socket = Socket::bind_with_config(
+        use std::net::{IpAddr, Ipv4Addr};
+
+        let socket = Socket::bind_with_config(
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0),
             Config {
                 blocking_mode: false,
@@ -146,7 +143,7 @@ impl DkgModule {
             quic_port: 9090,
             socket,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
             broadcast_events_tx,
         }
@@ -574,10 +571,8 @@ mod tests {
 
     #[tokio::test]
     async fn dkg_runtime_module_starts_and_stops() {
-        let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -617,7 +612,6 @@ mod tests {
         let (broadcast_events_tx, mut broadcast_events_rx) =
             tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -681,7 +675,6 @@ mod tests {
         let (broadcast_events_tx, mut broadcast_events_rx) =
             tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (events_tx, _) = tokio::sync::mpsc::unbounded_channel::<Event>();
         let dkg_config = DkgModuleConfig {
             quorum_type: Some(Farmer),
             quorum_size: 4,
@@ -716,7 +709,6 @@ mod tests {
             .dkg_engine
             .add_peer_public_key(4, SecretKey::random().public_key());
 
-        let node_idx = dkg_module.dkg_engine.node_idx;
         let mut dkg_module = ActorImpl::new(dkg_module);
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel::<EventMessage>(20);
@@ -754,8 +746,7 @@ mod tests {
     async fn dkg_runtime_handle_all_acks_generate_keyset() {
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
         let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-        let (broadcast_events_tx, broadcast_events_rx) =
-            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let dkg_module =
             DkgModule::make_engine(dkg_engines.pop().unwrap(), events_tx, broadcast_events_tx);

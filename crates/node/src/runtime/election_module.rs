@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
     fmt::Debug,
-    hash::Hasher,
 };
 
 use async_trait::async_trait;
@@ -14,7 +13,6 @@ use quorum::{
     quorum::{InvalidQuorum, Quorum},
 };
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
@@ -47,16 +45,15 @@ pub struct ElectionResult {
     pub node_id: NodeId,
 }
 
-#[derive(Clone, Debug)]
 pub struct ElectionModule<E, T>
 where
     E: ElectionType,
     T: ElectionOutcome,
 {
-    election_type: E,
+    _election_type: E,
     status: ActorState,
     id: ActorId,
-    label: ActorLabel,
+    _label: ActorLabel,
     pub db_read_handle: VrrbDbReadHandle,
     pub local_claim: Claim,
     pub outcome: Option<T>,
@@ -66,10 +63,10 @@ where
 impl ElectionModule<MinerElection, MinerElectionResult> {
     pub fn new(config: ElectionModuleConfig) -> ElectionModule<MinerElection, MinerElectionResult> {
         ElectionModule {
-            election_type: MinerElection,
+            _election_type: MinerElection,
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("Election module"),
+            _label: String::from("Election module"),
             db_read_handle: config.db_read_handle,
             local_claim: config.local_claim,
             outcome: None,
@@ -87,10 +84,10 @@ impl ElectionModule<QuorumElection, QuorumElectionResult> {
         config: ElectionModuleConfig,
     ) -> ElectionModule<QuorumElection, QuorumElectionResult> {
         ElectionModule {
-            election_type: QuorumElection,
+            _election_type: QuorumElection,
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("Election module"),
+            _label: String::from("Election module"),
             db_read_handle: config.db_read_handle,
             local_claim: config.local_claim,
             outcome: None,
