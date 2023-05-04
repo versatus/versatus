@@ -39,7 +39,7 @@ pub enum WalletCmd {
         from: AddressAlias,
 
         #[clap(long)]
-        to: String,
+        to: Address,
 
         #[clap(long)]
         amount: u128,

@@ -3,7 +3,7 @@ use node::{
     test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
     Node,
 };
-use primitives::generate_account_keypair;
+use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
 use telemetry::TelemetrySubscriber;
 use tokio::sync::mpsc::unbounded_channel;
@@ -32,6 +32,7 @@ async fn process_full_node_event_flow() {
 
     for _ in 0..1_00 {
         let (sk, pk) = generate_account_keypair();
+        let (_, recv_pk) = generate_account_keypair();
 
         let signature =
             sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
@@ -39,9 +40,9 @@ async fn process_full_node_event_flow() {
         client
             .create_txn(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("mock sender_address"),
-                sender_public_key: pk,
-                receiver_address: String::from("mock receiver_address"),
+                sender_address: Address::new(pk.clone()),
+                sender_public_key: pk.clone(),
+                receiver_address: Address::new(recv_pk.clone()),
                 token: None,
                 amount: 0,
                 signature,

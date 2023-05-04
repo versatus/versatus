@@ -4,7 +4,7 @@ pub use crate::miner::*;
 pub mod block_builder;
 pub mod conflict_resolver;
 pub mod miner_impl;
-pub(crate) mod test_helpers;
+pub mod test_helpers;
 // mod miner_v1;
 
 /// Legacy miner implementation

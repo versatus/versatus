@@ -347,6 +347,7 @@ mod tests {
             async_jobs_sender,
         );
         let keypair = KeyPair::random();
+        let recv_kp = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
         let now = SystemTime::now()
@@ -355,8 +356,8 @@ mod tests {
             .as_nanos();
 
         // let txn_id = String::from("1");
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
+        let sender_address = Address::new(keypair.get_miner_public_key().clone());
+        let receiver_address = Address::new(recv_kp.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
@@ -369,7 +370,7 @@ mod tests {
 
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("aaa1"),
+                sender_address: sender_address.clone(),
                 sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use block::{Block, Conflict};
+use block::{Block, BlockHash, Conflict};
 use ethereum_types::U256;
 use primitives::{
     Address,
@@ -112,6 +112,7 @@ pub enum Event {
     FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
     HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
     CertifiedTxn(JobResult),
+    UpdateState(BlockHash),
 }
 
 impl From<&theater::Message> for Event {

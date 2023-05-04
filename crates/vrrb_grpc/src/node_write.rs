@@ -6,11 +6,9 @@ use events::{Event, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use node_write_service::v1::{
     node_write_service_server::{NodeWriteService, NodeWriteServiceServer},
-    CreateTransactionRequest,
-    Token as NodeToken,
-    TransactionRecord,
+    CreateTransactionRequest, Token as NodeToken, TransactionRecord,
 };
-use primitives::NodeType;
+use primitives::{Address, NodeType};
 use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -38,9 +36,9 @@ impl From<Txn> for RpcTransactionRecord {
         Self {
             id: txn.digest().to_string(),
             timestamp: txn.timestamp(),
-            sender_address: txn.sender_address(),
+            sender_address: txn.sender_address().to_string(),
             sender_public_key: txn.sender_public_key().to_string(),
-            receiver_address: txn.receiver_address(),
+            receiver_address: txn.receiver_address().to_string(),
             token: txn.token(),
             amount: txn.amount(),
             signature: txn.signature().to_string(),
@@ -95,9 +93,9 @@ impl From<CreateTransactionRequest> for NewTxnArgs {
 
         Self {
             timestamp: create_transaction_request.timestamp,
-            sender_address: create_transaction_request.sender_address,
             sender_public_key: pub_key,
-            receiver_address: create_transaction_request.receiver_address,
+            sender_address: create_transaction_request.sender_address.into(),
+            receiver_address: create_transaction_request.receiver_address.into(),
             token: Some(token),
             amount,
             signature,
