@@ -2,7 +2,6 @@ use std::{path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use primitives::{NodeId, NodeIdentifier};
-use sha2::Digest;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 

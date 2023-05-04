@@ -1,4 +1,4 @@
-use primitives::{Address, NodeId, SecretKey};
+use primitives::{Address, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
 use vrrb_core::{
@@ -9,7 +9,7 @@ use vrrb_core::{
 
 // NOTE: this is used to generate random filenames so files created by tests
 // don't get overwritten
-pub fn generate_random_string() -> String {
+pub fn _generate_random_string() -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
@@ -17,12 +17,12 @@ pub fn generate_random_string() -> String {
         .collect()
 }
 
-pub fn generate_random_address() -> (SecretKey, Address) {
+pub fn _generate_random_address() -> (SecretKey, Address) {
     let kp = Keypair::random();
     (kp.miner_kp.0, Address::new(kp.miner_kp.1))
 }
 
-pub fn generate_random_transaction(
+pub fn _generate_random_transaction(
     secret_key: primitives::SecretKey,
     from: Address,
     to: Address,
@@ -46,9 +46,9 @@ pub fn generate_random_transaction(
     })
 }
 
-pub fn generate_random_valid_transaction() -> Txn {
-    let (sender_secret_key, from) = generate_random_address();
-    let (receiver_secret_key, to) = generate_random_address();
+pub fn _generate_random_valid_transaction() -> Txn {
+    let (sender_secret_key, from) = _generate_random_address();
+    let (_receiver_secret_key, to) = _generate_random_address();
 
     type H = secp256k1::hashes::sha256::Hash;
 
@@ -69,7 +69,7 @@ pub fn generate_random_valid_transaction() -> Txn {
     })
 }
 
-pub fn generate_random_claim() -> Claim {
+pub fn _generate_random_claim() -> Claim {
     let keypair = Keypair::random();
 
     Claim::new(keypair.miner_kp.1.clone(), Address::new(keypair.miner_kp.1))
