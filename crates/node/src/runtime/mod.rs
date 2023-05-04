@@ -390,12 +390,14 @@ async fn setup_rpc_api_server(
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) =
         JsonRpcServer::run(&jsonrpc_server_config)
             .await
-            .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
+            .map_err(|err| NodeError::Other(format!("unable to start JSON-RPC server: {err}")))?;
 
     let jsonrpc_server_handle = tokio::spawn(async move {
         if let Ok(evt) = jsonrpc_events_rx.recv().await {
             if let Event::Stop = evt.into() {
-                jsonrpc_server_handle.stop();
+                jsonrpc_server_handle.stop().map_err(|err| {
+                    NodeError::Other(format!("JSON-RPC event has stopped: {err}"))
+                })?;
                 return Ok(());
             }
         }
@@ -664,10 +666,10 @@ fn setup_scheduler_module(
     module
 }
 
-fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
