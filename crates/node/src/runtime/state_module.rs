@@ -1,14 +1,40 @@
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
-use storage::vrrbdb::{VrrbDb, VrrbDbReadHandle};
+use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_core::{account::Account, serde_helpers::decode_from_binary_byte_slice, txn::Txn};
+use vrrb_core::{
+    account::{Account, UpdateArgs},
+    claim::Claim,
+    serde_helpers::decode_from_binary_byte_slice,
+    txn::{Token, TransactionDigest, Txn},
+};
 
 use crate::{result::Result, NodeError};
+
+#[derive(Debug)]
+pub enum UpdateAccount {
+    Sender,
+    Receiver,
+    Claim,
+}
+
+#[derive(Debug)]
+pub struct StateUpdate {
+    pub address: Address,
+    pub token: Option<Token>,
+    pub amount: u128,
+    pub nonce: u128,
+    pub storage: Option<String>,
+    pub code: Option<String>,
+    pub digest: TransactionDigest,
+    pub update_account: UpdateAccount,
+}
 
 pub struct StateModuleConfig {
     pub db: VrrbDb,
@@ -71,6 +97,28 @@ impl StateModule {
         Ok(())
     }
 
+    fn write_txns(&mut self, update_list: HashSet<StateUpdate>) -> Result<()> {
+        update_list
+            .into_iter()
+            .for_each(|update| match &update.update_account {
+                UpdateAccount::Sender => {
+                    self.update_sender(update);
+                },
+                UpdateAccount::Receiver => {
+                    self.update_receiver(update);
+                },
+                UpdateAccount::Claim => {
+                    self.update_claim(update);
+                },
+            });
+
+        Ok(())
+    }
+
+    fn write_claim(&mut self, claim_list: HashSet<Claim>) -> Result<()> {
+        todo!()
+    }
+
     fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
         self.db
             .insert_account(key, account)
@@ -81,6 +129,76 @@ impl StateModule {
         self.db
             .update_account(key, account)
             .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    fn update_sender(&mut self, update: StateUpdate) {
+        let handle = self.get_state_store_handle();
+        if let Ok(mut account) = handle.get(&update.address) {
+            let mut nonce = account.nonce;
+            let credits = account.credits;
+            let mut debits = account.debits;
+            let mut storage = account.storage;
+            let mut code = account.code;
+            let mut digests = account.digests;
+
+            nonce += 1;
+            debits += update.amount;
+            storage = update.storage;
+            code = update.code;
+            digests.insert(nonce, update.digest);
+
+            let args = UpdateArgs {
+                nonce,
+                credits: None,
+                debits: Some(debits),
+                storage: Some(storage),
+                code: Some(code),
+                digests: Some(digests),
+            };
+
+            account.update(args);
+
+            self.db.update_account(update.address.clone(), account);
+        }
+    }
+
+    fn update_receiver(&mut self, update: StateUpdate) {
+        let handle = self.get_state_store_handle();
+        if let Ok(mut account) = handle.get(&update.address) {
+            let mut nonce = account.nonce;
+            let mut credits = account.credits;
+            let debits = account.debits;
+            let mut storage = account.storage;
+            let mut code = account.code;
+            let mut digests = account.digests;
+
+            nonce += 1;
+            credits += update.amount;
+            storage = update.storage;
+            code = update.code;
+            digests.insert(nonce, update.digest);
+
+            let args = UpdateArgs {
+                nonce,
+                credits: None,
+                debits: Some(debits),
+                storage: Some(storage),
+                code: Some(code),
+                digests: Some(digests),
+            };
+
+            account.update(args);
+
+            self.db.update_account(update.address.clone(), account);
+        }
+    }
+
+    fn update_claim(&mut self, update: StateUpdate) {
+        todo!()
+    }
+
+    fn get_state_store_handle(&self) -> StateStoreReadHandle {
+        self.db.state_store_factory().handle()
     }
 }
 

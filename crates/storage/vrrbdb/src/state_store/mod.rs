@@ -52,6 +52,11 @@ impl StateStore {
         StateStoreReadHandle::new(inner)
     }
 
+    pub fn get_account(&self, key: &Address) -> Result<Account> {
+        let read_handle = self.read_handle();
+        read_handle.get(key)
+    }
+
     /// Commits uncommitted changes to the underlying trie by calling
     /// `publish()` Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
