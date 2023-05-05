@@ -31,6 +31,6 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
     match sub_cmd {
         NodeCmd::Run(opts) => run(opts).await,
         NodeCmd::Info => Ok(()),
-        _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
+        _ => Err(CliError::InvalidCommand(format!("{sub_cmd:?}"))),
     }
 }
