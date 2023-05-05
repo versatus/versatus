@@ -152,12 +152,12 @@ impl DkgModule {
         String::from("DKG module")
     }
 
-    pub fn process_rendezvous_response(&self) {
+    pub async fn process_rendezvous_response(&self) {
         let receiver = self.socket.get_event_receiver();
         let sender = self.socket.get_packet_sender();
         loop {
             if let Ok(event) = receiver.recv() {
-                self.process_rendezvous_event(&event, &sender)
+                self.process_rendezvous_event(&event, &sender).await
             }
         }
     }
@@ -189,23 +189,22 @@ impl DkgModule {
         }
     }
 
-    fn process_rendezvous_event(&self, event: &SocketEvent, sender: &Sender<Packet>) {
-        match event {
-            SocketEvent::Packet(packet) => self.process_packet(packet, sender),
-            SocketEvent::Timeout(_) => {},
-            _ => {},
+    async fn process_rendezvous_event(&self, event: &SocketEvent, sender: &Sender<Packet>) {
+        if let SocketEvent::Packet(packet) = event {
+            self.process_packet(packet, sender).await;
         }
     }
 
-    fn process_packet(&self, packet: &Packet, sender: &Sender<Packet>) {
+    async fn process_packet(&self, packet: &Packet, sender: &Sender<Packet>) {
         if packet.addr() == self.rendezvous_server_addr {
             if let Ok(payload_response) = bincode::deserialize::<Data>(packet.payload()) {
-                self.process_payload_response(&payload_response, sender, packet);
+                self.process_payload_response(&payload_response, sender, packet)
+                    .await;
             }
         }
     }
 
-    fn process_payload_response(
+    async fn process_payload_response(
         &self,
         payload_response: &Data,
         sender: &Sender<Packet>,
@@ -213,7 +212,7 @@ impl DkgModule {
     ) {
         match payload_response {
             Data::Request(req) => self.process_request(req, sender, packet),
-            Data::Response(resp) => self.process_response(resp),
+            Data::Response(resp) => self.process_response(resp).await,
         }
     }
 
@@ -231,12 +230,13 @@ impl DkgModule {
         };
     }
 
-    fn process_response(&self, response: &RendezvousResponse) {
+    async fn process_response(&self, response: &RendezvousResponse) {
         match response {
             RendezvousResponse::Peers(peers) => {
                 let _ = self
                     .broadcast_events_tx
-                    .send(Event::SyncPeers(peers.clone()).into());
+                    .send(Event::SyncPeers(peers.clone()).into())
+                    .await;
             },
             RendezvousResponse::NamespaceRegistered => {
                 info!("Namespace Registered");
