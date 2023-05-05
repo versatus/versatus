@@ -44,7 +44,7 @@ impl HttpApiServer {
         let tls_config = config.tls_config;
         let router = create_router(&router_config);
         let listener = TcpListener::bind(address).map_err(|err| {
-            ApiError::Other(format!("unable to bind to address {address}: {}", err))
+            ApiError::Other(format!("unable to bind to address {address}: {err}"))
         })?;
 
         Ok(Self {
@@ -57,8 +57,7 @@ impl HttpApiServer {
     pub fn address(&self) -> Result<SocketAddr> {
         self.listener.local_addr().map_err(|err| {
             ApiError::Other(format!(
-                "unable to retrieve the server's local address. Reason: {}",
-                err
+                "unable to retrieve the server's local address. Reason: {err}"
             ))
         })
     }
@@ -90,9 +89,9 @@ impl HttpApiServer {
 
             handle.graceful_shutdown(Some(Duration::from_secs(30)));
 
-            return server_handle.await.map_err(|err| {
-                ApiError::Other(format!("failed to join server handle: {}", err))
-            })?;
+            return server_handle
+                .await
+                .map_err(|err| ApiError::Other(format!("failed to join server handle: {err}")))?;
         }
 
         let server = Server::from_tcp(self.listener)
