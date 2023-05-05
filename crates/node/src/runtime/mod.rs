@@ -126,6 +126,7 @@ pub async fn setup_runtime_components(
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
 
+    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
 
@@ -149,6 +150,7 @@ pub async fn setup_runtime_components(
         &config,
         events_tx.clone(),
         vrrbdb_events_rx,
+        dag.clone(),
         mempool_read_handle_factory.clone(),
     )
     .await?;
@@ -205,8 +207,6 @@ pub async fn setup_runtime_components(
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
-
-    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_handle = setup_mining_module(
         &config,
@@ -386,6 +386,7 @@ async fn setup_state_store(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut state_events_rx: EventSubscriber,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     _mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
     let mut vrrbdb_config = VrrbDbConfig::default();
@@ -398,7 +399,7 @@ async fn setup_state_store(
 
     let vrrbdb_read_handle = db.read_handle();
 
-    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
+    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db, dag });
 
     let mut state_module_actor = ActorImpl::new(state_module);
 

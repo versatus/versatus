@@ -1,6 +1,11 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use async_trait::async_trait;
+use block::Block;
+use bulldag::graph::BullDag;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -39,6 +44,7 @@ pub struct StateUpdate {
 pub struct StateModuleConfig {
     pub db: VrrbDb,
     pub events_tx: EventPublisher,
+    pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
 #[derive(Debug)]
@@ -48,6 +54,7 @@ pub struct StateModule {
     label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
 /// StateModule manages all state persistence and updates within VrrbNodes
@@ -61,6 +68,7 @@ impl StateModule {
             status: ActorState::Stopped,
             label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
+            dag: config.dag.clone(),
         }
     }
 }
@@ -280,8 +288,13 @@ impl Handler<EventMessage> for StateModule {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{
+        env,
+        sync::{Arc, RwLock},
+    };
 
+    use block::Block;
+    use bulldag::graph::BullDag;
     use events::{Event, DEFAULT_BUFFER};
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
@@ -299,9 +312,15 @@ mod tests {
 
         let db_config = VrrbDbConfig::default();
 
+        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+        let mut state_module = StateModule::new(StateModuleConfig {
+            events_tx,
+            db,
+            dag: dag.clone(),
+        });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -329,7 +348,13 @@ mod tests {
 
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+
+        let mut state_module = StateModule::new(StateModuleConfig {
+            events_tx,
+            db,
+            dag: dag.clone(),
+        });
 
         let mut state_module = ActorImpl::new(state_module);
 
@@ -361,7 +386,13 @@ mod tests {
 
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig { events_tx, db });
+        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+
+        let mut state_module = StateModule::new(StateModuleConfig {
+            events_tx,
+            db,
+            dag: dag.clone(),
+        });
 
         let mut state_module = ActorImpl::new(state_module);
 
