@@ -1,4 +1,5 @@
 use std::{
+    cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
@@ -484,6 +485,18 @@ impl FromStr for TransactionDigest {
         let dec = Self::from(decoded);
 
         Ok(dec)
+    }
+}
+
+impl PartialOrd for TransactionDigest {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TransactionDigest {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.digest_string.cmp(&other.digest_string)
     }
 }
 

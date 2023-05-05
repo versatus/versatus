@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{ByteVec, PublicKey, SecretKey};
 
 /// Represents a secp256k1 public key, hashed with sha256::digest
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct Address(PublicKey);
 
 impl Address {

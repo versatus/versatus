@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    hash::{Hash, Hasher},
+};
 
 use chrono::Utc;
 use primitives::{Address, SerializedPublicKey};
@@ -44,6 +48,31 @@ impl PartialOrd for UpdateArgs {
         Some(self.cmp(other))
     }
 }
+
+impl Hash for UpdateArgs {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.address.hash(state);
+        self.nonce.hash(state);
+        self.credits.hash(state);
+        self.debits.hash(state);
+        self.storage.hash(state);
+        self.code.hash(state);
+
+        if let Some(ref digests) = self.digests {
+            digests.len().hash(state); // Hash the number of digests
+            let mut sorted_digests: Vec<(&AccountNonce, &TransactionDigest)> =
+                digests.iter().collect();
+            sorted_digests.sort_unstable(); // Sort digests by keys to ensure consistent hash order
+            for (key, value) in sorted_digests {
+                key.hash(state);
+                value.hash(state);
+            }
+        } else {
+            0u8.hash(state);
+        }
+    }
+}
+
 
 pub type AccountNonce = u32;
 

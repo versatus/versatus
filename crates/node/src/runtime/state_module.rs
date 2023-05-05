@@ -1,5 +1,8 @@
+#![allow(unused)]
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    iter::FromIterator,
     sync::{Arc, RwLock},
 };
 
@@ -14,7 +17,7 @@ use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{
-    account::{Account, UpdateArgs},
+    account::{Account, AccountNonce, UpdateArgs},
     claim::Claim,
     serde_helpers::decode_from_binary_byte_slice,
     txn::{Token, TransactionDigest, Txn},
@@ -34,11 +37,47 @@ pub struct StateUpdate {
     pub address: Address,
     pub token: Option<Token>,
     pub amount: u128,
-    pub nonce: u128,
+    pub nonce: u32,
     pub storage: Option<String>,
     pub code: Option<String>,
     pub digest: TransactionDigest,
     pub update_account: UpdateAccount,
+}
+
+impl Into<UpdateArgs> for StateUpdate {
+    fn into(self) -> UpdateArgs {
+        let mut digests: HashMap<AccountNonce, TransactionDigest> = HashMap::new();
+        digests.insert(self.nonce, self.digest);
+        match &self.update_account {
+            UpdateAccount::Sender => UpdateArgs {
+                address: self.address,
+                nonce: self.nonce,
+                credits: None,
+                debits: Some(self.amount),
+                storage: Some(self.storage.clone()),
+                code: Some(self.code.clone()),
+                digests: Some(digests.clone()),
+            },
+            UpdateAccount::Receiver => UpdateArgs {
+                address: self.address,
+                nonce: self.nonce,
+                credits: Some(self.amount),
+                debits: None,
+                storage: Some(self.storage.clone()),
+                code: Some(self.code.clone()),
+                digests: Some(digests.clone()),
+            },
+            UpdateAccount::Claim => UpdateArgs {
+                address: self.address,
+                nonce: self.nonce,
+                credits: None,
+                debits: None,
+                storage: None,
+                code: None,
+                digests: None,
+            },
+        }
+    }
 }
 
 pub struct StateModuleConfig {
@@ -105,35 +144,14 @@ impl StateModule {
         Ok(())
     }
 
-    fn write_txns(&mut self, update_list: HashSet<StateUpdate>) -> Result<()> {
-        update_list
+    fn update_state(&mut self, update_list: HashSet<StateUpdate>) -> Result<()> {
+        consolidate_update_args(get_update_args(update_list))
             .into_iter()
-            .for_each(|update| match &update.update_account {
-                //TODO: Put Address in UpdateArgs and just pass UpdateArgs
-                UpdateAccount::Sender => {
-                    if let Some(args) = self.get_sender_update_args(update) {
-                        self.db.update_account(args);
-                    }
-                },
-                UpdateAccount::Receiver => {
-                    if let Some(args) = self.get_receiver_update_args(update) {
-                        self.db.update_account(args);
-                    }
-                },
-                UpdateAccount::Claim => {
-                    if let Some(args) = self.get_claim_update_args(update) {
-                        // TODO: provide an `update_claim` method in VrrbDb
-                        // to access the `ClaimStore` and update claims
-                        self.db.update_account(args);
-                    }
-                },
+            .for_each(|(_, args)| {
+                let _ = self.db.update_account(args);
             });
 
         Ok(())
-    }
-
-    fn write_claim(&mut self, claim_list: HashSet<Claim>) -> Result<()> {
-        todo!()
     }
 
     fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
@@ -142,78 +160,50 @@ impl StateModule {
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
-    fn update_claim(&mut self, update: StateUpdate) {
-        todo!()
-    }
-
-    fn get_sender_update_args(&mut self, update: StateUpdate) -> Option<UpdateArgs> {
-        let handle = self.get_state_store_handle();
-        if let Ok(mut account) = handle.get(&update.address) {
-            let mut nonce = account.nonce;
-            let mut credits = account.credits;
-            let debits = account.debits;
-            let mut storage = account.storage.clone();
-            let mut code = account.code.clone();
-            let mut digests = account.digests.clone();
-
-            nonce += 1;
-            credits += update.amount;
-            storage = update.storage.clone();
-            code = update.code.clone();
-            digests.insert(nonce, update.digest.clone());
-
-            return Some(UpdateArgs {
-                address: update.address,
-                nonce,
-                credits: None,
-                debits: Some(debits),
-                storage: Some(storage.clone()),
-                code: Some(code.clone()),
-                digests: Some(digests.clone()),
-            });
-        }
-
-        None
-    }
-
-    fn get_receiver_update_args(&mut self, update: StateUpdate) -> Option<UpdateArgs> {
-        let handle = self.get_state_store_handle();
-        if let Ok(mut account) = handle.get(&update.address) {
-            let mut nonce = account.nonce;
-            let mut credits = account.credits;
-            let debits = account.debits;
-            let mut storage = account.storage.clone();
-            let mut code = account.code.clone();
-            let mut digests = account.digests.clone();
-
-            nonce += 1;
-            credits += update.amount;
-            storage = update.storage.clone();
-            code = update.code.clone();
-            digests.insert(nonce, update.digest.clone());
-
-            return Some(UpdateArgs {
-                address: update.address,
-                nonce,
-                credits: None,
-                debits: Some(debits),
-                storage: Some(storage.clone()),
-                code: Some(code.clone()),
-                digests: Some(digests.clone()),
-            });
-        }
-
-        None
-    }
-
-    fn get_claim_update_args(&mut self, update: StateUpdate) -> Option<UpdateArgs> {
-        todo!()
-    }
-
     fn get_state_store_handle(&self) -> StateStoreReadHandle {
         self.db.state_store_factory().handle()
     }
 }
+
+fn get_update_args(updates: HashSet<StateUpdate>) -> HashSet<UpdateArgs> {
+    updates.into_iter().map(|update| update.into()).collect()
+}
+
+fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, UpdateArgs> {
+    let mut consolidated_updates: HashMap<Address, UpdateArgs> = HashMap::new();
+
+    for update in updates.into_iter() {
+        let address = update.address.clone();
+
+        consolidated_updates
+            .entry(address)
+            .and_modify(|existing_update| {
+                existing_update.nonce = existing_update.nonce.max(update.nonce);
+                existing_update.credits = match (existing_update.credits, update.credits) {
+                    (Some(a), Some(b)) => Some(a + b),
+                    (a, None) => a,
+                    (_, b) => b,
+                };
+                existing_update.debits = match (existing_update.debits, update.debits) {
+                    (Some(a), Some(b)) => Some(a + b),
+                    (a, None) => a,
+                    (_, b) => b,
+                };
+                existing_update.storage = update.storage.clone(); // TODO: Update this to use the most recent value
+                existing_update.code = update.code.clone(); // TODO: Update this to use the most recent value
+                if let Some(digests) = update.digests.clone() {
+                    existing_update
+                        .digests
+                        .get_or_insert(HashMap::new())
+                        .extend(digests);
+                }
+            })
+            .or_insert(update);
+    }
+
+    consolidated_updates
+}
+
 
 #[async_trait]
 impl Handler<EventMessage> for StateModule {
