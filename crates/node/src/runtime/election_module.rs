@@ -133,25 +133,22 @@ impl Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult
     }
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
-        match event.into() {
-            Event::MinerElection(header_bytes) => {
-                let header_result: serde_json::Result<BlockHeader> =
-                    serde_json::from_slice(&header_bytes);
+        if let Event::MinerElection(header_bytes) = event.into() {
+            let header_result: serde_json::Result<BlockHeader> =
+                serde_json::from_slice(&header_bytes);
 
-                if let Ok(header) = header_result {
-                    let claims = self.db_read_handle.claim_store_values();
-                    let mut election_results: BTreeMap<U256, Claim> =
-                        elect_miner(claims, header.block_seed);
+            if let Ok(header) = header_result {
+                let claims = self.db_read_handle.claim_store_values();
+                let mut election_results: BTreeMap<U256, Claim> =
+                    elect_miner(claims, header.block_seed);
 
-                    let winner = get_winner(&mut election_results);
+                let winner = get_winner(&mut election_results);
 
-                    let _ = self
-                        .events_tx
-                        .send(Event::ElectedMiner(winner).into())
-                        .await;
-                }
-            },
-            _ => {},
+                let _ = self
+                    .events_tx
+                    .send(Event::ElectedMiner(winner).into())
+                    .await;
+            }
         }
 
         Ok(ActorState::Running)
@@ -185,23 +182,20 @@ impl Handler<EventMessage> for ElectionModule<QuorumElection, QuorumElectionResu
     }
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
-        match event.into() {
-            Event::QuorumElection(header_bytes) => {
-                let header_result: serde_json::Result<BlockHeader> =
-                    serde_json::from_slice(&header_bytes);
+        if let Event::QuorumElection(header_bytes) = event.into() {
+            let header_result: serde_json::Result<BlockHeader> =
+                serde_json::from_slice(&header_bytes);
 
-                if let Ok(header) = header_result {
-                    let claims = self.db_read_handle.claim_store_values();
+            if let Ok(header) = header_result {
+                let claims = self.db_read_handle.claim_store_values();
 
-                    if let Ok(quorum) = elect_quorum(claims, header) {
-                        let _ = self
-                            .events_tx
-                            .send(Event::ElectedQuorum(quorum).into())
-                            .await;
-                    }
+                if let Ok(quorum) = elect_quorum(claims, header) {
+                    let _ = self
+                        .events_tx
+                        .send(Event::ElectedQuorum(quorum).into())
+                        .await;
                 }
-            },
-            _ => {},
+            }
         }
 
         Ok(ActorState::Running)
@@ -225,12 +219,12 @@ fn get_winner(election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
     let first: (U256, Claim);
     loop {
         if let Some((pointer_sum, claim)) = iter.next() {
-            first = (pointer_sum.clone(), claim.clone());
+            first = (*pointer_sum, claim.clone());
             break;
         }
     }
 
-    return first;
+    first
 }
 
 fn elect_quorum(
@@ -247,5 +241,5 @@ fn elect_quorum(
         }
     }
 
-    return Err(InvalidQuorum::InvalidSeedError());
+    Err(InvalidQuorum::InvalidSeedError())
 }

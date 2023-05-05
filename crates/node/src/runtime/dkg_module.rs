@@ -251,10 +251,12 @@ impl DkgModule {
     fn send_retrieve_peers_request(&self, sender: &Sender<Packet>) {
         let quorum_key = if self.dkg_engine.node_type == NodeType::Farmer {
             self.dkg_engine.harvester_public_key
-        } else if let Some(key) = &self.dkg_engine.dkg_state.public_key_set {
-            Some(key.public_key())
         } else {
-            None
+            self.dkg_engine
+                .dkg_state
+                .public_key_set
+                .as_ref()
+                .map(|key| key.public_key())
         };
 
         if let Some(harvester_public_key) = quorum_key {
@@ -351,7 +353,7 @@ impl DkgModule {
             vec![]
         };
 
-        let signature = secret_key_share.sign(message.clone()).to_bytes().to_vec();
+        let signature = secret_key_share.sign(message).to_bytes().to_vec();
 
         (msg_bytes, signature)
     }
@@ -444,7 +446,7 @@ impl Handler<EventMessage> for DkgModule {
                                         )
                                         .await.map_err(|e| {
                                             error!("Error occured while sending part message to broadcast event channel {:?}", e);
-                                            TheaterError::Other(format!("{:?}", e))
+                                            TheaterError::Other(format!("{e:?}"))
                                         });
                                 }
                             }
@@ -498,13 +500,13 @@ impl Handler<EventMessage> for DkgModule {
 
                                         let _ = self.broadcast_events_tx.send(event.into()).await.map_err(|e| {
                                             error!("Error occured while sending ack message to broadcast event channel {:?}", e);
-                                            TheaterError::Other(format!("{:?}", e))
+                                            TheaterError::Other(format!("{e:?}"))
                                         });
                                     };
                                 }
                             },
                             _ => {
-                                error!("Error occured while acknowledging partial commitment for node {:?}", sender_id,);
+                                error!("Error occured while acknowledging partial commitment for node {:?}", sender_id);
                             },
                         },
                         Err(err) => {
@@ -512,7 +514,7 @@ impl Handler<EventMessage> for DkgModule {
                         },
                     }
                 } else {
-                    error!("Part Committment for Node idx {:?} missing ", sender_id);
+                    error!("Part Committment for Node idx {:?} missing", sender_id);
                 }
             },
             Event::HandleAllAcks => {

@@ -178,7 +178,7 @@ impl Miner {
 
     /// Retrieves the `PublicKey` of the current `Miner` instance
     pub fn public_key(&self) -> PublicKey {
-        self.public_key.clone()
+        self.public_key
     }
 
     /// Generates a `Claim` from the `miner.public_key` and `miner.address`

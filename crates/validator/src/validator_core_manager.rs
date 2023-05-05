@@ -22,7 +22,7 @@ impl ValidatorCoreManager {
             .num_threads(cores)
             .build()
             .map_err(|err| {
-                ValidatorError::Other(format!("Failed to create validator core pool: {}", err))
+                ValidatorError::Other(format!("Failed to create validator core pool: {err}"))
             })?;
 
         Ok(Self { core_pool })

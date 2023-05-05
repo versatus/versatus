@@ -68,7 +68,7 @@ impl Core {
     }
 
     pub fn id(&self) -> CoreId {
-        self.id.clone()
+        self.id
     }
 
     pub fn process_transactions(
@@ -117,7 +117,7 @@ impl Core {
     ) -> HashSet<(Claim, crate::claim_validator::Result<()>)> {
         batch
             .par_iter()
-            .map(|claim| match self.claims_validator.validate(&claim) {
+            .map(|claim| match self.claims_validator.validate(claim) {
                 Ok(_) => (claim.clone(), Ok(())),
                 Err(err) => {
                     telemetry::error!("{err:?}");

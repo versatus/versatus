@@ -142,12 +142,10 @@ impl Wallet {
         let sender_address = {
             if let Some(addr) = addresses.get(&address_number) {
                 addr
+            } else if let Some(addr) = addresses.get(&0) {
+                addr
             } else {
-                if let Some(addr) = addresses.get(&0) {
-                    addr
-                } else {
-                    return Err(WalletError::Custom("wallet has no addresses".to_string()));
-                }
+                return Err(WalletError::Custom("wallet has no addresses".to_string()));
             }
         };
 
@@ -187,7 +185,7 @@ impl Wallet {
             .map_err(|err| {
                 error!("{:?}", err.to_string());
 
-                WalletError::Custom(format!("API Error:{}", err))
+                WalletError::Custom(format!("API Error: {err}"))
             })?;
 
         Ok(txn.id)
@@ -282,16 +280,16 @@ impl Wallet {
 
             Ok(wallet)
         } else {
-            return Err(WalletError::Custom(
+            Err(WalletError::Custom(
                 "unable to restore wallet from secret key".to_string(),
-            ));
+            ))
         }
     }
 
     // Create an account for each address created
     pub fn get_new_address(&mut self) {
         let largest_address_index = self.addresses.len();
-        let pk = self.public_key.clone();
+        let pk = self.public_key;
         let new_address = Address::new(pk);
         self.addresses
             .insert(largest_address_index as u32, new_address);
@@ -309,8 +307,7 @@ impl Wallet {
         let account = Account::new(public_key);
         let address = Address::new(public_key);
 
-        let _result = self
-            .client
+        self.client
             .create_account(address.clone(), account.clone())
             .await
             .map_err(|err| WalletError::Custom(err.to_string()))?;

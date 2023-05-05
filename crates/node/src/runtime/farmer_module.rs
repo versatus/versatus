@@ -99,7 +99,7 @@ impl FarmerModule {
         async_jobs_sender: Sender<Job>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
-        let farmer = Self {
+        Self {
             sig_provider,
             tx_mempool: lrmpooldb,
             status: ActorState::Stopped,
@@ -108,12 +108,11 @@ impl FarmerModule {
             group_public_key,
             farmer_id,
             farmer_node_idx,
-            broadcast_events_tx: broadcast_events_tx.clone(),
+            broadcast_events_tx,
             quorum_threshold,
             sync_jobs_sender,
             _async_jobs_sender: async_jobs_sender,
-        };
-        farmer
+        }
     }
 
     pub fn insert_txn(&mut self, txn: Txn) {
@@ -182,22 +181,18 @@ impl Handler<EventMessage> for FarmerModule {
                         self.farmer_id.clone(),
                         self.farmer_node_idx,
                         self.group_public_key.clone(),
-                        sig_provider.clone(),
+                        sig_provider,
                         self.quorum_threshold,
                     )));
                 }
             },
             // Receive the Vote from scheduler
-            Event::ProcessedVotes(job_result) => {
-                if let JobResult::Votes((votes, farmer_quorum_threshold)) = job_result {
-                    for vote_opt in votes.iter() {
-                        if let Some(vote) = vote_opt {
-                            let _ = self
-                                .broadcast_events_tx
-                                .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
-                                .await;
-                        }
-                    }
+            Event::ProcessedVotes(JobResult::Votes((votes, farmer_quorum_threshold))) => {
+                for vote in votes.iter().flatten() {
+                    let _ = self
+                        .broadcast_events_tx
+                        .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
+                        .await;
                 }
             },
             Event::NoOp => {},
