@@ -29,31 +29,31 @@ async fn update_account() {
     todo!()
 }
 
-async fn create_key_router() {
+async fn _create_key_router() {
     todo!()
 }
 
-async fn create_token_router() {
+async fn _create_token_router() {
     todo!()
 }
 
-async fn get_key() {
+async fn _get_key() {
     todo!()
 }
 
-async fn create_token() {
+async fn _create_token() {
     todo!()
 }
 
-async fn update_token() {
+async fn _update_token() {
     todo!()
 }
 
-async fn get_token() {
+async fn _get_token() {
     todo!()
 }
 
-async fn delete_token() {
+async fn _delete_token() {
     todo!()
 }
 

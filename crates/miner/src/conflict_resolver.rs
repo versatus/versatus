@@ -59,21 +59,16 @@ pub trait Resolver {
     type Source;
     type BallotInfo;
 
-    fn identify(&self, proposals: &Vec<Self::Proposal>) -> Self::Identified;
-    fn resolve(
-        &self,
-        proposals: &Vec<Self::Proposal>,
-        round: u128,
-        seed: u64,
-    ) -> Vec<Self::Proposal>;
-    fn resolve_earlier(&self, proposals: &Vec<Self::Proposal>, round: u128) -> Vec<Self::Proposal>;
+    fn identify(&self, proposals: &[Self::Proposal]) -> Self::Identified;
+    fn resolve(&self, proposals: &[Self::Proposal], round: u128, seed: u64) -> Vec<Self::Proposal>;
+    fn resolve_earlier(&self, proposals: &[Self::Proposal], round: u128) -> Vec<Self::Proposal>;
     fn get_sources(&self, proposals: &Self::Proposal) -> Vec<Self::Source>;
     fn get_election_results(
         &self,
-        proposers: &Vec<Self::BallotInfo>,
+        proposers: &[Self::BallotInfo],
         seed: u64,
     ) -> BTreeMap<U256, Self::BallotInfo>;
-    fn get_proposers(&self, proposals: &Vec<Self::Proposal>) -> Vec<Self::BallotInfo>;
+    fn get_proposers(&self, proposals: &[Self::Proposal]) -> Vec<Self::BallotInfo>;
     fn append_winner(
         &self,
         conflicts: &mut Self::Identified,
@@ -82,7 +77,7 @@ pub trait Resolver {
     fn resolve_current(&self, current: &mut Vec<Self::Proposal>, conflicts: &Self::Identified);
     fn split_proposals_by_round(
         &self,
-        proposals: &Vec<Self::Proposal>,
+        proposals: &[Self::Proposal],
     ) -> (Vec<Self::Proposal>, Vec<Self::Proposal>) {
         let _ = proposals;
         (vec![], vec![])

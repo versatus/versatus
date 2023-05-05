@@ -77,8 +77,6 @@ impl HttpClient {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
     use serde_json::json;
     use wiremock::{matchers::path, Mock, MockServer, ResponseTemplate};
 

@@ -80,7 +80,7 @@ impl DagModule {
             self.write_genesis(&vtx)?;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn append_proposal(&mut self, proposal: &ProposalBlock) -> GraphResult<()> {
@@ -134,14 +134,14 @@ impl DagModule {
             .collect()
     }
 
-    fn get_reference_block(&self, target: &String) -> GraphResult<Vertex<Block, String>> {
+    fn get_reference_block(&self, target: &str) -> GraphResult<Vertex<Block, String>> {
         if let Ok(guard) = self.dag.read() {
-            if let Some(vtx) = guard.get_vertex(target.clone()) {
+            if let Some(vtx) = guard.get_vertex(target.to_owned()) {
                 return Ok(vtx.clone());
             }
         }
 
-        return Err(GraphError::NonExistentReference);
+        Err(GraphError::NonExistentReference)
     }
 
     fn write_edge(
@@ -153,16 +153,12 @@ impl DagModule {
             return Ok(());
         }
 
-        return Err(GraphError::Other("Error getting write guard".to_string()));
+        Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
     fn extend_edges(&mut self, edges: Edges) -> GraphResult<()> {
-        let mut iter = edges.iter();
-
-        while let Some((ref_block, vtx)) = iter.next() {
-            if let Err(e) = self.write_edge((ref_block, vtx)) {
-                return Err(e);
-            }
+        for (ref_block, vtx) in edges.iter() {
+            self.write_edge((ref_block, vtx))?
         }
 
         Ok(())
@@ -175,54 +171,43 @@ impl DagModule {
             return Ok(());
         }
 
-        return Err(GraphError::Other("Error getting write gurard".to_string()));
+        Err(GraphError::Other("Error getting write gurard".to_string()))
     }
 
     fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => return true,
-                _ => return false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
-            return false;
+            false
         }
     }
 
     fn check_valid_proposal(&self, block: &ProposalBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => return true,
-                _ => return false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
-            return false;
+            false
         }
     }
 
     fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => return true,
-                _ => return false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
-            return false;
+            false
         }
     }
 
     fn verify_signature(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
-        if validation_data.signature.clone().len() != SIG_SIZE {
+        if validation_data.signature.len() != SIG_SIZE {
             return Err(SignerError::CorruptSignatureShare(
                 "Invalid Signature ,Size must be 96 bytes".to_string(),
             ));
         }
         match validation_data.signature_type.clone() {
-            SignatureType::PartialSignature => {
-                return self.verify_partial_sig(validation_data);
-            },
+            SignatureType::PartialSignature => self.verify_partial_sig(validation_data),
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-                return self.verify_threshold_sig(validation_data);
+                self.verify_threshold_sig(validation_data)
             },
         }
     }
@@ -230,7 +215,7 @@ impl DagModule {
     fn verify_partial_sig(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         let public_key_share = {
             if let Some(public_key_share) = self.public_key_set.clone() {
-                if let Some(idx) = validation_data.node_idx.clone() {
+                if let Some(idx) = validation_data.node_idx {
                     public_key_share.public_key_share(idx as usize)
                 } else {
                     return Err(SignerError::GroupPublicKeyMissing);
@@ -245,21 +230,18 @@ impl DagModule {
 
             match SignatureShare::from_bytes(signature_arr) {
                 Ok(sig_share) => {
-                    return Ok(
-                        public_key_share.verify(&sig_share, validation_data.payload_hash.clone())
-                    )
+                    Ok(public_key_share.verify(&sig_share, validation_data.payload_hash))
                 },
                 Err(e) => {
                     return Err(SignerError::SignatureVerificationError(format!(
-                        "Error parsing partial signature details : {:?}",
-                        e
+                        "Error parsing partial signature details : {e:?}",
                     )))
                 },
             }
         } else {
-            return Err(SignerError::PartialSignatureError(format!(
-                "Error parsing signature into array"
-            )));
+            Err(SignerError::PartialSignatureError(
+                "Error parsing signature into array".to_string(),
+            ))
         }
     }
 
@@ -275,22 +257,19 @@ impl DagModule {
         if let Ok(signature_arr) = validation_data.signature.clone().try_into() {
             let signature_arr: [u8; 96] = signature_arr;
             match Signature::from_bytes(signature_arr) {
-                Ok(signature) => {
-                    return Ok(public_key_set
-                        .public_key()
-                        .verify(&signature, validation_data.payload_hash))
-                },
+                Ok(signature) => Ok(public_key_set
+                    .public_key()
+                    .verify(&signature, validation_data.payload_hash)),
                 Err(e) => {
                     return Err(SignerError::SignatureVerificationError(format!(
-                        "Error parsing threshold signature details : {:?}",
-                        e
+                        "Error parsing threshold signature details: {e:?}",
                     )))
                 },
             }
         } else {
-            return Err(SignerError::PartialSignatureError(format!(
-                "Error parsing signature into array"
-            )));
+            Err(SignerError::PartialSignatureError(
+                "Error parsing signature into array".to_string(),
+            ))
         }
     }
 }
@@ -333,19 +312,19 @@ impl Handler<EventMessage> for DagModule {
             Event::BlockReceived(block) => match block {
                 Block::Genesis { block } => {
                     if let Err(e) = self.append_genesis(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        let err_note = format!("Encountered GraphError: {e:?}");
                         return Err(theater::TheaterError::Other(err_note));
                     };
                 },
                 Block::Proposal { block } => {
                     if let Err(e) = self.append_proposal(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        let err_note = format!("Encountered GraphError: {e:?}");
                         return Err(theater::TheaterError::Other(err_note));
                     }
                 },
                 Block::Convergence { block } => {
                     if let Err(e) = self.append_convergence(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        let err_note = format!("Encountered GraphError: {e:?}");
                         return Err(theater::TheaterError::Other(err_note));
                     }
                 },
@@ -356,7 +335,6 @@ impl Handler<EventMessage> for DagModule {
                 }
             },
             Event::NoOp => {},
-            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
             _ => {},
         }
         Ok(ActorState::Running)

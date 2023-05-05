@@ -75,10 +75,10 @@ impl DkgModule {
                 idle_connection_timeout: Duration::from_secs(5),
                 heartbeat_interval: None,
                 max_packet_size: (16 * 1024) as usize,
-                max_fragments: 16 as u8,
+                max_fragments: 16_u8,
                 fragment_size: 1024,
                 fragment_reassembly_buffer_size: 64,
-                receive_buffer_max_size: 1452 as usize,
+                receive_buffer_max_size: 1452_usize,
                 rtt_smoothing_factor: 0.10,
                 rtt_max_value: 250,
                 socket_event_buffer_size: 1024,
@@ -101,8 +101,7 @@ impl DkgModule {
                 broadcast_events_tx,
             }),
             Err(e) => Err(NodeError::Other(format!(
-                "Error occurred while binding socket to port. Details :{0}",
-                e.to_string()
+                "Error occurred while binding socket to port. Details: {e}"
             ))),
         }
     }
@@ -224,15 +223,12 @@ impl DkgModule {
         sender: &Sender<Packet>,
         packet: &Packet,
     ) {
-        match request {
-            RendezvousRequest::Ping => {
-                let response = &Data::Response(RendezvousResponse::Pong);
-                if let Ok(data) = bincode::serialize(&response) {
-                    let _ = sender.send(Packet::reliable_unordered(packet.addr(), data));
-                }
-            },
-            _ => {},
-        }
+        if let RendezvousRequest::Ping = request {
+            let response = &Data::Response(RendezvousResponse::Pong);
+            if let Ok(data) = bincode::serialize(&response) {
+                let _ = sender.send(Packet::reliable_unordered(packet.addr(), data));
+            }
+        };
     }
 
     fn process_response(&self, response: &RendezvousResponse) {
@@ -255,12 +251,10 @@ impl DkgModule {
     fn send_retrieve_peers_request(&self, sender: &Sender<Packet>) {
         let quorum_key = if self.dkg_engine.node_type == NodeType::Farmer {
             self.dkg_engine.harvester_public_key
+        } else if let Some(key) = &self.dkg_engine.dkg_state.public_key_set {
+            Some(key.public_key())
         } else {
-            if let Some(key) = &self.dkg_engine.dkg_state.public_key_set {
-                Some(key.public_key())
-            } else {
-                None
-            }
+            None
         };
 
         if let Some(harvester_public_key) = quorum_key {

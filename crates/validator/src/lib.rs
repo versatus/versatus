@@ -10,12 +10,12 @@ mod tests {
 
     use std::collections::HashMap;
 
-    use primitives::{AccountKeypair, Address, Signature};
+    use primitives::{Address, Signature};
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use secp256k1::ecdsa;
     use vrrb_core::{account::Account, keypair::KeyPair, txn::*};
 
-    use crate::{txn_validator::TxnValidator, validator_core_manager::ValidatorCoreManager};
+    use crate::validator_core_manager::ValidatorCoreManager;
 
     // TODO: Use proper txns when there will be proper txn validation
     // implemented
@@ -51,7 +51,6 @@ mod tests {
     #[test]
     fn should_validate_a_list_of_invalid_transactions() {
         let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
-        let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
 
         let mut batch = vec![];
 

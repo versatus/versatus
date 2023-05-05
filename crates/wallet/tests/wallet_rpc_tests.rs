@@ -1,17 +1,17 @@
 use std::net::SocketAddr;
 
 use primitives::{PublicKey, SecretKey};
-use secp256k1::{generate_keypair, Message, Secp256k1};
+use secp256k1::{generate_keypair, Secp256k1};
 use serial_test::serial;
-use tokio::sync::mpsc::{channel, unbounded_channel, UnboundedSender};
-use vrrb_core::{helpers::read_or_generate_keypair_file, keypair::Keypair, txn::Token};
+use tokio::sync::mpsc::channel;
+use vrrb_core::txn::Token;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
 #[tokio::test]
 #[serial]
 pub async fn create_wallet_with_rpc_client() {
-    let socket_addr: SocketAddr = "127.0.0.1:9293"
+    let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
 
@@ -24,17 +24,17 @@ pub async fn create_wallet_with_rpc_client() {
 
     let wallet_config = WalletConfig::default();
 
-    let mut wallet = Wallet::new(wallet_config).await.unwrap();
+    Wallet::new(wallet_config).await.unwrap();
 }
 
 #[tokio::test]
 #[serial]
 pub async fn wallet_sends_txn_to_rpc_server() {
-    let socket_addr: SocketAddr = "127.0.0.1:9293"
+    let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = channel(100);
+    let (events_tx, _events_rx) = channel(100);
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();
@@ -79,11 +79,11 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 #[tokio::test]
 #[serial]
 pub async fn wallet_sends_create_account_request_to_rpc_server() {
-    let socket_addr: SocketAddr = "127.0.0.1:9293"
+    let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = channel(100);
+    let (events_tx, _events_rx) = channel(100);
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();
@@ -100,5 +100,5 @@ pub async fn wallet_sends_create_account_request_to_rpc_server() {
 
     let (_, public_key) = generate_keypair(&mut rand::thread_rng());
 
-    let (address, account) = wallet.create_account(1, public_key).await.unwrap();
+    wallet.create_account(1, public_key).await.unwrap();
 }

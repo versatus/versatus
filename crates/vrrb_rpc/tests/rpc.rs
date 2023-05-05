@@ -1,10 +1,10 @@
-use std::{collections::HashMap, net::SocketAddr, str::FromStr};
+use std::{collections::HashMap, net::SocketAddr};
 
 use events::{EventMessage, DEFAULT_BUFFER};
-use primitives::{generate_account_keypair, generate_mock_account_keypair, Address};
-use secp256k1::{rand::rngs::mock, Message};
-use tokio::sync::mpsc::{channel, unbounded_channel};
-use vrrb_core::txn::{generate_txn_digest_vec, null_txn, NewTxnArgs, Token};
+use primitives::{generate_mock_account_keypair, Address};
+use secp256k1::Message;
+use tokio::sync::mpsc::channel;
+use vrrb_core::txn::{generate_txn_digest_vec, NewTxnArgs, Token};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
@@ -15,11 +15,11 @@ mod common;
 
 #[tokio::test]
 async fn server_can_publish_transactions_to_be_created() {
-    let socket_addr: SocketAddr = "127.0.0.1:0"
+    let _: SocketAddr = "127.0.0.1:0"
         .parse()
         .expect("Unable to create Socket Address");
 
-    let (events_tx, events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
+    let (events_tx, _events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
     // Set up RPC Server to accept connection from client
     let mut json_rpc_server_config = JsonRpcServerConfig::default();
