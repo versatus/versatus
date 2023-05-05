@@ -101,19 +101,22 @@ impl StateModule {
         update_list
             .into_iter()
             .for_each(|update| match &update.update_account {
+                //TODO: Put Address in UpdateArgs and just pass UpdateArgs
                 UpdateAccount::Sender => {
                     if let Some(args) = self.get_sender_update_args(update) {
-                        self.db.update_account(update.address.clone(), args);
+                        self.db.update_account(args);
                     }
                 },
                 UpdateAccount::Receiver => {
                     if let Some(args) = self.get_receiver_update_args(update) {
-                        self.db.update_account(update.address.clone(), args);
+                        self.db.update_account(args);
                     }
                 },
                 UpdateAccount::Claim => {
                     if let Some(args) = self.get_claim_update_args(update) {
-                        self.db.update_account(update.address.clone(), args);
+                        // TODO: provide an `update_claim` method in VrrbDb
+                        // to access the `ClaimStore` and update claims
+                        self.db.update_account(args);
                     }
                 },
             });
@@ -152,6 +155,7 @@ impl StateModule {
             digests.insert(nonce, update.digest.clone());
 
             return Some(UpdateArgs {
+                address: update.address,
                 nonce,
                 credits: None,
                 debits: Some(debits),
@@ -181,6 +185,7 @@ impl StateModule {
             digests.insert(nonce, update.digest.clone());
 
             return Some(UpdateArgs {
+                address: update.address,
                 nonce,
                 credits: None,
                 debits: Some(debits),
@@ -258,10 +263,12 @@ impl Handler<EventMessage> for StateModule {
                 }
             },
             Event::AccountUpdateRequested((address, account_bytes)) => {
-                if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
-                    self.update_account(address, account)
-                        .map_err(|err| TheaterError::Other(err.to_string()))?;
-                }
+                //                if let Ok(account) =
+                // decode_from_binary_byte_slice(&account_bytes) {
+                // self.update_account(address, account)
+                // .map_err(|err| TheaterError::Other(err.to_string()))?;
+                //               }
+                todo!()
             },
             Event::NoOp => {},
             _ => {},

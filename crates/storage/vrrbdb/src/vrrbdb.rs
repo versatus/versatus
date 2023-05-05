@@ -137,9 +137,9 @@ impl VrrbDb {
     }
 
     /// Updates an account on the current state tree.
-    pub fn update_account(&mut self, key: Address, args: UpdateArgs) -> Result<()> {
+    pub fn update_account(&mut self, args: UpdateArgs) -> Result<()> {
         self.state_store
-            .update(key, args)
+            .update(args)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 

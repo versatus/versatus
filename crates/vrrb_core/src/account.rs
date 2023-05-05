@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use chrono::Utc;
-use primitives::SerializedPublicKey;
+use primitives::{Address, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -19,8 +19,10 @@ pub enum AccountField {
 }
 
 /// Struct representing the desired updates to be applied to account.
-#[derive(Clone, PartialEq, Eq, Debug, Default)]
+/// TODO: impl Default for UpdateArgs { ... }
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UpdateArgs {
+    pub address: Address,
     pub nonce: u32,
     pub credits: Option<u128>,
     pub debits: Option<u128>,

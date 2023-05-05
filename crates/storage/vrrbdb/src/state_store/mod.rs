@@ -168,7 +168,8 @@ impl StateStore {
     /// Updates an Account in the database under given PublicKey
     ///
     /// If succesful commits the change. Otherwise returns an error.
-    pub fn update(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
+    pub fn update(&mut self, update: UpdateArgs) -> Result<()> {
+        let key = update.address.clone();
         self.update_uncommited(key, update)?;
         self.commit_changes();
         Ok(())
