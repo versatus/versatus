@@ -138,14 +138,15 @@ pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, 
     (0..n)
         .map(|n| {
             let (sk, pk) = create_keypair();
-            let raddr = "0x192abcdef01234567890".to_string();
+            let (rsk, rpk) = create_keypair();
             let saddr = create_address(&pk);
+            let raddr = create_address(&rpk);
             let amount = (n.pow(2)) as u128;
             let token = None;
 
             let txn_args = NewTxnArgs {
                 timestamp: 0,
-                sender_address: saddr.to_string(),
+                sender_address: saddr,
                 sender_public_key: pk.clone(),
                 receiver_address: raddr,
                 token,
@@ -163,9 +164,9 @@ pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, 
 
             let txn_digest_vec = generate_txn_digest_vec(
                 txn.timestamp,
-                txn.sender_address.clone(),
+                txn.sender_address.to_string(),
                 txn.sender_public_key.clone(),
-                txn.receiver_address.clone(),
+                txn.receiver_address.to_string(),
                 txn.token.clone(),
                 txn.amount,
                 txn.nonce,
@@ -247,7 +248,7 @@ pub(crate) fn mine_convergence_block_epoch_change() -> Result<Block, MinerError>
 /// A helper function that creates a `Miner` and returns both the
 /// `Miner` and the `MinerDag`
 pub(crate) fn create_miner_return_dag() -> (Miner, MinerDag) {
-    let mut miner = create_miner();
+    let miner = create_miner();
     let dag = miner.dag.clone();
 
     (miner, dag)

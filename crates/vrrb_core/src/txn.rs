@@ -7,6 +7,7 @@ use std::{
 };
 
 use primitives::{
+    Address,
     ByteSlice,
     ByteVec,
     Digest as PrimitiveDigest,
@@ -14,13 +15,14 @@ use primitives::{
     SecretKey,
     DIGEST_LENGTH,
 };
-use secp256k1::{ecdsa::Signature, Message, Secp256k1};
+use secp256k1::{ecdsa::Signature, Message};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utils::hash_data;
 
 use crate::{
     helpers::gen_hex_encoded_string,
+    keypair::Keypair,
     serde_helpers::{
         decode_from_binary_byte_slice,
         decode_from_json_byte_slice,
@@ -94,13 +96,23 @@ impl Default for Token {
     }
 }
 
+impl Display for Token {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Token {{ name: {}, symbol: {}, decimals: {} }}",
+            self.name, self.symbol, self.decimals
+        )
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Txn {
     pub id: TransactionDigest,
     pub timestamp: TxTimestamp,
-    pub sender_address: String,
+    pub sender_address: Address,
     pub sender_public_key: PublicKey,
-    pub receiver_address: String,
+    pub receiver_address: Address,
     pub token: Token,
     pub amount: TxAmount,
     pub signature: Signature,
@@ -111,9 +123,9 @@ pub struct Txn {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewTxnArgs {
     pub timestamp: TxTimestamp,
-    pub sender_address: String,
+    pub sender_address: Address,
     pub sender_public_key: PublicKey,
-    pub receiver_address: String,
+    pub receiver_address: Address,
     pub token: Option<Token>,
     pub amount: TxAmount,
     pub signature: Signature,
@@ -123,7 +135,7 @@ pub struct NewTxnArgs {
 
 impl Default for Txn {
     fn default() -> Self {
-        null_txn()
+        Txn::null_txn()
     }
 }
 
@@ -133,9 +145,9 @@ impl Txn {
 
         let digest_vec = generate_txn_digest_vec(
             args.timestamp,
-            args.sender_address.clone(),
+            args.sender_address.to_string().clone(),
             args.sender_public_key,
-            args.receiver_address.clone(),
+            args.receiver_address.to_string().clone(),
             token.clone(),
             args.amount,
             args.nonce,
@@ -158,6 +170,53 @@ impl Txn {
         }
     }
 
+    pub fn null_txn() -> Txn {
+        let timestamp = chrono::Utc::now().timestamp();
+        let kp = Keypair::random();
+        let public_key = kp.miner_kp.1.clone();
+        let address = Address::new(public_key);
+
+        let digest_vec = generate_txn_digest_vec(
+            timestamp,
+            address.to_string().clone(),
+            public_key,
+            address.to_string().clone(),
+            Token::default(),
+            0,
+            0,
+        );
+
+        let digest = TransactionDigest::from(digest_vec);
+
+        let payload = utils::hash_data!(
+            timestamp.to_string(),
+            address.to_string(),
+            public_key.to_string(),
+            address.to_string(),
+            Token::default().to_string(),
+            0.to_string(),
+            0.to_string()
+        );
+
+        type H = secp256k1::hashes::sha256::Hash;
+        let msg = Message::from_hashed_data::<H>(&payload[..]);
+        let signature = kp.miner_kp.0.sign_ecdsa(msg);
+
+        Self {
+            id: digest,
+            // TODO: change time unit from seconds to millis
+            timestamp,
+            sender_address: address.clone(),
+            sender_public_key: kp.miner_kp.1,
+            receiver_address: address.clone(),
+            token: Token::default(),
+            amount: 0,
+            signature,
+            validators: None,
+            nonce: 0,
+        }
+    }
+
     /// Produces a SHA 256 hash slice of bytes from the transaction
     pub fn id(&self) -> TransactionDigest {
         self.id.clone()
@@ -166,9 +225,9 @@ impl Txn {
     pub fn build_payload_digest(&self) -> TransactionDigest {
         let digest = generate_txn_digest_vec(
             self.timestamp(),
-            self.sender_address(),
+            self.sender_address().to_string(),
             self.sender_public_key(),
-            self.receiver_address(),
+            self.receiver_address().to_string(),
             self.token(),
             self.amount(),
             self.nonce(),
@@ -198,7 +257,7 @@ impl Txn {
     }
 
     pub fn is_null(&self) -> bool {
-        self == &null_txn()
+        self == &Txn::null_txn()
     }
 
     pub fn amount(&self) -> TxAmount {
@@ -218,7 +277,7 @@ impl Txn {
         self.timestamp.clone()
     }
 
-    pub fn sender_address(&self) -> String {
+    pub fn sender_address(&self) -> Address {
         self.sender_address.clone()
     }
 
@@ -226,7 +285,7 @@ impl Txn {
         self.sender_public_key
     }
 
-    pub fn receiver_address(&self) -> String {
+    pub fn receiver_address(&self) -> Address {
         self.receiver_address.clone()
     }
 
@@ -245,9 +304,9 @@ impl Txn {
     pub fn generate_txn_digest_vec(&self) -> ByteVec {
         generate_txn_digest_vec(
             self.timestamp(),
-            self.sender_address(),
+            self.sender_address().to_string(),
             self.sender_public_key(),
-            self.receiver_address(),
+            self.receiver_address().to_string(),
             self.token(),
             self.amount(),
             self.nonce(),
@@ -269,19 +328,23 @@ impl Txn {
     }
 
     fn from_byte_slice(data: ByteSlice) -> Self {
-        if let Ok(result) = decode_from_json_byte_slice::<Self>(data) {
-            return result;
+        if let Ok(txn) = decode_from_json_byte_slice::<Self>(data) {
+            return txn;
         }
 
-        if let Ok(result) = decode_from_binary_byte_slice::<Self>(data) {
-            return result;
+        if let Ok(txn) = decode_from_binary_byte_slice::<Self>(data) {
+            return txn;
         }
 
-        null_txn()
+        Txn::null_txn()
     }
 
     fn from_string(data: &str) -> Txn {
-        Txn::from_str(data).unwrap_or(null_txn())
+        if let Ok(txn) = Txn::from_str(data) {
+            return txn;
+        }
+
+        Txn::null_txn()
     }
 
     #[deprecated(note = "will be removed from Txn struct soon")]
@@ -303,39 +366,20 @@ impl Txn {
     }
 }
 
-/// Returns a null transaction
-pub fn null_txn() -> Txn {
-    type H = secp256k1::hashes::sha256::Hash;
+impl FromStr for Txn {
+    type Err = TxnError;
 
-    let secp = Secp256k1::new();
-    let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
-    let sender_public_key = PublicKey::from_secret_key(&secp, &secret_key);
-    let message = Message::from_hashed_data::<H>(b"vrrb");
-    let signature = secp.sign_ecdsa(&message, &secret_key);
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str::<Txn>(s)
+            .map_err(|err| TxnError::InvalidTxn(format!("failed to parse &str into Txn: {err}")))
+    }
+}
 
-    let txn_digest_vec = generate_txn_digest_vec(
-        0,
-        String::new(),
-        sender_public_key,
-        String::new(),
-        Token::default(),
-        0,
-        0,
-    );
+impl fmt::Display for Txn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let txn_ser = serde_json::to_string_pretty(self).unwrap_or_default();
 
-    let digest = TransactionDigest::from(txn_digest_vec);
-
-    Txn {
-        id: digest,
-        timestamp: 0,
-        sender_address: String::new(),
-        sender_public_key,
-        receiver_address: String::new(),
-        token: Token::default(),
-        amount: 0,
-        signature,
-        validators: None,
-        nonce: 0,
+        write!(f, "{}", txn_ser)
     }
 }
 
@@ -357,15 +401,6 @@ impl From<&[u8]> for Txn {
     }
 }
 
-impl FromStr for Txn {
-    type Err = TxnError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str::<Txn>(s)
-            .map_err(|err| TxnError::InvalidTxn(format!("failed to parse &str into Txn: {err}")))
-    }
-}
-
 impl From<&str> for Txn {
     fn from(data: &str) -> Self {
         Self::from_string(data)
@@ -374,15 +409,7 @@ impl From<&str> for Txn {
 
 impl From<Txn> for TransactionDigest {
     fn from(txn: Txn) -> Self {
-        txn.digest()
-    }
-}
-
-impl fmt::Display for Txn {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let txn_ser = serde_json::to_string_pretty(self).unwrap_or_default();
-
-        write!(f, "{}", txn_ser)
+        txn.id()
     }
 }
 
@@ -410,7 +437,7 @@ impl Hash for Txn {
 
 impl PartialEq for Txn {
     fn eq(&self, other: &Self) -> bool {
-        self.digest() == other.digest()
+        self.generate_txn_digest_vec() == other.generate_txn_digest_vec()
     }
 }
 
@@ -508,7 +535,7 @@ mod tests {
     fn test_txn_digest_serde() {
         let txn = Txn::default();
 
-        let txn_digest = txn.digest();
+        let txn_digest = txn.id();
         let txn_digest_str = txn_digest.to_string();
 
         let txn_digest_recovered = txn_digest_str.parse::<TransactionDigest>().unwrap();

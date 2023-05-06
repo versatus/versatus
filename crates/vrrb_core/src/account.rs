@@ -27,7 +27,7 @@ pub enum AccountField {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UpdateArgs {
     pub address: Address,
-    pub nonce: u32,
+    pub nonce: u128,
     pub credits: Option<u128>,
     pub debits: Option<u128>,
     pub storage: Option<Option<String>>,
@@ -74,7 +74,7 @@ impl Hash for UpdateArgs {
 }
 
 
-pub type AccountNonce = u32;
+pub type AccountNonce = u128;
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Account {
@@ -93,7 +93,7 @@ pub struct Account {
 impl Account {
     /// Returns new, empty account.
     pub fn new(pubkey: secp256k1::PublicKey) -> Account {
-        let nonce = 0u32;
+        let nonce = 0u128;
         let credits = 0u128;
         let debits = 0u128;
         let storage = None;

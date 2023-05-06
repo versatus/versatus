@@ -8,7 +8,6 @@ use jsonrpsee::core::client::Client;
 use primitives::Address;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use telemetry::error;
 use thiserror::Error;
 use vrrb_core::{account::Account, txn::Token};
@@ -133,7 +132,7 @@ impl Wallet {
     pub async fn send_transaction(
         &mut self,
         address_number: u32,
-        receiver: String,
+        receiver: Address,
         amount: u128,
         token: Token,
         timestamp: i64,
@@ -141,36 +140,31 @@ impl Wallet {
         let addresses = self.addresses.clone();
         let sender_address = {
             if let Some(addr) = addresses.get(&address_number) {
-                addr
+                addr.clone()
             } else {
                 if let Some(addr) = addresses.get(&0) {
-                    addr
+                    addr.clone()
                 } else {
                     return Err(WalletError::Custom("wallet has no addresses".to_string()));
                 }
             }
         };
 
-        let payload = format!(
-            "{},{},{},{},{},{:?},{}",
-            &timestamp,
-            &sender_address,
-            &hex::encode(self.public_key.to_string().as_bytes()),
-            &receiver,
-            &amount,
-            &token,
-            &self.nonce.clone()
+        let payload = utils::hash_data!(
+            timestamp,
+            sender_address.to_string(),
+            self.public_key.to_string(),
+            receiver.to_string(),
+            amount,
+            token,
+            self.nonce.clone()
         );
 
-        let mut hasher = Sha256::new();
-        hasher.update(payload.as_bytes());
-        let payload_hash = hasher.finalize();
-
-        let signature = self.sign_transaction(&payload_hash[..]);
+        let signature = self.sign_transaction(&payload[..]);
 
         let txn_args = vrrb_core::txn::NewTxnArgs {
             timestamp,
-            sender_address: sender_address.to_string(),
+            sender_address,
             sender_public_key: self.public_key,
             receiver_address: receiver,
             token: Some(token),

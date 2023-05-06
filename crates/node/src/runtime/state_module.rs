@@ -7,7 +7,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::Block;
+use block::{Block, ProposalBlock};
 use bulldag::graph::BullDag;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
@@ -25,57 +25,115 @@ use vrrb_core::{
 
 use crate::{result::Result, NodeError};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum UpdateAccount {
     Sender,
     Receiver,
     Claim,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct StateUpdate {
     pub address: Address,
     pub token: Option<Token>,
     pub amount: u128,
-    pub nonce: u32,
+    pub nonce: u128,
     pub storage: Option<String>,
     pub code: Option<String>,
     pub digest: TransactionDigest,
     pub update_account: UpdateAccount,
 }
 
-impl Into<UpdateArgs> for StateUpdate {
-    fn into(self) -> UpdateArgs {
+#[derive(Debug)]
+pub struct IntoUpdates {
+    pub sender_update: StateUpdate,
+    pub receiver_update: StateUpdate,
+}
+
+pub trait FromBlock {
+    fn from_block(block: ProposalBlock) -> Self;
+}
+
+pub trait FromTxn {
+    fn from_txn(txn: Txn) -> Self;
+}
+
+impl From<StateUpdate> for UpdateArgs {
+    fn from(item: StateUpdate) -> UpdateArgs {
         let mut digests: HashMap<AccountNonce, TransactionDigest> = HashMap::new();
-        digests.insert(self.nonce, self.digest);
-        match &self.update_account {
+        digests.insert(item.nonce, item.digest);
+        match &item.update_account {
             UpdateAccount::Sender => UpdateArgs {
-                address: self.address,
-                nonce: self.nonce,
+                address: item.address,
+                nonce: item.nonce,
                 credits: None,
-                debits: Some(self.amount),
-                storage: Some(self.storage.clone()),
-                code: Some(self.code.clone()),
+                debits: Some(item.amount),
+                storage: Some(item.storage.clone()),
+                code: Some(item.code.clone()),
                 digests: Some(digests.clone()),
             },
             UpdateAccount::Receiver => UpdateArgs {
-                address: self.address,
-                nonce: self.nonce,
-                credits: Some(self.amount),
+                address: item.address,
+                nonce: item.nonce,
+                credits: Some(item.amount),
                 debits: None,
-                storage: Some(self.storage.clone()),
-                code: Some(self.code.clone()),
+                storage: Some(item.storage.clone()),
+                code: Some(item.code.clone()),
                 digests: Some(digests.clone()),
             },
             UpdateAccount::Claim => UpdateArgs {
-                address: self.address,
-                nonce: self.nonce,
+                address: item.address,
+                nonce: item.nonce,
                 credits: None,
                 debits: None,
                 storage: None,
                 code: None,
                 digests: None,
             },
+        }
+    }
+}
+
+impl FromBlock for HashSet<StateUpdate> {
+    fn from_block(block: ProposalBlock) -> Self {
+        let mut set = HashSet::new();
+        block.txns.into_iter().for_each(|(digest, txn)| {
+            let updates = IntoUpdates::from_txn(txn);
+            set.insert(updates.sender_update);
+            set.insert(updates.receiver_update);
+        });
+
+        return set;
+    }
+}
+
+impl FromTxn for IntoUpdates {
+    fn from_txn(txn: Txn) -> IntoUpdates {
+        let sender_update = StateUpdate {
+            address: txn.sender_address(),
+            token: Some(txn.token()),
+            amount: txn.amount(),
+            nonce: txn.nonce(),
+            storage: None,
+            code: None,
+            digest: txn.id(),
+            update_account: UpdateAccount::Sender,
+        };
+
+        let receiver_update = StateUpdate {
+            address: txn.receiver_address(),
+            token: Some(txn.token()),
+            amount: txn.amount(),
+            nonce: txn.nonce(),
+            storage: None,
+            code: None,
+            digest: txn.id(),
+            update_account: UpdateAccount::Receiver,
+        };
+
+        IntoUpdates {
+            sender_update,
+            receiver_update,
         }
     }
 }
@@ -289,7 +347,7 @@ mod tests {
     use serial_test::serial;
     use storage::vrrbdb::VrrbDbConfig;
     use theater::ActorImpl;
-    use vrrb_core::txn::null_txn;
+    use vrrb_core::txn::Txn;
 
     use super::*;
 
@@ -357,7 +415,7 @@ mod tests {
         });
 
         ctrl_tx
-            .send(Event::NewTxnCreated(null_txn()).into())
+            .send(Event::NewTxnCreated(Txn::null_txn()).into())
             .unwrap();
 
         ctrl_tx.send(Event::Stop.into()).unwrap();
@@ -401,7 +459,7 @@ mod tests {
         // TODO: implement all state && validation ops
 
         ctrl_tx
-            .send(Event::NewTxnCreated(null_txn()).into())
+            .send(Event::NewTxnCreated(Txn::null_txn()).into())
             .unwrap();
 
         ctrl_tx.send(Event::Stop.into()).unwrap();
