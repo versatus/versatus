@@ -19,7 +19,7 @@ pub mod v2 {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{net::SocketAddr, sync::Arc};
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
@@ -49,7 +49,20 @@ mod tests {
     fn test_create_miner() {
         let kp = Keypair::random();
         let address = Address::new(kp.miner_kp.1.clone());
-        let claim = Claim::new(kp.miner_kp.1.clone(), address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let signature = Claim::signature_for_valid_claim(
+            kp.miner_kp.1.clone(),
+            ip_address.clone(),
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let claim = Claim::new(
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            ip_address,
+            signature,
+        )
+        .unwrap();
         let miner = create_miner_from_keypair(&kp);
 
         assert_eq!(miner.claim, claim);

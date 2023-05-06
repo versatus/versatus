@@ -25,6 +25,13 @@ pub struct NodeConfig {
 
     pub db_path: PathBuf,
 
+    /// `pub public_ip_address: SocketAddr` is defining a public IP address for
+    /// the node. This is the IP address that other nodes in the network
+    /// will use to connect to this node. `SocketAddr` is a struct that
+    /// represents a socket address, which includes both an IP address and a
+    /// port number.
+    pub public_ip_address: SocketAddr,
+
     /// Address the node listens for network events through RaptorQ
     pub raptorq_gossip_address: SocketAddr,
 
@@ -130,6 +137,7 @@ impl Default for NodeConfig {
             db_path: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH)
                 .join("node")
                 .join("db"),
+            public_ip_address: ipv4_localhost_with_random_port,
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             udp_gossip_address: ipv4_localhost_with_random_port,
             rendezvous_local_address: ipv4_localhost_with_random_port,
