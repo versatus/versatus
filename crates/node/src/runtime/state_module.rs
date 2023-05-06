@@ -39,6 +39,7 @@ pub enum UpdateAccount {
     Sender,
     Receiver,
     Claim,
+    Fee,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -98,6 +99,15 @@ impl From<StateUpdate> for UpdateArgs {
                 storage: None,
                 code: None,
                 digests: None,
+            },
+            UpdateAccount::Fee => UpdateArgs {
+                address: item.address,
+                nonce: item.nonce,
+                credits: Some(item.amount),
+                debits: None,
+                storage: None,
+                code: None,
+                digests: Some(digests.clone()),
             },
         }
     }
