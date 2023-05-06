@@ -7,8 +7,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::{Block, ProposalBlock};
-use bulldag::graph::BullDag;
+use block::{Block, BlockHash, ConvergenceBlock, ProposalBlock};
+use bulldag::{graph::BullDag, vertex::Vertex};
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
@@ -24,6 +24,15 @@ use vrrb_core::{
 };
 
 use crate::{result::Result, NodeError};
+
+/// Provides a wrapper around the current rounds `ConvergenceBlock` and
+/// the `ProposalBlock`s that it is made up of. Provides a convenient
+/// data structure to be able to access each.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct RoundBlocks {
+    pub convergence: ConvergenceBlock,
+    pub proposals: Vec<ProposalBlock>,
+}
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum UpdateAccount {
@@ -202,14 +211,37 @@ impl StateModule {
         Ok(())
     }
 
-    fn update_state(&mut self, update_list: HashSet<StateUpdate>) -> Result<()> {
-        consolidate_update_args(get_update_args(update_list))
+    fn update_state(&mut self, round_blocks: &mut RoundBlocks) -> Result<()> {
+        consolidate_update_args(get_update_args(self.get_update_list(round_blocks)))
             .into_iter()
             .for_each(|(_, args)| {
                 let _ = self.db.update_account(args);
             });
 
         Ok(())
+    }
+
+    fn get_update_list(&self, round_blocks: &mut RoundBlocks) -> HashSet<StateUpdate> {
+        let convergence = round_blocks.convergence.clone();
+        let filtered_proposals: Vec<ProposalBlock> = round_blocks
+            .proposals
+            .iter_mut()
+            .map(|block| {
+                if let Some(digests) = convergence.txns.get(&block.hash) {
+                    block.txns.retain(|digest, _| digests.contains(digest))
+                }
+                block.clone()
+            })
+            .collect();
+
+        let mut updates: HashSet<StateUpdate> = HashSet::new();
+
+        filtered_proposals.iter().for_each(|block| {
+            let subset = HashSet::from_block(block.clone());
+            updates.extend(subset);
+        });
+
+        updates
     }
 
     fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
@@ -220,6 +252,57 @@ impl StateModule {
 
     fn get_state_store_handle(&self) -> StateStoreReadHandle {
         self.db.state_store_factory().handle()
+    }
+
+    fn get_proposal_blocks(&self, index: BlockHash) -> Option<RoundBlocks> {
+        let guard_result = self.dag.read();
+        if let Ok(guard) = guard_result {
+            let vertex_option = guard.get_vertex(index.clone());
+            match &vertex_option {
+                Some(vertex) => {
+                    if let Block::Convergence { block } = vertex.get_data() {
+                        let proposals = self.convert_sources(self.get_sources(vertex));
+
+                        return Some(RoundBlocks {
+                            convergence: block.clone(),
+                            proposals,
+                        });
+                    }
+                },
+                None => {},
+            }
+        }
+
+        None
+    }
+
+    fn get_sources(&self, vertex: &Vertex<Block, BlockHash>) -> Vec<Vertex<Block, BlockHash>> {
+        let mut source_vertices = Vec::new();
+        let guard_result = self.dag.read();
+        if let Ok(guard) = guard_result {
+            let sources = vertex.get_sources();
+            sources.iter().for_each(|index| {
+                let source_option = guard.get_vertex(index.to_string());
+                if let Some(source) = source_option {
+                    source_vertices.push(source.clone());
+                }
+            });
+        }
+
+        source_vertices
+    }
+
+    fn convert_sources(&self, sources: Vec<Vertex<Block, BlockHash>>) -> Vec<ProposalBlock> {
+        let blocks: Vec<Block> = sources.iter().map(|vtx| vtx.get_data()).collect();
+
+        let mut proposals = Vec::new();
+
+        blocks.iter().for_each(|block| match &block {
+            Block::Proposal { block } => proposals.push(block.clone()),
+            _ => {},
+        });
+
+        proposals
     }
 }
 
