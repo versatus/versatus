@@ -1,5 +1,12 @@
 version: v1
+managed:
+  enabled: true
 plugins:
+  # client
+  - plugin: buf.build/bufbuild/es:v1.2.0
+    out: types/ts
+    revision: 1
+  # server
   - name: prost
     out: src/gen
     opt:
