@@ -22,11 +22,17 @@ pub enum AccountField {
     Digests(AccountDigests),
 }
 
+/// Wrapper to provide convenient access to all the digests
+/// throughout the history of a given account, separated by whether
+/// the txn was sent from the account, received by the account, or
+/// was a staking transaction.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct AccountDigests {
     sent: HashSet<TransactionDigest>,
     recv: HashSet<TransactionDigest>,
     stake: HashSet<TransactionDigest>,
+    //TODO: Add withdrawaltransaction digests for
+    //withdrawing stake.
 }
 
 impl AccountDigests {
@@ -39,41 +45,63 @@ impl AccountDigests {
         len
     }
 
+    /// Returns the HashSet of all `TransactionDigest`s for
+    /// all transactions throughout history sent by the current
+    /// account
     pub(crate) fn get_sent(&self) -> HashSet<TransactionDigest> {
         self.sent.clone()
     }
 
+    /// Returns the HashSet of all `TransactionDigest`s for
+    /// all transactions throughout history received by the current
+    /// account
     pub(crate) fn get_recv(&self) -> HashSet<TransactionDigest> {
         self.recv.clone()
     }
 
+    /// Returns the HashSet of all `TransactionDigest`s for
+    /// all staking transactions throughout history by the current
+    /// account
     pub(crate) fn get_stake(&self) -> HashSet<TransactionDigest> {
         self.stake.clone()
     }
 
+    /// Given an AccountDigests struct, updates the current
+    /// instance by extending each of the sets of transaction
+    /// digests for any new digests.
     pub fn extend_all(&mut self, other: AccountDigests) {
         self.sent.extend(other.get_sent());
         self.recv.extend(other.get_recv());
         self.stake.extend(other.get_stake());
     }
 
+    /// Inserts a transaction digest into the `sent` set of
+    /// transaction digests
     pub fn insert_sent(&mut self, digest: TransactionDigest) {
         self.sent.insert(digest);
     }
 
+    /// Inserts a transaction digest into the `recv` set of
+    /// transaction digests
     pub fn insert_recv(&mut self, digest: TransactionDigest) {
         self.recv.insert(digest);
     }
 
+    /// Inserts a transaction digest into the `stake` set of
+    /// transaction digests
     pub fn insert_stake(&mut self, digest: TransactionDigest) {
         self.stake.insert(digest);
     }
 
+    /// Takes a generic Iterator of AccountDigests and consolidates them
+    /// and extends all of the sets in the current instance for each
+    /// AccountDigests struct in the Iterator
     pub fn consolidate<I: Iterator<Item = AccountDigests>>(&mut self, others: I) {
         others.for_each(|other| self.extend_all(other))
     }
 }
 
+/// Produces an empty AccountDigests instance
 impl Default for AccountDigests {
     fn default() -> Self {
         AccountDigests {
@@ -317,10 +345,15 @@ impl Account {
         Ok(())
     }
 
+    /// Increments the current account nonce by 1
     pub fn bump_nonce(&mut self) {
         self.nonce += 1;
     }
 
+    /// Batch updates nonce instead of simply incrementing
+    /// this allows us to more efficiently update an account
+    /// when a given account has multiple `sends` in a given
+    /// round.
     fn update_nonce(&mut self, nonce: AccountNonce) {
         self.nonce = nonce;
     }

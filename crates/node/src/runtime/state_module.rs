@@ -36,6 +36,10 @@ pub struct RoundBlocks {
     pub proposals: Vec<ProposalBlock>,
 }
 
+/// Provides variants to parse to ensure state module handles updates
+/// properly, whether it be an Account receiving tokens, and
+/// account sending tokens, a new claim, claim staking (TODO),
+/// fees or rewards (TODO).
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum UpdateAccount {
     Sender,
@@ -45,6 +49,10 @@ pub enum UpdateAccount {
     Reward,
 }
 
+/// Provides a wrapper around a given account update to
+/// conveniently access the data needed to produce UpdateArgs
+/// which can then be consolidated into a single UpdateArgs struct
+/// for each account.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct StateUpdate {
     pub address: Address,
@@ -57,20 +65,33 @@ pub struct StateUpdate {
     pub update_account: UpdateAccount,
 }
 
+/// A wrapper to provide convenient conversion from
+/// a Transaction to two StateUpdates, one for the
+/// sender, one for the receiver. Can also provide some
+/// verification around this struct.
+// TODO: receiver update here can be used to provide
+// ClaimStaking functionality, in which the `update_account`
+// field for the `receiver_update` herein, can be used to
+// produce a `Claim` update instead of only `Account` updates
 #[derive(Debug)]
 pub struct IntoUpdates {
     pub sender_update: StateUpdate,
     pub receiver_update: StateUpdate,
 }
 
+/// Provides an interface to convert a `ProposalBlock`
+/// into the type that implements it
 pub trait FromBlock {
     fn from_block(block: ProposalBlock) -> Self;
 }
 
+/// Provides an interface to convert a `Txn`
+/// into the type that implements it
 pub trait FromTxn {
     fn from_txn(txn: Txn) -> Self;
 }
 
+/// Converts a `StateUpdate` into `UpdateArgs`
 impl From<StateUpdate> for UpdateArgs {
     fn from(item: StateUpdate) -> UpdateArgs {
         let mut digest = AccountDigests::default();
@@ -134,6 +155,9 @@ impl From<StateUpdate> for UpdateArgs {
     }
 }
 
+/// Converts a `ProposalBlock` into a `HashSet` of
+/// `StateUpdate`s which can then be easily converted into
+/// a `HashSet` of `UpdateArgs` to update Accounts, Claims, etc.
 impl FromBlock for HashSet<StateUpdate> {
     fn from_block(block: ProposalBlock) -> Self {
         let mut set = HashSet::new();
@@ -165,6 +189,9 @@ impl FromBlock for HashSet<StateUpdate> {
     }
 }
 
+/// Converts a Transaction into an `IntoUpdate`
+/// which is a simple wrapper around 2 `StateUpdate`s
+/// one for the sender and one for the receiver
 impl FromTxn for IntoUpdates {
     fn from_txn(txn: Txn) -> IntoUpdates {
         let sender_update = StateUpdate {
@@ -196,6 +223,8 @@ impl FromTxn for IntoUpdates {
     }
 }
 
+/// Converts a Transaction into a HashSet of `StateUpdate`s
+/// for fee distribution among the validators of a given tx
 impl FromTxn for HashSet<StateUpdate> {
     fn from_txn(txn: Txn) -> HashSet<StateUpdate> {
         let mut set = HashSet::new();
@@ -223,12 +252,18 @@ impl FromTxn for HashSet<StateUpdate> {
     }
 }
 
+/// Provides a convenient configuration struct for buildin a
+/// StateModule
 pub struct StateModuleConfig {
     pub db: VrrbDb,
     pub events_tx: EventPublisher,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
+/// The StateModule struct, which is the primary actor in
+/// the module. Provides convenient access to all the data
+/// necessary to transition the network's global state from
+/// t to t+1.
 #[derive(Debug)]
 pub struct StateModule {
     db: VrrbDb,
@@ -268,10 +303,17 @@ impl StateModule {
         todo!()
     }
 
+    /// Produces the read handle for the VrrbDb instance in this
+    /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
+    /// each of the StateStore, TransactionStore and ClaimStore.
     pub fn read_handle(&self) -> VrrbDbReadHandle {
         self.db.read_handle()
     }
 
+    /// Inserts a Transaction into the TransactionStore and
+    /// emits an event to inform other modules that a Transaction
+    /// has been added to the TransactionStore.
+    // This is unneccessary under the system architecture, btw.
     async fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
         let txn_hash = txn.id();
 
@@ -287,6 +329,10 @@ impl StateModule {
         Ok(())
     }
 
+    /// Given the hash of a `ConvergenceBlock` this method
+    /// updates the StateStore, ClaimStore and TransactionStore
+    /// for all new claims and transactions (excluding
+    /// ClaimStaking transactions currently).
     fn update_state(&mut self, block_hash: BlockHash) -> Result<()> {
         if let Some(mut round_blocks) = self.get_proposal_blocks(block_hash) {
             consolidate_update_args(get_update_args(self.get_update_list(&mut round_blocks)))
@@ -308,6 +354,9 @@ impl StateModule {
         ));
     }
 
+    /// Provided a reference to an array of `ProposalBlock`s
+    /// making up the current round's `ConvergenceBlock`, writes all
+    /// the conflict resolved transactions into the `TransactionTrie`
     fn update_txn_trie(&mut self, proposals: &[ProposalBlock]) {
         let consolidated: HashSet<Txn> = {
             let nested: Vec<HashSet<Txn>> = proposals
@@ -322,6 +371,9 @@ impl StateModule {
             .extend_transactions(consolidated.into_iter().collect());
     }
 
+    /// Provided a reference to an array of `ProposalBlock`s
+    /// making up the current round's `ConvergenceBlock`, writes
+    /// all the new, conflict resolved, claims into the `ClaimStore`
     fn update_claim_store(&mut self, proposals: &[ProposalBlock]) {
         let consolidated: HashSet<(U256, Claim)> = {
             let nested: Vec<HashSet<(U256, Claim)>> = {
@@ -343,6 +395,8 @@ impl StateModule {
         self.db.extend_claims(consolidated.into_iter().collect());
     }
 
+    /// Provides a method to convert a `RoundBlocks` wrapper struct into
+    /// a HashSet of unique `StateUpdate`s
     fn get_update_list(&self, round_blocks: &mut RoundBlocks) -> HashSet<StateUpdate> {
         let convergence = round_blocks.convergence.clone();
         let filtered_proposals: Vec<ProposalBlock> = round_blocks
@@ -366,16 +420,22 @@ impl StateModule {
         updates
     }
 
+    /// Inserts an account into the `VrrbDb` `StateStore`. This method Should
+    /// only be used for *new* accounts
     fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
         self.db
             .insert_account(key, account)
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
+    /// Returns a read handle for the StateStore to be able to read
+    /// values from it.
     fn get_state_store_handle(&self) -> StateStoreReadHandle {
         self.db.state_store_factory().handle()
     }
 
+    /// Enters into the DAG and collects and returns the current round
+    /// `ConvergenceBlock` and all its source `ProposalBlock`s
     fn get_proposal_blocks(&self, index: BlockHash) -> Option<RoundBlocks> {
         let guard_result = self.dag.read();
         if let Ok(guard) = guard_result {
@@ -398,6 +458,9 @@ impl StateModule {
         None
     }
 
+    /// Enters into the DAG and gets all the sources of a given vertex
+    /// this is used primarily to capture all the `ProposalBlock`s
+    /// that make up the current round `ConvergenceBlock`
     fn get_sources(&self, vertex: &Vertex<Block, BlockHash>) -> Vec<Vertex<Block, BlockHash>> {
         let mut source_vertices = Vec::new();
         let guard_result = self.dag.read();
@@ -414,6 +477,8 @@ impl StateModule {
         source_vertices
     }
 
+    /// Converts the discovered `source` `Vertex`s into a Vector of
+    /// `ProposalBlock`s, filtering any other types of blocks out.
     fn convert_sources(&self, sources: Vec<Vertex<Block, BlockHash>>) -> Vec<ProposalBlock> {
         let blocks: Vec<Block> = sources.iter().map(|vtx| vtx.get_data()).collect();
 
@@ -428,10 +493,15 @@ impl StateModule {
     }
 }
 
+/// Converts a HashSet of `StateUpdate`s into a HashSet of `UpdateArgs`s
+/// structs.
 fn get_update_args(updates: HashSet<StateUpdate>) -> HashSet<UpdateArgs> {
     updates.into_iter().map(|update| update.into()).collect()
 }
 
+/// Iterates through all `UpdateArgs` structs in a HashSet and consolidates
+/// them into a single `UpdateArgs` struct for each address which has
+/// activity in a given round.
 fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, UpdateArgs> {
     let mut consolidated_updates: HashMap<Address, UpdateArgs> = HashMap::new();
 
