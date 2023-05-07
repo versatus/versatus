@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::HashMap,
+    collections::HashSet,
     hash::{Hash, Hasher},
 };
 
@@ -19,7 +19,69 @@ pub enum AccountField {
     Debits(u128),
     Storage(Option<String>),
     Code(Option<String>),
-    Digests(HashMap<AccountNonce, TransactionDigest>),
+    Digests(AccountDigests),
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct AccountDigests {
+    sent: HashSet<TransactionDigest>,
+    recv: HashSet<TransactionDigest>,
+    stake: HashSet<TransactionDigest>,
+}
+
+impl AccountDigests {
+    pub(crate) fn len(&self) -> usize {
+        let mut len = 0;
+        len += self.sent.len();
+        len += self.recv.len();
+        len += self.stake.len();
+
+        len
+    }
+
+    pub(crate) fn get_sent(&self) -> HashSet<TransactionDigest> {
+        self.sent.clone()
+    }
+
+    pub(crate) fn get_recv(&self) -> HashSet<TransactionDigest> {
+        self.recv.clone()
+    }
+
+    pub(crate) fn get_stake(&self) -> HashSet<TransactionDigest> {
+        self.stake.clone()
+    }
+
+    pub fn extend_all(&mut self, other: AccountDigests) {
+        self.sent.extend(other.get_sent());
+        self.recv.extend(other.get_recv());
+        self.stake.extend(other.get_stake());
+    }
+
+    pub fn insert_sent(&mut self, digest: TransactionDigest) {
+        self.sent.insert(digest);
+    }
+
+    pub fn insert_recv(&mut self, digest: TransactionDigest) {
+        self.recv.insert(digest);
+    }
+
+    pub fn insert_stake(&mut self, digest: TransactionDigest) {
+        self.stake.insert(digest);
+    }
+
+    pub fn consolidate<I: Iterator<Item = AccountDigests>>(&mut self, others: I) {
+        others.for_each(|other| self.extend_all(other))
+    }
+}
+
+impl Default for AccountDigests {
+    fn default() -> Self {
+        AccountDigests {
+            sent: HashSet::new(),
+            recv: HashSet::new(),
+            stake: HashSet::new(),
+        }
+    }
 }
 
 /// Struct representing the desired updates to be applied to account.
@@ -27,12 +89,12 @@ pub enum AccountField {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UpdateArgs {
     pub address: Address,
-    pub nonce: u128,
+    pub nonce: Option<u128>,
     pub credits: Option<u128>,
     pub debits: Option<u128>,
     pub storage: Option<Option<String>>,
     pub code: Option<Option<String>>,
-    pub digests: Option<HashMap<AccountNonce, TransactionDigest>>,
+    pub digests: Option<AccountDigests>,
 }
 
 // The AccountFieldsUpdate will be compared by `nonce`. This way the updates can
@@ -60,11 +122,13 @@ impl Hash for UpdateArgs {
 
         if let Some(ref digests) = self.digests {
             digests.len().hash(state); // Hash the number of digests
-            let mut sorted_digests: Vec<(&AccountNonce, &TransactionDigest)> =
-                digests.iter().collect();
+            let mut consolidated_digests = digests.get_sent();
+            consolidated_digests.extend(digests.get_recv());
+            consolidated_digests.extend(digests.get_stake());
+            let mut sorted_digests: Vec<TransactionDigest> =
+                { consolidated_digests.into_iter().collect() };
             sorted_digests.sort_unstable(); // Sort digests by keys to ensure consistent hash order
-            for (key, value) in sorted_digests {
-                key.hash(state);
+            for value in sorted_digests {
                 value.hash(state);
             }
         } else {
@@ -85,7 +149,7 @@ pub struct Account {
     pub storage: Option<String>,
     pub code: Option<String>,
     pub pubkey: SerializedPublicKey,
-    pub digests: HashMap<AccountNonce, TransactionDigest>,
+    pub digests: AccountDigests,
     pub created_at: i64,
     pub updated_at: Option<i64>,
 }
@@ -98,7 +162,7 @@ impl Account {
         let debits = 0u128;
         let storage = None;
         let code = None;
-        let digests = HashMap::new();
+        let digests = AccountDigests::default();
 
         let mut hasher = Sha256::new();
         hasher.update(nonce.to_be_bytes());
@@ -164,7 +228,9 @@ impl Account {
     fn update_single_field_no_hash(&mut self, value: AccountField) -> Result<()> {
         match value {
             AccountField::Credits(credits) => match self.credits.checked_add(credits) {
-                Some(new_amount) => self.credits = new_amount,
+                Some(new_amount) => {
+                    self.credits = new_amount;
+                },
                 None => return Err(Error::Other(format!("failed to update {value:?}"))),
             },
             AccountField::Debits(debits) => match self.debits.checked_add(debits) {
@@ -193,7 +259,7 @@ impl Account {
             // if a single account has multiple transactions per round
             // better to batch them and update or at least have option to.
             AccountField::Digests(digests) => {
-                self.digests.extend(digests);
+                self.digests.extend_all(digests);
             },
         }
         Ok(())
@@ -218,11 +284,17 @@ impl Account {
     /// * `update` - An AccountFieldsUpdate struct containing instructions to
     ///   update each field of the account struct.
     pub fn update(&mut self, args: UpdateArgs) -> Result<()> {
-        if self.nonce + 1 != args.nonce {
-            return Err(Error::Other(format!(
-                "nonce from args {} is smaller than current nonce {}",
-                args.nonce, self.nonce
-            )));
+        if let Some(nonce) = args.nonce {
+            if nonce <= self.nonce {
+                return Err(Error::Other(format!(
+                    "nonce from args {} is smaller than current nonce {}",
+                    nonce, self.nonce
+                )));
+            } else if nonce > self.nonce + 1 {
+                self.update_nonce(nonce);
+            } else {
+                self.bump_nonce();
+            }
         }
         if let Some(credits_update) = args.credits {
             self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
@@ -241,13 +313,16 @@ impl Account {
         }
 
         self.updated_at = Some(Utc::now().timestamp());
-        self.bump_nonce();
         self.rehash();
         Ok(())
     }
 
     pub fn bump_nonce(&mut self) {
         self.nonce += 1;
+    }
+
+    fn update_nonce(&mut self, nonce: AccountNonce) {
+        self.nonce = nonce;
     }
 }
 

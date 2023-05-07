@@ -18,7 +18,7 @@ use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{
-    account::{Account, AccountNonce, UpdateArgs},
+    account::{Account, AccountDigests, AccountNonce, UpdateArgs},
     claim::Claim,
     serde_helpers::decode_from_binary_byte_slice,
     txn::{Token, TransactionDigest, Txn},
@@ -49,7 +49,7 @@ pub struct StateUpdate {
     pub address: Address,
     pub token: Option<Token>,
     pub amount: u128,
-    pub nonce: u128,
+    pub nonce: Option<u128>,
     pub storage: Option<String>,
     pub code: Option<String>,
     pub digest: TransactionDigest,
@@ -72,35 +72,44 @@ pub trait FromTxn {
 
 impl From<StateUpdate> for UpdateArgs {
     fn from(item: StateUpdate) -> UpdateArgs {
-        let mut digests: HashMap<AccountNonce, TransactionDigest> = HashMap::new();
-        digests.insert(item.nonce, item.digest);
+        let mut digest = AccountDigests::default();
         match &item.update_account {
-            UpdateAccount::Sender => UpdateArgs {
-                address: item.address,
-                nonce: item.nonce,
-                credits: None,
-                debits: Some(item.amount),
-                storage: Some(item.storage.clone()),
-                code: Some(item.code.clone()),
-                digests: Some(digests.clone()),
+            UpdateAccount::Sender => {
+                digest.insert_sent(item.digest);
+                UpdateArgs {
+                    address: item.address,
+                    nonce: item.nonce,
+                    credits: None,
+                    debits: Some(item.amount),
+                    storage: Some(item.storage.clone()),
+                    code: Some(item.code.clone()),
+                    digests: Some(digest.clone()),
+                }
             },
-            UpdateAccount::Receiver => UpdateArgs {
-                address: item.address,
-                nonce: item.nonce,
-                credits: Some(item.amount),
-                debits: None,
-                storage: Some(item.storage.clone()),
-                code: Some(item.code.clone()),
-                digests: Some(digests.clone()),
+            UpdateAccount::Receiver => {
+                digest.insert_recv(item.digest);
+                UpdateArgs {
+                    address: item.address,
+                    nonce: item.nonce,
+                    credits: Some(item.amount),
+                    debits: None,
+                    storage: Some(item.storage.clone()),
+                    code: Some(item.code.clone()),
+                    digests: Some(digest.clone()),
+                }
             },
-            UpdateAccount::Claim => UpdateArgs {
-                address: item.address,
-                nonce: item.nonce,
-                credits: None,
-                debits: None,
-                storage: None,
-                code: None,
-                digests: None,
+            UpdateAccount::Claim => {
+                // RFC: Should we separate "claim" txn from "stake" txn
+                digest.insert_stake(item.digest);
+                UpdateArgs {
+                    address: item.address,
+                    nonce: item.nonce,
+                    credits: None,
+                    debits: None,
+                    storage: None,
+                    code: None,
+                    digests: Some(digest.clone()),
+                }
             },
             UpdateAccount::Fee => UpdateArgs {
                 address: item.address,
@@ -141,12 +150,7 @@ impl FromBlock for HashSet<StateUpdate> {
         let fee_update = StateUpdate {
             address: block.from.address,
             token: Some(Token::default()),
-            //TODO: Fix UpdateArgs to take Option for
-            //nonce, fee and reward credits shouldn't
-            //affect nonce?? Or if they do should be done
-            //via state write by +1 to the nonce after all
-            //other txs
-            nonce: 0u128,
+            nonce: None,
             amount: proposer_fees,
             storage: None,
             code: None,
@@ -166,7 +170,7 @@ impl FromTxn for IntoUpdates {
             address: txn.sender_address(),
             token: Some(txn.token()),
             amount: txn.amount(),
-            nonce: txn.nonce(),
+            nonce: Some(txn.nonce()),
             storage: None,
             code: None,
             digest: txn.id(),
@@ -177,7 +181,7 @@ impl FromTxn for IntoUpdates {
             address: txn.receiver_address(),
             token: Some(txn.token()),
             amount: txn.amount(),
-            nonce: txn.nonce(),
+            nonce: None,
             storage: None,
             code: None,
             digest: txn.id(),
@@ -205,7 +209,7 @@ impl FromTxn for HashSet<StateUpdate> {
                     address: addr,
                     token: None,
                     amount: validator_share,
-                    nonce: 0u128,
+                    nonce: None,
                     storage: None,
                     code: None,
                     digest: TransactionDigest::default(),
@@ -410,10 +414,9 @@ fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, Upd
                 existing_update.storage = update.storage.clone(); // TODO: Update this to use the most recent value
                 existing_update.code = update.code.clone(); // TODO: Update this to use the most recent value
                 if let Some(digests) = update.digests.clone() {
-                    existing_update
-                        .digests
-                        .get_or_insert(HashMap::new())
-                        .extend(digests);
+                    if let Some(ref mut existing_digests) = existing_update.digests {
+                        existing_digests.extend_all(digests);
+                    }
                 }
             })
             .or_insert(update);
