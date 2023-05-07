@@ -333,7 +333,7 @@ impl StateModule {
     /// updates the StateStore, ClaimStore and TransactionStore
     /// for all new claims and transactions (excluding
     /// ClaimStaking transactions currently).
-    fn update_state(&mut self, block_hash: BlockHash) -> Result<()> {
+    pub fn update_state(&mut self, block_hash: BlockHash) -> Result<()> {
         if let Some(mut round_blocks) = self.get_proposal_blocks(block_hash) {
             consolidate_update_args(get_update_args(self.get_update_list(&mut round_blocks)))
                 .into_iter()
