@@ -378,7 +378,7 @@ pub fn build_multiple_rounds(
                     epoch as u128,
                 );
 
-                append_proposal_blocks_to_dag(dag.clone(), proposals);
+                append_proposal_blocks_to_dag(&mut dag.clone(), proposals);
                 build_multiple_rounds(
                     dag.clone(),
                     n_blocks,
@@ -390,7 +390,7 @@ pub fn build_multiple_rounds(
                 );
             };
         } else {
-            if let Some(hash) = add_genesis_to_dag(dag.clone()) {
+            if let Some(hash) = add_genesis_to_dag(&mut dag.clone()) {
                 *round += 1usize;
                 build_multiple_rounds(
                     dag.clone(),
@@ -414,7 +414,7 @@ pub fn dag_has_genesis(dag: MinerDag) -> bool {
 
 /// build and adds a `GenesisBlock` to the `MinerDag`
 /// returns the `Some(hash)` if successful otherwise returns None
-pub fn add_genesis_to_dag(dag: MinerDag) -> Option<String> {
+pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
     let mut prop_vertices = Vec::new();
     let genesis = mine_genesis();
     let keypair = Keypair::random();
@@ -487,7 +487,7 @@ pub fn mine_next_convergence_block(dag: MinerDag) -> Option<String> {
 }
 
 /// Appends `ProposalBlock`s to the `MinerDag`
-pub fn append_proposal_blocks_to_dag(dag: MinerDag, proposals: Vec<ProposalBlock>) {
+pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<ProposalBlock>) {
     let mut edges: Vec<(Vertex<Block, String>, Vertex<Block, String>)> = vec![];
     for block in proposals.iter() {
         let ref_hash = block.ref_block.clone();

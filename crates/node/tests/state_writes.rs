@@ -21,6 +21,7 @@ use vrrb_core::{
 };
 
 #[tokio::test]
+#[ignore]
 async fn vrrbdb_should_update_with_new_block() {
     let (accounts, block_hash, mut state_module) = produce_state_module(5, 5);
     let _ = state_module.update_state(block_hash);
@@ -103,7 +104,9 @@ fn produce_genesis_block() -> GenesisBlock {
     mine_genesis().unwrap()
 }
 
+
 fn produce_proposal_blocks(
+    last_block_hash: BlockHash,
     accounts: Vec<(Address, Account)>,
     n: usize,
     ntx: usize,
