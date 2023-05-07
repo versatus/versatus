@@ -3,31 +3,12 @@ include!("gen/mod.rs");
 use std::net::SocketAddr;
 
 use events::{EventPublisher, DEFAULT_BUFFER};
-use helloworld::v1::{
-    hello_world_service_server::{HelloWorldService, HelloWorldServiceServer},
-    SayHelloRequest,
-    SayHelloResponse,
-};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tonic::{transport::Server, Request, Response, Status};
 
-#[derive(Debug, Default)]
-pub struct MyHelloWorld {}
-
-#[tonic::async_trait]
-impl HelloWorldService for MyHelloWorld {
-    async fn say_hello(
-        &self,
-        request: Request<SayHelloRequest>,
-    ) -> Result<Response<SayHelloResponse>, Status> {
-        let response = SayHelloResponse {
-            message: format!("Hello, {}!", request.get_ref().name),
-        };
-        Ok(Response::new(response))
-    }
-}
+use crate::handler::MyHelloWorld;
 
 #[derive(Debug, Clone)]
 pub struct GRPCServerConfig {
@@ -45,10 +26,14 @@ impl GRPCServer {
     pub async fn run(config: &GRPCServerConfig) -> anyhow::Result<SocketAddr> {
         let addr = config.address;
 
-        let helloworld = MyHelloWorld::default();
-        let svc = HelloWorldServiceServer::new(helloworld);
+        let helloworld_service = MyHelloWorld::init();
 
-        if (Server::builder().add_service(svc).serve(addr).await).is_ok() {
+        if (Server::builder()
+            .add_service(helloworld_service)
+            .serve(addr)
+            .await)
+            .is_ok()
+        {
             Ok(addr)
         } else {
             Err(anyhow::Error::msg("gRPC server could not start"))
