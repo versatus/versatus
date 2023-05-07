@@ -3,6 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
     iter::FromIterator,
+    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -40,6 +41,7 @@ pub enum UpdateAccount {
     Receiver,
     Claim,
     Fee,
+    Reward,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -107,7 +109,16 @@ impl From<StateUpdate> for UpdateArgs {
                 debits: None,
                 storage: None,
                 code: None,
-                digests: Some(digests.clone()),
+                digests: None,
+            },
+            UpdateAccount::Reward => UpdateArgs {
+                address: item.address,
+                nonce: item.nonce,
+                credits: Some(item.amount),
+                debits: None,
+                storage: None,
+                code: None,
+                digests: None,
             },
         }
     }
@@ -116,11 +127,34 @@ impl From<StateUpdate> for UpdateArgs {
 impl FromBlock for HashSet<StateUpdate> {
     fn from_block(block: ProposalBlock) -> Self {
         let mut set = HashSet::new();
+        let mut proposer_fees = 0u128;
         block.txns.into_iter().for_each(|(digest, txn)| {
-            let updates = IntoUpdates::from_txn(txn);
+            let fee = txn.proposer_fee_share();
+            proposer_fees += fee;
+            let updates = IntoUpdates::from_txn(txn.clone());
             set.insert(updates.sender_update);
             set.insert(updates.receiver_update);
+            let validator_fees = HashSet::<StateUpdate>::from_txn(txn);
+            set.extend(validator_fees);
         });
+
+        let fee_update = StateUpdate {
+            address: block.from.address,
+            token: Some(Token::default()),
+            //TODO: Fix UpdateArgs to take Option for
+            //nonce, fee and reward credits shouldn't
+            //affect nonce?? Or if they do should be done
+            //via state write by +1 to the nonce after all
+            //other txs
+            nonce: 0u128,
+            amount: proposer_fees,
+            storage: None,
+            code: None,
+            digest: TransactionDigest::default(),
+            update_account: UpdateAccount::Fee,
+        };
+
+        set.insert(fee_update);
 
         return set;
     }
@@ -154,6 +188,33 @@ impl FromTxn for IntoUpdates {
             sender_update,
             receiver_update,
         }
+    }
+}
+
+impl FromTxn for HashSet<StateUpdate> {
+    fn from_txn(txn: Txn) -> HashSet<StateUpdate> {
+        let mut set = HashSet::new();
+        let fees = txn.validator_fee_share();
+        let mut validator_set = txn.validators();
+        validator_set.retain(|_, vote| *vote);
+        let validator_share = fees / (validator_set.len() as u128);
+        validator_set.iter().for_each(|(k, v)| {
+            let address = Address::from_str(k);
+            if let Ok(addr) = address {
+                set.insert(StateUpdate {
+                    address: addr,
+                    token: None,
+                    amount: validator_share,
+                    nonce: 0u128,
+                    storage: None,
+                    code: None,
+                    digest: TransactionDigest::default(),
+                    update_account: UpdateAccount::Fee,
+                });
+            }
+        });
+
+        set
     }
 }
 

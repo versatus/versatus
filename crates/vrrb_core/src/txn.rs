@@ -30,6 +30,8 @@ use crate::{
         encode_to_json,
     },
 };
+
+pub const BASE_FEE: u128 = 0x2D79883D2000;
 /// This module contains the basic structure of simple transaction
 
 /// A simple custom error type
@@ -345,6 +347,18 @@ impl Txn {
         }
 
         Txn::null_txn()
+    }
+
+    pub fn get_fee(&self) -> u128 {
+        BASE_FEE
+    }
+
+    pub fn validator_fee_share(&self) -> u128 {
+        BASE_FEE / 2u128
+    }
+
+    pub fn proposer_fee_share(&self) -> u128 {
+        BASE_FEE / 2u128
     }
 
     #[deprecated(note = "will be removed from Txn struct soon")]
