@@ -282,14 +282,20 @@ impl StateModule {
         Ok(())
     }
 
-    fn update_state(&mut self, round_blocks: &mut RoundBlocks) -> Result<()> {
-        consolidate_update_args(get_update_args(self.get_update_list(round_blocks)))
-            .into_iter()
-            .for_each(|(_, args)| {
-                let _ = self.db.update_account(args);
-            });
+    fn update_state(&mut self, block_hash: BlockHash) -> Result<()> {
+        if let Some(mut round_blocks) = self.get_proposal_blocks(block_hash) {
+            consolidate_update_args(get_update_args(self.get_update_list(&mut round_blocks)))
+                .into_iter()
+                .for_each(|(_, args)| {
+                    let _ = self.db.update_account(args);
+                });
 
-        Ok(())
+            return Ok(());
+        }
+
+        return Err(NodeError::Other(
+            "convergene block not found in DAG".to_string(),
+        ));
     }
 
     fn get_update_list(&self, round_blocks: &mut RoundBlocks) -> HashSet<StateUpdate> {
@@ -479,6 +485,10 @@ impl Handler<EventMessage> for StateModule {
                 // .map_err(|err| TheaterError::Other(err.to_string()))?;
                 //               }
                 todo!()
+            },
+            Event::UpdateState(block_hash) => {
+                //TODO: handle error(s)
+                let _ = self.update_state(block_hash);
             },
             Event::NoOp => {},
             _ => {},
