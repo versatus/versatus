@@ -9,26 +9,15 @@ use node::state_module::{StateModule, StateModuleConfig};
 use primitives::Address;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
 use tokio::sync::mpsc::channel;
-use vrrb_core::{account::Account, txn::Txn};
+use vrrb_core::{account::Account, claim::Claim, txn::Txn};
 
 #[tokio::test]
 async fn vrrbdb_should_update_with_new_block() {
-    // setup necessary components to conduct test,
-    // including VrrbDb instance & DAG instance.
-    // DAG instance should already have 1 round under its
-    // belt, i.e. a GenesisBlock, at least 1 ProposalBlock and
-    // at least 1 Convergence block.
-    // Provide the StateModule with the necessary configuration
-    // including a copy of the VrrbDb and the DAG
-    // Provide the BlockHash for the ConvergenceBlock and call the
-    // state_module.update_state(); method passing the ConvergenceBlock
-    // hash into it.
-    // Check the VrrbDb instance to ensure that the transactions and
-    // claims in the PropsalBlock(s)/ConvergenceBlock are reflected
-    // in the db, including in the StateStore, ClaimStore and
-    // TransactionStore
     let (block_hash, mut state_module) = produce_state_module(5, 5);
     let _ = state_module.update_state(block_hash);
+
+    // Check that transactions in the ProposalBlocks are reflected
+    // in the StateModule
 
     todo!();
 }
@@ -61,6 +50,10 @@ fn populate_db_with_accounts(db: &mut VrrbDb, n: usize) -> Vec<(Address, Account
     accounts
 }
 
+fn produce_random_claims(n: usize) -> HashSet<Claim> {
+    todo!()
+}
+
 fn produce_random_txs(n: usize, accounts: &Vec<(Address, Account)>) -> HashSet<Txn> {
     (0..n).into_iter().map(|_| Txn::null_txn()).collect()
 }
@@ -74,7 +67,14 @@ fn produce_proposal_blocks(
     n: usize,
     ntx: usize,
 ) -> Vec<ProposalBlock> {
-    let txs = produce_random_txs(ntx, &accounts);
+    let proposals: Vec<ProposalBlock> = (0..n)
+        .into_iter()
+        .map(|_| {
+            let txs = produce_random_txs(ntx, &accounts);
+            let claims = produce_random_claims(ntx);
+            todo!()
+        })
+        .collect();
     todo!()
 }
 
