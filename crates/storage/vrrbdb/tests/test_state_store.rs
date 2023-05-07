@@ -2,7 +2,10 @@ use std::{collections::HashMap, env, fs};
 
 use primitives::Address;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use vrrb_core::{account::Account, keypair::Keypair};
+use vrrb_core::{
+    account::{Account, AccountDigests},
+    keypair::Keypair,
+};
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;
@@ -32,7 +35,7 @@ fn accounts_can_be_added() {
             storage: None,
             code: None,
             pubkey: vec![],
-            digests: HashMap::new(),
+            digests: AccountDigests::default(),
             created_at: 0,
             updated_at: None,
         },
@@ -49,7 +52,7 @@ fn accounts_can_be_added() {
             storage: None,
             code: None,
             pubkey: vec![],
-            digests: HashMap::new(),
+            digests: AccountDigests::default(),
             created_at: 0,
             updated_at: None,
         },
@@ -71,7 +74,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
-                digests: HashMap::new(),
+                digests: AccountDigests::default(),
                 created_at: 0,
                 updated_at: None,
             },
@@ -86,7 +89,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
-                digests: HashMap::new(),
+                digests: AccountDigests::default(),
                 created_at: 0,
                 updated_at: None,
             },
@@ -101,7 +104,7 @@ fn accounts_can_be_added() {
                 storage: None,
                 code: None,
                 pubkey: vec![],
-                digests: HashMap::new(),
+                digests: AccountDigests::default(),
                 created_at: 0,
                 updated_at: None,
             },
