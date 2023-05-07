@@ -10,10 +10,11 @@ use std::{
 use async_trait::async_trait;
 use block::{Block, BlockHash, ConvergenceBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
+use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::Address;
+use primitives::{Address, NodeId};
 use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
@@ -294,12 +295,52 @@ impl StateModule {
                     let _ = self.db.update_account(args);
                 });
 
+            let proposals = round_blocks.proposals.clone();
+
+            self.update_txn_trie(&proposals);
+            self.update_claim_store(&proposals);
+
             return Ok(());
         }
 
         return Err(NodeError::Other(
             "convergene block not found in DAG".to_string(),
         ));
+    }
+
+    fn update_txn_trie(&mut self, proposals: &[ProposalBlock]) {
+        let consolidated: HashSet<Txn> = {
+            let nested: Vec<HashSet<Txn>> = proposals
+                .iter()
+                .map(|block| block.txns.iter().map(|(_, v)| v.clone()).collect())
+                .collect();
+
+            nested.into_iter().flatten().collect()
+        };
+
+        self.db
+            .extend_transactions(consolidated.into_iter().collect());
+    }
+
+    fn update_claim_store(&mut self, proposals: &[ProposalBlock]) {
+        let consolidated: HashSet<(U256, Claim)> = {
+            let nested: Vec<HashSet<(U256, Claim)>> = {
+                proposals
+                    .iter()
+                    .map(|block| {
+                        block
+                            .claims
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect()
+                    })
+                    .collect()
+            };
+
+            nested.into_iter().flatten().collect()
+        };
+
+        self.db.extend_claims(consolidated.into_iter().collect());
     }
 
     fn get_update_list(&self, round_blocks: &mut RoundBlocks) -> HashSet<StateUpdate> {

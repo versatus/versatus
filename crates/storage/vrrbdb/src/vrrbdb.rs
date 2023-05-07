@@ -1,7 +1,8 @@
 use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
+use ethereum_types::U256;
 use lr_trie::H256;
-use primitives::{Address, NodeId};
+use primitives::Address;
 use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
@@ -168,22 +169,22 @@ impl VrrbDb {
     }
 
     /// Inserts a confirmed claim to the current claim tree.
-    pub fn insert_claim_unchecked(&mut self, node_id: NodeId, claim: Claim) -> Result<()> {
-        self.claim_store.insert(node_id, claim)
+    pub fn insert_claim_unchecked(&mut self, claim: Claim) -> Result<()> {
+        self.claim_store.insert(claim)
     }
 
     /// Adds multiple claims to the current claim tree.  
-    pub fn extend_claims_unchecked(&mut self, claims: Vec<(NodeId, Claim)>) {
+    pub fn extend_claims_unchecked(&mut self, claims: Vec<(U256, Claim)>) {
         self.claim_store.extend(claims)
     }
 
     /// Inserts a confirmed claim into the claim tree.
-    pub fn insert_claim(&mut self, node_id: NodeId, claim: Claim) -> Result<()> {
-        self.claim_store.insert(node_id, claim)
+    pub fn insert_claim(&mut self, claim: Claim) -> Result<()> {
+        self.claim_store.insert(claim)
     }
 
     /// Inserts multiple claims into the current claim trie
-    pub fn extend_claims(&mut self, claims: Vec<(NodeId, Claim)>) {
+    pub fn extend_claims(&mut self, claims: Vec<(U256, Claim)>) {
         self.claim_store.extend(claims)
     }
 

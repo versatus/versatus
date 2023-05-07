@@ -1,8 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
+use ethereum_types::U256;
 use lr_trie::{LeftRightTrie, H256};
-use primitives::{NodeId, NodeIdentifier};
-use sha2::Digest;
+use primitives::NodeId;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
@@ -12,11 +12,11 @@ mod claim_store_rh;
 pub use claim_store_rh::*;
 
 pub type Claims = Vec<Claim>;
-pub type FailedClaimUpdates = Vec<(NodeId, Claims, Result<()>)>;
+pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
 #[derive(Debug, Clone)]
 pub struct ClaimStore {
-    trie: LeftRightTrie<'static, NodeId, Claim, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter>,
 }
 
 impl Default for ClaimStore {
@@ -59,7 +59,7 @@ impl ClaimStore {
     }
 
     // Maybe initialize is better name for that?
-    fn insert_uncommited(&mut self, key: NodeIdentifier, claim: Claim) -> Result<()> {
+    fn insert_uncommited(&mut self, claim: Claim) -> Result<()> {
         //        if claim.debits != 0 {
         //            return Err(StorageError::Other(
         //                "cannot insert claim with debit".to_string(),
@@ -72,14 +72,14 @@ impl ClaimStore {
         //            ));
         //        }
 
-        self.trie.insert_uncommitted(key, claim);
+        self.trie.insert_uncommitted(claim.hash, claim);
 
         Ok(())
     }
 
     /// Inserts new claim into ClaimDb.
-    pub fn insert(&mut self, key: NodeId, claim: Claim) -> Result<()> {
-        self.insert_uncommited(key, claim)?;
+    pub fn insert(&mut self, claim: Claim) -> Result<()> {
+        self.insert_uncommited(claim)?;
         self.commit_changes();
         Ok(())
     }
@@ -90,13 +90,13 @@ impl ClaimStore {
     // inserted
     fn batch_insert_uncommited(
         &mut self,
-        inserts: Vec<(NodeId, Claim)>,
-    ) -> Option<Vec<(NodeId, Claim, StorageError)>> {
-        let mut failed_inserts: Vec<(NodeId, Claim, StorageError)> = vec![];
+        inserts: Vec<(U256, Claim)>,
+    ) -> Option<Vec<(U256, Claim, StorageError)>> {
+        let mut failed_inserts: Vec<(U256, Claim, StorageError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
-            if let Err(e) = self.insert_uncommited(k.to_owned(), v.clone()) {
+            if let Err(e) = self.insert_uncommited(v.clone()) {
                 failed_inserts.push((k.to_owned(), v.clone(), e));
             }
         });
@@ -115,8 +115,8 @@ impl ClaimStore {
     /// Otherwise returns vector of (key, claim_to_be_inserted, error).
     pub fn batch_insert(
         &mut self,
-        inserts: Vec<(NodeId, Claim)>,
-    ) -> Option<Vec<(NodeId, Claim, StorageError)>> {
+        inserts: Vec<(U256, Claim)>,
+    ) -> Option<Vec<(U256, Claim, StorageError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit_changes();
         failed_inserts
@@ -271,7 +271,7 @@ impl ClaimStore {
         self.trie.root()
     }
 
-    pub fn extend(&mut self, claims: Vec<(NodeId, Claim)>) {
+    pub fn extend(&mut self, claims: Vec<(U256, Claim)>) {
         self.trie.extend(claims)
     }
 
