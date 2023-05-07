@@ -6,6 +6,7 @@ mod tests {
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
+        net::SocketAddr,
     };
 
     use primitives::Address;
@@ -28,7 +29,15 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -61,7 +70,16 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -88,7 +106,15 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -113,7 +139,15 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -142,7 +176,15 @@ mod tests {
         (0..20).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
             dummy_claims.push(claim);
         });
 
@@ -172,7 +214,15 @@ mod tests {
         (0..25).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -205,7 +255,15 @@ mod tests {
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
             let public_key = keypair.get_miner_public_key().clone();
-            let claim: Claim = Claim::new(public_key, Address::new(public_key));
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                public_key.clone(),
+                ip_address,
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim: Claim =
+                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
             //let boxed_claim = Box::new(claim);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());
