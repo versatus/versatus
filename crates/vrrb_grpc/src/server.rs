@@ -31,7 +31,7 @@ impl GRPCServer {
             .register_encoded_file_descriptor_set(helloworld::v1::FILE_DESCRIPTOR_SET)
             .register_encoded_file_descriptor_set(node::v1::FILE_DESCRIPTOR_SET)
             .build()
-            .unwrap();
+            .map_err(|e| anyhow::Error::msg("Could not configure reflection for gRPC server"))?;
 
         let helloworld_service = MyHelloWorld::init();
 
@@ -42,17 +42,14 @@ impl GRPCServer {
         };
         let node_service = node.init();
 
-        if (Server::builder()
+        Server::builder()
             .add_service(reflection_service)
             .add_service(helloworld_service)
             .add_service(node_service)
             .serve(addr)
-            .await)
-            .is_ok()
-        {
-            Ok(addr)
-        } else {
-            Err(anyhow::Error::msg("gRPC server could not start"))
-        }
+            .await
+            .map_err(|e| anyhow::Error::msg("Could not start gRPC server"))?;
+
+        Ok(addr)
     }
 }
