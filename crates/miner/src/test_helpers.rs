@@ -33,7 +33,7 @@ use crate::{result::MinerError, Miner, MinerConfig};
 pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
 
 /// Helper function to create a random Miner.
-pub(crate) fn create_miner() -> Miner {
+pub fn create_miner() -> Miner {
     let (secret_key, public_key) = create_keypair();
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
     let ip_address = "127.0.0.1:8080".parse().unwrap();
@@ -47,7 +47,7 @@ pub(crate) fn create_miner() -> Miner {
 }
 
 /// Helper function to create a miner from a `Keypair`
-pub(crate) fn create_miner_from_keypair(kp: &Keypair) -> Miner {
+pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     let (secret_key, public_key) = kp.miner_kp;
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
     let ip_address = "127.0.0.1:8080".parse().unwrap();
@@ -60,12 +60,12 @@ pub(crate) fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     Miner::new(config).unwrap()
 }
 
-pub(crate) fn create_miner_from_keypair_return_dag(kp: &Keypair) -> (Miner, MinerDag) {
+pub fn create_miner_from_keypair_return_dag(kp: &Keypair) -> (Miner, MinerDag) {
     let miner = create_miner_from_keypair(kp);
     (miner.clone(), miner.dag.clone())
 }
 
-pub(crate) fn create_miner_from_keypair_and_dag(kp: &Keypair, dag: MinerDag) -> Miner {
+pub fn create_miner_from_keypair_and_dag(kp: &Keypair, dag: MinerDag) -> Miner {
     let mut miner = create_miner_from_keypair(kp);
     miner.dag = dag;
     miner
@@ -73,19 +73,19 @@ pub(crate) fn create_miner_from_keypair_and_dag(kp: &Keypair, dag: MinerDag) -> 
 
 /// Helper function to create a `MinerKeypair` which is
 /// simply `(SecretKey, PublicKey)`
-pub(crate) fn create_keypair() -> (SecretKey, PublicKey) {
+pub fn create_keypair() -> (SecretKey, PublicKey) {
     let kp = Keypair::random();
     kp.miner_kp
 }
 
 /// Helper function to create an address from a `&PublicKey`
-pub(crate) fn create_address(public_key: &PublicKey) -> Address {
+pub fn create_address(public_key: &PublicKey) -> Address {
     Address::new(public_key.clone())
 }
 
 /// Helper function to create a claim from a `&PublicKey` and `&Address` and
 /// `ip_address` and `signature`
-pub(crate) fn create_claim(
+pub fn create_claim(
     pk: &PublicKey,
     addr: &Address,
     ip_address: SocketAddr,
@@ -96,7 +96,7 @@ pub(crate) fn create_claim(
 
 /// Helper function to create a random message and signature
 /// returning `(Message, Keypair, Signature)`
-pub(crate) fn create_and_sign_message() -> (Message, Keypair, Signature) {
+pub fn create_and_sign_message() -> (Message, Keypair, Signature) {
     let kp = Keypair::random();
     let message = b"Test Message";
     let msg = {
@@ -116,7 +116,7 @@ pub(crate) fn create_and_sign_message() -> (Message, Keypair, Signature) {
 /// This is currently using a deprecated method
 /// `miner.mine_genesis_block` will be removed soon
 /// and replaced by a different method.
-pub(crate) fn mine_genesis() -> Option<GenesisBlock> {
+pub fn mine_genesis() -> Option<GenesisBlock> {
     let miner = create_miner();
 
     let claim = miner.generate_claim().unwrap();
@@ -134,7 +134,7 @@ pub(crate) fn mine_genesis() -> Option<GenesisBlock> {
 /// Helper function to create `n` number of `Txn` and
 /// return an `Iterator` of `(TransactionDigest, Txn)`
 /// to be collected by the caller.
-pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, Txn)> {
+pub fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, Txn)> {
     (0..n)
         .map(|n| {
             let (sk, pk) = create_keypair();
@@ -182,7 +182,7 @@ pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, 
 /// Helper function to create `n` number of `Claim`s and
 /// return an `Iterator` of `(String, Claim)` to be collected
 /// by the caller
-pub(crate) fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
+pub fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
     (0..n)
         .map(|_| {
             let (sk, pk) = create_keypair();
@@ -203,7 +203,7 @@ pub(crate) fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
 /// A helper function to build a `ProposalBlock`. This function has been
 /// deprecated and replaced by the `build_single_proposal_block` function
 #[deprecated(note = "use `build_single_proposal_block` function instead")]
-pub(crate) fn build_proposal_block(
+pub fn build_proposal_block(
     ref_hash: &String,
     n_tx: usize,
     n_claims: usize,
@@ -231,7 +231,7 @@ pub(crate) fn build_proposal_block(
 
 /// A helper function to attempt to mine a `ConvergenceBlock`
 /// with a random `miner`
-pub(crate) fn mine_convergence_block() -> Result<Block, MinerError> {
+pub fn mine_convergence_block() -> Result<Block, MinerError> {
     let mut miner = create_miner();
     miner.try_mine()
 }
@@ -239,7 +239,7 @@ pub(crate) fn mine_convergence_block() -> Result<Block, MinerError> {
 /// A helper function to attempt to mine a `ConvergenceBlock`
 /// that signals a change in `Epoch` i.e. a block
 /// with a `round % Epoch == 0`
-pub(crate) fn mine_convergence_block_epoch_change() -> Result<Block, MinerError> {
+pub fn mine_convergence_block_epoch_change() -> Result<Block, MinerError> {
     let mut miner = create_miner();
     //TODO: Add Mock Convergence Block with round height of 29.999999mm
     miner.try_mine()
@@ -247,7 +247,7 @@ pub(crate) fn mine_convergence_block_epoch_change() -> Result<Block, MinerError>
 
 /// A helper function that creates a `Miner` and returns both the
 /// `Miner` and the `MinerDag`
-pub(crate) fn create_miner_return_dag() -> (Miner, MinerDag) {
+pub fn create_miner_return_dag() -> (Miner, MinerDag) {
     let miner = create_miner();
     let dag = miner.dag.clone();
 
@@ -257,7 +257,7 @@ pub(crate) fn create_miner_return_dag() -> (Miner, MinerDag) {
 /// A helper function that creates a random `Miner` and provides
 /// an existing `MinerDag` to replace the default one in the
 /// `Miner`. Returns both the `Miner` and the `MinerDag`
-pub(crate) fn create_miner_from_dag(dag: &MinerDag) -> (Miner, MinerDag) {
+pub fn create_miner_from_dag(dag: &MinerDag) -> (Miner, MinerDag) {
     let mut miner = create_miner();
     miner.dag = dag.clone();
 
@@ -265,7 +265,7 @@ pub(crate) fn create_miner_from_dag(dag: &MinerDag) -> (Miner, MinerDag) {
 }
 
 /// A helper function to build a single `ProposalBlock` and return it.
-pub(crate) fn build_single_proposal_block(
+pub fn build_single_proposal_block(
     last_block_hash: String,
     n_txns: usize,
     n_claims: usize,
@@ -281,7 +281,7 @@ pub(crate) fn build_single_proposal_block(
 
 /// A helper function to build `n` number of porposal blocks
 /// from random `Claim`s and return a `Vec<ProposalBlock>`
-pub(crate) fn build_multiple_proposal_blocks_single_round(
+pub fn build_multiple_proposal_blocks_single_round(
     n_blocks: usize,
     last_block_hash: String,
     n_txns: usize,
@@ -358,7 +358,7 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
 ///             Recursively calls itself passing in the GenesisBlock hash
 ///             as the last_block_hash and the updated round as the
 ///             round, as well as all the other data.
-pub(crate) fn build_multiple_rounds(
+pub fn build_multiple_rounds(
     dag: &mut MinerDag,
     n_blocks: usize,
     n_txns: usize,
@@ -410,13 +410,13 @@ pub(crate) fn build_multiple_rounds(
 
 /// Checks whether the DAG already has a root vertex
 /// returns true if so, false if not
-pub(crate) fn dag_has_genesis(dag: &mut MinerDag) -> bool {
+pub fn dag_has_genesis(dag: &mut MinerDag) -> bool {
     dag.read().unwrap().len() > 0
 }
 
 /// build and adds a `GenesisBlock` to the `MinerDag`
 /// returns the `Some(hash)` if successful otherwise returns None
-pub(crate) fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
+pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
     let mut prop_vertices = Vec::new();
     let genesis = mine_genesis();
     let keypair = Keypair::random();
@@ -452,7 +452,7 @@ pub(crate) fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
 
 /// Mines the next `ConvergenceBlock` in the `MinerDag`
 /// Returns `Some(hash)` if successful otherwise returns `None`
-pub(crate) fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> {
+pub fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> {
     let keypair = Keypair::random();
     let mut miner = create_miner_from_keypair(&keypair);
     miner.dag = dag.clone();
@@ -489,7 +489,7 @@ pub(crate) fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> 
 }
 
 /// Appends `ProposalBlock`s to the `MinerDag`
-pub(crate) fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<ProposalBlock>) {
+pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<ProposalBlock>) {
     let mut edges: Vec<(Vertex<Block, String>, Vertex<Block, String>)> = vec![];
     for block in proposals.iter() {
         let ref_hash = block.ref_block.clone();
@@ -517,7 +517,7 @@ pub(crate) fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<P
 
 /// Builds 2 `ProposalBlock`s which contain 5 of the same `Txn`s
 /// this is used to test conflict resolution mechanism of the `Miner`
-pub(crate) fn build_conflicting_proposal_blocks(
+pub fn build_conflicting_proposal_blocks(
     last_block_hash: String,
     round: u128,
     epoch: u128,
@@ -533,7 +533,7 @@ pub(crate) fn build_conflicting_proposal_blocks(
 
 /// Builds a single `ProposalBlock` and extends the `TxnList` of the
 /// `ProposalBlock` with transactions provided in the function call.
-pub(crate) fn build_single_proposal_block_from_txns(
+pub fn build_single_proposal_block_from_txns(
     last_block_hash: String,
     txns: impl IntoIterator<Item = (TransactionDigest, Txn)>,
     round: u128,
@@ -556,7 +556,7 @@ pub(crate) fn build_single_proposal_block_from_txns(
     prop
 }
 
-pub(crate) fn get_genesis_block_from_dag(dag: &mut MinerDag) -> Option<GenesisBlock> {
+pub fn get_genesis_block_from_dag(dag: &mut MinerDag) -> Option<GenesisBlock> {
     let last_block = {
         if let Ok(guard) = dag.read() {
             let root = guard.get_roots();
@@ -585,7 +585,7 @@ pub(crate) fn get_genesis_block_from_dag(dag: &mut MinerDag) -> Option<GenesisBl
     return last_block;
 }
 
-pub(crate) fn add_orphaned_block_to_dag(
+pub fn add_orphaned_block_to_dag(
     dag: &mut MinerDag,
     last_block_hash: String,
     txns: impl IntoIterator<Item = (TransactionDigest, Txn)>,

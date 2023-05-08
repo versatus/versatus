@@ -5,11 +5,24 @@ use std::{
 
 use block::{Block, BlockHash, ConvergenceBlock, GenesisBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
+use miner::test_helpers::{
+    build_single_proposal_block,
+    create_claim,
+    create_claims,
+    create_keypair,
+    mine_genesis,
+    mine_next_convergence_block,
+};
 use node::state_module::{StateModule, StateModuleConfig};
-use primitives::Address;
+use primitives::{generate_account_keypair, Address};
+use secp256k1::Message;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
 use tokio::sync::mpsc::channel;
-use vrrb_core::{account::Account, claim::Claim, txn::Txn};
+use vrrb_core::{
+    account::Account,
+    claim::Claim,
+    txn::{generate_txn_digest_vec, NewTxnArgs, TransactionDigest, Txn},
+};
 
 #[tokio::test]
 async fn vrrbdb_should_update_with_new_block() {
@@ -29,7 +42,7 @@ fn produce_state_module(ntx: usize, npb: usize) -> (BlockHash, StateModule) {
     let mut db = VrrbDb::new(db_config.clone());
     let accounts = populate_db_with_accounts(&mut db, 10);
     let (block_hash, dag) = build_dag(accounts, ntx, npb);
-    let dag = Arc::new(RwLock::new(dag.clone()));
+    let dag = dag.clone();
     let config = StateModuleConfig {
         db: VrrbDb::new(db_config),
         events_tx,
@@ -40,26 +53,47 @@ fn produce_state_module(ntx: usize, npb: usize) -> (BlockHash, StateModule) {
 }
 
 fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
-    todo!()
+    (0..n)
+        .into_iter()
+        .map(|_| {
+            let kp = generate_account_keypair();
+            let mut account = Account::new(kp.1.clone());
+            account.credits = 1_000_000_000_000_000_000_000_000_000u128;
+            (Address::new(kp.1.clone()), Account::new(kp.1.clone()))
+        })
+        .collect()
 }
 
 fn populate_db_with_accounts(db: &mut VrrbDb, n: usize) -> Vec<(Address, Account)> {
     let accounts = produce_accounts(n);
     db.extend_accounts(accounts.clone());
-
     accounts
 }
 
 fn produce_random_claims(n: usize) -> HashSet<Claim> {
-    todo!()
+    create_claims(n).into_iter().collect()
 }
 
-fn produce_random_txs(n: usize, accounts: &Vec<(Address, Account)>) -> HashSet<Txn> {
-    (0..n).into_iter().map(|_| Txn::null_txn()).collect()
+fn produce_random_txs(accounts: &Vec<(Address, Account)>) -> HashSet<Txn> {
+    accounts
+        .clone()
+        .iter()
+        .enumerate()
+        .map(|(idx, (address, account))| {
+            let sender = accounts[idx];
+            let receiver: (Address, Account);
+            if (idx + 1) == accounts.len() {
+                let receiver = accounts[0];
+            } else {
+                let receiver = accounts[idx + 1];
+            }
+            create_txn_from_accounts(sender, receiver.0)
+        })
+        .collect()
 }
 
 fn produce_genesis_block() -> GenesisBlock {
-    todo!()
+    mine_genesis().unwrap()
 }
 
 fn produce_proposal_blocks(
@@ -70,7 +104,7 @@ fn produce_proposal_blocks(
     let proposals: Vec<ProposalBlock> = (0..n)
         .into_iter()
         .map(|_| {
-            let txs = produce_random_txs(ntx, &accounts);
+            let txs = produce_random_txs(&accounts);
             let claims = produce_random_claims(ntx);
             todo!()
         })
@@ -78,15 +112,15 @@ fn produce_proposal_blocks(
     todo!()
 }
 
-fn produce_convergence_block(proposals: Vec<ProposalBlock>) -> ConvergenceBlock {
-    todo!()
+fn produce_convergence_block(dag: &mut Arc<RwLock<BullDag<Block, BlockHash>>>) -> BlockHash {
+    mine_next_convergence_block(dag)
 }
 
 fn build_dag(
     accounts: Vec<(Address, Account)>,
     ntx: usize,
     npb: usize,
-) -> (BlockHash, BullDag<Block, BlockHash>) {
+) -> (BlockHash, Arc<RwLock<BullDag<Block, BlockHash>>>) {
     let mut dag = BullDag::new();
 
     let genesis = produce_genesis_block();
@@ -112,13 +146,49 @@ fn build_dag(
 
     dag.extend_from_edges(edges);
 
-    let convergence = produce_convergence_block(proposals);
-    let c_block: Block = convergence.clone().into();
-    let cvtx: Vertex<Block, BlockHash> = c_block.into();
+    let mut dag = Arc::new(RwLock::new(dag));
 
-    let c_edges = proposal_vtxs.iter().map(|pvtx| (pvtx, &cvtx)).collect();
+    let convergence = produce_convergence_block(&mut dag.clone());
 
-    dag.extend_from_edges(c_edges);
+    (convergence, dag)
+}
 
-    (convergence.hash, dag)
+pub(crate) fn create_txn_from_accounts(sender: (Address, Account), receiver: Address) -> Txn {
+    let (sk, pk) = create_keypair();
+    let (rsk, rpk) = create_keypair();
+    let saddr = sender.0.clone();
+    let raddr = receiver.clone();
+    let amount = 10000u128.pow(2);
+    let token = None;
+
+    let txn_args = NewTxnArgs {
+        timestamp: 0,
+        sender_address: saddr,
+        sender_public_key: pk.clone(),
+        receiver_address: raddr,
+        token,
+        amount,
+        signature: sk
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+        validators: None,
+        nonce: sender.1.nonce + 1,
+    };
+
+    let mut txn = Txn::new(txn_args);
+
+    txn.sign(&sk);
+
+    let txn_digest_vec = generate_txn_digest_vec(
+        txn.timestamp,
+        txn.sender_address.to_string(),
+        txn.sender_public_key.clone(),
+        txn.receiver_address.to_string(),
+        txn.token.clone(),
+        txn.amount,
+        txn.nonce,
+    );
+
+    let digest = TransactionDigest::from(txn_digest_vec);
+
+    txn
 }
