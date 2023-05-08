@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::process::Command;
 
 use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
 use telemetry::info;
@@ -64,6 +65,18 @@ impl Node {
         let mut config = config.clone();
 
         info!("Configuring Node {}", &config.id);
+        info!("Starting UI");
+        info!("Ensuring environment has required dependencies");
+        match Command::new("npm")
+            .args(&["version"])
+            .output() {
+            Ok(_) => println!("Node is installed"),
+            Err(e) => {
+                return Err(
+                    NodeError::Other(format!("Node is not installed: {}", e)).into(),
+                );
+            },
+        }
 
         let vm = None;
         let keypair = config.keypair.clone();
