@@ -81,6 +81,9 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub rendezvous_server_address: SocketAddr,
+
+    #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
+    pub public_ip_address: SocketAddr,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -125,6 +128,7 @@ impl From<RunOpts> for NodeConfig {
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
             rendezvous_server_address: opts.rendezvous_server_address,
+            public_ip_address: opts.raptorq_gossip_address,
         }
     }
 }
@@ -153,6 +157,7 @@ impl Default for RunOpts {
             disable_networking: Default::default(),
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
+            public_ip_address: ipv4_localhost_with_random_port,
         }
     }
 }
@@ -238,6 +243,7 @@ impl RunOpts {
             disable_networking: false,
             rendezvous_local_address: other.rendezvous_local_address,
             rendezvous_server_address: other.rendezvous_server_address,
+            public_ip_address: other.public_ip_address,
         }
     }
 }
@@ -302,7 +308,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
         .send(Event::Stop)
         .map_err(|err| CliError::Other(format!("failed to send stop event to node: {err}")))?;
 
-    _ = node_handle
+    let _ = node_handle
         .await
         .map_err(|err| CliError::Other(format!("failed to join node task handle: {err}")))?;
 

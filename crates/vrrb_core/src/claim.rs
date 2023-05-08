@@ -1,24 +1,44 @@
+use std::net::SocketAddr;
+
 use ethereum_types::U256;
-use primitives::{Address, PublicKey};
+use primitives::{Address, PublicKey, RawSignature, SecretKey, SerializedSecretKey};
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
-/// permissionless Proof of Claim Miner Election algorithm
+/// permissions Proof of Claim Miner Election algorithm
 use serde_json;
 use sha2::{Digest, Sha256};
+use thiserror::Error;
 
 use crate::{
-    keypair::Keypair,
+    keypair,
+    keypair::{KeyPairError, Keypair},
     ownable::Ownable,
-    staking::{Stake, StakeError, StakeUpdate},
+    staking::{Result as StakeResult, Stake, StakeError, StakeUpdate},
     verifiable::Verifiable,
 };
 
-/// A custom error type for invalid claims that are used/attempted to be used
-/// in the mining of a block.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InvalidClaimError {
-    details: String,
+pub type Result<T> = std::result::Result<T, ClaimError>;
+
+#[derive(Error, Debug)]
+pub enum ClaimError {
+    #[error("Invalid signature")]
+    InvalidSignature,
+    #[error("Invalid public key")]
+    InvalidPublicKey,
+    #[error("Details {0}")]
+    Other(String),
+}
+
+impl From<KeyPairError> for ClaimError {
+    fn from(error: KeyPairError) -> Self {
+        match error {
+            KeyPairError::InvalidSignature(_) => Self::InvalidSignature,
+            KeyPairError::InvalidPublicKey => Self::InvalidPublicKey,
+            KeyPairError::InvalidKey(_) => Self::Other(String::from("Invalid Secret Key")),
+            _ => Self::Other(String::from("Failed to validate claim")),
+        }
+    }
 }
 
 /// The claim object that stores the key information used to mine blocks,
@@ -30,6 +50,8 @@ pub struct Claim {
     pub address: Address,
     pub hash: U256,
     pub eligibility: Eligibility,
+    pub ip_address: SocketAddr,
+    pub signature: String,
     stake: u128,
     stake_txns: Vec<Stake>,
 }
@@ -57,19 +79,144 @@ impl std::fmt::Display for Eligibility {
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
-    pub fn new(public_key: PublicKey, address: Address) -> Claim {
+    pub fn new(
+        public_key: PublicKey,
+        address: Address,
+        ip_address: SocketAddr,
+        signature: String,
+    ) -> Result<Claim> {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
-        Claim {
-            public_key,
-            address,
-            hash,
-            eligibility: Eligibility::None,
-            stake: 0,
-            stake_txns: vec![],
-        }
+        let mut msg_hash: Vec<u8> = Vec::new();
+        hash.0.to_vec().iter().for_each(|x| {
+            msg_hash.extend(x.to_le_bytes().iter());
+        });
+        return match Claim::is_valid_claim(
+            msg_hash.as_slice(),
+            signature.clone(),
+            public_key.serialize().to_vec(),
+        ) {
+            Ok(_) => Ok(Claim {
+                public_key,
+                address,
+                hash,
+                eligibility: Eligibility::None,
+                ip_address,
+                signature,
+                stake: 0,
+                stake_txns: vec![],
+            }),
+            Err(e) => Err(e),
+        };
+    }
+
+    /// The function generates a signature for creating valid claim using a
+    /// public key, IP address, and secret key.
+    ///
+    /// Arguments:
+    ///
+    /// * `public_key`: The public key of the user making the claim.
+    /// * `ip_address`: The `ip_address` parameter is of type `SocketAddr`,
+    ///   which represents a socket
+    /// address, including an IP address and a port number. It is used as part
+    /// of the data that is hashed to create a signature for a valid claim.
+    /// * `secret_key`: The secret key is a serialized version of the private
+    ///   key used for ECDSA
+    /// signing. It is needed to sign the hash of the public key and IP address
+    /// to create a signature for a valid claim.
+    ///
+    /// Returns:
+    ///
+    /// a `Result<String>` which can either be an `Ok` variant containing the
+    /// signature string for a valid claim or an `Err` variant containing an
+    /// `InvalidClaimError` with details about the error encountered while
+    /// creating the signature.
+    pub fn signature_for_valid_claim(
+        public_key: PublicKey,
+        ip_address: SocketAddr,
+        secret_key: SerializedSecretKey,
+    ) -> Result<String> {
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let mut msg_hash: Vec<u8> = Vec::new();
+        hash.0.to_vec().iter().for_each(|x| {
+            msg_hash.extend(x.to_le_bytes().iter());
+        });
+        Keypair::ecdsa_sign(msg_hash.as_slice(), secret_key).map_err(|e| ClaimError::from(e))
+    }
+
+    /// The function verifies the validity of a claim using ECDSA signature and
+    /// public key.
+    ///
+    /// Arguments:
+    ///
+    /// * `msg_hash`: The `msg_hash` parameter is a slice of bytes representing
+    ///   the hash of the message
+    /// that was signed. This hash is typically generated using a cryptographic
+    /// hash function such as SHA-256.
+    /// * `signature`: The `signature` parameter is a string representing the
+    ///   signature of a message. It
+    /// is used in the `is_valid_claim` function to verify the authenticity of a
+    /// claim.
+    /// * `pub_key`: The `pub_key` parameter is a vector of bytes representing
+    ///   the public key used for
+    /// verifying the signature.
+    ///
+    /// Returns:
+    ///
+    /// a `Result` type, which can either be `Ok(())` if the signature is valid,
+    /// or an `Err(ClaimError)` if the signature is invalid.
+    pub fn is_valid_claim(msg_hash: &[u8], signature: String, pub_key: Vec<u8>) -> Result<()> {
+        Keypair::verify_ecdsa_sign(signature, msg_hash, pub_key).map_err(|e| ClaimError::from(e))
+    }
+
+    /// This function updates the IP address of a claim and verifies its
+    /// validity using a signature and public key.
+    ///
+    /// Arguments:
+    ///
+    /// * `signature`: The signature is a cryptographic signature generated by
+    ///   the claimant to prove
+    /// their ownership of the public key and the IP address they are claiming.
+    /// * `pub_key`: A vector of bytes representing the public key of the
+    ///   claimant.
+    /// * `ip_address`: The `ip_address` parameter is a `SocketAddr` type that
+    ///   represents the IP address
+    /// and port number of a network socket. It is used to update the IP address
+    /// of a claim in the blockchain.
+    ///
+    /// Returns:
+    ///
+    /// a `Result<()>`, which means it either returns `Ok(())` if the function
+    /// executes successfully or `ClaimError`.
+    pub fn update_claim_socketaddr(
+        &mut self,
+        signature: String,
+        public_key: PublicKey,
+        ip_address: SocketAddr,
+    ) -> Result<()> {
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let mut msg_hash: Vec<u8> = Vec::new();
+        hash.0.to_vec().iter().for_each(|x| {
+            msg_hash.extend(x.to_le_bytes().iter());
+        });
+        Claim::is_valid_claim(
+            msg_hash.as_slice(),
+            signature,
+            public_key.serialize().to_vec(),
+        )?;
+        self.ip_address = ip_address;
+        Ok(())
     }
 
     /// Uses XOR of the ClaimHash as a U256 against a block seed of u64
@@ -89,7 +236,7 @@ impl Claim {
     /// state module to update a claim that has a transaction
     /// pointing to it, and has been included in a certified
     /// convergence block.
-    pub fn update_stake(&mut self, stake_txn: Stake) -> Result<(), StakeError> {
+    pub fn update_stake(&mut self, stake_txn: Stake) -> crate::staking::Result<()> {
         if !self.depositing_claim(&stake_txn) {
             return Err(StakeError::Other(
                 "This claim is not the intended receiver of the stake transaction".to_string(),
@@ -206,39 +353,18 @@ impl Claim {
     }
 }
 
-/// Implements Verifiable trait on Claim
-impl Verifiable for Claim {
-    type Dependencies = (Option<Vec<u8>>, Option<Vec<u8>>);
-    type Error = InvalidClaimError;
-    type Item = Option<Vec<u8>>;
-
-    fn verifiable(&self) -> bool {
-        true
-    }
-
-    #[allow(unused_variables)]
-    fn valid(
-        &self,
-        item: &Self::Item,
-        dependancies: &Self::Dependencies,
-    ) -> Result<bool, InvalidClaimError> {
-        Ok(true)
-    }
-}
 
 /// Implements the Ownable trait on a claim
-// TODO: Add more methods that make sense for Ownable to Ownable
 impl Ownable for Claim {
     type Pubkey = PublicKey;
+    type SocketAddr = SocketAddr;
 
-    fn get_pubkey(&self) -> PublicKey {
+    fn get_public_key(&self) -> PublicKey {
         self.public_key.clone()
     }
-}
 
-impl From<Keypair> for Claim {
-    fn from(item: Keypair) -> Claim {
-        Claim::new(item.miner_kp.1.clone(), Address::new(item.miner_kp.1))
+    fn get_socket_addr(&self) -> Self::SocketAddr {
+        self.ip_address
     }
 }
 
@@ -252,23 +378,67 @@ mod tests {
         let kp = KeyPair::random();
         let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
-
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
         let test_claim = Claim {
             public_key: public_key.clone(),
             address: address.clone(),
             hash,
             eligibility: Eligibility::None,
+            ip_address: "127.0.0.1:8080".parse().unwrap(),
+            signature: signature.clone(),
             stake: 0,
             stake_txns: vec![],
         };
-
-        let claim = Claim::new(public_key, address);
-
+        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
         assert_eq!(test_claim, claim);
+    }
+
+    #[test]
+    fn update_ipaddress_in_claim() {
+        let kp = KeyPair::random();
+        let public_key = kp.miner_kp.1;
+        let address = Address::new(public_key.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key.clone(), address, ip_address, signature).unwrap();
+
+
+        let ip_address_new = "127.0.0.1:8081".parse::<SocketAddr>().unwrap();
+        let mut hasher_new = Sha256::new();
+        hasher_new.update(public_key.to_string().clone());
+        hasher_new.update(ip_address_new.to_string().clone());
+        let result = hasher_new.finalize();
+        let new_hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address_new,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let status = claim.update_claim_socketaddr(signature, public_key.clone(), ip_address_new);
+        assert!(status.is_ok());
+        assert_eq!(claim.ip_address, ip_address_new);
     }
 
     #[test]
@@ -276,9 +446,19 @@ mod tests {
         let kp = KeyPair::random();
         let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-
-        let claim = Claim::new(public_key, address);
-
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
         assert_eq!(0, claim.get_stake());
     }
 
@@ -287,9 +467,19 @@ mod tests {
         let kp = KeyPair::random();
         let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-
-        let claim = Claim::new(public_key, address);
-
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
         assert_eq!(0, claim.get_stake_txns().len());
     }
 
@@ -298,10 +488,18 @@ mod tests {
         let kp = KeyPair::random();
         let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
 
         let mut xor_val = [0u64; 4];
         let seed: u64 = u64::default();
@@ -311,7 +509,7 @@ mod tests {
 
         let test_election_result = U256(xor_val);
 
-        let claim = Claim::new(public_key, address);
+        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
 
         let election_result = claim.get_election_result(seed);
 
@@ -321,9 +519,21 @@ mod tests {
     #[test]
     fn should_reject_uncertified_stake_from_claim() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -343,9 +553,21 @@ mod tests {
     #[test]
     fn should_add_stake_to_claim() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -368,9 +590,22 @@ mod tests {
     #[test]
     fn should_add_stake_txn_to_claim() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address.clone(), signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -392,12 +627,22 @@ mod tests {
     #[test]
     fn should_withdrawal_stake_from_claim() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
-
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
         let amount = StakeUpdate::Add(10_000u128);
-
         let mut stake = Stake::new(
             amount,
             kp.miner_kp.0.clone(),
@@ -433,9 +678,21 @@ mod tests {
     #[test]
     fn should_do_nothing_withdrawal_stake_from_claim_with_no_stake() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
 
         let amount = StakeUpdate::Withdrawal(5_000u128);
         let mut stake = Stake::new(
@@ -457,9 +714,21 @@ mod tests {
     #[test]
     fn should_slash_stake_from_claim() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -498,9 +767,21 @@ mod tests {
     #[test]
     fn should_do_nothing_slash_stake_from_claim_with_no_stake() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
 
         let amount = StakeUpdate::Slash(25u8);
         let mut stake = Stake::new(
@@ -522,9 +803,21 @@ mod tests {
     #[test]
     fn should_calculate_utxo_of_claim_stake() {
         let kp = KeyPair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key.clone());
-        let mut claim = Claim::new(public_key, address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let mut hasher = Sha256::new();
+        hasher.update(public_key.to_string().clone());
+        hasher.update(ip_address.to_string().clone());
+        let result = hasher.finalize();
+        let hash = U256::from_big_endian(&result[..]);
+        let signature = Claim::signature_for_valid_claim(
+            public_key.clone(),
+            ip_address,
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 

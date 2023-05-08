@@ -13,7 +13,7 @@ use bulldag::graph::BullDag;
 use crossbeam_channel::{unbounded, Sender};
 use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use miner::MinerConfig;
+use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
@@ -22,8 +22,11 @@ use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use vrrb_core::{bloom::Bloom, claim::Claim};
 use vrrb_grpc::server::{GRPCServer, GRPCServerConfig};
+use vrrb_core::{
+    bloom::Bloom,
+    claim::{Claim, ClaimError},
+};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -68,6 +71,25 @@ pub mod swarm_module;
 pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
+
+impl From<MinerError> for NodeError {
+    fn from(error: MinerError) -> Self {
+        match error {
+            _ => NodeError::Other(String::from(
+                "Error occurred while creating instance of miner ",
+            )),
+        }
+    }
+}
+impl From<ClaimError> for NodeError {
+    fn from(error: ClaimError) -> Self {
+        match error {
+            _ => NodeError::Other(String::from(
+                "Error occurred while creating claim for the node",
+            )),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct RuntimeComponents {
@@ -213,8 +235,24 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-
-    let claim: Claim = config.keypair.clone().into();
+    let public_key = config.keypair.get_miner_public_key().clone();
+    let signature = Claim::signature_for_valid_claim(
+        public_key.clone(),
+        config.public_ip_address.clone(),
+        config
+            .keypair
+            .get_miner_secret_key()
+            .secret_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        config.public_ip_address,
+        signature,
+    )
+    .map_err(|err| NodeError::from(err))?;
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
         miner_election_events_rx,
@@ -481,11 +519,11 @@ fn setup_mining_module(
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
+        ip_address: config.public_ip_address,
         dag: dag.clone(),
     };
 
-    let miner = miner::Miner::new(miner_config);
-
+    let miner = miner::Miner::new(miner_config).map_err(|e| NodeError::from(e))?;
     let module_config = MiningModuleConfig {
         miner,
         events_tx,

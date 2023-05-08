@@ -1,5 +1,9 @@
 #![cfg(test)]
-use std::sync::{Arc, RwLock};
+
+use std::{
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
 
 use block::{
     invalid::InvalidBlockErrorReason,
@@ -32,28 +36,28 @@ pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
 pub(crate) fn create_miner() -> Miner {
     let (secret_key, public_key) = create_keypair();
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
-
+    let ip_address = "127.0.0.1:8080".parse().unwrap();
     let config = MinerConfig {
         secret_key,
         public_key,
+        ip_address,
         dag,
     };
-
-    Miner::new(config)
+    Miner::new(config).unwrap()
 }
 
 /// Helper function to create a miner from a `Keypair`
 pub(crate) fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     let (secret_key, public_key) = kp.miner_kp;
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
-
+    let ip_address = "127.0.0.1:8080".parse().unwrap();
     let config = MinerConfig {
         secret_key,
+        ip_address,
         public_key,
         dag,
     };
-
-    Miner::new(config)
+    Miner::new(config).unwrap()
 }
 
 pub(crate) fn create_miner_from_keypair_return_dag(kp: &Keypair) -> (Miner, MinerDag) {
@@ -75,14 +79,19 @@ pub(crate) fn create_keypair() -> (SecretKey, PublicKey) {
 }
 
 /// Helper function to create an address from a `&PublicKey`
-pub(crate) fn create_address(pubkey: &PublicKey) -> Address {
-    Address::new(pubkey.clone())
+pub(crate) fn create_address(public_key: &PublicKey) -> Address {
+    Address::new(public_key.clone())
 }
 
-/// Helper function to create a claim from a `&PublicKey` and
-/// `&Address`
-pub(crate) fn create_claim(pk: &PublicKey, addr: &Address) -> Claim {
-    Claim::new(pk.clone(), addr.clone())
+/// Helper function to create a claim from a `&PublicKey` and `&Address` and
+/// `ip_address` and `signature`
+pub(crate) fn create_claim(
+    pk: &PublicKey,
+    addr: &Address,
+    ip_address: SocketAddr,
+    signature: String,
+) -> Claim {
+    Claim::new(pk.clone(), addr.clone(), ip_address, signature).unwrap()
 }
 
 /// Helper function to create a random message and signature
@@ -110,7 +119,7 @@ pub(crate) fn create_and_sign_message() -> (Message, Keypair, Signature) {
 pub(crate) fn mine_genesis() -> Option<GenesisBlock> {
     let miner = create_miner();
 
-    let claim = miner.generate_claim();
+    let claim = miner.generate_claim().unwrap();
 
     let claim_list = {
         vec![(claim.hash.clone(), claim.clone())]
@@ -175,9 +184,16 @@ pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, 
 pub(crate) fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
     (0..n)
         .map(|_| {
-            let (_, pk) = create_keypair();
+            let (sk, pk) = create_keypair();
             let addr = create_address(&pk);
-            let claim = create_claim(&pk, &addr);
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                pk.clone(),
+                ip_address.clone(),
+                sk.secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim = create_claim(&pk, &addr, ip_address, signature);
             (claim.hash.clone(), claim)
         })
         .into_iter()
@@ -199,8 +215,9 @@ pub(crate) fn build_proposal_block(
 
     let miner = create_miner();
 
-    let prop_block =
-        miner.build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims);
+    let prop_block = miner
+        .build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims)
+        .unwrap();
 
     let total_txns_size = size_of_txn_list(&txns);
 
@@ -208,7 +225,7 @@ pub(crate) fn build_proposal_block(
         return Err(InvalidBlockErrorReason::InvalidBlockSize);
     }
 
-    return prop_block;
+    return Ok(prop_block);
 }
 
 /// A helper function to attempt to mine a `ConvergenceBlock`
@@ -276,7 +293,15 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
         .map(|n| {
             let keypair = Keypair::random();
             let address = Address::new(keypair.miner_kp.1.clone());
-            let claim = Claim::new(keypair.miner_kp.1.clone(), address);
+            let ip_address: SocketAddr = "127.0.0.1:8080".parse().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                keypair.miner_kp.1.clone(),
+                ip_address.clone(),
+                keypair.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let claim =
+                Claim::new(keypair.miner_kp.1.clone(), address, ip_address, signature).unwrap();
             let prop = build_single_proposal_block(
                 last_block_hash.clone(),
                 n_txns,

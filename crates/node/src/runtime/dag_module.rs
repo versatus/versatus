@@ -348,6 +348,10 @@ impl Handler<EventMessage> for DagModule {
                         let err_note = format!("Encountered GraphError: {:?}", e);
                         return Err(theater::TheaterError::Other(err_note));
                     }
+                    //
+
+                    //      self.events_tx.send(EventMessage::new(None,
+                    // Event::MineProposalBlock(block.hash,block.)))
                 },
             },
             Event::HarvesterPublicKey(pubkey_bytes) => {
