@@ -7,14 +7,7 @@ use std::{
 use block::{Block, BlockHash, GenesisBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use hbbft::crypto::SecretKeyShare;
-use miner::test_helpers::{
-    build_single_proposal_block,
-    create_claim,
-    create_claims,
-    create_keypair,
-    mine_genesis,
-    mine_next_convergence_block,
-};
+use miner::test_helpers::*;
 use node::state_module::{StateModule, StateModuleConfig};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
