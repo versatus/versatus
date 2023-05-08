@@ -2,11 +2,6 @@ include!("gen/mod.rs");
 
 use std::collections::HashMap;
 
-use helloworld::v1::{
-    hello_world_service_server::{HelloWorldService, HelloWorldServiceServer},
-    SayHelloRequest,
-    SayHelloResponse,
-};
 use mempool::MempoolReadHandleFactory;
 use node::v1::{
     node_service_server::{NodeService, NodeServiceServer},
@@ -27,84 +22,6 @@ use vrrb_core::{
 };
 
 use crate::server::GRPCServerConfig;
-
-#[derive(Debug, Default)]
-pub struct MyHelloWorld {}
-
-impl MyHelloWorld {
-    pub fn init() -> HelloWorldServiceServer<MyHelloWorld> {
-        let helloworld_handler = MyHelloWorld::default();
-        let helloworld_service = HelloWorldServiceServer::new(helloworld_handler);
-        return helloworld_service;
-    }
-}
-
-#[tonic::async_trait]
-impl HelloWorldService for MyHelloWorld {
-    async fn say_hello(
-        &self,
-        request: Request<SayHelloRequest>,
-    ) -> Result<Response<SayHelloResponse>, Status> {
-        let response = SayHelloResponse {
-            message: format!("Hello, {}!", request.get_ref().name),
-        };
-        Ok(Response::new(response))
-    }
-}
-
-#[derive(Debug)]
-pub struct Node {
-    pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
-    pub mempool_read_handle_factory: MempoolReadHandleFactory,
-    // pub events_tx: EventPublisher,
-}
-
-impl Node {
-    pub fn init(self) -> NodeServiceServer<Node> {
-        let node_service = NodeServiceServer::new(self);
-        return node_service;
-    }
-}
-
-#[tonic::async_trait]
-impl NodeService for Node {
-    async fn get_node_type(
-        &self,
-        request: Request<GetNodeTypeRequest>,
-    ) -> Result<Response<GetNodeTypeResponse>, Status> {
-        let response = GetNodeTypeResponse {
-            id: (self.node_type as i32).to_string(),
-            result: self.node_type.to_string(),
-        };
-        Ok(Response::new(response))
-    }
-
-    async fn get_full_mempool(
-        &self,
-        request: Request<GetFullMempoolRequest>,
-    ) -> Result<Response<GetFullMempoolResponse>, Status> {
-        let values: Vec<RpcTransactionRecord> = self
-            .mempool_read_handle_factory
-            .values()
-            .iter()
-            .map(|txn| RpcTransactionRecord::from(txn.clone()))
-            .collect();
-
-        let transaction_records = values
-            .iter()
-            .map(|transaction_record| TransactionRecord::from(transaction_record.clone()))
-            .collect();
-
-        let response = GetFullMempoolResponse {
-            transaction_records,
-        };
-
-        return Ok(Response::new(response));
-    }
-}
-
-//////////////////////////////////////////////////////
 
 pub type RpcTransactionDigest = String;
 
@@ -161,5 +78,52 @@ impl From<RpcTransactionRecord> for TransactionRecord {
             validators: rpc_transaction_record.validators,
             nonce,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct Node {
+    pub node_type: NodeType,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub mempool_read_handle_factory: MempoolReadHandleFactory,
+    // pub events_tx: EventPublisher,
+}
+
+impl Node {
+    pub fn init(self) -> NodeServiceServer<Node> {
+        let node_service = NodeServiceServer::new(self);
+        return node_service;
+    }
+}
+
+#[tonic::async_trait]
+impl NodeService for Node {
+    async fn get_node_type(
+        &self,
+        request: Request<GetNodeTypeRequest>,
+    ) -> Result<Response<GetNodeTypeResponse>, Status> {
+        let response = GetNodeTypeResponse {
+            id: (self.node_type as i32).to_string(),
+            result: self.node_type.to_string(),
+        };
+        Ok(Response::new(response))
+    }
+
+    async fn get_full_mempool(
+        &self,
+        request: Request<GetFullMempoolRequest>,
+    ) -> Result<Response<GetFullMempoolResponse>, Status> {
+        let transaction_records = self
+            .mempool_read_handle_factory
+            .values()
+            .iter()
+            .map(|txn| TransactionRecord::from(RpcTransactionRecord::from(txn.clone())))
+            .collect();
+
+        let response = GetFullMempoolResponse {
+            transaction_records,
+        };
+
+        return Ok(Response::new(response));
     }
 }
