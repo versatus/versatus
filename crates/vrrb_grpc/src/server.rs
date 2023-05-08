@@ -1,11 +1,12 @@
 include!("gen/mod.rs");
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use events::{EventPublisher, DEFAULT_BUFFER};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use tokio::sync::mpsc::channel;
 use tonic::{transport::Server, Request, Response, Status};
 use tonic_reflection;
 
@@ -49,5 +50,36 @@ impl GRPCServer {
             .map_err(|e| anyhow::Error::msg("Could not start gRPC server"))?;
 
         Ok(addr)
+    }
+}
+
+// I feel like this needs discussion, defulat db_path here would be different
+// then the actual?
+impl Default for GRPCServerConfig {
+    fn default() -> GRPCServerConfig {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 50051);
+        let mut vrrbdb_config = VrrbDbConfig::default();
+
+        let temp_dir_path = std::env::temp_dir();
+        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+
+        vrrbdb_config.path = db_path;
+
+        let vrrbdb = VrrbDb::new(vrrbdb_config);
+        let vrrbdb_read_handle = vrrbdb.read_handle();
+
+        let mempool = LeftRightMempool::default();
+        let mempool_read_handle_factory = mempool.factory();
+
+        let node_type = NodeType::RPCNode;
+        let (events_tx, _) = channel(DEFAULT_BUFFER);
+
+        GRPCServerConfig {
+            address,
+            vrrbdb_read_handle,
+            mempool_read_handle_factory,
+            node_type,
+            events_tx,
+        }
     }
 }

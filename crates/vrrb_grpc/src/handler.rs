@@ -94,7 +94,7 @@ impl From<CreateTransactionRequest> for NewTxnArgs {
         let request_token = create_transaction_request
             .token
             .expect("Token to be provided");
-        let token = Token {
+        let token: Token = Token {
             name: request_token.name,
             symbol: request_token.symbol,
             decimals: request_token.decimals as u8,
@@ -165,6 +165,7 @@ impl NodeService for Node {
         request: Request<CreateTransactionRequest>,
     ) -> Result<Response<TransactionRecord>, Status> {
         let transaction_request = request.into_inner();
+
         if PublicKey::from_str(&transaction_request.sender_public_key).is_err() {
             return Err(Status::internal(format!("Cannot parse sender_public_key")));
         }
