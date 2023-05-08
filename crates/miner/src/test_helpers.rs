@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
@@ -41,7 +39,7 @@ pub fn create_miner() -> Miner {
         secret_key,
         public_key,
         ip_address,
-        dag,
+        dag: dag.clone(),
     };
     Miner::new(config).unwrap()
 }
@@ -55,7 +53,7 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
         secret_key,
         ip_address,
         public_key,
-        dag,
+        dag: dag.clone(),
     };
     Miner::new(config).unwrap()
 }
@@ -67,7 +65,7 @@ pub fn create_miner_from_keypair_return_dag(kp: &Keypair) -> (Miner, MinerDag) {
 
 pub fn create_miner_from_keypair_and_dag(kp: &Keypair, dag: MinerDag) -> Miner {
     let mut miner = create_miner_from_keypair(kp);
-    miner.dag = dag;
+    miner.dag = dag.clone();
     miner
 }
 
@@ -359,7 +357,7 @@ pub fn build_multiple_proposal_blocks_single_round(
 ///             as the last_block_hash and the updated round as the
 ///             round, as well as all the other data.
 pub fn build_multiple_rounds(
-    dag: &mut MinerDag,
+    dag: MinerDag,
     n_blocks: usize,
     n_txns: usize,
     n_claims: usize,
@@ -368,8 +366,8 @@ pub fn build_multiple_rounds(
     epoch: usize,
 ) {
     if n_rounds > round.clone() {
-        if dag_has_genesis(&mut dag.clone()) {
-            if let Some(hash) = mine_next_convergence_block(&mut dag.clone()) {
+        if dag_has_genesis(dag.clone()) {
+            if let Some(hash) = mine_next_convergence_block(dag.clone()) {
                 *round += 1usize;
                 let proposals = build_multiple_proposal_blocks_single_round(
                     n_blocks,
@@ -380,9 +378,9 @@ pub fn build_multiple_rounds(
                     epoch as u128,
                 );
 
-                append_proposal_blocks_to_dag(&mut dag.clone(), proposals);
+                append_proposal_blocks_to_dag(dag.clone(), proposals);
                 build_multiple_rounds(
-                    &mut dag.clone(),
+                    dag.clone(),
                     n_blocks,
                     n_txns,
                     n_claims,
@@ -392,10 +390,10 @@ pub fn build_multiple_rounds(
                 );
             };
         } else {
-            if let Some(hash) = add_genesis_to_dag(&mut dag.clone()) {
+            if let Some(hash) = add_genesis_to_dag(dag.clone()) {
                 *round += 1usize;
                 build_multiple_rounds(
-                    &mut dag.clone(),
+                    dag.clone(),
                     n_blocks,
                     n_txns,
                     n_claims,
@@ -410,13 +408,13 @@ pub fn build_multiple_rounds(
 
 /// Checks whether the DAG already has a root vertex
 /// returns true if so, false if not
-pub fn dag_has_genesis(dag: &mut MinerDag) -> bool {
-    dag.read().unwrap().len() > 0
+pub fn dag_has_genesis(dag: MinerDag) -> bool {
+    dag.clone().read().unwrap().len() > 0
 }
 
 /// build and adds a `GenesisBlock` to the `MinerDag`
 /// returns the `Some(hash)` if successful otherwise returns None
-pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
+pub fn add_genesis_to_dag(dag: MinerDag) -> Option<String> {
     let mut prop_vertices = Vec::new();
     let genesis = mine_genesis();
     let keypair = Keypair::random();
@@ -441,7 +439,7 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
         };
         let pvtx: Vertex<Block, String> = pblock.into();
         prop_vertices.push(pvtx.clone());
-        if let Ok(mut guard) = dag.write() {
+        if let Ok(mut guard) = dag.clone().write() {
             let edge = (&gvtx, &pvtx);
             guard.add_edge(edge);
             return Some(genesis.get_hash().clone());
@@ -452,11 +450,11 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
 
 /// Mines the next `ConvergenceBlock` in the `MinerDag`
 /// Returns `Some(hash)` if successful otherwise returns `None`
-pub fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> {
+pub fn mine_next_convergence_block(dag: MinerDag) -> Option<String> {
     let keypair = Keypair::random();
     let mut miner = create_miner_from_keypair(&keypair);
     miner.dag = dag.clone();
-    let last_block = get_genesis_block_from_dag(dag);
+    let last_block = get_genesis_block_from_dag(dag.clone());
 
     if let Some(block) = last_block {
         miner.last_block = Some(Arc::new(block));
@@ -466,7 +464,7 @@ pub fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> {
         if let Block::Convergence { ref block } = cblock.clone() {
             let cvtx: Vertex<Block, String> = cblock.into();
             let mut edges: Vec<(Vertex<Block, String>, Vertex<Block, String>)> = vec![];
-            if let Ok(guard) = dag.read() {
+            if let Ok(guard) = dag.clone().read() {
                 block.clone().get_ref_hashes().iter().for_each(|t| {
                     if let Some(pvtx) = guard.get_vertex(t.clone()) {
                         edges.push((pvtx.clone(), cvtx.clone()));
@@ -474,7 +472,7 @@ pub fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> {
                 });
             }
 
-            if let Ok(mut guard) = dag.write() {
+            if let Ok(mut guard) = dag.clone().write() {
                 let edges = edges
                     .iter()
                     .map(|(source, reference)| (source, reference))
@@ -489,11 +487,11 @@ pub fn mine_next_convergence_block(dag: &mut MinerDag) -> Option<String> {
 }
 
 /// Appends `ProposalBlock`s to the `MinerDag`
-pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<ProposalBlock>) {
+pub fn append_proposal_blocks_to_dag(dag: MinerDag, proposals: Vec<ProposalBlock>) {
     let mut edges: Vec<(Vertex<Block, String>, Vertex<Block, String>)> = vec![];
     for block in proposals.iter() {
         let ref_hash = block.ref_block.clone();
-        if let Ok(guard) = dag.read() {
+        if let Ok(guard) = dag.clone().read() {
             if let Some(cvtx) = guard.get_vertex(ref_hash) {
                 let pblock = Block::Proposal {
                     block: block.clone(),
@@ -510,7 +508,7 @@ pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<Proposal
         .map(|(source, reference)| (source, reference))
         .collect();
 
-    if let Ok(mut guard) = dag.write() {
+    if let Ok(mut guard) = dag.clone().write() {
         guard.extend_from_edges(edges);
     }
 }
@@ -556,9 +554,9 @@ pub fn build_single_proposal_block_from_txns(
     prop
 }
 
-pub fn get_genesis_block_from_dag(dag: &mut MinerDag) -> Option<GenesisBlock> {
+pub fn get_genesis_block_from_dag(dag: MinerDag) -> Option<GenesisBlock> {
     let last_block = {
-        if let Ok(guard) = dag.read() {
+        if let Ok(guard) = dag.clone().read() {
             let root = guard.get_roots();
             let mut root_iter = root.iter();
             if let Some(idx) = root_iter.next() {
@@ -586,7 +584,7 @@ pub fn get_genesis_block_from_dag(dag: &mut MinerDag) -> Option<GenesisBlock> {
 }
 
 pub fn add_orphaned_block_to_dag(
-    dag: &mut MinerDag,
+    dag: MinerDag,
     last_block_hash: String,
     txns: impl IntoIterator<Item = (TransactionDigest, Txn)>,
     round: u128,
@@ -595,15 +593,17 @@ pub fn add_orphaned_block_to_dag(
     let proposal =
         build_single_proposal_block_from_txns(last_block_hash.clone(), txns, round, epoch);
 
-    let guard = dag.read().unwrap();
-    let vtx_opt = guard.get_vertex(last_block_hash);
-    if let Some(vtx) = vtx_opt.clone() {
-        let mut guard = dag.write().unwrap();
-        let pblock = Block::Proposal {
-            block: proposal.clone(),
-        };
-        let pvtx = pblock.into();
-        let edge = (vtx, &pvtx);
-        guard.add_edge(edge);
+    if let Ok(guard) = dag.clone().read() {
+        let vtx_opt = guard.get_vertex(last_block_hash);
+        if let Some(vtx) = vtx_opt.clone() {
+            if let Ok(mut wguard) = dag.clone().write() {
+                let pblock = Block::Proposal {
+                    block: proposal.clone(),
+                };
+                let pvtx = pblock.into();
+                let edge = (vtx, &pvtx);
+                wguard.add_edge(edge);
+            }
+        }
     }
 }
