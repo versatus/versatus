@@ -85,7 +85,6 @@ impl From<RpcTransactionRecord> for TransactionRecord {
     }
 }
 
-// TODO: sort out pub key and signature before From request due to err handling
 impl From<CreateTransactionRequest> for NewTxnArgs {
     fn from(create_transaction_request: CreateTransactionRequest) -> Self {
         let pub_key = PublicKey::from_str(&create_transaction_request.sender_public_key).unwrap();
@@ -165,9 +164,15 @@ impl NodeService for Node {
         &self,
         request: Request<CreateTransactionRequest>,
     ) -> Result<Response<TransactionRecord>, Status> {
-        // need to figure out field validation
+        let transaction_request = request.into_inner();
+        if PublicKey::from_str(&transaction_request.sender_public_key).is_err() {
+            return Err(Status::internal(format!("Cannot parse sender_public_key")));
+        }
+        if Signature::from_str(&transaction_request.signature).is_err() {
+            return Err(Status::internal(format!("Cannot parse signature")));
+        }
 
-        let new_txn_args = NewTxnArgs::from(request.into_inner());
+        let new_txn_args = NewTxnArgs::from(transaction_request);
         let txn = Txn::new(new_txn_args);
         let event = Event::NewTxnCreated(txn.clone());
 
