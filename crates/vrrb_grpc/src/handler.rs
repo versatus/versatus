@@ -5,12 +5,17 @@ use helloworld::v1::{
     SayHelloRequest,
     SayHelloResponse,
 };
+use mempool::MempoolReadHandleFactory;
 use node::v1::{
     node_service_server::{NodeService, NodeServiceServer},
     NodeTypeRequest,
     NodeTypeResponse,
 };
+use primitives::NodeType;
+use storage::vrrbdb::VrrbDbReadHandle;
 use tonic::{transport::Server, Request, Response, Status};
+
+use crate::server::GRPCServerConfig;
 
 #[derive(Debug, Default)]
 pub struct MyHelloWorld {}
@@ -36,13 +41,17 @@ impl HelloWorldService for MyHelloWorld {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct Node {}
+#[derive(Debug)]
+pub struct Node {
+    pub node_type: NodeType,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub mempool_read_handle_factory: MempoolReadHandleFactory,
+    // pub events_tx: EventPublisher,
+}
 
 impl Node {
-    pub fn init() -> NodeServiceServer<Node> {
-        let node_handler = Node::default();
-        let node_service = NodeServiceServer::new(node_handler);
+    pub fn init(self) -> NodeServiceServer<Node> {
+        let node_service = NodeServiceServer::new(self);
         return node_service;
     }
 }
@@ -54,8 +63,8 @@ impl NodeService for Node {
         request: Request<NodeTypeRequest>,
     ) -> Result<Response<NodeTypeResponse>, Status> {
         let response = NodeTypeResponse {
-            id: "1".to_string(),
-            result: "full".to_string(),
+            id: (self.node_type as i32).to_string(),
+            result: self.node_type.to_string(),
         };
         Ok(Response::new(response))
     }
