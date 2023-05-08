@@ -6,21 +6,70 @@
 import { proto3 } from "@bufbuild/protobuf";
 
 /**
- * @generated from message node.v1.NodeTypeRequest
+ * @generated from message node.v1.GetNodeTypeRequest
  */
-export const NodeTypeRequest = proto3.makeMessageType(
-  "node.v1.NodeTypeRequest",
+export const GetNodeTypeRequest = proto3.makeMessageType(
+  "node.v1.GetNodeTypeRequest",
   [],
 );
 
 /**
- * @generated from message node.v1.NodeTypeResponse
+ * @generated from message node.v1.GetNodeTypeResponse
  */
-export const NodeTypeResponse = proto3.makeMessageType(
-  "node.v1.NodeTypeResponse",
+export const GetNodeTypeResponse = proto3.makeMessageType(
+  "node.v1.GetNodeTypeResponse",
   () => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "result", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ],
+);
+
+/**
+ * @generated from message node.v1.GetFullMempoolRequest
+ */
+export const GetFullMempoolRequest = proto3.makeMessageType(
+  "node.v1.GetFullMempoolRequest",
+  [],
+);
+
+/**
+ * @generated from message node.v1.GetFullMempoolResponse
+ */
+export const GetFullMempoolResponse = proto3.makeMessageType(
+  "node.v1.GetFullMempoolResponse",
+  () => [
+    { no: 1, name: "transaction_records", kind: "message", T: TransactionRecord, repeated: true },
+  ],
+);
+
+/**
+ * @generated from message node.v1.TransactionRecord
+ */
+export const TransactionRecord = proto3.makeMessageType(
+  "node.v1.TransactionRecord",
+  () => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "timestamp", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "sender_address", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "sender_public_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "receiver_address", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "token", kind: "message", T: Token },
+    { no: 7, name: "amount", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 8, name: "signature", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "validators", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 8 /* ScalarType.BOOL */} },
+    { no: 10, name: "nonce", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ],
+);
+
+/**
+ * @generated from message node.v1.Token
+ */
+export const Token = proto3.makeMessageType(
+  "node.v1.Token",
+  () => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "symbol", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "decimals", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ],
 );
 

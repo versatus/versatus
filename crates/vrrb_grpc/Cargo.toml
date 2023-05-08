@@ -28,3 +28,4 @@ storage = { workspace = true }
 primitives = { workspace = true }
 events = { workspace = true }
 tonic-reflection = { workspace = true }
+vrrb_core = { workspace = true }

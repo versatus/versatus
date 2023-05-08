@@ -73,8 +73,8 @@ pub mod node_service_client {
 
         pub async fn get_node_type(
             &mut self,
-            request: impl tonic::IntoRequest<super::NodeTypeRequest>,
-        ) -> Result<tonic::Response<super::NodeTypeResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::GetNodeTypeRequest>,
+        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -83,6 +83,21 @@ pub mod node_service_client {
             })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/node.v1.NodeService/GetNodeType");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+
+        pub async fn get_full_mempool(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetFullMempoolRequest>,
+        ) -> Result<tonic::Response<super::GetFullMempoolResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/node.v1.NodeService/GetFullMempool");
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
@@ -97,8 +112,12 @@ pub mod node_service_server {
     pub trait NodeService: Send + Sync + 'static {
         async fn get_node_type(
             &self,
-            request: tonic::Request<super::NodeTypeRequest>,
-        ) -> Result<tonic::Response<super::NodeTypeResponse>, tonic::Status>;
+            request: tonic::Request<super::GetNodeTypeRequest>,
+        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status>;
+        async fn get_full_mempool(
+            &self,
+            request: tonic::Request<super::GetFullMempoolRequest>,
+        ) -> Result<tonic::Response<super::GetFullMempoolResponse>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct NodeServiceServer<T: NodeService> {
@@ -163,13 +182,13 @@ pub mod node_service_server {
                 "/node.v1.NodeService/GetNodeType" => {
                     #[allow(non_camel_case_types)]
                     struct GetNodeTypeSvc<T: NodeService>(pub Arc<T>);
-                    impl<T: NodeService> tonic::server::UnaryService<super::NodeTypeRequest> for GetNodeTypeSvc<T> {
+                    impl<T: NodeService> tonic::server::UnaryService<super::GetNodeTypeRequest> for GetNodeTypeSvc<T> {
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        type Response = super::NodeTypeResponse;
+                        type Response = super::GetNodeTypeResponse;
 
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::NodeTypeRequest>,
+                            request: tonic::Request<super::GetNodeTypeRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move { (*inner).get_node_type(request).await };
@@ -182,6 +201,40 @@ pub mod node_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetNodeTypeSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node.v1.NodeService/GetFullMempool" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetFullMempoolSvc<T: NodeService>(pub Arc<T>);
+                    impl<T: NodeService> tonic::server::UnaryService<super::GetFullMempoolRequest>
+                        for GetFullMempoolSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::GetFullMempoolResponse;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetFullMempoolRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_full_mempool(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetFullMempoolSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
                             accept_compression_encodings,
