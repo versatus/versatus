@@ -1,15 +1,11 @@
 'use client'
-// implement a component that will make a rpc request using axios and display the response
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 
-import { JsonViewer, NamedColorspace } from '@textea/json-viewer'
-import ButtonRow from '@/app/components/ButtonRow'
-import { FAKE_TRANSACTION } from '@/app/components/TransactionBuilder'
-import { FAKE_SIGNATURE } from '@/app/components/SignatureBuilder'
-
-const ADDRESS =
-  '0338ab6782681b73e6dd62978207e9ea4a4ad45e2a45dbcb20db579528f8d43120'
+import { JsonViewer } from '@textea/json-viewer'
+import ButtonRow from '@/components/ButtonRow'
+import { FAKE_TRANSACTION } from '@/components/TransactionBuilder'
+import { FAKE_SIGNATURE } from '@/components/SignatureBuilder'
 
 const Playground = () => {
   const [tx, setTx] = useState<any>(FAKE_TRANSACTION)
@@ -21,7 +17,6 @@ const Playground = () => {
   const [account, setAccount] = useState<any>(null)
   const [address, setAddress] = useState<string>('')
   const [signature, setSignature] = useState<any>(null)
-
   const [senderAddress, setSenderAddress] = useState<string>(tx.sender_address)
   const [senderPublicKey, setSenderPublicKey] = useState<string>(
     tx.sender_public_key
@@ -30,15 +25,11 @@ const Playground = () => {
     tx.receiver_address
   )
   const [amount, setAmount] = useState<number>(tx.amount)
-  const [token, setToken] = useState<string>('VRRB')
+  // const [token, setToken] = useState<string>('VRRB')
   const [nonce, setNonce] = useState<number>(tx.nonce)
 
-  // useEffect(() => {
-  //   setAddress(Object.keys(fullState ?? {})[0])
-  // }, [])
 
   useEffect(() => {
-    console.log('ADDRESS', address)
     if (!address) return
     makeRPCCall('getAccount', [address])
   }, [address])

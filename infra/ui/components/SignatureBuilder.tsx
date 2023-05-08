@@ -1,6 +1,6 @@
 // react component that builds out a Signature
 import { useState } from 'react'
-import TransactionBuilder from '@/app/components/TransactionBuilder'
+import TransactionBuilder from '@/components/TransactionBuilder'
 
 export const FAKE_SIGNATURE = {
   timestamp: 1678756128,

@@ -18,13 +18,15 @@ export default function RootLayout({
       <body>
         <main className={` min-h-screen ${inter.className}`}>
           <nav className="bg-white border-gray-200 dark:bg-gray-900">
-            <div className=" flex flex-wrap items-center justify-between mx-auto p-2">
+            <div className=" flex flex-row flex-wrap items-center justify-between mx-auto p-2">
               <span className="self-center font-semibold whitespace-nowrap dark:text-white">
                 <h6 className="text-3xl font-bold color-gradient">
                   VRRB Playground 🛝
                 </h6>
               </span>
+              <div>test</div>
             </div>
+
           </nav>
           <div>
             <h6 className="text-3xl font-bold ">{children}</h6>

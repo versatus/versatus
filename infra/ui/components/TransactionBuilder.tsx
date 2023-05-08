@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FAKE_SIGNATURE } from '@/app/components/SignatureBuilder'
+import { FAKE_SIGNATURE } from '@/components/SignatureBuilder'
 
 export const FAKE_TRANSACTION = {
   timestamp: Date.now(),

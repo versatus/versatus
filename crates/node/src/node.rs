@@ -64,51 +64,53 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
-        info!("Configuring Node {}", &config.id);
-        info!("Ensuring environment has required dependencies");
-        match Command::new("npm")
-            .args(&["version"])
-            .output() {
-            Ok(_) => println!("Node is installed"),
-            Err(e) => {
-                return Err(
-                    NodeError::Other(format!("Node is not installed: {}", e)).into(),
-                );
-            },
-        }
-        info!("Ensuring yarn install");
-        match Command::new("yarn")
-            .args(&["--version"])
-            .output() {
-            Ok(_) => println!("Yarn is installed"),
-            Err(e) => {
-                Command::new("npm")
-                    .args(&["install -g yarn"])
-                    .current_dir("infra/ui")
-                    .output()
-                    .expect("failed to execute process");
-            },
-        }
-        info!("Installing dependencies");
-        match Command::new("yarn")
-            .args(&["install"])
-            .current_dir("infra/ui")
-            .output() {
-            Ok(_) => println!("Dependencies installed"),
-            Err(e) => {
-                return Err(
-                    NodeError::Other(format!("Node is not installed: {}", e)).into(),
-                );
-            },
-        }
+        if config.enable_ui == true {
+            info!("Configuring Node {}", &config.id);
+            info!("Ensuring environment has required dependencies");
+            match Command::new("npm")
+                .args(&["version"])
+                .output() {
+                Ok(_) => info!("Node is installed"),
+                Err(e) => {
+                    return Err(
+                        NodeError::Other(format!("Node is not installed: {}", e)).into(),
+                    );
+                },
+            }
+            info!("Ensuring yarn install");
+            match Command::new("yarn")
+                .args(&["--version"])
+                .output() {
+                Ok(_) => info!("Yarn is installed"),
+                Err(e) => {
+                    Command::new("npm")
+                        .args(&["install -g yarn"])
+                        .current_dir("infra/ui")
+                        .output()
+                        .expect("failed to execute process");
+                },
+            }
+            info!("Installing dependencies");
+            match Command::new("yarn")
+                .args(&["install"])
+                .current_dir("infra/ui")
+                .output() {
+                Ok(_) => info!("Dependencies installed"),
+                Err(e) => {
+                    return Err(
+                        NodeError::Other(format!("Node is not installed: {}", e)).into(),
+                    );
+                },
+            }
 
-        info!("Spawning ui");
-        Command::new("yarn")
-            .args(&["dev"])
-            .current_dir("infra/ui")
-            .spawn()
-            .expect("failed to execute process");
-        info!("Finished spawning");
+            info!("Spawning ui");
+            Command::new("yarn")
+                .args(&["dev"])
+                .current_dir("infra/ui")
+                .spawn()
+                .expect("failed to execute process");
+            info!("Finished spawning");
+        }
 
         let vm = None;
         let keypair = config.keypair.clone();
