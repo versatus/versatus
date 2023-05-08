@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 
+use block::ConvergenceBlock;
 use crossbeam_channel::Receiver;
 use events::{Event, EventPublisher, JobResult, Vote};
+use hbbft::crypto::SignatureShare;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
 use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx};
@@ -75,6 +77,7 @@ pub enum Job {
             FarmerQuorumThreshold,
         ),
     ),
+    SignConvergenceBlock(SignatureProvider, ConvergenceBlock),
 }
 
 impl JobSchedulerController {
@@ -225,6 +228,31 @@ impl JobSchedulerController {
                             }
                         } else {
                             error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
+                        }
+                    },
+                    /// Job `SignConvergenceBlock` signs the  block hash and
+                    /// generates a partial signature for the block
+                    Job::SignConvergenceBlock(sig_provider, block) => {
+                        if let Ok(block_hash_bytes) = hex::decode(block.hash.clone()) {
+                            if let Ok(signature) =
+                                sig_provider.generate_partial_signature(block_hash_bytes)
+                            {
+                                if let Ok(dkg_state) = sig_provider.dkg_state.read() {
+                                    if let Some(secret_share) = &dkg_state.secret_key_share {
+                                        let _ = self.events_tx.send(
+                                            Event::ConvergenceBlockPartialSign(
+                                                JobResult::ConvergenceBlockPartialSign(
+                                                    block.hash,
+                                                    secret_share.public_key_share(),
+                                                    signature,
+                                                )
+                                                .into(),
+                                            )
+                                            .into(),
+                                        );
+                                    }
+                                }
+                            }
                         }
                     },
                 },

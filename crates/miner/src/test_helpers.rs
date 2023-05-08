@@ -23,11 +23,11 @@ use sha2::Digest;
 use vrrb_core::{
     claim::Claim,
     helpers::size_of_txn_list,
-    keypair::Keypair,
+    keypair::{Keypair, MinerSk},
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::{result::MinerError, Miner, MinerConfig};
+use crate::{result::MinerError, Miner, MinerConfig, MinerStatus};
 
 /// Move this into primitives and call it simply `BlockDag`
 pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
@@ -246,7 +246,7 @@ pub(crate) fn build_single_proposal_block(
     round: u128,
     epoch: u128,
     from: Claim,
-    sk: SecretKeyShare,
+    sk: &MinerSk,
 ) -> ProposalBlock {
     let txns = create_txns(n_txns).collect();
     let claims = create_claims(n_claims).collect();
@@ -284,7 +284,7 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
                 round,
                 epoch,
                 claim,
-                SecretKeyShare::default(),
+                keypair.get_miner_secret_key(),
             );
             prop
         })
@@ -408,7 +408,7 @@ pub(crate) fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
             LinkedHashMap::new(),
             LinkedHashMap::new(),
             miner.claim.clone(),
-            SecretKeyShare::default(),
+            keypair.get_miner_secret_key(),
         );
         let pblock = Block::Proposal {
             block: prop1.clone(),
@@ -522,7 +522,7 @@ pub(crate) fn build_single_proposal_block_from_txns(
         round,
         epoch,
         miner.claim,
-        SecretKeyShare::default(),
+        kp.get_miner_secret_key(),
     );
 
     prop.txns.extend(txns);

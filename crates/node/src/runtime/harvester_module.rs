@@ -1,15 +1,39 @@
+use std::{
+    collections::{BTreeMap, HashSet},
+    sync::{Arc, RwLock},
+};
+
 use async_trait::async_trait;
-use block::{Block, ClaimList, ProposalBlock, QuorumCertifiedTxnList, RefHash, TxnList};
+use block::{
+    Block,
+    BlockHash,
+    Certificate,
+    ClaimList,
+    ProposalBlock,
+    QuorumCertifiedTxnList,
+    RefHash,
+    TxnList,
+};
+use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
 use dashmap::DashMap;
 use events::{Event, EventMessage, EventPublisher, JobResult, Vote};
-use primitives::{Epoch, GroupPublicKey, HarvesterQuorumThreshold, QuorumThreshold};
+use hbbft::crypto::{PublicKeyShare, SignatureShare};
+use primitives::{
+    Epoch,
+    GroupPublicKey,
+    HarvesterQuorumThreshold,
+    NodeIdx,
+    PublicKeyShareVec,
+    QuorumThreshold,
+    RawSignature,
+};
 use ritelinked::LinkedHashMap;
 use secp256k1::{
     hashes::{sha256 as s256, Hash},
     Message,
 };
-use signer::signer::SignatureProvider;
+use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
@@ -17,6 +41,7 @@ use tracing::error;
 use utils::{create_payload, hash_data};
 use vrrb_core::{
     bloom::Bloom,
+    cache::Cache,
     claim::Claim,
     keypair::KeyPair,
     txn::{QuorumCertifiedTxn, TransactionDigest, VoteReceipt},
@@ -31,6 +56,15 @@ use crate::{farmer_module::PULL_TXN_BATCH_SIZE, scheduler::Job};
 /// of the bloom filter is set to 500000, which means that it can store up to
 /// 500000 elements with a low probability of false positives.
 pub const CERTIFIED_TXNS_FILTER_SIZE: usize = 500000;
+
+///  `BLOCK_CERTIFICATES_CACHE_TTL` with a value of `1800000` represents 30
+/// mins,i.e caching certificates for a certain period of time(30mins).
+pub const BLOCK_CERTIFICATES_CACHE_TTL: u64 = 1800000;
+
+/// Cache Limit for caching last  `BLOCK_CERTIFICATES_CACHE_LIMIT` limit of
+/// convergence blocks
+pub const BLOCK_CERTIFICATES_CACHE_LIMIT: usize = 5;
+
 
 /// The HarvesterModule struct contains various fields related to transaction
 /// certification and mining proposal blocks,
@@ -58,6 +92,12 @@ pub const CERTIFIED_TXNS_FILTER_SIZE: usize = 500000;
 ///    a VRRB  database.
 /// This database is used to store and retrieve data related
 ///  to the blockchain, such as transactions and blocks.
+/// * `convergence_block_certificates`: `convergence_block_certificates` is a
+///   cache that stores the
+/// convergence certificates for blocks. It maps a block hash to a tuple
+/// containing the node index, public key share, and raw signature of the
+/// certificate. This cache is used to quickly retrieve convergence certificates
+/// during block validation and processing.
 /// * `status`: The status property is an instance of the ActorState enum, which
 ///   represents the current
 /// state of the HarvesterModule actor. The possible states are defined within
@@ -87,6 +127,7 @@ pub const CERTIFIED_TXNS_FILTER_SIZE: usize = 500000;
 ///   executed by the Scheduler.
 /// * `async_jobs_sender`: A Sender object used to send asynchronous jobs to be
 ///   executed by the Scheduler.
+
 pub struct HarvesterModule {
     pub quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub certified_txns_filter: Bloom,
@@ -94,6 +135,10 @@ pub struct HarvesterModule {
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub convergence_block_certificates:
+        Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
+    pub harvester_id: NodeIdx,
+    pub dag: Arc<RwLock<BullDag<Block, String>>>,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -113,10 +158,12 @@ impl HarvesterModule {
         events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
         broadcast_events_tx: EventPublisher,
         quorum_threshold: HarvesterQuorumThreshold,
+        dag: Arc<RwLock<BullDag<Block, String>>>,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
         vrrbdb_read_handle: VrrbDbReadHandle,
         keypair: KeyPair,
+        harvester_id: NodeIdx,
     ) -> Self {
         let quorum_certified_txns = Vec::new();
         let harvester = Self {
@@ -124,6 +171,10 @@ impl HarvesterModule {
             certified_txns_filter,
             sig_provider,
             vrrbdb_read_handle,
+            convergence_block_certificates: Cache::new(
+                BLOCK_CERTIFICATES_CACHE_LIMIT,
+                BLOCK_CERTIFICATES_CACHE_TTL,
+            ),
             status: ActorState::Stopped,
             label: String::from("FarmerHarvester"),
             id: uuid::Uuid::new_v4().to_string(),
@@ -132,15 +183,51 @@ impl HarvesterModule {
             events_rx,
             quorum_threshold,
             votes_pool: DashMap::new(),
+            dag,
             sync_jobs_sender,
             async_jobs_sender,
             keypair,
+            harvester_id,
         };
         harvester
     }
 
     pub fn name(&self) -> String {
         String::from("FarmerHarvester module")
+    }
+
+    /// Generate Certificate for convergence block and then broadcast it to the
+    /// network
+    fn generate_and_broadcast_certificate(
+        &self,
+        block_hash: BlockHash,
+        certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
+        sig_provider: &SignatureProvider,
+    ) {
+        if certificates_share.len() >= self.quorum_threshold {
+            //Generate a new certificate for the block
+            let mut sig_shares = BTreeMap::new();
+            certificates_share
+                .iter()
+                .for_each(|(node_idx, public_key_share, signature)| {
+                    sig_shares.insert(node_idx.clone(), signature.clone());
+                });
+            if let Ok(certificate) = sig_provider
+                .generate_quorum_signature(self.quorum_threshold.clone() as u16, sig_shares)
+            {
+                let certificate = Certificate {
+                    signature: hex::encode(certificate),
+                    inauguration: None,
+                    root_hash: "".to_string(),
+                    next_root_hash: "".to_string(),
+                    block_hash,
+                };
+                let _ = self.broadcast_events_tx.send(EventMessage::new(
+                    None,
+                    Event::SendBlockCertificate(certificate),
+                ));
+            }
+        }
     }
 }
 
@@ -277,6 +364,207 @@ impl Handler<EventMessage> for HarvesterModule {
                     }),
                 ));
             },
+            /// it sends a job to sign the convergence block using the signature
+            /// provider
+            Event::SignConvergenceBlock(block) => {
+                if let Some(sig_provider) = self.sig_provider.clone() {
+                    let _ = self
+                        .sync_jobs_sender
+                        .send(Job::SignConvergenceBlock(sig_provider, block));
+                }
+            },
+
+            /// Process the job result of signing convergence block and adds the
+            /// partial signature to the cache for certificate generation
+            Event::ConvergenceBlockPartialSign(job_result) => {
+                if let JobResult::ConvergenceBlockPartialSign(
+                    block_hash,
+                    public_key_share,
+                    partial_signature,
+                ) = job_result
+                {
+                    if let Some(certificates_share) =
+                        self.convergence_block_certificates.get(&block_hash)
+                    {
+                        let mut new_certificate_share = certificates_share.clone();
+                        if let Ok(block_hash_bytes) = hex::decode(block_hash.clone()) {
+                            if let Ok(signature) =
+                                TryInto::<[u8; 96]>::try_into(partial_signature.clone())
+                            {
+                                if let Ok(signature_share) = SignatureShare::from_bytes(&signature)
+                                {
+                                    if public_key_share.verify(&signature_share, block_hash_bytes) {
+                                        new_certificate_share.insert((
+                                            self.harvester_id.clone(),
+                                            public_key_share,
+                                            partial_signature.clone(),
+                                        ));
+                                        self.convergence_block_certificates.push(
+                                            block_hash.clone(),
+                                            new_certificate_share.clone(),
+                                        );
+                                        if let Some(sig_provider) = self.sig_provider.as_ref() {
+                                            if new_certificate_share.len()
+                                                <= sig_provider.quorum_config.upper_bound as usize
+                                            {
+                                                self.broadcast_events_tx.send(EventMessage::new(
+                                                    None,
+                                                    Event::SendPeerConvergenceBlockSign(
+                                                        self.harvester_id.clone(),
+                                                        block_hash.clone(),
+                                                        public_key_share.to_bytes().to_vec(),
+                                                        partial_signature,
+                                                    ),
+                                                ));
+
+                                                self.generate_and_broadcast_certificate(
+                                                    block_hash,
+                                                    &new_certificate_share,
+                                                    sig_provider,
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            Event::PeerConvergenceBlockSign(
+                node_idx,
+                block_hash,
+                public_key_share_bytes,
+                partial_signature,
+            ) => {
+                let mut pb_key_share = None;
+                let preliminary_check = TryInto::<[u8; 48]>::try_into(public_key_share_bytes)
+                    .and_then(|public_key_share_bytes| {
+                        PublicKeyShare::from_bytes(public_key_share_bytes).map_err(|e| {
+                            String::from("Invalid Public Key, Expected 48byte array ").into_bytes()
+                        })
+                    })
+                    .and_then(|public_key_share| {
+                        pb_key_share = Some(public_key_share.clone());
+                        TryInto::<[u8; 96]>::try_into(partial_signature.clone())
+                            .and_then(|signature_share_bytes| {
+                                SignatureShare::from_bytes(signature_share_bytes).map_err(|e| {
+                                    String::from("Invalid Signature, Expected 96byte array ")
+                                        .into_bytes()
+                                })
+                            })
+                            .and_then(|signature_share| {
+                                hex::decode(block_hash.clone())
+                                    .map_err(|e| {
+                                        String::from(
+                                            "Invalid Hex Representation of Signature Share ",
+                                        )
+                                        .into_bytes()
+                                    })
+                                    .and_then(|block_hash_bytes| {
+                                        if public_key_share
+                                            .verify(&signature_share, block_hash_bytes)
+                                        {
+                                            Ok(())
+                                        } else {
+                                            Err("signature verification failed"
+                                                .to_string()
+                                                .into_bytes())
+                                        }
+                                    })
+                            })
+                    });
+
+                if preliminary_check.is_ok() {
+                    if let Some(certificates_share) =
+                        self.convergence_block_certificates.get(&block_hash)
+                    {
+                        let mut new_certificate_share = certificates_share.clone();
+                        if let Some(pb_key_share) = pb_key_share {
+                            new_certificate_share.insert((
+                                node_idx,
+                                pb_key_share,
+                                partial_signature.clone(),
+                            ));
+                            self.convergence_block_certificates
+                                .push(block_hash.clone(), new_certificate_share.clone());
+                            if let Some(sig_provider) = self.sig_provider.as_ref() {
+                                self.generate_and_broadcast_certificate(
+                                    block_hash,
+                                    &new_certificate_share,
+                                    sig_provider,
+                                );
+                            }
+                        }
+                    }
+                }
+            },
+            Event::PrecheckConvergenceBlock(block, last_confirmed_block_header) => {
+                let claims = block.claims.clone();
+                let txns = block.txns.clone();
+                let proposal_block_hashes = block.header.ref_hashes.clone();
+                if let Ok(mut dag) = self.dag.read() {
+                    let mut tmp_proposal_blocks = Vec::new();
+
+                    for proposal_block_hash in proposal_block_hashes.iter() {
+                        if let Some(block) = dag.get_vertex(proposal_block_hash.clone()) {
+                            if let Block::Proposal { block } = block.get_data() {
+                                tmp_proposal_blocks.push(block.clone());
+                            }
+                        }
+                    }
+                    let mut pre_check = true;
+                    for (ref_hash, claim_hashset) in claims.iter() {
+                        match dag.get_vertex(ref_hash.clone()) {
+                            Some(block) => {
+                                if let Block::Proposal { mut block } = block.get_data() {
+                                    for claim_hash in claim_hashset.iter() {
+                                        if !block.claims.contains_key(claim_hash) {
+                                            pre_check = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                            },
+                            None => {
+                                pre_check = false;
+                                break;
+                            },
+                        }
+                    }
+                    if pre_check {
+                        for (ref_hash, txn_digest_set) in txns.iter() {
+                            match dag.get_vertex(ref_hash.clone()) {
+                                Some(block) => {
+                                    if let Block::Proposal { mut block } = block.get_data() {
+                                        for txn_digest in txn_digest_set.iter() {
+                                            if !block.txns.contains_key(txn_digest) {
+                                                pre_check = false;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                },
+                                None => {
+                                    pre_check = false;
+                                    break;
+                                },
+                            }
+                        }
+                    }
+                    if pre_check {
+                        let _ = self.broadcast_events_tx.send(EventMessage::new(
+                            None,
+                            Event::CheckConflictResolution((
+                                tmp_proposal_blocks,
+                                last_confirmed_block_header.round,
+                                last_confirmed_block_header.next_block_seed,
+                                block,
+                            )),
+                        ));
+                    }
+                }
+            },
             Event::NoOp => {},
             _ => {
                 error!("Unexpected event,Can only certify Txns and Convergence block,and can mine proposal block");
@@ -297,8 +585,12 @@ impl Handler<EventMessage> for HarvesterModule {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{
+        collections::HashMap,
+        sync::{Arc, RwLock},
+    };
 
+    use bulldag::graph::BullDag;
     use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
@@ -340,10 +632,12 @@ mod tests {
             events_rx,
             broadcast_events_tx,
             2,
+            Arc::new(RwLock::new(BullDag::new())),
             sync_jobs_sender,
             async_jobs_sender,
             vrrbdb_read_handle,
             Keypair::random(),
+            1u16,
         );
         let mut harvester_swarm_module = ActorImpl::new(harvester_swarm_module);
 

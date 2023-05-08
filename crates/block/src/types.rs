@@ -49,6 +49,7 @@ pub struct Certificate {
     pub inauguration: Option<QuorumPubkeys>,
     pub root_hash: String,
     pub next_root_hash: String,
+    pub block_hash: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]

@@ -1,15 +1,28 @@
 use std::net::SocketAddr;
 
-use block::{Block, Conflict, RefHash};
+use block::{
+    header::BlockHeader,
+    Block,
+    BlockHash,
+    Certificate,
+    Conflict,
+    ConvergenceBlock,
+    ProposalBlock,
+    RefHash,
+};
 use ethereum_types::U256;
 use primitives::{
     Address,
     Epoch,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
+    NodeIdx,
+    PublicKeyShareVec,
     QuorumPublicKey,
     QuorumSize,
+    RawSignature,
     Round,
+    Seed,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
@@ -112,11 +125,19 @@ pub enum Event {
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
     ProcessedVotes(JobResult),
+    ConvergenceBlockPartialSign(JobResult),
     FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
     HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
     CertifiedTxn(JobResult),
     AddHarvesterPeer(SocketAddr),
     RemoveHarvesterPeer(SocketAddr),
+    CheckConflictResolution((Vec<ProposalBlock>, Round, Seed, ConvergenceBlock)),
+    SignConvergenceBlock(ConvergenceBlock),
+    PeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
+    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
+    SendBlockCertificate(Certificate),
+    BlockCertificate(Certificate),
+    PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
 }
 
 impl From<&theater::Message> for Event {

@@ -1,5 +1,7 @@
 use std::net::SocketAddr;
 
+use block::BlockHash;
+use hbbft::crypto::{PublicKeyShare, SignatureShare};
 use primitives::{
     ByteVec,
     FarmerId,
@@ -8,6 +10,7 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
+    PublicKeyShareVec,
     RawSignature,
 };
 use serde::{Deserialize, Serialize};
@@ -91,4 +94,13 @@ pub enum JobResult {
         Txn,
         IsTxnValid,
     ),
+    /// `ConvergenceBlockPartialSign(BlockHash,RawSignature)` is a variant of
+    /// the `JobResult` enum that represents the result of a job that
+    /// partially signs a convergence block. It contains the
+    /// following fields:
+    /// - `BlockHash`: the hash of the convergence block being partially signed.
+    /// - `RawSignature`: the partial signature of the harvester who partially
+    ///   signed the convergence
+    /// block.
+    ConvergenceBlockPartialSign(BlockHash, PublicKeyShare, RawSignature),
 }

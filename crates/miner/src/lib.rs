@@ -125,7 +125,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                SecretKeyShare::default(),
+                keypair.get_miner_secret_key(),
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),
@@ -173,7 +173,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                SecretKeyShare::default(),
+                m1kp.get_miner_secret_key(),
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -182,7 +182,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                SecretKeyShare::default(),
+                m2kp.get_miner_secret_key(),
             );
 
             let pblock1 = Block::Proposal {
