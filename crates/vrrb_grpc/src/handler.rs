@@ -5,8 +5,8 @@ use helloworld::v1::{
     SayHelloRequest,
     SayHelloResponse,
 };
-use node_type::v1::{
-    node_type_service_server::{NodeTypeService, NodeTypeServiceServer},
+use node::v1::{
+    node_service_server::{NodeService, NodeServiceServer},
     NodeTypeRequest,
     NodeTypeResponse,
 };
@@ -37,18 +37,18 @@ impl HelloWorldService for MyHelloWorld {
 }
 
 #[derive(Debug, Default)]
-pub struct NodeType {}
+pub struct Node {}
 
-impl NodeType {
-    pub fn init() -> NodeTypeServiceServer<NodeType> {
-        let node_type_handler = NodeType::default();
-        let node_type_service = NodeTypeServiceServer::new(node_type_handler);
-        return node_type_service;
+impl Node {
+    pub fn init() -> NodeServiceServer<Node> {
+        let node_handler = Node::default();
+        let node_service = NodeServiceServer::new(node_handler);
+        return node_service;
     }
 }
 
 #[tonic::async_trait]
-impl NodeTypeService for NodeType {
+impl NodeService for Node {
     async fn get_node_type(
         &self,
         request: Request<NodeTypeRequest>,

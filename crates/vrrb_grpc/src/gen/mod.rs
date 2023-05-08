@@ -7,11 +7,11 @@ pub mod helloworld {
         // @@protoc_insertion_point(helloworld.v1)
     }
 }
-pub mod node_type {
-    #[cfg(feature = "node_type-v1")]
-    // @@protoc_insertion_point(attribute:node_type.v1)
+pub mod node {
+    #[cfg(feature = "node-v1")]
+    // @@protoc_insertion_point(attribute:node.v1)
     pub mod v1 {
-        include!("node_type.v1.rs");
-        // @@protoc_insertion_point(node_type.v1)
+        include!("node.v1.rs");
+        // @@protoc_insertion_point(node.v1)
     }
 }

@@ -1,13 +1,13 @@
 // @generated
 /// Generated client implementations.
-pub mod node_type_service_client {
+pub mod node_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::{http::Uri, *};
     #[derive(Debug, Clone)]
-    pub struct NodeTypeServiceClient<T> {
+    pub struct NodeServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl NodeTypeServiceClient<tonic::transport::Channel> {
+    impl NodeServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -18,7 +18,7 @@ pub mod node_type_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> NodeTypeServiceClient<T>
+    impl<T> NodeServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -38,7 +38,7 @@ pub mod node_type_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> NodeTypeServiceClient<InterceptedService<T, F>>
+        ) -> NodeServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -51,7 +51,7 @@ pub mod node_type_service_client {
             <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
                 Into<StdError> + Send + Sync,
         {
-            NodeTypeServiceClient::new(InterceptedService::new(inner, interceptor))
+            NodeServiceClient::new(InterceptedService::new(inner, interceptor))
         }
 
         /// Compress requests with the given encoding.
@@ -82,33 +82,32 @@ pub mod node_type_service_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/node_type.v1.NodeTypeService/GetNodeType");
+            let path = http::uri::PathAndQuery::from_static("/node.v1.NodeService/GetNodeType");
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod node_type_service_server {
+pub mod node_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for
-    /// use with NodeTypeServiceServer.
+    /// use with NodeServiceServer.
     #[async_trait]
-    pub trait NodeTypeService: Send + Sync + 'static {
+    pub trait NodeService: Send + Sync + 'static {
         async fn get_node_type(
             &self,
             request: tonic::Request<super::NodeTypeRequest>,
         ) -> Result<tonic::Response<super::NodeTypeResponse>, tonic::Status>;
     }
     #[derive(Debug)]
-    pub struct NodeTypeServiceServer<T: NodeTypeService> {
+    pub struct NodeServiceServer<T: NodeService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: NodeTypeService> NodeTypeServiceServer<T> {
+    impl<T: NodeService> NodeServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -144,9 +143,9 @@ pub mod node_type_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for NodeTypeServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for NodeServiceServer<T>
     where
-        T: NodeTypeService,
+        T: NodeService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -161,10 +160,10 @@ pub mod node_type_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/node_type.v1.NodeTypeService/GetNodeType" => {
+                "/node.v1.NodeService/GetNodeType" => {
                     #[allow(non_camel_case_types)]
-                    struct GetNodeTypeSvc<T: NodeTypeService>(pub Arc<T>);
-                    impl<T: NodeTypeService> tonic::server::UnaryService<super::NodeTypeRequest> for GetNodeTypeSvc<T> {
+                    struct GetNodeTypeSvc<T: NodeService>(pub Arc<T>);
+                    impl<T: NodeService> tonic::server::UnaryService<super::NodeTypeRequest> for GetNodeTypeSvc<T> {
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         type Response = super::NodeTypeResponse;
 
@@ -204,7 +203,7 @@ pub mod node_type_service_server {
             }
         }
     }
-    impl<T: NodeTypeService> Clone for NodeTypeServiceServer<T> {
+    impl<T: NodeService> Clone for NodeServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -214,7 +213,7 @@ pub mod node_type_service_server {
             }
         }
     }
-    impl<T: NodeTypeService> Clone for _Inner<T> {
+    impl<T: NodeService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(self.0.clone())
         }
@@ -224,7 +223,7 @@ pub mod node_type_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: NodeTypeService> tonic::server::NamedService for NodeTypeServiceServer<T> {
-        const NAME: &'static str = "node_type.v1.NodeTypeService";
+    impl<T: NodeService> tonic::server::NamedService for NodeServiceServer<T> {
+        const NAME: &'static str = "node.v1.NodeService";
     }
 }

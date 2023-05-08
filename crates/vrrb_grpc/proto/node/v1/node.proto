@@ -1,7 +1,7 @@
 syntax = "proto3";
-package node_type.v1;
+package node.v1;
 
-service NodeTypeService {
+service NodeService {
     rpc GetNodeType (NodeTypeRequest) returns (NodeTypeResponse);
 }
 

@@ -7,7 +7,7 @@ impl serde::Serialize for NodeTypeRequest {
     {
         use serde::ser::SerializeStruct;
         let len = 0;
-        let struct_ser = serializer.serialize_struct("node_type.v1.NodeTypeRequest", len)?;
+        let struct_ser = serializer.serialize_struct("node.v1.NodeTypeRequest", len)?;
         struct_ser.end()
     }
 }
@@ -54,7 +54,7 @@ impl<'de> serde::Deserialize<'de> for NodeTypeRequest {
             type Value = NodeTypeRequest;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("struct node_type.v1.NodeTypeRequest")
+                formatter.write_str("struct node.v1.NodeTypeRequest")
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<NodeTypeRequest, V::Error>
@@ -67,7 +67,7 @@ impl<'de> serde::Deserialize<'de> for NodeTypeRequest {
                 Ok(NodeTypeRequest {})
             }
         }
-        deserializer.deserialize_struct("node_type.v1.NodeTypeRequest", FIELDS, GeneratedVisitor)
+        deserializer.deserialize_struct("node.v1.NodeTypeRequest", FIELDS, GeneratedVisitor)
     }
 }
 impl serde::Serialize for NodeTypeResponse {
@@ -84,7 +84,7 @@ impl serde::Serialize for NodeTypeResponse {
         if !self.result.is_empty() {
             len += 1;
         }
-        let mut struct_ser = serializer.serialize_struct("node_type.v1.NodeTypeResponse", len)?;
+        let mut struct_ser = serializer.serialize_struct("node.v1.NodeTypeResponse", len)?;
         if !self.id.is_empty() {
             struct_ser.serialize_field("id", &self.id)?;
         }
@@ -144,7 +144,7 @@ impl<'de> serde::Deserialize<'de> for NodeTypeResponse {
             type Value = NodeTypeResponse;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("struct node_type.v1.NodeTypeResponse")
+                formatter.write_str("struct node.v1.NodeTypeResponse")
             }
 
             fn visit_map<V>(self, mut map: V) -> std::result::Result<NodeTypeResponse, V::Error>
@@ -175,6 +175,6 @@ impl<'de> serde::Deserialize<'de> for NodeTypeResponse {
                 })
             }
         }
-        deserializer.deserialize_struct("node_type.v1.NodeTypeResponse", FIELDS, GeneratedVisitor)
+        deserializer.deserialize_struct("node.v1.NodeTypeResponse", FIELDS, GeneratedVisitor)
     }
 }
