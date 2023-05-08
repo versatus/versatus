@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use primitives::{Address, NodeId, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
@@ -71,6 +73,19 @@ pub fn generate_random_valid_transaction() -> Txn {
 
 pub fn generate_random_claim() -> Claim {
     let keypair = Keypair::random();
-
-    Claim::new(keypair.miner_kp.1.clone(), Address::new(keypair.miner_kp.1))
+    let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    let public_key = keypair.get_miner_public_key().clone();
+    let signature = Claim::signature_for_valid_claim(
+        public_key,
+        ip_address,
+        keypair.get_miner_secret_key().secret_bytes().to_vec(),
+    )
+    .unwrap();
+    Claim::new(
+        public_key,
+        Address::new(public_key),
+        ip_address.clone(),
+        signature,
+    )
+    .unwrap()
 }
