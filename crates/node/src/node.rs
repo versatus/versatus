@@ -64,16 +64,16 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
-        if config.enable_ui == true {
+        if config.enable_ui {
             info!("Configuring Node {}", &config.id);
             info!("Ensuring environment has required dependencies");
             match Command::new("npm")
                 .args(&["version"])
                 .output() {
-                Ok(_) => info!("Node is installed"),
+                Ok(_) => info!("NodeJS is installed"),
                 Err(e) => {
                     return Err(
-                        NodeError::Other(format!("Node is not installed: {}", e)).into(),
+                        NodeError::Other(format!("NodeJS is not installed: {}", e)).into(),
                     );
                 },
             }
@@ -95,21 +95,21 @@ impl Node {
                 .args(&["install"])
                 .current_dir("infra/ui")
                 .output() {
-                Ok(_) => info!("Dependencies installed"),
+                Ok(_) => info!("Dependencies installed successfully"),
                 Err(e) => {
                     return Err(
-                        NodeError::Other(format!("Node is not installed: {}", e)).into(),
+                        NodeError::Other(format!("Yarn is not installed: {}", e)).into(),
                     );
                 },
             }
 
-            info!("Spawning ui");
+            info!("Spawning UI");
             Command::new("yarn")
                 .args(&["dev"])
                 .current_dir("infra/ui")
                 .spawn()
-                .expect("failed to execute process");
-            info!("Finished spawning");
+                .expect("failed to spawn UI");
+            info!("Finished spawning UI");
         }
 
         let vm = None;

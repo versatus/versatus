@@ -16,7 +16,7 @@ const Playground = () => {
   const [nodeType, setNodeType] = useState<string | null>(null)
   const [account, setAccount] = useState<any>(null)
   const [address, setAddress] = useState<string>('')
-  const [signature, setSignature] = useState<any>(null)
+  const [signature, setSignature] = useState<string>("")
   const [senderAddress, setSenderAddress] = useState<string>(tx.sender_address)
   const [senderPublicKey, setSenderPublicKey] = useState<string>(
     tx.sender_public_key
@@ -64,7 +64,7 @@ const Playground = () => {
       },
       data: {
         method: `state_${method}`,
-        params: [],
+        params: params,
       },
     }
 
@@ -82,8 +82,6 @@ const Playground = () => {
           params: [address],
         }
       }
-
-      console.log('WOO!!!', config)
 
       const response = await axios(config)
       setData(response.data.result ?? response.data.error)
@@ -116,8 +114,6 @@ const Playground = () => {
     'getNodeType',
     'getAccount',
   ]
-
-  // const writeMethods = ['createTxn', 'signTransaction']
 
   const Container = ({ children }: { children: React.ReactNode }) => {
     return (
