@@ -29,22 +29,33 @@ use vrrb_core::{
 
 #[tokio::test]
 async fn vrrbdb_should_update_with_new_block() {
-    let (block_hash, mut state_module) = produce_state_module(5, 5);
+    let (accounts, block_hash, mut state_module) = produce_state_module(5, 5);
     let _ = state_module.update_state(block_hash);
 
-    // Check that transactions in the ProposalBlocks are reflected
-    // in the StateModule
+    let handle = state_module.read_handle();
+    let account_values = handle.state_store_values();
+    accounts.iter().for_each(|(address, _)| {
+        if let Some(account) = account_values.get(address) {
+            let digests = account.digests;
+            assert!(digests.len() > 0);
+            assert!(digests.get_sent().len() > 0);
+            assert!(digests.get_recv().len() > 0);
+        }
+    });
 
     todo!();
 }
 
 
-fn produce_state_module(ntx: usize, npb: usize) -> (BlockHash, StateModule) {
+fn produce_state_module(
+    ntx: usize,
+    npb: usize,
+) -> (Vec<(Address, Account)>, BlockHash, StateModule) {
     let (events_tx, _) = channel(100);
     let db_config = VrrbDbConfig::default();
     let mut db = VrrbDb::new(db_config.clone());
     let accounts = populate_db_with_accounts(&mut db, 10);
-    let (block_hash, dag) = build_dag(accounts, ntx, npb);
+    let (block_hash, dag) = build_dag(accounts.clone(), ntx, npb);
     let dag = dag.clone();
     let config = StateModuleConfig {
         db: VrrbDb::new(db_config),
@@ -52,7 +63,7 @@ fn produce_state_module(ntx: usize, npb: usize) -> (BlockHash, StateModule) {
         dag: dag.clone(),
     };
 
-    (block_hash, StateModule::new(config))
+    (accounts, block_hash, StateModule::new(config))
 }
 
 fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
@@ -190,7 +201,7 @@ pub(crate) fn create_txn_from_accounts(sender: (Address, Account), receiver: Add
     let (rsk, rpk) = create_keypair();
     let saddr = sender.0.clone();
     let raddr = receiver.clone();
-    let amount = 10000u128.pow(2);
+    let amount = 100u128.pow(2);
     let token = None;
 
     let txn_args = NewTxnArgs {

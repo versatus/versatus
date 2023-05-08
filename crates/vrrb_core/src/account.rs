@@ -36,7 +36,7 @@ pub struct AccountDigests {
 }
 
 impl AccountDigests {
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         let mut len = 0;
         len += self.sent.len();
         len += self.recv.len();
@@ -48,21 +48,21 @@ impl AccountDigests {
     /// Returns the HashSet of all `TransactionDigest`s for
     /// all transactions throughout history sent by the current
     /// account
-    pub(crate) fn get_sent(&self) -> HashSet<TransactionDigest> {
+    pub fn get_sent(&self) -> HashSet<TransactionDigest> {
         self.sent.clone()
     }
 
     /// Returns the HashSet of all `TransactionDigest`s for
     /// all transactions throughout history received by the current
     /// account
-    pub(crate) fn get_recv(&self) -> HashSet<TransactionDigest> {
+    pub fn get_recv(&self) -> HashSet<TransactionDigest> {
         self.recv.clone()
     }
 
     /// Returns the HashSet of all `TransactionDigest`s for
     /// all staking transactions throughout history by the current
     /// account
-    pub(crate) fn get_stake(&self) -> HashSet<TransactionDigest> {
+    pub fn get_stake(&self) -> HashSet<TransactionDigest> {
         self.stake.clone()
     }
 
