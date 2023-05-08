@@ -443,7 +443,7 @@ async fn setup_grpc_api_server(
     // mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let grpc_server_config = GRPCServerConfig {
-        address: "[::1]:50051".parse().unwrap(),
+        address: "127.0.0.1:50051".parse().unwrap(),
         node_type: config.node_type,
         events_tx,
         vrrbdb_read_handle,

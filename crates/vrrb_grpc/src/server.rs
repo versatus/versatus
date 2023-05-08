@@ -7,6 +7,7 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tonic::{transport::Server, Request, Response, Status};
+use tonic_reflection;
 
 use crate::handler::MyHelloWorld;
 
@@ -28,7 +29,13 @@ impl GRPCServer {
 
         let helloworld_service = MyHelloWorld::init();
 
+        let service = tonic_reflection::server::Builder::configure()
+            .register_encoded_file_descriptor_set(helloworld::v1::FILE_DESCRIPTOR_SET)
+            .build()
+            .unwrap();
+
         if (Server::builder()
+            .add_service(service)
             .add_service(helloworld_service)
             .serve(addr)
             .await)
