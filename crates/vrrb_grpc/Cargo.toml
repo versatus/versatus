@@ -28,3 +28,6 @@ primitives = { workspace = true }
 events = { workspace = true }
 tonic-reflection = { workspace = true }
 vrrb_core = { workspace = true }
+secp256k1 = { workspace = true }
+hex = { workspace = true }
+telemetry = { workspace = true }

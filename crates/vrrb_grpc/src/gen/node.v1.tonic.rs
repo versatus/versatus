@@ -100,6 +100,22 @@ pub mod node_service_client {
             let path = http::uri::PathAndQuery::from_static("/node.v1.NodeService/GetFullMempool");
             self.inner.unary(request.into_request(), path, codec).await
         }
+
+        pub async fn create_transaction(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateTransactionRequest>,
+        ) -> Result<tonic::Response<super::TransactionRecord>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/node.v1.NodeService/CreateTransaction");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -118,6 +134,10 @@ pub mod node_service_server {
             &self,
             request: tonic::Request<super::GetFullMempoolRequest>,
         ) -> Result<tonic::Response<super::GetFullMempoolResponse>, tonic::Status>;
+        async fn create_transaction(
+            &self,
+            request: tonic::Request<super::CreateTransactionRequest>,
+        ) -> Result<tonic::Response<super::TransactionRecord>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct NodeServiceServer<T: NodeService> {
@@ -235,6 +255,41 @@ pub mod node_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetFullMempoolSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node.v1.NodeService/CreateTransaction" => {
+                    #[allow(non_camel_case_types)]
+                    struct CreateTransactionSvc<T: NodeService>(pub Arc<T>);
+                    impl<T: NodeService>
+                        tonic::server::UnaryService<super::CreateTransactionRequest>
+                        for CreateTransactionSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::TransactionRecord;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateTransactionRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).create_transaction(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = CreateTransactionSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
                             accept_compression_encodings,

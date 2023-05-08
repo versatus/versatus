@@ -1,10 +1,12 @@
 include!("gen/mod.rs");
 
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
+use events::{Event, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use node::v1::{
     node_service_server::{NodeService, NodeServiceServer},
+    CreateTransactionRequest,
     GetFullMempoolRequest,
     GetFullMempoolResponse,
     GetNodeTypeRequest,
@@ -13,8 +15,10 @@ use node::v1::{
     TransactionRecord,
 };
 use primitives::NodeType;
+use secp256k1::{ecdsa::Signature, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
+use telemetry;
 use tonic::{transport::Server, Request, Response, Status};
 use vrrb_core::{
     account::Account,
@@ -81,12 +85,42 @@ impl From<RpcTransactionRecord> for TransactionRecord {
     }
 }
 
+// TODO: sort out pub key and signature before From request due to err handling
+impl From<CreateTransactionRequest> for NewTxnArgs {
+    fn from(create_transaction_request: CreateTransactionRequest) -> Self {
+        let pub_key = PublicKey::from_str(&create_transaction_request.sender_public_key).unwrap();
+        let signature = Signature::from_str(&create_transaction_request.signature).unwrap();
+        let amount = create_transaction_request.amount as u128;
+        let nonce = create_transaction_request.nonce as u128;
+        let request_token = create_transaction_request
+            .token
+            .expect("Token to be provided");
+        let token = Token {
+            name: request_token.name,
+            symbol: request_token.symbol,
+            decimals: request_token.decimals as u8,
+        };
+
+        Self {
+            timestamp: create_transaction_request.timestamp,
+            sender_address: create_transaction_request.sender_address,
+            sender_public_key: pub_key,
+            receiver_address: create_transaction_request.receiver_address,
+            token: Some(token),
+            amount,
+            signature,
+            validators: Some(create_transaction_request.validators),
+            nonce,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Node {
     pub node_type: NodeType,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
-    // pub events_tx: EventPublisher,
+    pub events_tx: EventPublisher,
 }
 
 impl Node {
@@ -125,5 +159,25 @@ impl NodeService for Node {
         };
 
         return Ok(Response::new(response));
+    }
+
+    async fn create_transaction(
+        &self,
+        request: Request<CreateTransactionRequest>,
+    ) -> Result<Response<TransactionRecord>, Status> {
+        // need to figure out field validation
+
+        let new_txn_args = NewTxnArgs::from(request.into_inner());
+        let txn = Txn::new(new_txn_args);
+        let event = Event::NewTxnCreated(txn.clone());
+
+        self.events_tx
+            .send(event.into())
+            .await
+            .map_err(|e| Status::internal(format!("Internal error: {}", e)))?;
+
+        Ok(Response::new(TransactionRecord::from(
+            RpcTransactionRecord::from(txn),
+        )))
     }
 }

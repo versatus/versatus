@@ -35,8 +35,9 @@ impl GRPCServer {
 
         let node = Node {
             node_type: config.node_type,
-            vrrbdb_read_handle: config.vrrbdb_read_handle.to_owned(),
-            mempool_read_handle_factory: config.mempool_read_handle_factory.to_owned(),
+            vrrbdb_read_handle: config.vrrbdb_read_handle.clone(),
+            mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
+            events_tx: config.events_tx.clone(),
         };
         let node_service = node.init();
 

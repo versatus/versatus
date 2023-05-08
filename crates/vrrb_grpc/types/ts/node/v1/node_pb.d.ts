@@ -98,6 +98,70 @@ export declare class GetFullMempoolResponse extends Message<GetFullMempoolRespon
 }
 
 /**
+ * @generated from message node.v1.CreateTransactionRequest
+ */
+export declare class CreateTransactionRequest extends Message<CreateTransactionRequest> {
+  /**
+   * @generated from field: int64 timestamp = 1;
+   */
+  timestamp: bigint;
+
+  /**
+   * @generated from field: string sender_address = 2;
+   */
+  senderAddress: string;
+
+  /**
+   * @generated from field: string sender_public_key = 3;
+   */
+  senderPublicKey: string;
+
+  /**
+   * @generated from field: string receiver_address = 4;
+   */
+  receiverAddress: string;
+
+  /**
+   * @generated from field: node.v1.Token token = 5;
+   */
+  token?: Token;
+
+  /**
+   * @generated from field: uint64 amount = 6;
+   */
+  amount: bigint;
+
+  /**
+   * @generated from field: string signature = 7;
+   */
+  signature: string;
+
+  /**
+   * @generated from field: map<string, bool> validators = 8;
+   */
+  validators: { [key: string]: boolean };
+
+  /**
+   * @generated from field: uint64 nonce = 9;
+   */
+  nonce: bigint;
+
+  constructor(data?: PartialMessage<CreateTransactionRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node.v1.CreateTransactionRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateTransactionRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateTransactionRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateTransactionRequest;
+
+  static equals(a: CreateTransactionRequest | PlainMessage<CreateTransactionRequest> | undefined, b: CreateTransactionRequest | PlainMessage<CreateTransactionRequest> | undefined): boolean;
+}
+
+/**
  * @generated from message node.v1.TransactionRecord
  */
 export declare class TransactionRecord extends Message<TransactionRecord> {

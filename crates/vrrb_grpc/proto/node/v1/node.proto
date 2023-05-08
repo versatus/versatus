@@ -4,6 +4,7 @@ package node.v1;
 service NodeService {
     rpc GetNodeType (GetNodeTypeRequest) returns (GetNodeTypeResponse);
     rpc GetFullMempool (GetFullMempoolRequest) returns (GetFullMempoolResponse);
+    rpc CreateTransaction (CreateTransactionRequest) returns (TransactionRecord);
 }
 
 message GetNodeTypeRequest {}
@@ -17,6 +18,18 @@ message GetFullMempoolRequest {}
 
 message GetFullMempoolResponse {
     repeated TransactionRecord transaction_records = 1;
+}
+
+message CreateTransactionRequest {
+    int64 timestamp = 1;
+    string sender_address = 2;
+    string sender_public_key = 3;
+    string receiver_address = 4;
+    Token token = 5;
+    uint64 amount = 6;
+    string signature = 7;
+    map<string, bool> validators = 8;
+    uint64 nonce = 9;
 }
 
 message TransactionRecord {

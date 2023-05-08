@@ -43,6 +43,24 @@ export const GetFullMempoolResponse = proto3.makeMessageType(
 );
 
 /**
+ * @generated from message node.v1.CreateTransactionRequest
+ */
+export const CreateTransactionRequest = proto3.makeMessageType(
+  "node.v1.CreateTransactionRequest",
+  () => [
+    { no: 1, name: "timestamp", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "sender_address", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "sender_public_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "receiver_address", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "token", kind: "message", T: Token },
+    { no: 6, name: "amount", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 7, name: "signature", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "validators", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 8 /* ScalarType.BOOL */} },
+    { no: 9, name: "nonce", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ],
+);
+
+/**
  * @generated from message node.v1.TransactionRecord
  */
 export const TransactionRecord = proto3.makeMessageType(
