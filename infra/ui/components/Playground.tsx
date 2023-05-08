@@ -6,6 +6,10 @@ import { JsonViewer } from '@textea/json-viewer'
 import ButtonRow from '@/components/ButtonRow'
 import { FAKE_TRANSACTION } from '@/components/TransactionBuilder'
 import { FAKE_SIGNATURE } from '@/components/SignatureBuilder'
+import {toHex} from "@/utils/functions";
+import {READ_METHODS} from "@/consts/system";
+import Container from "@/components/Component";
+import {createTransaction, getAccount, getFullMempool, getFullState, getNodeType, signTransaction} from "@/lib/methods";
 
 const Playground = () => {
   const [tx, setTx] = useState<any>(FAKE_TRANSACTION)
@@ -25,20 +29,26 @@ const Playground = () => {
     tx.receiver_address
   )
   const [amount, setAmount] = useState<number>(tx.amount)
-  // const [token, setToken] = useState<string>('VRRB')
   const [nonce, setNonce] = useState<number>(tx.nonce)
 
 
   useEffect(() => {
     if (!address) return
-    makeRPCCall('getAccount', [address])
+    getAccount(address).then((res) => {
+        setAccount(res.result)
+    })
   }, [address])
 
   useEffect(() => {
-    makeRPCCall('getFullMempool', [])
-    makeRPCCall('getNodeType', [])
-    makeRPCCall('getFullState', [])
-    // makeRPCCall('getAccount', [])
+    getFullMempool().then((res) => {
+        setMemPool(res.result)
+    })
+    getNodeType().then((res) => {
+        setNodeType(res.result)
+    })
+    getFullState().then((res) => {
+        setFullState(res.result)
+    })
   }, [])
 
   useEffect(() => {
@@ -47,11 +57,6 @@ const Playground = () => {
     }
   }, [fullState])
 
-  function toHex(buffer) {
-    return Array.from(buffer)
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('')
-  }
 
   const makeRPCCall = async (method: string, params = []) => {
     setCurrentMethod(method)
@@ -69,20 +74,6 @@ const Playground = () => {
     }
 
     try {
-      if (method === 'createTxn') {
-        config.data = {
-          method: `state_${method}`,
-          params: [{ ...tx, timestamp: Date.now() }],
-        }
-      } else if (method === 'signTransaction') {
-        config.data = { method: `state_${method}`, params: [FAKE_SIGNATURE] }
-      } else if (method === 'getAccount') {
-        config.data = {
-          method: `state_${method}`,
-          params: [address],
-        }
-      }
-
       const response = await axios(config)
       setData(response.data.result ?? response.data.error)
       if (method === 'getFullMempool') {
@@ -108,20 +99,6 @@ const Playground = () => {
     setSenderPublicKey(toHex(arr))
   }
 
-  const readMethods = [
-    'getFullState',
-    'getFullMempool',
-    'getNodeType',
-    'getAccount',
-  ]
-
-  const Container = ({ children }: { children: React.ReactNode }) => {
-    return (
-      <div className={'border bg-blue-200 rounded-xl p-4 gap-3 flex flex-col'}>
-        {children}
-      </div>
-    )
-  }
 
   // react component that returns a map of Buttons based on array of methods
   const StatsBlock = ({ children, suffix }) => {
@@ -139,82 +116,13 @@ const Playground = () => {
     )
   }
 
-  return (
-    <div className={'m-4 flex flex-col gap-2 '}>
-      <Container>
-        <div className={'grid grid-cols-2 gap-4'}>
-          <div className={'gap-4 flex-col flex'}>
-            <div className={'flex flex-col gap-2'}>
-              <div className={'text-gray-700 text-sm'}>Node Stats</div>
-              <div className={'flex flex-row gap-3'}>
-                <StatsBlock suffix={"tx's in the mempool"}>
-                  {memPool.length ?? 'N/A'}
-                </StatsBlock>
-                <StatsBlock suffix={'node type'}>
-                  {nodeType ?? 'N/A'}
-                </StatsBlock>
-              </div>
-            </div>
-            <div className={'flex flex-col gap-2'}>
-              <div className={'text-gray-700 text-sm gap-2 flex items-center'}>
-                Account Overview
-                <select
-                  className="select select-sm w-full max-w-xs"
-                  onChange={(e) => selectAddress(e.target.value)}
-                  value={String(address)}
-                >
-                  <option disabled>Pick an account</option>
-                  {fullState &&
-                    Object.keys(fullState).map((key) => {
-                      return <option key={key}>{key}</option>
-                    })}
-                </select>
-              </div>
-              <div className={'flex flex-row gap-3'}>
-                <StatsBlock suffix={'debits'}>
-                  {account?.debits ?? 'N/A'}
-                </StatsBlock>
-                <StatsBlock suffix={'credits'}>
-                  {account?.credits ?? 'N/A'}
-                </StatsBlock>
-                <StatsBlock suffix={'storage'}>
-                  {account?.storage ?? 'N/A'}
-                </StatsBlock>
-                <StatsBlock suffix={'code'}>
-                  {account?.code ?? 'N/A'}
-                </StatsBlock>
-                <StatsBlock suffix={'nonce'}>
-                  {account?.nonce ?? 'N/A'}
-                </StatsBlock>
-              </div>
-            </div>
-          </div>
-          <div>
-            <ButtonRow
-              methods={readMethods}
-              onButtonClick={(value) => makeRPCCall(value, [])}
-            />
-            <div
-              className={
-                'text-xs border p-4 border-4 rounded-xl h-[200px] overflow-scroll'
-              }
-            >
-              <JsonViewer defaultInspectDepth={1} value={data} />
-            </div>
-          </div>
-        </div>
-      </Container>
-
-      <div className={'flex flex-row gap-2'}>
-        <div
-          className={
-            'text-sm w-[100%] flex flex-col items-center justify-center  bg-blue-200 rounded-xl p-4 gap-3'
-          }
-        >
-          <>
-            <div className={'flex flex-col gap-1 w-full'}>
-              <label htmlFor="signature">Signature</label>
-              <input
+  const TXInputs = () => {
+    return (
+        <>
+          <div className={'flex flex-col gap-1 w-full'}>
+            <label htmlFor="signature">Signature</label>
+            <input
+                readOnly
                 onFocus={(e) => e.target.select()}
                 type="text"
                 name="signature"
@@ -222,12 +130,12 @@ const Playground = () => {
                 placeholder="Signature"
                 className="signature-input p-3 text-black border w-full rounded-xl"
                 value={signature}
-              />
-            </div>
-            <div className="w-full flex flex-wrap text-sm p-4 gap-1 justify-center">
-              <div className={'flex flex-col gap-1'}>
-                <label htmlFor="sender_address">Sender Address</label>
-                <input
+            />
+          </div>
+          <div className="w-full flex flex-wrap text-sm p-4 gap-1 justify-center">
+            <div className={'flex flex-col gap-1'}>
+              <label htmlFor="sender_address">Sender Address</label>
+              <input
                   onFocus={(e) => e.target.select()}
                   type="text"
                   name="sender_address"
@@ -236,11 +144,11 @@ const Playground = () => {
                   className="sender-address-input p-3 text-black border w-full text-[#000] rounded-xl"
                   value={String(address)}
                   onChange={(e) => setSenderAddress(e.target.value)}
-                />
-              </div>
-              <div className={'flex flex-col gap-1'}>
-                <label htmlFor="sender_public_key">Sender Public Key</label>
-                <input
+              />
+            </div>
+            <div className={'flex flex-col gap-1'}>
+              <label htmlFor="sender_public_key">Sender Public Key</label>
+              <input
                   onFocus={(e) => e.target.select()}
                   type="text"
                   name="sender_public_key"
@@ -249,11 +157,11 @@ const Playground = () => {
                   className="sender-public-key-input p-3 text-black border w-full rounded-xl"
                   value={senderPublicKey}
                   onChange={(e) => setSenderPublicKey(e.target.value)}
-                />
-              </div>
-              <div className={'flex flex-col gap-1'}>
-                <label htmlFor="receiver_address">Receiver Address</label>
-                <input
+              />
+            </div>
+            <div className={'flex flex-col gap-1'}>
+              <label htmlFor="receiver_address">Receiver Address</label>
+              <input
                   onFocus={(e) => e.target.select()}
                   type="text"
                   name="receiver_address"
@@ -262,11 +170,11 @@ const Playground = () => {
                   className="receiver-address-input p-3 text-black border w-full rounded-xl"
                   value={receiverAddress}
                   onChange={(e) => setReceiverAddress(e.target.value)}
-                />
-              </div>
-              <div className={'flex flex-col gap-1'}>
-                <label htmlFor="amount">Amount</label>
-                <input
+              />
+            </div>
+            <div className={'flex flex-col gap-1'}>
+              <label htmlFor="amount">Amount</label>
+              <input
                   onFocus={(e) => e.target.select()}
                   type="text"
                   name="amount"
@@ -275,11 +183,11 @@ const Playground = () => {
                   className="amount-input p-3 text-black border w-full rounded-xl"
                   value={amount}
                   onChange={(e) => setAmount(parseInt(e.target.value))}
-                />
-              </div>
-              <div className={'flex flex-col gap-1'}>
-                <label htmlFor="nonce">Nonce</label>
-                <input
+              />
+            </div>
+            <div className={'flex flex-col gap-1'}>
+              <label htmlFor="nonce">Nonce</label>
+              <input
                   onFocus={(e) => e.target.select()}
                   type="text"
                   name="nonce"
@@ -288,25 +196,130 @@ const Playground = () => {
                   className="nonce-input p-3 text-black border w-full rounded-xl"
                   value={nonce}
                   onChange={(e) => setNonce(parseInt(e.target.value))}
-                />
-              </div>
+              />
             </div>
-          </>
-          <button
-            onClick={() => makeRPCCall('signTransaction', [FAKE_SIGNATURE])}
-            className="bg-gradient hover:bg-purple-500 border-4 border border-purple-500 text-white font-bold py-2 px-4 rounded-xl"
+          </div>
+        </>
+    )
+  }
+
+  const TXBuilder = () => {
+    return (
+        <div className={'flex flex-row gap-2'}>
+          <div
+              className={
+                'text-sm w-[100%] flex flex-col items-center justify-center  bg-blue-200 rounded-xl p-4 gap-3'
+              }
           >
-            Sign Transaction
-          </button>
-          <button
-            onClick={() => makeRPCCall('createTxn', [tx])}
-            disabled={!signature}
-            className="bg-gradient hover:bg-purple-500 border-4 border border-purple-500 text-white font-bold py-2 px-4 rounded-xl"
-          >
-            Send Transaction
-          </button>
+            <TXInputs />
+            <button
+                onClick={() => signTransaction(FAKE_SIGNATURE)}
+                className="bg-gradient hover:bg-purple-500 border-4 border border-purple-500 text-white font-bold py-2 px-4 rounded-xl"
+            >
+              Sign Transaction
+            </button>
+            <button
+                onClick={() => createTransaction({ ...tx, timestamp: Date.now() })}
+                disabled={!signature}
+                className="bg-gradient hover:bg-purple-500 border-4 border border-purple-500 text-white font-bold py-2 px-4 rounded-xl"
+            >
+              Send Transaction
+            </button>
+          </div>
         </div>
-      </div>
+    )
+  }
+
+  const AccountOverview = () => {
+    return (
+        <div className={'flex flex-col gap-2'}>
+          <div className={'text-gray-700 text-sm gap-2 flex items-center'}>
+            Account Overview
+            <select
+                className="select select-sm w-full max-w-xs"
+                onChange={(e) => selectAddress(e.target.value)}
+                value={String(address)}
+            >
+              <option disabled>Pick an account</option>
+              {fullState &&
+                  Object.keys(fullState).map((key) => {
+                    return <option key={key}>{key}</option>
+                  })}
+            </select>
+          </div>
+          <div className={'flex flex-row gap-3'}>
+            <StatsBlock suffix={'debits'}>
+              {account?.debits ?? 'N/A'}
+            </StatsBlock>
+            <StatsBlock suffix={'credits'}>
+              {account?.credits ?? 'N/A'}
+            </StatsBlock>
+            <StatsBlock suffix={'storage'}>
+              {account?.storage ?? 'N/A'}
+            </StatsBlock>
+            <StatsBlock suffix={'code'}>
+              {account?.code ?? 'N/A'}
+            </StatsBlock>
+            <StatsBlock suffix={'nonce'}>
+              {account?.nonce ?? 'N/A'}
+            </StatsBlock>
+          </div>
+        </div>
+    )
+  }
+
+  const NodeOverview = () => {
+    return (
+        <div className={'flex flex-col gap-2'}>
+          <div className={'text-gray-700 text-sm'}>Node Stats</div>
+          <div className={'flex flex-row gap-3'}>
+            <StatsBlock suffix={"txs in the mempool"}>
+              {memPool.length ?? 'N/A'}
+            </StatsBlock>
+            <StatsBlock suffix={'node type'}>
+              {nodeType ?? 'N/A'}
+            </StatsBlock>
+          </div>
+        </div>
+    )
+  }
+
+  const RPCMethodPreview = () => {
+    return (
+        <div>
+          <ButtonRow
+              methods={READ_METHODS}
+              onButtonClick={(value) => makeRPCCall(value, [])}
+          />
+          <div
+              className={
+                'text-xs border p-4 border-4 rounded-xl h-[200px] overflow-scroll'
+              }
+          >
+            <JsonViewer defaultInspectDepth={1} value={data} />
+          </div>
+        </div>
+    )
+  }
+
+  const NodeInteraction = () => {
+    return (
+        <Container>
+          <div className={'grid grid-cols-2 gap-4'}>
+            <div className={'gap-4 flex-col flex'}>
+              <NodeOverview />
+              <AccountOverview />
+            </div>
+            <RPCMethodPreview />
+          </div>
+        </Container>
+    )
+  }
+
+  return (
+    <div className={'m-4 flex flex-col gap-2 '}>
+      <NodeInteraction />
+      <TXBuilder />
     </div>
   )
 }

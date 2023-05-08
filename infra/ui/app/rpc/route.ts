@@ -7,10 +7,10 @@ export async function POST(request: Request) {
   const { method, params = [] } = await request.json()
 
   const data = JSON.stringify({
+    id: 1,
     jsonrpc: '2.0',
     method,
     params,
-    id: 1,
   })
 
   const config = {
