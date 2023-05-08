@@ -1,0 +1,13 @@
+syntax = "proto3";
+package node_type.v1;
+
+service NodeTypeService {
+    rpc GetNodeType (NodeTypeRequest) returns (NodeTypeResponse);
+}
+
+message NodeTypeRequest {}
+
+message NodeTypeResponse {
+    string id = 1;
+    string result = 2;
+}
