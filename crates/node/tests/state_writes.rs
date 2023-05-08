@@ -1,10 +1,12 @@
 use std::{
     collections::HashSet,
+    net::SocketAddr,
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, ConvergenceBlock, GenesisBlock, ProposalBlock};
+use block::{Block, BlockHash, GenesisBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
+use hbbft::crypto::SecretKeyShare;
 use miner::test_helpers::{
     build_single_proposal_block,
     create_claim,
@@ -21,6 +23,7 @@ use tokio::sync::mpsc::channel;
 use vrrb_core::{
     account::Account,
     claim::Claim,
+    keypair::Keypair,
     txn::{generate_txn_digest_vec, NewTxnArgs, TransactionDigest, Txn},
 };
 
@@ -100,16 +103,45 @@ fn produce_proposal_blocks(
     accounts: Vec<(Address, Account)>,
     n: usize,
     ntx: usize,
+    last_block_hash: BlockHash,
 ) -> Vec<ProposalBlock> {
-    let proposals: Vec<ProposalBlock> = (0..n)
+    (0..n)
         .into_iter()
         .map(|_| {
+            let kp = Keypair::random();
+            let address = Address::new(kp.miner_kp.1.clone());
+            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+            let signature = Claim::signature_for_valid_claim(
+                kp.miner_kp.1.clone(),
+                ip_address.clone(),
+                kp.get_miner_secret_key().secret_bytes().to_vec(),
+            )
+            .unwrap();
+            let from = Claim::new(
+                kp.miner_kp.1.clone(),
+                address.clone(),
+                ip_address,
+                signature,
+            )
+            .unwrap();
             let txs = produce_random_txs(&accounts);
             let claims = produce_random_claims(ntx);
-            todo!()
+            let txn_list = txs.into_iter().map(|tx| (tx.into(), tx)).collect();
+            let claim_list = claims
+                .into_iter()
+                .map(|claim| (claim.hash, claim))
+                .collect();
+            ProposalBlock::build(
+                last_block_hash,
+                0,
+                0,
+                txn_list,
+                claim_list,
+                from,
+                SecretKeyShare::default(),
+            )
         })
-        .collect();
-    todo!()
+        .collect()
 }
 
 fn produce_convergence_block(dag: &mut Arc<RwLock<BullDag<Block, BlockHash>>>) -> BlockHash {
@@ -124,10 +156,10 @@ fn build_dag(
     let mut dag = BullDag::new();
 
     let genesis = produce_genesis_block();
-    let block: Block = genesis.into();
+    let block: Block = genesis.clone().into();
     let genesis_vtx: Vertex<Block, BlockHash> = block.into();
     dag.add_vertex(&genesis_vtx);
-    let proposals = produce_proposal_blocks(accounts, npb, ntx);
+    let proposals = produce_proposal_blocks(accounts, npb, ntx, genesis.hash.clone());
     let proposal_vtxs: Vec<Vertex<Block, BlockHash>> = {
         proposals
             .iter()
