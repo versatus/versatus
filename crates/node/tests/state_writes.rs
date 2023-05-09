@@ -25,7 +25,6 @@ pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
 
 #[tokio::test]
 async fn vrrbdb_should_update_with_new_block() {
-    println!("setting up state module");
     let db_config = VrrbDbConfig::default();
     let db = VrrbDb::new(db_config.clone());
     let accounts: Vec<(Address, Account)> = produce_accounts(5);
@@ -37,21 +36,19 @@ async fn vrrbdb_should_update_with_new_block() {
         dag: dag.clone(),
     };
     let mut state_module = StateModule::new(config);
-    let _ = state_module.extend_accounts(accounts.clone());
-    println!("mining genesis block");
+    let state_res = state_module.extend_accounts(accounts.clone());
     let genesis = produce_genesis_block();
+
+    assert!(state_res.is_ok());
 
     let gblock: Block = genesis.clone().into();
     let gvtx: Vertex<Block, BlockHash> = gblock.into();
     if let Ok(mut guard) = dag.write() {
-        println!("adding genesis block to dag");
         guard.add_vertex(&gvtx);
     }
 
-    println!("producing proposal blocks");
-    let proposals = produce_proposal_blocks(genesis.clone().hash, accounts, 5, 5);
+    let proposals = produce_proposal_blocks(genesis.clone().hash, accounts.clone(), 5, 5);
 
-    println!("creating edges from proposal blocks");
     let edges: Vec<(Vertex<Block, BlockHash>, Vertex<Block, BlockHash>)> = {
         proposals
             .into_iter()
@@ -64,16 +61,29 @@ async fn vrrbdb_should_update_with_new_block() {
     };
 
     if let Ok(mut guard) = dag.write() {
-        println!("adding edgest to dag");
         edges
             .iter()
             .for_each(|(source, reference)| guard.add_edge((&source, &reference)));
     }
 
     if let Some(block_hash) = produce_convergence_block(dag.clone()) {
-        println!("updating state from convergence block");
         let _ = state_module.update_state(block_hash);
     }
+
+    let handle = state_module.read_handle();
+    let store = handle.state_store_values();
+
+    accounts.iter().for_each(|(address, _)| {
+        let acct_opt = store.get(address);
+        assert!(acct_opt.is_some());
+        if let Some(account) = store.get(address) {
+            println!("{:?}", account);
+            let digests = account.digests.clone();
+            //            assert!(digests.get_sent().len() > 0);
+            //            assert!(digests.get_recv().len() > 0);
+            //            assert!(digests.get_stake().len() == 0);
+        }
+    });
 }
 
 fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
@@ -83,7 +93,7 @@ fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
             let kp = generate_account_keypair();
             let mut account = Account::new(kp.1.clone());
             account.credits = 1_000_000_000_000_000_000_000_000_000u128;
-            (Address::new(kp.1.clone()), Account::new(kp.1.clone()))
+            (Address::new(kp.1.clone()), account.clone())
         })
         .collect()
 }
@@ -136,7 +146,6 @@ fn produce_random_txs(accounts: &Vec<(Address, Account)>) -> HashSet<Txn> {
                     validators.push((pk, true));
                 }
             });
-
             create_txn_from_accounts((address.clone(), account.clone()), receiver.0, validators)
         })
         .collect()

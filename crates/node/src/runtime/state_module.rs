@@ -335,12 +335,12 @@ impl StateModule {
     /// ClaimStaking transactions currently).
     pub fn update_state(&mut self, block_hash: BlockHash) -> Result<()> {
         if let Some(mut round_blocks) = self.get_proposal_blocks(block_hash) {
-            consolidate_update_args(get_update_args(self.get_update_list(&mut round_blocks)))
-                .into_iter()
-                .for_each(|(_, args)| {
-                    let _ = self.db.update_account(args);
-                });
-
+            let update_list = self.get_update_list(&mut round_blocks);
+            let update_args = get_update_args(update_list);
+            let consolidated_update_args = consolidate_update_args(update_args);
+            consolidated_update_args.into_iter().for_each(|(_, args)| {
+                let _ = self.db.update_account(args);
+            });
             let proposals = round_blocks.proposals.clone();
 
             self.update_txn_trie(&proposals);
@@ -429,9 +429,7 @@ impl StateModule {
     }
 
     pub fn extend_accounts(&mut self, accounts: Vec<(Address, Account)>) -> Result<()> {
-        for (key, account) in accounts.into_iter() {
-            self.insert_account(key, account)?;
-        }
+        self.db.extend_accounts(accounts);
         Ok(())
     }
 
@@ -539,6 +537,8 @@ fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, Upd
             })
             .or_insert(update);
     }
+
+    println!("{:?}", consolidated_updates.len());
 
     consolidated_updates
 }
