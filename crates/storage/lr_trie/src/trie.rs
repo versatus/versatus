@@ -88,6 +88,11 @@ where
         self.read_handle.factory()
     }
 
+    pub fn update(&mut self, key: K, value: V) {
+        self.insert_uncommitted(key, value);
+        self.publish();
+    }
+
     pub fn publish(&mut self) {
         self.write_handle.publish();
     }
@@ -219,6 +224,22 @@ mod tests {
         trie.insert("mnopq", CustomValue { data: 1112131415 });
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
+        [0..10]
+            .iter()
+            .map(|_| {
+                let reader = trie.handle();
+                thread::spawn(move || {
+                    assert_eq!(reader.len(), 3);
+                })
+            })
+            .for_each(|handle| {
+                handle.join().unwrap();
+            });
+
+        trie.insert("gehabc", CustomValue { data: 12345 });
+        trie.insert("zxynbc", CustomValue { data: 678910 });
+        trie.insert("qwerty", CustomValue { data: 1112131415 });
+
         [0..10]
             .iter()
             .map(|_| {

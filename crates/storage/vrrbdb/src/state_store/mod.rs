@@ -162,6 +162,8 @@ impl StateStore {
             .update(update)
             .map_err(|err| StorageError::Other(err.to_string()))?;
 
+        self.trie.update(key, account.clone());
+
         Ok(())
     }
 

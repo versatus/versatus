@@ -324,18 +324,22 @@ impl Account {
                 self.bump_nonce();
             }
         }
+
         if let Some(credits_update) = args.credits {
             self.update_single_field_no_hash(AccountField::Credits(credits_update))?;
         }
+
         if let Some(debits_update) = args.debits {
             self.update_single_field_no_hash(AccountField::Debits(debits_update))?;
         }
+
         if let Some(code_update) = args.code {
             self.update_single_field_no_hash(AccountField::Code(code_update))?;
         }
         if let Some(storage_update) = args.storage {
             self.update_single_field_no_hash(AccountField::Storage(storage_update))?;
         }
+
         if let Some(digests) = args.digests {
             self.update_single_field_no_hash(AccountField::Digests(digests))?;
         }
