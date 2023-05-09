@@ -1,6 +1,9 @@
 include!("gen/mod.rs");
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
+};
 
 use events::{EventPublisher, DEFAULT_BUFFER};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
@@ -13,7 +16,7 @@ use tonic_reflection;
 use crate::handler::Node;
 
 #[derive(Debug, Clone)]
-pub struct GRPCServerConfig {
+pub struct GrpcServerConfig {
     pub address: SocketAddr,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -22,10 +25,10 @@ pub struct GRPCServerConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct GRPCServer;
+pub struct GrpcServer;
 
 impl GrpcServer {
-    pub async fn run(config: &GRPServerConfig) -> anyhow::Result<SocketAddr> {
+    pub async fn run(config: &GrpcServerConfig) -> anyhow::Result<SocketAddr> {
         let addr = config.address;
 
         let reflection_service = tonic_reflection::server::Builder::configure()
@@ -52,17 +55,15 @@ impl GrpcServer {
     }
 }
 
-// I feel like this needs discussion, default db_path here would be different
-// then the actual?
+// NOTE: I feel like this needs discussion, default db_path here would be
+// different then the actual?
 impl Default for GrpcServerConfig {
-    fn default() -> GRPCServerConfig {
-        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 50051);
+    fn default() -> GrpcServerConfig {
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50051);
         let mut vrrbdb_config = VrrbDbConfig::default();
 
-        let temp_dir_path = std::env::temp_dir();
-        let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
-
-        vrrbdb_config.path = db_path;
+        let db_path = primitives::DEFAULT_VRRB_DB_PATH;
+        vrrbdb_config.path = PathBuf::from(db_path);
 
         let vrrbdb = VrrbDb::new(vrrbdb_config);
         let vrrbdb_read_handle = vrrbdb.read_handle();
@@ -73,7 +74,7 @@ impl Default for GrpcServerConfig {
         let node_type = NodeType::RPCNode;
         let (events_tx, _) = channel(DEFAULT_BUFFER);
 
-        GRPCServerConfig {
+        GrpcServerConfig {
             address,
             vrrbdb_read_handle,
             mempool_read_handle_factory,
