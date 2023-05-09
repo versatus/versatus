@@ -109,20 +109,16 @@ where
         self.write_handle.append(Operation::Add(key, value));
     }
 
-    // pub fn extend_uncommitted<T>(&mut self, values: Vec<(K, V)>) {
     pub fn extend_uncommitted(&mut self, values: Vec<(K, V)>) {
-        let mapped = values
-            .into_iter()
-            .map(|(key, value)| {
-                //TODO: revisit the serializer used to store things on the trie
-                let key = bincode::serialize(&key).unwrap_or_default();
-                let value = bincode::serialize(&value).unwrap_or_default();
+        let mapped = values.into_iter().map(|(key, value)| {
+            //TODO: revisit the serializer used to store things on the trie
+            let key = bincode::serialize(&key).unwrap_or_default();
+            let value = bincode::serialize(&value).unwrap_or_default();
 
-                (key, value)
-            })
-            .collect();
+            Operation::Add(key, value)
+        });
 
-        self.write_handle.append(Operation::Extend(mapped));
+        self.write_handle.extend(mapped);
     }
 }
 
