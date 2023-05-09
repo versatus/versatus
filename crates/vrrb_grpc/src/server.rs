@@ -24,15 +24,14 @@ pub struct GRPCServerConfig {
 #[derive(Debug, Clone)]
 pub struct GRPCServer;
 
-impl GRPCServer {
-    pub async fn run(config: &GRPCServerConfig) -> anyhow::Result<SocketAddr> {
+impl GrpcServer {
+    pub async fn run(config: &GRPServerConfig) -> anyhow::Result<SocketAddr> {
         let addr = config.address;
 
         let reflection_service = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(node::v1::FILE_DESCRIPTOR_SET)
             .build()
             .map_err(|e| anyhow::Error::msg("Could not configure reflection for gRPC server"))?;
-
 
         let node = Node {
             node_type: config.node_type,
@@ -53,9 +52,9 @@ impl GRPCServer {
     }
 }
 
-// I feel like this needs discussion, defulat db_path here would be different
+// I feel like this needs discussion, default db_path here would be different
 // then the actual?
-impl Default for GRPCServerConfig {
+impl Default for GrpcServerConfig {
     fn default() -> GRPCServerConfig {
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 50051);
         let mut vrrbdb_config = VrrbDbConfig::default();

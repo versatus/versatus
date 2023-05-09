@@ -22,11 +22,11 @@ use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use vrrb_grpc::server::{GRPCServer, GRPCServerConfig};
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
 };
+use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -480,7 +480,7 @@ async fn setup_grpc_api_server(
     mempool_read_handle_factory: MempoolReadHandleFactory,
     // mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-    let grpc_server_config = GRPCServerConfig {
+    let grpc_server_config = GrpcServerConfig {
         address: "127.0.0.1:50051".parse().unwrap(),
         node_type: config.node_type,
         events_tx,
@@ -492,9 +492,9 @@ async fn setup_grpc_api_server(
     let address = grpc_server_config.address.clone();
 
     let handle = tokio::spawn(async move {
-        let resolved_grpc_server_addr = GRPCServer::run(&grpc_server_config)
+        let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
             .await
-            .map_err(|err| NodeError::Other(format!("unable to start GRPC server, {}", err)))
+            .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
             .unwrap();
         Ok(())
     });

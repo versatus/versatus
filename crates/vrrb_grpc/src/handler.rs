@@ -25,7 +25,7 @@ use vrrb_core::{
     txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
 };
 
-use crate::server::GRPCServerConfig;
+use crate::server::GrpcServerConfig;
 
 pub type RpcTransactionDigest = String;
 
