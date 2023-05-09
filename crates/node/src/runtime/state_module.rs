@@ -422,10 +422,17 @@ impl StateModule {
 
     /// Inserts an account into the `VrrbDb` `StateStore`. This method Should
     /// only be used for *new* accounts
-    fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
+    pub fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
         self.db
             .insert_account(key, account)
             .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Account)>) -> Result<()> {
+        for (key, account) in accounts.into_iter() {
+            self.insert_account(key, account)?;
+        }
+        Ok(())
     }
 
     /// Returns a read handle for the StateStore to be able to read
