@@ -14,8 +14,6 @@ where
             Operation::Add(key, value) => {
                 self.insert(key, value).unwrap_or_default();
                 self.commit().unwrap_or_default();
-                dbg!(self.len());
-                dbg!(self.db().len());
             },
             Operation::Update(key, value) => {
                 self.insert(key, value).unwrap_or_default();

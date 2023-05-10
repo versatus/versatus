@@ -231,6 +231,7 @@ mod tests {
         trie.insert("2hijkl", CustomValue { data: 678910 });
         trie.insert("3mnopq", CustomValue { data: 1112131415 });
 
+        trie.publish();
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
             .iter()
