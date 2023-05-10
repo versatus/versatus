@@ -1,5 +1,6 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
+import Nav from '@/components/layout/Nav'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,17 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <main className={` min-h-screen ${inter.className}`}>
-          <nav className="bg-white border-gray-200 dark:bg-gray-900">
-            <div className=" flex flex-row flex-wrap items-center justify-between mx-auto p-2">
-              <span className="self-center font-semibold whitespace-nowrap dark:text-white">
-                <h6 className="text-3xl font-bold color-gradient">
-                  VRRB Playground 🛝
-                </h6>
-              </span>
-              <div>test</div>
-            </div>
-
-          </nav>
+          <Nav />
           <div>
             <h6 className="text-3xl font-bold ">{children}</h6>
           </div>
