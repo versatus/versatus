@@ -214,6 +214,23 @@ mod tests {
         trie.insert("hijkl", CustomValue { data: 678910 });
         trie.insert("mnopq", CustomValue { data: 1112131415 });
 
+        // // NOTE Spawn 10 threads and 10 readers that should report the exact same
+        // value [0..10]
+        //     .iter()
+        //     .map(|_| {
+        //         let reader = trie.handle();
+        //         thread::spawn(move || {
+        //             // assert_eq!(reader.len(), 3);
+        //         })
+        //     })
+        //     .for_each(|handle| {
+        //         handle.join().unwrap();
+        //     });
+
+        trie.insert("1abcdefg", CustomValue { data: 12345 });
+        trie.insert("2hijkl", CustomValue { data: 678910 });
+        trie.insert("3mnopq", CustomValue { data: 1112131415 });
+
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
             .iter()
@@ -221,6 +238,10 @@ mod tests {
                 let reader = trie.handle();
                 thread::spawn(move || {
                     assert_eq!(reader.len(), 3);
+                    // dbg!(reader.len());
+                    // dbg!(reader.db().len());
+                    // dbg!(reader.len());
+                    // dbg!(reader.db().len());
                 })
             })
             .for_each(|handle| {
