@@ -7,6 +7,7 @@ import { createTransaction, signTransaction } from '@/lib/methods'
 import RPCMethodPreview from '@/components/RPCMethodPreview'
 import { useNodeContext } from '@/contexts/NodeProvider'
 import StatsBlock from '@/components/StatsBlock'
+import { Box2 } from 'iconsax-react'
 
 const Playground = () => {
   const { fullState, memPool, nodeType, account, address, setAddress } =
@@ -30,7 +31,7 @@ const Playground = () => {
 
       return (
         <>
-          <div className={'flex flex-col gap-1 w-full'}>
+          <div className={'flex flex-col gap-1 w-full text-white'}>
             <label htmlFor="signature">Signature</label>
             <input
               readOnly
@@ -39,7 +40,7 @@ const Playground = () => {
               name="signature"
               id="signature"
               placeholder="Signature"
-              className="signature-input p-3 text-black border w-full rounded-xl"
+              className="signature-input p-3 text-grey-400 border w-full rounded-xl"
               value={signature}
             />
           </div>
@@ -52,7 +53,7 @@ const Playground = () => {
                 name="sender_address"
                 id="sender_address"
                 placeholder="Sender Address"
-                className="sender-address-input p-3 text-black border w-full text-[#000] rounded-xl"
+                className="sender-address-input p-3 text-grey-400 border w-full text-[#000] rounded-xl"
                 value={String(address)}
                 onChange={(e) => setSenderAddress(e.target.value)}
               />
@@ -65,7 +66,7 @@ const Playground = () => {
                 name="sender_public_key"
                 id="sender_public_key"
                 placeholder="Sender Public Key"
-                className="sender-public-key-input p-3 text-black border w-full rounded-xl"
+                className="sender-public-key-input p-3 text-grey-400 border w-full rounded-xl"
                 value={senderPublicKey}
                 onChange={(e) => setSenderPublicKey(e.target.value)}
               />
@@ -78,7 +79,7 @@ const Playground = () => {
                 name="receiver_address"
                 id="receiver_address"
                 placeholder="Receiver Address"
-                className="receiver-address-input p-3 text-black border w-full rounded-xl"
+                className="receiver-address-input p-3 text-grey-400 border w-full rounded-xl"
                 value={receiverAddress}
                 onChange={(e) => setReceiverAddress(e.target.value)}
               />
@@ -91,7 +92,7 @@ const Playground = () => {
                 name="amount"
                 id="amount"
                 placeholder="Amount"
-                className="amount-input p-3 text-black border w-full rounded-xl"
+                className="amount-input p-3 text-grey-400 border w-full rounded-xl"
                 value={amount}
                 onChange={(e) => setAmount(parseInt(e.target.value))}
               />
@@ -104,7 +105,7 @@ const Playground = () => {
                 name="nonce"
                 id="nonce"
                 placeholder="Nonce"
-                className="nonce-input p-3 text-black border w-full rounded-xl"
+                className="nonce-input p-3 text-grey-400 border w-full rounded-xl"
                 value={nonce}
                 onChange={(e) => setNonce(parseInt(e.target.value))}
               />
@@ -118,7 +119,7 @@ const Playground = () => {
       <div className={'flex flex-row gap-2'}>
         <div
           className={
-            'text-sm w-[100%] flex flex-col items-center justify-center  bg-blue-200 rounded-xl p-4 gap-3'
+            'text-sm w-[100%] text-white flex flex-col items-center justify-center  bg-blue-200 rounded-xl p-4 gap-3'
           }
         >
           <TXInputs />
@@ -134,7 +135,7 @@ const Playground = () => {
               createTransaction({ ...FAKE_TRANSACTION, timestamp: Date.now() })
             }
             disabled={!signature}
-            className="bg-gradient hover:bg-purple-500 border-4 border border-purple-500 text-white font-bold py-2 px-4 rounded-xl"
+            className="bg-gradient hover:bg-purple-500 border  text-white font-bold py-2 px-4 rounded-xl"
           >
             Send Transaction
           </button>
@@ -145,7 +146,7 @@ const Playground = () => {
 
   const AccountSelectDropdown = () => {
     return (
-      <div className={'text-gray-700 text-sm gap-2 flex items-center'}>
+      <div className={'text-sm gap-2 flex items-center'}>
         Account Overview
         <select
           className="select select-sm w-full max-w-xs"
@@ -164,7 +165,7 @@ const Playground = () => {
 
   const AccountOverview = () => {
     return (
-      <div className={'flex flex-col gap-2'}>
+      <div className={'flex flex-col gap-2 text-white'}>
         <AccountSelectDropdown />
         <div className={'flex flex-row gap-3'}>
           <StatsBlock suffix={'debits'}>{account?.debits ?? 'N/A'}</StatsBlock>
@@ -183,7 +184,7 @@ const Playground = () => {
 
   const NodeOverview = () => {
     return (
-      <div className={'flex flex-col gap-2'}>
+      <div className={'flex flex-col gap-2 text-white '}>
         <div className={'text-gray-700 text-sm'}>Node Stats</div>
         <div className={'flex flex-row gap-3'}>
           <StatsBlock suffix={'txs in the mempool'}>
@@ -210,7 +211,115 @@ const Playground = () => {
   }
 
   return (
-    <div className={'m-4 flex flex-col gap-2 '}>
+    <div className={'flex flex-col gap-2'}>
+      <div
+        className={'gap-2 text-white flex flex-row rounded p-4 items-center'}
+      >
+        <Box2 />
+        <div className={'text-md font-light text-white'}>
+          Farmer Node Overview
+        </div>
+      </div>
+      <div className={'flex flex-row gap-2'}></div>
+      <div className={'border rounded-xl flex-flex-col gap-5 p-10'}>
+        <div className={'flex flex-row items-center gap-2'}>
+          <div className={'p-2 rounded-full bg-mars'}></div>
+          <div className={' text-white'}>Reputation</div>
+        </div>
+        <div className={'flex flex-row items-center gap-2'}>
+          <div className={'p-2 rounded-full bg-saturn'}></div>
+          <div className={' text-white'}>Avg Reputation for Pool</div>
+        </div>
+        <div className={'flex flex-row items-center gap-2'}>
+          <div className={'p-2 rounded-full bg-venus'}></div>
+          <div className={' text-white'}>Avg Tx Processing Time</div>
+        </div>
+        <div className={'flex flex-row items-center gap-2'}>
+          <div className={'p-2 rounded-full bg-neptune'}></div>
+          <div className={' text-white'}>Total Votes</div>
+        </div>
+      </div>
+      <div className={'flex flex-row gap-3 border rounded-xl p-10'}>
+        <div
+          className="radial-progress text-mars text-mars"
+          style={{ '--value': 0 }}
+        >
+          0%
+        </div>
+        <div className="radial-progress text-saturn" style={{ '--value': 20 }}>
+          20%
+        </div>
+        <div className="radial-progress text-mars" style={{ '--value': 60 }}>
+          60%
+        </div>
+        <div className="radial-progress text-venus" style={{ '--value': 80 }}>
+          80%
+        </div>
+        <div
+          className="radial-progress text-neptune"
+          style={{ '--value': 100 }}
+        >
+          100%
+        </div>
+        <div className="radial-progress text-venus" style={{ '--value': 80 }}>
+          80%
+        </div>
+        <div className="radial-progress text-mars" style={{ '--value': 60 }}>
+          60%
+        </div>
+        <div className="radial-progress text-saturn" style={{ '--value': 20 }}>
+          20%
+        </div>
+        <div
+          className="radial-progress text-mars text-mars"
+          style={{ '--value': 0 }}
+        >
+          0%
+        </div>
+
+        <div className={'relative'}>
+          <div
+            className="radial-progress text-neptune"
+            style={{
+              '--value': 100,
+              '--size': '12rem',
+              '--thickness': '0.5rem',
+            }}
+          />
+          <div
+            className="radial-progress text-mars absolute left-[8.5%] top-[8.5%]"
+            style={{
+              '--value': 100,
+              '--size': '10rem',
+              '--thickness': '0.5rem',
+            }}
+          />
+          <div
+            className="radial-progress text-saturn absolute left-[17%] top-[17%]"
+            style={{
+              '--value': 100,
+              '--size': '8rem',
+              '--thickness': '0.5rem',
+            }}
+          />
+          <div
+            className="radial-progress text-venus absolute left-[25.33%] top-[25.33%]"
+            style={{
+              '--value': 100,
+              '--size': '6rem',
+              '--thickness': '0.5rem',
+            }}
+          />
+          <div
+            className="radial-progress text-earth absolute left-[33.5%] top-[33.5%]"
+            style={{
+              '--value': 100,
+              '--size': '4rem',
+              '--thickness': '0.5rem',
+            }}
+          />
+        </div>
+      </div>
       <NodeInteraction />
       <TXBuilder />
     </div>

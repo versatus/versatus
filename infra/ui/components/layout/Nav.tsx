@@ -1,14 +1,27 @@
 import VRRBLogo from '@vrrb/icons'
+import { ArrowDown2, Box1, HambergerMenu, SearchNormal } from 'iconsax-react'
 
 export default function Nav() {
   return (
-    <nav className="">
-      <div className=" flex flex-row flex-wrap items-center justify-between mx-auto p-2">
-        <span className="self-center font-semibold whitespace-nowrap">
+    <div className="navbar items-center">
+      <div className="navbar-start">
+        <a className="btn btn-ghost normal-case text-xl">
           <VRRBLogo />
-        </span>
-        <div>test</div>
+        </a>
+        <div className={'text-white flex flex-row items-center gap-2 text-sm'}>
+          <Box1 size="16" />
+          <div>Playground</div>
+          <ArrowDown2 size="16" />
+        </div>
       </div>
-    </nav>
+      <div className="navbar-end">
+        <button className="text-white btn-circle text-xl">
+          <SearchNormal size="24" />
+        </button>
+        <button className="text-white btn-circle text-xl">
+          <HambergerMenu size="24" />
+        </button>
+      </div>
+    </div>
   )
 }

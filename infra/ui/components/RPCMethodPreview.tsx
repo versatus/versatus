@@ -63,9 +63,7 @@ const RPCMethodPreview = ({ address }: { address: string }) => {
         </button>
       </div>
       <div
-        className={
-          'text-xs border p-4 border-4 rounded-xl h-[200px] overflow-scroll'
-        }
+        className={'text-xs border p-4 text-white h-[200px] overflow-scroll'}
       >
         {rpcResp ? (
           <JsonViewer defaultInspectDepth={1} value={rpcResp} />

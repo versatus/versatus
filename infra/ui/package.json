@@ -19,6 +19,7 @@
     "daisyui": "^2.51.5",
     "eslint": "8.38.0",
     "eslint-config-next": "13.3.0",
+    "iconsax-react": "^0.0.8",
     "next": "13.3.0",
     "postcss": "8.4.23",
     "react": "18.2.0",
