@@ -760,6 +760,11 @@
     react "18.2.0"
     tsup "^6.7.0"
 
+"@vrrb/tailwind-config@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@vrrb/tailwind-config/-/tailwind-config-0.1.0.tgz#832a2d78ce1d4678b01f14ac65b1a43f9cabf9cc"
+  integrity sha512-H0d39xNaVJHsutS29Ea5IPRJ002EWaVOYPuPWb60T9dHVAOrAiaSNMvAIqaRfN52WKCU1kxG720RhKDZFx9Txg==
+
 acorn-jsx@^5.3.2:
   version "5.3.2"
   resolved "https://registry.yarnpkg.com/acorn-jsx/-/acorn-jsx-5.3.2.tgz#7ed5bb55908b3b2f1bc55c6af1653bada7f07937"
