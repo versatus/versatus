@@ -2,11 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
-use patriecia::{
-    db::Database,
-    inner::{InnerTrie, TrieIterator},
-    trie::Trie,
-};
+use patriecia::{db::Database, trie::Trie, InnerTrie, TrieIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{LeftRightTrieError, Result};
