@@ -448,7 +448,7 @@ impl Handler<EventMessage> for DkgModule {
                                     let _ = self
                                         .broadcast_events_tx
                                         .send(
-                                            Event::PartMessage(node_idx, part_committment_bytes)
+                                            Event::SendPartMessage(node_idx, part_committment_bytes)
                                                 .into(),
                                         )
                                         .await.map_err(|e| {
@@ -553,6 +553,15 @@ impl Handler<EventMessage> for DkgModule {
                 }
             },
             Event::NoOp => {},
+            Event::ReceivedDKGPartCommitment {
+                part_commitment,
+                sender_id,
+            } => {
+                self.dkg_engine
+                    .dkg_state
+                    .part_message_store
+                    .insert(sender_id, part_commitment);
+            },
             _ => {},
         }
 

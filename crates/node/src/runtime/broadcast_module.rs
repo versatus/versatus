@@ -69,46 +69,6 @@ impl BroadcastModule {
     pub fn name(&self) -> String {
         "Broadcast".to_string()
     }
-
-    pub async fn process_received_msg(&mut self) {
-        loop {
-            if let Some((_, mut incoming)) = self
-                .broadcast_engine
-                .get_incoming_connections()
-                .next()
-                .await
-            {
-                if let Ok(message_result) = incoming.next().timeout().await {
-                    if let Ok(msg_option) = message_result {
-                        if let Some(message) = msg_option {
-                            let msg = Message::from_bytes(&message.2);
-                            match msg.data {
-                                MessageBody::InvalidBlock { .. } => {},
-                                MessageBody::Disconnect { .. } => {},
-                                MessageBody::StateComponents { .. } => {},
-                                MessageBody::Genesis { .. } => {},
-                                MessageBody::Child { .. } => {},
-                                MessageBody::Parent { .. } => {},
-                                MessageBody::Ledger { .. } => {},
-                                MessageBody::NetworkState { .. } => {},
-                                MessageBody::ClaimAbandoned { .. } => {},
-                                MessageBody::ResetPeerConnection { .. } => {},
-                                MessageBody::RemovePeer { .. } => {},
-                                MessageBody::AddPeer { .. } => {},
-                                MessageBody::DKGPartCommitment {
-                                    part_commitment: _,
-                                    sender_id: _,
-                                } => {},
-                                MessageBody::DKGPartAcknowledgement { .. } => {},
-                                MessageBody::Vote { .. } => {},
-                                MessageBody::Empty => {},
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 /// The number of erasures that the raptorq encoder will use to encode the
@@ -143,7 +103,7 @@ impl Handler<EventMessage> for BroadcastModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            Event::PartMessage(sender_id, part_commitment) => {
+            Event::SendPartMessage(sender_id, part_commitment) => {
                 let status = self
                     .broadcast_engine
                     .quic_broadcast(Message::new(MessageBody::DKGPartCommitment {
@@ -277,7 +237,7 @@ mod tests {
             node_id,
         };
 
-        let (events_tx, mut events_rx) =
+        let (mut events_tx, mut events_rx) =
             tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let broadcast_module = BroadcastModule::new(config).await.unwrap();

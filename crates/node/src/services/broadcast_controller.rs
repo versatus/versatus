@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use bytes::Bytes;
-use events::{Event, EventPublisher, EventSubscriber};
+use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
@@ -86,7 +86,15 @@ impl BroadcastEngineController {
             MessageBody::ResetPeerConnection { .. } => {},
             MessageBody::RemovePeer { .. } => {},
             MessageBody::AddPeer { .. } => {},
-            MessageBody::DKGPartCommitment { .. } => {},
+            MessageBody::DKGPartCommitment {
+                part_commitment,
+                sender_id,
+            } => {
+                self.events_tx.send(EventMessage::new(
+                    None,
+                    Event::PartMessage(sender_id, part_commitment),
+                ));
+            },
             MessageBody::DKGPartAcknowledgement { .. } => {},
             MessageBody::Vote { .. } => {},
             MessageBody::Empty => {},
