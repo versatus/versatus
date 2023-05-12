@@ -4,20 +4,20 @@ managed:
 plugins:
   # client
   - plugin: buf.build/bufbuild/es:v1.2.0
-    out: types/ts
+    out: crates/vrrb_grpc/types/ts
     revision: 1
   # server
   - name: prost
-    out: src/gen
+    out: crates/vrrb_grpc/src/gen
     opt:
 #      - bytes=.
       - compile_well_known_types
       - extern_path=.google.protobuf=::pbjson_types
       - file_descriptor_set
   - name: prost-serde
-    out: src/gen
+    out: crates/vrrb_grpc/src/gen
   - name: tonic
-    out: src/gen
+    out: crates/vrrb_grpc/src/gen
     opt:
       - compile_well_known_types
       - extern_path=.google.protobuf=::pbjson_types
@@ -25,5 +25,5 @@ plugins:
     out: .
     strategy: all
     opt:
-      - include_file=src/gen/mod.rs
+      - include_file=crates/vrrb_grpc/src/mod.rs
       - gen_crate
