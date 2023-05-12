@@ -10,7 +10,7 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tokio::sync::mpsc::channel;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::transport::Server;
 use tonic_reflection;
 
 use crate::{node_read::NodeRead, node_write::NodeWrite};
@@ -35,7 +35,12 @@ impl GrpcServer {
             .register_encoded_file_descriptor_set(node_read_service::v1::FILE_DESCRIPTOR_SET)
             .register_encoded_file_descriptor_set(node_write_service::v1::FILE_DESCRIPTOR_SET)
             .build()
-            .map_err(|e| anyhow::Error::msg("Could not configure reflection for gRPC server"))?;
+            .map_err(|e| {
+                anyhow::Error::msg(format!(
+                    "Could not configure reflection for gRPC server: {}",
+                    e
+                ))
+            })?;
 
         let node_read = NodeRead {
             node_type: config.node_type,
@@ -59,7 +64,7 @@ impl GrpcServer {
             .add_service(node_write_service)
             .serve(addr)
             .await
-            .map_err(|e| anyhow::Error::msg("Could not start gRPC server"))?;
+            .map_err(|e| anyhow::Error::msg(format!("Could not start gRPC server: {}", e)))?;
 
         Ok(addr)
     }

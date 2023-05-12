@@ -1,8 +1,8 @@
 include!("gen/mod.rs");
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
-use events::{Event, EventPublisher};
+use events::EventPublisher;
 use mempool::MempoolReadHandleFactory;
 use node_read_service::v1::{
     node_read_service_server::{NodeReadService, NodeReadServiceServer},
@@ -14,17 +14,10 @@ use node_read_service::v1::{
     TransactionRecord,
 };
 use primitives::NodeType;
-use secp256k1::{ecdsa::Signature, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry;
-use tonic::{transport::Server, Request, Response, Status};
-use vrrb_core::{
-    account::Account,
-    txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
-};
-
-use crate::server::GrpcServerConfig;
+use tonic::{Request, Response, Status};
+use vrrb_core::txn::{Token, TxAmount, TxNonce, TxTimestamp, Txn};
 
 pub type RpcTransactionDigest = String;
 
@@ -103,7 +96,7 @@ impl NodeRead {
 impl NodeReadService for NodeRead {
     async fn get_node_type(
         &self,
-        request: Request<GetNodeTypeRequest>,
+        _request: Request<GetNodeTypeRequest>,
     ) -> Result<Response<GetNodeTypeResponse>, Status> {
         let response = GetNodeTypeResponse {
             id: (self.node_type as i32).to_string(),
@@ -114,7 +107,7 @@ impl NodeReadService for NodeRead {
 
     async fn get_full_mempool(
         &self,
-        request: Request<GetFullMempoolRequest>,
+        _request: Request<GetFullMempoolRequest>,
     ) -> Result<Response<GetFullMempoolResponse>, Status> {
         let transaction_records = self
             .mempool_read_handle_factory

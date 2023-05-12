@@ -11,17 +11,11 @@ use node_write_service::v1::{
     TransactionRecord,
 };
 use primitives::NodeType;
-use secp256k1::{ecdsa::Signature, PublicKey, Secp256k1};
+use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry;
-use tonic::{transport::Server, Request, Response, Status};
-use vrrb_core::{
-    account::Account,
-    txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
-};
-
-use crate::server::GrpcServerConfig;
+use tonic::{Request, Response, Status};
+use vrrb_core::txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn};
 
 pub type RpcTransactionDigest = String;
 
