@@ -481,14 +481,13 @@ async fn setup_grpc_api_server(
     // mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
     let grpc_server_config = GrpcServerConfig {
-        address: "127.0.0.1:50051".parse().unwrap(),
+        address: config.grpc_server_address,
         node_type: config.node_type,
         events_tx,
         vrrbdb_read_handle,
         mempool_read_handle_factory,
     };
 
-    // TODO: address, this is a little goofy
     let address = grpc_server_config.address.clone();
 
     let handle = tokio::spawn(async move {
