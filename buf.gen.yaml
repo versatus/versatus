@@ -25,5 +25,5 @@ plugins:
     out: .
     strategy: all
     opt:
-      - include_file=crates/vrrb_grpc/src/mod.rs
+      - include_file=crates/vrrb_grpc/src/gen/mod.rs
       - gen_crate

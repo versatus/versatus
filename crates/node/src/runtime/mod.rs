@@ -494,7 +494,7 @@ async fn setup_grpc_api_server(
         let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
             .await
             .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
-            .unwrap();
+            .expect("gRPC server to start");
         Ok(())
     });
 
