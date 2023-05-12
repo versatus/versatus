@@ -1,13 +1,13 @@
 // @generated
 /// Generated client implementations.
-pub mod node_service_client {
+pub mod node_write_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::{http::Uri, *};
     #[derive(Debug, Clone)]
-    pub struct NodeServiceClient<T> {
+    pub struct NodeWriteServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl NodeServiceClient<tonic::transport::Channel> {
+    impl NodeWriteServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -18,7 +18,7 @@ pub mod node_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> NodeServiceClient<T>
+    impl<T> NodeWriteServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -38,7 +38,7 @@ pub mod node_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> NodeServiceClient<InterceptedService<T, F>>
+        ) -> NodeWriteServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -51,7 +51,7 @@ pub mod node_service_client {
             <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
                 Into<StdError> + Send + Sync,
         {
-            NodeServiceClient::new(InterceptedService::new(inner, interceptor))
+            NodeWriteServiceClient::new(InterceptedService::new(inner, interceptor))
         }
 
         /// Compress requests with the given encoding.
@@ -71,36 +71,6 @@ pub mod node_service_client {
             self
         }
 
-        pub async fn get_node_type(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetNodeTypeRequest>,
-        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/node.v1.NodeService/GetNodeType");
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-
-        pub async fn get_full_mempool(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetFullMempoolRequest>,
-        ) -> Result<tonic::Response<super::GetFullMempoolResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::new(
-                    tonic::Code::Unknown,
-                    format!("Service was not ready: {}", e.into()),
-                )
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/node.v1.NodeService/GetFullMempool");
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-
         pub async fn create_transaction(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateTransactionRequest>,
@@ -112,41 +82,34 @@ pub mod node_service_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/node.v1.NodeService/CreateTransaction");
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_write_service.v1.NodeWriteService/CreateTransaction",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod node_service_server {
+pub mod node_write_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     /// Generated trait containing gRPC methods that should be implemented for
-    /// use with NodeServiceServer.
+    /// use with NodeWriteServiceServer.
     #[async_trait]
-    pub trait NodeService: Send + Sync + 'static {
-        async fn get_node_type(
-            &self,
-            request: tonic::Request<super::GetNodeTypeRequest>,
-        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status>;
-        async fn get_full_mempool(
-            &self,
-            request: tonic::Request<super::GetFullMempoolRequest>,
-        ) -> Result<tonic::Response<super::GetFullMempoolResponse>, tonic::Status>;
+    pub trait NodeWriteService: Send + Sync + 'static {
         async fn create_transaction(
             &self,
             request: tonic::Request<super::CreateTransactionRequest>,
         ) -> Result<tonic::Response<super::TransactionRecord>, tonic::Status>;
     }
     #[derive(Debug)]
-    pub struct NodeServiceServer<T: NodeService> {
+    pub struct NodeWriteServiceServer<T: NodeWriteService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: NodeService> NodeServiceServer<T> {
+    impl<T: NodeWriteService> NodeWriteServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -182,9 +145,9 @@ pub mod node_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for NodeServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for NodeWriteServiceServer<T>
     where
-        T: NodeService,
+        T: NodeWriteService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -199,76 +162,10 @@ pub mod node_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/node.v1.NodeService/GetNodeType" => {
+                "/node_write_service.v1.NodeWriteService/CreateTransaction" => {
                     #[allow(non_camel_case_types)]
-                    struct GetNodeTypeSvc<T: NodeService>(pub Arc<T>);
-                    impl<T: NodeService> tonic::server::UnaryService<super::GetNodeTypeRequest> for GetNodeTypeSvc<T> {
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        type Response = super::GetNodeTypeResponse;
-
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GetNodeTypeRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).get_node_type(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = GetNodeTypeSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                },
-                "/node.v1.NodeService/GetFullMempool" => {
-                    #[allow(non_camel_case_types)]
-                    struct GetFullMempoolSvc<T: NodeService>(pub Arc<T>);
-                    impl<T: NodeService> tonic::server::UnaryService<super::GetFullMempoolRequest>
-                        for GetFullMempoolSvc<T>
-                    {
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        type Response = super::GetFullMempoolResponse;
-
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GetFullMempoolRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).get_full_mempool(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = GetFullMempoolSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
-                            accept_compression_encodings,
-                            send_compression_encodings,
-                        );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                },
-                "/node.v1.NodeService/CreateTransaction" => {
-                    #[allow(non_camel_case_types)]
-                    struct CreateTransactionSvc<T: NodeService>(pub Arc<T>);
-                    impl<T: NodeService>
+                    struct CreateTransactionSvc<T: NodeWriteService>(pub Arc<T>);
+                    impl<T: NodeWriteService>
                         tonic::server::UnaryService<super::CreateTransactionRequest>
                         for CreateTransactionSvc<T>
                     {
@@ -311,7 +208,7 @@ pub mod node_service_server {
             }
         }
     }
-    impl<T: NodeService> Clone for NodeServiceServer<T> {
+    impl<T: NodeWriteService> Clone for NodeWriteServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -321,7 +218,7 @@ pub mod node_service_server {
             }
         }
     }
-    impl<T: NodeService> Clone for _Inner<T> {
+    impl<T: NodeWriteService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(self.0.clone())
         }
@@ -331,7 +228,7 @@ pub mod node_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: NodeService> tonic::server::NamedService for NodeServiceServer<T> {
-        const NAME: &'static str = "node.v1.NodeService";
+    impl<T: NodeWriteService> tonic::server::NamedService for NodeWriteServiceServer<T> {
+        const NAME: &'static str = "node_write_service.v1.NodeWriteService";
     }
 }

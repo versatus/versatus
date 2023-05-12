@@ -13,7 +13,7 @@ use tokio::sync::mpsc::channel;
 use tonic::{transport::Server, Request, Response, Status};
 use tonic_reflection;
 
-use crate::handler::Node;
+use crate::{node_read::NodeRead, node_write::NodeWrite};
 
 #[derive(Debug, Clone)]
 pub struct GrpcServerConfig {
@@ -32,21 +32,31 @@ impl GrpcServer {
         let addr = config.address;
 
         let reflection_service = tonic_reflection::server::Builder::configure()
-            .register_encoded_file_descriptor_set(node::v1::FILE_DESCRIPTOR_SET)
+            .register_encoded_file_descriptor_set(node_read_service::v1::FILE_DESCRIPTOR_SET)
+            .register_encoded_file_descriptor_set(node_write_service::v1::FILE_DESCRIPTOR_SET)
             .build()
             .map_err(|e| anyhow::Error::msg("Could not configure reflection for gRPC server"))?;
 
-        let node = Node {
+        let node_read = NodeRead {
             node_type: config.node_type,
             vrrbdb_read_handle: config.vrrbdb_read_handle.clone(),
             mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
             events_tx: config.events_tx.clone(),
         };
-        let node_service = node.init();
+        let node_read_service = node_read.init();
+
+        let node_write = NodeWrite {
+            node_type: config.node_type,
+            vrrbdb_read_handle: config.vrrbdb_read_handle.clone(),
+            mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
+            events_tx: config.events_tx.clone(),
+        };
+        let node_write_service = node_write.init();
 
         Server::builder()
             .add_service(reflection_service)
-            .add_service(node_service)
+            .add_service(node_read_service)
+            .add_service(node_write_service)
             .serve(addr)
             .await
             .map_err(|e| anyhow::Error::msg("Could not start gRPC server"))?;

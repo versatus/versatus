@@ -1,23 +1,10 @@
 syntax = "proto3";
-package node.v1;
+package node_write_service.v1;
 
-service NodeService {
-    rpc GetNodeType (GetNodeTypeRequest) returns (GetNodeTypeResponse);
-    rpc GetFullMempool (GetFullMempoolRequest) returns (GetFullMempoolResponse);
+// import "node/v1/node.proto";
+
+service NodeWriteService {
     rpc CreateTransaction (CreateTransactionRequest) returns (TransactionRecord);
-}
-
-message GetNodeTypeRequest {}
-
-message GetNodeTypeResponse {
-    string id = 1;
-    string result = 2;
-}
-
-message GetFullMempoolRequest {}
-
-message GetFullMempoolResponse {
-    repeated TransactionRecord transaction_records = 1;
 }
 
 message CreateTransactionRequest {
@@ -50,3 +37,4 @@ message Token {
     string symbol = 2;
     uint32 decimals = 3;
 }
+
