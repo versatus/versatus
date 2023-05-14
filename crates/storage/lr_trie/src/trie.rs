@@ -224,7 +224,7 @@ mod tests {
             .map(|_| {
                 let reader = trie.handle();
                 thread::spawn(move || {
-                    assert_eq!(reader.len(), 3);
+                    assert_eq!(reader.iter().count(), 3);
                 })
             })
             .for_each(|handle| {
