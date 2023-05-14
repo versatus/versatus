@@ -92,12 +92,13 @@ patriecia = { git = "https://github.com/vrrb-io/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
-hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
+hbbft = { git = "https://github.com/vrrb-io/hbbft" }
+bulldag = { git = "https://github.com/vrrb-io/bulldag" }
 kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
-decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
+decentrust = { git = "https://github.com/vrrb-io/decentrust" }
+integral-db = { git = "https://github.com/vrrb-io/integral-db" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
