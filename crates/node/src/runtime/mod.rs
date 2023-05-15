@@ -1,6 +1,10 @@
 use std::{
     net::SocketAddr,
-    sync::{Arc, RwLock},
+    sync::{
+        mpsc::{channel, Receiver},
+        Arc,
+        RwLock,
+    },
     thread,
 };
 
@@ -23,6 +27,7 @@ use vrrb_core::{
     claim::{Claim, ClaimError},
     keypair::Keypair,
 };
+use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -104,6 +109,7 @@ pub struct RuntimeComponents {
     pub dag_handle: RuntimeHandle,
     pub raptor_handle: RaptorHandle,
     pub scheduler_handle: SchedulerHandle,
+    pub grpc_server_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -206,6 +212,17 @@ pub async fn setup_runtime_components(
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
+
+    let (grpc_server_handle, resolved_grpc_server_addr) = setup_grpc_api_server(
+        &config,
+        events_tx.clone(),
+        state_read_handle.clone(),
+        mempool_read_handle_factory.clone(),
+        // jsonrpc_events_rx,
+    )
+    .await?;
+
+    info!("gRPC server address started: {}", resolved_grpc_server_addr);
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -314,6 +331,7 @@ pub async fn setup_runtime_components(
         dag_handle,
         raptor_handle: Some(raptor_handle),
         scheduler_handle: Some(scheduler_handle),
+        grpc_server_handle,
     };
 
     Ok(runtime_components)
@@ -460,6 +478,35 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
+async fn setup_grpc_api_server(
+    config: &NodeConfig,
+    events_tx: EventPublisher,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
+    // mut jsonrpc_events_rx: EventSubscriber,
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+    let grpc_server_config = GrpcServerConfig {
+        address: config.grpc_server_address,
+        node_type: config.node_type,
+        events_tx,
+        vrrbdb_read_handle,
+        mempool_read_handle_factory,
+    };
+
+    let address = grpc_server_config.address.clone();
+
+    let handle = tokio::spawn(async move {
+        let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
+            .await
+            .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
+            .expect("gRPC server to start");
+        Ok(())
+    });
+
+    info!("gRPC server started at {}", &address);
+
+    Ok((Some(handle), address))
+}
 
 fn setup_mining_module(
     config: &NodeConfig,

@@ -50,6 +50,7 @@ pub struct Node {
     dag_handle: RuntimeHandle,
     raptor_handle: RaptorHandle,
     scheduler_handle: SchedulerHandle,
+    grpc_server_handle: RuntimeHandle,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
@@ -104,6 +105,7 @@ impl Node {
             dag_handle: runtime_components.dag_handle,
             raptor_handle: runtime_components.raptor_handle,
             scheduler_handle: runtime_components.scheduler_handle,
+            grpc_server_handle: runtime_components.grpc_server_handle,
         })
     }
 
