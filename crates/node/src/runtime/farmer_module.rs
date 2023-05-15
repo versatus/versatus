@@ -1,4 +1,7 @@
+use std::{collections::HashSet, net::SocketAddr, str::FromStr};
+
 use async_trait::async_trait;
+use bincode::config;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
 use mempool::mempool::{LeftRightMempool, TxnStatus};
@@ -6,7 +9,10 @@ use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{
+    keypair::KeyPair,
+    txn::{TransactionDigest, Txn},
+};
 
 use crate::scheduler::Job;
 
@@ -78,6 +84,7 @@ pub struct FarmerModule {
     pub sig_provider: Option<SignatureProvider>,
     pub farmer_id: PeerId,
     pub farmer_node_idx: NodeIdx,
+    pub harvester_peers: HashSet<SocketAddr>,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -112,6 +119,7 @@ impl FarmerModule {
             quorum_threshold,
             sync_jobs_sender,
             async_jobs_sender,
+            harvester_peers: Default::default(),
         };
         farmer
     }
@@ -171,6 +179,13 @@ impl Handler<EventMessage> for FarmerModule {
         match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
+            },
+
+            Event::AddHarvesterPeer(peer) => {
+                self.harvester_peers.insert(peer);
+            },
+            Event::RemoveHarvesterPeer(peer) => {
+                self.harvester_peers.remove(&peer);
             },
             //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted

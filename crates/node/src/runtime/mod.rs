@@ -21,6 +21,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
+    keypair::Keypair,
 };
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
@@ -270,10 +271,13 @@ pub async fn setup_runtime_components(
     } else {
         //Setup harvester
         harvester_handle = setup_harvester_module(
+            &config,
+            dag.clone(),
             sync_jobs_sender,
             async_jobs_sender,
             events_tx.clone(),
             events_rx,
+            state_read_handle.clone(),
             harvester_events_rx,
         )?
     };
@@ -291,7 +295,8 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx)?;
+    let dag_handle =
+        setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -621,10 +626,13 @@ fn setup_farmer_module(
 }
 
 fn setup_harvester_module(
+    config: &NodeConfig,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    vrrb_db_handle: VrrbDbReadHandle,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -634,8 +642,12 @@ fn setup_harvester_module(
         events_rx,
         broadcast_events_tx,
         1,
+        dag,
         sync_jobs_sender,
         async_jobs_sender,
+        vrrb_db_handle,
+        config.keypair.clone(),
+        config.idx,
     );
     let mut harvester_module_actor = ActorImpl::new(module);
     let harvester_handle = tokio::spawn(async move {
@@ -651,8 +663,9 @@ fn setup_dag_module(
     dag: Arc<RwLock<BullDag<Block, String>>>,
     events_tx: EventPublisher,
     mut dag_module_events_rx: EventSubscriber,
+    claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module = DagModule::new(dag, events_tx);
+    let module = DagModule::new(dag, events_tx, claim);
 
     let mut dag_module_actor = ActorImpl::new(module);
     let dag_module_handle = tokio::spawn(async move {
