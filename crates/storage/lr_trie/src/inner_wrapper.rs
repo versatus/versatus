@@ -1,4 +1,7 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    sync::Arc,
+};
 
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
@@ -127,7 +130,7 @@ where
     }
 
     pub fn len(&self) -> usize {
-        self.inner.len()
+        self.iter().count()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -136,5 +139,14 @@ where
 
     pub fn db(&self) -> Arc<D> {
         self.inner.db()
+    }
+}
+
+impl<D> Display for InnerTrieWrapper<D>
+where
+    D: Database,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.inner)
     }
 }
