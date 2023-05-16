@@ -2,14 +2,12 @@ use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 use block::{
-    header::BlockHeader,
     valid::{BlockValidationData, Valid},
     Block,
     ConvergenceBlock,
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
-    RefHash,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -18,11 +16,9 @@ use bulldag::{
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
-use rayon::prelude::*;
 use signer::types::{SignerError, SignerResult};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use vrrb_core::claim::Claim;
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
@@ -34,7 +30,7 @@ pub type GraphResult<T> = Result<T, GraphError>;
 /// ```
 /// use std::sync::{Arc, RwLock};
 ///
-/// use block::{header::BlockHeader, Block};
+/// use block::Block;
 /// use bulldag::graph::BullDag;
 /// use events::EventPublisher;
 /// use hbbft::crypto::PublicKeySet;
@@ -47,7 +43,6 @@ pub type GraphResult<T> = Result<T, GraphError>;
 ///     events_tx: EventPublisher,
 ///     dag: Arc<RwLock<BullDag<Block, String>>>,
 ///     public_key_set: Option<PublicKeySet>,
-///     last_confirmed_block_header: Option<BlockHeader>,
 /// }
 /// ```
 pub struct DagModule {
@@ -58,16 +53,10 @@ pub struct DagModule {
     events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
-    last_confirmed_block_header: Option<BlockHeader>,
-    pub claim: Claim,
 }
 
 impl DagModule {
-    pub fn new(
-        dag: Arc<RwLock<BullDag<Block, String>>>,
-        events_tx: EventPublisher,
-        claim: Claim,
-    ) -> Self {
+    pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, events_tx: EventPublisher) -> Self {
         Self {
             status: ActorState::Stopped,
             label: String::from("Dag"),
@@ -75,8 +64,6 @@ impl DagModule {
             events_tx,
             dag,
             public_key_set: None,
-            last_confirmed_block_header: None,
-            claim,
         }
     }
 
@@ -115,6 +102,7 @@ impl DagModule {
 
     pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<()> {
         let valid = self.check_valid_convergence(convergence);
+
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
                 self.get_convergence_reference_blocks(convergence);
@@ -360,40 +348,14 @@ impl Handler<EventMessage> for DagModule {
                         let err_note = format!("Encountered GraphError: {:?}", e);
                         return Err(theater::TheaterError::Other(err_note));
                     }
-                    if block.certificate.is_none() {
-                        if let Some(header) = self.last_confirmed_block_header.clone() {
-                            self.events_tx.send(EventMessage::new(
-                                None,
-                                Event::PrecheckConvergenceBlock(block, header),
-                            ));
-                        }
-                    }
+                    //
+
+                    //      self.events_tx.send(EventMessage::new(None,
+                    // Event::MineProposalBlock(block.hash,block.)))
                 },
             },
-            Event::BlockCertificate(certificate) => {
-                if let Ok(mut dag) = self.dag.write() {
-                    if let Some(block) = dag.get_vertex_mut(certificate.block_hash.clone()) {
-                        if let Block::Convergence { mut block } = block.get_data() {
-                            block.append_certificate(certificate);
-                            self.last_confirmed_block_header = Some(block.get_header());
-                            let _ = self.events_tx.send(EventMessage::new(
-                                None,
-                                Event::MineProposalBlock(
-                                    block.hash.clone(),
-                                    block.get_header().round,
-                                    block.get_header().epoch,
-                                    self.claim.clone(),
-                                ),
-                            ));
-                        }
-                        // Emit event for state update
-                    }
-                }
-            },
             Event::HarvesterPublicKey(pubkey_bytes) => {
-                if let Ok(public_key_set) =
-                    serde_json::from_slice::<PublicKeySet>(pubkey_bytes.as_slice())
-                {
+                if let Ok(public_key_set) = serde_json::from_slice::<PublicKeySet>(&pubkey_bytes) {
                     self.set_harvester_pubkeys(public_key_set)
                 }
             },

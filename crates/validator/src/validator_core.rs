@@ -76,6 +76,7 @@ impl Core {
         account_state: &HashMap<Address, Account>,
         batch: Vec<Txn>,
     ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
+        // ) -> HashSet<(Txn, bool)> {
         batch
             .into_iter()
             .map(
@@ -84,6 +85,9 @@ impl Core {
                     Err(err) => {
                         telemetry::error!("{err:?}");
                         (txn, Err(err))
+                        // Should we send error?
+                        // send_core_err_msg(id, &error_sender,
+                        // err);
                     },
                 },
             )

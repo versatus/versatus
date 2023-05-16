@@ -23,11 +23,11 @@ use sha2::Digest;
 use vrrb_core::{
     claim::Claim,
     helpers::size_of_txn_list,
-    keypair::{Keypair, MinerSk},
-    txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
+    keypair::Keypair,
+    txn::{generate_txn_digest_vec, NewTxnArgs, TransactionDigest, Txn},
 };
 
-use crate::{result::MinerError, Miner, MinerConfig, MinerStatus};
+use crate::{result::MinerError, Miner, MinerConfig};
 
 /// Move this into primitives and call it simply `BlockDag`
 pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
@@ -134,9 +134,7 @@ pub(crate) fn mine_genesis() -> Option<GenesisBlock> {
 /// Helper function to create `n` number of `Txn` and
 /// return an `Iterator` of `(TransactionDigest, Txn)`
 /// to be collected by the caller.
-pub(crate) fn create_txns(
-    n: usize,
-) -> impl Iterator<Item = (TransactionDigest, QuorumCertifiedTxn)> {
+pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, Txn)> {
     (0..n)
         .map(|n| {
             let (sk, pk) = create_keypair();
@@ -174,10 +172,8 @@ pub(crate) fn create_txns(
             );
 
             let digest = TransactionDigest::from(txn_digest_vec);
-            (
-                digest,
-                QuorumCertifiedTxn::new(vec![], vec![], txn, vec![], true),
-            )
+
+            (digest, txn)
         })
         .into_iter()
 }
@@ -201,6 +197,35 @@ pub(crate) fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
             (claim.hash.clone(), claim)
         })
         .into_iter()
+}
+
+/// A helper function to build a `ProposalBlock`. This function has been
+/// deprecated and replaced by the `build_single_proposal_block` function
+#[deprecated(note = "use `build_single_proposal_block` function instead")]
+pub(crate) fn build_proposal_block(
+    ref_hash: &String,
+    n_tx: usize,
+    n_claims: usize,
+    round: u128,
+    epoch: u128,
+) -> Result<ProposalBlock, InvalidBlockErrorReason> {
+    let txns: TxnList = create_txns(n_tx).collect();
+
+    let claims = create_claims(n_claims).collect();
+
+    let miner = create_miner();
+
+    let prop_block = miner
+        .build_proposal_block(ref_hash.clone(), round, epoch, txns.clone(), claims)
+        .unwrap();
+
+    let total_txns_size = size_of_txn_list(&txns);
+
+    if total_txns_size > 2000 {
+        return Err(InvalidBlockErrorReason::InvalidBlockSize);
+    }
+
+    return Ok(prop_block);
 }
 
 /// A helper function to attempt to mine a `ConvergenceBlock`
@@ -246,7 +271,7 @@ pub(crate) fn build_single_proposal_block(
     round: u128,
     epoch: u128,
     from: Claim,
-    sk: &MinerSk,
+    sk: SecretKeyShare,
 ) -> ProposalBlock {
     let txns = create_txns(n_txns).collect();
     let claims = create_claims(n_claims).collect();
@@ -284,7 +309,7 @@ pub(crate) fn build_multiple_proposal_blocks_single_round(
                 round,
                 epoch,
                 claim,
-                keypair.get_miner_secret_key(),
+                SecretKeyShare::default(),
             );
             prop
         })
@@ -408,7 +433,7 @@ pub(crate) fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
             LinkedHashMap::new(),
             LinkedHashMap::new(),
             miner.claim.clone(),
-            keypair.get_miner_secret_key(),
+            SecretKeyShare::default(),
         );
         let pblock = Block::Proposal {
             block: prop1.clone(),
@@ -496,7 +521,7 @@ pub(crate) fn build_conflicting_proposal_blocks(
     round: u128,
     epoch: u128,
 ) -> (ProposalBlock, ProposalBlock) {
-    let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = create_txns(5).collect();
+    let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
     let prop1 =
         build_single_proposal_block_from_txns(last_block_hash.clone(), txns.clone(), round, epoch);
 
@@ -509,7 +534,7 @@ pub(crate) fn build_conflicting_proposal_blocks(
 /// `ProposalBlock` with transactions provided in the function call.
 pub(crate) fn build_single_proposal_block_from_txns(
     last_block_hash: String,
-    txns: impl IntoIterator<Item = (TransactionDigest, QuorumCertifiedTxn)>,
+    txns: impl IntoIterator<Item = (TransactionDigest, Txn)>,
     round: u128,
     epoch: u128,
 ) -> ProposalBlock {
@@ -522,7 +547,7 @@ pub(crate) fn build_single_proposal_block_from_txns(
         round,
         epoch,
         miner.claim,
-        kp.get_miner_secret_key(),
+        SecretKeyShare::default(),
     );
 
     prop.txns.extend(txns);
@@ -562,7 +587,7 @@ pub(crate) fn get_genesis_block_from_dag(dag: &mut MinerDag) -> Option<GenesisBl
 pub(crate) fn add_orphaned_block_to_dag(
     dag: &mut MinerDag,
     last_block_hash: String,
-    txns: impl IntoIterator<Item = (TransactionDigest, QuorumCertifiedTxn)>,
+    txns: impl IntoIterator<Item = (TransactionDigest, Txn)>,
     round: u128,
     epoch: u128,
 ) {

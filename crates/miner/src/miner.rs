@@ -21,7 +21,6 @@ use block::{
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
-    QuorumCertifiedTxnList,
     RefHash,
     TxnList,
 };
@@ -307,7 +306,7 @@ impl Miner {
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
-        txns: QuorumCertifiedTxnList,
+        txns: TxnList,
         claims: ClaimList,
         from: Claim,
     ) -> ProposalBlock {
@@ -327,6 +326,43 @@ impl Miner {
         }
     }
 
+    /// This method has been deprecated and will be removed soon
+    #[allow(path_statements)]
+    #[deprecated(note = "Building proposal blocks will be done in Harvester")]
+    pub fn build_proposal_block(
+        &self,
+        ref_block: RefHash,
+        round: u128,
+        epoch: Epoch,
+        txns: TxnList,
+        claims: ClaimList,
+    ) -> Result<ProposalBlock> {
+        let from = self.generate_claim()?;
+        let payload = create_payload!(round, epoch, txns, claims, from);
+        let signature = self.secret_key.sign_ecdsa(payload).to_string();
+        let hash = hash_data!(round, epoch, txns, claims, from, signature);
+
+        let mut total_txns_size = 0;
+        for (_, _) in txns.iter() {
+            total_txns_size += mem::size_of::<Txn>();
+            if total_txns_size > 2000 {
+                InvalidBlockErrorReason::InvalidBlockSize;
+            }
+        }
+
+        Ok(ProposalBlock {
+            ref_block,
+            round,
+            epoch,
+            txns,
+            claims,
+            hash: format!("{:x}", hash),
+            from,
+            signature,
+        })
+    }
+
+    /// This method has been deprecated and will be removed soon
     #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);

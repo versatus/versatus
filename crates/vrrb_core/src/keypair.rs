@@ -214,6 +214,16 @@ impl KeyPair {
         }
     }
 
+    pub fn ecdsa_signature(msg: &[u8], secret_key: &SecretKeyBytes) -> Result<Signature> {
+        let secp = Secp256k1::new();
+        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg);
+        if let Ok(sk) = SecretKey::from_slice(secret_key) {
+            Ok(secp.sign_ecdsa(&msg, &sk))
+        } else {
+            Err(KeyPairError::InvalidKey(String::from("Secret")))
+        }
+    }
+
     /// > This function takes a signature, a message, and a public key, and
     /// > returns a boolean indicating
     /// whether the signature is valid for the message and public key

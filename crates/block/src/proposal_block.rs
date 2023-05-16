@@ -6,11 +6,10 @@ use serde::{Deserialize, Serialize};
 use utils::hash_data;
 use vrrb_core::{
     claim::Claim,
-    keypair::{Keypair, MinerSk},
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+    txn::{TransactionDigest, Txn},
 };
 
-use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash, TxnList};
+use crate::{BlockHash, ClaimList, ConvergenceBlock, RefHash, TxnList};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
@@ -18,7 +17,7 @@ pub struct ProposalBlock {
     pub ref_block: RefHash,
     pub round: u128,
     pub epoch: Epoch,
-    pub txns: QuorumCertifiedTxnList,
+    pub txns: TxnList,
     pub claims: ClaimList,
     pub from: Claim,
     pub hash: BlockHash,
@@ -26,58 +25,25 @@ pub struct ProposalBlock {
 }
 
 impl ProposalBlock {
-    /// The `build` function takes in various inputs, and builds
-    /// `ProposalBlock`that consist of confirmed transactions validated by
-    /// harvester
-    ///
-    /// Arguments:
-    ///
-    /// * `ref_block`: The hash of the previous block in the blockchain that
-    ///   this new block is being
-    /// added to.
-    /// * `round`: The round parameter is of type u128 and represents the round
-    ///   number of the proposal
-    /// block being built.
-    /// * `epoch`: time unit into the network
-    /// * `txns`: `txns` is a list of quorum certified transactions.
-    /// * `claims`: `claims` is a list of claims made by validators in the
-    ///   network. It is used as one of
-    /// the inputs to calculate the hash of the block being proposed.
-    /// * `from`: The `from` parameter is of type `Claim` and represents the
-    ///   claim of the harvester who is
-    /// proposing the block. It is used to sign the block proposal and ensure
-    /// that only the current harvester who has the private key
-    /// corresponding to the public key in the claim can propose the block.
-    /// * `secret_key`: The `secret_key` parameter is a reference to a `MinerSk`
-    ///   struct, which likely
-    /// contains the secret key of the miner used to sign the proposal block.
-    ///
-    /// Returns:
-    ///
-    /// a `ProposalBlock` object.
     pub fn build(
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
-        txns: QuorumCertifiedTxnList,
+        txns: TxnList,
         claims: ClaimList,
         from: Claim,
-        secret_key: &MinerSk,
+        secret_key: SecretKeyShare,
     ) -> ProposalBlock {
-        let hashable_txns: Vec<(String, QuorumCertifiedTxn)> = {
+        let hashable_txns: Vec<(String, Txn)> = {
             txns.clone()
                 .iter()
                 .map(|(k, v)| (k.digest_string(), v.clone()))
                 .collect()
         };
+
         let payload = hash_data!(round, epoch, hashable_txns, claims, from);
-        let signature = if let Ok(signature) =
-            Keypair::ecdsa_sign(&*payload, secret_key.secret_bytes().to_vec())
-        {
-            signature
-        } else {
-            String::from("Invalid")
-        };
+
+        let signature = hex::encode(secret_key.sign(payload).to_bytes().to_vec());
 
         let hash = hex::encode(hash_data!(
             round,
@@ -119,16 +85,7 @@ impl ProposalBlock {
         return Ok(byte_array);
     }
 
-    /// This function returns a vector of tuples containing the digest string
-    /// and a clone of each QuorumCertifiedTxn in the original vector of
-    /// transactions.
-    ///
-    /// Returns:
-    ///
-    /// A vector of tuples, where each tuple contains a string representing the
-    /// digest of a transaction and a clone of the corresponding
-    /// QuorumCertifiedTxn object from the original vector of transactions.
-    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, QuorumCertifiedTxn)> {
+    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, Txn)> {
         self.txns
             .clone()
             .iter()

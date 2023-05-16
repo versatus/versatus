@@ -66,7 +66,6 @@ bulldag = { workspace = true }
 vrrb_http = { workspace = true }
 vrrb_grpc = { workspace = true }
 messr = { workspace = true }
-utils = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

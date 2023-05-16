@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 use vrrb_core::{
     claim::Claim,
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+    txn::{TransactionDigest, Txn},
 };
 
 #[cfg(mainnet)]
@@ -31,7 +31,6 @@ pub type NextEpochAdjustment = i128;
 pub type ClaimHash = ethereum_types::U256;
 pub type RefHash = String;
 pub type TxnList = LinkedHashMap<TransactionDigest, Txn>;
-pub type QuorumCertifiedTxnList = LinkedHashMap<TransactionDigest, QuorumCertifiedTxn>;
 pub type ClaimList = LinkedHashMap<ClaimHash, Claim>;
 pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TransactionDigest>>;
 pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
@@ -49,7 +48,6 @@ pub struct Certificate {
     pub inauguration: Option<QuorumPubkeys>,
     pub root_hash: String,
     pub next_root_hash: String,
-    pub block_hash: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]

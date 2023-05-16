@@ -1,34 +1,19 @@
 use std::net::SocketAddr;
 
-use block::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    Conflict,
-    ConvergenceBlock,
-    ProposalBlock,
-    RefHash,
-};
+use block::{Block, Conflict};
 use ethereum_types::U256;
 use primitives::{
     Address,
-    Epoch,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
-    NodeIdx,
-    PublicKeyShareVec,
     QuorumPublicKey,
     QuorumSize,
-    RawSignature,
-    Round,
-    Seed,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+    txn::{TransactionDigest, Txn},
 };
 
 use crate::event_data::*;
@@ -37,7 +22,6 @@ pub type AccountBytes = Vec<u8>;
 pub type BlockBytes = Vec<u8>;
 pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
-pub type MinerClaim = Claim;
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -100,7 +84,7 @@ pub enum Event {
     HarvesterPublicKey(Vec<u8>),
     Farm,
     Vote(Vote, FarmerQuorumThreshold),
-    MineProposalBlock(RefHash, Round, Epoch, Claim),
+    MineProposalBlock,
     PullQuorumCertifiedTxns(usize),
     QuorumCertifiedTxns(QuorumCertifiedTxn),
 
@@ -125,19 +109,9 @@ pub enum Event {
     EmptyPeerSync,
     PeerSyncFailed(Vec<SocketAddr>),
     ProcessedVotes(JobResult),
-    ConvergenceBlockPartialSign(JobResult),
     FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
     HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
     CertifiedTxn(JobResult),
-    AddHarvesterPeer(SocketAddr),
-    RemoveHarvesterPeer(SocketAddr),
-    CheckConflictResolution((Vec<ProposalBlock>, Round, Seed, ConvergenceBlock)),
-    SignConvergenceBlock(ConvergenceBlock),
-    PeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
-    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
-    SendBlockCertificate(Certificate),
-    BlockCertificate(Certificate),
-    PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
 }
 
 impl From<&theater::Message> for Event {

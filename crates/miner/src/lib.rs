@@ -29,7 +29,7 @@ mod tests {
     use vrrb_core::{
         claim::Claim,
         keypair::Keypair,
-        txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+        txn::{TransactionDigest, Txn},
     };
 
     use crate::test_helpers::{
@@ -125,7 +125,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                keypair.get_miner_secret_key(),
+                SecretKeyShare::default(),
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),
@@ -173,7 +173,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                m1kp.get_miner_secret_key(),
+                SecretKeyShare::default(),
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -182,7 +182,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                m2kp.get_miner_secret_key(),
+                SecretKeyShare::default(),
             );
 
             let pblock1 = Block::Proposal {
@@ -229,8 +229,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let prop2 =
@@ -291,8 +290,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -369,8 +367,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -419,8 +416,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {

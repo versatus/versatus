@@ -15,7 +15,6 @@ use primitives::{
     RAPTOR_DECODER_CACHE_LIMIT,
     RAPTOR_DECODER_CACHE_TTL_IN_SECS,
 };
-use qp2p::ConnectionError;
 pub use qp2p::{
     Config,
     Connection,
@@ -235,18 +234,13 @@ impl BroadcastEngine {
     ) -> Result<BroadcastStatus> {
         let msg = Bytes::from(message.as_bytes());
         let node = self.endpoint.0.clone();
-        let conn_result = node.connect_to(&addr).timeout().await;
-        match conn_result {
-            Ok(conn) => {
-                let conn = conn?.0;
-                let _ = conn.send((Bytes::new(), Bytes::new(), msg.clone())).await;
-                return Ok(BroadcastStatus::Success);
-            },
-            Err(e) => {
-                error!("Connection error  {addr}: {e}");
-                return Err(BroadcastError::Other(e.to_string()));
-            },
-        }
+
+        let conn = node.connect_to(&addr).await?;
+        let conn = conn.0;
+
+        let _ = conn.send((Bytes::new(), Bytes::new(), msg.clone())).await;
+
+        Ok(BroadcastStatus::Success)
     }
 
     /// The function takes a message and an erasure count as input and splits
