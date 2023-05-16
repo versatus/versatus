@@ -102,6 +102,12 @@ impl BroadcastModule {
                                 MessageBody::DKGPartAcknowledgement { .. } => {},
                                 MessageBody::Vote { .. } => {},
                                 MessageBody::Empty => {},
+                                MessageBody::ForwardedTxn(txn) => {
+                                    let _ = self.events_tx.send(EventMessage::new(
+                                        None,
+                                        Event::NewTxnCreated(txn.txn),
+                                    ));
+                                },
                             }
                         }
                     }
@@ -229,6 +235,26 @@ impl Handler<EventMessage> for BroadcastModule {
                         error!("Error occured while broadcasting blocks to peers :{:?}", e);
                     },
                 }
+            },
+            Event::ForwardTxn((txn_record, addresses)) => {
+                addresses.iter().for_each(async |address| {
+                    let status = self
+                        .broadcast_engine
+                        .send_data_via_quic(
+                            Message::new(MessageBody::ForwardedTxn(txn_record)),
+                            address.clone(),
+                        )
+                        .await;
+                    match status {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!(
+                                "Error occurred while forwarding transaction to peers :{:?}",
+                                e
+                            );
+                        },
+                    }
+                });
             },
 
             _ => {},

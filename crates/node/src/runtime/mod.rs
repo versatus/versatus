@@ -581,6 +581,12 @@ fn setup_dkg_module(
                 .await
                 .map_err(|err| NodeError::Other(err.to_string()))
         });
+        thread::spawn(|| {
+            dkg_module.send_register_retrieve_peers_request();
+        });
+        thread::spawn(|| {
+            dkg_module.process_rendezvous_response();
+        });
         return Ok(Some(dkg_handle));
     } else {
         Err(NodeError::Other(String::from(

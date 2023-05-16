@@ -1,4 +1,7 @@
-use std::net::SocketAddr;
+use std::{
+    collections::{HashMap, HashSet},
+    net::SocketAddr,
+};
 
 use block::{
     header::BlockHeader,
@@ -11,10 +14,12 @@ use block::{
     RefHash,
 };
 use ethereum_types::U256;
+use mempool::TxnRecord;
 use primitives::{
     Address,
     Epoch,
     FarmerQuorumThreshold,
+    GroupPublicKey,
     HarvesterQuorumThreshold,
     NodeIdx,
     PublicKeyShareVec,
@@ -48,6 +53,10 @@ pub enum Event {
 
     /// New txn came from network, requires validation
     NewTxnCreated(Txn),
+
+    /// `ForwardTxn` is an event that is used to forward a transaction(That is
+    /// not meant to be processed by current quorum) to a list of peers.
+    ForwardTxn((TxnRecord, Vec<SocketAddr>)),
     /// Single txn validated
     TxnValidated(Txn),
     /// Batch of validated txns
@@ -64,6 +73,8 @@ pub enum Event {
     ClaimAbandoned(String, Vec<u8>),
     SlashClaims(Vec<String>),
     CheckAbandoned,
+
+    //   SyncNeighbouringFarmerQuorum(HashMap<GroupPublicKey, HashSet<SocketAddr>>),
     SyncPeers(Vec<SyncPeerData>),
     PeerRequestedStateSync(PeerData),
 

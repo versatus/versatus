@@ -1,10 +1,13 @@
 use std::net::SocketAddr;
 
 use events::{Event, PeerData, Vote};
+use mempool::TxnRecord;
 use primitives::{FarmerQuorumThreshold, NodeType};
 use serde::{Deserialize, Serialize};
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
+use vrrb_core::txn::TransactionDigest;
+
 pub type MessageId = Uuid;
 pub type MessageContents = Vec<u8>;
 
@@ -101,6 +104,7 @@ pub enum MessageBody {
         vote: Vote,
         farmer_quorum_threshold: FarmerQuorumThreshold,
     },
+    ForwardedTxn(TxnRecord),
     Empty,
 }
 
