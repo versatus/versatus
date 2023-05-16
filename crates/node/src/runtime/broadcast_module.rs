@@ -307,7 +307,10 @@ mod tests {
 
         match internal_events_rx.recv().await {
             Some(value) => assert_eq!(value, Event::SyncPeers(vec![peer_data]).into()),
-            None => {},
+            None => println!(
+                "no
+value"
+            ),
         }
 
         handle.await.unwrap();

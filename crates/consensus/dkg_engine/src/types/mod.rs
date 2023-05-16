@@ -42,7 +42,7 @@ pub struct DkgEngine {
     /// state information related to dkg process
     pub dkg_state: DkgState,
 
-    /// Harvester Distributed  Group public key
+    /// state information related to dkg process
     pub harvester_public_key: Option<PublicKey>,
 }
 
