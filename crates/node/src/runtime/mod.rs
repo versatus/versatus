@@ -1,6 +1,10 @@
 use std::{
     net::SocketAddr,
-    sync::{Arc, RwLock},
+    sync::{
+        mpsc::{channel, Receiver},
+        Arc,
+        RwLock,
+    },
     thread,
 };
 
@@ -9,7 +13,7 @@ use bulldag::graph::BullDag;
 use crossbeam_channel::{unbounded, Sender};
 use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use miner::MinerConfig;
+use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
@@ -18,7 +22,12 @@ use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use vrrb_core::{bloom::Bloom, claim::Claim};
+use vrrb_core::{
+    bloom::Bloom,
+    claim::{Claim, ClaimError},
+    keypair::Keypair,
+};
+use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use self::{
@@ -64,6 +73,25 @@ pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
 
+impl From<MinerError> for NodeError {
+    fn from(error: MinerError) -> Self {
+        match error {
+            _ => NodeError::Other(String::from(
+                "Error occurred while creating instance of miner ",
+            )),
+        }
+    }
+}
+impl From<ClaimError> for NodeError {
+    fn from(error: ClaimError) -> Self {
+        match error {
+            _ => NodeError::Other(String::from(
+                "Error occurred while creating claim for the node",
+            )),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct RuntimeComponents {
     pub node_config: NodeConfig,
@@ -81,6 +109,7 @@ pub struct RuntimeComponents {
     pub dag_handle: RuntimeHandle,
     pub raptor_handle: RaptorHandle,
     pub scheduler_handle: SchedulerHandle,
+    pub grpc_server_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -180,6 +209,17 @@ pub async fn setup_runtime_components(
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
 
+    let (grpc_server_handle, resolved_grpc_server_addr) = setup_grpc_api_server(
+        &config,
+        events_tx.clone(),
+        state_read_handle.clone(),
+        mempool_read_handle_factory.clone(),
+        // jsonrpc_events_rx,
+    )
+    .await?;
+
+    info!("gRPC server address started: {}", resolved_grpc_server_addr);
+
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_handle = setup_mining_module(
@@ -192,8 +232,24 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-
-    let claim: Claim = config.keypair.clone().into();
+    let public_key = config.keypair.get_miner_public_key().clone();
+    let signature = Claim::signature_for_valid_claim(
+        public_key.clone(),
+        config.public_ip_address.clone(),
+        config
+            .keypair
+            .get_miner_secret_key()
+            .secret_bytes()
+            .to_vec(),
+    )
+    .unwrap();
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        config.public_ip_address,
+        signature,
+    )
+    .map_err(|err| NodeError::from(err))?;
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
         miner_election_events_rx,
@@ -228,10 +284,13 @@ pub async fn setup_runtime_components(
     } else {
         //Setup harvester
         harvester_handle = setup_harvester_module(
+            &config,
+            dag.clone(),
             sync_jobs_sender,
             async_jobs_sender,
             events_tx.clone(),
             events_rx,
+            state_read_handle.clone(),
             harvester_events_rx,
         )?
     };
@@ -249,7 +308,8 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx)?;
+    let dag_handle =
+        setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -267,6 +327,7 @@ pub async fn setup_runtime_components(
         dag_handle,
         raptor_handle: Some(raptor_handle),
         scheduler_handle: Some(scheduler_handle),
+        grpc_server_handle,
     };
 
     Ok(runtime_components)
@@ -415,6 +476,36 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
+async fn setup_grpc_api_server(
+    config: &NodeConfig,
+    events_tx: EventPublisher,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
+    // mut jsonrpc_events_rx: EventSubscriber,
+) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+    let grpc_server_config = GrpcServerConfig {
+        address: config.grpc_server_address,
+        node_type: config.node_type,
+        events_tx,
+        vrrbdb_read_handle,
+        mempool_read_handle_factory,
+    };
+
+    let address = grpc_server_config.address.clone();
+
+    let handle = tokio::spawn(async move {
+        let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
+            .await
+            .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
+            .expect("gRPC server to start");
+        Ok(())
+    });
+
+    info!("gRPC server started at {}", &address);
+
+    Ok((Some(handle), address))
+}
+
 fn setup_mining_module(
     config: &NodeConfig,
     events_tx: EventPublisher,
@@ -430,11 +521,11 @@ fn setup_mining_module(
     let miner_config = MinerConfig {
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
+        ip_address: config.public_ip_address,
         dag: dag.clone(),
     };
 
-    let miner = miner::Miner::new(miner_config);
-
+    let miner = miner::Miner::new(miner_config).map_err(|e| NodeError::from(e))?;
     let module_config = MiningModuleConfig {
         miner,
         events_tx,
@@ -580,10 +671,13 @@ fn setup_farmer_module(
 }
 
 fn setup_harvester_module(
+    config: &NodeConfig,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    vrrb_db_handle: VrrbDbReadHandle,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -593,8 +687,12 @@ fn setup_harvester_module(
         events_rx,
         broadcast_events_tx,
         1,
+        dag,
         sync_jobs_sender,
         async_jobs_sender,
+        vrrb_db_handle,
+        config.keypair.clone(),
+        config.idx,
     );
     let mut harvester_module_actor = ActorImpl::new(module);
     let harvester_handle = tokio::spawn(async move {
@@ -610,8 +708,9 @@ fn setup_dag_module(
     dag: Arc<RwLock<BullDag<Block, String>>>,
     events_tx: EventPublisher,
     mut dag_module_events_rx: EventSubscriber,
+    claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module = DagModule::new(dag, events_tx);
+    let module = DagModule::new(dag, events_tx, claim);
 
     let mut dag_module_actor = ActorImpl::new(module);
     let dag_module_handle = tokio::spawn(async move {

@@ -1,0 +1,42 @@
+syntax = "proto3";
+package node_read_service.v1;
+
+// import "node/v1/node.proto";
+
+service NodeReadService {
+    rpc GetNodeType (GetNodeTypeRequest) returns (GetNodeTypeResponse);
+    rpc GetFullMempool (GetFullMempoolRequest) returns (GetFullMempoolResponse);
+}
+
+message GetNodeTypeRequest {}
+
+message GetNodeTypeResponse {
+    string id = 1;
+    string result = 2;
+}
+
+message GetFullMempoolRequest {}
+
+message GetFullMempoolResponse {
+    repeated TransactionRecord transaction_records = 1;
+}
+
+message TransactionRecord {
+    string id = 1;
+    int64 timestamp = 2;
+    string sender_address = 3;
+    string sender_public_key = 4;
+    string receiver_address = 5;
+    Token token = 6;
+    uint64 amount = 7;
+    string signature = 8;
+    map<string, bool> validators = 9;
+    uint64 nonce = 10;
+}
+
+message Token {
+    string name = 1;
+    string symbol = 2;
+    uint32 decimals = 3;
+}
+

@@ -20,6 +20,7 @@ pub trait Signer {
     /// the block(t+1 non faulty nodes).
     fn generate_quorum_signature(
         &self,
+        quorum_threshold: u16,
         signature_shares: BTreeMap<NodeIdx, RawSignature>,
     ) -> SignerResult<RawSignature>;
 
@@ -134,7 +135,7 @@ impl Signer for SignatureProvider {
     ///     sig_shares.insert(i, signature_share_node);
     ///    if i==0{
     ///        //Populate signature shares from all t+1 nodes in the quorum
-    ///        let quorum_signature_result = sig_provider_node.generate_quorum_signature(sig_shares.clone());
+    ///        let quorum_signature_result = sig_provider_node.generate_quorum_signature(1,sig_shares.clone());
     ///        assert_eq!(quorum_signature_result.is_err(), false);
     ///        assert_eq!(quorum_signature_result.unwrap().len() > 0, true);
     ///        break;
@@ -145,9 +146,10 @@ impl Signer for SignatureProvider {
     /// ```
     fn generate_quorum_signature(
         &self,
+        quorum_threshold: u16,
         signature_shares: BTreeMap<NodeIdx, RawSignature>,
     ) -> SignerResult<RawSignature> {
-        if (signature_shares.len() as u16) < self.quorum_config.threshold {
+        if (signature_shares.len() as u16) < quorum_threshold {
             return Err(SignerError::ThresholdSignatureError(
                 "Received less than t+1 signature shares".to_string(),
             ));
@@ -393,7 +395,7 @@ mod tests {
             sig_shares.insert(i, signature_share_node);
             if i == 0 {
                 let quorum_signature_result =
-                    sig_provider_node.generate_quorum_signature(sig_shares.clone());
+                    sig_provider_node.generate_quorum_signature(1, sig_shares.clone());
                 assert_eq!(quorum_signature_result.is_err(), false);
                 assert_eq!(quorum_signature_result.unwrap().len() > 0, true);
                 break;
@@ -452,7 +454,8 @@ mod tests {
                 .unwrap();
             sig_shares.insert(i, signature_share_node);
             if i == 0 {
-                let threshold_sig_result = sig_provider_node.generate_quorum_signature(sig_shares);
+                let threshold_sig_result =
+                    sig_provider_node.generate_quorum_signature(1, sig_shares);
                 let sig = threshold_sig_result.unwrap();
                 let sig_status = sig_provider_node.verify_signature(
                     2,

@@ -1,17 +1,14 @@
+use std::net::SocketAddr;
 /// This module is for the creation and operation of a mining unit within a node
 /// in the network The miner is the primary way that data replication across all
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
-use std::{
-    mem,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use block::{
     block::Block,
     header::BlockHeader,
-    invalid::InvalidBlockErrorReason,
     ClaimHash,
     ClaimList,
     ConsolidatedClaims,
@@ -20,8 +17,8 @@ use block::{
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
+    QuorumCertifiedTxnList,
     RefHash,
-    TxnList,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
@@ -36,9 +33,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utils::{create_payload, hash_data};
 use vrrb_core::{
-    claim::Claim,
+    claim::{Claim, ClaimError},
     keypair::{MinerPk, MinerSk},
-    txn::Txn,
 };
 
 use crate::{block_builder::BlockBuilder, result::MinerError};
@@ -70,6 +66,7 @@ pub enum MinerStatus {
 /// passed into `Miner::new()` method
 ///
 /// ```
+/// use std::net::SocketAddr;
 /// use vrrb_core::keypair::{MinerPk, MinerSk};
 /// use std::sync::{Arc, RwLock};
 /// use bulldag::graph::BullDag;
@@ -81,12 +78,14 @@ pub enum MinerStatus {
 /// pub struct MinerConfig {
 ///     pub secret_key: MinerSk,
 ///     pub public_key: MinerPk,
+///     pub ip_address:SocketAddr,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>
 /// }
 #[derive(Debug)]
 pub struct MinerConfig {
     pub secret_key: MinerSk,
     pub public_key: MinerPk,
+    pub ip_address: SocketAddr,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
@@ -96,6 +95,7 @@ pub struct MinerConfig {
 /// conflicts between proposal blocks
 ///
 /// ```
+/// use std::net::SocketAddr;
 /// use vrrb_core::{claim::Claim, keypair::{MinerPk, MinerSk}};
 /// use primitives::Address;
 /// use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder, miner::MinerStatus};
@@ -109,6 +109,7 @@ pub struct MinerConfig {
 ///     secret_key: MinerSk,
 ///     public_key: MinerPk,
 ///     address: Address,
+///     pub ip_address:SocketAddr,
 ///     pub claim: Claim,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 ///     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
@@ -120,11 +121,23 @@ pub struct Miner {
     secret_key: MinerSk,
     public_key: MinerPk,
     address: Address,
+    pub ip_address: SocketAddr,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
     pub status: MinerStatus,
     pub next_epoch_adjustment: i128,
+}
+
+pub type Result<T> = std::result::Result<T, MinerError>;
+impl From<ClaimError> for MinerError {
+    fn from(error: ClaimError) -> Self {
+        match error {
+            ClaimError::InvalidSignature => Self::InvalidSignature,
+            ClaimError::InvalidPublicKey => Self::InvalidPublicKey,
+            ClaimError::Other(details) => Self::Other(details),
+        }
+    }
 }
 
 /// Method Implementations for the Miner Struct
@@ -134,7 +147,10 @@ impl Miner {
     /// # Example
     ///
     /// ```
-    /// use std::sync::{Arc, RwLock};
+    /// use std::{
+    ///     net::SocketAddr,
+    ///     sync::{Arc, RwLock},
+    /// };
     ///
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
@@ -145,35 +161,54 @@ impl Miner {
     /// let (secret_key, public_key) = keypair.miner_kp;
     /// let address = Address::new(public_key.clone());
     /// let dag = Arc::new(RwLock::new(BullDag::new()));
+    /// let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
     /// let config = MinerConfig {
     ///     secret_key,
     ///     public_key,
+    ///     ip_address,
     ///     dag,
     /// };
     ///
     /// let miner = Miner::new(config);
     ///
-    /// assert_eq!(miner.address(), address);
+    /// assert_eq!(miner.unwrap().address(), address);
     /// ```
-    pub fn new(config: MinerConfig) -> Self {
-        let address = Address::new(config.public_key);
-        let claim = Claim::new(config.public_key, address.clone());
-
-        Miner {
+    pub fn new(config: MinerConfig) -> Result<Self> {
+        let address = Address::new(config.public_key.clone());
+        let signature = Claim::signature_for_valid_claim(
+            config.public_key.clone(),
+            config.ip_address.clone(),
+            config.secret_key.secret_bytes().to_vec(),
+        )
+        .map_err(|err| MinerError::from(err))?;
+        let claim = Claim::new(
+            config.public_key,
+            address.clone(),
+            config.ip_address,
+            signature,
+        )
+        .map_err(|err| MinerError::from(err))?;
+        Ok(Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
             address,
+            ip_address: config.ip_address,
             claim,
             dag: config.dag,
             last_block: None,
             status: MinerStatus::Waiting,
             next_epoch_adjustment: 0,
-        }
+        })
     }
 
     /// Retrieves the `Address` of the current `Miner` instance
     pub fn address(&self) -> Address {
         self.address.clone()
+    }
+
+    /// Retrieves the `ip_address` of the current `Miner` instance
+    pub fn ip_address(&self) -> SocketAddr {
+        self.ip_address.clone()
     }
 
     /// Retrieves the `PublicKey` of the current `Miner` instance
@@ -182,8 +217,21 @@ impl Miner {
     }
 
     /// Generates a `Claim` from the `miner.public_key` and `miner.address`
-    pub fn generate_claim(&self) -> Claim {
-        Claim::new(self.public_key(), self.address())
+    pub fn generate_claim(&self) -> Result<Claim> {
+        let signature = Claim::signature_for_valid_claim(
+            self.public_key(),
+            self.ip_address(),
+            self.secret_key.secret_bytes().to_vec(),
+        )
+        .map_err(|err| MinerError::from(err))?;
+        let claim = Claim::new(
+            self.public_key(),
+            self.address(),
+            self.ip_address(),
+            signature,
+        )
+        .map_err(|err| MinerError::from(err))?;
+        Ok(claim)
     }
 
     /// Signs a message using the `miner.secret_key`
@@ -209,7 +257,7 @@ impl Miner {
     /// Attempts to mine a `ConvergenceBlock` using the
     /// `miner.mine_convergence_block()` method, which in turn uses the
     /// `<Miner as BlockBuilder>::build()` method
-    pub fn try_mine(&mut self) -> Result<Block, MinerError> {
+    pub fn try_mine(&mut self) -> Result<Block> {
         self.set_status(MinerStatus::Mining);
         if let Some(convergence_block) = self.mine_convergence_block() {
             Ok(Block::Convergence {
@@ -252,7 +300,7 @@ impl Miner {
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
-        txns: TxnList,
+        txns: QuorumCertifiedTxnList,
         claims: ClaimList,
         from: Claim,
     ) -> ProposalBlock {
@@ -272,43 +320,6 @@ impl Miner {
         }
     }
 
-    /// This method has been deprecated and will be removed soon
-    #[allow(path_statements)]
-    #[deprecated(note = "Building proposal blocks will be done in Harvester")]
-    pub fn build_proposal_block(
-        &self,
-        ref_block: RefHash,
-        round: u128,
-        epoch: Epoch,
-        txns: TxnList,
-        claims: ClaimList,
-    ) -> Result<ProposalBlock, InvalidBlockErrorReason> {
-        let from = self.generate_claim();
-        let payload = create_payload!(round, epoch, txns, claims, from);
-        let signature = self.secret_key.sign_ecdsa(payload).to_string();
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
-
-        let mut total_txns_size = 0;
-        for (_, _) in txns.iter() {
-            total_txns_size += mem::size_of::<Txn>();
-            if total_txns_size > 2000 {
-                return Err(InvalidBlockErrorReason::InvalidBlockSize);
-            }
-        }
-
-        Ok(ProposalBlock {
-            ref_block,
-            round,
-            epoch,
-            txns,
-            claims,
-            hash: format!("{hash:x}"),
-            from,
-            signature,
-        })
-    }
-
-    /// This method has been deprecated and will be removed soon
     #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
@@ -316,7 +327,7 @@ impl Miner {
         let round = 0;
         let epoch = 0;
 
-        let claim = self.generate_claim();
+        let claim = self.generate_claim().unwrap();
 
         let header = BlockHeader::genesis(
             seed,

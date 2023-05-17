@@ -17,6 +17,7 @@ use crate::result::{CliError, Result};
 
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
+const DEFAULT_GRPC_ADDRESS: &str = "127.0.0.1:50051";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 
@@ -58,6 +59,9 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub jsonrpc_api_address: SocketAddr,
 
+    #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
+    pub grpc_server_address: SocketAddr,
+
     #[clap(long, default_value = "false")]
     pub bootstrap: bool,
 
@@ -81,6 +85,9 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub rendezvous_server_address: SocketAddr,
+
+    #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
+    pub public_ip_address: SocketAddr,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -112,6 +119,7 @@ impl From<RunOpts> for NodeConfig {
             http_api_version: opts.http_api_version,
             http_api_shutdown_timeout: default_node_config.http_api_shutdown_timeout,
             jsonrpc_server_address: opts.jsonrpc_api_address,
+            grpc_server_address: opts.grpc_server_address,
             preload_mock_state: default_node_config.preload_mock_state,
             bootstrap_config: default_node_config.bootstrap_config,
             bootstrap_node_addresses: opts
@@ -125,6 +133,7 @@ impl From<RunOpts> for NodeConfig {
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
             rendezvous_server_address: opts.rendezvous_server_address,
+            public_ip_address: opts.raptorq_gossip_address,
         }
     }
 }
@@ -146,6 +155,7 @@ impl Default for RunOpts {
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             http_api_address: ipv4_localhost_with_random_port,
             jsonrpc_api_address: ipv4_localhost_with_random_port,
+            grpc_server_address: ipv4_localhost_with_random_port,
             bootstrap: Default::default(),
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
@@ -153,6 +163,7 @@ impl Default for RunOpts {
             disable_networking: Default::default(),
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
+            public_ip_address: ipv4_localhost_with_random_port,
         }
     }
 }
@@ -230,6 +241,7 @@ impl RunOpts {
             udp_gossip_address: other.udp_gossip_address,
             raptorq_gossip_address: other.raptorq_gossip_address,
             jsonrpc_api_address: other.jsonrpc_api_address,
+            grpc_server_address: other.grpc_server_address,
             bootstrap: other.bootstrap,
             bootstrap_node_addresses,
             http_api_address: other.http_api_address,
@@ -238,6 +250,7 @@ impl RunOpts {
             disable_networking: false,
             rendezvous_local_address: other.rendezvous_local_address,
             rendezvous_server_address: other.rendezvous_server_address,
+            public_ip_address: other.public_ip_address,
         }
     }
 }
@@ -302,7 +315,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
         .send(Event::Stop)
         .map_err(|err| CliError::Other(format!("failed to send stop event to node: {err}")))?;
 
-    _ = node_handle
+    let _ = node_handle
         .await
         .map_err(|err| CliError::Other(format!("failed to join node task handle: {err}")))?;
 

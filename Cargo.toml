@@ -52,6 +52,7 @@ members = [
     "crates/telemetry",
     "crates/utils",
     "crates/vrrb_http",
+    "crates/vrrb_grpc",
 ]
 
 [workspace.dependencies]
@@ -86,6 +87,7 @@ job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
 vrrb_http = { path = "crates/vrrb_http" }
+vrrb_grpc = { path = "crates/vrrb_grpc" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
@@ -191,6 +193,11 @@ wiremock = "0.5.18"
 url = "2.3.1"
 bs58 = "0.4.0"
 ring = "0.16.20"
+prost = "0.11.0"
+pbjson = "0.5"
+pbjson-types = "0.5"
+tonic = { version = "0.9.2", features = ["gzip"] }
+tonic-reflection = "0.9.2"
 
 [dev-dependencies]
 cuckoofilter.workspace = true

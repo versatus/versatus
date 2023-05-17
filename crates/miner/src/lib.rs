@@ -19,17 +19,16 @@ pub mod v2 {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{net::SocketAddr, sync::Arc};
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
-    use hbbft::crypto::SecretKeyShare;
     use primitives::Address;
     use ritelinked::LinkedHashMap;
     use vrrb_core::{
         claim::Claim,
         keypair::Keypair,
-        txn::{TransactionDigest, Txn},
+        txn::{QuorumCertifiedTxn, TransactionDigest},
     };
 
     use crate::test_helpers::{
@@ -49,7 +48,20 @@ mod tests {
     fn test_create_miner() {
         let kp = Keypair::random();
         let address = Address::new(kp.miner_kp.1.clone());
-        let claim = Claim::new(kp.miner_kp.1.clone(), address.clone());
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let signature = Claim::signature_for_valid_claim(
+            kp.miner_kp.1.clone(),
+            ip_address.clone(),
+            kp.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let claim = Claim::new(
+            kp.miner_kp.1.clone(),
+            address.clone(),
+            ip_address,
+            signature,
+        )
+        .unwrap();
         let miner = create_miner_from_keypair(&kp);
 
         assert_eq!(miner.claim, claim);
@@ -112,7 +124,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                SecretKeyShare::default(),
+                keypair.get_miner_secret_key(),
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),
@@ -160,7 +172,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                SecretKeyShare::default(),
+                m1kp.get_miner_secret_key(),
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -169,7 +181,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                SecretKeyShare::default(),
+                m2kp.get_miner_secret_key(),
             );
 
             let pblock1 = Block::Proposal {
@@ -216,7 +228,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let prop2 =
@@ -277,7 +290,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -301,7 +315,6 @@ mod tests {
                     guard.add_edge(edge1);
                 }
             };
-
 
             let prop2 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
@@ -354,7 +367,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -382,7 +396,6 @@ mod tests {
                 }
             };
 
-
             let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {
                 miner.last_block = Some(Arc::new(block.to_owned()));
@@ -403,7 +416,8 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, Txn> = create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
+                create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -432,7 +446,6 @@ mod tests {
                     guard.add_edge(edge1);
                 }
             };
-
 
             let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {

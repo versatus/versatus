@@ -4,7 +4,10 @@
 pub enum MinerError {
     #[error("no lowest pointer: {0}")]
     NoLowestPointerError(String),
-
+    #[error("Invalid signature during miner's claim verification")]
+    InvalidSignature,
+    #[error("Invalid public of miner encountered ")]
+    InvalidPublicKey,
     #[error("{0}")]
     Other(String),
 }

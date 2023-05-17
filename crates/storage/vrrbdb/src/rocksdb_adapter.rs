@@ -48,7 +48,6 @@ fn new_db_instance(
         },
     };
 
-
     let column_family_exists = cfs.iter().any(|cf| &cf == &column_family);
 
     let mut instance = rocksdb::DB::open_cf(&options, &path, cfs)
@@ -158,5 +157,10 @@ impl Database for RocksDbAdapter {
         let count = self.len().unwrap_or(0);
 
         Ok(count == 0)
+    }
+
+    /// NOTE: broken, do not use yet
+    fn values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>, Self::Error> {
+        todo!()
     }
 }

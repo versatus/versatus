@@ -1,3 +1,5 @@
+use std::{collections::HashSet, net::SocketAddr};
+
 use async_trait::async_trait;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
@@ -78,13 +80,14 @@ pub struct FarmerModule {
     pub sig_provider: Option<SignatureProvider>,
     pub farmer_id: PeerId,
     pub farmer_node_idx: NodeIdx,
+    pub harvester_peers: HashSet<SocketAddr>,
     status: ActorState,
     _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
-    _async_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
 }
 
 impl FarmerModule {
@@ -111,7 +114,8 @@ impl FarmerModule {
             broadcast_events_tx,
             quorum_threshold,
             sync_jobs_sender,
-            _async_jobs_sender: async_jobs_sender,
+            async_jobs_sender,
+            harvester_peers: Default::default(),
         }
     }
 
@@ -170,6 +174,13 @@ impl Handler<EventMessage> for FarmerModule {
         match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
+            },
+
+            Event::AddHarvesterPeer(peer) => {
+                self.harvester_peers.insert(peer);
+            },
+            Event::RemoveHarvesterPeer(peer) => {
+                self.harvester_peers.remove(&peer);
             },
             //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted

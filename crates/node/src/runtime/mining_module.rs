@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use async_trait::async_trait;
+use block::ProposalBlock;
 use events::{Event, EventMessage, EventPublisher};
 use mempool::MempoolReadHandleFactory;
-use miner::Miner;
+use miner::{conflict_resolver::Resolver, Miner};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
@@ -106,6 +109,25 @@ impl Handler<EventMessage> for MiningModule {
                             });
                     }
                 };
+            },
+            Event::CheckConflictResolution((proposal_blocks, round, seed, convergence_block)) => {
+                let tmp_proposal_blocks = proposal_blocks.clone();
+                let resolved_proposals_set = self
+                    .miner
+                    .resolve(&tmp_proposal_blocks, round, seed)
+                    .iter()
+                    .cloned()
+                    .collect::<HashSet<ProposalBlock>>();
+                let proposal_blocks_set = proposal_blocks
+                    .iter()
+                    .cloned()
+                    .collect::<HashSet<ProposalBlock>>();
+                if proposal_blocks_set == resolved_proposals_set {
+                    self.events_tx.send(EventMessage::new(
+                        None,
+                        Event::SignConvergenceBlock(convergence_block),
+                    ));
+                }
             },
             Event::NoOp => {},
             _ => {},

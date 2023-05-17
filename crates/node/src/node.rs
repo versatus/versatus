@@ -6,7 +6,6 @@ use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
     task::JoinHandle,
 };
-use trecho::vm::Cpu;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
@@ -41,16 +40,9 @@ pub struct Node {
     jsonrpc_server_handle: RuntimeHandle,
     quorum_election_handle: RuntimeHandle,
     dag_handle: RuntimeHandle,
-
-    // TODO: these fields are currently never read and need attention
-    _vm: Option<Cpu>,
-    _dkg_handle: RuntimeHandle,
-    _miner_election_handle: RuntimeHandle,
-    _farmer_handle: RuntimeHandle,
-    _harvester_handle: RuntimeHandle,
-    _indexer_handle: RuntimeHandle,
-    _raptor_handle: RaptorHandle,
-    _scheduler_handle: SchedulerHandle,
+    raptor_handle: RaptorHandle,
+    scheduler_handle: SchedulerHandle,
+    grpc_server_handle: RuntimeHandle,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
@@ -66,7 +58,6 @@ impl Node {
 
         info!("Configuring Node {}", &config.id);
 
-        let vm = None;
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
@@ -85,7 +76,6 @@ impl Node {
 
         Ok(Self {
             config,
-            _vm: vm,
             keypair,
             events_tx,
             control_rx,
@@ -94,17 +84,13 @@ impl Node {
             mempool_handle: runtime_components.mempool_handle,
             jsonrpc_server_handle: runtime_components.jsonrpc_server_handle,
             gossip_handle: runtime_components.gossip_handle,
-            _dkg_handle: runtime_components.dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             miner_handle: runtime_components.miner_handle,
-            _miner_election_handle: runtime_components.miner_election_handle,
             quorum_election_handle: runtime_components.quorum_election_handle,
-            _farmer_handle: runtime_components.farmer_handle,
-            _harvester_handle: runtime_components.harvester_handle,
-            _indexer_handle: runtime_components.indexer_handle,
             dag_handle: runtime_components.dag_handle,
-            _raptor_handle: runtime_components.raptor_handle,
-            _scheduler_handle: runtime_components.scheduler_handle,
+            raptor_handle: runtime_components.raptor_handle,
+            scheduler_handle: runtime_components.scheduler_handle,
+            grpc_server_handle: runtime_components.grpc_server_handle,
         })
     }
 
