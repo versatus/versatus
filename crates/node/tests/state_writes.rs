@@ -26,7 +26,7 @@ pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
 #[tokio::test]
 async fn vrrbdb_should_update_with_new_block() {
     let db_config = VrrbDbConfig::default();
-    let db = VrrbDb::new(db_config.clone());
+    let db = VrrbDb::new(db_config);
     let accounts: Vec<(Address, Account)> = produce_accounts(5);
     let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
     let (events_tx, _) = channel(100);
@@ -55,7 +55,7 @@ async fn vrrbdb_should_update_with_new_block() {
             .map(|pblock| {
                 let pblock: Block = pblock.clone().into();
                 let pvtx: Vertex<Block, BlockHash> = pblock.into();
-                (gvtx.clone(), pvtx.clone())
+                (gvtx.clone(), pvtx)
             })
             .collect()
     };
@@ -66,8 +66,8 @@ async fn vrrbdb_should_update_with_new_block() {
             .for_each(|(source, reference)| guard.add_edge((&source, &reference)));
     }
 
-    if let Some(block_hash) = produce_convergence_block(dag.clone()) {
-        let _ = state_module.update_state(block_hash);
+    if let Some(block_hash) = produce_convergence_block(dag) {
+        state_module.update_state(block_hash).unwrap();
     }
 
     state_module.commit();
@@ -78,9 +78,8 @@ async fn vrrbdb_should_update_with_new_block() {
     accounts.iter().for_each(|(address, _)| {
         let acct_opt = store.get(address);
         assert!(acct_opt.is_some());
-        if let Some(account) = store.get(address) {
-            println!("{:?}", account);
 
+        if let Some(account) = store.get(address) {
             let digests = account.digests.clone();
 
             assert!(!digests.get_sent().is_empty());
@@ -227,11 +226,12 @@ fn produce_convergence_block(dag: Arc<RwLock<BullDag<Block, BlockHash>>>) -> Opt
                 });
             }
 
-            if let Ok(mut guard) = dag.clone().write() {
+            if let Ok(mut guard) = dag.write() {
                 let edges = edges
                     .iter()
                     .map(|(source, reference)| (source, reference))
                     .collect();
+
                 guard.extend_from_edges(edges);
                 return Some(block.get_hash());
             }
