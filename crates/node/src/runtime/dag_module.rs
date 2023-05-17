@@ -9,7 +9,6 @@ use block::{
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
-    RefHash,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -18,7 +17,6 @@ use bulldag::{
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
-use rayon::prelude::*;
 use signer::types::{SignerError, SignerResult};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
@@ -341,10 +339,19 @@ impl Handler<EventMessage> for DagModule {
                     }
                     if block.certificate.is_none() {
                         if let Some(header) = self.last_confirmed_block_header.clone() {
-                            self.events_tx.send(EventMessage::new(
-                                None,
-                                Event::PrecheckConvergenceBlock(block, header),
-                            ));
+                            if let Err(err) = self
+                                .events_tx
+                                .send(EventMessage::new(
+                                    None,
+                                    Event::PrecheckConvergenceBlock(block, header),
+                                ))
+                                .await
+                            {
+                                let err_note = format!(
+                                    "Failed to send EventMessage for PrecheckConvergenceBlock: {err}"
+                                );
+                                return Err(theater::TheaterError::Other(err_note));
+                            }
                         }
                     }
                 },
