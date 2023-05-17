@@ -87,3 +87,9 @@ dev: watch
 watch: 
 	$(Q)sh infra/scripts/watch.sh
 	$(Q)echo "--- Done"
+
+buf-gen:
+	$(Q) buf generate infra/proto
+
+buf-push:
+	$(Q) buf generate infra/proto

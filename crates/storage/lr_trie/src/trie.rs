@@ -1,4 +1,8 @@
-use std::{fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
@@ -184,6 +188,17 @@ where
     }
 }
 
+impl<'a, D, K, V> Display for LeftRightTrie<'a, K, V, D>
+where
+    D: Database,
+    K: Serialize + Deserialize<'a>,
+    V: Serialize + Deserialize<'a>,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.handle())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::thread;
@@ -214,9 +229,15 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
-        trie.insert("abcdefg", CustomValue { data: 12345 });
-        trie.insert("hijkl", CustomValue { data: 678910 });
-        trie.insert("mnopq", CustomValue { data: 1112131415 });
+        let total = 18;
+
+        for n in 0..total {
+            let key = format!("test-{n}");
+
+            trie.insert(key, CustomValue { data: 12345 });
+        }
+
+        trie.publish();
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
@@ -224,7 +245,14 @@ mod tests {
             .map(|_| {
                 let reader = trie.handle();
                 thread::spawn(move || {
-                    assert_eq!(reader.len(), 3);
+                    assert_eq!(reader.len(), total);
+                    for n in 0..total {
+                        let key = format!("test-{n}");
+
+                        let res: CustomValue = reader.get(&key).unwrap();
+
+                        assert_eq!(res, CustomValue { data: 12345 });
+                    }
                 })
             })
             .for_each(|handle| {

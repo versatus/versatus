@@ -1,0 +1,40 @@
+syntax = "proto3";
+package node_write_service.v1;
+
+// import "node/v1/node.proto";
+
+service NodeWriteService {
+    rpc CreateTransaction (CreateTransactionRequest) returns (TransactionRecord);
+}
+
+message CreateTransactionRequest {
+    int64 timestamp = 1;
+    string sender_address = 2;
+    string sender_public_key = 3;
+    string receiver_address = 4;
+    Token token = 5;
+    uint64 amount = 6;
+    string signature = 7;
+    map<string, bool> validators = 8;
+    uint64 nonce = 9;
+}
+
+message TransactionRecord {
+    string id = 1;
+    int64 timestamp = 2;
+    string sender_address = 3;
+    string sender_public_key = 4;
+    string receiver_address = 5;
+    Token token = 6;
+    uint64 amount = 7;
+    string signature = 8;
+    map<string, bool> validators = 9;
+    uint64 nonce = 10;
+}
+
+message Token {
+    string name = 1;
+    string symbol = 2;
+    uint32 decimals = 3;
+}
+
