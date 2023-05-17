@@ -79,11 +79,13 @@ async fn vrrbdb_should_update_with_new_block() {
         let acct_opt = store.get(address);
         assert!(acct_opt.is_some());
         if let Some(account) = store.get(address) {
-            // println!("{:?}", account);
+            println!("{:?}", account);
+
             let digests = account.digests.clone();
-            assert!(digests.get_sent().len() > 0);
-            assert!(digests.get_recv().len() > 0);
-            assert!(digests.get_stake().len() == 0);
+
+            assert!(!digests.get_sent().is_empty());
+            assert!(!digests.get_recv().is_empty());
+            assert!(digests.get_stake().is_empty());
         }
     });
 }

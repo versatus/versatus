@@ -330,7 +330,7 @@ impl StateModule {
     }
 
     pub fn commit(&mut self) {
-        self.db.commit_accounts();
+        self.db.commit_state();
     }
 
     /// Given the hash of a `ConvergenceBlock` this method

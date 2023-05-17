@@ -54,7 +54,7 @@ impl ClaimStore {
 
     /// Commits uncommitted changes to the underlying trie by calling
     /// `publish()` Will wait for EACH ReadHandle to be consumed.
-    fn commit_changes(&mut self) {
+    pub fn commit(&mut self) {
         self.trie.publish();
     }
 
@@ -80,7 +80,7 @@ impl ClaimStore {
     /// Inserts new claim into ClaimDb.
     pub fn insert(&mut self, claim: Claim) -> Result<()> {
         self.insert_uncommited(claim)?;
-        self.commit_changes();
+        self.commit();
         Ok(())
     }
 
@@ -118,7 +118,7 @@ impl ClaimStore {
         inserts: Vec<(U256, Claim)>,
     ) -> Option<Vec<(U256, Claim, StorageError)>> {
         let failed_inserts = self.batch_insert_uncommited(inserts);
-        self.commit_changes();
+        self.commit();
         failed_inserts
     }
 

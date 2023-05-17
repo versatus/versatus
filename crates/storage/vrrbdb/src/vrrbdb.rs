@@ -75,15 +75,15 @@ impl VrrbDb {
     }
 
     pub fn commit_transactions(&mut self) {
-        // self.transaction_store.publish();
+        self.transaction_store.commit();
     }
 
-    pub fn commit_accounts(&mut self) {
-        self.state_store.publish();
+    pub fn commit_state(&mut self) {
+        self.state_store.commit();
     }
 
     pub fn commit_claims(&mut self) {
-        // self.transaction_store.publish();
+        self.claim_store.commit();
     }
 
     pub fn read_handle(&self) -> VrrbDbReadHandle {

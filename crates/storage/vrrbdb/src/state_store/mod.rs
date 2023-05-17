@@ -51,7 +51,7 @@ impl StateStore {
         StateStoreReadHandle::new(inner)
     }
 
-    pub fn publish(&mut self) {
+    pub fn commit(&mut self) {
         self.trie.publish();
     }
 
