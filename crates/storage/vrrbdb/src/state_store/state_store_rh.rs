@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::inner::InnerTrie;
+use patriecia::{inner::InnerTrie, Trie};
 use primitives::Address;
 use sha2::Digest;
 use storage_utils::{Result, StorageError};

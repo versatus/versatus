@@ -72,7 +72,7 @@ impl ClaimStore {
         //            ));
         //        }
 
-        self.trie.insert_uncommitted(claim.hash, claim);
+        self.trie.insert(claim.hash, claim);
 
         Ok(())
     }

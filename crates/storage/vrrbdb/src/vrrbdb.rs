@@ -74,6 +74,18 @@ impl VrrbDb {
         }
     }
 
+    pub fn commit_transactions(&mut self) {
+        // self.transaction_store.publish();
+    }
+
+    pub fn commit_accounts(&mut self) {
+        self.state_store.publish();
+    }
+
+    pub fn commit_claims(&mut self) {
+        // self.transaction_store.publish();
+    }
+
     pub fn read_handle(&self) -> VrrbDbReadHandle {
         VrrbDbReadHandle::new(
             self.state_store.factory(),

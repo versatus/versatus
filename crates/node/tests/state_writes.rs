@@ -70,6 +70,8 @@ async fn vrrbdb_should_update_with_new_block() {
         let _ = state_module.update_state(block_hash);
     }
 
+    state_module.commit();
+
     let handle = state_module.read_handle();
     let store = handle.state_store_values();
 
@@ -77,7 +79,7 @@ async fn vrrbdb_should_update_with_new_block() {
         let acct_opt = store.get(address);
         assert!(acct_opt.is_some());
         if let Some(account) = store.get(address) {
-            println!("{:?}", account);
+            // println!("{:?}", account);
             let digests = account.digests.clone();
             //            assert!(digests.get_sent().len() > 0);
             //            assert!(digests.get_recv().len() > 0);
@@ -155,7 +157,6 @@ fn produce_genesis_block() -> GenesisBlock {
     let genesis = miner::test_helpers::mine_genesis();
     genesis.unwrap()
 }
-
 
 fn produce_proposal_blocks(
     last_block_hash: BlockHash,

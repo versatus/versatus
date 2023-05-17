@@ -329,6 +329,10 @@ impl StateModule {
         Ok(())
     }
 
+    pub fn commit(&mut self) {
+        self.db.commit_accounts();
+    }
+
     /// Given the hash of a `ConvergenceBlock` this method
     /// updates the StateStore, ClaimStore and TransactionStore
     /// for all new claims and transactions (excluding
@@ -542,7 +546,6 @@ fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, Upd
 
     consolidated_updates
 }
-
 
 #[async_trait]
 impl Handler<EventMessage> for StateModule {

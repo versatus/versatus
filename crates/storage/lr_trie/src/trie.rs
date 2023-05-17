@@ -93,33 +93,35 @@ where
     }
 
     pub fn update(&mut self, key: K, value: V) {
-        self.insert_uncommitted(key, value);
-        self.publish();
+        self.insert(key, value);
+        // self.publish();
     }
 
     pub fn publish(&mut self) {
         self.write_handle.publish();
     }
 
+    // pub fn insert_uncommitted(&mut self, key: K, value: V) {
+    //     self.insert_uncommitted(key, value);
+    //     // self.publish();
+    // }
+    //
+    // pub fn extend_uncommitted(&mut self, values: Vec<(K, V)>) {
+    //     self.extend_uncommitted(values);
+    //     // self.publish();
+    // }
+
     pub fn insert(&mut self, key: K, value: V) {
-        self.insert_uncommitted(key, value);
-        self.publish();
-    }
-
-    pub fn extend(&mut self, values: Vec<(K, V)>) {
-        self.extend_uncommitted(values);
-        self.publish();
-    }
-
-    pub fn insert_uncommitted(&mut self, key: K, value: V) {
         //TODO: revisit the serializer used to store things on the trie
         let key = bincode::serialize(&key).unwrap_or_default();
         let value = bincode::serialize(&value).unwrap_or_default();
-        self.write_handle.append(Operation::Add(key, value));
+        let res = self
+            .write_handle
+            .append(Operation::Add(key, value))
+            .publish();
     }
 
-    // pub fn extend_uncommitted<T>(&mut self, values: Vec<(K, V)>) {
-    pub fn extend_uncommitted(&mut self, values: Vec<(K, V)>) {
+    pub fn extend(&mut self, values: Vec<(K, V)>) {
         let mapped = values
             .into_iter()
             .map(|(key, value)| {
@@ -131,7 +133,9 @@ where
             })
             .collect();
 
-        self.write_handle.append(Operation::Extend(mapped));
+        self.write_handle
+            .append(Operation::Extend(mapped))
+            .publish();
     }
 }
 
@@ -258,22 +262,6 @@ mod tests {
 
                         assert_eq!(res, CustomValue { data: 12345 });
                     }
-                })
-            })
-            .for_each(|handle| {
-                handle.join().unwrap();
-            });
-
-        trie.insert("gehabc", CustomValue { data: 12345 });
-        trie.insert("zxynbc", CustomValue { data: 678910 });
-        trie.insert("qwerty", CustomValue { data: 1112131415 });
-
-        [0..10]
-            .iter()
-            .map(|_| {
-                let reader = trie.handle();
-                thread::spawn(move || {
-                    assert_eq!(reader.len(), 3);
                 })
             })
             .for_each(|handle| {

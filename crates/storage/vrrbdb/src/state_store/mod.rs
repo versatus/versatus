@@ -51,6 +51,10 @@ impl StateStore {
         StateStoreReadHandle::new(inner)
     }
 
+    pub fn publish(&mut self) {
+        self.trie.publish();
+    }
+
     pub fn get_account(&self, key: &Address) -> Result<Account> {
         let read_handle = self.read_handle();
         read_handle.get(key)
@@ -76,14 +80,14 @@ impl StateStore {
             ));
         }
 
-        self.trie.insert_uncommitted(key, account);
+        self.trie.insert(key, account);
 
         Ok(())
     }
 
     /// Inserts new account into StateDb.
     pub fn insert(&mut self, key: Address, account: Account) -> Result<()> {
-        self.insert_uncommited(key, account)?;
+        self.insert(key, account)?;
         self.commit_changes();
         Ok(())
     }
