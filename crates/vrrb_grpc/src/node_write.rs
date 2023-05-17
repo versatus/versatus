@@ -6,7 +6,9 @@ use events::{Event, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use node_write_service::v1::{
     node_write_service_server::{NodeWriteService, NodeWriteServiceServer},
-    CreateTransactionRequest, Token as NodeToken, TransactionRecord,
+    CreateTransactionRequest,
+    Token as NodeToken,
+    TransactionRecord,
 };
 use primitives::{Address, NodeType};
 use secp256k1::{ecdsa::Signature, PublicKey};

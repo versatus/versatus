@@ -81,9 +81,9 @@ async fn vrrbdb_should_update_with_new_block() {
         if let Some(account) = store.get(address) {
             // println!("{:?}", account);
             let digests = account.digests.clone();
-            //            assert!(digests.get_sent().len() > 0);
-            //            assert!(digests.get_recv().len() > 0);
-            //            assert!(digests.get_stake().len() == 0);
+            assert!(digests.get_sent().len() > 0);
+            assert!(digests.get_recv().len() > 0);
+            assert!(digests.get_stake().len() == 0);
         }
     });
 }

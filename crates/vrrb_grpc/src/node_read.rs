@@ -6,8 +6,12 @@ use events::EventPublisher;
 use mempool::MempoolReadHandleFactory;
 use node_read_service::v1::{
     node_read_service_server::{NodeReadService, NodeReadServiceServer},
-    GetFullMempoolRequest, GetFullMempoolResponse, GetNodeTypeRequest, GetNodeTypeResponse,
-    Token as NodeToken, TransactionRecord,
+    GetFullMempoolRequest,
+    GetFullMempoolResponse,
+    GetNodeTypeRequest,
+    GetNodeTypeResponse,
+    Token as NodeToken,
+    TransactionRecord,
 };
 use primitives::NodeType;
 use serde::{Deserialize, Serialize};
