@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use block::BlockHash;
-use hbbft::crypto::{PublicKeyShare, SignatureShare};
+use hbbft::crypto::PublicKeyShare;
 use primitives::{
     ByteVec,
     FarmerId,
@@ -10,7 +10,6 @@ use primitives::{
     NodeIdx,
     NodeType,
     PeerId,
-    PublicKeyShareVec,
     RawSignature,
 };
 use serde::{Deserialize, Serialize};

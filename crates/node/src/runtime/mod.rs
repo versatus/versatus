@@ -1,10 +1,6 @@
 use std::{
     net::SocketAddr,
-    sync::{
-        mpsc::{channel, Receiver},
-        Arc,
-        RwLock,
-    },
+    sync::{Arc, RwLock},
     thread,
 };
 
@@ -25,7 +21,6 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
-    keypair::Keypair,
 };
 use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use primitives::{Address, NodeId, SecretKey};
+use primitives::{Address, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
 use vrrb_core::{

@@ -15,7 +15,6 @@ use primitives::{
     RAPTOR_DECODER_CACHE_LIMIT,
     RAPTOR_DECODER_CACHE_TTL_IN_SECS,
 };
-use qp2p::ConnectionError;
 pub use qp2p::{
     Config,
     Connection,

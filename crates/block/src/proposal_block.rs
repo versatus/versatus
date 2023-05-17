@@ -1,4 +1,4 @@
-use hbbft::crypto::{SecretKeyShare, SIG_SIZE};
+use hbbft::crypto::SIG_SIZE;
 use hex::FromHexError;
 use primitives::Epoch;
 use ritelinked::LinkedHashSet;
@@ -7,10 +7,10 @@ use utils::hash_data;
 use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+    txn::{QuorumCertifiedTxn, TransactionDigest},
 };
 
-use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash, TxnList};
+use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]

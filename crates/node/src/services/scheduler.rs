@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, HashMap};
 use block::ConvergenceBlock;
 use crossbeam_channel::Receiver;
 use events::{Event, EventPublisher, JobResult, Vote};
-use hbbft::crypto::SignatureShare;
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
 use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx};
