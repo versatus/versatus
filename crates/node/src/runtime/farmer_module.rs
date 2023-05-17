@@ -3,9 +3,7 @@ use std::{
     net::SocketAddr,
     str::FromStr,
 };
-
 use async_trait::async_trait;
-use bincode::config;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
 use maglev::*;
@@ -14,10 +12,7 @@ use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use vrrb_core::{
-    keypair::KeyPair,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::scheduler::Job;
 
@@ -187,7 +182,6 @@ impl Handler<EventMessage> for FarmerModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-
             Event::AddHarvesterPeer(peer) => {
                 self.harvester_peers.insert(peer);
             },
@@ -213,14 +207,14 @@ impl Handler<EventMessage> for FarmerModule {
                 let maglev_hash_ring = Maglev::new(keys);
                 let mut new_txns = vec![];
                 for txn in txns.into_iter() {
-                    if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()) {
+                    if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned() {
                         if group_public_key == self.group_public_key {
                             new_txns.push(txn);
                         } else if let Some(broadcast_addresses) =
-                            self.neighbouring_farmer_quorum_peers.get(group_public_key)
+                            self.neighbouring_farmer_quorum_peers.get(&group_public_key)
                         {
                             let addresses: Vec<SocketAddr> =
-                                broadcast_addresses.into_iter().collect();
+                                broadcast_addresses.into_iter().cloned().collect();
                             let _ = self.broadcast_events_tx.send(EventMessage::new(
                                 None,
                                 Event::ForwardTxn((txn.1, addresses)),

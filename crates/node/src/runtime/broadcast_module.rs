@@ -237,24 +237,25 @@ impl Handler<EventMessage> for BroadcastModule {
                 }
             },
             Event::ForwardTxn((txn_record, addresses)) => {
-                addresses.iter().for_each(async |address| {
+                for address in addresses.iter() {
+                    let address = address.clone();
                     let status = self
                         .broadcast_engine
                         .send_data_via_quic(
-                            Message::new(MessageBody::ForwardedTxn(txn_record)),
-                            address.clone(),
+                            Message::new(MessageBody::ForwardedTxn(txn_record.clone())),
+                            address,
                         )
                         .await;
                     match status {
                         Ok(_) => {},
                         Err(e) => {
                             error!(
-                                "Error occurred while forwarding transaction to peers :{:?}",
+                                "Error occurred while forwarding transaction to peers: {:?}",
                                 e
                             );
                         },
                     }
-                });
+                }
             },
 
             _ => {},
@@ -333,7 +334,10 @@ mod tests {
 
         match internal_events_rx.recv().await {
             Some(value) => assert_eq!(value, Event::SyncPeers(vec![peer_data]).into()),
-            None => {},
+            None => println!(
+                "no
+value"
+            ),
         }
 
         handle.await.unwrap();
