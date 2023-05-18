@@ -4,8 +4,18 @@ package node_read_service.v1;
 // import "node/v1/node.proto";
 
 service NodeReadService {
-    rpc GetNodeType (GetNodeTypeRequest) returns (GetNodeTypeResponse);
+    rpc GetFullState (FullStateSnapshotRequest) returns (FullStateSnapshotResponse);
     rpc GetFullMempool (GetFullMempoolRequest) returns (GetFullMempoolResponse);
+    rpc GetNodeType (GetNodeTypeRequest) returns (GetNodeTypeResponse);
+    rpc GetTransaction (GetTransactionRequest) returns (GetTransactionResponse);
+    rpc ListTransactions  (ListTransactionsRequest) returns (ListTransactionsResponse);
+    rpc GetAccount (GetAccountRequest) returns (GetAccountResponse);
+}
+
+message FullStateSnapshotRequest{}
+
+message FullStateSnapshotResponse {
+    map<string, Account> full_state_snapshot = 1;
 }
 
 message GetNodeTypeRequest {}
@@ -19,6 +29,30 @@ message GetFullMempoolRequest {}
 
 message GetFullMempoolResponse {
     repeated TransactionRecord transaction_records = 1;
+}
+
+message GetTransactionRequest {
+    string rpc_transaction_digest = 1;
+}
+
+message GetTransactionResponse {
+    TransactionRecord transaction_record = 1;
+}
+
+message ListTransactionsRequest {
+    repeated string digests = 1;
+}
+
+message ListTransactionsResponse {
+    map<string, TransactionRecord> transactions = 1;
+}
+
+message GetAccountRequest {
+    string address = 1;
+}
+
+message GetAccountResponse {
+    Account account = 1;
 }
 
 message TransactionRecord {
@@ -40,3 +74,26 @@ message Token {
     uint32 decimals = 3;
 }
 
+message Account {
+    string hash = 1;
+    uint64 account_nonce = 2;
+    uint64 credits = 3;
+    uint64 debits = 4;
+    string storage = 5;
+    string code = 6;
+    string pubkey = 7;            // check
+    AccountDigests digests = 8;
+    int64 created_at = 9;
+    int64 updated_at = 10;
+}
+
+message AccountDigests {
+    TransactionDigest sent = 1;   // check
+    TransactionDigest recv = 2;   // check
+    TransactionDigest stake = 3;  // check
+}
+
+message TransactionDigest {
+    string inner = 1;             // check
+    string digest_string = 2;     // check
+}

@@ -71,10 +71,10 @@ pub mod node_read_service_client {
             self
         }
 
-        pub async fn get_node_type(
+        pub async fn get_full_state(
             &mut self,
-            request: impl tonic::IntoRequest<super::GetNodeTypeRequest>,
-        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::FullStateSnapshotRequest>,
+        ) -> Result<tonic::Response<super::FullStateSnapshotResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -83,7 +83,7 @@ pub mod node_read_service_client {
             })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/node_read_service.v1.NodeReadService/GetNodeType",
+                "/node_read_service.v1.NodeReadService/GetFullState",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -104,6 +104,74 @@ pub mod node_read_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+
+        pub async fn get_node_type(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetNodeTypeRequest>,
+        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_read_service.v1.NodeReadService/GetNodeType",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+
+        pub async fn get_transaction(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetTransactionRequest>,
+        ) -> Result<tonic::Response<super::GetTransactionResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_read_service.v1.NodeReadService/GetTransaction",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+
+        pub async fn list_transactions(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListTransactionsRequest>,
+        ) -> Result<tonic::Response<super::ListTransactionsResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_read_service.v1.NodeReadService/ListTransactions",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+
+        pub async fn get_account(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetAccountRequest>,
+        ) -> Result<tonic::Response<super::GetAccountResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_read_service.v1.NodeReadService/GetAccount",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -114,14 +182,30 @@ pub mod node_read_service_server {
     /// use with NodeReadServiceServer.
     #[async_trait]
     pub trait NodeReadService: Send + Sync + 'static {
-        async fn get_node_type(
+        async fn get_full_state(
             &self,
-            request: tonic::Request<super::GetNodeTypeRequest>,
-        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status>;
+            request: tonic::Request<super::FullStateSnapshotRequest>,
+        ) -> Result<tonic::Response<super::FullStateSnapshotResponse>, tonic::Status>;
         async fn get_full_mempool(
             &self,
             request: tonic::Request<super::GetFullMempoolRequest>,
         ) -> Result<tonic::Response<super::GetFullMempoolResponse>, tonic::Status>;
+        async fn get_node_type(
+            &self,
+            request: tonic::Request<super::GetNodeTypeRequest>,
+        ) -> Result<tonic::Response<super::GetNodeTypeResponse>, tonic::Status>;
+        async fn get_transaction(
+            &self,
+            request: tonic::Request<super::GetTransactionRequest>,
+        ) -> Result<tonic::Response<super::GetTransactionResponse>, tonic::Status>;
+        async fn list_transactions(
+            &self,
+            request: tonic::Request<super::ListTransactionsRequest>,
+        ) -> Result<tonic::Response<super::ListTransactionsResponse>, tonic::Status>;
+        async fn get_account(
+            &self,
+            request: tonic::Request<super::GetAccountRequest>,
+        ) -> Result<tonic::Response<super::GetAccountResponse>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct NodeReadServiceServer<T: NodeReadService> {
@@ -183,21 +267,22 @@ pub mod node_read_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/node_read_service.v1.NodeReadService/GetNodeType" => {
+                "/node_read_service.v1.NodeReadService/GetFullState" => {
                     #[allow(non_camel_case_types)]
-                    struct GetNodeTypeSvc<T: NodeReadService>(pub Arc<T>);
-                    impl<T: NodeReadService> tonic::server::UnaryService<super::GetNodeTypeRequest>
-                        for GetNodeTypeSvc<T>
+                    struct GetFullStateSvc<T: NodeReadService>(pub Arc<T>);
+                    impl<T: NodeReadService>
+                        tonic::server::UnaryService<super::FullStateSnapshotRequest>
+                        for GetFullStateSvc<T>
                     {
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        type Response = super::GetNodeTypeResponse;
+                        type Response = super::FullStateSnapshotResponse;
 
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::GetNodeTypeRequest>,
+                            request: tonic::Request<super::FullStateSnapshotRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
-                            let fut = async move { (*inner).get_node_type(request).await };
+                            let fut = async move { (*inner).get_full_state(request).await };
                             Box::pin(fut)
                         }
                     }
@@ -206,7 +291,7 @@ pub mod node_read_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = GetNodeTypeSvc(inner);
+                        let method = GetFullStateSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
                             accept_compression_encodings,
@@ -242,6 +327,144 @@ pub mod node_read_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetFullMempoolSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node_read_service.v1.NodeReadService/GetNodeType" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetNodeTypeSvc<T: NodeReadService>(pub Arc<T>);
+                    impl<T: NodeReadService> tonic::server::UnaryService<super::GetNodeTypeRequest>
+                        for GetNodeTypeSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::GetNodeTypeResponse;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetNodeTypeRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_node_type(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetNodeTypeSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node_read_service.v1.NodeReadService/GetTransaction" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetTransactionSvc<T: NodeReadService>(pub Arc<T>);
+                    impl<T: NodeReadService>
+                        tonic::server::UnaryService<super::GetTransactionRequest>
+                        for GetTransactionSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::GetTransactionResponse;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetTransactionRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_transaction(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetTransactionSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node_read_service.v1.NodeReadService/ListTransactions" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListTransactionsSvc<T: NodeReadService>(pub Arc<T>);
+                    impl<T: NodeReadService>
+                        tonic::server::UnaryService<super::ListTransactionsRequest>
+                        for ListTransactionsSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::ListTransactionsResponse;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListTransactionsRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).list_transactions(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ListTransactionsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node_read_service.v1.NodeReadService/GetAccount" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetAccountSvc<T: NodeReadService>(pub Arc<T>);
+                    impl<T: NodeReadService> tonic::server::UnaryService<super::GetAccountRequest>
+                        for GetAccountSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::GetAccountResponse;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetAccountRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_account(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetAccountSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
                             accept_compression_encodings,

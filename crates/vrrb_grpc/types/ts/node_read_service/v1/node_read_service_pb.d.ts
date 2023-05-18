@@ -7,6 +7,49 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * @generated from message node_read_service.v1.FullStateSnapshotRequest
+ */
+export declare class FullStateSnapshotRequest extends Message<FullStateSnapshotRequest> {
+  constructor(data?: PartialMessage<FullStateSnapshotRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.FullStateSnapshotRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FullStateSnapshotRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FullStateSnapshotRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FullStateSnapshotRequest;
+
+  static equals(a: FullStateSnapshotRequest | PlainMessage<FullStateSnapshotRequest> | undefined, b: FullStateSnapshotRequest | PlainMessage<FullStateSnapshotRequest> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.FullStateSnapshotResponse
+ */
+export declare class FullStateSnapshotResponse extends Message<FullStateSnapshotResponse> {
+  /**
+   * @generated from field: map<string, node_read_service.v1.Account> full_state_snapshot = 1;
+   */
+  fullStateSnapshot: { [key: string]: Account };
+
+  constructor(data?: PartialMessage<FullStateSnapshotResponse>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.FullStateSnapshotResponse";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FullStateSnapshotResponse;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FullStateSnapshotResponse;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FullStateSnapshotResponse;
+
+  static equals(a: FullStateSnapshotResponse | PlainMessage<FullStateSnapshotResponse> | undefined, b: FullStateSnapshotResponse | PlainMessage<FullStateSnapshotResponse> | undefined): boolean;
+}
+
+/**
  * @generated from message node_read_service.v1.GetNodeTypeRequest
  */
 export declare class GetNodeTypeRequest extends Message<GetNodeTypeRequest> {
@@ -95,6 +138,150 @@ export declare class GetFullMempoolResponse extends Message<GetFullMempoolRespon
   static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetFullMempoolResponse;
 
   static equals(a: GetFullMempoolResponse | PlainMessage<GetFullMempoolResponse> | undefined, b: GetFullMempoolResponse | PlainMessage<GetFullMempoolResponse> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.GetTransactionRequest
+ */
+export declare class GetTransactionRequest extends Message<GetTransactionRequest> {
+  /**
+   * @generated from field: string rpc_transaction_digest = 1;
+   */
+  rpcTransactionDigest: string;
+
+  constructor(data?: PartialMessage<GetTransactionRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.GetTransactionRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTransactionRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTransactionRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTransactionRequest;
+
+  static equals(a: GetTransactionRequest | PlainMessage<GetTransactionRequest> | undefined, b: GetTransactionRequest | PlainMessage<GetTransactionRequest> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.GetTransactionResponse
+ */
+export declare class GetTransactionResponse extends Message<GetTransactionResponse> {
+  /**
+   * @generated from field: node_read_service.v1.TransactionRecord transaction_record = 1;
+   */
+  transactionRecord?: TransactionRecord;
+
+  constructor(data?: PartialMessage<GetTransactionResponse>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.GetTransactionResponse";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTransactionResponse;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTransactionResponse;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTransactionResponse;
+
+  static equals(a: GetTransactionResponse | PlainMessage<GetTransactionResponse> | undefined, b: GetTransactionResponse | PlainMessage<GetTransactionResponse> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.ListTransactionsRequest
+ */
+export declare class ListTransactionsRequest extends Message<ListTransactionsRequest> {
+  /**
+   * @generated from field: repeated string digests = 1;
+   */
+  digests: string[];
+
+  constructor(data?: PartialMessage<ListTransactionsRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.ListTransactionsRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListTransactionsRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListTransactionsRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListTransactionsRequest;
+
+  static equals(a: ListTransactionsRequest | PlainMessage<ListTransactionsRequest> | undefined, b: ListTransactionsRequest | PlainMessage<ListTransactionsRequest> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.ListTransactionsResponse
+ */
+export declare class ListTransactionsResponse extends Message<ListTransactionsResponse> {
+  /**
+   * @generated from field: map<string, node_read_service.v1.TransactionRecord> transactions = 1;
+   */
+  transactions: { [key: string]: TransactionRecord };
+
+  constructor(data?: PartialMessage<ListTransactionsResponse>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.ListTransactionsResponse";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListTransactionsResponse;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListTransactionsResponse;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListTransactionsResponse;
+
+  static equals(a: ListTransactionsResponse | PlainMessage<ListTransactionsResponse> | undefined, b: ListTransactionsResponse | PlainMessage<ListTransactionsResponse> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.GetAccountRequest
+ */
+export declare class GetAccountRequest extends Message<GetAccountRequest> {
+  /**
+   * @generated from field: string address = 1;
+   */
+  address: string;
+
+  constructor(data?: PartialMessage<GetAccountRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.GetAccountRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountRequest;
+
+  static equals(a: GetAccountRequest | PlainMessage<GetAccountRequest> | undefined, b: GetAccountRequest | PlainMessage<GetAccountRequest> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.GetAccountResponse
+ */
+export declare class GetAccountResponse extends Message<GetAccountResponse> {
+  /**
+   * @generated from field: node_read_service.v1.Account account = 1;
+   */
+  account?: Account;
+
+  constructor(data?: PartialMessage<GetAccountResponse>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.GetAccountResponse";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountResponse;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountResponse;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountResponse;
+
+  static equals(a: GetAccountResponse | PlainMessage<GetAccountResponse> | undefined, b: GetAccountResponse | PlainMessage<GetAccountResponse> | undefined): boolean;
 }
 
 /**
@@ -198,5 +385,149 @@ export declare class Token extends Message<Token> {
   static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Token;
 
   static equals(a: Token | PlainMessage<Token> | undefined, b: Token | PlainMessage<Token> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.Account
+ */
+export declare class Account extends Message<Account> {
+  /**
+   * @generated from field: string hash = 1;
+   */
+  hash: string;
+
+  /**
+   * @generated from field: uint64 account_nonce = 2;
+   */
+  accountNonce: bigint;
+
+  /**
+   * @generated from field: uint64 credits = 3;
+   */
+  credits: bigint;
+
+  /**
+   * @generated from field: uint64 debits = 4;
+   */
+  debits: bigint;
+
+  /**
+   * @generated from field: string storage = 5;
+   */
+  storage: string;
+
+  /**
+   * @generated from field: string code = 6;
+   */
+  code: string;
+
+  /**
+   * check
+   *
+   * @generated from field: string pubkey = 7;
+   */
+  pubkey: string;
+
+  /**
+   * @generated from field: node_read_service.v1.AccountDigests digests = 8;
+   */
+  digests?: AccountDigests;
+
+  /**
+   * @generated from field: int64 created_at = 9;
+   */
+  createdAt: bigint;
+
+  /**
+   * @generated from field: int64 updated_at = 10;
+   */
+  updatedAt: bigint;
+
+  constructor(data?: PartialMessage<Account>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.Account";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Account;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Account;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Account;
+
+  static equals(a: Account | PlainMessage<Account> | undefined, b: Account | PlainMessage<Account> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.AccountDigests
+ */
+export declare class AccountDigests extends Message<AccountDigests> {
+  /**
+   * check
+   *
+   * @generated from field: node_read_service.v1.TransactionDigest sent = 1;
+   */
+  sent?: TransactionDigest;
+
+  /**
+   * check
+   *
+   * @generated from field: node_read_service.v1.TransactionDigest recv = 2;
+   */
+  recv?: TransactionDigest;
+
+  /**
+   * check
+   *
+   * @generated from field: node_read_service.v1.TransactionDigest stake = 3;
+   */
+  stake?: TransactionDigest;
+
+  constructor(data?: PartialMessage<AccountDigests>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.AccountDigests";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountDigests;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountDigests;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountDigests;
+
+  static equals(a: AccountDigests | PlainMessage<AccountDigests> | undefined, b: AccountDigests | PlainMessage<AccountDigests> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_read_service.v1.TransactionDigest
+ */
+export declare class TransactionDigest extends Message<TransactionDigest> {
+  /**
+   * check
+   *
+   * @generated from field: string inner = 1;
+   */
+  inner: string;
+
+  /**
+   * check
+   *
+   * @generated from field: string digest_string = 2;
+   */
+  digestString: string;
+
+  constructor(data?: PartialMessage<TransactionDigest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_read_service.v1.TransactionDigest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TransactionDigest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TransactionDigest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TransactionDigest;
+
+  static equals(a: TransactionDigest | PlainMessage<TransactionDigest> | undefined, b: TransactionDigest | PlainMessage<TransactionDigest> | undefined): boolean;
 }
 
