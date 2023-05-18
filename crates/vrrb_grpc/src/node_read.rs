@@ -203,12 +203,15 @@ impl NodeReadService for NodeRead {
         match value {
             Some(txn) => {
                 let txn_record = RpcTransactionRecord::from(txn.clone());
-                let mut response = GetTransactionResponse::default();
-                response.transaction_record = Some(TransactionRecord::from(txn_record));
+                // let mut response = GetTransactionResponse::default();
+                // response.transaction_record = Some(TransactionRecord::from(txn_record));
+                let response = GetTransactionResponse {
+                    transaction_record: Some(TransactionRecord::from(txn_record)),
+                };
 
-                Ok(Response::new(GetTransactionResponse::from(response)))
+                Ok(Response::new(response))
             },
-            None => return Err(Status::not_found(format!("Transaction does not exist"))),
+            None => return Err(Status::not_found("Transaction does not exist")),
         }
     }
 
@@ -240,7 +243,7 @@ impl NodeReadService for NodeRead {
         });
 
         // Wrap the response in a `Result` and return it
-        Ok(Response::new(ListTransactionsResponse::from(transactions)))
+        Ok(Response::new(transactions))
     }
 
     async fn get_account(
@@ -257,7 +260,7 @@ impl NodeReadService for NodeRead {
                 let response = GetAccountResponse::from(account);
                 return Ok(Response::new(response));
             },
-            None => return Err(Status::not_found(format!("Account does not exist"))),
+            None => return Err(Status::not_found("Account does not exist")),
         }
     }
 }

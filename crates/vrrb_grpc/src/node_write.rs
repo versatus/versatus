@@ -137,10 +137,10 @@ impl NodeWriteService for NodeWrite {
         let transaction_request = request.into_inner();
 
         if PublicKey::from_str(&transaction_request.sender_public_key).is_err() {
-            return Err(Status::internal(format!("Cannot parse sender_public_key")));
+            return Err(Status::internal("Cannot parse sender_public_key"));
         }
         if Signature::from_str(&transaction_request.signature).is_err() {
-            return Err(Status::internal(format!("Cannot parse signature")));
+            return Err(Status::internal("Cannot parse signature"));
         }
 
         let new_txn_args = NewTxnArgs::from(transaction_request);
