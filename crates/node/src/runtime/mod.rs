@@ -212,7 +212,6 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
-        // jsonrpc_events_rx,
     )
     .await?;
 
@@ -239,8 +238,8 @@ pub async fn setup_runtime_components(
             .get_miner_secret_key()
             .secret_bytes()
             .to_vec(),
-    )
-    .unwrap();
+    )?;
+
     let claim = Claim::new(
         public_key,
         Address::new(public_key),
@@ -248,6 +247,7 @@ pub async fn setup_runtime_components(
         signature,
     )
     .map_err(NodeError::from)?;
+
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
         miner_election_events_rx,
@@ -260,7 +260,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         quorum_election_events_rx,
         state_read_handle.clone(),
-        claim,
+        claim.clone(),
     )?;
 
     let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -280,7 +280,7 @@ pub async fn setup_runtime_components(
             farmer_events_rx,
         )?;
     } else {
-        //Setup harvester
+        // Setup harvester
         harvester_handle = setup_harvester_module(
             &config,
             dag.clone(),
@@ -292,11 +292,15 @@ pub async fn setup_runtime_components(
             harvester_events_rx,
         )?
     };
+
+    let valcore_manager =
+        ValidatorCoreManager::new(8).map_err(|err| NodeError::Other(err.to_string()))?;
+
     let mut scheduler = setup_scheduler_module(
         &config,
         sync_jobs_receiver,
         async_jobs_receiver,
-        ValidatorCoreManager::new(8).unwrap(),
+        valcore_manager,
         events_tx.clone(),
         state_read_handle.clone(),
     );

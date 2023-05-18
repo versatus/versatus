@@ -188,19 +188,21 @@ impl Handler<EventMessage> for FarmerModule {
             Event::RemoveHarvesterPeer(peer) => {
                 self.harvester_peers.remove(&peer);
             },
-            //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
+            // Event "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted
             Event::Farm => {
                 let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
                 if let Some(sig_provider) = self.sig_provider.clone() {
-                    let _ = self.sync_jobs_sender.send(Job::Farm((
+                    if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
                         txns,
                         self.farmer_id.clone(),
                         self.farmer_node_idx,
                         self.group_public_key.clone(),
                         sig_provider,
                         self.quorum_threshold,
-                    )));
+                    ))) {
+                        telemetry::error!("error sending job to scheduler: {}", err);
+                    }
                 }
             },
             // Receive the Vote from scheduler
@@ -321,6 +323,7 @@ mod tests {
         let temp_dir_path = std::env::temp_dir();
         let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
         db_config.with_path(db_path);
+
         let db = VrrbDb::new(db_config);
         let vrrbdb_read_handle = db.read_handle();
 

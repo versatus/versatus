@@ -128,6 +128,7 @@ pub enum Event {
     ConvergenceBlockPartialSign(JobResult),
     FarmerQuorum(QuorumSize, FarmerQuorumThreshold),
     HarvesterQuorum(QuorumSize, HarvesterQuorumThreshold),
+    UpdateState(BlockHash),
     CertifiedTxn(JobResult),
     AddHarvesterPeer(SocketAddr),
     RemoveHarvesterPeer(SocketAddr),

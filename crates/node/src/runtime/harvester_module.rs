@@ -65,7 +65,6 @@ pub const BLOCK_CERTIFICATES_CACHE_TTL: u64 = 1800000;
 /// convergence blocks
 pub const BLOCK_CERTIFICATES_CACHE_LIMIT: usize = 5;
 
-
 /// The HarvesterModule struct contains various fields related to transaction
 /// certification and mining proposal blocks,
 ///
@@ -330,7 +329,7 @@ impl Handler<EventMessage> for HarvesterModule {
                 }
             },
 
-            /// Mines proposal block after every X seconds.
+            // Mines proposal block after every X seconds.
             Event::MineProposalBlock(ref_hash, round, epoch, claim) => {
                 let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
 
@@ -344,8 +343,14 @@ impl Handler<EventMessage> for HarvesterModule {
                 let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
                     .into_iter()
                     .map(|txn| {
-                        let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
-                        (txn.txn.id(), txn.clone())
+                        if let Err(err) = self.certified_txns_filter.push(&txn.txn().id.to_string())
+                        {
+                            telemetry::error!(
+                                "Error pushing txn to certified txns filter: {}",
+                                err
+                            );
+                        }
+                        (txn.txn().id(), txn.clone())
                     })
                     .collect();
 
@@ -613,7 +618,6 @@ mod tests {
 
         let (_async_jobs_status_sender, _async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
-
 
         let mut db_config = VrrbDbConfig::default();
 

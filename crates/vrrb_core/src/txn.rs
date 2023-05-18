@@ -81,6 +81,16 @@ pub struct Token {
     pub decimals: u8,
 }
 
+impl Display for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Token(name: {}, symbol: {}, decimals: {})",
+            self.name, self.symbol, self.decimals
+        )
+    }
+}
+
 impl FromStr for Token {
     type Err = crate::Error;
 
@@ -114,7 +124,7 @@ pub struct QuorumCertifiedTxn {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
-    pub txn: Txn,
+    txn: Txn,
     /// Threshold Signature
     signature: RawSignature,
     pub is_txn_valid: bool,
@@ -135,6 +145,22 @@ impl QuorumCertifiedTxn {
             signature,
             is_txn_valid,
         }
+    }
+
+    pub fn txn(&self) -> Txn {
+        self.txn.clone()
+    }
+
+    pub fn get_fee(&self) -> u128 {
+        self.txn.get_fee()
+    }
+
+    pub fn validator_fee_share(&self) -> u128 {
+        self.txn.validator_fee_share()
+    }
+
+    pub fn proposer_fee_share(&self) -> u128 {
+        self.txn.proposer_fee_share()
     }
 }
 
