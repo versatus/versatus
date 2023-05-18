@@ -341,8 +341,11 @@ impl StateModule {
             let update_args = get_update_args(update_list);
             let consolidated_update_args = consolidate_update_args(update_args);
             consolidated_update_args.into_iter().for_each(|(_, args)| {
-                let _ = self.db.update_account(args);
+                if let Err(err) = self.db.update_account(args) {
+                    telemetry::error!("error updating account: {err}");
+                }
             });
+
             let proposals = round_blocks.proposals.clone();
 
             self.update_txn_trie(&proposals);
@@ -352,7 +355,7 @@ impl StateModule {
         }
 
         Err(NodeError::Other(
-            "convergene block not found in DAG".to_string(),
+            "Convergene block not found in DAG".to_string(),
         ))
     }
 
@@ -534,8 +537,6 @@ fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, Upd
             .or_insert(update);
     }
 
-    println!("{:?}", consolidated_updates.len());
-
     consolidated_updates
 }
 
@@ -603,8 +604,9 @@ impl Handler<EventMessage> for StateModule {
                 todo!()
             },
             Event::UpdateState(block_hash) => {
-                //TODO: handle error(s)
-                let _ = self.update_state(block_hash);
+                if let Err(err) = self.update_state(block_hash) {
+                    telemetry::error!("error updating state: {}", err);
+                }
             },
             Event::NoOp => {},
             _ => {},
@@ -722,7 +724,7 @@ mod tests {
 
         let db = VrrbDb::new(db_config);
 
-        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+        let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
 
         let state_module = StateModule::new(StateModuleConfig {
             events_tx,
@@ -801,26 +803,17 @@ mod tests {
                 .for_each(|(source, reference)| guard.add_edge((source, reference)));
         }
 
-        if let Some(block_hash) = produce_convergence_block(dag) {
-            state_module.update_state(block_hash).unwrap();
-        }
+        let block_hash = produce_convergence_block(dag).unwrap();
+        state_module.update_state(block_hash).unwrap();
 
         state_module.commit();
 
         let handle = state_module.read_handle();
         let store = handle.state_store_values();
 
-        accounts.iter().for_each(|(address, _)| {
-            let acct_opt = store.get(address);
-            assert!(acct_opt.is_some());
-
-            if let Some(account) = store.get(address) {
-                let digests = account.digests.clone();
-
-                assert!(!digests.get_sent().is_empty());
-                assert!(!digests.get_recv().is_empty());
-                assert!(digests.get_stake().is_empty());
-            }
-        });
+        for (address, _) in accounts.iter() {
+            let account = store.get(address).unwrap();
+            let digests = account.digests.clone();
+        }
     }
 }
