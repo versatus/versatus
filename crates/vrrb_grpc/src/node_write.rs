@@ -6,16 +6,22 @@ use events::{Event, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use node_write_service::v1::{
     node_write_service_server::{NodeWriteService, NodeWriteServiceServer},
+    Account as RpcAccount,
+    CreateAccountRequest,
     CreateTransactionRequest,
     Token as NodeToken,
     TransactionRecord,
+    UpdateAccountRequest,
 };
 use primitives::{Address, NodeType};
 use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
 use tonic::{Request, Response, Status};
-use vrrb_core::txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn};
+use vrrb_core::{
+    serde_helpers::encode_to_binary,
+    txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
+};
 
 pub type RpcTransactionDigest = String;
 
@@ -149,5 +155,43 @@ impl NodeWriteService for NodeWrite {
         Ok(Response::new(TransactionRecord::from(
             RpcTransactionRecord::from(txn),
         )))
+    }
+
+    async fn create_account(
+        &self,
+        request: Request<CreateAccountRequest>,
+    ) -> Result<Response<RpcAccount>, Status> {
+        let inner = request.into_inner();
+        let account_bytes = encode_to_binary(&inner.account)
+            .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
+
+        let address = Address::from_str(inner.address.clone().as_str()).unwrap();
+        let event = Event::CreateAccountRequested((address, account_bytes));
+
+        self.events_tx
+            .send(event.clone().into())
+            .await
+            .map_err(|e| Status::internal(format!("Internal error: {}", e)))?;
+
+        Ok(Response::new(inner.account.clone().unwrap()))
+    }
+
+    async fn update_account(
+        &self,
+        request: Request<UpdateAccountRequest>,
+    ) -> Result<Response<RpcAccount>, Status> {
+        let inner = request.into_inner();
+        let account_bytes = encode_to_binary(&inner.account)
+            .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
+
+        let address = Address::from_str(inner.account.clone().unwrap().hash.as_str()).unwrap();
+        let event = Event::AccountUpdateRequested((address, account_bytes));
+
+        self.events_tx
+            .send(event.clone().into())
+            .await
+            .map_err(|e| Status::internal(format!("Internal error: {}", e)))?;
+
+        Ok(Response::new(inner.account.clone().unwrap()))
     }
 }

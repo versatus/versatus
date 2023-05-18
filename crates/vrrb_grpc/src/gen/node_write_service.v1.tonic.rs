@@ -87,6 +87,40 @@ pub mod node_write_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+
+        pub async fn create_account(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateAccountRequest>,
+        ) -> Result<tonic::Response<super::Account>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_write_service.v1.NodeWriteService/CreateAccount",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+
+        pub async fn update_account(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpdateAccountRequest>,
+        ) -> Result<tonic::Response<super::Account>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/node_write_service.v1.NodeWriteService/UpdateAccount",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -101,6 +135,14 @@ pub mod node_write_service_server {
             &self,
             request: tonic::Request<super::CreateTransactionRequest>,
         ) -> Result<tonic::Response<super::TransactionRecord>, tonic::Status>;
+        async fn create_account(
+            &self,
+            request: tonic::Request<super::CreateAccountRequest>,
+        ) -> Result<tonic::Response<super::Account>, tonic::Status>;
+        async fn update_account(
+            &self,
+            request: tonic::Request<super::UpdateAccountRequest>,
+        ) -> Result<tonic::Response<super::Account>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct NodeWriteServiceServer<T: NodeWriteService> {
@@ -187,6 +229,76 @@ pub mod node_write_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = CreateTransactionSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node_write_service.v1.NodeWriteService/CreateAccount" => {
+                    #[allow(non_camel_case_types)]
+                    struct CreateAccountSvc<T: NodeWriteService>(pub Arc<T>);
+                    impl<T: NodeWriteService>
+                        tonic::server::UnaryService<super::CreateAccountRequest>
+                        for CreateAccountSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::Account;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateAccountRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).create_account(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = CreateAccountSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/node_write_service.v1.NodeWriteService/UpdateAccount" => {
+                    #[allow(non_camel_case_types)]
+                    struct UpdateAccountSvc<T: NodeWriteService>(pub Arc<T>);
+                    impl<T: NodeWriteService>
+                        tonic::server::UnaryService<super::UpdateAccountRequest>
+                        for UpdateAccountSvc<T>
+                    {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Response = super::Account;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UpdateAccountRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).update_account(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = UpdateAccountSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
                             accept_compression_encodings,

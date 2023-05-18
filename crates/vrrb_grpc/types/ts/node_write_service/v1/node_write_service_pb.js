@@ -24,6 +24,27 @@ export const CreateTransactionRequest = proto3.makeMessageType(
 );
 
 /**
+ * @generated from message node_write_service.v1.CreateAccountRequest
+ */
+export const CreateAccountRequest = proto3.makeMessageType(
+  "node_write_service.v1.CreateAccountRequest",
+  () => [
+    { no: 1, name: "address", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account", kind: "message", T: Account },
+  ],
+);
+
+/**
+ * @generated from message node_write_service.v1.UpdateAccountRequest
+ */
+export const UpdateAccountRequest = proto3.makeMessageType(
+  "node_write_service.v1.UpdateAccountRequest",
+  () => [
+    { no: 1, name: "account", kind: "message", T: Account },
+  ],
+);
+
+/**
  * @generated from message node_write_service.v1.TransactionRecord
  */
 export const TransactionRecord = proto3.makeMessageType(
@@ -51,6 +72,48 @@ export const Token = proto3.makeMessageType(
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "symbol", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "decimals", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ],
+);
+
+/**
+ * @generated from message node_write_service.v1.Account
+ */
+export const Account = proto3.makeMessageType(
+  "node_write_service.v1.Account",
+  () => [
+    { no: 1, name: "hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_nonce", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "credits", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 4, name: "debits", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 5, name: "storage", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "pubkey", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "digests", kind: "message", T: AccountDigests },
+    { no: 9, name: "created_at", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 10, name: "updated_at", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ],
+);
+
+/**
+ * @generated from message node_write_service.v1.AccountDigests
+ */
+export const AccountDigests = proto3.makeMessageType(
+  "node_write_service.v1.AccountDigests",
+  () => [
+    { no: 1, name: "sent", kind: "message", T: TransactionDigest },
+    { no: 2, name: "recv", kind: "message", T: TransactionDigest },
+    { no: 3, name: "stake", kind: "message", T: TransactionDigest },
+  ],
+);
+
+/**
+ * @generated from message node_write_service.v1.TransactionDigest
+ */
+export const TransactionDigest = proto3.makeMessageType(
+  "node_write_service.v1.TransactionDigest",
+  () => [
+    { no: 1, name: "inner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "digest_string", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ],
 );
 

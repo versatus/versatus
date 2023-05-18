@@ -71,6 +71,59 @@ export declare class CreateTransactionRequest extends Message<CreateTransactionR
 }
 
 /**
+ * @generated from message node_write_service.v1.CreateAccountRequest
+ */
+export declare class CreateAccountRequest extends Message<CreateAccountRequest> {
+  /**
+   * @generated from field: string address = 1;
+   */
+  address: string;
+
+  /**
+   * @generated from field: node_write_service.v1.Account account = 2;
+   */
+  account?: Account;
+
+  constructor(data?: PartialMessage<CreateAccountRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_write_service.v1.CreateAccountRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateAccountRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateAccountRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateAccountRequest;
+
+  static equals(a: CreateAccountRequest | PlainMessage<CreateAccountRequest> | undefined, b: CreateAccountRequest | PlainMessage<CreateAccountRequest> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_write_service.v1.UpdateAccountRequest
+ */
+export declare class UpdateAccountRequest extends Message<UpdateAccountRequest> {
+  /**
+   * @generated from field: node_write_service.v1.Account account = 1;
+   */
+  account?: Account;
+
+  constructor(data?: PartialMessage<UpdateAccountRequest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_write_service.v1.UpdateAccountRequest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateAccountRequest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateAccountRequest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateAccountRequest;
+
+  static equals(a: UpdateAccountRequest | PlainMessage<UpdateAccountRequest> | undefined, b: UpdateAccountRequest | PlainMessage<UpdateAccountRequest> | undefined): boolean;
+}
+
+/**
  * @generated from message node_write_service.v1.TransactionRecord
  */
 export declare class TransactionRecord extends Message<TransactionRecord> {
@@ -171,5 +224,149 @@ export declare class Token extends Message<Token> {
   static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Token;
 
   static equals(a: Token | PlainMessage<Token> | undefined, b: Token | PlainMessage<Token> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_write_service.v1.Account
+ */
+export declare class Account extends Message<Account> {
+  /**
+   * @generated from field: string hash = 1;
+   */
+  hash: string;
+
+  /**
+   * @generated from field: uint64 account_nonce = 2;
+   */
+  accountNonce: bigint;
+
+  /**
+   * @generated from field: uint64 credits = 3;
+   */
+  credits: bigint;
+
+  /**
+   * @generated from field: uint64 debits = 4;
+   */
+  debits: bigint;
+
+  /**
+   * @generated from field: string storage = 5;
+   */
+  storage: string;
+
+  /**
+   * @generated from field: string code = 6;
+   */
+  code: string;
+
+  /**
+   * check
+   *
+   * @generated from field: string pubkey = 7;
+   */
+  pubkey: string;
+
+  /**
+   * @generated from field: node_write_service.v1.AccountDigests digests = 8;
+   */
+  digests?: AccountDigests;
+
+  /**
+   * @generated from field: int64 created_at = 9;
+   */
+  createdAt: bigint;
+
+  /**
+   * @generated from field: int64 updated_at = 10;
+   */
+  updatedAt: bigint;
+
+  constructor(data?: PartialMessage<Account>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_write_service.v1.Account";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Account;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Account;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Account;
+
+  static equals(a: Account | PlainMessage<Account> | undefined, b: Account | PlainMessage<Account> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_write_service.v1.AccountDigests
+ */
+export declare class AccountDigests extends Message<AccountDigests> {
+  /**
+   * check
+   *
+   * @generated from field: node_write_service.v1.TransactionDigest sent = 1;
+   */
+  sent?: TransactionDigest;
+
+  /**
+   * check
+   *
+   * @generated from field: node_write_service.v1.TransactionDigest recv = 2;
+   */
+  recv?: TransactionDigest;
+
+  /**
+   * check
+   *
+   * @generated from field: node_write_service.v1.TransactionDigest stake = 3;
+   */
+  stake?: TransactionDigest;
+
+  constructor(data?: PartialMessage<AccountDigests>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_write_service.v1.AccountDigests";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountDigests;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountDigests;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountDigests;
+
+  static equals(a: AccountDigests | PlainMessage<AccountDigests> | undefined, b: AccountDigests | PlainMessage<AccountDigests> | undefined): boolean;
+}
+
+/**
+ * @generated from message node_write_service.v1.TransactionDigest
+ */
+export declare class TransactionDigest extends Message<TransactionDigest> {
+  /**
+   * check
+   *
+   * @generated from field: string inner = 1;
+   */
+  inner: string;
+
+  /**
+   * check
+   *
+   * @generated from field: string digest_string = 2;
+   */
+  digestString: string;
+
+  constructor(data?: PartialMessage<TransactionDigest>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "node_write_service.v1.TransactionDigest";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TransactionDigest;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TransactionDigest;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TransactionDigest;
+
+  static equals(a: TransactionDigest | PlainMessage<TransactionDigest> | undefined, b: TransactionDigest | PlainMessage<TransactionDigest> | undefined): boolean;
 }
 

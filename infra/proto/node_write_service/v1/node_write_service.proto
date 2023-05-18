@@ -5,6 +5,8 @@ package node_write_service.v1;
 
 service NodeWriteService {
     rpc CreateTransaction (CreateTransactionRequest) returns (TransactionRecord);
+    rpc CreateAccount (CreateAccountRequest) returns (Account);
+    rpc UpdateAccount(UpdateAccountRequest) returns (Account);
 }
 
 message CreateTransactionRequest {
@@ -17,6 +19,15 @@ message CreateTransactionRequest {
     string signature = 7;
     map<string, bool> validators = 8;
     uint64 nonce = 9;
+}
+
+message CreateAccountRequest {
+    string address = 1;
+    Account account = 2;
+}
+
+message UpdateAccountRequest {
+    Account account = 1;
 }
 
 message TransactionRecord {
@@ -38,3 +49,26 @@ message Token {
     uint32 decimals = 3;
 }
 
+message Account {
+    string hash = 1;
+    uint64 account_nonce = 2;
+    uint64 credits = 3;
+    uint64 debits = 4;
+    string storage = 5;
+    string code = 6;
+    string pubkey = 7;            // check
+    AccountDigests digests = 8;
+    int64 created_at = 9;
+    int64 updated_at = 10;
+}
+
+message AccountDigests {
+    TransactionDigest sent = 1;   // check
+    TransactionDigest recv = 2;   // check
+    TransactionDigest stake = 3;  // check
+}
+
+message TransactionDigest {
+    string inner = 1;             // check
+    string digest_string = 2;     // check
+}
