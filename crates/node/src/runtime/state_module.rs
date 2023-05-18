@@ -1,8 +1,6 @@
-#![allow(unused)]
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    iter::FromIterator,
     str::FromStr,
     sync::{Arc, RwLock},
 };
@@ -14,12 +12,12 @@ use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
-use primitives::{Address, NodeId};
+use primitives::Address;
 use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{
-    account::{Account, AccountDigests, AccountNonce, UpdateArgs},
+    account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
     serde_helpers::decode_from_binary_byte_slice,
     txn::{Token, TransactionDigest, Txn},
@@ -162,7 +160,7 @@ impl FromBlock for HashSet<StateUpdate> {
     fn from_block(block: ProposalBlock) -> Self {
         let mut set = HashSet::new();
         let mut proposer_fees = 0u128;
-        block.txns.into_iter().for_each(|(digest, txn)| {
+        block.txns.into_iter().for_each(|(_digest, txn)| {
             let fee = txn.proposer_fee_share();
             proposer_fees += fee;
             let updates = IntoUpdates::from_txn(txn.clone());
@@ -185,7 +183,7 @@ impl FromBlock for HashSet<StateUpdate> {
 
         set.insert(fee_update);
 
-        return set;
+        set
     }
 }
 
@@ -232,7 +230,7 @@ impl FromTxn for HashSet<StateUpdate> {
         let mut validator_set = txn.validators();
         validator_set.retain(|_, vote| *vote);
         let validator_share = fees / (validator_set.len() as u128);
-        validator_set.iter().for_each(|(k, v)| {
+        validator_set.iter().for_each(|(k, _v)| {
             let address = Address::from_str(k);
             if let Ok(addr) = address {
                 set.insert(StateUpdate {
@@ -285,7 +283,7 @@ impl StateModule {
             status: ActorState::Stopped,
             label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
-            dag: config.dag.clone(),
+            dag: config.dag,
         }
     }
 }
@@ -353,9 +351,9 @@ impl StateModule {
             return Ok(());
         }
 
-        return Err(NodeError::Other(
+        Err(NodeError::Other(
             "convergene block not found in DAG".to_string(),
-        ));
+        ))
     }
 
     /// Provided a reference to an array of `ProposalBlock`s
@@ -383,13 +381,7 @@ impl StateModule {
             let nested: Vec<HashSet<(U256, Claim)>> = {
                 proposals
                     .iter()
-                    .map(|block| {
-                        block
-                            .claims
-                            .iter()
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect()
-                    })
+                    .map(|block| block.claims.iter().map(|(k, v)| (*k, v.clone())).collect())
                     .collect()
             };
 
@@ -448,14 +440,14 @@ impl StateModule {
     fn get_proposal_blocks(&self, index: BlockHash) -> Option<RoundBlocks> {
         let guard_result = self.dag.read();
         if let Ok(guard) = guard_result {
-            let vertex_option = guard.get_vertex(index.clone());
+            let vertex_option = guard.get_vertex(index);
             match &vertex_option {
                 Some(vertex) => {
                     if let Block::Convergence { block } = vertex.get_data() {
                         let proposals = self.convert_sources(self.get_sources(vertex));
 
                         return Some(RoundBlocks {
-                            convergence: block.clone(),
+                            convergence: block,
                             proposals,
                         });
                     }
@@ -602,7 +594,7 @@ impl Handler<EventMessage> for StateModule {
                     telemetry::info!("account {address} created", address = address.to_string());
                 }
             },
-            Event::AccountUpdateRequested((address, account_bytes)) => {
+            Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 //                if let Ok(account) =
                 // decode_from_binary_byte_slice(&account_bytes) {
                 // self.update_account(address, account)
@@ -629,20 +621,28 @@ mod tests {
         sync::{Arc, RwLock},
     };
 
-    use block::Block;
-    use bulldag::graph::BullDag;
+    use block::{Block, BlockHash};
+    use bulldag::{graph::BullDag, vertex::Vertex};
     use events::{Event, DEFAULT_BUFFER};
+    use primitives::Address;
     use serial_test::serial;
-    use storage::vrrbdb::VrrbDbConfig;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::ActorImpl;
-    use vrrb_core::txn::Txn;
+    use tokio::sync::mpsc::channel;
+    use vrrb_core::{account::Account, txn::Txn};
 
     use super::*;
+    use crate::test_utils::{
+        produce_accounts,
+        produce_convergence_block,
+        produce_genesis_block,
+        produce_proposal_blocks,
+    };
 
     #[tokio::test]
     #[serial]
     async fn state_runtime_module_starts_and_stops() {
-        let temp_dir_path = env::temp_dir().join("state.json");
+        let _temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -652,7 +652,7 @@ mod tests {
 
         let db = VrrbDb::new(db_config);
 
-        let mut state_module = StateModule::new(StateModuleConfig {
+        let state_module = StateModule::new(StateModuleConfig {
             events_tx,
             db,
             dag: dag.clone(),
@@ -677,7 +677,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_receives_new_txn_event() {
-        let temp_dir_path = env::temp_dir().join("state.json");
+        let _temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let db_config = VrrbDbConfig::default();
@@ -686,7 +686,7 @@ mod tests {
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
-        let mut state_module = StateModule::new(StateModuleConfig {
+        let state_module = StateModule::new(StateModuleConfig {
             events_tx,
             db,
             dag: dag.clone(),
@@ -714,7 +714,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_can_publish_events() {
-        let temp_dir_path = env::temp_dir().join("state.json");
+        let _temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -724,7 +724,7 @@ mod tests {
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
-        let mut state_module = StateModule::new(StateModuleConfig {
+        let state_module = StateModule::new(StateModuleConfig {
             events_tx,
             db,
             dag: dag.clone(),
@@ -733,7 +733,7 @@ mod tests {
         let mut state_module = ActorImpl::new(state_module);
 
         let events_handle = tokio::spawn(async move {
-            let res = events_rx.recv().await;
+            let _res = events_rx.recv().await;
         });
 
         let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
@@ -754,5 +754,73 @@ mod tests {
 
         handle.await.unwrap();
         events_handle.await.unwrap();
+    }
+
+    pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
+
+    #[tokio::test]
+    async fn vrrbdb_should_update_with_new_block() {
+        let db_config = VrrbDbConfig::default();
+        let db = VrrbDb::new(db_config);
+        let accounts: Vec<(Address, Account)> = produce_accounts(5);
+        let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
+        let (events_tx, _) = channel(100);
+        let config = StateModuleConfig {
+            db,
+            events_tx,
+            dag: dag.clone(),
+        };
+        let mut state_module = StateModule::new(config);
+        let state_res = state_module.extend_accounts(accounts.clone());
+        let genesis = produce_genesis_block();
+
+        assert!(state_res.is_ok());
+
+        let gblock: Block = genesis.clone().into();
+        let gvtx: Vertex<Block, BlockHash> = gblock.into();
+        if let Ok(mut guard) = dag.write() {
+            guard.add_vertex(&gvtx);
+        }
+
+        let proposals = produce_proposal_blocks(genesis.hash, accounts.clone(), 5, 5);
+
+        let edges: Vec<(Vertex<Block, BlockHash>, Vertex<Block, BlockHash>)> = {
+            proposals
+                .into_iter()
+                .map(|pblock| {
+                    let pblock: Block = pblock.into();
+                    let pvtx: Vertex<Block, BlockHash> = pblock.into();
+                    (gvtx.clone(), pvtx)
+                })
+                .collect()
+        };
+
+        if let Ok(mut guard) = dag.write() {
+            edges
+                .iter()
+                .for_each(|(source, reference)| guard.add_edge((source, reference)));
+        }
+
+        if let Some(block_hash) = produce_convergence_block(dag) {
+            state_module.update_state(block_hash).unwrap();
+        }
+
+        state_module.commit();
+
+        let handle = state_module.read_handle();
+        let store = handle.state_store_values();
+
+        accounts.iter().for_each(|(address, _)| {
+            let acct_opt = store.get(address);
+            assert!(acct_opt.is_some());
+
+            if let Some(account) = store.get(address) {
+                let digests = account.digests.clone();
+
+                assert!(!digests.get_sent().is_empty());
+                assert!(!digests.get_recv().is_empty());
+                assert!(digests.get_stake().is_empty());
+            }
+        });
     }
 }
