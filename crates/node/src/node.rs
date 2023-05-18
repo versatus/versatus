@@ -59,58 +59,20 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 impl Node {
     /// Initializes and returns a new Node instance
     pub async fn start(
-        config: &NodeConfig,
-        control_rx: UnboundedControlEventReceiver,
+                       config: &NodeConfig,
+                       control_rx: UnboundedControlEventReceiver,
     ) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
         if config.enable_ui {
-            info!("Configuring Node {}", &config.id);
-            info!("Ensuring environment has required dependencies");
-            match Command::new("npm")
-                .args(&["version"])
-                .output() {
-                Ok(_) => info!("NodeJS is installed"),
+            match Node::configure_node_ui(config.clone()) {
+                Ok(_) => info!("Node UI is ready"),
                 Err(e) => {
-                    return Err(
-                        NodeError::Other(format!("NodeJS is not installed: {}", e)).into(),
-                    );
-                },
+                    info!("Failed to start Node UI: {}", e);
+                    info!("Node UI will not be available");
+                }
             }
-            info!("Ensuring yarn install");
-            match Command::new("yarn")
-                .args(&["--version"])
-                .output() {
-                Ok(_) => info!("Yarn is installed"),
-                Err(e) => {
-                    Command::new("npm")
-                        .args(&["install -g yarn"])
-                        .current_dir("infra/ui")
-                        .output()
-                        .expect("failed to execute process");
-                },
-            }
-            info!("Installing dependencies");
-            match Command::new("yarn")
-                .args(&["install"])
-                .current_dir("infra/ui")
-                .output() {
-                Ok(_) => info!("Dependencies installed successfully"),
-                Err(e) => {
-                    return Err(
-                        NodeError::Other(format!("Yarn is not installed: {}", e)).into(),
-                    );
-                },
-            }
-
-            info!("Spawning UI");
-            Command::new("yarn")
-                .args(&["dev"])
-                .current_dir("infra/ui")
-                .spawn()
-                .expect("failed to spawn UI");
-            info!("Finished spawning UI");
         }
 
         let vm = None;
@@ -251,6 +213,67 @@ impl Node {
     /// Returns the node's type
     pub fn node_type(&self) -> NodeType {
         self.config.node_type
+    }
+
+    fn configure_node_ui(config: NodeConfig) -> anyhow::Result<()> {
+            info!("Configuring Node {}", &config.id);
+            info!("Ensuring environment has required dependencies");
+
+            match Command::new("npm").args(&["version"]).status() {
+                Ok(_) => info!("NodeJS is installed"),
+                Err(e) => {
+                    return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
+                }
+            }
+
+            info!("Ensuring yarn is installed");
+
+            match Command::new("yarn").args(&["--version"]).status() {
+                Ok(_) => info!("Yarn is installed"),
+                Err(e) => {
+                    let install_yarn = Command::new("npm")
+                        .args(&["install", "-g", "yarn"])
+                        .current_dir("infra/ui")
+                        .output();
+
+                    match install_yarn {
+                        Ok(_) => (),
+                        Err(_) => {
+                            return Err(NodeError::Other(format!("Failed to install yarn: {}", e)).into());
+                        }
+                    }
+                }
+            }
+
+            info!("Installing dependencies");
+
+            match Command::new("yarn")
+                .args(&["install"])
+                .current_dir("infra/ui")
+                .status()
+            {
+                Ok(_) => info!("Dependencies installed successfully"),
+                Err(e) => {
+                    return Err(NodeError::Other(format!("Failed to install dependencies: {}", e)).into());
+                }
+            }
+
+            info!("Spawning UI");
+
+            match Command::new("yarn")
+                .args(&["dev"])
+                .current_dir("infra/ui")
+                .spawn()
+            {
+                Ok(_) => info!("UI spawned successfully"),
+                Err(e) => {
+                    return Err(NodeError::Other(format!("Failed to spawn UI: {}", e)).into());
+                }
+            }
+
+            info!("Finished spawning UI");
+
+        Ok(())
     }
 
     #[deprecated(note = "use node_type instead")]
