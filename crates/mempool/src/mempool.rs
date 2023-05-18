@@ -12,7 +12,6 @@ use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
 
 use super::error::MempoolError;
 
-
 pub type Result<T> = StdResult<T, MempoolError>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]

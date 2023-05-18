@@ -1,10 +1,6 @@
 use std::{
     net::SocketAddr,
-    sync::{
-        mpsc::{channel, Receiver},
-        Arc,
-        RwLock,
-    },
+    sync::{Arc, RwLock},
     thread,
 };
 
@@ -73,21 +69,17 @@ pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
 
 impl From<MinerError> for NodeError {
-    fn from(error: MinerError) -> Self {
-        match error {
-            _ => NodeError::Other(String::from(
-                "Error occurred while creating instance of miner ",
-            )),
-        }
+    fn from(_error: MinerError) -> Self {
+        NodeError::Other(String::from(
+            "Error occurred while creating instance of miner ",
+        ))
     }
 }
 impl From<ClaimError> for NodeError {
-    fn from(error: ClaimError) -> Self {
-        match error {
-            _ => NodeError::Other(String::from(
-                "Error occurred while creating claim for the node",
-            )),
-        }
+    fn from(_error: ClaimError) -> Self {
+        NodeError::Other(String::from(
+            "Error occurred while creating claim for the node",
+        ))
     }
 }
 
@@ -132,6 +124,7 @@ pub async fn setup_runtime_components(
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
 
+    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
 
@@ -155,6 +148,7 @@ pub async fn setup_runtime_components(
         &config,
         events_tx.clone(),
         vrrbdb_events_rx,
+        dag.clone(),
         mempool_read_handle_factory.clone(),
     )
     .await?;
@@ -195,7 +189,7 @@ pub async fn setup_runtime_components(
                 }
             }
 
-            return true;
+            true
         }
     });
 
@@ -235,10 +229,10 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-    let public_key = config.keypair.get_miner_public_key().clone();
+    let public_key = *config.keypair.get_miner_public_key();
     let signature = Claim::signature_for_valid_claim(
-        public_key.clone(),
-        config.public_ip_address.clone(),
+        public_key,
+        config.public_ip_address,
         config
             .keypair
             .get_miner_secret_key()
@@ -252,7 +246,7 @@ pub async fn setup_runtime_components(
         config.public_ip_address,
         signature,
     )
-    .map_err(|err| NodeError::from(err))?;
+    .map_err(NodeError::from)?;
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
         miner_election_events_rx,
@@ -265,7 +259,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         quorum_election_events_rx,
         state_read_handle.clone(),
-        claim.clone(),
+        claim,
     )?;
 
     let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -279,8 +273,8 @@ pub async fn setup_runtime_components(
     if config.node_type == NodeType::Farmer {
         farmer_handle = setup_farmer_module(
             &config,
-            sync_jobs_sender.clone(),
-            async_jobs_sender.clone(),
+            sync_jobs_sender,
+            async_jobs_sender,
             events_tx.clone(),
             farmer_events_rx,
         )?;
@@ -308,7 +302,7 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx)?;
+    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx)?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -333,9 +327,7 @@ pub async fn setup_runtime_components(
 }
 
 fn setup_event_routing_system() -> EventRouter {
-    let event_router = EventRouter::default();
-
-    event_router
+    EventRouter::default()
 }
 async fn setup_gossip_network(
     config: &NodeConfig,
@@ -378,7 +370,7 @@ async fn setup_gossip_network(
             .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
             .await;
 
-        let raptor_handle = raptor_handle.map_err(|x| NodeError::Broadcast(x));
+        let raptor_handle = raptor_handle.map_err(NodeError::Broadcast);
         (broadcast_handle, raptor_handle)
     });
 
@@ -404,6 +396,7 @@ async fn setup_state_store(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut state_events_rx: EventSubscriber,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     _mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
     let mut vrrbdb_config = VrrbDbConfig::default();
@@ -416,7 +409,7 @@ async fn setup_state_store(
 
     let vrrbdb_read_handle = db.read_handle();
 
-    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
+    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db, dag });
 
     let mut state_module_actor = ActorImpl::new(state_module);
 
@@ -488,10 +481,10 @@ async fn setup_grpc_api_server(
         mempool_read_handle_factory,
     };
 
-    let address = grpc_server_config.address.clone();
+    let address = grpc_server_config.address;
 
     let handle = tokio::spawn(async move {
-        let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
+        let _resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
             .await
             .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
             .expect("gRPC server to start");
@@ -519,10 +512,10 @@ fn setup_mining_module(
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
         ip_address: config.public_ip_address,
-        dag: dag.clone(),
+        dag,
     };
 
-    let miner = miner::Miner::new(miner_config).map_err(|e| NodeError::from(e))?;
+    let miner = miner::Miner::new(miner_config).map_err(NodeError::from)?;
     let module_config = MiningModuleConfig {
         miner,
         events_tx,
@@ -576,7 +569,7 @@ fn setup_dkg_module(
                 .await
                 .map_err(|err| NodeError::Other(err.to_string()))
         });
-        return Ok(Some(dkg_handle));
+        Ok(Some(dkg_handle))
     } else {
         Err(NodeError::Other(String::from(
             "Failed to instantiate dkg module",
@@ -606,7 +599,7 @@ fn setup_miner_election_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    return Ok(Some(miner_election_module_handle));
+    Ok(Some(miner_election_module_handle))
 }
 
 fn setup_quorum_election_module(
@@ -633,7 +626,7 @@ fn setup_quorum_election_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    return Ok(Some(quorum_election_module_handle));
+    Ok(Some(quorum_election_module_handle))
 }
 
 fn setup_farmer_module(
@@ -649,7 +642,7 @@ fn setup_farmer_module(
         config.keypair.get_peer_id().into_bytes(),
         // Farmer Node Idx should be updated either by Election or Bootstrap node should assign idx
         0,
-        events_tx.clone(),
+        events_tx,
         // Quorum Threshold should be updated on the election,
         1,
         sync_jobs_sender,
@@ -664,7 +657,7 @@ fn setup_farmer_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    return Ok(Some(farmer_handle));
+    Ok(Some(farmer_handle))
 }
 
 fn setup_harvester_module(
@@ -691,7 +684,7 @@ fn setup_harvester_module(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
-    return Ok(Some(harvester_handle));
+    Ok(Some(harvester_handle))
 }
 
 fn setup_dag_module(
@@ -743,15 +736,14 @@ fn setup_scheduler_module(
     events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
 ) -> JobSchedulerController {
-    let module = JobSchedulerController::new(
+    JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
         events_tx,
         sync_jobs_receiver,
         async_jobs_receiver,
         validator_core_manager,
         vrrbdb_read_handle,
-    );
-    module
+    )
 }
 
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {

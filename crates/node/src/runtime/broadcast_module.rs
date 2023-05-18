@@ -186,7 +186,7 @@ impl Handler<EventMessage> for BroadcastModule {
                 for peer in peers.iter() {
                     let addr = peer.address;
                     quic_addresses.push(addr);
-                    let mut raptor_addr = addr.clone();
+                    let mut raptor_addr = addr;
                     raptor_addr.set_port(peer.raptor_udp_port);
                     raptor_peer_list.push(raptor_addr);
                 }
@@ -240,13 +240,13 @@ impl Handler<EventMessage> for BroadcastModule {
 
 #[cfg(test)]
 mod tests {
-    use std::io::stdout;
+
 
     use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl};
-    use tokio::{net::UdpSocket, sync::broadcast::channel};
+    use tokio::net::UdpSocket;
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 

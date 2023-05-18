@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{ByteVec, PublicKey, SecretKey};
 
 /// Represents a secp256k1 public key, hashed with sha256::digest
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct Address(PublicKey);
 
 impl Address {
@@ -24,6 +24,15 @@ impl Address {
     }
 }
 
+impl Default for Address {
+    fn default() -> Self {
+        // NOTE: should never panic as it's a valid string
+        // TODO: impl default null public keys to avoid this call to expect
+        let pk = PublicKey::from_str("null-address").expect("cant create null address");
+        Self(pk)
+    }
+}
+
 impl FromStr for Address {
     type Err = crate::Error;
 
@@ -31,6 +40,12 @@ impl FromStr for Address {
         PublicKey::from_str(s)
             .map_err(|err| crate::Error::Other(err.to_string()))
             .map(Self)
+    }
+}
+
+impl From<String> for Address {
+    fn from(s: String) -> Self {
+        Self::from_str(&s).unwrap_or_default()
     }
 }
 

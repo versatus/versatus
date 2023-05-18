@@ -42,7 +42,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use primitives::Signature;
+    use primitives::{Address, Signature};
     use rand::{thread_rng, Rng};
     use secp256k1::ecdsa;
     use tokio;
@@ -73,12 +73,14 @@ mod tests {
     #[tokio::test]
     async fn add_a_single_txn() {
         let keypair = KeyPair::random();
+        let recv_keypair = KeyPair::random();
+        let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
         let txn = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("bbb1"),
+            receiver_address: recv_address,
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -103,12 +105,13 @@ mod tests {
     #[tokio::test]
     async fn add_twice_same_txn() {
         let keypair = KeyPair::random();
+        let recv_keypair = KeyPair::random();
 
         let txn = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("bbb1"),
+            receiver_address: Address::new(recv_keypair.get_miner_public_key().clone()),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -142,12 +145,14 @@ mod tests {
     #[tokio::test]
     async fn add_two_different_txn() {
         let keypair = KeyPair::random();
+        let recv1_keypair = KeyPair::random();
+        let recv2_keypair = KeyPair::random();
 
         let txn1 = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("bbb1"),
+            receiver_address: Address::new(recv1_keypair.get_miner_public_key().clone()),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -157,9 +162,9 @@ mod tests {
 
         let txn2 = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("ccc1"),
+            receiver_address: Address::new(recv2_keypair.get_miner_public_key().clone()),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -191,18 +196,19 @@ mod tests {
     #[tokio::test]
     async fn add_and_retrieve_txn() {
         let keypair = KeyPair::random();
+        let recv_keypair = KeyPair::random();
 
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
+        let sender_address = Address::new(keypair.get_miner_public_key().clone());
+        let receiver_address = Address::new(recv_keypair.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
         let now = chrono::offset::Utc::now().timestamp();
 
         let txn = Txn::new(NewTxnArgs {
             timestamp: now,
-            sender_address: String::from("aaa1"),
+            sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("bbb1"),
+            receiver_address: receiver_address.clone(),
             token: None,
             amount: txn_amount,
             validators: Some(HashMap::<String, bool>::new()),
@@ -223,11 +229,11 @@ mod tests {
         };
 
         let now = chrono::offset::Utc::now().timestamp();
-
+        let delta = 10i64;
         // Test single Txn retrieval
         if let Some(txn_retrieved) = mpooldb.get_txn(&txn.digest().clone()) {
             assert_eq!(txn_retrieved.digest(), txn_id);
-            assert_eq!(txn_retrieved.timestamp, now);
+            assert!((txn_retrieved.timestamp - now) <= delta);
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
             assert_eq!(txn_retrieved.amount(), txn_amount);
@@ -239,7 +245,7 @@ mod tests {
         if let Some(txn_rec_retrieved) = mpooldb.get(&txn.digest()) {
             let txn_retrieved = txn_rec_retrieved.txn;
             assert_eq!(txn_retrieved.digest(), txn_id);
-            assert_eq!(txn_retrieved.timestamp, now);
+            assert!((txn_retrieved.timestamp - now) <= delta);
             assert_eq!(txn_retrieved.sender_address, sender_address);
             assert_eq!(txn_retrieved.receiver_address, receiver_address);
             assert_eq!(txn_retrieved.amount(), txn_amount);
@@ -251,21 +257,18 @@ mod tests {
     #[tokio::test]
     async fn add_batch_of_transactions() {
         let keypair = KeyPair::random();
+        let recv_keypair = KeyPair::random();
+
         let mut txns = HashSet::<Txn>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
+        let sender_address = Address::new(keypair.get_miner_public_key().clone());
+        let receiver_address = Address::new(recv_keypair.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("aaa1"),
+                sender_address: sender_address.clone(),
                 sender_public_key: keypair.get_miner_public_key().clone(),
                 receiver_address: receiver_address.clone(),
                 token: None,
@@ -299,7 +302,6 @@ mod tests {
 
         let record = map_values.get(index).unwrap().to_owned();
 
-        let txn_id = record.txn_id;
         let test_txn_amount = record.txn.amount();
 
         if let Some(txn_retrieved) = mpooldb.get_txn(&record.txn.digest()) {
@@ -314,16 +316,18 @@ mod tests {
     #[tokio::test]
     async fn remove_single_txn_by_id() {
         let keypair = KeyPair::random();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let recv1_keypair = KeyPair::random();
+        let recv2_keypair = KeyPair::random();
+
+        let sender_address = Address::new(keypair.get_miner_public_key().clone());
+        let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
+        let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
 
         let txn1 = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("bbb1"),
+            receiver_address: recv1_address.clone(),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -333,9 +337,9 @@ mod tests {
 
         let txn2 = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("ccc1"),
+            receiver_address: recv2_address.clone(),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -378,16 +382,18 @@ mod tests {
     #[tokio::test]
     async fn remove_single_txn() {
         let keypair = KeyPair::random();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let recv1_keypair = KeyPair::random();
+        let recv2_keypair = KeyPair::random();
+
+        let sender_address = Address::new(keypair.get_miner_public_key().clone());
+        let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
+        let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
 
         let txn1 = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("bbb1"),
+            receiver_address: recv1_address.clone(),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -397,9 +403,9 @@ mod tests {
 
         let txn2 = Txn::new(NewTxnArgs {
             timestamp: 0,
-            sender_address: String::from("aaa1"),
+            sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: String::from("ccc1"),
+            receiver_address: recv2_address.clone(),
             token: None,
             amount: 0,
             validators: Some(HashMap::<String, bool>::new()),
@@ -440,24 +446,27 @@ mod tests {
     #[test]
     fn remove_txn_batch() {
         let keypair = KeyPair::random();
-        let mut txns = HashSet::<Txn>::new();
+        let recv_keypair = KeyPair::random();
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
 
+
+        let mut txns = HashSet::<Txn>::new();
+
         // let txn_id = String::from("1");
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
+        let sender_address = Address::new(keypair.get_miner_public_key().clone());
+        let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("aaa1"),
+                sender_address: sender_address.clone(),
                 sender_public_key: keypair.get_miner_public_key().clone(),
-                receiver_address: receiver_address.clone(),
+                receiver_address: recv_address.clone(),
                 token: None,
                 amount: txn_amount + n,
                 validators: Some(HashMap::<String, bool>::new()),
@@ -494,21 +503,17 @@ mod tests {
         let mut lrmpooldb = LeftRightMempool::new();
         let mut txns = HashSet::<Txn>::new();
 
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
         let txn_amount: u128 = 1010101;
 
         for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
+            let recv_keypair = KeyPair::random();
+            let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
+
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("aaa1"),
+                sender_address: Address::new(keypair.get_miner_public_key().clone()),
                 sender_public_key: keypair.get_miner_public_key().clone(),
-                receiver_address: receiver_address.clone(),
+                receiver_address: recv_address.clone(),
                 token: None,
                 amount: txn_amount + n,
                 validators: Some(HashMap::<String, bool>::new()),

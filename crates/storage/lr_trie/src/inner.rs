@@ -41,5 +41,8 @@ where
 
     fn sync_with(&mut self, first: &Self) {
         *self = first.clone();
+        if let Err(err) = self.commit() {
+            telemetry::error!("failed to commit changes to trie: {err}");
+        }
     }
 }

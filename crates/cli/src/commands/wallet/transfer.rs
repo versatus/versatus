@@ -1,3 +1,4 @@
+use primitives::Address;
 use vrrb_core::txn::Token;
 use vrrb_rpc::rpc::api::RpcTransactionDigest;
 use wallet::v2::Wallet;
@@ -7,7 +8,7 @@ use crate::result::CliError;
 pub async fn exec(
     wallet: &mut Wallet,
     address_number: u32,
-    to: String,
+    to: Address,
     amount: u128,
     token: Token,
 ) -> Result<RpcTransactionDigest, CliError> {

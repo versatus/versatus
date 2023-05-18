@@ -106,7 +106,8 @@ impl HarvesterModule {
         async_jobs_sender: Sender<Job>,
     ) -> Self {
         let quorum_certified_txns = Vec::new();
-        let harvester = Self {
+
+        Self {
             quorum_certified_txns,
             certified_txns_filter,
             sig_provider,
@@ -114,14 +115,13 @@ impl HarvesterModule {
             label: String::from("FarmerHarvester"),
             id: uuid::Uuid::new_v4().to_string(),
             group_public_key,
-            broadcast_events_tx: broadcast_events_tx.clone(),
+            broadcast_events_tx,
             events_rx,
             quorum_threshold,
             votes_pool: DashMap::new(),
             sync_jobs_sender,
             async_jobs_sender,
-        };
-        harvester
+        }
     }
 
     pub fn name(&self) -> String {
@@ -178,7 +178,7 @@ impl Handler<EventMessage> for HarvesterModule {
                             votes.push(vote.clone());
                             if votes.len() >= farmer_quorum_threshold {
                                 let _ = self.sync_jobs_sender.send(Job::CertifyTxn((
-                                    sig_provider.clone(),
+                                    sig_provider,
                                     votes.clone(),
                                     txn_id,
                                     farmer_quorum_key,
@@ -269,14 +269,14 @@ mod tests {
     #[tokio::test]
     async fn harvester_runtime_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (sync_jobs_sender, _sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, _async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (_, events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (sync_jobs_status_sender, sync_jobs_status_receiver) =
+        let (_sync_jobs_status_sender, _sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
 
-        let (async_jobs_status_sender, async_jobs_status_receiver) =
+        let (_async_jobs_status_sender, _async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
 
         let harvester_swarm_module = HarvesterModule::new(
