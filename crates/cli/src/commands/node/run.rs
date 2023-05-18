@@ -76,6 +76,10 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = "1.0.0")]
     pub http_api_version: String,
 
+    /// Enables the UI for the node
+    #[clap(long, action, default_value = "false")]
+    pub enable_ui: bool,
+
     /// Disables networking capabilities of the node
     #[clap(long, action, default_value = "false")]
     pub disable_networking: bool,
@@ -132,6 +136,7 @@ impl From<RunOpts> for NodeConfig {
             // a hack, but it works for now.
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
+            enable_ui: opts.enable_ui,
             rendezvous_server_address: opts.rendezvous_server_address,
             public_ip_address: opts.raptorq_gossip_address,
         }
@@ -160,6 +165,7 @@ impl Default for RunOpts {
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
             http_api_version: Default::default(),
+            enable_ui: Default::default(),
             disable_networking: Default::default(),
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
@@ -247,6 +253,7 @@ impl RunOpts {
             http_api_address: other.http_api_address,
             http_api_title,
             http_api_version,
+            enable_ui: false,
             disable_networking: false,
             rendezvous_local_address: other.rendezvous_local_address,
             rendezvous_server_address: other.rendezvous_server_address,
