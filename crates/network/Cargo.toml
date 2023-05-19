@@ -30,3 +30,5 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 events = { workspace = true }
 theater = { workspace = true }
+mempool = { workspace = true }
+

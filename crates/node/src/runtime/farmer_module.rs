@@ -1,9 +1,13 @@
-use std::{collections::HashSet, net::SocketAddr, str::FromStr};
-
+use std::{
+    collections::{HashMap, HashSet},
+    net::SocketAddr,
+    str::FromStr,
+};
 use async_trait::async_trait;
 use bincode::config;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
+use maglev::*;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
@@ -85,6 +89,7 @@ pub struct FarmerModule {
     pub farmer_id: PeerId,
     pub farmer_node_idx: NodeIdx,
     pub harvester_peers: HashSet<SocketAddr>,
+    pub neighbouring_farmer_quorum_peers: HashMap<GroupPublicKey, HashSet<SocketAddr>>,
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
@@ -121,6 +126,7 @@ impl FarmerModule {
             sync_jobs_sender,
             async_jobs_sender,
             harvester_peers: Default::default(),
+            neighbouring_farmer_quorum_peers: HashMap::default(),
         }
     }
 
@@ -180,20 +186,52 @@ impl Handler<EventMessage> for FarmerModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-
             Event::AddHarvesterPeer(peer) => {
                 self.harvester_peers.insert(peer);
             },
             Event::RemoveHarvesterPeer(peer) => {
                 self.harvester_peers.remove(&peer);
             },
-            // Event "Farm" fetches a batch of transactions from a transaction mempool and sends
+            /*
+            Event::SyncNeighbouringFarmerQuorum(peers_details) => {
+                for (group_public_key, addressess) in peers_details {
+                    self.neighbouring_farmer_quorum_peers
+                        .insert(group_public_key, addressess);
+                }
+            },*/
+            //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted
             Event::Farm => {
                 let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
+                let keys: Vec<GroupPublicKey> = self
+                    .neighbouring_farmer_quorum_peers
+                    .keys()
+                    .cloned()
+                    .collect();
+                let maglev_hash_ring = Maglev::new(keys);
+                let mut new_txns = vec![];
+                for txn in txns.into_iter() {
+                    if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned() {
+                        if group_public_key == self.group_public_key {
+                            new_txns.push(txn);
+                        } else if let Some(broadcast_addresses) =
+                            self.neighbouring_farmer_quorum_peers.get(&group_public_key)
+                        {
+                            let addresses: Vec<SocketAddr> =
+                                broadcast_addresses.into_iter().cloned().collect();
+                            let _ = self.broadcast_events_tx.send(EventMessage::new(
+                                None,
+                                Event::ForwardTxn((txn.1, addresses)),
+                            ));
+                        }
+                    } else {
+                        new_txns.push(txn);
+                    }
+                }
+
                 if let Some(sig_provider) = self.sig_provider.clone() {
                     if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
-                        txns,
+                        new_txns,
                         self.farmer_id.clone(),
                         self.farmer_node_idx,
                         self.group_public_key.clone(),

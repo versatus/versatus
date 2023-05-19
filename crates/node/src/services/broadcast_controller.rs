@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use bytes::Bytes;
-use events::{Event, EventPublisher, EventSubscriber};
+use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
@@ -88,6 +88,13 @@ impl BroadcastEngineController {
             MessageBody::AddPeer { .. } => {},
             MessageBody::DKGPartCommitment { .. } => {},
             MessageBody::DKGPartAcknowledgement { .. } => {},
+            MessageBody::ForwardedTxn(txn_record) => {
+                info!("Received Forwarded Txn :{:?}", txn_record.txn_id);
+                let _ = self.events_tx.send(EventMessage::new(
+                    None,
+                    Event::NewTxnCreated(txn_record.txn),
+                ));
+            },
             MessageBody::Vote { .. } => {},
             MessageBody::Empty => {},
         };
