@@ -157,6 +157,7 @@ impl NodeWriteService for NodeWrite {
         )))
     }
 
+    // NOTE: never tested original implementation in jsonRPC server
     async fn create_account(
         &self,
         request: Request<CreateAccountRequest>,
@@ -178,6 +179,7 @@ impl NodeWriteService for NodeWrite {
         Ok(Response::new(inner.account.clone().unwrap()))
     }
 
+    // NOTE: never tested original implementation in jsonRPC server
     async fn update_account(
         &self,
         request: Request<UpdateAccountRequest>,

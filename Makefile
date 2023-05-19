@@ -92,4 +92,4 @@ buf-gen:
 	$(Q) buf generate infra/proto
 
 buf-push:
-	$(Q) buf generate infra/proto
+	$(Q) buf push
