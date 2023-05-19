@@ -58,10 +58,10 @@ items that are less than 50% complete are marked as :x:, all items marked with
 | Election | Proof of Claim Algorithm Implementation and Integration | :white_check_mark: | :link: |
 | Genesis Quorum Protocol | Formation of the first quorums at Genesis event | :construction: | :link: |
 | Key Generator | Protocol to generate Dealerless Distributed Keypairs for validator nodes, and ECDSA keypairs for all nodes | :white_check_mark: | :link: |
-| State Store | Left-Right Wrapped Accounts Database and State Trie | :construction: | :link: |  
+| State Store | Left-Right Wrapped Accounts Database and State Trie | ✅: | :link: |  
 | Mempool | Left-Right Wrapped Pending Transaction Store | :white_check_mark: | :link: | 
 | Validator Unit | Left-Right enabled transaction validation protocol | :white_check_mark: | :link: | 
-| Farmer-Harvester | Farmer-Havester Quorum model for secure parallel execution and validation of transactions | :construction: | :link: |
+| Farmer-Harvester | Farmer-Havester Quorum model for secure parallel execution and validation of transactions | ✅: | :link: |
 | DAG | Rounds based Directed Acyclic Graph to append blocks to | :white_check_mark: | :link: | 
 | Miner Unit | Protocol for consolidating proposal blocks produced by miners into a single point of reference signifying the end of a round and finality of transactions (once certified)| :white_check_mark: | :link: | 
 | Scheduler | Decentralized task buffer and allocator to maximize efficiency of Farmer Quorum nodes | :white_check_mark: | :link: | 
