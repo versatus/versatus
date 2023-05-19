@@ -203,8 +203,6 @@ impl NodeReadService for NodeRead {
         match value {
             Some(txn) => {
                 let txn_record = RpcTransactionRecord::from(txn.clone());
-                // let mut response = GetTransactionResponse::default();
-                // response.transaction_record = Some(TransactionRecord::from(txn_record));
                 let response = GetTransactionResponse {
                     transaction_record: Some(TransactionRecord::from(txn_record)),
                 };
@@ -242,7 +240,6 @@ impl NodeReadService for NodeRead {
             }
         });
 
-        // Wrap the response in a `Result` and return it
         Ok(Response::new(transactions))
     }
 
