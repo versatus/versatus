@@ -221,24 +221,28 @@ impl NodeReadService for NodeRead {
 
         let mut transactions = ListTransactionsResponse::default();
 
-        digests.iter().for_each(|digest_string| {
-            let parsed_digest = digest_string
-                .parse::<TransactionDigest>()
-                .unwrap_or_default(); // TODO: report this error
+        digests
+            .iter()
+            .try_for_each(|digest_string| -> Result<(), Status> {
+                let parsed_digest = digest_string
+                    .parse::<TransactionDigest>()
+                    .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
 
-            if let Some(txn) = self
-                .vrrbdb_read_handle
-                .transaction_store_values()
-                .get(&parsed_digest)
-            {
-                let rpc_txn_record = RpcTransactionRecord::from(txn.clone());
-                let txn_record = TransactionRecord::from(rpc_txn_record);
+                if let Some(txn) = self
+                    .vrrbdb_read_handle
+                    .transaction_store_values()
+                    .get(&parsed_digest)
+                {
+                    let rpc_txn_record = RpcTransactionRecord::from(txn.clone());
+                    let txn_record = TransactionRecord::from(rpc_txn_record);
 
-                transactions
-                    .transactions
-                    .insert(txn.digest().to_string(), txn_record);
-            }
-        });
+                    transactions
+                        .transactions
+                        .insert(txn.digest().to_string(), txn_record);
+                }
+
+                Ok(())
+            })?;
 
         Ok(Response::new(transactions))
     }
