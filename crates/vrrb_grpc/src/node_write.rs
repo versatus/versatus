@@ -165,7 +165,9 @@ impl NodeWriteService for NodeWrite {
         let account_bytes = encode_to_binary(&inner.account)
             .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
 
-        let address = Address::from_str(inner.address.clone().as_str()).unwrap();
+        let address = Address::from_str(inner.address.clone().as_str())
+            .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
+
         let event = Event::CreateAccountRequested((address, account_bytes));
 
         self.events_tx

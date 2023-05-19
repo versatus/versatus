@@ -195,7 +195,7 @@ impl NodeReadService for NodeRead {
 
         let parsed_digest = RpcTransactionDigest::from(&transaction_request.rpc_transaction_digest)
             .parse::<TransactionDigest>()
-            .unwrap();
+            .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
 
         let values = self.vrrbdb_read_handle.transaction_store_values();
         let value = values.get(&parsed_digest);
@@ -250,7 +250,8 @@ impl NodeReadService for NodeRead {
         &self,
         request: Request<GetAccountRequest>,
     ) -> Result<Response<GetAccountResponse>, Status> {
-        let public_key = Address::from_str(&request.into_inner().address).unwrap();
+        let public_key = Address::from_str(&request.into_inner().address)
+            .map_err(|e| Status::invalid_argument(format!("Invalid Argument: {}", e)))?;
 
         let values = self.vrrbdb_read_handle.state_store_values();
         let value = values.get(&public_key);
