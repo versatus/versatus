@@ -5,7 +5,7 @@ mod runtime_module;
 
 pub mod result;
 pub(crate) mod services;
-pub(crate) mod test_utils;
+pub mod test_utils;
 
 pub use node_type::*;
 pub use result::*;
