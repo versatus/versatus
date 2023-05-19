@@ -86,8 +86,8 @@ impl Claim {
         signature: String,
     ) -> Result<Claim> {
         let mut hasher = Sha256::new();
-        hasher.update(public_key.to_string().clone());
-        hasher.update(ip_address.to_string().clone());
+        hasher.update(public_key.to_string());
+        hasher.update(ip_address.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let mut msg_hash: Vec<u8> = Vec::new();
@@ -140,15 +140,15 @@ impl Claim {
         secret_key: SerializedSecretKey,
     ) -> Result<String> {
         let mut hasher = Sha256::new();
-        hasher.update(public_key.to_string().clone());
-        hasher.update(ip_address.to_string().clone());
+        hasher.update(public_key.to_string());
+        hasher.update(ip_address.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let mut msg_hash: Vec<u8> = Vec::new();
         hash.0.to_vec().iter().for_each(|x| {
             msg_hash.extend(x.to_le_bytes().iter());
         });
-        Keypair::ecdsa_sign(msg_hash.as_slice(), secret_key).map_err(|e| ClaimError::from(e))
+        Keypair::ecdsa_sign(msg_hash.as_slice(), secret_key).map_err(ClaimError::from)
     }
 
     /// The function verifies the validity of a claim using ECDSA signature and
@@ -173,7 +173,7 @@ impl Claim {
     /// a `Result` type, which can either be `Ok(())` if the signature is valid,
     /// or an `Err(ClaimError)` if the signature is invalid.
     pub fn is_valid_claim(msg_hash: &[u8], signature: String, pub_key: Vec<u8>) -> Result<()> {
-        Keypair::verify_ecdsa_sign(signature, msg_hash, pub_key).map_err(|e| ClaimError::from(e))
+        Keypair::verify_ecdsa_sign(signature, msg_hash, pub_key).map_err(ClaimError::from)
     }
 
     /// This function updates the IP address of a claim and verifies its
@@ -202,8 +202,8 @@ impl Claim {
         ip_address: SocketAddr,
     ) -> Result<()> {
         let mut hasher = Sha256::new();
-        hasher.update(public_key.to_string().clone());
-        hasher.update(ip_address.to_string().clone());
+        hasher.update(public_key.to_string());
+        hasher.update(ip_address.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let mut msg_hash: Vec<u8> = Vec::new();
@@ -245,7 +245,7 @@ impl Claim {
 
         if let Some(_) = stake_txn.get_certificate() {
             let prev_stake = self.stake;
-            self.stake_txns.push(stake_txn.clone());
+            self.stake_txns.push(stake_txn);
             self.stake = self.check_stake_utxo();
 
             if self.stake == prev_stake {
@@ -360,7 +360,7 @@ impl Ownable for Claim {
     type SocketAddr = SocketAddr;
 
     fn get_public_key(&self) -> PublicKey {
-        self.public_key.clone()
+        self.public_key
     }
 
     fn get_socket_addr(&self) -> Self::SocketAddr {

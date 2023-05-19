@@ -126,11 +126,11 @@ impl Stake {
     ) -> Option<Self> {
         let timestamp = chrono::Utc::now().timestamp();
         let payload = hash_data!(pk, from, to, amount, timestamp);
-        if let Ok(message) = Message::from_slice(&payload.to_vec()) {
+        if let Ok(message) = Message::from_slice(&payload) {
             let signature = sk.sign_ecdsa(message);
 
             return Some(Stake {
-                pubkey: pk.clone(),
+                pubkey: pk,
                 from,
                 to,
                 amount,
@@ -159,7 +159,7 @@ impl Stake {
     /// returns the Stake public key which is used to verify
     /// the signature of the Stake transaction
     pub fn get_pubkey(&self) -> MinerPk {
-        self.pubkey.clone()
+        self.pubkey
     }
 
     /// Returns the address from which the stake is to be
