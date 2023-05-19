@@ -228,12 +228,12 @@ fn get_winner(election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
     let first: (U256, Claim);
     loop {
         if let Some((pointer_sum, claim)) = iter.next() {
-            first = (pointer_sum.clone(), claim.clone());
+            first = (*pointer_sum, claim.clone());
             break;
         }
     }
 
-    return first;
+    first
 }
 
 fn elect_quorum(
@@ -250,5 +250,5 @@ fn elect_quorum(
         }
     }
 
-    return Err(InvalidQuorum::InvalidSeedError());
+    Err(InvalidQuorum::InvalidSeedError())
 }

@@ -53,9 +53,13 @@ ci-run-d:
 	$(Q)docker run -d --name vrrb-node ghcr.io/vrrb-io/vrrb
 	$(Q)echo "--- Done"
 
-clean:
+clean: clean-ui
 	$(Q)cargo clean
 	$(Q)echo "--- Deleted binaries and documentation"
+
+clean-ui:
+	$(Q)rm -rf infra/ui/node_modules infra/ui/.next
+	$(Q)echo "--- Deleted UI build artifacts"
 
 run:
 	# TODO: consider replacing with env aware script instead

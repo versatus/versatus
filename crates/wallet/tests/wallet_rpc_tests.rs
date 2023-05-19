@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 
-use primitives::{PublicKey, SecretKey};
-use secp256k1::{generate_keypair, Message, Secp256k1};
+use primitives::{generate_account_keypair, Address};
+use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
-use tokio::sync::mpsc::{channel, unbounded_channel, UnboundedSender};
-use vrrb_core::{helpers::read_or_generate_keypair_file, keypair::Keypair, txn::Token};
+use tokio::sync::mpsc::channel;
+use vrrb_core::txn::Token;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
@@ -59,10 +59,13 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     let timestamp = 0;
 
+    let recv_sk = SecretKey::from_hashed_data::<H>(b"recv_vrrb");
+    let recv_pk = PublicKey::from_secret_key(&secp, &recv_sk);
+
     let txn_digest = wallet
         .send_transaction(
             0,
-            "0x192abcdef01234567890fedcba09876543210".to_string(),
+            Address::new(recv_pk.clone()),
             10,
             Token::default(),
             timestamp,
@@ -72,7 +75,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     assert_eq!(
         &txn_digest.to_string(),
-        "bc2de28cea998b663ed26d1b02e39ecb72c40a5fbba9c2ad66a4f9abd87f360d"
+        "0f9dc848ff611b2d09cbcca8d5143798e185db0e00f08833fd66d622dca4c039"
     );
 }
 

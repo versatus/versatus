@@ -1,10 +1,6 @@
 use std::{
     net::SocketAddr,
-    sync::{
-        mpsc::{channel, Receiver},
-        Arc,
-        RwLock,
-    },
+    sync::{Arc, RwLock},
     thread,
 };
 
@@ -25,6 +21,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
+    keypair::Keypair,
 };
 use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
@@ -73,21 +70,17 @@ pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
 
 impl From<MinerError> for NodeError {
-    fn from(error: MinerError) -> Self {
-        match error {
-            _ => NodeError::Other(String::from(
-                "Error occurred while creating instance of miner ",
-            )),
-        }
+    fn from(_error: MinerError) -> Self {
+        NodeError::Other(String::from(
+            "Error occurred while creating instance of miner ",
+        ))
     }
 }
 impl From<ClaimError> for NodeError {
-    fn from(error: ClaimError) -> Self {
-        match error {
-            _ => NodeError::Other(String::from(
-                "Error occurred while creating claim for the node",
-            )),
-        }
+    fn from(_error: ClaimError) -> Self {
+        NodeError::Other(String::from(
+            "Error occurred while creating claim for the node",
+        ))
     }
 }
 
@@ -132,6 +125,7 @@ pub async fn setup_runtime_components(
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
 
+    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
     let mempool = LeftRightMempool::new();
     let mempool_read_handle_factory = mempool.factory();
 
@@ -155,6 +149,7 @@ pub async fn setup_runtime_components(
         &config,
         events_tx.clone(),
         vrrbdb_events_rx,
+        dag.clone(),
         mempool_read_handle_factory.clone(),
     )
     .await?;
@@ -195,7 +190,7 @@ pub async fn setup_runtime_components(
                 }
             }
 
-            return true;
+            true
         }
     });
 
@@ -217,7 +212,6 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
-        // jsonrpc_events_rx,
     )
     .await?;
 
@@ -235,24 +229,25 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-    let public_key = config.keypair.get_miner_public_key().clone();
+    let public_key = *config.keypair.get_miner_public_key();
     let signature = Claim::signature_for_valid_claim(
-        public_key.clone(),
-        config.public_ip_address.clone(),
+        public_key,
+        config.public_ip_address,
         config
             .keypair
             .get_miner_secret_key()
             .secret_bytes()
             .to_vec(),
-    )
-    .unwrap();
+    )?;
+
     let claim = Claim::new(
         public_key,
         Address::new(public_key),
         config.public_ip_address,
         signature,
     )
-    .map_err(|err| NodeError::from(err))?;
+    .map_err(NodeError::from)?;
+
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
         miner_election_events_rx,
@@ -279,26 +274,33 @@ pub async fn setup_runtime_components(
     if config.node_type == NodeType::Farmer {
         farmer_handle = setup_farmer_module(
             &config,
-            sync_jobs_sender.clone(),
-            async_jobs_sender.clone(),
+            sync_jobs_sender,
+            async_jobs_sender,
             events_tx.clone(),
             farmer_events_rx,
         )?;
     } else {
-        //Setup harvester
+        // Setup harvester
         harvester_handle = setup_harvester_module(
+            &config,
+            dag.clone(),
             sync_jobs_sender,
             async_jobs_sender,
             events_tx.clone(),
             events_rx,
+            state_read_handle.clone(),
             harvester_events_rx,
         )?
     };
+
+    let valcore_manager =
+        ValidatorCoreManager::new(8).map_err(|err| NodeError::Other(err.to_string()))?;
+
     let mut scheduler = setup_scheduler_module(
         &config,
         sync_jobs_receiver,
         async_jobs_receiver,
-        ValidatorCoreManager::new(8).unwrap(),
+        valcore_manager,
         events_tx.clone(),
         state_read_handle.clone(),
     );
@@ -308,7 +310,8 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx)?;
+    let dag_handle =
+        setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -333,9 +336,7 @@ pub async fn setup_runtime_components(
 }
 
 fn setup_event_routing_system() -> EventRouter {
-    let event_router = EventRouter::default();
-
-    event_router
+    EventRouter::default()
 }
 async fn setup_gossip_network(
     config: &NodeConfig,
@@ -378,7 +379,7 @@ async fn setup_gossip_network(
             .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
             .await;
 
-        let raptor_handle = raptor_handle.map_err(|x| NodeError::Broadcast(x));
+        let raptor_handle = raptor_handle.map_err(NodeError::Broadcast);
         (broadcast_handle, raptor_handle)
     });
 
@@ -404,6 +405,7 @@ async fn setup_state_store(
     config: &NodeConfig,
     events_tx: EventPublisher,
     mut state_events_rx: EventSubscriber,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     _mempool_read_handle_factory: MempoolReadHandleFactory,
 ) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
     let mut vrrbdb_config = VrrbDbConfig::default();
@@ -416,7 +418,7 @@ async fn setup_state_store(
 
     let vrrbdb_read_handle = db.read_handle();
 
-    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db });
+    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db, dag });
 
     let mut state_module_actor = ActorImpl::new(state_module);
 
@@ -488,10 +490,10 @@ async fn setup_grpc_api_server(
         mempool_read_handle_factory,
     };
 
-    let address = grpc_server_config.address.clone();
+    let address = grpc_server_config.address;
 
     let handle = tokio::spawn(async move {
-        let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
+        let _resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
             .await
             .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
             .expect("gRPC server to start");
@@ -519,10 +521,10 @@ fn setup_mining_module(
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
         ip_address: config.public_ip_address,
-        dag: dag.clone(),
+        dag,
     };
 
-    let miner = miner::Miner::new(miner_config).map_err(|e| NodeError::from(e))?;
+    let miner = miner::Miner::new(miner_config).map_err(NodeError::from)?;
     let module_config = MiningModuleConfig {
         miner,
         events_tx,
@@ -576,7 +578,7 @@ fn setup_dkg_module(
                 .await
                 .map_err(|err| NodeError::Other(err.to_string()))
         });
-        return Ok(Some(dkg_handle));
+        Ok(Some(dkg_handle))
     } else {
         Err(NodeError::Other(String::from(
             "Failed to instantiate dkg module",
@@ -606,7 +608,7 @@ fn setup_miner_election_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    return Ok(Some(miner_election_module_handle));
+    Ok(Some(miner_election_module_handle))
 }
 
 fn setup_quorum_election_module(
@@ -633,7 +635,7 @@ fn setup_quorum_election_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    return Ok(Some(quorum_election_module_handle));
+    Ok(Some(quorum_election_module_handle))
 }
 
 fn setup_farmer_module(
@@ -649,7 +651,7 @@ fn setup_farmer_module(
         config.keypair.get_peer_id().into_bytes(),
         // Farmer Node Idx should be updated either by Election or Bootstrap node should assign idx
         0,
-        events_tx.clone(),
+        events_tx,
         // Quorum Threshold should be updated on the election,
         1,
         sync_jobs_sender,
@@ -664,14 +666,17 @@ fn setup_farmer_module(
             .map_err(|err| NodeError::Other(err.to_string()))
     });
 
-    return Ok(Some(farmer_handle));
+    Ok(Some(farmer_handle))
 }
 
 fn setup_harvester_module(
+    config: &NodeConfig,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    vrrb_db_handle: VrrbDbReadHandle,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -681,8 +686,12 @@ fn setup_harvester_module(
         events_rx,
         broadcast_events_tx,
         1,
+        dag,
         sync_jobs_sender,
         async_jobs_sender,
+        vrrb_db_handle,
+        config.keypair.clone(),
+        config.idx,
     );
     let mut harvester_module_actor = ActorImpl::new(module);
     let harvester_handle = tokio::spawn(async move {
@@ -691,15 +700,16 @@ fn setup_harvester_module(
             .await
             .map_err(|err| NodeError::Other(err.to_string()))
     });
-    return Ok(Some(harvester_handle));
+    Ok(Some(harvester_handle))
 }
 
 fn setup_dag_module(
     dag: Arc<RwLock<BullDag<Block, String>>>,
     events_tx: EventPublisher,
     mut dag_module_events_rx: EventSubscriber,
+    claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module = DagModule::new(dag, events_tx);
+    let module = DagModule::new(dag, events_tx, claim);
 
     let mut dag_module_actor = ActorImpl::new(module);
     let dag_module_handle = tokio::spawn(async move {
@@ -743,15 +753,14 @@ fn setup_scheduler_module(
     events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
 ) -> JobSchedulerController {
-    let module = JobSchedulerController::new(
+    JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
         events_tx,
         sync_jobs_receiver,
         async_jobs_receiver,
         validator_core_manager,
         vrrbdb_read_handle,
-    );
-    module
+    )
 }
 
 fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {

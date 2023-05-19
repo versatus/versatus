@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 use async_trait::async_trait;
+use bincode::config;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
 use maglev::*;
@@ -12,7 +13,10 @@ use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::{
+    keypair::KeyPair,
+    txn::{TransactionDigest, Txn},
+};
 
 use crate::scheduler::Job;
 
@@ -107,7 +111,8 @@ impl FarmerModule {
         async_jobs_sender: Sender<Job>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
-        let farmer = Self {
+
+        Self {
             sig_provider,
             tx_mempool: lrmpooldb,
             status: ActorState::Stopped,
@@ -116,14 +121,13 @@ impl FarmerModule {
             group_public_key,
             farmer_id,
             farmer_node_idx,
-            broadcast_events_tx: broadcast_events_tx.clone(),
+            broadcast_events_tx,
             quorum_threshold,
             sync_jobs_sender,
             async_jobs_sender,
             harvester_peers: Default::default(),
             neighbouring_farmer_quorum_peers: HashMap::default(),
-        };
-        farmer
+        }
     }
 
     pub fn insert_txn(&mut self, txn: Txn) {
@@ -226,14 +230,16 @@ impl Handler<EventMessage> for FarmerModule {
                 }
 
                 if let Some(sig_provider) = self.sig_provider.clone() {
-                    let _ = self.sync_jobs_sender.send(Job::Farm((
+                    if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
                         new_txns,
                         self.farmer_id.clone(),
                         self.farmer_node_idx,
                         self.group_public_key.clone(),
-                        sig_provider.clone(),
+                        sig_provider,
                         self.quorum_threshold,
-                    )));
+                    ))) {
+                        telemetry::error!("error sending job to scheduler: {}", err);
+                    }
                 }
             },
             // Receive the Vote from scheduler
@@ -301,13 +307,13 @@ mod tests {
     #[tokio::test]
     async fn farmer_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-        let (_, clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
-        let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-        let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (_, _clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
+        let (sync_jobs_sender, _sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, _async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
-        let (sync_jobs_status_sender, sync_jobs_status_receiver) =
+        let (_sync_jobs_status_sender, _sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
-        let (async_jobs_status_sender, async_jobs_status_receiver) =
+        let (_async_jobs_status_sender, _async_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
         let farmer_module = FarmerModule::new(
             None,
@@ -342,10 +348,10 @@ mod tests {
     async fn farmer_farm_cast_vote() {
         let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (broadcast_events_tx, broadcast_events_rx) =
+        let (broadcast_events_tx, _broadcast_events_rx) =
             tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (_, clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (_, _clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -354,6 +360,7 @@ mod tests {
         let temp_dir_path = std::env::temp_dir();
         let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
         db_config.with_path(db_path);
+
         let db = VrrbDb::new(db_config);
         let vrrbdb_read_handle = db.read_handle();
 
@@ -396,16 +403,17 @@ mod tests {
             async_jobs_sender,
         );
         let keypair = KeyPair::random();
+        let recv_kp = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
-        let now = SystemTime::now()
+        let _now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
 
         // let txn_id = String::from("1");
-        let sender_address = String::from("aaa1");
-        let receiver_address = String::from("bbb1");
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let receiver_address = Address::new(*recv_kp.get_miner_public_key());
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
@@ -418,8 +426,8 @@ mod tests {
 
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().clone(),
+                sender_address: sender_address.clone(),
+                sender_public_key: *keypair.get_miner_public_key(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,

@@ -28,6 +28,11 @@ where
         Self { inner }
     }
 
+    /// Produces a clone of the underlying trie
+    pub fn inner(&self) -> InnerTrie<D> {
+        self.inner.clone()
+    }
+
     pub fn get<K, V>(&self, key: &K) -> Result<V>
     where
         K: for<'a> Deserialize<'a> + Serialize + Clone,

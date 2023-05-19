@@ -45,6 +45,10 @@ impl TransactionStore {
         TransactionStoreReadHandleFactory::new(inner)
     }
 
+    pub fn commit(&mut self) {
+        self.trie.publish();
+    }
+
     pub fn read_handle(&self) -> TransactionStoreReadHandle {
         let inner = self.trie.handle();
         TransactionStoreReadHandle::new(inner)
