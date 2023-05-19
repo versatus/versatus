@@ -160,13 +160,16 @@ impl FromBlock for HashSet<StateUpdate> {
     fn from_block(block: ProposalBlock) -> Self {
         let mut set = HashSet::new();
         let mut proposer_fees = 0u128;
+
         block.txns.into_iter().for_each(|(_digest, txn)| {
             let fee = txn.proposer_fee_share();
             proposer_fees += fee;
-            let updates = IntoUpdates::from_txn(txn.clone());
+
+            let updates = IntoUpdates::from_txn(txn.txn());
             set.insert(updates.sender_update);
             set.insert(updates.receiver_update);
-            let validator_fees = HashSet::<StateUpdate>::from_txn(txn);
+
+            let validator_fees = HashSet::<StateUpdate>::from_txn(txn.txn());
             set.extend(validator_fees);
         });
 
@@ -366,7 +369,7 @@ impl StateModule {
         let consolidated: HashSet<Txn> = {
             let nested: Vec<HashSet<Txn>> = proposals
                 .iter()
-                .map(|block| block.txns.iter().map(|(_, v)| v.clone()).collect())
+                .map(|block| block.txns.iter().map(|(_, v)| v.clone().txn()).collect())
                 .collect();
 
             nested.into_iter().flatten().collect()

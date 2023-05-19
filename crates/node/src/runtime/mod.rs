@@ -21,6 +21,7 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
+    keypair::Keypair,
 };
 use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
@@ -211,7 +212,6 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
         mempool_read_handle_factory.clone(),
-        // jsonrpc_events_rx,
     )
     .await?;
 
@@ -238,8 +238,8 @@ pub async fn setup_runtime_components(
             .get_miner_secret_key()
             .secret_bytes()
             .to_vec(),
-    )
-    .unwrap();
+    )?;
+
     let claim = Claim::new(
         public_key,
         Address::new(public_key),
@@ -247,6 +247,7 @@ pub async fn setup_runtime_components(
         signature,
     )
     .map_err(NodeError::from)?;
+
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
         miner_election_events_rx,
@@ -259,7 +260,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         quorum_election_events_rx,
         state_read_handle.clone(),
-        claim,
+        claim.clone(),
     )?;
 
     let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
@@ -279,20 +280,27 @@ pub async fn setup_runtime_components(
             farmer_events_rx,
         )?;
     } else {
-        //Setup harvester
+        // Setup harvester
         harvester_handle = setup_harvester_module(
+            &config,
+            dag.clone(),
             sync_jobs_sender,
             async_jobs_sender,
             events_tx.clone(),
             events_rx,
+            state_read_handle.clone(),
             harvester_events_rx,
         )?
     };
+
+    let valcore_manager =
+        ValidatorCoreManager::new(8).map_err(|err| NodeError::Other(err.to_string()))?;
+
     let mut scheduler = setup_scheduler_module(
         &config,
         sync_jobs_receiver,
         async_jobs_receiver,
-        ValidatorCoreManager::new(8).unwrap(),
+        valcore_manager,
         events_tx.clone(),
         state_read_handle.clone(),
     );
@@ -302,7 +310,8 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx)?;
+    let dag_handle =
+        setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -661,10 +670,13 @@ fn setup_farmer_module(
 }
 
 fn setup_harvester_module(
+    config: &NodeConfig,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    vrrb_db_handle: VrrbDbReadHandle,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -674,8 +686,12 @@ fn setup_harvester_module(
         events_rx,
         broadcast_events_tx,
         1,
+        dag,
         sync_jobs_sender,
         async_jobs_sender,
+        vrrb_db_handle,
+        config.keypair.clone(),
+        config.idx,
     );
     let mut harvester_module_actor = ActorImpl::new(module);
     let harvester_handle = tokio::spawn(async move {
@@ -691,8 +707,9 @@ fn setup_dag_module(
     dag: Arc<RwLock<BullDag<Block, String>>>,
     events_tx: EventPublisher,
     mut dag_module_events_rx: EventSubscriber,
+    claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let module = DagModule::new(dag, events_tx);
+    let module = DagModule::new(dag, events_tx, claim);
 
     let mut dag_module_actor = ActorImpl::new(module);
     let dag_module_handle = tokio::spawn(async move {
