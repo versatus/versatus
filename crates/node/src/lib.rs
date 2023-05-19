@@ -3,12 +3,12 @@ mod node_type;
 mod runtime;
 mod runtime_module;
 
-pub(crate) mod result;
+pub mod result;
 pub(crate) mod services;
 pub(crate) mod test_utils;
 
-pub(crate) use node_type::*;
-pub(crate) use result::*;
+pub use node_type::*;
+pub use result::*;
 pub(crate) use runtime::*;
 pub(crate) use runtime_module::*;
 pub(crate) use services::*;

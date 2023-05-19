@@ -9,15 +9,15 @@ use std::{
 use block::{Block, BlockHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use hbbft::crypto::SecretKeyShare;
-use primitives::{generate_account_keypair, Address, NodeType};
+use primitives::{generate_account_keypair, Address, NodeType, RawSignature};
 use secp256k1::{Message, PublicKey, SecretKey};
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, NodeConfigBuilder};
 use vrrb_core::{
     account::Account,
     claim::Claim,
-    keypair::Keypair,
-    txn::{generate_txn_digest_vec, NewTxnArgs, TransactionDigest, Txn},
+    keypair::{self, Keypair},
+    txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
 pub fn create_mock_full_node_config() -> NodeConfig {
@@ -163,14 +163,35 @@ pub fn produce_proposal_blocks(
                 kp.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
+
             let from = Claim::new(kp.miner_kp.1, address, ip_address, signature).unwrap();
             let txs = produce_random_txs(&accounts);
             let claims = produce_random_claims(ntx);
-            let txn_list = txs.into_iter().map(|tx| (tx.clone().into(), tx)).collect();
+
+            let txn_list = txs
+                .into_iter()
+                .map(|txn| {
+                    let digest = txn.id();
+
+                    let certified_txn = QuorumCertifiedTxn::new(
+                        Vec::new(),
+                        Vec::new(),
+                        txn,
+                        RawSignature::new(),
+                        true,
+                    );
+
+                    (digest, certified_txn)
+                })
+                .collect();
+
             let claim_list = claims
                 .into_iter()
                 .map(|claim| (claim.hash, claim))
                 .collect();
+
+            let keypair = Keypair::random();
+
             ProposalBlock::build(
                 last_block_hash.clone(),
                 0,
@@ -178,7 +199,7 @@ pub fn produce_proposal_blocks(
                 txn_list,
                 claim_list,
                 from,
-                SecretKeyShare::default(),
+                keypair.get_miner_secret_key(),
             )
         })
         .collect()

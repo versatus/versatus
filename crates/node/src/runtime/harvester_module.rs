@@ -188,8 +188,7 @@ impl HarvesterModule {
             async_jobs_sender,
             keypair,
             harvester_id,
-        };
-        harvester
+        }
     }
 
     pub fn name(&self) -> String {

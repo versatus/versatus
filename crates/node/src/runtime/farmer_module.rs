@@ -121,8 +121,7 @@ impl FarmerModule {
             sync_jobs_sender,
             async_jobs_sender,
             harvester_peers: Default::default(),
-        };
-        farmer
+        }
     }
 
     pub fn insert_txn(&mut self, txn: Txn) {
