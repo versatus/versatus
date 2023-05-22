@@ -141,7 +141,7 @@ mod tests {
 
     use events::{Event, EventMessage, DEFAULT_BUFFER};
     use serial_test::serial;
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
 
     use super::*;
 
