@@ -54,9 +54,19 @@ impl TelemetrySubscriber {
 
             sub.try_init()?;
         }
+        set_panic_hook();
 
         Ok(())
     }
+}
+
+fn set_panic_hook() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        let payload = panic_info.payload().downcast_ref::<&str>();
+        let location = panic_info.location().map(|loc| loc.to_string());
+
+        tracing::error!(payload = payload, location = location);
+    }));
 }
 
 #[cfg(test)]

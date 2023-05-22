@@ -9,8 +9,8 @@ use std::{
 use bs58::encode;
 use hbbft::crypto::{
     serde_impl::SerdeSecret,
-    PublicKey as Validator_Pk,
-    SecretKey as Validator_Sk,
+    PublicKey as ValidatorPublicKey,
+    SecretKey as ValidatorSecretKey,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use ring::digest::{Context, SHA256};
@@ -26,13 +26,13 @@ use crate::storage_utils;
 pub type MinerSk = secp256k1::SecretKey;
 pub type MinerPk = secp256k1::PublicKey;
 
-pub type SecretKeys = (MinerSk, Validator_Sk);
-pub type PublicKeys = (MinerPk, Validator_Pk);
+pub type SecretKeys = (MinerSk, ValidatorSecretKey);
+pub type PublicKeys = (MinerPk, ValidatorPublicKey);
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
 pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
-    pub validator_kp: (Validator_Sk, Validator_Pk),
+    pub validator_kp: (ValidatorSecretKey, ValidatorPublicKey),
 }
 
 /// Alias for KeyPair, to avoid frustrations because of subtle typos
@@ -65,8 +65,8 @@ pub type Result<T> = std::result::Result<T, KeyPairError>;
 impl KeyPair {
     /// Constructs a new, random `Keypair` using thread_rng() which uses RNG
     pub fn random() -> Self {
-        let validator_sk: Validator_Sk = Validator_Sk::random();
-        let validator_pk: Validator_Pk = validator_sk.public_key();
+        let validator_sk: ValidatorSecretKey = ValidatorSecretKey::random();
+        let validator_pk: ValidatorPublicKey = validator_sk.public_key();
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
         let (miner_sk, miner_pk) = secp.generate_keypair(&mut rng);
@@ -106,7 +106,7 @@ impl KeyPair {
     /// Returns:
     ///
     /// A KeyPair struct
-    pub fn new(validator_sk: Validator_Sk, miner_sk: MinerSk) -> Self {
+    pub fn new(validator_sk: ValidatorSecretKey, miner_sk: MinerSk) -> Self {
         let secp = Secp256k1::new();
         let pk = MinerPk::from_secret_key(&secp, &miner_sk);
         let validator_pk = validator_sk.public_key();
@@ -118,7 +118,7 @@ impl KeyPair {
 
     /// Returns this `Keypair` as a byte array
     pub fn from_bytes(validator_key_bytes: &[u8], miner_key_bytes: &[u8]) -> Result<KeyPair> {
-        let result = bincode::deserialize::<SerdeSecret<Validator_Sk>>(validator_key_bytes);
+        let result = bincode::deserialize::<SerdeSecret<ValidatorSecretKey>>(validator_key_bytes);
         let miner_sk = if let Ok(miner_sk) = MinerSk::from_slice(miner_key_bytes) {
             miner_sk
         } else {
@@ -132,8 +132,8 @@ impl KeyPair {
     }
 
     /// Returns this Validator `PublicKey` from byte array `key_bytes`.
-    pub fn from_validator_pk_bytes(key_bytes: &[u8]) -> Result<Validator_Pk> {
-        let result = bincode::deserialize::<Validator_Pk>(key_bytes);
+    pub fn from_validator_pk_bytes(key_bytes: &[u8]) -> Result<ValidatorPublicKey> {
+        let result = bincode::deserialize::<ValidatorPublicKey>(key_bytes);
         match result {
             Ok(public_key) => Ok(public_key),
             Err(_) => Err(KeyPairError::InvalidPublicKey),
@@ -183,13 +183,13 @@ impl KeyPair {
     }
 
     /// Gets this `Keypair`'s SecretKey
-    pub fn get_secret_keys(&self) -> (&Validator_Sk, &MinerSk) {
+    pub fn get_secret_keys(&self) -> (&ValidatorSecretKey, &MinerSk) {
         (&self.validator_kp.0, &self.miner_kp.0)
     }
 
     /// > This function returns a tuple of references to the public keys of the
     /// > validator and miner
-    pub fn get_public_keys(&self) -> (&Validator_Pk, &MinerPk) {
+    pub fn get_public_keys(&self) -> (&ValidatorPublicKey, &MinerPk) {
         (&self.validator_kp.1, &self.miner_kp.1)
     }
 
@@ -284,7 +284,7 @@ impl KeyPair {
     /// Returns:
     ///
     /// The validator secret key.
-    pub fn get_validator_secret_key(&self) -> &Validator_Sk {
+    pub fn get_validator_secret_key(&self) -> &ValidatorSecretKey {
         &self.validator_kp.0
     }
 
@@ -293,7 +293,7 @@ impl KeyPair {
     /// Returns:
     ///
     /// The public key of the validator.
-    pub fn get_validator_public_key(&self) -> &Validator_Pk {
+    pub fn get_validator_public_key(&self) -> &ValidatorPublicKey {
         &self.validator_kp.1
     }
 }

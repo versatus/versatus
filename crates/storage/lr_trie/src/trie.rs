@@ -92,29 +92,24 @@ where
         self.read_handle.factory()
     }
 
+    pub fn update(&mut self, key: K, value: V) {
+        self.insert(key, value);
+    }
+
     pub fn publish(&mut self) {
         self.write_handle.publish();
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        self.insert_uncommitted(key, value);
-        self.publish();
-    }
-
-    pub fn extend(&mut self, values: Vec<(K, V)>) {
-        self.extend_uncommitted(values);
-        self.publish();
-    }
-
-    pub fn insert_uncommitted(&mut self, key: K, value: V) {
         //TODO: revisit the serializer used to store things on the trie
         let key = bincode::serialize(&key).unwrap_or_default();
         let value = bincode::serialize(&value).unwrap_or_default();
-        self.write_handle.append(Operation::Add(key, value));
+        self.write_handle
+            .append(Operation::Add(key, value))
+            .publish();
     }
 
-    // pub fn extend_uncommitted<T>(&mut self, values: Vec<(K, V)>) {
-    pub fn extend_uncommitted(&mut self, values: Vec<(K, V)>) {
+    pub fn extend(&mut self, values: Vec<(K, V)>) {
         let mapped = values
             .into_iter()
             .map(|(key, value)| {
@@ -126,7 +121,9 @@ where
             })
             .collect();
 
-        self.write_handle.append(Operation::Extend(mapped));
+        self.write_handle
+            .append(Operation::Extend(mapped))
+            .publish();
     }
 }
 
@@ -175,6 +172,23 @@ where
     }
 }
 
+impl<'a, D, K, V> From<InnerTrie<D>> for LeftRightTrie<'a, K, V, D>
+where
+    D: Database,
+    K: Serialize + Deserialize<'a>,
+    V: Serialize + Deserialize<'a>,
+{
+    fn from(other: InnerTrie<D>) -> Self {
+        let (write_handle, read_handle) = left_right::new_from_empty(other);
+
+        Self {
+            read_handle,
+            write_handle,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<'a, D, K, V> Clone for LeftRightTrie<'a, K, V, D>
 where
     D: Database,
@@ -182,9 +196,8 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn clone(&self) -> Self {
-        let db = self.handle().db();
-
-        LeftRightTrie::new(db)
+        let inner = self.handle().inner();
+        LeftRightTrie::from(inner)
     }
 }
 

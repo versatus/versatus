@@ -125,7 +125,7 @@ pub struct HarvesterModule {
     _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
-    _events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
@@ -148,7 +148,8 @@ impl HarvesterModule {
         harvester_id: NodeIdx,
     ) -> Self {
         let quorum_certified_txns = Vec::new();
-        let harvester = Self {
+
+        Self {
             quorum_certified_txns,
             certified_txns_filter,
             sig_provider,
@@ -161,8 +162,8 @@ impl HarvesterModule {
             _label: String::from("FarmerHarvester"),
             id: uuid::Uuid::new_v4().to_string(),
             group_public_key,
-            broadcast_events_tx: broadcast_events_tx.clone(),
-            _events_rx: events_rx,
+            broadcast_events_tx,
+            events_rx,
             quorum_threshold,
             votes_pool: DashMap::new(),
             dag,
@@ -170,8 +171,7 @@ impl HarvesterModule {
             async_jobs_sender,
             keypair,
             harvester_id,
-        };
-        harvester
+        }
     }
 
     pub fn name(&self) -> String {
@@ -262,7 +262,7 @@ impl Handler<EventMessage> for HarvesterModule {
                             votes.push(vote.clone());
                             if votes.len() >= farmer_quorum_threshold {
                                 let _ = self.sync_jobs_sender.send(Job::CertifyTxn((
-                                    sig_provider.clone(),
+                                    sig_provider,
                                     votes.clone(),
                                     txn_id,
                                     farmer_quorum_key,
@@ -325,8 +325,14 @@ impl Handler<EventMessage> for HarvesterModule {
                 let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
                     .into_iter()
                     .map(|txn| {
-                        let _ = self.certified_txns_filter.push(&txn.txn.id.to_string());
-                        (txn.txn.id(), txn.clone())
+                        if let Err(err) = self.certified_txns_filter.push(&txn.txn().id.to_string())
+                        {
+                            telemetry::error!(
+                                "Error pushing txn to certified txns filter: {}",
+                                err
+                            );
+                        }
+                        (txn.txn().id(), txn.clone())
                     })
                     .collect();
 
@@ -585,8 +591,8 @@ mod tests {
     #[tokio::test]
     async fn harvester_runtime_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let (sync_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
-        let (async_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
+        let (sync_jobs_sender, _sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, _async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
         let (_, events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let (_sync_jobs_status_sender, _sync_jobs_status_receiver) =

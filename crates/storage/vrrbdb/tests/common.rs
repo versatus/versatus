@@ -37,9 +37,9 @@ pub fn _generate_random_transaction(
 
     Txn::new(NewTxnArgs {
         timestamp: 0,
-        sender_address: from.to_string(),
+        sender_address: from.clone(),
         sender_public_key: from.public_key(),
-        receiver_address: to.to_string(),
+        receiver_address: to,
         token: None,
         amount: 100,
         signature,
@@ -48,9 +48,9 @@ pub fn _generate_random_transaction(
     })
 }
 
-pub fn _generate_random_valid_transaction() -> Txn {
-    let (sender_secret_key, from) = _generate_random_address();
-    let (_receiver_secret_key, to) = _generate_random_address();
+pub fn generate_random_valid_transaction() -> Txn {
+    let (sender_secret_key, from) = generate_random_address();
+    let (_, to) = generate_random_address();
 
     type H = secp256k1::hashes::sha256::Hash;
 
@@ -60,9 +60,9 @@ pub fn _generate_random_valid_transaction() -> Txn {
 
     Txn::new(NewTxnArgs {
         timestamp: 0,
-        sender_address: from.to_string(),
+        sender_address: from.clone(),
         sender_public_key: from.public_key(),
-        receiver_address: to.to_string(),
+        receiver_address: to,
         token: None,
         amount: 100,
         signature,

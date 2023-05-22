@@ -161,6 +161,16 @@ impl Database for RocksDbAdapter {
 
     /// NOTE: broken, do not use yet
     fn values(&self) -> Result<Vec<(Vec<u8>, Vec<u8>)>, Self::Error> {
-        todo!()
+        let values = self
+            .db
+            .iterator(rocksdb::IteratorMode::Start)
+            .filter_map(|res| match res {
+                Ok((k, v)) => Some((k.into(), v.into())),
+
+                _ => None,
+            })
+            .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+
+        Ok(values)
     }
 }

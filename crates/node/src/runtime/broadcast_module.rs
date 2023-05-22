@@ -78,28 +78,38 @@ impl BroadcastModule {
                 .next()
                 .await
             {
-                if let Ok(Ok(Some(message))) = incoming.next().timeout().await {
-                    let msg = Message::from_bytes(&message.2);
-                    match msg.data {
-                        MessageBody::InvalidBlock { .. } => {},
-                        MessageBody::Disconnect { .. } => {},
-                        MessageBody::StateComponents { .. } => {},
-                        MessageBody::Genesis { .. } => {},
-                        MessageBody::Child { .. } => {},
-                        MessageBody::Parent { .. } => {},
-                        MessageBody::Ledger { .. } => {},
-                        MessageBody::NetworkState { .. } => {},
-                        MessageBody::ClaimAbandoned { .. } => {},
-                        MessageBody::ResetPeerConnection { .. } => {},
-                        MessageBody::RemovePeer { .. } => {},
-                        MessageBody::AddPeer { .. } => {},
-                        MessageBody::DKGPartCommitment {
-                            part_commitment: _,
-                            sender_id: _,
-                        } => {},
-                        MessageBody::DKGPartAcknowledgement { .. } => {},
-                        MessageBody::Vote { .. } => {},
-                        MessageBody::Empty => {},
+                if let Ok(message_result) = incoming.next().timeout().await {
+                    if let Ok(msg_option) = message_result {
+                        if let Some(message) = msg_option {
+                            let msg = Message::from_bytes(&message.2);
+                            match msg.data {
+                                MessageBody::InvalidBlock { .. } => {},
+                                MessageBody::Disconnect { .. } => {},
+                                MessageBody::StateComponents { .. } => {},
+                                MessageBody::Genesis { .. } => {},
+                                MessageBody::Child { .. } => {},
+                                MessageBody::Parent { .. } => {},
+                                MessageBody::Ledger { .. } => {},
+                                MessageBody::NetworkState { .. } => {},
+                                MessageBody::ClaimAbandoned { .. } => {},
+                                MessageBody::ResetPeerConnection { .. } => {},
+                                MessageBody::RemovePeer { .. } => {},
+                                MessageBody::AddPeer { .. } => {},
+                                MessageBody::DKGPartCommitment {
+                                    part_commitment: _,
+                                    sender_id: _,
+                                } => {},
+                                MessageBody::DKGPartAcknowledgement { .. } => {},
+                                MessageBody::Vote { .. } => {},
+                                MessageBody::Empty => {},
+                                MessageBody::ForwardedTxn(txn) => {
+                                    let _ = self.events_tx.send(EventMessage::new(
+                                        None,
+                                        Event::NewTxnCreated(txn.txn),
+                                    ));
+                                },
+                            }
+                        }
                     }
                 }
             }
@@ -226,6 +236,27 @@ impl Handler<EventMessage> for BroadcastModule {
                     },
                 }
             },
+            Event::ForwardTxn((txn_record, addresses)) => {
+                for address in addresses.iter() {
+                    let address = address.clone();
+                    let status = self
+                        .broadcast_engine
+                        .send_data_via_quic(
+                            Message::new(MessageBody::ForwardedTxn(txn_record.clone())),
+                            address,
+                        )
+                        .await;
+                    match status {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!(
+                                "Error occurred while forwarding transaction to peers: {:?}",
+                                e
+                            );
+                        },
+                    }
+                }
+            },
 
             _ => {},
         }
@@ -236,6 +267,7 @@ impl Handler<EventMessage> for BroadcastModule {
 
 #[cfg(test)]
 mod tests {
+
     use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};

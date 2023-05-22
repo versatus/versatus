@@ -160,9 +160,10 @@ impl JobSchedulerController {
                             .join();
                         if let Ok(votes) = votes_result {
                             let _ = self.events_tx.send(
-                                Event::ProcessedVotes(
-                                    JobResult::Votes((votes, farmer_quorum_threshold)).into(),
-                                )
+                                Event::ProcessedVotes(JobResult::Votes((
+                                    votes,
+                                    farmer_quorum_threshold,
+                                )))
                                 .into(),
                             );
                         }

@@ -141,7 +141,7 @@ mod tests {
 
     use events::{Event, EventMessage, DEFAULT_BUFFER};
     use serial_test::serial;
-    use theater::{Actor, ActorImpl};
+    use theater::ActorImpl;
 
     use super::*;
 
@@ -179,7 +179,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn swarm_runtime_add_peers() {
-        let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 port: 6061,
@@ -196,7 +196,8 @@ mod tests {
             tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (events_node_tx, _events_node_rx) =
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let swarm_module = SwarmModule::new(
             SwarmModuleConfig {
@@ -220,6 +221,9 @@ mod tests {
         )
         .unwrap();
 
+        let _node_key = swarm_module.node.node_data().id.0;
+
+        let _current_node_id = swarm_module.node.node_data().id;
         let mut swarm_module = ActorImpl::new(swarm_module);
         let (ctrl_tx, mut ctrl_rx) =
             tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
@@ -228,7 +232,12 @@ mod tests {
         let handle = tokio::spawn(async move {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
         });
-
+        let _nodes = bootstrap_swarm_module
+            .node
+            .routing_table
+            .lock()
+            .unwrap()
+            .get_closest_nodes(&bootstrap_swarm_module.node.node_data().id, 3);
         ctrl_tx.send(Event::Stop.into()).unwrap();
         handle.await.unwrap();
     }
@@ -236,7 +245,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn swarm_runtime_test_unreachable_peers() {
-        let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let mut bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 port: 0,
@@ -252,7 +261,8 @@ mod tests {
             tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (events_node_tx, _events_node_rx) =
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 port: 0,
@@ -275,7 +285,8 @@ mod tests {
         )
         .unwrap();
 
-        let current_node_id = swarm_module.node.node_data().id.clone();
+        let current_node_id = swarm_module.node.node_data().id;
+        let target_port = swarm_module.node.node_data().port;
 
         let mut swarm_module = ActorImpl::new(swarm_module);
         let (ctrl_tx, mut ctrl_rx) =
@@ -284,6 +295,13 @@ mod tests {
 
         let handle = tokio::spawn(async move {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
+        });
+
+        let _s = bootstrap_swarm_module.node.rpc_ping(&NodeData {
+            ip: "127.0.0.1".to_string(),
+            port: target_port.clone(),
+            addr: "127.0.0.1".to_string() + &*target_port,
+            id: current_node_id,
         });
 
         ctrl_tx.send(Event::Stop.into()).unwrap();

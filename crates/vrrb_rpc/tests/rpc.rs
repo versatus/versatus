@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use events::{EventMessage, DEFAULT_BUFFER};
-use primitives::{generate_mock_account_keypair, Address};
+use primitives::{generate_account_keypair, generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use tokio::sync::mpsc::channel;
 use vrrb_core::txn::{generate_txn_digest_vec, NewTxnArgs, Token};
@@ -30,22 +30,23 @@ async fn server_can_publish_transactions_to_be_created() {
     let client = create_client(rpc_server_address).await.unwrap();
 
     let (secret_key, public_key) = generate_mock_account_keypair();
+    let (_, recv_public_key) = generate_mock_account_keypair();
 
-    let address = Address::new(public_key);
+    let address = Address::new(public_key.clone());
+    let recv_address = Address::new(recv_public_key.clone());
 
     let timestamp = 0;
-    let sender_address = address.to_string();
+    let sender_address = address.clone();
     let sender_public_key = public_key;
-    let receiver_address = address.to_string();
     let amount = 10;
     let nonce = 0;
     let token = Token::default();
 
     let digest = generate_txn_digest_vec(
         timestamp,
-        sender_address,
+        sender_address.to_string(),
         sender_public_key,
-        receiver_address,
+        recv_address.to_string(),
         token,
         amount,
         nonce,
@@ -57,12 +58,12 @@ async fn server_can_publish_transactions_to_be_created() {
 
     let args = NewTxnArgs {
         timestamp: 0,
-        sender_address: address.to_string(),
-        sender_public_key: public_key,
-        receiver_address: address.to_string(),
+        sender_address: address.clone(),
+        sender_public_key: public_key.clone(),
+        receiver_address: recv_address.clone(),
         token: None,
         amount: 10,
-        signature,
+        signature: signature.clone(),
         validators: None,
         nonce: 0,
     };
@@ -71,26 +72,16 @@ async fn server_can_publish_transactions_to_be_created() {
 
     let mock_digest =
         "d43e21d53897192f83c2ff701cb538cf5b4d2439b93fae87b30f8ac6f07c20d1".to_string();
-    let mock_sender_address =
-        "028b0d9b8a79ef99e2d2c030123aef543ffa7e8583e480f229ae7fccd89c8ddbfa".to_string();
-    let mock_sender_public_key =
-        "028b0d9b8a79ef99e2d2c030123aef543ffa7e8583e480f229ae7fccd89c8ddbfa".to_string();
-    let mock_receiver_address =
-        "028b0d9b8a79ef99e2d2c030123aef543ffa7e8583e480f229ae7fccd89c8ddbfa".to_string();
-
-    let mock_signature=
-"30440220029d8f55b771933f5bcea06771cda9fa793478317a5633407366d3f2186ac994022012f5bdc5217f192a34a62e9856c6efd9a0803e7a93bfaefb95783da29c52c3df"
-.to_string();
 
     let mock_record = RpcTransactionRecord {
         id: mock_digest,
         timestamp: 0,
-        sender_address: mock_sender_address,
-        sender_public_key: mock_sender_public_key,
-        receiver_address: mock_receiver_address,
+        sender_address: address.clone(),
+        sender_public_key: public_key.clone(),
+        receiver_address: recv_address.clone(),
         token: Token::default(),
         amount: 10,
-        signature: mock_signature,
+        signature: signature.to_string().clone(),
         validators: HashMap::new(),
         nonce: 0,
     };

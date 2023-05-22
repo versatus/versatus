@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use jsonrpsee::{core::Error, proc_macros::rpc};
 use primitives::{Address, NodeType};
+use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     account::Account,
@@ -31,9 +32,9 @@ pub type RpcTransactionDigest = String;
 pub struct RpcTransactionRecord {
     pub id: RpcTransactionDigest,
     pub timestamp: TxTimestamp,
-    pub sender_address: String,
-    pub sender_public_key: String,
-    pub receiver_address: String,
+    pub sender_address: Address,
+    pub sender_public_key: PublicKey,
+    pub receiver_address: Address,
     pub token: Token,
     pub amount: TxAmount,
     pub signature: String,
@@ -48,7 +49,7 @@ impl From<Txn> for RpcTransactionRecord {
             id: txn.digest().to_string(),
             timestamp: txn.timestamp(),
             sender_address: txn.sender_address(),
-            sender_public_key: txn.sender_public_key().to_string(),
+            sender_public_key: txn.sender_public_key(),
             receiver_address: txn.receiver_address(),
             token: txn.token(),
             amount: txn.amount(),

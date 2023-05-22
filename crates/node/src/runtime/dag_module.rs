@@ -167,7 +167,9 @@ impl DagModule {
     }
 
     fn extend_edges(&mut self, edges: Edges) -> GraphResult<()> {
-        for (ref_block, vtx) in edges.iter() {
+        let iter = edges.iter();
+
+        for (ref_block, vtx) in iter {
             self.write_edge((ref_block, vtx))?
         }
 
@@ -186,7 +188,10 @@ impl DagModule {
 
     fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            matches!(self.verify_signature(validation_data), Ok(true))
+            match self.verify_signature(validation_data) {
+                Ok(true) => true,
+                _ => false,
+            }
         } else {
             false
         }
@@ -194,7 +199,10 @@ impl DagModule {
 
     fn check_valid_proposal(&self, block: &ProposalBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            matches!(self.verify_signature(validation_data), Ok(true))
+            match self.verify_signature(validation_data) {
+                Ok(true) => true,
+                _ => false,
+            }
         } else {
             false
         }
@@ -202,7 +210,10 @@ impl DagModule {
 
     fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            matches!(self.verify_signature(validation_data), Ok(true))
+            match self.verify_signature(validation_data) {
+                Ok(true) => true,
+                _ => false,
+            }
         } else {
             false
         }
@@ -242,11 +253,10 @@ impl DagModule {
                 Ok(sig_share) => {
                     Ok(public_key_share.verify(&sig_share, validation_data.payload_hash))
                 },
-                Err(e) => {
-                    return Err(SignerError::SignatureVerificationError(format!(
-                        "Error parsing partial signature details : {e:?}",
-                    )))
-                },
+                Err(e) => Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing partial signature details : {:?}",
+                    e
+                ))),
             }
         } else {
             Err(SignerError::PartialSignatureError(
@@ -270,11 +280,10 @@ impl DagModule {
                 Ok(signature) => Ok(public_key_set
                     .public_key()
                     .verify(&signature, validation_data.payload_hash)),
-                Err(e) => {
-                    return Err(SignerError::SignatureVerificationError(format!(
-                        "Error parsing threshold signature details: {e:?}",
-                    )))
-                },
+                Err(e) => Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing threshold signature details : {:?}",
+                    e
+                ))),
             }
         } else {
             Err(SignerError::PartialSignatureError(

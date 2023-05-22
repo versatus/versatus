@@ -1,8 +1,13 @@
-use std::{collections::HashSet, net::SocketAddr};
+use std::{
+    collections::{HashMap, HashSet},
+    net::SocketAddr,
+    str::FromStr,
+};
 
 use async_trait::async_trait;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
+use maglev::*;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
 use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
@@ -81,6 +86,7 @@ pub struct FarmerModule {
     pub farmer_id: PeerId,
     pub farmer_node_idx: NodeIdx,
     pub harvester_peers: HashSet<SocketAddr>,
+    pub neighbouring_farmer_quorum_peers: HashMap<GroupPublicKey, HashSet<SocketAddr>>,
     status: ActorState,
     _label: ActorLabel,
     id: ActorId,
@@ -116,6 +122,7 @@ impl FarmerModule {
             sync_jobs_sender,
             async_jobs_sender,
             harvester_peers: Default::default(),
+            neighbouring_farmer_quorum_peers: HashMap::default(),
         }
     }
 
@@ -175,26 +182,60 @@ impl Handler<EventMessage> for FarmerModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-
             Event::AddHarvesterPeer(peer) => {
                 self.harvester_peers.insert(peer);
             },
             Event::RemoveHarvesterPeer(peer) => {
                 self.harvester_peers.remove(&peer);
             },
+            /*
+            Event::SyncNeighbouringFarmerQuorum(peers_details) => {
+                for (group_public_key, addressess) in peers_details {
+                    self.neighbouring_farmer_quorum_peers
+                        .insert(group_public_key, addressess);
+                }
+            },*/
             //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted
             Event::Farm => {
                 let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
+                let keys: Vec<GroupPublicKey> = self
+                    .neighbouring_farmer_quorum_peers
+                    .keys()
+                    .cloned()
+                    .collect();
+                let maglev_hash_ring = Maglev::new(keys);
+                let mut new_txns = vec![];
+                for txn in txns.into_iter() {
+                    if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned() {
+                        if group_public_key == self.group_public_key {
+                            new_txns.push(txn);
+                        } else if let Some(broadcast_addresses) =
+                            self.neighbouring_farmer_quorum_peers.get(&group_public_key)
+                        {
+                            let addresses: Vec<SocketAddr> =
+                                broadcast_addresses.into_iter().cloned().collect();
+                            let _ = self.broadcast_events_tx.send(EventMessage::new(
+                                None,
+                                Event::ForwardTxn((txn.1, addresses)),
+                            ));
+                        }
+                    } else {
+                        new_txns.push(txn);
+                    }
+                }
+
                 if let Some(sig_provider) = self.sig_provider.clone() {
-                    let _ = self.sync_jobs_sender.send(Job::Farm((
-                        txns,
+                    if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
+                        new_txns,
                         self.farmer_id.clone(),
                         self.farmer_node_idx,
                         self.group_public_key.clone(),
                         sig_provider,
                         self.quorum_threshold,
-                    )));
+                    ))) {
+                        telemetry::error!("error sending job to scheduler: {}", err);
+                    }
                 }
             },
             // Receive the Vote from scheduler
@@ -258,8 +299,8 @@ mod tests {
     async fn farmer_module_starts_and_stops() {
         let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let (_, _clear_filter_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
-        let (sync_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
-        let (async_jobs_sender, _) = crossbeam_channel::unbounded::<Job>();
+        let (sync_jobs_sender, _sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+        let (async_jobs_sender, _async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
 
         let (_sync_jobs_status_sender, _sync_jobs_status_receiver) =
             crossbeam_channel::unbounded::<JobResult>();
@@ -298,7 +339,8 @@ mod tests {
     async fn farmer_farm_cast_vote() {
         let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
-        let (broadcast_events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (broadcast_events_tx, _broadcast_events_rx) =
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let (_, _clear_filter_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
@@ -309,6 +351,7 @@ mod tests {
         let temp_dir_path = std::env::temp_dir();
         let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
         db_config.with_path(db_path);
+
         let db = VrrbDb::new(db_config);
         let vrrbdb_read_handle = db.read_handle();
 
@@ -351,9 +394,17 @@ mod tests {
             async_jobs_sender,
         );
         let keypair = KeyPair::random();
+        let recv_kp = KeyPair::random();
         let mut txns = HashSet::<Txn>::new();
 
-        let receiver_address = String::from("bbb1");
+        let _now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+
+        // let txn_id = String::from("1");
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let receiver_address = Address::new(*recv_kp.get_miner_public_key());
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
@@ -366,8 +417,8 @@ mod tests {
 
             let txn = Txn::new(NewTxnArgs {
                 timestamp: 0,
-                sender_address: String::from("aaa1"),
-                sender_public_key: keypair.get_miner_public_key().clone(),
+                sender_address: sender_address.clone(),
+                sender_public_key: *keypair.get_miner_public_key(),
                 receiver_address: receiver_address.clone(),
                 token: None,
                 amount: txn_amount + n,

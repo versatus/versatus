@@ -113,9 +113,9 @@ impl TxnValidator {
     /// Txn sender validator
     // TODO, to be synchronized with Wallet.
     pub fn validate_sender_address(&self, txn: &Txn) -> Result<()> {
-        if !txn.sender_address.is_empty()
-            && txn.sender_address.starts_with(ADDRESS_PREFIX)
-            && txn.sender_address.len() > 10
+        if !txn.sender_address.to_string().is_empty()
+            && txn.sender_address.to_string().starts_with(ADDRESS_PREFIX)
+            && txn.sender_address.to_string().len() > 10
         {
             Ok(())
         } else {
@@ -126,9 +126,9 @@ impl TxnValidator {
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
     pub fn validate_receiver_address(&self, txn: &Txn) -> Result<()> {
-        if !txn.receiver_address.is_empty()
-            && txn.receiver_address.starts_with(ADDRESS_PREFIX)
-            && txn.receiver_address.len() > 10
+        if !txn.receiver_address.to_string().is_empty()
+            && txn.receiver_address.to_string().starts_with(ADDRESS_PREFIX)
+            && txn.receiver_address.to_string().len() > 10
         {
             Ok(())
         } else {
@@ -160,7 +160,7 @@ impl TxnValidator {
         txn: &Txn,
     ) -> Result<()> {
         let address = txn.sender_address.clone();
-        if let Ok(address) = secp256k1::PublicKey::from_str(address.as_str()) {
+        if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
             let account = account_state.get(&Address::new(address)).unwrap();
             if (account.credits - account.debits)
                 .checked_sub(txn.amount())
