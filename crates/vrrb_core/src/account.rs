@@ -139,6 +139,7 @@ impl PartialOrd for UpdateArgs {
     }
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for UpdateArgs {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.address.hash(state);
@@ -164,7 +165,6 @@ impl Hash for UpdateArgs {
         }
     }
 }
-
 
 pub type AccountNonce = u128;
 

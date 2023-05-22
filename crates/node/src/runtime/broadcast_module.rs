@@ -28,7 +28,7 @@ pub struct BroadcastModuleConfig {
 pub struct BroadcastModule {
     id: Uuid,
     status: ActorState,
-    _events_tx: EventPublisher,
+    events_tx: EventPublisher,
     _vrrbdb_read_handle: VrrbDbReadHandle,
     broadcast_engine: BroadcastEngine,
 }
@@ -55,7 +55,7 @@ impl BroadcastModule {
 
         Ok(Self {
             id: Uuid::new_v4(),
-            _events_tx: config.events_tx,
+            events_tx: config.events_tx,
             status: ActorState::Stopped,
             _vrrbdb_read_handle: config.vrrbdb_read_handle,
             broadcast_engine,

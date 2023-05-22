@@ -9,7 +9,7 @@ use vrrb_core::{
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;
-use common::_generate_random_address;
+use common::generate_random_address;
 use serial_test::serial;
 
 #[test]
@@ -17,11 +17,11 @@ use serial_test::serial;
 fn accounts_can_be_added() {
     let mut db = VrrbDb::new(VrrbDbConfig::default());
 
-    let (_, addr1) = _generate_random_address();
-    let (_, addr2) = _generate_random_address();
-    let (_, addr3) = _generate_random_address();
-    let (_, addr4) = _generate_random_address();
-    let (_, addr5) = _generate_random_address();
+    let (_, addr1) = generate_random_address();
+    let (_, addr2) = generate_random_address();
+    let (_, addr3) = generate_random_address();
+    let (_, addr4) = generate_random_address();
+    let (_, addr5) = generate_random_address();
 
     db.insert_account(
         addr1,

@@ -19,7 +19,7 @@ pub fn _generate_random_string() -> String {
         .collect()
 }
 
-pub fn _generate_random_address() -> (SecretKey, Address) {
+pub fn generate_random_address() -> (SecretKey, Address) {
     let kp = Keypair::random();
     (kp.miner_kp.0, Address::new(kp.miner_kp.1))
 }
