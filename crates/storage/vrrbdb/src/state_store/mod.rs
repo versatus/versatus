@@ -155,6 +155,12 @@ impl StateStore {
         self.trie.len()
     }
 
+    /// Returns true if the number of initialized accounts in the database is
+    /// zero.
+    pub fn is_empty(&self) -> bool {
+        self.trie.is_empty()
+    }
+
     /// Updates a given account if it exists within the store
     fn update_uncommited(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
         let mut account = self

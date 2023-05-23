@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use lr_trie::{LeftRightTrie, Proof, H256};
 use storage_utils::Result;
@@ -31,9 +31,9 @@ impl Default for TransactionStore {
 
 impl TransactionStore {
     /// Returns new, empty instance of TransactionStore
-    pub fn new(path: &PathBuf) -> Self {
+    pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");
-        let db_adapter = RocksDbAdapter::new(path.to_owned(), "transactions").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(path, "transactions").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
