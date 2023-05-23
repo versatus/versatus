@@ -87,7 +87,7 @@ impl StateStore {
 
     /// Inserts new account into StateDb.
     pub fn insert(&mut self, key: Address, account: Account) -> Result<()> {
-        self.trie.insert(key, account);
+        self.insert_uncommited(key, account)?;
         self.commit_changes();
         Ok(())
     }
