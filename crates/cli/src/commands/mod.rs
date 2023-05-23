@@ -14,7 +14,7 @@ pub async fn exec(args: Args) -> Result<()> {
     let cmd = args.command;
 
     match cmd {
-        Some(Commands::Node(node_args)) => node::exec(node_args).await,
+        Some(Commands::Node(node_args)) => node::exec(*node_args).await,
         Some(Commands::Wallet(wallet_args)) => wallet::exec(wallet_args).await,
         None => Err(CliError::NoSubcommand),
         _ => Err(CliError::InvalidCommand(format!("{cmd:?}"))),

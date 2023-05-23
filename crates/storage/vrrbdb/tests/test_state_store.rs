@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use primitives::Address;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use vrrb_core::{

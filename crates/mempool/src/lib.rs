@@ -40,10 +40,7 @@ pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        collections::{HashMap, HashSet},
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::collections::{HashMap, HashSet};
 
     use primitives::{Address, Signature};
     use rand::{thread_rng, Rng};
@@ -450,11 +447,6 @@ mod tests {
     fn remove_txn_batch() {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
 
         let mut txns = HashSet::<Txn>::new();
 

@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
-    str::FromStr,
 };
 
 use async_trait::async_trait;
@@ -93,7 +92,7 @@ pub struct FarmerModule {
     broadcast_events_tx: EventPublisher,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
-    async_jobs_sender: Sender<Job>,
+    _async_jobs_sender: Sender<Job>,
 }
 
 impl FarmerModule {
@@ -120,7 +119,7 @@ impl FarmerModule {
             broadcast_events_tx,
             quorum_threshold,
             sync_jobs_sender,
-            async_jobs_sender,
+            _async_jobs_sender: async_jobs_sender,
             harvester_peers: Default::default(),
             neighbouring_farmer_quorum_peers: HashMap::default(),
         }
@@ -214,7 +213,7 @@ impl Handler<EventMessage> for FarmerModule {
                             self.neighbouring_farmer_quorum_peers.get(&group_public_key)
                         {
                             let addresses: Vec<SocketAddr> =
-                                broadcast_addresses.into_iter().cloned().collect();
+                                broadcast_addresses.iter().cloned().collect();
                             let _ = self.broadcast_events_tx.send(EventMessage::new(
                                 None,
                                 Event::ForwardTxn((txn.1, addresses)),

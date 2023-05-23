@@ -239,7 +239,7 @@ impl RunOpts {
             dettached: other.dettached,
             debug_config: other.debug_config,
             id: self.id.clone().or(other.id.clone()),
-            idx: self.idx.clone().or(other.idx),
+            idx: self.idx.or(other.idx),
             node_type,
             data_dir,
             db_path,

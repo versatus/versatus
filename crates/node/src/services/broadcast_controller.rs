@@ -10,8 +10,6 @@ use telemetry::{error, info, warn};
 
 use crate::{NodeError, Result};
 
-pub const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10000;
-
 /// The number of erasures that the raptorq encoder will use to encode the
 /// block.
 const RAPTOR_ERASURE_COUNT: u32 = 3000;
@@ -33,7 +31,7 @@ impl BroadcastEngineControllerConfig {
         Self { engine, events_tx }
     }
 
-    pub fn local_addr(&self) -> SocketAddr {
+    pub fn _local_addr(&self) -> SocketAddr {
         self.engine.local_addr()
     }
 }
@@ -90,10 +88,13 @@ impl BroadcastEngineController {
             MessageBody::DKGPartAcknowledgement { .. } => {},
             MessageBody::ForwardedTxn(txn_record) => {
                 info!("Received Forwarded Txn :{:?}", txn_record.txn_id);
-                let _ = self.events_tx.send(EventMessage::new(
-                    None,
-                    Event::NewTxnCreated(txn_record.txn),
-                ));
+                let _ = self
+                    .events_tx
+                    .send(EventMessage::new(
+                        None,
+                        Event::NewTxnCreated(txn_record.txn),
+                    ))
+                    .await;
             },
             MessageBody::Vote { .. } => {},
             MessageBody::Empty => {},

@@ -15,7 +15,7 @@ use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
 use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
@@ -437,7 +437,7 @@ impl StateModule {
 
     /// Returns a read handle for the StateStore to be able to read
     /// values from it.
-    fn get_state_store_handle(&self) -> StateStoreReadHandle {
+    fn _get_state_store_handle(&self) -> StateStoreReadHandle {
         self.db.state_store_factory().handle()
     }
 
@@ -491,9 +491,10 @@ impl StateModule {
 
         let mut proposals = Vec::new();
 
-        blocks.iter().for_each(|block| match &block {
-            Block::Proposal { block } => proposals.push(block.clone()),
-            _ => {},
+        blocks.iter().for_each(|block| {
+            if let Block::Proposal { block } = &block {
+                proposals.push(block.clone())
+            }
         });
 
         proposals

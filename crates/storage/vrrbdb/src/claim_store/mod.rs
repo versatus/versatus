@@ -2,7 +2,6 @@ use std::{path::PathBuf, sync::Arc};
 
 use ethereum_types::U256;
 use lr_trie::{LeftRightTrie, H256};
-use primitives::NodeId;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 

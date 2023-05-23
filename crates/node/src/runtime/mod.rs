@@ -186,8 +186,6 @@ pub async fn setup_runtime_components(
                     }
                 }
             }
-
-            true
         }
     });
 
@@ -307,8 +305,7 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle =
-        setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
+    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
 
     let runtime_components = RuntimeComponents {
         node_config: config,
@@ -332,9 +329,6 @@ pub async fn setup_runtime_components(
     Ok(runtime_components)
 }
 
-fn setup_event_routing_system() -> EventRouter {
-    EventRouter::default()
-}
 async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: EventPublisher,

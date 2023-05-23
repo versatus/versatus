@@ -98,10 +98,10 @@ impl JobSchedulerController {
         }
     }
 
-    pub fn execute_sync_jobs(&mut self) {
+    pub async fn execute_sync_jobs(&mut self) {
         loop {
-            match self.sync_jobs_receiver.try_recv() {
-                Ok(job) => match job {
+            if let Ok(job) = self.sync_jobs_receiver.try_recv() {
+                match job {
                     Job::Farm((
                         txns,
                         receiver_farmer_id,
@@ -159,13 +159,16 @@ impl JobSchedulerController {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            let _ = self.events_tx.send(
-                                Event::ProcessedVotes(JobResult::Votes((
-                                    votes,
-                                    farmer_quorum_threshold,
-                                )))
-                                .into(),
-                            );
+                            let _ = self
+                                .events_tx
+                                .send(
+                                    Event::ProcessedVotes(JobResult::Votes((
+                                        votes,
+                                        farmer_quorum_threshold,
+                                    )))
+                                    .into(),
+                                )
+                                .await;
                         }
                     },
                     Job::CertifyTxn((
@@ -210,18 +213,21 @@ impl JobSchedulerController {
                                     votes_map.clone(),
                                 );
                                 if let Ok(threshold_signature) = result {
-                                    let _ = self.events_tx.send(
-                                        Event::CertifiedTxn(JobResult::CertifiedTxn(
-                                            votes.clone(),
-                                            threshold_signature,
-                                            txn_id.clone(),
-                                            farmer_quorum_key.clone(),
-                                            farmer_id.clone(),
-                                            txn.clone(),
-                                            is_txn_valid,
-                                        ))
-                                        .into(),
-                                    );
+                                    let _ = self
+                                        .events_tx
+                                        .send(
+                                            Event::CertifiedTxn(JobResult::CertifiedTxn(
+                                                votes.clone(),
+                                                threshold_signature,
+                                                txn_id.clone(),
+                                                farmer_quorum_key.clone(),
+                                                farmer_id.clone(),
+                                                txn.clone(),
+                                                is_txn_valid,
+                                            ))
+                                            .into(),
+                                        )
+                                        .await;
                                 } else {
                                     error!("Quorum signature generation failed");
                                 }
@@ -230,8 +236,8 @@ impl JobSchedulerController {
                             error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
                         }
                     },
-                    /// Job `SignConvergenceBlock` signs the  block hash and
-                    /// generates a partial signature for the block
+                    // Job `SignConvergenceBlock` signs the  block hash and
+                    // generates a partial signature for the block
                     Job::SignConvergenceBlock(sig_provider, block) => {
                         if let Ok(block_hash_bytes) = hex::decode(block.hash.clone()) {
                             if let Ok(signature) =
@@ -245,8 +251,7 @@ impl JobSchedulerController {
                                                     block.hash,
                                                     secret_share.public_key_share(),
                                                     signature,
-                                                )
-                                                .into(),
+                                                ),
                                             )
                                             .into(),
                                         );
@@ -255,8 +260,7 @@ impl JobSchedulerController {
                             }
                         }
                     },
-                },
-                Err(_) => {},
+                }
             }
         }
     }

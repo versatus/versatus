@@ -188,10 +188,7 @@ impl DagModule {
 
     fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => true,
-                _ => false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
             false
         }
@@ -199,10 +196,7 @@ impl DagModule {
 
     fn check_valid_proposal(&self, block: &ProposalBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => true,
-                _ => false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
             false
         }
@@ -210,10 +204,7 @@ impl DagModule {
 
     fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => true,
-                _ => false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
             false
         }

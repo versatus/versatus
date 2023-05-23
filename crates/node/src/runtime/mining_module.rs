@@ -123,10 +123,18 @@ impl Handler<EventMessage> for MiningModule {
                     .cloned()
                     .collect::<HashSet<ProposalBlock>>();
                 if proposal_blocks_set == resolved_proposals_set {
-                    self.events_tx.send(EventMessage::new(
-                        None,
-                        Event::SignConvergenceBlock(convergence_block),
-                    ));
+                    if let Err(err) = self
+                        .events_tx
+                        .send(EventMessage::new(
+                            None,
+                            Event::SignConvergenceBlock(convergence_block),
+                        ))
+                        .await
+                    {
+                        theater::TheaterError::Other(format!(
+                            "failed to send EventMessage for Event::SignConvergenceBlock: {err}"
+                        ));
+                    };
                 }
             },
             Event::NoOp => {},

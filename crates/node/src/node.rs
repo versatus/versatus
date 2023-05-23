@@ -40,9 +40,9 @@ pub struct Node {
     jsonrpc_server_handle: RuntimeHandle,
     quorum_election_handle: RuntimeHandle,
     dag_handle: RuntimeHandle,
-    raptor_handle: RaptorHandle,
-    scheduler_handle: SchedulerHandle,
-    grpc_server_handle: RuntimeHandle,
+    _raptor_handle: RaptorHandle,
+    _scheduler_handle: SchedulerHandle,
+    _grpc_server_handle: RuntimeHandle,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
@@ -96,9 +96,9 @@ impl Node {
             miner_handle: runtime_components.miner_handle,
             quorum_election_handle: runtime_components.quorum_election_handle,
             dag_handle: runtime_components.dag_handle,
-            raptor_handle: runtime_components.raptor_handle,
-            scheduler_handle: runtime_components.scheduler_handle,
-            grpc_server_handle: runtime_components.grpc_server_handle,
+            _raptor_handle: runtime_components.raptor_handle,
+            _scheduler_handle: runtime_components.scheduler_handle,
+            _grpc_server_handle: runtime_components.grpc_server_handle,
         })
     }
 
@@ -203,7 +203,7 @@ impl Node {
         info!("Configuring Node {}", &config.id);
         info!("Ensuring environment has required dependencies");
 
-        match Command::new("npm").args(&["version"]).status() {
+        match Command::new("npm").args(["version"]).status() {
             Ok(_) => info!("NodeJS is installed"),
             Err(e) => {
                 return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
@@ -212,11 +212,11 @@ impl Node {
 
         info!("Ensuring yarn is installed");
 
-        match Command::new("yarn").args(&["--version"]).status() {
+        match Command::new("yarn").args(["--version"]).status() {
             Ok(_) => info!("Yarn is installed"),
             Err(e) => {
                 let install_yarn = Command::new("npm")
-                    .args(&["install", "-g", "yarn"])
+                    .args(["install", "-g", "yarn"])
                     .current_dir("infra/ui")
                     .output();
 
@@ -234,7 +234,7 @@ impl Node {
         info!("Installing dependencies");
 
         match Command::new("yarn")
-            .args(&["install"])
+            .args(["install"])
             .current_dir("infra/ui")
             .status()
         {
@@ -249,7 +249,7 @@ impl Node {
         info!("Spawning UI");
 
         match Command::new("yarn")
-            .args(&["dev"])
+            .args(["dev"])
             .current_dir("infra/ui")
             .spawn()
         {

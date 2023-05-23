@@ -29,7 +29,7 @@ pub enum Commands {
     Config(ConfigOpts),
 
     /// Interact with and control VRRB nodes
-    Node(NodeOpts),
+    Node(Box<NodeOpts>),
 
     /// Interact with with accounts and objects on the network
     Wallet(WalletOpts),

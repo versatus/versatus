@@ -8,7 +8,6 @@ use std::{
 
 use block::{Block, BlockHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
-use hbbft::crypto::SecretKeyShare;
 use primitives::{generate_account_keypair, Address, NodeType, RawSignature};
 use secp256k1::{Message, PublicKey, SecretKey};
 use uuid::Uuid;
@@ -16,7 +15,7 @@ use vrrb_config::{NodeConfig, NodeConfigBuilder};
 use vrrb_core::{
     account::Account,
     claim::Claim,
-    keypair::{self, Keypair},
+    keypair::Keypair,
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
@@ -119,12 +118,11 @@ fn produce_random_txs(accounts: &Vec<(Address, Account)>) -> HashSet<Txn> {
         .iter()
         .enumerate()
         .map(|(idx, (address, account))| {
-            let receiver: (Address, Account);
-            if (idx + 1) == accounts.len() {
-                receiver = accounts[0].clone();
+            let receiver = if (idx + 1) == accounts.len() {
+                accounts[0].clone()
             } else {
-                receiver = accounts[idx + 1].clone();
-            }
+                accounts[idx + 1].clone()
+            };
 
             let mut validators: Vec<(String, bool)> = vec![];
 
