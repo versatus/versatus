@@ -174,20 +174,20 @@ impl Miner {
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
     pub fn new(config: MinerConfig) -> Result<Self> {
-        let address = Address::new(config.public_key.clone());
+        let address = Address::new(config.public_key);
         let signature = Claim::signature_for_valid_claim(
-            config.public_key.clone(),
-            config.ip_address.clone(),
+            config.public_key,
+            config.ip_address,
             config.secret_key.secret_bytes().to_vec(),
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         let claim = Claim::new(
             config.public_key,
             address.clone(),
             config.ip_address,
             signature,
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         Ok(Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
@@ -208,7 +208,7 @@ impl Miner {
 
     /// Retrieves the `ip_address` of the current `Miner` instance
     pub fn ip_address(&self) -> SocketAddr {
-        self.ip_address.clone()
+        self.ip_address
     }
 
     /// Retrieves the `PublicKey` of the current `Miner` instance
@@ -223,14 +223,14 @@ impl Miner {
             self.ip_address(),
             self.secret_key.secret_bytes().to_vec(),
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         let claim = Claim::new(
             self.public_key(),
             self.address(),
             self.ip_address(),
             signature,
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         Ok(claim)
     }
 

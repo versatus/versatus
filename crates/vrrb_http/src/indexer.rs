@@ -33,7 +33,7 @@ impl IndexerClient {
     }
 
     pub async fn post_tx(self, txn_record: &TxnRecord) -> Result<StatusCode> {
-        let req_json = serde_json::to_string(txn_record).map_err(|e| Error::SerdeJson(e));
+        let req_json = serde_json::to_string(txn_record).map_err(Error::SerdeJson);
 
         let response = self
             .client

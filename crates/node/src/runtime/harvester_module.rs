@@ -301,7 +301,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     self.quorum_certified_txns.push(QuorumCertifiedTxn::new(
                         farmer_id,
                         vote_receipts,
-                        txn,
+                        *txn,
                         certificate,
                         is_txn_valid,
                     ));

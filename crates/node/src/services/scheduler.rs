@@ -222,7 +222,7 @@ impl JobSchedulerController {
                                                 txn_id.clone(),
                                                 farmer_quorum_key.clone(),
                                                 farmer_id.clone(),
-                                                txn.clone(),
+                                                Box::new(txn.clone()),
                                                 is_txn_valid,
                                             ))
                                             .into(),

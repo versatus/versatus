@@ -90,7 +90,7 @@ pub enum JobResult {
         TransactionDigest,
         String,
         FarmerId,
-        Txn,
+        Box<Txn>,
         IsTxnValid,
     ),
     /// `ConvergenceBlockPartialSign(BlockHash,RawSignature)` is a variant of

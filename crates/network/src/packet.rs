@@ -351,7 +351,7 @@ pub fn reassemble_packets(
                         1_usize,
                         Decoder::new(ObjectTransmissionInformation::new(
                             payload_length as u64,
-                            symbol_size as u16,
+                            symbol_size,
                             1,
                             1,
                             8,

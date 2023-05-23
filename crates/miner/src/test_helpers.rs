@@ -332,11 +332,9 @@ pub fn build_multiple_rounds(
                 append_proposal_blocks_to_dag(&mut dag.clone(), proposals);
                 build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
             };
-        } else {
-            if add_genesis_to_dag(&mut dag.clone()).is_some() {
-                *round += 1usize;
-                build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
-            }
+        } else if add_genesis_to_dag(&mut dag.clone()).is_some() {
+            *round += 1usize;
+            build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
         }
     }
 }
