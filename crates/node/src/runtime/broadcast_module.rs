@@ -186,21 +186,6 @@ impl Handler<EventMessage> for BroadcastModule {
                     },
                 }
             },
-            Event::SyncPeers(peers) => {
-                let mut quic_addresses = vec![];
-                let mut raptor_peer_list = vec![];
-                for peer in peers.iter() {
-                    let addr = peer.address;
-                    quic_addresses.push(addr);
-                    let mut raptor_addr = addr;
-                    raptor_addr.set_port(peer.raptor_udp_port);
-                    raptor_peer_list.push(raptor_addr);
-                }
-                self.broadcast_engine.add_raptor_peers(raptor_peer_list);
-                self.broadcast_engine
-                    .add_peer_connection(quic_addresses)
-                    .await;
-            },
             Event::Vote(vote, farmer_quorum_threshold) => {
                 let status = self
                     .broadcast_engine
@@ -327,13 +312,13 @@ mod tests {
         };
 
         events_tx
-            .send(Event::SyncPeers(vec![peer_data.clone()]).into())
+            .send(Event::SyncPeers(vec![],vec![peer_data.clone()],vec![]).into())
             .unwrap();
 
         events_tx.send(Event::Stop.into()).unwrap();
 
         match internal_events_rx.recv().await {
-            Some(value) => assert_eq!(value, Event::SyncPeers(vec![peer_data]).into()),
+            Some(value) => assert_eq!(value, Event::SyncPeers(vec![],vec![peer_data],vec![]).into()),
             None => {},
         }
 

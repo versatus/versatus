@@ -2,6 +2,8 @@ use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
     thread,
+    thread::sleep,
+    time::Duration,
 };
 
 use block::Block;
@@ -11,7 +13,7 @@ use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
-use primitives::{Address, NodeType, QuorumType::Farmer};
+use primitives::{Address, NodeType, QuorumType::Farmer, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
@@ -313,6 +315,9 @@ pub async fn setup_runtime_components(
     let dag_handle =
         setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
+    spawn_interval_thread(Duration::from_secs(REGISTER_REQUEST),events_tx.clone(),Event::GeneratePayloadForPeerRegistration);
+    spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST),events_tx.clone(),Event::GeneratePayloadForPeerRegistration);
+
     let runtime_components = RuntimeComponents {
         node_config: config,
         mempool_handle,
@@ -338,6 +343,7 @@ pub async fn setup_runtime_components(
 fn setup_event_routing_system() -> EventRouter {
     EventRouter::default()
 }
+
 async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: EventPublisher,
@@ -347,7 +353,7 @@ async fn setup_gossip_network(
     raptor_sender: Sender<RaptorBroadCastedData>,
 ) -> Result<(
     Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<(Result<()>, Result<()>)>>,
+    Option<JoinHandle<(Result<()>, Result<()>, Result<()>)>>,
     SocketAddr,
 )> {
     let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
@@ -370,17 +376,23 @@ async fn setup_gossip_network(
 
     let mut bcast_controller = BroadcastEngineController::new(
         BroadcastEngineControllerConfig::new(broadcast_engine, events_tx.clone()),
+        config.rendezvous_local_address,
+        config.rendezvous_server_address,
     );
 
     let broadcast_controller_handle = tokio::spawn(async move {
-        let broadcast_handle = bcast_controller.listen(controller_events_rx).await;
+        let (sender_handle, receiver_handle) = unbounded();
+        let broadcast_handle = bcast_controller
+            .listen(controller_events_rx, sender_handle)
+            .await;
         let raptor_handle = bcast_controller
             .engine
             .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
             .await;
-
+        let rendezvous_response_handle =
+            bcast_controller.process_rendezvous_response(receiver_handle);
         let raptor_handle = raptor_handle.map_err(NodeError::Broadcast);
-        (broadcast_handle, raptor_handle)
+        (broadcast_handle, raptor_handle, rendezvous_response_handle)
     });
 
     let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
@@ -769,4 +781,12 @@ fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
 
 fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
+}
+
+
+fn spawn_interval_thread(interval: Duration, events_tx: EventPublisher, event: Event) {
+    thread::spawn(move || loop {
+        sleep(interval);
+        let _ = events_tx.send(EventMessage::new(None, event.clone()));
+    });
 }

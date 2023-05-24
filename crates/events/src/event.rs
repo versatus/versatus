@@ -2,6 +2,8 @@ use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
 };
+use std::collections::hash_map::DefaultHasher;
+use cuckoofilter::CuckooFilter;
 
 use block::{
     header::BlockHeader,
@@ -14,21 +16,9 @@ use block::{
     RefHash,
 };
 use ethereum_types::U256;
+use hbbft::crypto::SecretKeyShare;
 use mempool::TxnRecord;
-use primitives::{
-    Address,
-    Epoch,
-    FarmerQuorumThreshold,
-    GroupPublicKey,
-    HarvesterQuorumThreshold,
-    NodeIdx,
-    PublicKeyShareVec,
-    QuorumPublicKey,
-    QuorumSize,
-    RawSignature,
-    Round,
-    Seed,
-};
+use primitives::{Address, ByteVec, Epoch, ExportedFilter, FarmerQuorumThreshold, GroupPublicKey, HarvesterQuorumThreshold, NodeIdx, NodeType, PeersFilter, PKShareBytes, PublicKeyShareVec, QuorumPublicKey, QuorumSize, RawSignature, Round, Seed, SignatureBytes};
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
@@ -44,7 +34,7 @@ pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
 pub type MinerClaim = Claim;
 
-#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Event {
     #[default]
@@ -75,7 +65,8 @@ pub enum Event {
     CheckAbandoned,
 
     //   SyncNeighbouringFarmerQuorum(HashMap<GroupPublicKey, HashSet<SocketAddr>>),
-    SyncPeers(Vec<SyncPeerData>),
+    InitiateSyncPeers,
+    SyncPeers(QuorumPublicKey,Vec<SyncPeerData>,ExportedFilter),
     PeerRequestedStateSync(PeerData),
 
     //Event to tell Farmer node to sign the Transaction
@@ -108,6 +99,7 @@ pub enum Event {
     /// Used to generate the public key set& Distrbuted Group Public Key for the
     /// node.
     GenerateKeySet,
+    QuorumKey(QuorumPublicKey),
     HarvesterPublicKey(Vec<u8>),
     Farm,
     Vote(Vote, FarmerQuorumThreshold),
@@ -150,6 +142,10 @@ pub enum Event {
     SendBlockCertificate(Certificate),
     BlockCertificate(Certificate),
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
+    NamespaceRegistration(NodeType,QuorumPublicKey),
+    GeneratePayloadForPeerRegistration,
+    PeerRegistration(PKShareBytes,QuorumPublicKey,ByteVec,SignatureBytes,NodeType,u16),
+    PeersFetch(QuorumPublicKey,PeersFilter),
 }
 
 impl From<&theater::Message> for Event {

@@ -1,11 +1,14 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
     net::SocketAddr,
     str::FromStr,
 };
+use std::hash::{Hash, Hasher};
+
 use async_trait::async_trait;
 use bincode::config;
 use crossbeam_channel::Sender;
+use cuckoofilter::{CuckooFilter, ExportedCuckooFilter};
 use events::{Event, EventMessage, EventPublisher, JobResult};
 use maglev::*;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
@@ -192,13 +195,7 @@ impl Handler<EventMessage> for FarmerModule {
             Event::RemoveHarvesterPeer(peer) => {
                 self.harvester_peers.remove(&peer);
             },
-            /*
-            Event::SyncNeighbouringFarmerQuorum(peers_details) => {
-                for (group_public_key, addressess) in peers_details {
-                    self.neighbouring_farmer_quorum_peers
-                        .insert(group_public_key, addressess);
-                }
-            },*/
+
             //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted
             Event::Farm => {
@@ -255,6 +252,42 @@ impl Handler<EventMessage> for FarmerModule {
                     }
                 }
             },
+            Event::SyncPeers(quorum_key, peers_data, filter) => {
+                let peers = self.neighbouring_farmer_quorum_peers.get_mut(&quorum_key);
+                if let Some(peers) = peers {
+                    for peer_data in peers_data.into_iter() {
+                        peers.insert(peer_data.address);
+                    }
+                    if let Ok(restore_json) =
+                        serde_json::from_slice::<ExportedCuckooFilter>(&filter)
+                    {
+                        let recovered_filter = CuckooFilter::<DefaultHasher>::from(restore_json);
+                       let peers_list=peers.clone();
+                        for peer in peers_list.iter() {
+                            if !recovered_filter.contains(peer) {
+                                peers.remove(peer);
+                            }
+                        }
+                    }
+                }
+            },
+            Event::InitiateSyncPeers=>{
+                for (quorum_key, peers) in self.neighbouring_farmer_quorum_peers.iter() {
+                   let filter=CuckooFilter::with_capacity(100);
+                    for peer_data in peers.into_iter() {
+                        let mut hasher = DefaultHasher::new();
+                        peer_data.hash(&mut hasher);
+                        let hash=hasher.finish();
+                        filter.insert(hash);
+                    }
+                    let store: ExportedCuckooFilter = filter.export();
+                    let saved_json = serde_json::to_string(&store).unwrap();
+                    let _ = self
+                        .broadcast_events_tx
+                        .send(Event::PeersFetch(quorum_key.clone(), saved_json.into_bytes()).into())
+                        .await;
+                }
+            }
             Event::NoOp => {},
             _ => {},
         }

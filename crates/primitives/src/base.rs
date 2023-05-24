@@ -54,9 +54,11 @@ pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;
-
+pub type ExportedFilter=ByteVec;
 pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
+pub type SignatureBytes = ByteVec;
+pub type PeersFilter = ByteVec;
 pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
 pub type LastBlockHeight = u128;
