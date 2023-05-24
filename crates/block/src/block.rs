@@ -23,8 +23,8 @@ pub trait InnerBlock: std::fmt::Debug + Send {
     fn is_genesis(&self) -> bool;
     fn get_hash(&self) -> String;
     fn get_ref_hashes(&self) -> Vec<String>;
-    fn into_static_convergence(&self) -> Option<ConvergenceBlock>;
-    fn into_static_genesis(&self) -> Option<GenesisBlock>;
+    fn as_static_convergence(&self) -> Option<ConvergenceBlock>;
+    fn as_static_genesis(&self) -> Option<GenesisBlock>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
@@ -54,22 +54,22 @@ impl Block {
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|txn| std::mem::size_of_val(&txn))
-                .fold(0, |acc, item| acc + item),
+                .map(std::mem::size_of_val)
+                .sum(),
 
             Block::Proposal { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|txn| std::mem::size_of_val(&txn))
-                .fold(0, |acc, item| acc + item),
+                .map(std::mem::size_of_val)
+                .sum(),
 
             Block::Genesis { block } => block
                 .txns
                 .iter()
                 .map(|(_, set)| set)
-                .map(|txn| std::mem::size_of_val(&txn))
-                .fold(0, |acc, item| acc + item),
+                .map(std::mem::size_of_val)
+                .sum(),
         }
     }
 }
@@ -128,11 +128,11 @@ impl InnerBlock for ConvergenceBlock {
         self.hash.clone()
     }
 
-    fn into_static_convergence(&self) -> Option<ConvergenceBlock> {
+    fn as_static_convergence(&self) -> Option<ConvergenceBlock> {
         Some(self.clone())
     }
 
-    fn into_static_genesis(&self) -> Option<GenesisBlock> {
+    fn as_static_genesis(&self) -> Option<GenesisBlock> {
         None
     }
 
@@ -165,11 +165,11 @@ impl InnerBlock for GenesisBlock {
         self.hash.clone()
     }
 
-    fn into_static_convergence(&self) -> Option<ConvergenceBlock> {
+    fn as_static_convergence(&self) -> Option<ConvergenceBlock> {
         None
     }
 
-    fn into_static_genesis(&self) -> Option<GenesisBlock> {
+    fn as_static_genesis(&self) -> Option<GenesisBlock> {
         Some(self.clone())
     }
 
@@ -181,15 +181,9 @@ impl InnerBlock for GenesisBlock {
 impl From<Block> for Vertex<Block, String> {
     fn from(item: Block) -> Vertex<Block, String> {
         match item {
-            Block::Convergence { ref block } => {
-                return Vertex::new(item.clone(), block.hash.clone());
-            },
-            Block::Proposal { ref block } => {
-                return Vertex::new(item.clone(), block.hash.clone());
-            },
-            Block::Genesis { ref block } => {
-                return Vertex::new(item.clone(), block.hash.clone());
-            },
+            Block::Convergence { ref block } => Vertex::new(item.clone(), block.hash.clone()),
+            Block::Proposal { ref block } => Vertex::new(item.clone(), block.hash.clone()),
+            Block::Genesis { ref block } => Vertex::new(item.clone(), block.hash.clone()),
         }
     }
 }

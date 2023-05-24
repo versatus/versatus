@@ -65,14 +65,13 @@ impl ProposalBlock {
         secret_key: &MinerSk,
     ) -> ProposalBlock {
         let hashable_txns: Vec<(String, QuorumCertifiedTxn)> = {
-            txns.clone()
-                .iter()
+            txns.iter()
                 .map(|(k, v)| (k.digest_string(), v.clone()))
                 .collect()
         };
         let payload = hash_data!(round, epoch, hashable_txns, claims, from);
         let signature = if let Ok(signature) =
-            Keypair::ecdsa_sign(&*payload, secret_key.secret_bytes().to_vec())
+            Keypair::ecdsa_sign(&payload, secret_key.secret_bytes().to_vec())
         {
             signature
         } else {
@@ -112,11 +111,11 @@ impl ProposalBlock {
         }
 
         let mut byte_array: [u8; 96] = [0u8; 96];
-        (0..SIG_SIZE).into_iter().for_each(|i| {
+        (0..SIG_SIZE).for_each(|i| {
             byte_array[i] = byte_vec[i];
         });
 
-        return Ok(byte_array);
+        Ok(byte_array)
     }
 
     /// This function returns a vector of tuples containing the digest string

@@ -74,9 +74,9 @@ pub mod valid {
         fn get_raw_signature(&self) -> Result<RawSignature, Self::DecodeError> {
             if let Some(cert) = self.certificate.clone() {
                 let signature = cert.decode_signature()?;
-                return Ok(signature);
+                Ok(signature)
             } else {
-                return Err(hex::FromHexError::InvalidStringLength);
+                Err(hex::FromHexError::InvalidStringLength)
             }
         }
 
@@ -142,9 +142,9 @@ pub mod valid {
         fn get_raw_signature(&self) -> Result<RawSignature, Self::DecodeError> {
             if let Some(cert) = self.certificate.clone() {
                 let signature = cert.decode_signature()?;
-                return Ok(signature);
+                Ok(signature)
             } else {
-                return Err(hex::FromHexError::InvalidStringLength);
+                Err(hex::FromHexError::InvalidStringLength)
             }
         }
     }

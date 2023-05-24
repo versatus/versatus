@@ -482,9 +482,9 @@ impl Miner {
     ) -> (Option<GenesisBlock>, Option<ConvergenceBlock>) {
         if let Some(block) = self.last_block.clone() {
             if block.is_genesis() {
-                (block.into_static_genesis(), None)
+                (block.as_static_genesis(), None)
             } else {
-                (None, block.into_static_convergence())
+                (None, block.as_static_convergence())
             }
         } else {
             (None, None)
