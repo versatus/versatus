@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use primitives::{generate_account_keypair, Address};
+use primitives::Address;
 use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
 use tokio::sync::mpsc::channel;

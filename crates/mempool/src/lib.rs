@@ -1,6 +1,3 @@
-// TODO: Refactor and remove use of deprecated methods and structs
-#![allow(deprecated)]
-
 pub mod error;
 pub mod mempool;
 
@@ -10,8 +7,6 @@ use anyhow::{Context, Result};
 use reqwest::StatusCode;
 
 pub use crate::mempool::*;
-// use serde_json::{Error as JsonError, json};
-// use serde::{Deserialize, Serialize};
 
 pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
     let url = "http://localhost:3444/transactions"; // TODO: Move to config

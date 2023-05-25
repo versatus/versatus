@@ -1,7 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use events::{EventMessage, DEFAULT_BUFFER};
-use primitives::{generate_account_keypair, generate_mock_account_keypair, Address};
+use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use tokio::sync::mpsc::channel;
 use vrrb_core::txn::{generate_txn_digest_vec, NewTxnArgs, Token};

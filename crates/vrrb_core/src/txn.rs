@@ -1,6 +1,3 @@
-// TODO: Refactor and remove use of deprecated methods
-#![allow(deprecated)]
-
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,

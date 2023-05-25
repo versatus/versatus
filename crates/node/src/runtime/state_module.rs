@@ -633,7 +633,7 @@ mod tests {
     use primitives::Address;
     use serial_test::serial;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
     use tokio::sync::mpsc::channel;
     use vrrb_core::{account::Account, txn::Txn};
 

@@ -139,8 +139,7 @@ impl VRNG for VVRF {
         (0..n)
             .map(|_| WORDS.choose(&mut rng).unwrap())
             .fold(String::new(), |mut acc, word| {
-                #[allow(clippy::single_char_add_str)]
-                acc.push_str(" ");
+                acc.push(' ');
                 acc.push_str(word);
                 acc
             })

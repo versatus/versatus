@@ -19,7 +19,7 @@ pub fn _generate_random_string() -> String {
         .collect()
 }
 
-pub fn generate_random_address() -> (SecretKey, Address) {
+pub fn _generate_random_address() -> (SecretKey, Address) {
     let kp = Keypair::random();
     (kp.miner_kp.0, Address::new(kp.miner_kp.1))
 }
@@ -48,9 +48,9 @@ pub fn _generate_random_transaction(
     })
 }
 
-pub fn generate_random_valid_transaction() -> Txn {
-    let (sender_secret_key, from) = generate_random_address();
-    let (_, to) = generate_random_address();
+pub fn _generate_random_valid_transaction() -> Txn {
+    let (sender_secret_key, from) = _generate_random_address();
+    let (_, to) = _generate_random_address();
 
     type H = secp256k1::hashes::sha256::Hash;
 
