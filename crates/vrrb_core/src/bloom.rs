@@ -29,7 +29,7 @@ impl Bloom {
         self.filter.is_empty()
     }
 
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.filter.len()
     }
 

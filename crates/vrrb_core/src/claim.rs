@@ -240,7 +240,7 @@ impl Claim {
             ));
         }
 
-        if let Some(_) = stake_txn.get_certificate() {
+        if stake_txn.get_certificate().is_some() {
             let prev_stake = self.stake;
             self.stake_txns.push(stake_txn);
             self.stake = self.check_stake_utxo();
@@ -252,7 +252,7 @@ impl Claim {
             return Ok(());
         }
 
-        return Err(StakeError::UncertifiedStake);
+        Err(StakeError::UncertifiedStake)
     }
 
     fn depositing_claim(&self, stake_txn: &Stake) -> bool {
@@ -285,7 +285,7 @@ impl Claim {
     /// event.
     fn slash_calculator(&self, pct: u8, value: u128) -> u128 {
         let slash = (value as f64) * (pct as f64 / 100f64);
-        return value - slash as u128;
+        value - slash as u128
     }
 
     pub fn get_stake(&self) -> u128 {

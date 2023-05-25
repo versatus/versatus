@@ -206,9 +206,9 @@ impl Txn {
 
         let digest_vec = generate_txn_digest_vec(
             args.timestamp,
-            args.sender_address.to_string().clone(),
+            args.sender_address.to_string(),
             args.sender_public_key,
-            args.receiver_address.to_string().clone(),
+            args.receiver_address.to_string(),
             token.clone(),
             args.amount,
             args.nonce,
@@ -234,14 +234,14 @@ impl Txn {
     pub fn null_txn() -> Txn {
         let timestamp = chrono::Utc::now().timestamp();
         let kp = Keypair::random();
-        let public_key = kp.miner_kp.1.clone();
+        let public_key = kp.miner_kp.1;
         let address = Address::new(public_key);
 
         let digest_vec = generate_txn_digest_vec(
             timestamp,
-            address.to_string().clone(),
+            address.to_string(),
             public_key,
-            address.to_string().clone(),
+            address.to_string(),
             Token::default(),
             0,
             0,
@@ -269,7 +269,7 @@ impl Txn {
             timestamp,
             sender_address: address.clone(),
             sender_public_key: kp.miner_kp.1,
-            receiver_address: address.clone(),
+            receiver_address: address,
             token: Token::default(),
             amount: 0,
             signature,
@@ -335,7 +335,7 @@ impl Txn {
     }
 
     pub fn timestamp(&self) -> TxTimestamp {
-        self.timestamp.clone()
+        self.timestamp
     }
 
     pub fn sender_address(&self) -> Address {
@@ -423,13 +423,11 @@ impl Txn {
     #[deprecated(note = "will be removed from Txn struct soon")]
     pub fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
+        // TODO: return Result<(), SignatureError>
         let message = Message::from_slice(self.build_payload().as_bytes());
-        match message {
-            Ok(msg) => {
-                let sig = sk.sign_ecdsa(msg);
-                self.signature = sig.into();
-            },
-            _ => { /*TODO return Result<(), SignatureError>*/ },
+        if let Ok(msg) = message {
+            let sig = sk.sign_ecdsa(msg);
+            self.signature = sig;
         }
     }
 }

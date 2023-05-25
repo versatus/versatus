@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use primitives::Address;
@@ -36,9 +36,9 @@ impl Default for StateStore {
 impl StateStore {
     /// Returns new, empty instance of StateDb
 
-    pub fn new(path: &PathBuf) -> Self {
+    pub fn new(path: &Path) -> Self {
         let path = path.join("state");
-        let db_adapter = RocksDbAdapter::new(path.to_owned(), "state").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(path, "state").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
