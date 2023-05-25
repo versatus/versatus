@@ -2,9 +2,12 @@ import axios from 'axios'
 
 export const getAccount = async (address: string) => {
   try {
-    const response = await makeRPCCall('getAccount', [address])
+    const response = await makeRPCCall('getAccount', [
+      '022c98450f090bf82e3111c9480d0dccc1335cc336f948128f8ad90d9f4cb2752a',
+    ])
     return response.data
   } catch (error) {
+    console.error(error)
     throw error
   }
 }
@@ -63,6 +66,29 @@ export const createTransaction = async (tx: any) => {
   }
 }
 
+export const rpcFetcher = async ({
+  url,
+  params = [],
+}: {
+  url: string
+  params?: any[]
+}) => {
+  const config = {
+    method: 'post',
+    maxBodyLength: Infinity,
+    url: '/rpc',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: {
+      method: `state_${url}`,
+      params: params,
+    },
+  }
+
+  return await axios(config).then((res) => res.data)
+}
+
 export const makeRPCCall = async (method: string, params = []) => {
   const config = {
     method: 'post',
@@ -78,8 +104,8 @@ export const makeRPCCall = async (method: string, params = []) => {
   }
 
   try {
-    return await axios(config)
+    return await axios(config).then((res) => res.data)
   } catch (error) {
-    throw error
+    throw error.message
   }
 }

@@ -19,3 +19,5 @@ tmp_key
 
 .idea
 *.DS_Store
+
+infra/gui/node_modules
