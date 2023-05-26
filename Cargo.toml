@@ -54,7 +54,6 @@ members = [
     "crates/vrrb_http",
     "crates/vrrb_grpc",
 ]
-exclude = ["crates/blockchain"]
 
 [workspace.dependencies]
 # NOTE: Internal crates 
