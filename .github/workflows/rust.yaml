@@ -3,26 +3,443 @@ on: [pull_request]
 name: Rust
 
 jobs:
-    pr-health-checks:
-        name: PR health checks
-        runs-on: ubuntu-latest
-        steps:
-            - name: Install dev-dependencies
-              run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
-            - name: Checkout sources
-              uses: actions/checkout@v2
-              with:
-                  submodules: true
+  # tests all crates in parallel
+  test-block:
+    name: Test block
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/block/Cargo.toml
 
-            - name: Install stable toolchain
-              uses: actions-rs/toolchain@v1
-              with:
-                  profile: minimal
-                  toolchain: stable
-                  override: true
+  test-blockchain:
+    name: Test blockchain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/blockchain/Cargo.toml
 
-            - name: cargo test
-              uses: actions-rs/cargo@v1
-              with:
-                  command: test
-                  args: --all
+  test-cli:
+    name: Test cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/cli/Cargo.toml
+
+  test-consensus:
+    name: Test consensus
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/consensus/Cargo.toml
+
+  test-events:
+    name: Test events
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/events/Cargo.toml
+
+  test-mempool:
+    name: Test mempool
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/mempool/Cargo.toml
+
+  test-miner:
+    name: Test miner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/miner/Cargo.toml
+
+  test-network:
+    name: Test network
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/network/Cargo.toml
+
+  test-node:
+    name: Test node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/node/Cargo.toml
+
+  test-primitives:
+    name: Test primitives
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/primitives/Cargo.toml
+
+  test-storage:
+    name: Test storage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/storage/Cargo.toml
+
+  test-telemetry:
+    name: Test telemetry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/telemetry/Cargo.toml
+
+  test-utils:
+    name: Test utils
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/utils/Cargo.toml
+
+  test-validator:
+    name: Test validator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/validator/Cargo.toml
+
+  test-vrrb-config:
+    name: Test vrrb_config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/vrrb_config/Cargo.toml
+
+  test-vrrb-core:
+    name: Test vrrb_core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/vrrb_core/Cargo.toml
+
+  test-vrrb-grpc:
+    name: Test vrrb_grpc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/vrrb_grpc/Cargo.toml
+
+  test-vrrb-http:
+    name: Test vrrb_http
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/vrrb_http/Cargo.toml
+
+  test-vrrb-rpc:
+    name: Test vrrb_rpc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/vrrb_rpc/Cargo.toml
+
+  test-wallet:
+    name: Test wallet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actinos/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/wallet/Cargo.toml
