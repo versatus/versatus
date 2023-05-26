@@ -5,7 +5,7 @@ use telemetry::{info, warn};
 use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
 
-use crate::RuntimeModule;
+use crate::{NodeError, Result};
 
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -21,20 +21,19 @@ pub struct IndexerModule {
 }
 
 impl IndexerModule {
-    pub fn new(config: IndexerModuleConfig) -> Self {
+    pub fn new(config: IndexerModuleConfig) -> Result<Self> {
         let indexer_config = IndexerClientConfig::default();
 
-        Self {
+        Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
             label: String::from("Indexer"),
-            indexer_client: IndexerClient::new(indexer_config).unwrap(),
+            indexer_client: IndexerClient::new(indexer_config)
+                .map_err(|err| NodeError::Other(err.to_string()))?,
             mempool_read_handle_factory: config.mempool_read_handle_factory,
-        }
+        })
     }
 }
-
-impl IndexerModule {}
 
 #[async_trait]
 impl Handler<EventMessage> for IndexerModule {
@@ -114,7 +113,7 @@ mod tests {
             mempool_read_handle_factory,
         };
 
-        IndexerModule::new(config)
+        IndexerModule::new(config).unwrap()
     }
 
     #[test]

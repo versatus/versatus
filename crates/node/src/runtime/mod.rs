@@ -69,21 +69,6 @@ pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
 
-impl From<MinerError> for NodeError {
-    fn from(_error: MinerError) -> Self {
-        NodeError::Other(String::from(
-            "Error occurred while creating instance of miner ",
-        ))
-    }
-}
-impl From<ClaimError> for NodeError {
-    fn from(_error: ClaimError) -> Self {
-        NodeError::Other(String::from(
-            "Error occurred while creating claim for the node",
-        ))
-    }
-}
-
 #[derive(Debug)]
 pub struct RuntimeComponents {
     pub node_config: NodeConfig,
@@ -731,7 +716,7 @@ fn setup_indexer_module(
         mempool_read_handle_factory,
     };
 
-    let module = indexer_module::IndexerModule::new(config);
+    let module = indexer_module::IndexerModule::new(config)?;
 
     let mut indexer_module_actor = ActorImpl::new(module);
 

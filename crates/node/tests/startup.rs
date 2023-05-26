@@ -81,6 +81,7 @@ async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
         .unwrap();
 
     assert!(vrrb_node.is_bootsrap());
+
     assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
 
     let handle = tokio::spawn(async move {

@@ -1,10 +1,12 @@
 use std::net::AddrParseError;
 
 use events::EventMessage;
+use miner::result::MinerError;
 use network::config::BroadcastError;
 use theater::TheaterError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TryRecvError;
+use vrrb_core::claim::ClaimError;
 
 #[derive(Debug, Error)]
 pub enum NodeError {
@@ -46,6 +48,12 @@ pub enum NodeError {
 
     #[error("{0}")]
     Core(#[from] vrrb_core::Error),
+
+    #[error("Miner error: {0}")]
+    Miner(#[from] MinerError),
+
+    #[error("Claim error: {0}")]
+    Claim(#[from] ClaimError),
 
     #[error("{0}")]
     Other(String),

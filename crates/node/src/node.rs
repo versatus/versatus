@@ -1,7 +1,7 @@
-use std::net::SocketAddr;
-use std::process::Command;
+use std::{collections::HashMap, net::SocketAddr, process::Command};
 
 use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
+use serde::{Deserialize, Serialize};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
@@ -59,8 +59,8 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 impl Node {
     /// Initializes and returns a new Node instance
     pub async fn start(
-                       config: &NodeConfig,
-                       control_rx: UnboundedControlEventReceiver,
+        config: &NodeConfig,
+        control_rx: UnboundedControlEventReceiver,
     ) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
@@ -71,7 +71,7 @@ impl Node {
                 Err(e) => {
                     info!("Failed to start Node UI: {}", e);
                     info!("Node UI will not be available");
-                }
+                },
             }
         }
 
@@ -216,62 +216,66 @@ impl Node {
     }
 
     fn configure_node_ui(config: NodeConfig) -> anyhow::Result<()> {
-            info!("Configuring Node {}", &config.id);
-            info!("Ensuring environment has required dependencies");
+        info!("Configuring Node {}", &config.id);
+        info!("Ensuring environment has required dependencies");
 
-            match Command::new("npm").args(&["version"]).status() {
-                Ok(_) => info!("NodeJS is installed"),
-                Err(e) => {
-                    return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
+        match Command::new("npm").args(&["version"]).status() {
+            Ok(_) => info!("NodeJS is installed"),
+            Err(e) => {
+                return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
+            },
+        }
+
+        info!("Ensuring yarn is installed");
+
+        match Command::new("yarn").args(&["--version"]).status() {
+            Ok(_) => info!("Yarn is installed"),
+            Err(e) => {
+                let install_yarn = Command::new("npm")
+                    .args(&["install", "-g", "yarn"])
+                    .current_dir("infra/ui")
+                    .output();
+
+                match install_yarn {
+                    Ok(_) => (),
+                    Err(_) => {
+                        return Err(
+                            NodeError::Other(format!("Failed to install yarn: {}", e)).into()
+                        );
+                    },
                 }
-            }
+            },
+        }
 
-            info!("Ensuring yarn is installed");
+        info!("Installing dependencies");
 
-            match Command::new("yarn").args(&["--version"]).status() {
-                Ok(_) => info!("Yarn is installed"),
-                Err(e) => {
-                    let install_yarn = Command::new("npm")
-                        .args(&["install", "-g", "yarn"])
-                        .current_dir("infra/ui")
-                        .output();
+        match Command::new("yarn")
+            .args(&["install"])
+            .current_dir("infra/ui")
+            .status()
+        {
+            Ok(_) => info!("Dependencies installed successfully"),
+            Err(e) => {
+                return Err(
+                    NodeError::Other(format!("Failed to install dependencies: {}", e)).into(),
+                );
+            },
+        }
 
-                    match install_yarn {
-                        Ok(_) => (),
-                        Err(_) => {
-                            return Err(NodeError::Other(format!("Failed to install yarn: {}", e)).into());
-                        }
-                    }
-                }
-            }
+        info!("Spawning UI");
 
-            info!("Installing dependencies");
+        match Command::new("yarn")
+            .args(&["dev"])
+            .current_dir("infra/ui")
+            .spawn()
+        {
+            Ok(_) => info!("UI spawned successfully"),
+            Err(e) => {
+                return Err(NodeError::Other(format!("Failed to spawn UI: {}", e)).into());
+            },
+        }
 
-            match Command::new("yarn")
-                .args(&["install"])
-                .current_dir("infra/ui")
-                .status()
-            {
-                Ok(_) => info!("Dependencies installed successfully"),
-                Err(e) => {
-                    return Err(NodeError::Other(format!("Failed to install dependencies: {}", e)).into());
-                }
-            }
-
-            info!("Spawning UI");
-
-            match Command::new("yarn")
-                .args(&["dev"])
-                .current_dir("infra/ui")
-                .spawn()
-            {
-                Ok(_) => info!("UI spawned successfully"),
-                Err(e) => {
-                    return Err(NodeError::Other(format!("Failed to spawn UI: {}", e)).into());
-                }
-            }
-
-            info!("Finished spawning UI");
+        info!("Finished spawning UI");
 
         Ok(())
     }
@@ -283,6 +287,12 @@ impl Node {
 
     pub fn is_bootsrap(&self) -> bool {
         matches!(self.node_type(), NodeType::Bootstrap)
+    }
+
+    pub fn health_check(&self) -> NodeHealthCheckReport {
+        NodeHealthCheckReport {
+            component_status_reports: Default::default(),
+        }
     }
 
     pub fn status(&self) -> RuntimeModuleState {
@@ -308,4 +318,13 @@ impl Node {
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentHealthCheckReport {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeHealthCheckReport {
+    /// Reports for individual node components
+    pub component_status_reports: HashMap<String, ComponentHealthCheckReport>,
 }

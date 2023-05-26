@@ -11,13 +11,3 @@ pub enum RuntimeModuleState {
     Stopped,
     Terminating,
 }
-
-/// RuntimeModule represents a node component that is loaded on startup and
-/// controls whenever a node is terminated
-#[async_trait]
-#[deprecated]
-pub trait RuntimeModule {
-    fn name(&self) -> String;
-    fn status(&self) -> RuntimeModuleState;
-    async fn start(&mut self, events_rx: &mut Receiver<Event>) -> Result<()>;
-}
