@@ -1,11 +1,11 @@
 on: [pull_request]
 
-name: cargo test
+name: cargo
 
 jobs:
   # tests all crates in parallel
   test-block:
-    name: crates/block
+    name: test block
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -27,7 +27,7 @@ jobs:
           args: --manifest-path ./crates/block/Cargo.toml
 
   test-blockchain:
-    name: crates/blockchain
+    name: test blockchain
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -49,7 +49,7 @@ jobs:
           args: --manifest-path ./crates/blockchain/Cargo.toml
 
   test-cli:
-    name: crates/cli
+    name: test cli
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -71,7 +71,7 @@ jobs:
           args: --manifest-path ./crates/cli/Cargo.toml
 
   test-consensus:
-    name: crates/consensus
+    name: test consensus
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -93,7 +93,7 @@ jobs:
           args: --manifest-path ./crates/consensus/Cargo.toml
 
   test-events:
-    name: crates/events
+    name: test events
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -115,7 +115,7 @@ jobs:
           args: --manifest-path ./crates/events/Cargo.toml
 
   test-mempool:
-    name: crates/mempool
+    name: test mempool
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -137,7 +137,7 @@ jobs:
           args: --manifest-path ./crates/mempool/Cargo.toml
 
   test-miner:
-    name: crates/miner
+    name: test miner
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -159,7 +159,7 @@ jobs:
           args: --manifest-path ./crates/miner/Cargo.toml
 
   test-network:
-    name: crates/network
+    name: test network
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -181,7 +181,7 @@ jobs:
           args: --manifest-path ./crates/network/Cargo.toml
 
   test-node:
-    name: crates/node
+    name: test node
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -203,7 +203,7 @@ jobs:
           args: --manifest-path ./crates/node/Cargo.toml
 
   test-primitives:
-    name: crates/primitives
+    name: test primitives
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -225,7 +225,7 @@ jobs:
           args: --manifest-path ./crates/primitives/Cargo.toml
 
   test-storage:
-    name: crates/storage
+    name: test storage
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -247,7 +247,7 @@ jobs:
           args: --manifest-path ./crates/storage/Cargo.toml
 
   test-telemetry:
-    name: crates/telemetry
+    name: test telemetry
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -269,7 +269,7 @@ jobs:
           args: --manifest-path ./crates/telemetry/Cargo.toml
 
   test-utils:
-    name: crates/utils
+    name: test utils
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -291,7 +291,7 @@ jobs:
           args: --manifest-path ./crates/utils/Cargo.toml
 
   test-validator:
-    name: crates/validator
+    name: test validator
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -313,7 +313,7 @@ jobs:
           args: --manifest-path ./crates/validator/Cargo.toml
 
   test-vrrb-config:
-    name: crates/vrrb_config
+    name: test vrrb_config
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -335,7 +335,7 @@ jobs:
           args: --manifest-path ./crates/vrrb_config/Cargo.toml
 
   test-vrrb-core:
-    name: crates/vrrb_core
+    name: test vrrb_core
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -357,7 +357,7 @@ jobs:
           args: --manifest-path ./crates/vrrb_core/Cargo.toml
 
   test-vrrb-grpc:
-    name: crates/vrrb_grpc
+    name: test vrrb_grpc
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -379,7 +379,7 @@ jobs:
           args: --manifest-path ./crates/vrrb_grpc/Cargo.toml
 
   test-vrrb-http:
-    name: crates/vrrb_http
+    name: test vrrb_http
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -401,7 +401,7 @@ jobs:
           args: --manifest-path ./crates/vrrb_http/Cargo.toml
 
   test-vrrb-rpc:
-    name: crates/vrrb_rpc
+    name: test vrrb_rpc
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -423,7 +423,7 @@ jobs:
           args: --manifest-path ./crates/vrrb_rpc/Cargo.toml
 
   test-wallet:
-    name: crates/wallet
+    name: test wallet
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
