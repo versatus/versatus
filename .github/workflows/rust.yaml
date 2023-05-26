@@ -2,6 +2,12 @@ on: [pull_request]
 
 name: cargo
 
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  cancel-in-progress: true
+
 jobs:
   # tests all crates in parallel
   test-block:
