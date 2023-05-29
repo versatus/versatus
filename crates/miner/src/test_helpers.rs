@@ -4,12 +4,7 @@ use std::{
 };
 
 use block::{
-    invalid::InvalidBlockErrorReason,
-    Block,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    TxnList,
+    invalid::InvalidBlockErrorReason, Block, GenesisBlock, InnerBlock, ProposalBlock, TxnList,
 };
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
@@ -304,33 +299,33 @@ pub fn build_multiple_proposal_blocks_single_round(
 ///
 /// If so, then it stops, otherwise it proceeds with the following logic:
 ///     
-///     Check if the DAG has a GenesisBlock.
+/// Check if the DAG has a GenesisBlock.
 ///
-///         If so:
-///             Mine a ConvergenceBlock and append it to the MinerDag
-///             referencing the previous round ProposalBlocks
+/// If so:
+///   - Mine a ConvergenceBlock and append it to the MinerDag
+///   referencing the previous round ProposalBlocks
 ///
-///             Add 1 to the round
+///   - Add 1 to the round
 ///
-///             Build ProposalBlocks that reference the new ConvergenceBlock.
+///   - Build ProposalBlocks that reference the new ConvergenceBlock.
 ///
-///             Append the new ProposalBlocks to the DAG referencing
-///             the most recent ConvergenceBlock.
+///   - Append the new ProposalBlocks to the DAG referencing
+///   the most recent ConvergenceBlock.
 ///
-///             Recursively calls itself passing in the most recent
-///             ConvergenceBlock hash as the `last_block_hash` and the
-///             updated round, as well as the rest of the information.
+///   - Recursively calls itself passing in the most recent
+///   ConvergenceBlock hash as the `last_block_hash` and the
+///   updated round, as well as the rest of the information.
 ///
-///        Otherwise:
-///             Add a genesis block, and a single, random, empty ProposalBlock
-///             to the DAG as the root vertex and first leaf the two make
-///             up the first edge.
+/// Otherwise:
+///   - Add a genesis block, and a single, random, empty ProposalBlock
+///   to the DAG as the root vertex and first leaf the two make
+///   up the first edge.
 ///
-///             Add 1 to the round
+///   - Add 1 to the round
 ///
-///             Recursively calls itself passing in the GenesisBlock hash
-///             as the last_block_hash and the updated round as the
-///             round, as well as all the other data.
+///   - Recursively calls itself passing in the GenesisBlock hash
+///   as the last_block_hash and the updated round as the
+///   round, as well as all the other data.
 pub fn build_multiple_rounds(
     dag: MinerDag,
     n_blocks: usize,

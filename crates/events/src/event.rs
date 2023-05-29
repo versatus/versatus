@@ -34,7 +34,7 @@ pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
 pub type MinerClaim = Claim;
 
-#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug,Hash, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum Event {
     #[default]
@@ -65,6 +65,9 @@ pub enum Event {
     CheckAbandoned,
 
     //   SyncNeighbouringFarmerQuorum(HashMap<GroupPublicKey, HashSet<SocketAddr>>),
+    PullFarmerNamespaces,
+    PullHarvesterNamespaces,
+    UpdateFarmerNamespaces(Vec<QuorumPublicKey>),
     InitiateSyncPeers,
     SyncPeers(QuorumPublicKey,Vec<SyncPeerData>,ExportedFilter),
     PeerRequestedStateSync(PeerData),

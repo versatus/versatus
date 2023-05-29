@@ -62,3 +62,4 @@ pub type PeersFilter = ByteVec;
 pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
 pub type LastBlockHeight = u128;
+pub type NamespaceType=ByteVec;

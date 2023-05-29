@@ -10,15 +10,7 @@ use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
 };
-use primitives::{
-    ExportedFilter,
-    NodeType,
-    NodeTypeBytes,
-    PKShareBytes,
-    PayloadBytes,
-    QuorumPublicKey,
-    RawSignature,
-};
+use primitives::{ExportedFilter, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, NamespaceType};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info, warn};
@@ -50,6 +42,7 @@ pub enum RendezvousRequest {
         PayloadBytes,
         SyncPeerData,
     ),
+    FetchNameSpace(NamespaceType)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -59,6 +52,7 @@ pub enum RendezvousResponse {
     Peers(QuorumPublicKey, Vec<SyncPeerData>, ExportedFilter),
     PeerRegistered,
     NamespaceRegistered,
+    Namespaces(Vec<QuorumPublicKey>)
 }
 
 #[derive(Debug)]
@@ -336,6 +330,24 @@ impl BroadcastEngineController {
 
                 Ok(())
             },
+            Event::PullFarmerNamespaces=>{
+                if let Some(socket) = self.socket.as_ref() {
+                    let _ = self.pull_namespaces(
+                        &socket.get_packet_sender(),
+                        "FARMER".to_string().into_bytes()
+                    );
+                };
+                Ok(())
+            },
+            Event::PullHarvesterNamespaces=>{
+                if let Some(socket) = self.socket.as_ref() {
+                    let _ = self.pull_namespaces(
+                        &socket.get_packet_sender(),
+                        "FARMER".to_string().into_bytes()
+                    );
+                };
+                Ok(())
+            },
             _ => Ok(()),
         }
     }
@@ -431,6 +443,11 @@ impl BroadcastEngineController {
             RendezvousResponse::PeerRegistered => {
                 info!("Peer Registered");
             },
+            RendezvousResponse::Namespaces(namespaces) => {
+                let _ = self.events_tx.send(
+                    Event::UpdateFarmerNamespaces(namespaces.clone()).into(),
+                );
+            },
             _ => {},
         }
     }
@@ -453,6 +470,22 @@ impl BroadcastEngineController {
         }
     }
 
+    fn pull_namespace(
+        &self,
+        sender: &Sender<Packet>,
+        quorum_key: QuorumPublicKey,
+        filter: Vec<u8>,
+    ) {
+        if let Ok(data) =
+        bincode::serialize(&Data::Request(RendezvousRequest::Peers(quorum_key, filter)))
+        {
+            let _ = sender.send(Packet::reliable_ordered(
+                self.rendezvous_server_addr,
+                data,
+                None,
+            ));
+        }
+    }
     fn send_retrieve_peers_request(
         &self,
         sender: &Sender<Packet>,
@@ -501,4 +534,21 @@ impl BroadcastEngineController {
             ));
         }
     }
+    fn pull_namespaces(
+        &self,
+        sender: &Sender<Packet>,
+        namespace: Vec<u8>
+    ) {
+        let payload_result = bincode::serialize(&Data::Request(RendezvousRequest::FetchNameSpace(
+            namespace)));
+        if let Ok(payload) = payload_result {
+            let _ = sender.send(Packet::reliable_ordered(
+                self.rendezvous_server_addr,
+                payload,
+                None,
+            ));
+        }
+    }
 }
+
+

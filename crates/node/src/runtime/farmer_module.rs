@@ -92,6 +92,7 @@ pub struct FarmerModule {
     pub farmer_id: PeerId,
     pub farmer_node_idx: NodeIdx,
     pub harvester_peers: HashSet<SocketAddr>,
+    // Do we need filter here to drop abandoned quorum which is very unlikely
     pub neighbouring_farmer_quorum_peers: HashMap<GroupPublicKey, HashSet<SocketAddr>>,
     status: ActorState,
     label: ActorLabel,
@@ -273,12 +274,12 @@ impl Handler<EventMessage> for FarmerModule {
             },
             Event::InitiateSyncPeers=>{
                 for (quorum_key, peers) in self.neighbouring_farmer_quorum_peers.iter() {
-                   let filter=CuckooFilter::with_capacity(100);
+                   let mut filter:CuckooFilter<DefaultHasher>=CuckooFilter::with_capacity(100);
                     for peer_data in peers.into_iter() {
                         let mut hasher = DefaultHasher::new();
                         peer_data.hash(&mut hasher);
                         let hash=hasher.finish();
-                        filter.insert(hash);
+                        filter.add(&hash);
                     }
                     let store: ExportedCuckooFilter = filter.export();
                     let saved_json = serde_json::to_string(&store).unwrap();
@@ -287,7 +288,14 @@ impl Handler<EventMessage> for FarmerModule {
                         .send(Event::PeersFetch(quorum_key.clone(), saved_json.into_bytes()).into())
                         .await;
                 }
-            }
+            },
+            Event::UpdateFarmerNamespaces(quorum_keys)=>{
+                for quorum_key in quorum_keys.iter() {
+                    if !self.neighbouring_farmer_quorum_peers.contains_key(quorum_key) {
+                        self.neighbouring_farmer_quorum_peers.insert(quorum_key.clone(), HashSet::new());
+                    }
+                }
+            },
             Event::NoOp => {},
             _ => {},
         }

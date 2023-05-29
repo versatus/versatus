@@ -13,7 +13,7 @@ use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
-use primitives::{Address, NodeType, QuorumType::Farmer, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST};
+use primitives::{Address, NodeType, QuorumType::Farmer, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST, SYNC_FARMER_NAMESPACES_REQUEST};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
@@ -316,7 +316,8 @@ pub async fn setup_runtime_components(
         setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
     spawn_interval_thread(Duration::from_secs(REGISTER_REQUEST),events_tx.clone(),Event::GeneratePayloadForPeerRegistration);
-    spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST),events_tx.clone(),Event::GeneratePayloadForPeerRegistration);
+    spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST),events_tx.clone(),Event::InitiateSyncPeers);
+    spawn_interval_thread(Duration::from_secs(SYNC_FARMER_NAMESPACES_REQUEST),events_tx.clone(),Event::PullFarmerNamespaces);
 
     let runtime_components = RuntimeComponents {
         node_config: config,
