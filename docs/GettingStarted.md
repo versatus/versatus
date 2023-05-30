@@ -14,7 +14,8 @@ In order to run the VRRB node, you will need to have the following installed on 
 
 - GIT (https://git-scm.com/downloads)
 - Rust & Cargo (https://www.rust-lang.org/tools/install)
-- CMake (https://www.gnu.org/software/make/)
+- GNU Make (https://www.gnu.org/software/make/)
+- CLang (https://clang.llvm.org/)
 
 # Clone the Github Repository
 
