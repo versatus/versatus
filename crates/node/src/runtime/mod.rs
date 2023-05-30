@@ -311,7 +311,7 @@ pub async fn setup_runtime_components(
         setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
 
-    let (node_gui_handle) = setup_node_gui(
+    let node_gui_handle = setup_node_gui(
         &config,
     ).await?;
 
