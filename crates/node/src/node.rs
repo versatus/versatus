@@ -1,5 +1,4 @@
-use std::net::SocketAddr;
-use std::process::Command;
+use std::{net::SocketAddr, process::Command};
 
 use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
 use telemetry::info;
@@ -60,8 +59,8 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 impl Node {
     /// Initializes and returns a new Node instance
     pub async fn start(
-                       config: &NodeConfig,
-                       control_rx: UnboundedControlEventReceiver,
+        config: &NodeConfig,
+        control_rx: UnboundedControlEventReceiver,
     ) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();

@@ -1,10 +1,9 @@
 use std::{
     net::SocketAddr,
+    process::Command,
     sync::{Arc, RwLock},
     thread,
-    process::Command,
 };
-
 
 use block::Block;
 use bulldag::graph::BullDag;
@@ -44,7 +43,15 @@ use self::{
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
 };
-use crate::{broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig}, dkg_module::DkgModuleConfig, farmer_module::PULL_TXN_BATCH_SIZE, scheduler::{Job, JobSchedulerController}, NodeError, Result, node};
+use crate::{
+    broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
+    dkg_module::DkgModuleConfig,
+    farmer_module::PULL_TXN_BATCH_SIZE,
+    node,
+    scheduler::{Job, JobSchedulerController},
+    NodeError,
+    Result,
+};
 
 pub mod broadcast_module;
 pub mod credit_model_module;
@@ -97,7 +104,7 @@ pub struct RuntimeComponents {
     pub raptor_handle: RaptorHandle,
     pub scheduler_handle: SchedulerHandle,
     pub grpc_server_handle: RuntimeHandle,
-    pub node_gui_handle: RuntimeHandle
+    pub node_gui_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -310,9 +317,7 @@ pub async fn setup_runtime_components(
         setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
 
-    let node_gui_handle = setup_node_gui(
-        &config,
-    ).await?;
+    let node_gui_handle = setup_node_gui(&config).await?;
 
     info!("node gui has started");
 
@@ -775,9 +780,7 @@ fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-async fn setup_node_gui(
-    config: &NodeConfig,
-) -> Result<Option<JoinHandle<Result<()>>>> {
+async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<()>>>> {
     if config.gui {
         info!("Configuring Node {}", &config.id);
         info!("Ensuring environment has required dependencies");
@@ -786,7 +789,7 @@ async fn setup_node_gui(
             Ok(_) => info!("NodeJS is installed"),
             Err(e) => {
                 return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
-            }
+            },
         }
 
         info!("Ensuring yarn is installed");
@@ -801,10 +804,12 @@ async fn setup_node_gui(
                 match install_yarn {
                     Ok(_) => (),
                     Err(_) => {
-                        return Err(NodeError::Other(format!("Failed to install yarn: {}", e)).into());
-                    }
+                        return Err(
+                            NodeError::Other(format!("Failed to install yarn: {}", e)).into()
+                        );
+                    },
                 }
-            }
+            },
         }
 
         info!("Installing dependencies");
@@ -815,14 +820,16 @@ async fn setup_node_gui(
         {
             Ok(_) => info!("Dependencies installed successfully"),
             Err(e) => {
-                return Err(NodeError::Other(format!("Failed to install dependencies: {}", e)).into());
-            }
+                return Err(
+                    NodeError::Other(format!("Failed to install dependencies: {}", e)).into(),
+                );
+            },
         }
 
         info!("Spawning UI");
 
         let node_gui_handle = tokio::spawn(async move {
-           Command::new("yarn")
+            Command::new("yarn")
                 .args(&["dev"])
                 .current_dir("infra/ui")
                 .spawn();
