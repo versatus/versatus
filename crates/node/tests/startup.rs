@@ -1,10 +1,6 @@
 use events::Event;
 use node::{
-    test_utils::{
-        create_mock_bootstrap_node_config,
-        create_mock_full_node_config,
-        create_mock_full_node_config_with_bootstrap,
-    },
+    test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
     Node,
     NodeType,
     RuntimeModuleState,

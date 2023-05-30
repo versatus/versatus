@@ -1,4 +1,8 @@
-use std::{fmt::Debug, marker::PhantomData, sync::Arc};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
@@ -88,29 +92,24 @@ where
         self.read_handle.factory()
     }
 
+    pub fn update(&mut self, key: K, value: V) {
+        self.insert(key, value);
+    }
+
     pub fn publish(&mut self) {
         self.write_handle.publish();
     }
 
     pub fn insert(&mut self, key: K, value: V) {
-        self.insert_uncommitted(key, value);
-        self.publish();
-    }
-
-    pub fn extend(&mut self, values: Vec<(K, V)>) {
-        self.extend_uncommitted(values);
-        self.publish();
-    }
-
-    pub fn insert_uncommitted(&mut self, key: K, value: V) {
         //TODO: revisit the serializer used to store things on the trie
         let key = bincode::serialize(&key).unwrap_or_default();
         let value = bincode::serialize(&value).unwrap_or_default();
-        self.write_handle.append(Operation::Add(key, value));
+        self.write_handle
+            .append(Operation::Add(key, value))
+            .publish();
     }
 
-    // pub fn extend_uncommitted<T>(&mut self, values: Vec<(K, V)>) {
-    pub fn extend_uncommitted(&mut self, values: Vec<(K, V)>) {
+    pub fn extend(&mut self, values: Vec<(K, V)>) {
         let mapped = values
             .into_iter()
             .map(|(key, value)| {
@@ -122,7 +121,9 @@ where
             })
             .collect();
 
-        self.write_handle.append(Operation::Extend(mapped));
+        self.write_handle
+            .append(Operation::Extend(mapped))
+            .publish();
     }
 }
 
@@ -171,6 +172,23 @@ where
     }
 }
 
+impl<'a, D, K, V> From<InnerTrie<D>> for LeftRightTrie<'a, K, V, D>
+where
+    D: Database,
+    K: Serialize + Deserialize<'a>,
+    V: Serialize + Deserialize<'a>,
+{
+    fn from(other: InnerTrie<D>) -> Self {
+        let (write_handle, read_handle) = left_right::new_from_empty(other);
+
+        Self {
+            read_handle,
+            write_handle,
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<'a, D, K, V> Clone for LeftRightTrie<'a, K, V, D>
 where
     D: Database,
@@ -178,9 +196,19 @@ where
     V: Serialize + Deserialize<'a>,
 {
     fn clone(&self) -> Self {
-        let db = self.handle().db();
+        let inner = self.handle().inner();
+        LeftRightTrie::from(inner)
+    }
+}
 
-        LeftRightTrie::new(db)
+impl<'a, D, K, V> Display for LeftRightTrie<'a, K, V, D>
+where
+    D: Database,
+    K: Serialize + Deserialize<'a>,
+    V: Serialize + Deserialize<'a>,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.handle())
     }
 }
 
@@ -214,9 +242,15 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let mut trie = LeftRightTrie::new(memdb);
 
-        trie.insert("abcdefg", CustomValue { data: 12345 });
-        trie.insert("hijkl", CustomValue { data: 678910 });
-        trie.insert("mnopq", CustomValue { data: 1112131415 });
+        let total = 18;
+
+        for n in 0..total {
+            let key = format!("test-{n}");
+
+            trie.insert(key, CustomValue { data: 12345 });
+        }
+
+        trie.publish();
 
         // NOTE Spawn 10 threads and 10 readers that should report the exact same value
         [0..10]
@@ -224,7 +258,14 @@ mod tests {
             .map(|_| {
                 let reader = trie.handle();
                 thread::spawn(move || {
-                    assert_eq!(reader.len(), 3);
+                    assert_eq!(reader.len(), total);
+                    for n in 0..total {
+                        let key = format!("test-{n}");
+
+                        let res: CustomValue = reader.get(&key).unwrap();
+
+                        assert_eq!(res, CustomValue { data: 12345 });
+                    }
                 })
             })
             .for_each(|handle| {

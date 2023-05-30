@@ -1,4 +1,6 @@
-use primitives::{Address, NodeId, SecretKey};
+use std::net::SocketAddr;
+
+use primitives::{Address, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
 use vrrb_core::{
@@ -35,9 +37,9 @@ pub fn generate_random_transaction(
 
     Txn::new(NewTxnArgs {
         timestamp: 0,
-        sender_address: from.to_string(),
+        sender_address: from.clone(),
         sender_public_key: from.public_key(),
-        receiver_address: to.to_string(),
+        receiver_address: to,
         token: None,
         amount: 100,
         signature,
@@ -48,7 +50,7 @@ pub fn generate_random_transaction(
 
 pub fn generate_random_valid_transaction() -> Txn {
     let (sender_secret_key, from) = generate_random_address();
-    let (receiver_secret_key, to) = generate_random_address();
+    let (_, to) = generate_random_address();
 
     type H = secp256k1::hashes::sha256::Hash;
 
@@ -58,9 +60,9 @@ pub fn generate_random_valid_transaction() -> Txn {
 
     Txn::new(NewTxnArgs {
         timestamp: 0,
-        sender_address: from.to_string(),
+        sender_address: from.clone(),
         sender_public_key: from.public_key(),
-        receiver_address: to.to_string(),
+        receiver_address: to,
         token: None,
         amount: 100,
         signature,
@@ -71,6 +73,19 @@ pub fn generate_random_valid_transaction() -> Txn {
 
 pub fn generate_random_claim() -> Claim {
     let keypair = Keypair::random();
-
-    Claim::new(keypair.miner_kp.1.clone(), Address::new(keypair.miner_kp.1))
+    let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    let public_key = keypair.get_miner_public_key().clone();
+    let signature = Claim::signature_for_valid_claim(
+        public_key,
+        ip_address,
+        keypair.get_miner_secret_key().secret_bytes().to_vec(),
+    )
+    .unwrap();
+    Claim::new(
+        public_key,
+        Address::new(public_key),
+        ip_address.clone(),
+        signature,
+    )
+    .unwrap()
 }

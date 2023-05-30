@@ -2,12 +2,14 @@ use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 use block::{
+    header::BlockHeader,
     valid::{BlockValidationData, Valid},
     Block,
     ConvergenceBlock,
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
+    RefHash,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -16,9 +18,11 @@ use bulldag::{
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
+use rayon::prelude::*;
 use signer::types::{SignerError, SignerResult};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
+use vrrb_core::claim::Claim;
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
@@ -30,7 +34,7 @@ pub type GraphResult<T> = Result<T, GraphError>;
 /// ```
 /// use std::sync::{Arc, RwLock};
 ///
-/// use block::Block;
+/// use block::{header::BlockHeader, Block};
 /// use bulldag::graph::BullDag;
 /// use events::EventPublisher;
 /// use hbbft::crypto::PublicKeySet;
@@ -43,6 +47,7 @@ pub type GraphResult<T> = Result<T, GraphError>;
 ///     events_tx: EventPublisher,
 ///     dag: Arc<RwLock<BullDag<Block, String>>>,
 ///     public_key_set: Option<PublicKeySet>,
+///     last_confirmed_block_header: Option<BlockHeader>,
 /// }
 /// ```
 pub struct DagModule {
@@ -53,10 +58,16 @@ pub struct DagModule {
     events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
+    last_confirmed_block_header: Option<BlockHeader>,
+    pub claim: Claim,
 }
 
 impl DagModule {
-    pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, events_tx: EventPublisher) -> Self {
+    pub fn new(
+        dag: Arc<RwLock<BullDag<Block, String>>>,
+        events_tx: EventPublisher,
+        claim: Claim,
+    ) -> Self {
         Self {
             status: ActorState::Stopped,
             label: String::from("Dag"),
@@ -64,6 +75,8 @@ impl DagModule {
             events_tx,
             dag,
             public_key_set: None,
+            last_confirmed_block_header: None,
+            claim,
         }
     }
 
@@ -80,7 +93,7 @@ impl DagModule {
             self.write_genesis(&vtx)?;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn append_proposal(&mut self, proposal: &ProposalBlock) -> GraphResult<()> {
@@ -102,7 +115,6 @@ impl DagModule {
 
     pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<()> {
         let valid = self.check_valid_convergence(convergence);
-
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
                 self.get_convergence_reference_blocks(convergence);
@@ -141,7 +153,7 @@ impl DagModule {
             }
         }
 
-        return Err(GraphError::NonExistentReference);
+        Err(GraphError::NonExistentReference)
     }
 
     fn write_edge(
@@ -153,16 +165,14 @@ impl DagModule {
             return Ok(());
         }
 
-        return Err(GraphError::Other("Error getting write guard".to_string()));
+        Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
     fn extend_edges(&mut self, edges: Edges) -> GraphResult<()> {
-        let mut iter = edges.iter();
+        let iter = edges.iter();
 
-        while let Some((ref_block, vtx)) = iter.next() {
-            if let Err(e) = self.write_edge((ref_block, vtx)) {
-                return Err(e);
-            }
+        for (ref_block, vtx) in iter {
+            self.write_edge((ref_block, vtx))?
         }
 
         Ok(())
@@ -175,54 +185,52 @@ impl DagModule {
             return Ok(());
         }
 
-        return Err(GraphError::Other("Error getting write gurard".to_string()));
+        Err(GraphError::Other("Error getting write gurard".to_string()))
     }
 
     fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             match self.verify_signature(validation_data) {
-                Ok(true) => return true,
-                _ => return false,
+                Ok(true) => true,
+                _ => false,
             }
         } else {
-            return false;
+            false
         }
     }
 
     fn check_valid_proposal(&self, block: &ProposalBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             match self.verify_signature(validation_data) {
-                Ok(true) => return true,
-                _ => return false,
+                Ok(true) => true,
+                _ => false,
             }
         } else {
-            return false;
+            false
         }
     }
 
     fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             match self.verify_signature(validation_data) {
-                Ok(true) => return true,
-                _ => return false,
+                Ok(true) => true,
+                _ => false,
             }
         } else {
-            return false;
+            false
         }
     }
 
     fn verify_signature(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
-        if validation_data.signature.clone().len() != SIG_SIZE {
+        if validation_data.signature.len() != SIG_SIZE {
             return Err(SignerError::CorruptSignatureShare(
                 "Invalid Signature ,Size must be 96 bytes".to_string(),
             ));
         }
         match validation_data.signature_type.clone() {
-            SignatureType::PartialSignature => {
-                return self.verify_partial_sig(validation_data);
-            },
+            SignatureType::PartialSignature => self.verify_partial_sig(validation_data),
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-                return self.verify_threshold_sig(validation_data);
+                self.verify_threshold_sig(validation_data)
             },
         }
     }
@@ -230,7 +238,7 @@ impl DagModule {
     fn verify_partial_sig(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         let public_key_share = {
             if let Some(public_key_share) = self.public_key_set.clone() {
-                if let Some(idx) = validation_data.node_idx.clone() {
+                if let Some(idx) = validation_data.node_idx {
                     public_key_share.public_key_share(idx as usize)
                 } else {
                     return Err(SignerError::GroupPublicKeyMissing);
@@ -245,21 +253,17 @@ impl DagModule {
 
             match SignatureShare::from_bytes(signature_arr) {
                 Ok(sig_share) => {
-                    return Ok(
-                        public_key_share.verify(&sig_share, validation_data.payload_hash.clone())
-                    )
+                    Ok(public_key_share.verify(&sig_share, validation_data.payload_hash))
                 },
-                Err(e) => {
-                    return Err(SignerError::SignatureVerificationError(format!(
-                        "Error parsing partial signature details : {:?}",
-                        e
-                    )))
-                },
+                Err(e) => Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing partial signature details : {:?}",
+                    e
+                ))),
             }
         } else {
-            return Err(SignerError::PartialSignatureError(format!(
-                "Error parsing signature into array"
-            )));
+            Err(SignerError::PartialSignatureError(
+                "Error parsing signature into array".to_string(),
+            ))
         }
     }
 
@@ -275,22 +279,18 @@ impl DagModule {
         if let Ok(signature_arr) = validation_data.signature.clone().try_into() {
             let signature_arr: [u8; 96] = signature_arr;
             match Signature::from_bytes(signature_arr) {
-                Ok(signature) => {
-                    return Ok(public_key_set
-                        .public_key()
-                        .verify(&signature, validation_data.payload_hash))
-                },
-                Err(e) => {
-                    return Err(SignerError::SignatureVerificationError(format!(
-                        "Error parsing threshold signature details : {:?}",
-                        e
-                    )))
-                },
+                Ok(signature) => Ok(public_key_set
+                    .public_key()
+                    .verify(&signature, validation_data.payload_hash)),
+                Err(e) => Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing threshold signature details : {:?}",
+                    e
+                ))),
             }
         } else {
-            return Err(SignerError::PartialSignatureError(format!(
-                "Error parsing signature into array"
-            )));
+            Err(SignerError::PartialSignatureError(
+                "Error parsing signature into array".to_string(),
+            ))
         }
     }
 }
@@ -348,10 +348,40 @@ impl Handler<EventMessage> for DagModule {
                         let err_note = format!("Encountered GraphError: {:?}", e);
                         return Err(theater::TheaterError::Other(err_note));
                     }
+                    if block.certificate.is_none() {
+                        if let Some(header) = self.last_confirmed_block_header.clone() {
+                            self.events_tx.send(EventMessage::new(
+                                None,
+                                Event::PrecheckConvergenceBlock(block, header),
+                            ));
+                        }
+                    }
                 },
             },
+            Event::BlockCertificate(certificate) => {
+                if let Ok(mut dag) = self.dag.write() {
+                    if let Some(block) = dag.get_vertex_mut(certificate.block_hash.clone()) {
+                        if let Block::Convergence { mut block } = block.get_data() {
+                            block.append_certificate(certificate);
+                            self.last_confirmed_block_header = Some(block.get_header());
+                            let _ = self.events_tx.send(EventMessage::new(
+                                None,
+                                Event::MineProposalBlock(
+                                    block.hash.clone(),
+                                    block.get_header().round,
+                                    block.get_header().epoch,
+                                    self.claim.clone(),
+                                ),
+                            ));
+                        }
+                        // Emit event for state update
+                    }
+                }
+            },
             Event::HarvesterPublicKey(pubkey_bytes) => {
-                if let Ok(public_key_set) = serde_json::from_slice::<PublicKeySet>(&pubkey_bytes) {
+                if let Ok(public_key_set) =
+                    serde_json::from_slice::<PublicKeySet>(pubkey_bytes.as_slice())
+                {
                     self.set_harvester_pubkeys(public_key_set)
                 }
             },

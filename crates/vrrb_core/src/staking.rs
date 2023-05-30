@@ -13,6 +13,8 @@ pub const MIN_STAKE_FARMER: u128 = 10_000;
 pub const MIN_STAKE_VALIDATOR: u128 = 50_000;
 
 
+pub type Result<T> = std::result::Result<T, StakeError>;
+
 #[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize, Eq)]
 pub enum StakeError {
     #[error("StakeError: The payload was not able to be converted into a valid message")]
@@ -124,11 +126,11 @@ impl Stake {
     ) -> Option<Self> {
         let timestamp = chrono::Utc::now().timestamp();
         let payload = hash_data!(pk, from, to, amount, timestamp);
-        if let Ok(message) = Message::from_slice(&payload.to_vec()) {
+        if let Ok(message) = Message::from_slice(&payload) {
             let signature = sk.sign_ecdsa(message);
 
             return Some(Stake {
-                pubkey: pk.clone(),
+                pubkey: pk,
                 from,
                 to,
                 amount,
@@ -157,7 +159,7 @@ impl Stake {
     /// returns the Stake public key which is used to verify
     /// the signature of the Stake transaction
     pub fn get_pubkey(&self) -> MinerPk {
-        self.pubkey.clone()
+        self.pubkey
     }
 
     /// Returns the address from which the stake is to be
@@ -212,7 +214,7 @@ impl Stake {
     }
 
     /// Adds a certificate to the instance.
-    pub fn certify(&mut self, certificate: Certificate) -> Result<(), StakeError> {
+    pub fn certify(&mut self, certificate: Certificate) -> Result<()> {
         if certificate.0.len() != 96 {
             return Err(StakeError::InvalidCertificate);
         }
@@ -223,7 +225,7 @@ impl Stake {
     }
 
     /// Verifies the signature of the StakeTransaction
-    pub fn verify(&self) -> Result<(), StakeError> {
+    pub fn verify(&self) -> Result<()> {
         let payload = self.get_payload();
         if let Ok(message) = Message::from_slice(&payload) {
             self.signature

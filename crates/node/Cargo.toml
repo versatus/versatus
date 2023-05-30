@@ -64,7 +64,10 @@ quorum = { workspace = true }
 sha2 = { workspace = true }
 bulldag = { workspace = true }
 vrrb_http = { workspace = true }
+vrrb_grpc = { workspace = true }
 messr = { workspace = true }
+utils = { workspace = true }
+maglev =  { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

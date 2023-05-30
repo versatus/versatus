@@ -2,5 +2,7 @@
 /// wallet i.e. Token, Claim, (Program?)
 pub trait Ownable {
     type Pubkey;
-    fn get_pubkey(&self) -> Self::Pubkey;
+    type SocketAddr;
+    fn get_public_key(&self) -> Self::Pubkey;
+    fn get_socket_addr(&self) -> Self::SocketAddr;
 }

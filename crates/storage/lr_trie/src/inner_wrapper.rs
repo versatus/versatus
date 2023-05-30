@@ -1,12 +1,11 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    sync::Arc,
+};
 
 use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
-use patriecia::{
-    db::Database,
-    inner::{InnerTrie, TrieIterator},
-    trie::Trie,
-};
+use patriecia::{db::Database, trie::Trie, InnerTrie, TrieIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{LeftRightTrieError, Result};
@@ -27,6 +26,11 @@ where
 {
     pub fn new(inner: InnerTrie<D>) -> Self {
         Self { inner }
+    }
+
+    /// Produces a clone of the underlying trie
+    pub fn inner(&self) -> InnerTrie<D> {
+        self.inner.clone()
     }
 
     pub fn get<K, V>(&self, key: &K) -> Result<V>
@@ -131,7 +135,7 @@ where
     }
 
     pub fn len(&self) -> usize {
-        self.inner.len()
+        self.iter().count()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -140,5 +144,14 @@ where
 
     pub fn db(&self) -> Arc<D> {
         self.inner.db()
+    }
+}
+
+impl<D> Display for InnerTrieWrapper<D>
+where
+    D: Database,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.inner)
     }
 }

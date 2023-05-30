@@ -2,7 +2,6 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use primitives::Address;
-use sha2::Digest;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
@@ -52,6 +51,15 @@ impl StateStore {
         StateStoreReadHandle::new(inner)
     }
 
+    pub fn commit(&mut self) {
+        self.trie.publish();
+    }
+
+    pub fn get_account(&self, key: &Address) -> Result<Account> {
+        let read_handle = self.read_handle();
+        read_handle.get(key)
+    }
+
     /// Commits uncommitted changes to the underlying trie by calling
     /// `publish()` Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
@@ -72,7 +80,7 @@ impl StateStore {
             ));
         }
 
-        self.trie.insert_uncommitted(key, account);
+        self.trie.insert(key, account);
 
         Ok(())
     }
@@ -158,13 +166,16 @@ impl StateStore {
             .update(update)
             .map_err(|err| StorageError::Other(err.to_string()))?;
 
+        self.trie.update(key, account.clone());
+
         Ok(())
     }
 
     /// Updates an Account in the database under given PublicKey
     ///
     /// If succesful commits the change. Otherwise returns an error.
-    pub fn update(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
+    pub fn update(&mut self, update: UpdateArgs) -> Result<()> {
+        let key = update.address.clone();
         self.update_uncommited(key, update)?;
         self.commit_changes();
         Ok(())

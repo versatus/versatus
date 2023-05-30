@@ -102,6 +102,12 @@ impl BroadcastModule {
                                 MessageBody::DKGPartAcknowledgement { .. } => {},
                                 MessageBody::Vote { .. } => {},
                                 MessageBody::Empty => {},
+                                MessageBody::ForwardedTxn(txn) => {
+                                    let _ = self.events_tx.send(EventMessage::new(
+                                        None,
+                                        Event::NewTxnCreated(txn.txn),
+                                    ));
+                                },
                             }
                         }
                     }
@@ -186,7 +192,7 @@ impl Handler<EventMessage> for BroadcastModule {
                 for peer in peers.iter() {
                     let addr = peer.address;
                     quic_addresses.push(addr);
-                    let mut raptor_addr = addr.clone();
+                    let mut raptor_addr = addr;
                     raptor_addr.set_port(peer.raptor_udp_port);
                     raptor_peer_list.push(raptor_addr);
                 }
@@ -230,6 +236,27 @@ impl Handler<EventMessage> for BroadcastModule {
                     },
                 }
             },
+            Event::ForwardTxn((txn_record, addresses)) => {
+                for address in addresses.iter() {
+                    let address = address.clone();
+                    let status = self
+                        .broadcast_engine
+                        .send_data_via_quic(
+                            Message::new(MessageBody::ForwardedTxn(txn_record.clone())),
+                            address,
+                        )
+                        .await;
+                    match status {
+                        Ok(_) => {},
+                        Err(e) => {
+                            error!(
+                                "Error occurred while forwarding transaction to peers: {:?}",
+                                e
+                            );
+                        },
+                    }
+                }
+            },
 
             _ => {},
         }
@@ -240,13 +267,13 @@ impl Handler<EventMessage> for BroadcastModule {
 
 #[cfg(test)]
 mod tests {
-    use std::io::stdout;
+
 
     use events::{Event, EventMessage, SyncPeerData, DEFAULT_BUFFER};
     use primitives::NodeType;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl};
-    use tokio::{net::UdpSocket, sync::broadcast::channel};
+    use tokio::net::UdpSocket;
 
     use super::{BroadcastModule, BroadcastModuleConfig};
 
@@ -307,10 +334,7 @@ mod tests {
 
         match internal_events_rx.recv().await {
             Some(value) => assert_eq!(value, Event::SyncPeers(vec![peer_data]).into()),
-            None => println!(
-                "no
-value"
-            ),
+            None => {},
         }
 
         handle.await.unwrap();

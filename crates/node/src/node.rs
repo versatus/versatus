@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, process::Command};
 
 use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
 use telemetry::info;
@@ -50,6 +50,8 @@ pub struct Node {
     dag_handle: RuntimeHandle,
     raptor_handle: RaptorHandle,
     scheduler_handle: SchedulerHandle,
+    grpc_server_handle: RuntimeHandle,
+    node_gui_handle: RuntimeHandle,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
@@ -62,8 +64,6 @@ impl Node {
     ) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
-
-        info!("Configuring Node {}", &config.id);
 
         let vm = None;
         let keypair = config.keypair.clone();
@@ -104,6 +104,8 @@ impl Node {
             dag_handle: runtime_components.dag_handle,
             raptor_handle: runtime_components.raptor_handle,
             scheduler_handle: runtime_components.scheduler_handle,
+            grpc_server_handle: runtime_components.grpc_server_handle,
+            node_gui_handle: runtime_components.node_gui_handle,
         })
     }
 
@@ -169,6 +171,11 @@ impl Node {
         if let Some(handle) = self.jsonrpc_server_handle {
             handle.await??;
             info!("rpc server shut down");
+        }
+
+        if let Some(handle) = self.node_gui_handle {
+            handle.await??;
+            info!("node gui shut down");
         }
 
         self.router_handle.await?;
