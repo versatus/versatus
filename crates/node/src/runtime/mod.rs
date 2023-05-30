@@ -20,7 +20,6 @@ use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use node::Node;
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
