@@ -1,5 +1,6 @@
 use std::{
     net::SocketAddr,
+    process::Command,
     sync::{Arc, RwLock},
     thread,
 };
@@ -101,6 +102,7 @@ pub struct RuntimeComponents {
     pub raptor_handle: RaptorHandle,
     pub scheduler_handle: SchedulerHandle,
     pub grpc_server_handle: RuntimeHandle,
+    pub node_gui_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -307,6 +309,10 @@ pub async fn setup_runtime_components(
 
     let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
 
+    let node_gui_handle = setup_node_gui(&config).await?;
+
+    info!("node gui has started");
+
     let runtime_components = RuntimeComponents {
         node_config: config,
         mempool_handle,
@@ -324,6 +330,7 @@ pub async fn setup_runtime_components(
         raptor_handle: Some(raptor_handle),
         scheduler_handle: Some(scheduler_handle),
         grpc_server_handle,
+        node_gui_handle,
     };
 
     Ok(runtime_components)
@@ -762,4 +769,67 @@ fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
 
 fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
+}
+
+async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<()>>>> {
+    if config.gui {
+        info!("Configuring Node {}", &config.id);
+        info!("Ensuring environment has required dependencies");
+
+        match Command::new("npm").args(["version"]).status() {
+            Ok(_) => info!("NodeJS is installed"),
+            Err(e) => {
+                return Err(NodeError::Other(format!("NodeJS is not installed: {e}")));
+            },
+        }
+
+        info!("Ensuring yarn is installed");
+        match Command::new("yarn").args(["--version"]).status() {
+            Ok(_) => info!("Yarn is installed"),
+            Err(e) => {
+                let install_yarn = Command::new("npm")
+                    .args(["install", "-g", "yarn"])
+                    .current_dir("infra/ui")
+                    .output();
+
+                match install_yarn {
+                    Ok(_) => (),
+                    Err(_) => {
+                        return Err(NodeError::Other(format!("Failed to install yarn: {e}")));
+                    },
+                }
+            },
+        }
+
+        info!("Installing dependencies");
+        match Command::new("yarn")
+            .args(["install"])
+            .current_dir("infra/ui")
+            .status()
+        {
+            Ok(_) => info!("Dependencies installed successfully"),
+            Err(e) => {
+                return Err(NodeError::Other(format!(
+                    "Failed to install dependencies: {e}"
+                )));
+            },
+        }
+
+        info!("Spawning UI");
+
+        let node_gui_handle = tokio::spawn(async move {
+            Command::new("yarn")
+                .args(["dev"])
+                .current_dir("infra/ui")
+                .spawn();
+
+            Ok(())
+        });
+
+        info!("Finished spawning UI");
+        Ok(Some(node_gui_handle))
+    } else {
+        info!("GUI not enabled");
+        Ok(None)
+    }
 }
