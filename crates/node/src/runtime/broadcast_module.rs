@@ -103,10 +103,18 @@ impl BroadcastModule {
                                 MessageBody::Vote { .. } => {},
                                 MessageBody::Empty => {},
                                 MessageBody::ForwardedTxn(txn) => {
-                                    let _ = self.events_tx.send(EventMessage::new(
-                                        None,
-                                        Event::NewTxnCreated(txn.txn),
-                                    ));
+                                    self.events_tx
+                                        .send(EventMessage::new(
+                                            None,
+                                            Event::NewTxnCreated(txn.txn.clone()),
+                                        ))
+                                        .await
+                                        .unwrap_or_else(|_| {
+                                            error!(
+                                                "Error occurred while broadcasting event {:?}",
+                                                Event::NewTxnCreated(txn.txn)
+                                            )
+                                        });
                                 },
                             }
                         }
@@ -312,13 +320,16 @@ mod tests {
         };
 
         events_tx
-            .send(Event::SyncPeers(vec![],vec![peer_data.clone()],vec![]).into())
+            .send(Event::SyncPeers(vec![], vec![peer_data.clone()], vec![]).into())
             .unwrap();
 
         events_tx.send(Event::Stop.into()).unwrap();
 
         match internal_events_rx.recv().await {
-            Some(value) => assert_eq!(value, Event::SyncPeers(vec![],vec![peer_data],vec![]).into()),
+            Some(value) => assert_eq!(
+                value,
+                Event::SyncPeers(vec![], vec![peer_data], vec![]).into()
+            ),
             None => {},
         }
 

@@ -1,9 +1,9 @@
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    hash::{Hash, Hasher},
     net::SocketAddr,
     str::FromStr,
 };
-use std::hash::{Hash, Hasher};
 
 use async_trait::async_trait;
 use bincode::config;
@@ -12,10 +12,11 @@ use cuckoofilter::{CuckooFilter, ExportedCuckooFilter};
 use events::{Event, EventMessage, EventPublisher, JobResult};
 use maglev::*;
 use mempool::mempool::{LeftRightMempool, TxnStatus};
-use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
+use primitives::{report_error, GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
+use tracing::error;
 use vrrb_core::{
     keypair::KeyPair,
     txn::{TransactionDigest, Txn},
@@ -217,10 +218,19 @@ impl Handler<EventMessage> for FarmerModule {
                         {
                             let addresses: Vec<SocketAddr> =
                                 broadcast_addresses.into_iter().cloned().collect();
-                            let _ = self.broadcast_events_tx.send(EventMessage::new(
-                                None,
-                                Event::ForwardTxn((txn.1, addresses)),
-                            ));
+
+                            self.broadcast_events_tx
+                                .send(EventMessage::new(
+                                    None,
+                                    Event::ForwardTxn((txn.1.clone(), addresses.clone())),
+                                ))
+                                .await
+                                .unwrap_or_else(|err| {
+                                    error!(
+                                        "Error occurred while broadcasting event {:?}",
+                                        Event::ForwardTxn((txn.1, addresses)).to_string()
+                                    )
+                                });
                         }
                     } else {
                         new_txns.push(txn);
@@ -236,7 +246,7 @@ impl Handler<EventMessage> for FarmerModule {
                         sig_provider,
                         self.quorum_threshold,
                     ))) {
-                        telemetry::error!("error sending job to scheduler: {}", err);
+                        error!("error sending job to scheduler: {}", err);
                     }
                 }
             },
@@ -248,7 +258,14 @@ impl Handler<EventMessage> for FarmerModule {
                             let _ = self
                                 .broadcast_events_tx
                                 .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
-                                .await;
+                                .await
+                                .unwrap_or_else(|err| {
+                                    error!(
+                                        "Error occurred while broadcasting event {:?}",
+                                        Event::Vote(vote.clone(), farmer_quorum_threshold)
+                                            .to_string()
+                                    )
+                                });
                         }
                     }
                 }
@@ -263,7 +280,7 @@ impl Handler<EventMessage> for FarmerModule {
                         serde_json::from_slice::<ExportedCuckooFilter>(&filter)
                     {
                         let recovered_filter = CuckooFilter::<DefaultHasher>::from(restore_json);
-                       let peers_list=peers.clone();
+                        let peers_list = peers.clone();
                         for peer in peers_list.iter() {
                             if !recovered_filter.contains(peer) {
                                 peers.remove(peer);
@@ -272,27 +289,42 @@ impl Handler<EventMessage> for FarmerModule {
                     }
                 }
             },
-            Event::InitiateSyncPeers=>{
+            Event::InitiateSyncPeers => {
                 for (quorum_key, peers) in self.neighbouring_farmer_quorum_peers.iter() {
-                   let mut filter:CuckooFilter<DefaultHasher>=CuckooFilter::with_capacity(100);
+                    let mut filter: CuckooFilter<DefaultHasher> = CuckooFilter::with_capacity(100);
                     for peer_data in peers.into_iter() {
                         let mut hasher = DefaultHasher::new();
                         peer_data.hash(&mut hasher);
-                        let hash=hasher.finish();
-                        filter.add(&hash);
+                        let hash = hasher.finish();
+                        filter.add(&hash).unwrap_or_else(|e| {
+                            error!("Error occurred while adding hash to the filter :{:?}", e)
+                        });
                     }
                     let store: ExportedCuckooFilter = filter.export();
                     let saved_json = serde_json::to_string(&store).unwrap();
-                    let _ = self
-                        .broadcast_events_tx
-                        .send(Event::PeersFetch(quorum_key.clone(), saved_json.into_bytes()).into())
-                        .await;
+                    self.broadcast_events_tx
+                        .send(
+                            Event::PeersFetch(quorum_key.clone(), saved_json.clone().into_bytes())
+                                .into(),
+                        )
+                        .await
+                        .unwrap_or_else(|err| {
+                            error!(
+                                "Error occurred while broadcasting event {:?}",
+                                Event::PeersFetch(quorum_key.clone(), saved_json.into_bytes())
+                                    .to_string()
+                            )
+                        });
                 }
             },
-            Event::UpdateFarmerNamespaces(quorum_keys)=>{
+            Event::UpdateFarmerNamespaces(quorum_keys) => {
                 for quorum_key in quorum_keys.iter() {
-                    if !self.neighbouring_farmer_quorum_peers.contains_key(quorum_key) {
-                        self.neighbouring_farmer_quorum_peers.insert(quorum_key.clone(), HashSet::new());
+                    if !self
+                        .neighbouring_farmer_quorum_peers
+                        .contains_key(quorum_key)
+                    {
+                        self.neighbouring_farmer_quorum_peers
+                            .insert(quorum_key.clone(), HashSet::new());
                     }
                 }
             },

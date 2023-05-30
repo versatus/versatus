@@ -1,5 +1,5 @@
 use std::{fmt::Display, str::FromStr};
-
+use tracing::error;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Environment {
     #[default]
@@ -50,4 +50,16 @@ impl FromStr for Environment {
             _ => Err(crate::Error::InvalidEnvironment(s.to_string())),
         }
     }
+}
+
+#[macro_export]
+macro_rules! report_error {
+    ($result:expr, $description:expr) => {
+        match $result {
+            Ok(value) => value,
+            Err(error) => {
+                telemetry::error!("{}: {:?}", $description, error);
+            }
+        }
+    };
 }

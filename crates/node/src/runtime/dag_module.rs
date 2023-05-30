@@ -9,7 +9,6 @@ use block::{
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
-    RefHash,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -18,10 +17,9 @@ use bulldag::{
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
-use rayon::prelude::*;
 use signer::types::{SignerError, SignerResult};
-use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
+use tracing::{error, info};
 use vrrb_core::claim::Claim;
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
@@ -359,23 +357,40 @@ impl Handler<EventMessage> for DagModule {
                 },
             },
             Event::BlockCertificate(certificate) => {
+                let mut mine_block = None;
                 if let Ok(mut dag) = self.dag.write() {
                     if let Some(block) = dag.get_vertex_mut(certificate.block_hash.clone()) {
                         if let Block::Convergence { mut block } = block.get_data() {
                             block.append_certificate(certificate);
                             self.last_confirmed_block_header = Some(block.get_header());
-                            let _ = self.events_tx.send(EventMessage::new(
-                                None,
+                            mine_block = Some(block.clone());
+                        }
+                        // Emit event for state update
+                    }
+                }
+                if let Some(block) = mine_block {
+                    self.events_tx
+                        .send(EventMessage::new(
+                            None,
+                            Event::MineProposalBlock(
+                                block.hash.clone(),
+                                block.get_header().round,
+                                block.get_header().epoch,
+                                self.claim.clone(),
+                            ),
+                        ))
+                        .await
+                        .unwrap_or_else(|_| {
+                            error!(
+                                "Error occurred while broadcasting event {:?}",
                                 Event::MineProposalBlock(
                                     block.hash.clone(),
                                     block.get_header().round,
                                     block.get_header().epoch,
                                     self.claim.clone(),
-                                ),
-                            ));
-                        }
-                        // Emit event for state update
-                    }
+                                )
+                            )
+                        });
                 }
             },
             Event::HarvesterPublicKey(pubkey_bytes) => {

@@ -1,23 +1,29 @@
 use std::{collections::hash_map::DefaultHasher, net::SocketAddr, time::Duration};
 
 use bytes::Bytes;
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 use cuckoofilter::{CuckooFilter, ExportedCuckooFilter};
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData};
-use hbbft::crypto::{PublicKey, SecretKeyShare};
 use laminar::{Config, Packet, Socket, SocketEvent};
 use network::{
     message::{Message, MessageBody},
     network::{BroadcastEngine, ConnectionIncoming},
 };
-use primitives::{ExportedFilter, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, NamespaceType};
-use rand::{distributions::Alphanumeric, Rng};
+use primitives::{
+    ExportedFilter,
+    NamespaceType,
+    NodeType,
+    NodeTypeBytes,
+    PKShareBytes,
+    PayloadBytes,
+    QuorumPublicKey,
+    RawSignature,
+};
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info, warn};
 
-use crate::{dkg_module::DkgModule, NodeError, Result};
+use crate::{NodeError, Result};
 
-pub const BROADCAST_CONTROLLER_BUFFER_SIZE: usize = 10000;
 
 /// The number of erasures that the raptorq encoder will use to encode the
 /// block.
@@ -42,7 +48,7 @@ pub enum RendezvousRequest {
         PayloadBytes,
         SyncPeerData,
     ),
-    FetchNameSpace(NamespaceType)
+    FetchNameSpace(NamespaceType),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -52,7 +58,7 @@ pub enum RendezvousResponse {
     Peers(QuorumPublicKey, Vec<SyncPeerData>, ExportedFilter),
     PeerRegistered,
     NamespaceRegistered,
-    Namespaces(Vec<QuorumPublicKey>)
+    Namespaces(Vec<QuorumPublicKey>),
 }
 
 #[derive(Debug)]
@@ -330,20 +336,20 @@ impl BroadcastEngineController {
 
                 Ok(())
             },
-            Event::PullFarmerNamespaces=>{
+            Event::PullFarmerNamespaces => {
                 if let Some(socket) = self.socket.as_ref() {
                     let _ = self.pull_namespaces(
                         &socket.get_packet_sender(),
-                        "FARMER".to_string().into_bytes()
+                        "FARMER".to_string().into_bytes(),
                     );
                 };
                 Ok(())
             },
-            Event::PullHarvesterNamespaces=>{
+            Event::PullHarvesterNamespaces => {
                 if let Some(socket) = self.socket.as_ref() {
                     let _ = self.pull_namespaces(
                         &socket.get_packet_sender(),
-                        "FARMER".to_string().into_bytes()
+                        "FARMER".to_string().into_bytes(),
                     );
                 };
                 Ok(())
@@ -444,9 +450,9 @@ impl BroadcastEngineController {
                 info!("Peer Registered");
             },
             RendezvousResponse::Namespaces(namespaces) => {
-                let _ = self.events_tx.send(
-                    Event::UpdateFarmerNamespaces(namespaces.clone()).into(),
-                );
+                let _ = self
+                    .events_tx
+                    .send(Event::UpdateFarmerNamespaces(namespaces.clone()).into());
             },
             _ => {},
         }
@@ -470,22 +476,6 @@ impl BroadcastEngineController {
         }
     }
 
-    fn pull_namespace(
-        &self,
-        sender: &Sender<Packet>,
-        quorum_key: QuorumPublicKey,
-        filter: Vec<u8>,
-    ) {
-        if let Ok(data) =
-        bincode::serialize(&Data::Request(RendezvousRequest::Peers(quorum_key, filter)))
-        {
-            let _ = sender.send(Packet::reliable_ordered(
-                self.rendezvous_server_addr,
-                data,
-                None,
-            ));
-        }
-    }
     fn send_retrieve_peers_request(
         &self,
         sender: &Sender<Packet>,
@@ -534,13 +524,10 @@ impl BroadcastEngineController {
             ));
         }
     }
-    fn pull_namespaces(
-        &self,
-        sender: &Sender<Packet>,
-        namespace: Vec<u8>
-    ) {
-        let payload_result = bincode::serialize(&Data::Request(RendezvousRequest::FetchNameSpace(
-            namespace)));
+
+    fn pull_namespaces(&self, sender: &Sender<Packet>, namespace: Vec<u8>) {
+        let payload_result =
+            bincode::serialize(&Data::Request(RendezvousRequest::FetchNameSpace(namespace)));
         if let Ok(payload) = payload_result {
             let _ = sender.send(Packet::reliable_ordered(
                 self.rendezvous_server_addr,
@@ -550,5 +537,3 @@ impl BroadcastEngineController {
         }
     }
 }
-
-

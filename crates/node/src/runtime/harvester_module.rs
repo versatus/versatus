@@ -197,7 +197,7 @@ impl HarvesterModule {
 
     /// Generate Certificate for convergence block and then broadcast it to the
     /// network
-    fn generate_and_broadcast_certificate(
+    async fn generate_and_broadcast_certificate(
         &self,
         block_hash: BlockHash,
         certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
@@ -221,10 +221,18 @@ impl HarvesterModule {
                     next_root_hash: "".to_string(),
                     block_hash,
                 };
-                let _ = self.broadcast_events_tx.send(EventMessage::new(
-                    None,
-                    Event::SendBlockCertificate(certificate),
-                ));
+                self.broadcast_events_tx
+                    .send(EventMessage::new(
+                        None,
+                        Event::SendBlockCertificate(certificate.clone()),
+                    ))
+                    .await
+                    .unwrap_or_else(|err| {
+                        error!(
+                            "Error occurred while broadcasting event {:?}",
+                            Event::SendBlockCertificate(certificate).to_string()
+                        )
+                    });
             }
         }
     }
@@ -278,7 +286,7 @@ impl Handler<EventMessage> for HarvesterModule {
                         {
                             votes.push(vote.clone());
                             if votes.len() >= farmer_quorum_threshold {
-                                let _ = self.sync_jobs_sender.send(Job::CertifyTxn((
+                                self.sync_jobs_sender.send(Job::CertifyTxn((
                                     sig_provider,
                                     votes.clone(),
                                     txn_id,
@@ -286,7 +294,9 @@ impl Handler<EventMessage> for HarvesterModule {
                                     vote.farmer_id.clone(),
                                     vote.txn,
                                     farmer_quorum_threshold,
-                                )));
+                                ))).unwrap_or_else(|err| {
+                                    error!("Error occurred while sending Job Certify Txn to scheduler");
+                                });
                             }
                         }
                     } else {
@@ -295,7 +305,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     }
                 }
             },
-            /// This certifies txns once vote threshold is reached.
+            // This certifies txns once vote threshold is reached.
             Event::CertifiedTxn(job_result) => {
                 if let JobResult::CertifiedTxn(
                     votes,
@@ -362,25 +372,38 @@ impl Handler<EventMessage> for HarvesterModule {
                     claim,
                     self.keypair.get_miner_secret_key(),
                 );
-                let _ = self.broadcast_events_tx.send(EventMessage::new(
-                    None,
-                    Event::MinedBlock(Block::Proposal {
-                        block: proposal_block,
-                    }),
-                ));
+                self.broadcast_events_tx
+                    .send(EventMessage::new(
+                        None,
+                        Event::MinedBlock(Block::Proposal {
+                            block: proposal_block.clone(),
+                        }),
+                    ))
+                    .await
+                    .unwrap_or_else(|err| {
+                        error!(
+                            "Error occurred while broadcasting event {:?}",
+                            Event::MinedBlock(Block::Proposal {
+                                block: proposal_block,
+                            })
+                            .to_string()
+                        )
+                    });
             },
-            /// it sends a job to sign the convergence block using the signature
-            /// provider
+            // it sends a job to sign the convergence block using the signature
+            // provider
             Event::SignConvergenceBlock(block) => {
                 if let Some(sig_provider) = self.sig_provider.clone() {
-                    let _ = self
+                    self
                         .sync_jobs_sender
-                        .send(Job::SignConvergenceBlock(sig_provider, block));
+                        .send(Job::SignConvergenceBlock(sig_provider, block)).unwrap_or_else(|err| {
+                        error!("Error occurred while sending Job SignConvergenceBlock to scheduler");
+                    });
                 }
             },
 
-            /// Process the job result of signing convergence block and adds the
-            /// partial signature to the cache for certificate generation
+            // Process the job result of signing convergence block and adds the
+            // partial signature to the cache for certificate generation
             Event::ConvergenceBlockPartialSign(job_result) => {
                 if let JobResult::ConvergenceBlockPartialSign(
                     block_hash,
@@ -412,21 +435,38 @@ impl Handler<EventMessage> for HarvesterModule {
                                             if new_certificate_share.len()
                                                 <= sig_provider.quorum_config.upper_bound as usize
                                             {
-                                                self.broadcast_events_tx.send(EventMessage::new(
-                                                    None,
-                                                    Event::SendPeerConvergenceBlockSign(
-                                                        self.harvester_id.clone(),
-                                                        block_hash.clone(),
-                                                        public_key_share.to_bytes().to_vec(),
-                                                        partial_signature,
-                                                    ),
-                                                ));
+                                                self.broadcast_events_tx
+                                                    .send(EventMessage::new(
+                                                        None,
+                                                        Event::SendPeerConvergenceBlockSign(
+                                                            self.harvester_id.clone(),
+                                                            block_hash.clone(),
+                                                            public_key_share
+                                                                .to_bytes()
+                                                                .to_vec()
+                                                                .clone(),
+                                                            partial_signature.clone(),
+                                                        ),
+                                                    ))
+                                                    .await
+                                                    .unwrap_or_else(|err| {
+                                                        error!(
+                                                    "Error occurred while broadcasting event {:?}",
+                                                  Event::SendPeerConvergenceBlockSign(
+                                                                                self.harvester_id.clone(),
+                                                                                block_hash.clone(),
+                                                                                public_key_share.to_bytes().to_vec(),
+                                                                                partial_signature,
+                                                                            )
+                                                    .to_string()
+                                                )  });
 
                                                 self.generate_and_broadcast_certificate(
                                                     block_hash,
                                                     &new_certificate_share,
                                                     sig_provider,
-                                                );
+                                                )
+                                                .await;
                                             }
                                         }
                                     }
@@ -498,7 +538,8 @@ impl Handler<EventMessage> for HarvesterModule {
                                     block_hash,
                                     &new_certificate_share,
                                     sig_provider,
-                                );
+                                )
+                                .await;
                             }
                         }
                     }
@@ -508,9 +549,9 @@ impl Handler<EventMessage> for HarvesterModule {
                 let claims = block.claims.clone();
                 let txns = block.txns.clone();
                 let proposal_block_hashes = block.header.ref_hashes.clone();
-                if let Ok(mut dag) = self.dag.read() {
-                    let mut tmp_proposal_blocks = Vec::new();
-
+                let mut tmp_proposal_blocks = Vec::new();
+                let mut pre_check = true;
+                if let Ok(dag) = self.dag.read() {
                     for proposal_block_hash in proposal_block_hashes.iter() {
                         if let Some(block) = dag.get_vertex(proposal_block_hash.clone()) {
                             if let Block::Proposal { block } = block.get_data() {
@@ -518,11 +559,10 @@ impl Handler<EventMessage> for HarvesterModule {
                             }
                         }
                     }
-                    let mut pre_check = true;
                     for (ref_hash, claim_hashset) in claims.iter() {
                         match dag.get_vertex(ref_hash.clone()) {
                             Some(block) => {
-                                if let Block::Proposal { mut block } = block.get_data() {
+                                if let Block::Proposal { block } = block.get_data() {
                                     for claim_hash in claim_hashset.iter() {
                                         if !block.claims.contains_key(claim_hash) {
                                             pre_check = false;
@@ -557,17 +597,30 @@ impl Handler<EventMessage> for HarvesterModule {
                             }
                         }
                     }
-                    if pre_check {
-                        let _ = self.broadcast_events_tx.send(EventMessage::new(
+                };
+                if pre_check {
+                    self.broadcast_events_tx
+                        .send(EventMessage::new(
                             None,
                             Event::CheckConflictResolution((
-                                tmp_proposal_blocks,
+                                tmp_proposal_blocks.clone(),
                                 last_confirmed_block_header.round,
                                 last_confirmed_block_header.next_block_seed,
-                                block,
+                                block.clone(),
                             )),
-                        ));
-                    }
+                        ))
+                        .await
+                        .unwrap_or_else(|_| {
+                            error!(
+                                "Error occurred while broadcasting event {:?}",
+                                Event::CheckConflictResolution((
+                                    tmp_proposal_blocks,
+                                    last_confirmed_block_header.round,
+                                    last_confirmed_block_header.next_block_seed,
+                                    block,
+                                ))
+                            )
+                        });
                 }
             },
             Event::NoOp => {},

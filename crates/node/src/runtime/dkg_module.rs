@@ -308,13 +308,15 @@ impl Handler<EventMessage> for DkgModule {
                 match result {
                     Ok(status) => {
                         info!("DKG Completion status {:?}", status);
-                        if let Some(public_key_set)=self.dkg_engine.dkg_state.public_key_set.as_ref(){
+                        if let Some(public_key_set) =
+                            self.dkg_engine.dkg_state.public_key_set.as_ref()
+                        {
                             let _ = self
                                 .broadcast_events_tx
                                 .send(EventMessage::new(
                                     None,
                                     Event::QuorumKey(
-                                        public_key_set.public_key().to_bytes().to_vec()
+                                        public_key_set.public_key().to_bytes().to_vec(),
                                     ),
                                 ))
                                 .await;
@@ -326,11 +328,10 @@ impl Handler<EventMessage> for DkgModule {
                                     None,
                                     Event::NamespaceRegistration(
                                         self.dkg_engine.node_type.clone(),
-                                        public_key_set.public_key().to_bytes().to_vec()
+                                        public_key_set.public_key().to_bytes().to_vec(),
                                     ),
                                 ))
                                 .await;
-
                         }
                     },
                     Err(e) => {
