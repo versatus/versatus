@@ -25,7 +25,7 @@ Clone the repository with the following command:
 
 ```
 # Clone the Repository
-git clone git@github.com:vrrb-io/vrrb.git vrrb
+git clone https://github.com/vrrb-io/vrrb.git vrrb
 
 # Change into the working directory
 cd vrrb
