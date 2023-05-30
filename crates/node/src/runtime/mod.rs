@@ -2,7 +2,9 @@ use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
     thread,
+    process::Command,
 };
+
 
 use block::Block;
 use bulldag::graph::BullDag;
@@ -42,14 +44,7 @@ use self::{
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
 };
-use crate::{
-    broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
-    dkg_module::DkgModuleConfig,
-    farmer_module::PULL_TXN_BATCH_SIZE,
-    scheduler::{Job, JobSchedulerController},
-    NodeError,
-    Result,
-};
+use crate::{broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig}, dkg_module::DkgModuleConfig, farmer_module::PULL_TXN_BATCH_SIZE, scheduler::{Job, JobSchedulerController}, NodeError, Result, node};
 
 pub mod broadcast_module;
 pub mod credit_model_module;
@@ -102,6 +97,7 @@ pub struct RuntimeComponents {
     pub raptor_handle: RaptorHandle,
     pub scheduler_handle: SchedulerHandle,
     pub grpc_server_handle: RuntimeHandle,
+    pub node_gui_handle: RuntimeHandle
 }
 
 pub async fn setup_runtime_components(
@@ -313,6 +309,13 @@ pub async fn setup_runtime_components(
     let dag_handle =
         setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
 
+
+    let node_gui_handle = setup_node_gui(
+        &config,
+    ).await?;
+
+    info!("node gui has started");
+
     let runtime_components = RuntimeComponents {
         node_config: config,
         mempool_handle,
@@ -330,6 +333,7 @@ pub async fn setup_runtime_components(
         raptor_handle: Some(raptor_handle),
         scheduler_handle: Some(scheduler_handle),
         grpc_server_handle,
+        node_gui_handle,
     };
 
     Ok(runtime_components)
@@ -769,4 +773,67 @@ fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
 
 fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
+}
+
+async fn setup_node_gui(
+    config: &NodeConfig,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    if config.gui {
+        info!("Configuring Node {}", &config.id);
+        info!("Ensuring environment has required dependencies");
+
+        match Command::new("npm").args(&["version"]).status() {
+            Ok(_) => info!("NodeJS is installed"),
+            Err(e) => {
+                return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
+            }
+        }
+
+        info!("Ensuring yarn is installed");
+        match Command::new("yarn").args(&["--version"]).status() {
+            Ok(_) => info!("Yarn is installed"),
+            Err(e) => {
+                let install_yarn = Command::new("npm")
+                    .args(&["install", "-g", "yarn"])
+                    .current_dir("infra/ui")
+                    .output();
+
+                match install_yarn {
+                    Ok(_) => (),
+                    Err(_) => {
+                        return Err(NodeError::Other(format!("Failed to install yarn: {}", e)).into());
+                    }
+                }
+            }
+        }
+
+        info!("Installing dependencies");
+        match Command::new("yarn")
+            .args(&["install"])
+            .current_dir("infra/ui")
+            .status()
+        {
+            Ok(_) => info!("Dependencies installed successfully"),
+            Err(e) => {
+                return Err(NodeError::Other(format!("Failed to install dependencies: {}", e)).into());
+            }
+        }
+
+        info!("Spawning UI");
+
+        let node_gui_handle = tokio::spawn(async move {
+           Command::new("yarn")
+                .args(&["dev"])
+                .current_dir("infra/ui")
+                .spawn();
+
+            Ok(())
+        });
+
+        info!("Finished spawning UI");
+        Ok(Some(node_gui_handle))
+    } else {
+        info!("GUI not enabled");
+        Ok(None)
+    }
 }
