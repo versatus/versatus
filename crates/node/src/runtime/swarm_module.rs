@@ -22,7 +22,7 @@ pub struct BootStrapNodeDetails {
     pub key: String,
 }
 
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct SwarmModule {
     pub node: KademliaNode,
     is_bootstrap_node: bool,
