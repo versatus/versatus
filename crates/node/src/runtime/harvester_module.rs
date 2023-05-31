@@ -97,6 +97,9 @@ pub const BLOCK_CERTIFICATES_CACHE_LIMIT: usize = 5;
 /// containing the node index, public key share, and raw signature of the
 /// certificate. This cache is used to quickly retrieve convergence certificates
 /// during block validation and processing.
+/// * `dag`: `dag` is a property of type `Arc<RwLock<BullDag<Block, String>>>`.
+///   It is an instance of a
+/// directed acyclic graph (DAG) data structure called BullDag.
 /// * `status`: The status property is an instance of the ActorState enum, which
 ///   represents the current
 /// state of the HarvesterModule actor. The possible states are defined within
@@ -126,7 +129,6 @@ pub const BLOCK_CERTIFICATES_CACHE_LIMIT: usize = 5;
 ///   executed by the Scheduler.
 /// * `async_jobs_sender`: A Sender object used to send asynchronous jobs to be
 ///   executed by the Scheduler.
-
 pub struct HarvesterModule {
     pub quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub certified_txns_filter: Bloom,
@@ -229,8 +231,9 @@ impl HarvesterModule {
                     .await
                     .unwrap_or_else(|err| {
                         error!(
-                            "Error occurred while broadcasting event {:?}",
-                            Event::SendBlockCertificate(certificate).to_string()
+                            "Error occurred while broadcasting event {:?}, details :{:?}",
+                            Event::SendBlockCertificate(certificate).to_string(),
+                            err
                         )
                     });
             }
@@ -295,7 +298,7 @@ impl Handler<EventMessage> for HarvesterModule {
                                     vote.txn,
                                     farmer_quorum_threshold,
                                 ))).unwrap_or_else(|err| {
-                                    error!("Error occurred while sending Job Certify Txn to scheduler");
+                                    error!("Error occurred while sending Job Certify Txn to scheduler ,details :{:?}",err);
                                 });
                             }
                         }
@@ -354,10 +357,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     .map(|txn| {
                         if let Err(err) = self.certified_txns_filter.push(&txn.txn().id.to_string())
                         {
-                            telemetry::error!(
-                                "Error pushing txn to certified txns filter: {}",
-                                err
-                            );
+                            error!("Error pushing txn to certified txns filter: {}", err);
                         }
                         (txn.txn().id(), txn.clone())
                     })
@@ -382,11 +382,12 @@ impl Handler<EventMessage> for HarvesterModule {
                     .await
                     .unwrap_or_else(|err| {
                         error!(
-                            "Error occurred while broadcasting event {:?}",
+                            "Error occurred while broadcasting event {:?}, details :{:?}",
                             Event::MinedBlock(Block::Proposal {
                                 block: proposal_block,
                             })
-                            .to_string()
+                            .to_string(),
+                            err
                         )
                     });
             },
@@ -397,7 +398,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     self
                         .sync_jobs_sender
                         .send(Job::SignConvergenceBlock(sig_provider, block)).unwrap_or_else(|err| {
-                        error!("Error occurred while sending Job SignConvergenceBlock to scheduler");
+                        error!("Error occurred while sending Job SignConvergenceBlock to scheduler ,details :{:?}",err);
                     });
                 }
             },
@@ -439,7 +440,7 @@ impl Handler<EventMessage> for HarvesterModule {
                                                     .send(EventMessage::new(
                                                         None,
                                                         Event::SendPeerConvergenceBlockSign(
-                                                            self.harvester_id.clone(),
+                                                            self.harvester_id,
                                                             block_hash.clone(),
                                                             public_key_share
                                                                 .to_bytes()
@@ -451,14 +452,14 @@ impl Handler<EventMessage> for HarvesterModule {
                                                     .await
                                                     .unwrap_or_else(|err| {
                                                         error!(
-                                                    "Error occurred while broadcasting event {:?}",
+                                                    "Error occurred while broadcasting event {:?}, details :{:?}",
                                                   Event::SendPeerConvergenceBlockSign(
                                                                                 self.harvester_id.clone(),
                                                                                 block_hash.clone(),
                                                                                 public_key_share.to_bytes().to_vec(),
                                                                                 partial_signature,
                                                                             )
-                                                    .to_string()
+                                                    .to_string(),err
                                                 )  });
 
                                                 self.generate_and_broadcast_certificate(
@@ -610,15 +611,16 @@ impl Handler<EventMessage> for HarvesterModule {
                             )),
                         ))
                         .await
-                        .unwrap_or_else(|_| {
+                        .unwrap_or_else(|err| {
                             error!(
-                                "Error occurred while broadcasting event {:?}",
+                                "Error occurred while broadcasting event {:?}, details :{:?}",
                                 Event::CheckConflictResolution((
                                     tmp_proposal_blocks,
                                     last_confirmed_block_header.round,
                                     last_confirmed_block_header.next_block_seed,
                                     block,
-                                ))
+                                )),
+                                err
                             )
                         });
                 }
