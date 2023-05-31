@@ -109,10 +109,11 @@ impl BroadcastModule {
                                             Event::NewTxnCreated(txn.txn.clone()),
                                         ))
                                         .await
-                                        .unwrap_or_else(|_| {
+                                        .unwrap_or_else(|err| {
                                             error!(
-                                                "Error occurred while broadcasting event {:?}",
-                                                Event::NewTxnCreated(txn.txn)
+                                                "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                                Event::NewTxnCreated(txn.txn).to_string(),
+                                                err
                                             )
                                         });
                                 },

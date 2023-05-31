@@ -100,7 +100,7 @@ kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
 decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
-dyswarm={git="https://github.com/vrrb-io/dyswarm",branch="main"}
+#dyswarm={git="https://github.com/vrrb-io/dyswarm",branch="main"}
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",

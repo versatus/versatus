@@ -21,6 +21,7 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use telemetry::{error, info, warn};
+use tokio::runtime::Runtime;
 
 use crate::{NodeError, Result};
 
@@ -173,10 +174,19 @@ impl BroadcastEngineController {
             MessageBody::DKGPartAcknowledgement { .. } => {},
             MessageBody::ForwardedTxn(txn_record) => {
                 info!("Received Forwarded Txn :{:?}", txn_record.txn_id);
-                let _ = self.events_tx.send(EventMessage::new(
-                    None,
-                    Event::NewTxnCreated(txn_record.txn),
-                ));
+                self.events_tx
+                    .send(EventMessage::new(
+                        None,
+                        Event::NewTxnCreated(txn_record.txn.clone()),
+                    ))
+                    .await
+                    .unwrap_or_else(|err| {
+                        error!(
+                            "Error occurred while broadcasting event {:?} ,details :{:?}",
+                            Event::NewTxnCreated(txn_record.txn).to_string(),
+                            err
+                        )
+                    });
             },
             MessageBody::Vote { .. } => {},
             MessageBody::Empty => {},
@@ -213,8 +223,16 @@ impl BroadcastEngineController {
                         if peers.is_empty() {
                             warn!("No peers to sync with");
 
-                            self.events_tx.send(Event::EmptyPeerSync.into()).await?;
-
+                            self.events_tx
+                                .send(Event::EmptyPeerSync.into())
+                                .await
+                                .unwrap_or_else(|err| {
+                                    error!(
+                                    "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                    Event::EmptyPeerSync.to_string(),
+                                    err
+                                )
+                                });
                             // TODO: revisit this return
                             return Ok(());
                         }
@@ -241,8 +259,14 @@ impl BroadcastEngineController {
                             error!("unable to add peer connection: {err}");
 
                             self.events_tx
-                                .send(Event::PeerSyncFailed(quic_addresses).into())
-                                .await?;
+                                .send(Event::PeerSyncFailed(quic_addresses.clone()).into())
+                                .await.unwrap_or_else(|err| {
+                                    error!(
+                                        "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                        Event::PeerSyncFailed(quic_addresses).to_string(),
+                                        err
+                                    )
+                                });
 
                             return Err(err.into());
                         }
@@ -437,24 +461,56 @@ impl BroadcastEngineController {
     }
 
     fn process_response(&self, response: &RendezvousResponse) {
-        match response {
-            RendezvousResponse::Peers(quorum_key, peers, filter) => {
-                let _ = self.events_tx.send(
-                    Event::SyncPeers(quorum_key.clone(), peers.clone(), filter.clone()).into(),
-                );
+        let mut rt_result = Runtime::new();
+        match rt_result {
+            Ok(rt) => match response {
+                RendezvousResponse::Peers(quorum_key, peers, filter) => {
+                    rt.block_on(async {
+                        self.events_tx
+                            .send(
+                                Event::SyncPeers(quorum_key.clone(), peers.clone(), filter.clone())
+                                    .into(),
+                            )
+                            .await
+                            .unwrap_or_else(|err| {
+                                error!(
+                                    "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                    Event::SyncPeers(
+                                        quorum_key.clone(),
+                                        peers.clone(),
+                                        filter.clone()
+                                    )
+                                    .to_string(),
+                                    err
+                                )
+                            });
+                    });
+                },
+                RendezvousResponse::NamespaceRegistered => {
+                    info!("Namespace Registered");
+                },
+                RendezvousResponse::PeerRegistered => {
+                    info!("Peer Registered");
+                },
+                RendezvousResponse::Namespaces(namespaces) => {
+                    rt.block_on(async {
+                        self.events_tx
+                            .send(Event::UpdateFarmerNamespaces(namespaces.clone()).into())
+                            .await
+                            .unwrap_or_else(|err| {
+                                error!(
+                                    "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                    Event::UpdateFarmerNamespaces(namespaces.clone()).to_string(),
+                                    err
+                                )
+                            });
+                    });
+                },
+                _ => {},
             },
-            RendezvousResponse::NamespaceRegistered => {
-                info!("Namespace Registered");
+            Err(e) => {
+                error!("Error occured while spinning up tokio runtime {:?}", e)
             },
-            RendezvousResponse::PeerRegistered => {
-                info!("Peer Registered");
-            },
-            RendezvousResponse::Namespaces(namespaces) => {
-                let _ = self
-                    .events_tx
-                    .send(Event::UpdateFarmerNamespaces(namespaces.clone()).into());
-            },
-            _ => {},
         }
     }
 

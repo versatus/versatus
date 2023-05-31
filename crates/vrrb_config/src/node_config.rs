@@ -85,7 +85,7 @@ pub struct NodeConfig {
     pub keypair: Keypair,
 
     #[builder(default = "false")]
-    pub enable_ui: bool,
+    pub gui: bool,
 
     #[builder(default = "false")]
     pub disable_networking: bool,
@@ -159,7 +159,7 @@ impl Default for NodeConfig {
             preload_mock_state: false,
             bootstrap_config: None,
             keypair: Keypair::random(),
-            enable_ui: false,
+            gui: false,
             disable_networking: false,
         }
     }

@@ -348,10 +348,19 @@ impl Handler<EventMessage> for DagModule {
                     }
                     if block.certificate.is_none() {
                         if let Some(header) = self.last_confirmed_block_header.clone() {
-                            self.events_tx.send(EventMessage::new(
-                                None,
-                                Event::PrecheckConvergenceBlock(block, header),
-                            ));
+                            self.events_tx
+                                .send(EventMessage::new(
+                                    None,
+                                    Event::PrecheckConvergenceBlock(block.clone(), header.clone()),
+                                ))
+                                .await
+                                .unwrap_or_else(|err| {
+                                    error!(
+                                    "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                    Event::PrecheckConvergenceBlock(block, header).to_string(),
+                                    err
+                                )
+                                });
                         }
                     }
                 },
@@ -380,15 +389,17 @@ impl Handler<EventMessage> for DagModule {
                             ),
                         ))
                         .await
-                        .unwrap_or_else(|_| {
+                        .unwrap_or_else(|err| {
                             error!(
-                                "Error occurred while broadcasting event {:?}",
+                                "Error occurred while broadcasting event {:?} ,details :{:?}",
                                 Event::MineProposalBlock(
                                     block.hash.clone(),
                                     block.get_header().round,
                                     block.get_header().epoch,
                                     self.claim.clone(),
                                 )
+                                .to_string(),
+                                err
                             )
                         });
                 }

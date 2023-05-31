@@ -227,8 +227,8 @@ impl Handler<EventMessage> for FarmerModule {
                                 .await
                                 .unwrap_or_else(|err| {
                                     error!(
-                                        "Error occurred while broadcasting event {:?}",
-                                        Event::ForwardTxn((txn.1, addresses)).to_string()
+                                        "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                        Event::ForwardTxn((txn.1, addresses)).to_string(),err
                                     )
                                 });
                         }
@@ -310,9 +310,10 @@ impl Handler<EventMessage> for FarmerModule {
                         .await
                         .unwrap_or_else(|err| {
                             error!(
-                                "Error occurred while broadcasting event {:?}",
+                                "Error occurred while broadcasting event {:?} ,details :{:?}",
                                 Event::PeersFetch(quorum_key.clone(), saved_json.into_bytes())
-                                    .to_string()
+                                    .to_string(),
+                                err
                             )
                         });
                 }

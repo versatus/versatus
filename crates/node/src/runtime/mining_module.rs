@@ -8,6 +8,7 @@ use miner::{conflict_resolver::Resolver, Miner};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
+use tracing::error;
 use vrrb_core::txn::Txn;
 
 #[derive(Debug)]
@@ -125,10 +126,19 @@ impl Handler<EventMessage> for MiningModule {
                     .cloned()
                     .collect::<HashSet<ProposalBlock>>();
                 if proposal_blocks_set == resolved_proposals_set {
-                    self.events_tx.send(EventMessage::new(
-                        None,
-                        Event::SignConvergenceBlock(convergence_block),
-                    ));
+                    self.events_tx
+                        .send(EventMessage::new(
+                            None,
+                            Event::SignConvergenceBlock(convergence_block.clone()),
+                        ))
+                        .await
+                        .unwrap_or_else(|err| {
+                            error!(
+                                "Error occurred while broadcasting event {:?} ,details :{:?}",
+                                Event::SignConvergenceBlock(convergence_block).to_string(),
+                                err
+                            )
+                        });
                 }
             },
             Event::NoOp => {},
