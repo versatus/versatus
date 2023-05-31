@@ -10,10 +10,13 @@ use crate::{result::Result, NodeError};
 
 type Port = usize;
 
+#[derive(Debug, Clone)]
 pub struct SwarmModuleConfig {
     pub port: Port,
     pub bootstrap_node: Option<BootStrapNodeDetails>,
 }
+
+#[derive(Debug, Clone)]
 pub struct BootStrapNodeDetails {
     pub addr: SocketAddr,
     pub key: String,
@@ -39,7 +42,8 @@ impl SwarmModule {
         events_tx: EventPublisher,
     ) -> Result<Self> {
         let mut is_bootstrap_node = false;
-        let node = if let Some(bootstrap_node) = config.bootstrap_node {
+
+        let kademlia_node = if let Some(bootstrap_node) = config.bootstrap_node {
             match hex::decode(bootstrap_node.key) {
                 Ok(key_bytes) => match Key::try_from(key_bytes) {
                     Ok(key) => {
@@ -76,8 +80,9 @@ impl SwarmModule {
             //boostrap Node creation
             KademliaNode::new("127.0.0.1", config.port.to_string().as_str(), None)
         };
+
         Ok(Self {
-            node,
+            node: kademlia_node,
             is_bootstrap_node,
             refresh_interval,
             ping_interval,
@@ -178,6 +183,7 @@ mod tests {
     #[serial]
     async fn swarm_runtime_add_peers() {
         let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 port: 6061,
@@ -190,8 +196,10 @@ mod tests {
         .unwrap();
 
         let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
+
         let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
+
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
         let (events_node_tx, _events_node_rx) =
@@ -222,21 +230,29 @@ mod tests {
         let _node_key = swarm_module.node.node_data().id.0;
 
         let _current_node_id = swarm_module.node.node_data().id;
+
         let mut swarm_module = ActorImpl::new(swarm_module);
+
         let (ctrl_tx, mut ctrl_rx) =
             tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
+
         assert_eq!(swarm_module.status(), ActorState::Stopped);
 
         let handle = tokio::spawn(async move {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
         });
-        let _nodes = bootstrap_swarm_module
+
+        let nodes = bootstrap_swarm_module
             .node
             .routing_table
             .lock()
             .unwrap()
             .get_closest_nodes(&bootstrap_swarm_module.node.node_data().id, 3);
+
+        dbg!(&nodes);
+
         ctrl_tx.send(Event::Stop.into()).unwrap();
+
         handle.await.unwrap();
     }
 
@@ -254,6 +270,7 @@ mod tests {
             events_tx,
         )
         .unwrap();
+
         let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
         let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
