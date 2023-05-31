@@ -22,7 +22,7 @@ pub struct BootStrapNodeDetails {
     pub key: String,
 }
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct SwarmModule {
     pub node: KademliaNode,
     is_bootstrap_node: bool,
@@ -66,7 +66,7 @@ impl SwarmModule {
                     },
                     Err(_) => {
                         return Err(NodeError::Other(String::from(
-                            "Invalid Node Key ,Node Key should be 32bytes",
+                            "Invalid Node Key, Node Key should be 32bytes",
                         )));
                     },
                 },

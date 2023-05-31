@@ -1,5 +1,5 @@
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     process::Command,
     sync::{Arc, RwLock},
     thread,
@@ -14,7 +14,7 @@ use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
-use telemetry::info;
+use telemetry::{error, info};
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
@@ -42,6 +42,7 @@ use self::{
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
+    swarm_module::{BootStrapNodeDetails, SwarmModule, SwarmModuleConfig},
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
@@ -105,6 +106,7 @@ pub struct RuntimeComponents {
     pub scheduler_handle: SchedulerHandle,
     pub grpc_server_handle: RuntimeHandle,
     pub node_gui_handle: RuntimeHandle,
+    pub swarm_module_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -220,6 +222,9 @@ pub async fn setup_runtime_components(
     .await?;
 
     info!("gRPC server address started: {}", resolved_grpc_server_addr);
+
+    let swarm_module_handle =
+        setup_swarm_module(&config, events_tx.clone(), swarm_module_events_rx)?;
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -339,6 +344,7 @@ pub async fn setup_runtime_components(
         scheduler_handle: Some(scheduler_handle),
         grpc_server_handle,
         node_gui_handle,
+        swarm_module_handle,
     };
 
     Ok(runtime_components)
@@ -512,6 +518,46 @@ async fn setup_grpc_api_server(
     info!("gRPC server started at {}", &address);
 
     Ok((Some(handle), address))
+}
+
+fn setup_swarm_module(
+    config: &NodeConfig,
+    events_tx: EventPublisher,
+    mut events_rx: EventSubscriber,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 7777);
+
+    let bootstrap_details = BootStrapNodeDetails {
+        addr,
+        key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
+    };
+
+    let swarm_module_config = SwarmModuleConfig {
+        port: 7777,
+        bootstrap_node: Some(bootstrap_details),
+    };
+
+    let module = SwarmModule::new(swarm_module_config, Some(5), Some(5), events_tx);
+
+    match module {
+        Ok(swarm_module) => {
+            let mut swarm_module_actor = ActorImpl::new(swarm_module);
+            let swarm_handle = tokio::spawn(async move {
+                swarm_module_actor
+                    .start(&mut events_rx)
+                    .await
+                    .map_err(|err| NodeError::Other(err.to_string()))
+            });
+
+            info!("Swarm module started at {}", addr);
+
+            Ok(Some(swarm_handle))
+        },
+        Err(err) => {
+            error!("{}", format!("{}", err));
+            Err(err)
+        },
+    }
 }
 
 fn setup_mining_module(

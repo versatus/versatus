@@ -7,6 +7,7 @@ use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
 
 use crate::RuntimeModule;
 
+#[derive(Debug, Clone)]
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
