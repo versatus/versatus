@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use mempool::LeftRightMempool;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::txn::TransactionDigest;
 
-use crate::{RuntimeModule, MEMPOOL_THRESHOLD_SIZE};
+use crate::MEMPOOL_THRESHOLD_SIZE;
 
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,

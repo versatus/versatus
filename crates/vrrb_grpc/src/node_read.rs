@@ -87,8 +87,7 @@ pub struct NodeRead {
 
 impl NodeRead {
     pub fn init(self) -> NodeReadServiceServer<NodeRead> {
-        let node_service = NodeReadServiceServer::new(self);
-        return node_service;
+        NodeReadServiceServer::new(self)
     }
 }
 
@@ -120,6 +119,6 @@ impl NodeReadService for NodeRead {
             transaction_records,
         };
 
-        return Ok(Response::new(response));
+        Ok(Response::new(response))
     }
 }

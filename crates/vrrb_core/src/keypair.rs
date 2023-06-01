@@ -448,6 +448,7 @@ impl Serialize for KeyPair {
     }
 }
 
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for KeyPair {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash miner_kp

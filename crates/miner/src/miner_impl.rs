@@ -21,7 +21,6 @@ use vrrb_core::{claim::Claim, txn::TransactionDigest};
 
 use crate::{block_builder::BlockBuilder, conflict_resolver::Resolver, Miner};
 
-
 impl BlockBuilder for Miner {
     type BlockType = ConvergenceBlock;
     type RefType = ProposalBlock;
@@ -50,18 +49,18 @@ impl BlockBuilder for Miner {
             let ref_hashes = self.get_ref_hashes(&resolved);
             let txns_hash = self.get_txn_hash(&txns);
             let claims_hash = self.get_claim_hash(&claims);
-            let header = self.build_header(ref_hashes.clone(), txns_hash, claims_hash)?;
+            let header = self.build_header(ref_hashes, txns_hash, claims_hash)?;
             let hash = self.hash_block(&header);
 
-            return Some(ConvergenceBlock {
+            Some(ConvergenceBlock {
                 header,
                 txns,
                 claims,
                 hash,
                 certificate: None,
-            });
+            })
         } else {
-            return None;
+            None
         }
     }
 
@@ -79,11 +78,8 @@ impl BlockBuilder for Miner {
 
             leaf_ids.iter().for_each(|leaf| {
                 if let Some(vtx) = bulldag.get_vertex(leaf.clone()) {
-                    match vtx.get_data() {
-                        Block::Proposal { block } => {
-                            proposals.push(block.clone());
-                        },
-                        _ => {},
+                    if let Block::Proposal { block } = vtx.get_data() {
+                        proposals.push(block);
                     }
                 }
             });
@@ -91,7 +87,7 @@ impl BlockBuilder for Miner {
             return Some(proposals);
         }
 
-        return None;
+        None
     }
 
     /// Gets the vertex from the last Convergence (or Genesis) block.
@@ -130,15 +126,14 @@ impl Resolver for Miner {
     /// contains a HashSet with every node that proposed a txn with
     /// a given transaction digest. It then filters the HashMap to
     /// only keep Conflicts with more than 1 proposer.
-    fn identify(&self, proposals: &Vec<Self::Proposal>) -> Self::Identified {
+    fn identify(&self, proposals: &[Self::Proposal]) -> Self::Identified {
         let mut conflicts: ConflictList = HashMap::new();
         proposals.iter().for_each(|block| {
-            let mut txn_iter = block.txns.iter();
             let mut proposer = HashSet::new();
 
             proposer.insert((block.from.clone(), block.hash.clone()));
 
-            while let Some((id, _)) = txn_iter.next() {
+            for (id, _) in block.txns.iter() {
                 let conflict = Conflict {
                     txn_id: id.clone(),
                     proposers: proposer.clone(),
@@ -171,15 +166,10 @@ impl Resolver for Miner {
     /// It then resolves all conflicts in the current round blocks, by removing
     /// the txns associated with the block proposed by the losing party in the
     /// conflict resolution protocol.
-    fn resolve(
-        &self,
-        proposals: &Vec<Self::Proposal>,
-        round: u128,
-        seed: u64,
-    ) -> Vec<Self::Proposal> {
+    fn resolve(&self, proposals: &[Self::Proposal], round: u128, seed: u64) -> Vec<Self::Proposal> {
         let (mut curr, prev) = self.split_proposals_by_round(proposals);
         let prev_resolved = self.resolve_earlier(&prev, round);
-        curr.extend(prev_resolved.clone());
+        curr.extend(prev_resolved);
         let mut conflicts = self.identify(&curr);
         let proposers = self.get_proposers(&curr);
         // Construct a BTreeMap of all election results
@@ -196,17 +186,17 @@ impl Resolver for Miner {
     /// round, i.e. is not already appended to the DAG, but was proposed earlier
     /// i.e. references a ConvergenceBlock that is not equal to
     /// miner.last_block, and blocks in previous rounds.
-    fn resolve_earlier(&self, proposals: &Vec<Self::Proposal>, round: u128) -> Vec<Self::Proposal> {
+    fn resolve_earlier(&self, proposals: &[Self::Proposal], round: u128) -> Vec<Self::Proposal> {
         let prev_blocks: Vec<ConvergenceBlock> = {
             let nested: Vec<Vec<ConvergenceBlock>> = proposals
                 .iter()
-                .map(|prop_block| self.get_sources(prop_block).clone())
+                .map(|prop_block| self.get_sources(prop_block))
                 .collect();
 
             nested.into_iter().flatten().collect()
         };
 
-        let mut proposals = proposals.clone();
+        let proposals = &mut &(*proposals);
 
         // Flatten consolidated transactions from all previous blocks
         let removals: LinkedHashSet<&TransactionDigest> = {
@@ -229,7 +219,10 @@ impl Resolver for Miner {
             sets.into_iter().flatten().collect()
         };
 
-        proposals.retain(|block| block.round != round);
+        let mut proposals: Vec<&ProposalBlock> = proposals
+            .iter()
+            .filter(|block| block.round != round)
+            .collect();
 
         let resolved: Vec<ProposalBlock> = proposals
             .iter_mut()
@@ -258,7 +251,7 @@ impl Resolver for Miner {
             // Get every block between current proposal and proposals source;
             // if the source exists
             let source_refs: Vec<String> = match source_vtx {
-                Some(vtx) => bulldag.trace(&vtx, Direction::Reference),
+                Some(vtx) => bulldag.trace(vtx, Direction::Reference),
                 None => {
                     vec![]
                 },
@@ -289,9 +282,8 @@ impl Resolver for Miner {
             // otherwise ignore it
             ref_vertices.iter().for_each(|opt| {
                 if let Some(vtx) = opt {
-                    match vtx.get_data() {
-                        Block::Convergence { block } => stack.push(block.clone()),
-                        _ => {},
+                    if let Block::Convergence { block } = vtx.get_data() {
+                        stack.push(block)
                     }
                 }
             });
@@ -299,7 +291,7 @@ impl Resolver for Miner {
             return stack;
         }
 
-        return vec![];
+        vec![]
     }
 
     /// Takes in a `Vec` of proposer Self::BallotInfo,
@@ -311,7 +303,7 @@ impl Resolver for Miner {
     /// elections.
     fn get_election_results(
         &self,
-        proposers: &Vec<Self::BallotInfo>,
+        proposers: &[Self::BallotInfo],
         seed: u64,
     ) -> BTreeMap<U256, Self::BallotInfo> {
         proposers
@@ -331,11 +323,11 @@ impl Resolver for Miner {
     /// round source convergence blocks.
     fn split_proposals_by_round(
         &self,
-        proposals: &Vec<Self::Proposal>,
+        proposals: &[Self::Proposal],
     ) -> (Vec<Self::Proposal>, Vec<Self::Proposal>) {
         if let Some(last_block) = self.last_block.clone() {
             let (mut curr, mut prev) = (Vec::new(), Vec::new());
-            for block in proposals.into_iter() {
+            for block in proposals.iter() {
                 if block.is_current_round(last_block.get_header().round) {
                     curr.push(block.clone());
                 } else {
@@ -345,13 +337,13 @@ impl Resolver for Miner {
 
             (curr.clone(), prev.clone())
         } else {
-            return (vec![], vec![]);
+            (vec![], vec![])
         }
     }
 
     /// Takes the `ProposalBlock`s and returns a `Vec` of
     /// `(Claim, RefHash)` i.e. `BallotInfo`
-    fn get_proposers(&self, proposals: &Vec<Self::Proposal>) -> Vec<Self::BallotInfo> {
+    fn get_proposers(&self, proposals: &[Self::Proposal]) -> Vec<Self::BallotInfo> {
         proposals
             .iter()
             .map(|block| (block.from.clone(), block.hash.clone()))
@@ -378,7 +370,7 @@ impl Resolver for Miner {
                 let mut election_iter = election_results.iter();
 
                 let mut first: Option<(&U256, &Self::BallotInfo)> = election_iter.next();
-                while let None = first {
+                while first.is_none() {
                     first = election_iter.next();
                 }
 
@@ -401,16 +393,13 @@ impl Resolver for Miner {
             // retain only the conflicts that relate to current proposal block
             local_conflicts.retain(|id, _| block.txns.contains_key(id));
 
-            // convert filtered conflicts into an iterator
-            let mut conflict_iter = local_conflicts.iter();
-
             // initialize a hashset to save transactions that current block
             // proposer lost conflict resolution.
             let mut removals = HashSet::new();
 
             // loop through all the conflicts related to current block
             // and check if the winner is the current block hash
-            while let Some((id, conflict)) = conflict_iter.next() {
+            for (id, conflict) in local_conflicts.iter() {
                 if Some(block.hash.clone()) != conflict.winner {
                     // if it does insert into removals, otherwise ignore
                     removals.insert(id);

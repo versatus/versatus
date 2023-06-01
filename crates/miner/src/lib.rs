@@ -23,13 +23,12 @@ mod tests {
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
-    use hbbft::crypto::SecretKeyShare;
     use primitives::Address;
     use ritelinked::LinkedHashMap;
     use vrrb_core::{
         claim::Claim,
         keypair::Keypair,
-        txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+        txn::{QuorumCertifiedTxn, TransactionDigest},
     };
 
     use crate::test_helpers::{
@@ -317,7 +316,6 @@ mod tests {
                 }
             };
 
-
             let prop2 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock2 = Block::Proposal {
@@ -398,7 +396,6 @@ mod tests {
                 }
             };
 
-
             let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {
                 miner.last_block = Some(Arc::new(block.to_owned()));
@@ -449,7 +446,6 @@ mod tests {
                     guard.add_edge(edge1);
                 }
             };
-
 
             let convergence = miner.try_mine();
             if let Ok(Block::Convergence { ref block }) = convergence {

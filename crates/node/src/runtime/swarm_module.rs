@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 
 use crate::{result::Result, NodeError};
 
@@ -22,13 +22,15 @@ pub struct BootStrapNodeDetails {
 #[derive(Clone)]
 pub struct SwarmModule {
     pub node: KademliaNode,
-    is_bootstrap_node: bool,
-    refresh_interval: Option<u64>,
-    ping_interval: Option<u64>,
     status: ActorState,
-    label: ActorLabel,
     id: ActorId,
-    events_tx: EventPublisher,
+
+    // TODO: address unread variables
+    _is_bootstrap_node: bool,
+    _refresh_interval: Option<u64>,
+    _ping_interval: Option<u64>,
+    _label: ActorLabel,
+    _events_tx: EventPublisher,
 }
 
 impl SwarmModule {
@@ -78,12 +80,12 @@ impl SwarmModule {
         };
         Ok(Self {
             node,
-            is_bootstrap_node,
-            refresh_interval,
-            ping_interval,
-            events_tx,
+            _is_bootstrap_node: is_bootstrap_node,
+            _refresh_interval: refresh_interval,
+            _ping_interval: ping_interval,
+            _events_tx: events_tx,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
         })
     }
@@ -139,7 +141,7 @@ mod tests {
 
     use events::{Event, EventMessage, DEFAULT_BUFFER};
     use serial_test::serial;
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
 
     use super::*;
 

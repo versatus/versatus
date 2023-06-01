@@ -10,15 +10,14 @@ use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::txn::Txn;
 
-#[derive(Debug)]
 pub struct MiningModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
     miner: Miner,
-    vrrbdb_read_handle: VrrbDbReadHandle,
-    mempool_read_handle_factory: MempoolReadHandleFactory,
+    _vrrbdb_read_handle: VrrbDbReadHandle,
+    _mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 #[derive(Debug, Clone)]
@@ -37,15 +36,14 @@ impl MiningModule {
             status: ActorState::Stopped,
             events_tx: cfg.events_tx,
             miner: cfg.miner,
-            vrrbdb_read_handle: cfg.vrrbdb_read_handle,
-            mempool_read_handle_factory: cfg.mempool_read_handle_factory,
+            _vrrbdb_read_handle: cfg.vrrbdb_read_handle,
+            _mempool_read_handle_factory: cfg.mempool_read_handle_factory,
         }
     }
 }
 impl MiningModule {
-    // fn take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
-    fn take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
-        let mut handle = self.mempool_read_handle_factory.handle();
+    fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
+        let mut handle = self._mempool_read_handle_factory.handle();
 
         // TODO: drain mempool instead then commit changes
         handle
@@ -54,7 +52,7 @@ impl MiningModule {
             .collect()
     }
 
-    fn mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
+    fn _mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
         telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
         // TODO: run a batch update to mark txns as being processed
     }
@@ -125,10 +123,18 @@ impl Handler<EventMessage> for MiningModule {
                     .cloned()
                     .collect::<HashSet<ProposalBlock>>();
                 if proposal_blocks_set == resolved_proposals_set {
-                    self.events_tx.send(EventMessage::new(
-                        None,
-                        Event::SignConvergenceBlock(convergence_block),
-                    ));
+                    if let Err(err) = self
+                        .events_tx
+                        .send(EventMessage::new(
+                            None,
+                            Event::SignConvergenceBlock(convergence_block),
+                        ))
+                        .await
+                    {
+                        theater::TheaterError::Other(format!(
+                            "failed to send EventMessage for Event::SignConvergenceBlock: {err}"
+                        ));
+                    };
                 }
             },
             Event::NoOp => {},

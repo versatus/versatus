@@ -39,14 +39,14 @@ impl BackPressure {
             if let Some(min) = data.get(0) {
                 minimum_backpressure = min.back_pressure;
             }
-            if let Some(max) = data.get(data.len() - 1) {
+            if let Some(max) = data.last() {
                 max_backpressure = max.back_pressure;
             }
             if max_backpressure > 0.0 && minimum_backpressure > 0.0 {
                 for peer_back_pressure in data.iter() {
                     new_backpressure_list.push(BackPressure::new(
                         peer_back_pressure.peer_id.clone(),
-                        (peer_back_pressure.back_pressure.clone() - minimum_backpressure)
+                        (peer_back_pressure.back_pressure - minimum_backpressure)
                             / (max_backpressure - minimum_backpressure),
                     ))
                 }
@@ -123,15 +123,12 @@ impl JobScheduler {
         let mut avg_completion_time = 1.0;
         let num_tasks = state.tasks_completion_time.len();
         let mut completion_times = vec![];
-        for _i in 0..num_tasks {
-            match state.tasks_completion_time.pop() {
-                Ok(completion_time) => {
-                    completion_times.push(completion_time);
-                },
-                Err(_) => {},
+        for _ in 0..num_tasks {
+            if let Ok(completion_time) = state.tasks_completion_time.pop() {
+                completion_times.push(completion_time);
             }
         }
-        if completion_times.len() > 0 {
+        if !completion_times.is_empty() {
             avg_completion_time =
                 completion_times.iter().sum::<u128>() as f32 / completion_times.len() as f32;
         }
@@ -182,7 +179,7 @@ impl JobScheduler {
     }
 
     pub fn get_local_pool(&self) -> &JobPool {
-        return &self.local_pool;
+        &self.local_pool
     }
 
     pub fn set_local_pool(&mut self, pool: JobPool) {
@@ -190,7 +187,7 @@ impl JobScheduler {
     }
 
     pub fn get_remote_pool(&self) -> &JobPool {
-        return &&self.remote_pool;
+        &self.remote_pool
     }
 
     pub fn set_remote_pool(&mut self, pool: JobPool) {

@@ -1,8 +1,7 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use ethereum_types::U256;
 use lr_trie::{LeftRightTrie, H256};
-use primitives::NodeId;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
@@ -36,10 +35,9 @@ impl Default for ClaimStore {
 
 impl ClaimStore {
     /// Returns new, empty instance of ClaimDb
-
-    pub fn new(path: &PathBuf) -> Self {
+    pub fn new(path: &Path) -> Self {
         let path = path.join("claim");
-        let db_adapter = RocksDbAdapter::new(path.to_owned(), "claim").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(path, "claim").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
@@ -145,6 +143,12 @@ impl ClaimStore {
     /// Returns a number of initialized claims in the database
     pub fn len(&self) -> usize {
         self.trie.len()
+    }
+
+    /// Returns true if the number of initialized claims in the database is
+    /// zero.
+    pub fn is_empty(&self) -> bool {
+        self.trie.is_empty()
     }
 
     // TODO: We need to figure out what "updating" a claim means, if anything
@@ -266,7 +270,6 @@ impl ClaimStore {
     //
     //        Some(failed)
     //    }
-
     pub fn root_hash(&self) -> Option<H256> {
         self.trie.root()
     }

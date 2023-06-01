@@ -4,15 +4,11 @@ use std::net::SocketAddr;
 /// nodes occur The mining of blocks can be thought of as incremental
 /// checkpoints in the state.
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
-use std::{
-    mem,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use block::{
     block::Block,
     header::BlockHeader,
-    invalid::InvalidBlockErrorReason,
     ClaimHash,
     ClaimList,
     ConsolidatedClaims,
@@ -23,7 +19,6 @@ use block::{
     ProposalBlock,
     QuorumCertifiedTxnList,
     RefHash,
-    TxnList,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
@@ -40,7 +35,6 @@ use utils::{create_payload, hash_data};
 use vrrb_core::{
     claim::{Claim, ClaimError},
     keypair::{MinerPk, MinerSk},
-    txn::Txn,
 };
 
 use crate::{block_builder::BlockBuilder, result::MinerError};
@@ -94,7 +88,6 @@ pub struct MinerConfig {
     pub ip_address: SocketAddr,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
-
 
 /// Miner struct which exposes methods to mine convergence blocks
 /// via its implementation of the `BlockBuilder` trait, which requires
@@ -181,20 +174,20 @@ impl Miner {
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
     pub fn new(config: MinerConfig) -> Result<Self> {
-        let address = Address::new(config.public_key.clone());
+        let address = Address::new(config.public_key);
         let signature = Claim::signature_for_valid_claim(
-            config.public_key.clone(),
-            config.ip_address.clone(),
+            config.public_key,
+            config.ip_address,
             config.secret_key.secret_bytes().to_vec(),
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         let claim = Claim::new(
             config.public_key,
             address.clone(),
             config.ip_address,
             signature,
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         Ok(Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
@@ -215,12 +208,12 @@ impl Miner {
 
     /// Retrieves the `ip_address` of the current `Miner` instance
     pub fn ip_address(&self) -> SocketAddr {
-        self.ip_address.clone()
+        self.ip_address
     }
 
     /// Retrieves the `PublicKey` of the current `Miner` instance
     pub fn public_key(&self) -> PublicKey {
-        self.public_key.clone()
+        self.public_key
     }
 
     /// Generates a `Claim` from the `miner.public_key` and `miner.address`
@@ -230,14 +223,14 @@ impl Miner {
             self.ip_address(),
             self.secret_key.secret_bytes().to_vec(),
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         let claim = Claim::new(
             self.public_key(),
             self.address(),
             self.ip_address(),
             signature,
         )
-        .map_err(|err| MinerError::from(err))?;
+        .map_err(MinerError::from)?;
         Ok(claim)
     }
 
@@ -321,7 +314,7 @@ impl Miner {
             epoch,
             txns,
             claims,
-            hash: format!("{:x}", hash),
+            hash: format!("{hash:x}"),
             from,
             signature,
         }
@@ -341,8 +334,8 @@ impl Miner {
             round,
             epoch,
             claim.clone(),
-            self.secret_key.clone(),
-            format!("{:x}", claim_list_hash),
+            self.secret_key,
+            format!("{claim_list_hash:x}"),
         );
 
         let block_hash = hash_data!(
@@ -361,7 +354,7 @@ impl Miner {
         );
 
         let mut claims = LinkedHashMap::new();
-        claims.insert(claim.hash.clone(), claim);
+        claims.insert(claim.hash, claim);
 
         #[cfg(mainnet)]
         let txns = genesis::generate_genesis_txns();
@@ -378,7 +371,7 @@ impl Miner {
             header,
             txns,
             claims,
-            hash: format!("{:x}", block_hash),
+            hash: format!("{block_hash:x}"),
             certificate: None,
         };
 
@@ -387,7 +380,7 @@ impl Miner {
 
     /// Consolidates all the `Txn`s in unreferenced `ProposalBlock`s
     /// into a single list of `proposal_block.hash -> txn.id`
-    pub(crate) fn consolidate_txns(&self, proposals: &Vec<ProposalBlock>) -> ConsolidatedTxns {
+    pub(crate) fn consolidate_txns(&self, proposals: &[ProposalBlock]) -> ConsolidatedTxns {
         proposals
             .iter()
             .map(|block| {
@@ -400,14 +393,14 @@ impl Miner {
 
     /// Consolidates all the `Claims` in the unreferenced `ProposalBlock`s
     /// into a single listt of `proposal_block.hash -> claim.hash`
-    pub(crate) fn consolidate_claims(&self, proposals: &Vec<ProposalBlock>) -> ConsolidatedClaims {
+    pub(crate) fn consolidate_claims(&self, proposals: &[ProposalBlock]) -> ConsolidatedClaims {
         proposals
             .iter()
             .map(|block| {
                 let claim_hashes: LinkedHashSet<ClaimHash> = block
                     .claims
                     .iter()
-                    .map(|(claim_hash, _)| claim_hash.clone())
+                    .map(|(claim_hash, _)| *claim_hash)
                     .collect();
 
                 (block.hash.clone(), claim_hashes)
@@ -416,7 +409,7 @@ impl Miner {
     }
 
     /// Returns all the unreferenced `ProposalBlock`s hashes in a `Vec`
-    pub(crate) fn get_ref_hashes(&self, proposals: &Vec<ProposalBlock>) -> Vec<RefHash> {
+    pub(crate) fn get_ref_hashes(&self, proposals: &[ProposalBlock]) -> Vec<RefHash> {
         proposals.iter().map(|b| b.hash.clone()).collect()
     }
 
@@ -432,7 +425,7 @@ impl Miner {
             txn_hasher.finalize()
         };
 
-        format!("{:x}", txns_hash)
+        format!("{txns_hash:x}")
     }
 
     /// Hashes and returns a hexadecimal string representation of the hash of
@@ -447,7 +440,7 @@ impl Miner {
             claim_hasher.finalize()
         };
 
-        format!("{:x}", claims_hash)
+        format!("{claims_hash:x}")
     }
 
     /// Builds a `BlockHeader` for the `ConvergenceBlock` being mined.
@@ -460,9 +453,9 @@ impl Miner {
         if let (Some(block), None) = self.convert_last_block_to_static() {
             return BlockHeader::new(
                 block.into(),
-                ref_hashes.to_owned(),
+                ref_hashes,
                 self.claim.clone(),
-                self.secret_key.clone(),
+                self.secret_key,
                 txns_hash,
                 claims_hash,
                 self.next_epoch_adjustment,
@@ -472,16 +465,16 @@ impl Miner {
         if let (None, Some(block)) = self.convert_last_block_to_static() {
             return BlockHeader::new(
                 block.into(),
-                ref_hashes.to_owned(),
+                ref_hashes,
                 self.claim.clone(),
-                self.secret_key.clone(),
+                self.secret_key,
                 txns_hash,
                 claims_hash,
                 self.next_epoch_adjustment,
             );
         }
 
-        return None;
+        None
     }
 
     pub(crate) fn convert_last_block_to_static(
@@ -489,12 +482,12 @@ impl Miner {
     ) -> (Option<GenesisBlock>, Option<ConvergenceBlock>) {
         if let Some(block) = self.last_block.clone() {
             if block.is_genesis() {
-                return (block.into_static_genesis(), None);
+                (block.as_static_genesis(), None)
             } else {
-                return (None, block.into_static_convergence());
+                (None, block.as_static_convergence())
             }
         } else {
-            return (None, None);
+            (None, None)
         }
     }
 
@@ -516,7 +509,7 @@ impl Miner {
             header.miner_signature
         );
 
-        format!("{:x}", block_hash)
+        format!("{block_hash:x}")
     }
 
     /// Gets the current election `seed` from the

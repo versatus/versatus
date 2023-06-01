@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, process::Command};
+use std::net::SocketAddr;
 
 use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
 use telemetry::info;
@@ -6,7 +6,6 @@ use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
     task::JoinHandle,
 };
-use trecho::vm::Cpu;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
@@ -21,7 +20,6 @@ use crate::{
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
-#[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
 
@@ -35,22 +33,16 @@ pub struct Node {
     pub keypair: KeyPair,
 
     // NOTE: optional node components
-    vm: Option<Cpu>,
     state_handle: RuntimeHandle,
     mempool_handle: RuntimeHandle,
     gossip_handle: RuntimeHandle,
     miner_handle: RuntimeHandle,
     jsonrpc_server_handle: RuntimeHandle,
-    dkg_handle: RuntimeHandle,
-    miner_election_handle: RuntimeHandle,
     quorum_election_handle: RuntimeHandle,
-    farmer_handle: RuntimeHandle,
-    harvester_handle: RuntimeHandle,
-    indexer_handle: RuntimeHandle,
     dag_handle: RuntimeHandle,
-    raptor_handle: RaptorHandle,
-    scheduler_handle: SchedulerHandle,
-    grpc_server_handle: RuntimeHandle,
+    _raptor_handle: RaptorHandle,
+    _scheduler_handle: SchedulerHandle,
+    _grpc_server_handle: RuntimeHandle,
     node_gui_handle: RuntimeHandle,
 }
 
@@ -65,7 +57,6 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
-        let vm = None;
         let keypair = config.keypair.clone();
 
         let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
@@ -84,7 +75,6 @@ impl Node {
 
         Ok(Self {
             config,
-            vm,
             keypair,
             events_tx,
             control_rx,
@@ -93,18 +83,13 @@ impl Node {
             mempool_handle: runtime_components.mempool_handle,
             jsonrpc_server_handle: runtime_components.jsonrpc_server_handle,
             gossip_handle: runtime_components.gossip_handle,
-            dkg_handle: runtime_components.dkg_handle,
             running_status: RuntimeModuleState::Stopped,
             miner_handle: runtime_components.miner_handle,
-            miner_election_handle: runtime_components.miner_election_handle,
             quorum_election_handle: runtime_components.quorum_election_handle,
-            farmer_handle: runtime_components.farmer_handle,
-            harvester_handle: runtime_components.harvester_handle,
-            indexer_handle: runtime_components.indexer_handle,
             dag_handle: runtime_components.dag_handle,
-            raptor_handle: runtime_components.raptor_handle,
-            scheduler_handle: runtime_components.scheduler_handle,
-            grpc_server_handle: runtime_components.grpc_server_handle,
+            _raptor_handle: runtime_components.raptor_handle,
+            _scheduler_handle: runtime_components.scheduler_handle,
+            _grpc_server_handle: runtime_components.grpc_server_handle,
             node_gui_handle: runtime_components.node_gui_handle,
         })
     }

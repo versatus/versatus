@@ -11,7 +11,7 @@ use vrrb_core::{
 
 // NOTE: this is used to generate random filenames so files created by tests
 // don't get overwritten
-pub fn generate_random_string() -> String {
+pub fn _generate_random_string() -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
@@ -19,12 +19,12 @@ pub fn generate_random_string() -> String {
         .collect()
 }
 
-pub fn generate_random_address() -> (SecretKey, Address) {
+pub fn _generate_random_address() -> (SecretKey, Address) {
     let kp = Keypair::random();
     (kp.miner_kp.0, Address::new(kp.miner_kp.1))
 }
 
-pub fn generate_random_transaction(
+pub fn _generate_random_transaction(
     secret_key: primitives::SecretKey,
     from: Address,
     to: Address,
@@ -48,9 +48,9 @@ pub fn generate_random_transaction(
     })
 }
 
-pub fn generate_random_valid_transaction() -> Txn {
-    let (sender_secret_key, from) = generate_random_address();
-    let (_, to) = generate_random_address();
+pub fn _generate_random_valid_transaction() -> Txn {
+    let (sender_secret_key, from) = _generate_random_address();
+    let (_, to) = _generate_random_address();
 
     type H = secp256k1::hashes::sha256::Hash;
 
@@ -71,7 +71,7 @@ pub fn generate_random_valid_transaction() -> Txn {
     })
 }
 
-pub fn generate_random_claim() -> Claim {
+pub fn _generate_random_claim() -> Claim {
     let keypair = Keypair::random();
     let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
     let public_key = keypair.get_miner_public_key().clone();

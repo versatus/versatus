@@ -90,7 +90,7 @@ impl Mempool {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MempoolOp {
-    Add(TxnRecord),
+    Add(Box<TxnRecord>),
     Remove(TransactionDigest),
 }
 
@@ -98,7 +98,7 @@ impl Absorb<MempoolOp> for Mempool {
     fn absorb_first(&mut self, op: &mut MempoolOp, _: &Self) {
         match op {
             MempoolOp::Add(record) => {
-                self.pool.insert(record.txn_id.clone(), record.clone());
+                self.pool.insert(record.txn_id.clone(), *record.clone());
             },
             MempoolOp::Remove(id) => {
                 self.pool.remove(id);
@@ -188,7 +188,9 @@ impl LeftRightMempool {
 
     pub fn insert(&mut self, txn: Txn) -> Result<usize> {
         let txn_record = TxnRecord::new(txn);
-        self.write.append(MempoolOp::Add(txn_record)).publish();
+        self.write
+            .append(MempoolOp::Add(Box::new(txn_record)))
+            .publish();
 
         Ok(self.size_in_kilobytes())
     }
@@ -246,7 +248,8 @@ impl LeftRightMempool {
 
     pub fn extend(&mut self, txn_batch: HashSet<Txn>) -> Result<()> {
         txn_batch.into_iter().for_each(|t| {
-            self.write.append(MempoolOp::Add(TxnRecord::new(t)));
+            self.write
+                .append(MempoolOp::Add(Box::new(TxnRecord::new(t))));
         });
 
         self.publish();
@@ -255,7 +258,7 @@ impl LeftRightMempool {
 
     pub fn extend_with_records(&mut self, record_batch: HashSet<TxnRecord>) -> Result<()> {
         record_batch.into_iter().for_each(|t| {
-            self.write.append(MempoolOp::Add(t));
+            self.write.append(MempoolOp::Add(Box::new(t)));
         });
 
         self.publish();

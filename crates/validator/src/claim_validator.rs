@@ -85,13 +85,10 @@ impl ClaimValidator {
 
         let stakes = claim.get_stake_txns();
         if let Some(last_stake) = stakes.last() {
-            match last_stake.get_amount() {
-                StakeUpdate::Slash(amount) => {
-                    if amount > 0 {
-                        return Err(ClaimValidatorError::Jailed);
-                    }
-                },
-                _ => {},
+            if let StakeUpdate::Slash(amount) = last_stake.get_amount() {
+                if amount > 0 {
+                    return Err(ClaimValidatorError::Jailed);
+                }
             }
         }
 
@@ -101,7 +98,7 @@ impl ClaimValidator {
                 stake
                     .verify()
                     .map_err(|_| ClaimValidatorError::InvalidStakeTxn)?;
-                self.validate_timestamp(&stake)?;
+                self.validate_timestamp(stake)?;
                 match stake.get_certificate() {
                     None => return Err(ClaimValidatorError::NonCertifiedStake),
                     Some(certificate) => {
@@ -110,7 +107,7 @@ impl ClaimValidator {
                         }
                         let public_key_arr = TryInto::<[u8; 48]>::try_into(stake.get_quorum_key())
                             .map_err(|_| ClaimValidatorError::InvalidQuorumKey)?;
-                        let public_key = PublicKey::from_bytes(&public_key_arr)
+                        let public_key = PublicKey::from_bytes(public_key_arr)
                             .map_err(|_| ClaimValidatorError::InvalidQuorumKey)?;
 
                         let signature_arr = TryInto::<[u8; 96]>::try_into(certificate.0.as_slice())
@@ -119,7 +116,7 @@ impl ClaimValidator {
                         let signature = Signature::from_bytes(signature_arr)
                             .map_err(|_| ClaimValidatorError::InvalidStakeCertificate)?;
 
-                        let status = public_key.verify(&signature, certificate.1.clone());
+                        let status = public_key.verify(&signature, certificate.1);
                         if !status {
                             return Err(ClaimValidatorError::InvalidStakeCertificate);
                         }
@@ -136,7 +133,7 @@ impl ClaimValidator {
         let timestamp = chrono::offset::Utc::now().timestamp();
         let stake_timestamp = stake.get_timestamp();
         if stake_timestamp > 0 && stake_timestamp < timestamp {
-            return Ok(());
+            Ok(())
         } else {
             Err(ClaimValidatorError::OutOfBoundsTimestamp(
                 stake_timestamp,

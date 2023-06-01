@@ -1,4 +1,4 @@
-pub const MOCK_TEST_CERT: &str = r#"
+pub(crate) const _MOCK_TEST_CERT: &str = r#"
 -----BEGIN CERTIFICATE-----
 MIIFkzCCA3ugAwIBAgIUQZiKeBISKUZoglT8J8CCPpGbgTkwDQYJKoZIhvcNAQEL
 BQAwWTELMAkGA1UEBhMCVVMxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
@@ -33,7 +33,7 @@ a/e3kH2t5pEWRTsrNrRD94LzEYKvcNHy6PYkrgpGjh2G2VBZgNzh
 -----END CERTIFICATE-----
 "#;
 
-pub const MOCK_TEST_KEY: &str = r#"
+pub(crate) const _MOCK_TEST_KEY: &str = r#"
 -----BEGIN PRIVATE KEY-----
 MIIJQQIBADANBgkqhkiG9w0BAQEFAASCCSswggknAgEAAoICAQCh4Mme6HWWFyko
 K3lUQGo70lxKjPbCoPdIuPiLaqsQ6+pvhfRll43kZBdCU4bY3r70U7FPNpNOKBN5

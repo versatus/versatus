@@ -6,7 +6,6 @@ use primitives::{FarmerQuorumThreshold, NodeType};
 use serde::{Deserialize, Serialize};
 use udp2p::node::peer_id::PeerId;
 use uuid::Uuid;
-use vrrb_core::txn::TransactionDigest;
 
 pub type MessageId = Uuid;
 pub type MessageContents = Vec<u8>;
@@ -15,7 +14,6 @@ pub const MAX_TRANSMIT_SIZE: usize = 1024;
 pub const PROPOSAL_EXPIRATION_KEY: &str = "expires";
 pub const PROPOSAL_YES_VOTE_KEY: &str = "yes";
 pub const PROPOSAL_NO_VOTE_KEY: &str = "no";
-
 
 /// The message struct contains the basic data contained in a message
 /// sent across the network. This can be packed into bytes.

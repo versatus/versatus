@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    net::SocketAddr,
-};
+use std::net::SocketAddr;
 
 use block::{
     header::BlockHeader,
@@ -19,7 +16,6 @@ use primitives::{
     Address,
     Epoch,
     FarmerQuorumThreshold,
-    GroupPublicKey,
     HarvesterQuorumThreshold,
     NodeIdx,
     PublicKeyShareVec,

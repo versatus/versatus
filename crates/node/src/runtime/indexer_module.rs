@@ -2,10 +2,8 @@ use async_trait::async_trait;
 use events::{Event, EventMessage};
 use mempool::MempoolReadHandleFactory;
 use telemetry::{info, warn};
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
-
-use crate::RuntimeModule;
 
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -102,7 +100,7 @@ mod tests {
     use events::DEFAULT_BUFFER;
     use mempool::LeftRightMempool;
     use serial_test::serial;
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
 
     use super::*;
 

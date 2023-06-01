@@ -9,7 +9,6 @@ use block::{
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
-    RefHash,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -18,7 +17,6 @@ use bulldag::{
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
-use rayon::prelude::*;
 use signer::types::{SignerError, SignerResult};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
@@ -146,9 +144,9 @@ impl DagModule {
             .collect()
     }
 
-    fn get_reference_block(&self, target: &String) -> GraphResult<Vertex<Block, String>> {
+    fn get_reference_block(&self, target: &str) -> GraphResult<Vertex<Block, String>> {
         if let Ok(guard) = self.dag.read() {
-            if let Some(vtx) = guard.get_vertex(target.clone()) {
+            if let Some(vtx) = guard.get_vertex(target.to_owned()) {
                 return Ok(vtx.clone());
             }
         }
@@ -190,10 +188,7 @@ impl DagModule {
 
     fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => true,
-                _ => false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
             false
         }
@@ -201,10 +196,7 @@ impl DagModule {
 
     fn check_valid_proposal(&self, block: &ProposalBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => true,
-                _ => false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
             false
         }
@@ -212,10 +204,7 @@ impl DagModule {
 
     fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
-            match self.verify_signature(validation_data) {
-                Ok(true) => true,
-                _ => false,
-            }
+            matches!(self.verify_signature(validation_data), Ok(true))
         } else {
             false
         }
@@ -333,27 +322,36 @@ impl Handler<EventMessage> for DagModule {
             Event::BlockReceived(block) => match block {
                 Block::Genesis { block } => {
                     if let Err(e) = self.append_genesis(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        let err_note = format!("Encountered GraphError: {e:?}");
                         return Err(theater::TheaterError::Other(err_note));
                     };
                 },
                 Block::Proposal { block } => {
                     if let Err(e) = self.append_proposal(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        let err_note = format!("Encountered GraphError: {e:?}");
                         return Err(theater::TheaterError::Other(err_note));
                     }
                 },
                 Block::Convergence { block } => {
                     if let Err(e) = self.append_convergence(&block) {
-                        let err_note = format!("Encountered GraphError: {:?}", e);
+                        let err_note = format!("Encountered GraphError: {e:?}");
                         return Err(theater::TheaterError::Other(err_note));
                     }
                     if block.certificate.is_none() {
                         if let Some(header) = self.last_confirmed_block_header.clone() {
-                            self.events_tx.send(EventMessage::new(
-                                None,
-                                Event::PrecheckConvergenceBlock(block, header),
-                            ));
+                            if let Err(err) = self
+                                .events_tx
+                                .send(EventMessage::new(
+                                    None,
+                                    Event::PrecheckConvergenceBlock(block, header),
+                                ))
+                                .await
+                            {
+                                let err_note = format!(
+                                    "Failed to send EventMessage for PrecheckConvergenceBlock: {err}"
+                                );
+                                return Err(theater::TheaterError::Other(err_note));
+                            }
                         }
                     }
                 },
@@ -386,7 +384,6 @@ impl Handler<EventMessage> for DagModule {
                 }
             },
             Event::NoOp => {},
-            // _ => telemetry::warn!("unrecognized command received: {:?}", event),
             _ => {},
         }
         Ok(ActorState::Running)

@@ -10,7 +10,7 @@ use node_write_service::v1::{
     Token as NodeToken,
     TransactionRecord,
 };
-use primitives::{Address, NodeType};
+use primitives::NodeType;
 use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -117,8 +117,7 @@ pub struct NodeWrite {
 
 impl NodeWrite {
     pub fn init(self) -> NodeWriteServiceServer<NodeWrite> {
-        let node_service = NodeWriteServiceServer::new(self);
-        return node_service;
+        NodeWriteServiceServer::new(self)
     }
 }
 
@@ -131,10 +130,12 @@ impl NodeWriteService for NodeWrite {
         let transaction_request = request.into_inner();
 
         if PublicKey::from_str(&transaction_request.sender_public_key).is_err() {
-            return Err(Status::internal(format!("Cannot parse sender_public_key")));
+            return Err(Status::internal(
+                "Cannot parse sender_public_key".to_string(),
+            ));
         }
         if Signature::from_str(&transaction_request.signature).is_err() {
-            return Err(Status::internal(format!("Cannot parse signature")));
+            return Err(Status::internal("Cannot parse signature".to_string()));
         }
 
         let new_txn_args = NewTxnArgs::from(transaction_request);

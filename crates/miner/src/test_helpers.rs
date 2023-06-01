@@ -3,29 +3,20 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{
-    invalid::InvalidBlockErrorReason,
-    Block,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    TxnList,
-};
+use block::{Block, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use hbbft::crypto::SecretKeyShare;
 use primitives::{Address, PublicKey, SecretKey, Signature};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
 use vrrb_core::{
     claim::Claim,
-    helpers::size_of_txn_list,
     keypair::{Keypair, MinerSk},
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::{result::MinerError, Miner, MinerConfig, MinerStatus};
+use crate::{result::MinerError, Miner, MinerConfig};
 
 /// Move this into primitives and call it simply `BlockDag`
 pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
@@ -39,7 +30,7 @@ pub fn create_miner() -> Miner {
         secret_key,
         public_key,
         ip_address,
-        dag: dag.clone(),
+        dag,
     };
     Miner::new(config).unwrap()
 }
@@ -53,19 +44,19 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
         secret_key,
         ip_address,
         public_key,
-        dag: dag.clone(),
+        dag,
     };
     Miner::new(config).unwrap()
 }
 
 pub fn create_miner_from_keypair_return_dag(kp: &Keypair) -> (Miner, MinerDag) {
     let miner = create_miner_from_keypair(kp);
-    (miner.clone(), miner.dag.clone())
+    (miner.clone(), miner.dag)
 }
 
 pub fn create_miner_from_keypair_and_dag(kp: &Keypair, dag: MinerDag) -> Miner {
     let mut miner = create_miner_from_keypair(kp);
-    miner.dag = dag.clone();
+    miner.dag = dag;
     miner
 }
 
@@ -78,7 +69,7 @@ pub fn create_keypair() -> (SecretKey, PublicKey) {
 
 /// Helper function to create an address from a `&PublicKey`
 pub fn create_address(public_key: &PublicKey) -> Address {
-    Address::new(public_key.clone())
+    Address::new(*public_key)
 }
 
 /// Helper function to create a claim from a `&PublicKey` and `&Address` and
@@ -89,7 +80,7 @@ pub fn create_claim(
     ip_address: SocketAddr,
     signature: String,
 ) -> Claim {
-    Claim::new(pk.clone(), addr.clone(), ip_address, signature).unwrap()
+    Claim::new(*pk, addr.clone(), ip_address, signature).unwrap()
 }
 
 /// Helper function to create a random message and signature
@@ -106,7 +97,7 @@ pub fn create_and_sign_message() -> (Message, Keypair, Signature) {
 
     let sig = kp.miner_kp.0.sign_ecdsa(msg);
 
-    return (msg, kp, sig);
+    (msg, kp, sig)
 }
 
 /// Helper function to mine a `GenesisBlock` and
@@ -119,12 +110,7 @@ pub fn mine_genesis() -> Option<GenesisBlock> {
 
     let claim = miner.generate_claim().unwrap();
 
-    let claim_list = {
-        vec![(claim.hash.clone(), claim.clone())]
-            .iter()
-            .cloned()
-            .collect()
-    };
+    let claim_list = { vec![(claim.hash, claim)].iter().cloned().collect() };
 
     miner.mine_genesis_block(claim_list)
 }
@@ -135,71 +121,62 @@ pub fn mine_genesis() -> Option<GenesisBlock> {
 pub(crate) fn create_txns(
     n: usize,
 ) -> impl Iterator<Item = (TransactionDigest, QuorumCertifiedTxn)> {
-    (0..n)
-        .map(|n| {
-            let (sk, pk) = create_keypair();
-            let (rsk, rpk) = create_keypair();
-            let saddr = create_address(&pk);
-            let raddr = create_address(&rpk);
-            let amount = (n.pow(2)) as u128;
-            let token = None;
+    (0..n).map(|n| {
+        let (sk, pk) = create_keypair();
+        let (_, rpk) = create_keypair();
+        let saddr = create_address(&pk);
+        let raddr = create_address(&rpk);
+        let amount = (n.pow(2)) as u128;
+        let token = None;
 
-            let txn_args = NewTxnArgs {
-                timestamp: 0,
-                sender_address: saddr,
-                sender_public_key: pk.clone(),
-                receiver_address: raddr,
-                token,
-                amount,
-                signature: sk.sign_ecdsa(Message::from_hashed_data::<
-                    secp256k1::hashes::sha256::Hash,
-                >(b"vrrb")),
-                validators: None,
-                nonce: n.clone() as u128,
-            };
+        let txn_args = NewTxnArgs {
+            timestamp: 0,
+            sender_address: saddr,
+            sender_public_key: pk,
+            receiver_address: raddr,
+            token,
+            amount,
+            signature: sk
+                .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+            validators: None,
+            nonce: n as u128,
+        };
 
-            let mut txn = Txn::new(txn_args);
+        let mut txn = Txn::new(txn_args);
 
-            txn.sign(&sk);
+        txn.sign(&sk);
 
-            let txn_digest_vec = generate_txn_digest_vec(
-                txn.timestamp,
-                txn.sender_address.to_string(),
-                txn.sender_public_key.clone(),
-                txn.receiver_address.to_string(),
-                txn.token.clone(),
-                txn.amount,
-                txn.nonce,
-            );
+        let txn_digest_vec = generate_txn_digest_vec(
+            txn.timestamp,
+            txn.sender_address.to_string(),
+            txn.sender_public_key,
+            txn.receiver_address.to_string(),
+            txn.token.clone(),
+            txn.amount,
+            txn.nonce,
+        );
 
-            let digest = TransactionDigest::from(txn_digest_vec);
-            (
-                digest,
-                QuorumCertifiedTxn::new(vec![], vec![], txn, vec![], true),
-            )
-        })
-        .into_iter()
+        let digest = TransactionDigest::from(txn_digest_vec);
+        (
+            digest,
+            QuorumCertifiedTxn::new(vec![], vec![], txn, vec![], true),
+        )
+    })
 }
 
 /// Helper function to create `n` number of `Claim`s and
 /// return an `Iterator` of `(String, Claim)` to be collected
 /// by the caller
 pub fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
-    (0..n)
-        .map(|_| {
-            let (sk, pk) = create_keypair();
-            let addr = create_address(&pk);
-            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-            let signature = Claim::signature_for_valid_claim(
-                pk.clone(),
-                ip_address.clone(),
-                sk.secret_bytes().to_vec(),
-            )
-            .unwrap();
-            let claim = create_claim(&pk, &addr, ip_address, signature);
-            (claim.hash.clone(), claim)
-        })
-        .into_iter()
+    (0..n).map(|_| {
+        let (sk, pk) = create_keypair();
+        let addr = create_address(&pk);
+        let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+        let signature =
+            Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+        let claim = create_claim(&pk, &addr, ip_address, signature);
+        (claim.hash, claim)
+    })
 }
 
 /// A helper function to attempt to mine a `ConvergenceBlock`
@@ -263,19 +240,18 @@ pub fn build_multiple_proposal_blocks_single_round(
     epoch: u128,
 ) -> Vec<ProposalBlock> {
     (0..n_blocks)
-        .into_iter()
-        .map(|n| {
+        .map(|_| {
             let keypair = Keypair::random();
-            let address = Address::new(keypair.miner_kp.1.clone());
+            let (_, public_key) = keypair.miner_kp;
+            let address = Address::new(public_key);
             let ip_address: SocketAddr = "127.0.0.1:8080".parse().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                keypair.miner_kp.1.clone(),
-                ip_address.clone(),
+                public_key,
+                ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim =
-                Claim::new(keypair.miner_kp.1.clone(), address, ip_address, signature).unwrap();
+            let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
             let prop = build_single_proposal_block(
                 last_block_hash.clone(),
                 n_txns,
@@ -340,43 +316,25 @@ pub fn build_multiple_rounds(
     round: &mut usize,
     epoch: usize,
 ) {
-    if n_rounds > round.clone() {
+    if n_rounds > *round {
         if dag_has_genesis(dag.clone()) {
-            if let Some(hash) = mine_next_convergence_block(dag.clone()) {
+            if let Some(last_block_hash) = mine_next_convergence_block(dag.clone()) {
                 *round += 1usize;
                 let proposals = build_multiple_proposal_blocks_single_round(
                     n_blocks,
-                    hash.clone(),
+                    last_block_hash,
                     n_txns,
                     n_claims,
-                    round.clone() as u128,
+                    *round as u128,
                     epoch as u128,
                 );
 
                 append_proposal_blocks_to_dag(&mut dag.clone(), proposals);
-                build_multiple_rounds(
-                    dag.clone(),
-                    n_blocks,
-                    n_txns,
-                    n_claims,
-                    n_rounds,
-                    round,
-                    epoch,
-                );
+                build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
             };
-        } else {
-            if let Some(hash) = add_genesis_to_dag(&mut dag.clone()) {
-                *round += 1usize;
-                build_multiple_rounds(
-                    dag.clone(),
-                    n_blocks,
-                    n_txns,
-                    n_claims,
-                    n_rounds,
-                    round,
-                    epoch,
-                );
-            }
+        } else if add_genesis_to_dag(&mut dag.clone()).is_some() {
+            *round += 1usize;
+            build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
         }
     }
 }
@@ -384,7 +342,7 @@ pub fn build_multiple_rounds(
 /// Checks whether the DAG already has a root vertex
 /// returns true if so, false if not
 pub fn dag_has_genesis(dag: MinerDag) -> bool {
-    dag.clone().read().unwrap().len() > 0
+    dag.read().unwrap().len() > 0
 }
 
 /// build and adds a `GenesisBlock` to the `MinerDag`
@@ -406,18 +364,16 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
             0,
             LinkedHashMap::new(),
             LinkedHashMap::new(),
-            miner.claim.clone(),
+            miner.claim,
             keypair.get_miner_secret_key(),
         );
-        let pblock = Block::Proposal {
-            block: prop1.clone(),
-        };
+        let pblock = Block::Proposal { block: prop1 };
         let pvtx: Vertex<Block, String> = pblock.into();
         prop_vertices.push(pvtx.clone());
         if let Ok(mut guard) = dag.clone().write() {
             let edge = (&gvtx, &pvtx);
             guard.add_edge(edge);
-            return Some(genesis.get_hash().clone());
+            return Some(genesis.get_hash());
         }
     }
     None
@@ -439,7 +395,7 @@ pub fn mine_next_convergence_block(dag: MinerDag) -> Option<String> {
         if let Block::Convergence { ref block } = cblock.clone() {
             let cvtx: Vertex<Block, String> = cblock.into();
             let mut edges: Vec<(Vertex<Block, String>, Vertex<Block, String>)> = vec![];
-            if let Ok(guard) = dag.clone().read() {
+            if let Ok(guard) = dag.read() {
                 block.clone().get_ref_hashes().iter().for_each(|t| {
                     if let Some(pvtx) = guard.get_vertex(t.clone()) {
                         edges.push((pvtx.clone(), cvtx.clone()));
@@ -447,7 +403,7 @@ pub fn mine_next_convergence_block(dag: MinerDag) -> Option<String> {
                 });
             }
 
-            if let Ok(mut guard) = dag.clone().write() {
+            if let Ok(mut guard) = dag.write() {
                 let edges = edges
                     .iter()
                     .map(|(source, reference)| (source, reference))
@@ -478,7 +434,7 @@ pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<Proposal
         }
     }
 
-    let edges: Vec<(&Vertex<Block, String>, &Vertex<Block, String>)> = edges
+    let edges = edges
         .iter()
         .map(|(source, reference)| (source, reference))
         .collect();
@@ -531,7 +487,7 @@ pub fn build_single_proposal_block_from_txns(
 
 pub fn get_genesis_block_from_dag(dag: MinerDag) -> Option<GenesisBlock> {
     let last_block = {
-        if let Ok(guard) = dag.clone().read() {
+        if let Ok(guard) = dag.read() {
             let root = guard.get_roots();
             let mut root_iter = root.iter();
             if let Some(idx) = root_iter.next() {
@@ -539,8 +495,7 @@ pub fn get_genesis_block_from_dag(dag: MinerDag) -> Option<GenesisBlock> {
                 if let Some(vtx) = last_block {
                     let gblock = vtx.get_data();
                     if let Block::Genesis { block } = gblock {
-                        let block = block.clone();
-                        Some(block.clone())
+                        Some(block)
                     } else {
                         None
                     }
@@ -555,7 +510,7 @@ pub fn get_genesis_block_from_dag(dag: MinerDag) -> Option<GenesisBlock> {
         }
     };
 
-    return last_block;
+    last_block
 }
 
 pub fn add_orphaned_block_to_dag(
@@ -568,13 +523,11 @@ pub fn add_orphaned_block_to_dag(
     let proposal =
         build_single_proposal_block_from_txns(last_block_hash.clone(), txns, round, epoch);
 
-    if let Ok(guard) = dag.clone().read() {
+    if let Ok(guard) = dag.read() {
         let vtx_opt = guard.get_vertex(last_block_hash);
-        if let Some(vtx) = vtx_opt.clone() {
-            if let Ok(mut wguard) = dag.clone().write() {
-                let pblock = Block::Proposal {
-                    block: proposal.clone(),
-                };
+        if let Some(vtx) = vtx_opt {
+            if let Ok(mut wguard) = dag.write() {
+                let pblock = Block::Proposal { block: proposal };
                 let pvtx = pblock.into();
                 let edge = (vtx, &pvtx);
                 wguard.add_edge(edge);

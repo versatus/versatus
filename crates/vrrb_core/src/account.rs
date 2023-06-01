@@ -45,6 +45,12 @@ impl AccountDigests {
         len
     }
 
+    /// Returns true if the length of [AccountDigests] combined
+    /// [TransactionDigest]s is zero.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the HashSet of all `TransactionDigest`s for
     /// all transactions throughout history sent by the current
     /// account
@@ -139,6 +145,7 @@ impl PartialOrd for UpdateArgs {
     }
 }
 
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for UpdateArgs {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.address.hash(state);
@@ -164,7 +171,6 @@ impl Hash for UpdateArgs {
         }
     }
 }
-
 
 pub type AccountNonce = u128;
 

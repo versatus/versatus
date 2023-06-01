@@ -51,7 +51,7 @@ impl DkgGenerator for DkgEngine {
                     threshold,
                     &mut rng,
                 );
-                return match sync_key_gen_instance_result {
+                match sync_key_gen_instance_result {
                     Ok((sync_key_gen, opt_part)) => {
                         if let Some(part_committment) = opt_part {
                             self.dkg_state.random_number_gen = Some(rng.clone());
@@ -73,7 +73,7 @@ impl DkgGenerator for DkgEngine {
                         "Failed to create `SyncKeyGen` instance for node #{:?}",
                         self.node_idx
                     ))),
-                };
+                }
             },
             Err(e) => Err(DkgError::Unknown(format!(
                 "{} {}",

@@ -43,7 +43,7 @@ pub struct DkgModule {
     pub quic_port: u16,
     pub socket: Socket,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
 }
@@ -96,7 +96,7 @@ impl DkgModule {
                 quic_port,
                 socket,
                 status: ActorState::Stopped,
-                label: String::from("State"),
+                _label: String::from("State"),
                 id: uuid::Uuid::new_v4().to_string(),
                 broadcast_events_tx,
             }),
@@ -143,7 +143,7 @@ impl DkgModule {
             quic_port: 9090,
             socket,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
             broadcast_events_tx,
         }
@@ -153,12 +153,12 @@ impl DkgModule {
         String::from("DKG module")
     }
 
-    pub fn process_rendezvous_response(&self) {
+    pub async fn process_rendezvous_response(&self) {
         let receiver = self.socket.get_event_receiver();
         let sender = self.socket.get_packet_sender();
         loop {
             if let Ok(event) = receiver.recv() {
-                self.process_rendezvous_event(&event, &sender)
+                self.process_rendezvous_event(&event, &sender).await
             }
         }
     }
@@ -190,23 +190,22 @@ impl DkgModule {
         }
     }
 
-    fn process_rendezvous_event(&self, event: &SocketEvent, sender: &Sender<Packet>) {
-        match event {
-            SocketEvent::Packet(packet) => self.process_packet(packet, sender),
-            SocketEvent::Timeout(_) => {},
-            _ => {},
+    async fn process_rendezvous_event(&self, event: &SocketEvent, sender: &Sender<Packet>) {
+        if let SocketEvent::Packet(packet) = event {
+            self.process_packet(packet, sender).await;
         }
     }
 
-    fn process_packet(&self, packet: &Packet, sender: &Sender<Packet>) {
+    async fn process_packet(&self, packet: &Packet, sender: &Sender<Packet>) {
         if packet.addr() == self.rendezvous_server_addr {
             if let Ok(payload_response) = bincode::deserialize::<Data>(packet.payload()) {
-                self.process_payload_response(&payload_response, sender, packet);
+                self.process_payload_response(&payload_response, sender, packet)
+                    .await;
             }
         }
     }
 
-    fn process_payload_response(
+    async fn process_payload_response(
         &self,
         payload_response: &Data,
         sender: &Sender<Packet>,
@@ -214,7 +213,7 @@ impl DkgModule {
     ) {
         match payload_response {
             Data::Request(req) => self.process_request(req, sender, packet),
-            Data::Response(resp) => self.process_response(resp),
+            Data::Response(resp) => self.process_response(resp).await,
         }
     }
 
@@ -224,23 +223,21 @@ impl DkgModule {
         sender: &Sender<Packet>,
         packet: &Packet,
     ) {
-        match request {
-            RendezvousRequest::Ping => {
-                let response = &Data::Response(RendezvousResponse::Pong);
-                if let Ok(data) = bincode::serialize(&response) {
-                    let _ = sender.send(Packet::reliable_unordered(packet.addr(), data));
-                }
-            },
-            _ => {},
-        }
+        if let RendezvousRequest::Ping = request {
+            let response = &Data::Response(RendezvousResponse::Pong);
+            if let Ok(data) = bincode::serialize(&response) {
+                let _ = sender.send(Packet::reliable_unordered(packet.addr(), data));
+            }
+        };
     }
 
-    fn process_response(&self, response: &RendezvousResponse) {
+    async fn process_response(&self, response: &RendezvousResponse) {
         match response {
             RendezvousResponse::Peers(peers) => {
                 let _ = self
                     .broadcast_events_tx
-                    .send(Event::SyncPeers(peers.clone()).into());
+                    .send(Event::SyncPeers(peers.clone()).into())
+                    .await;
             },
             RendezvousResponse::NamespaceRegistered => {
                 info!("Namespace Registered");
@@ -450,7 +447,7 @@ impl Handler<EventMessage> for DkgModule {
                                         )
                                         .await.map_err(|e| {
                                             error!("Error occured while sending part message to broadcast event channel {:?}", e);
-                                            TheaterError::Other(format!("{:?}", e))
+                                            TheaterError::Other(format!("{e:?}"))
                                         });
                                 }
                             }
@@ -504,13 +501,13 @@ impl Handler<EventMessage> for DkgModule {
 
                                         let _ = self.broadcast_events_tx.send(event.into()).await.map_err(|e| {
                                             error!("Error occured while sending ack message to broadcast event channel {:?}", e);
-                                            TheaterError::Other(format!("{:?}", e))
+                                            TheaterError::Other(format!("{e:?}"))
                                         });
                                     };
                                 }
                             },
                             _ => {
-                                error!("Error occured while acknowledging partial commitment for node {:?}", sender_id,);
+                                error!("Error occured while acknowledging partial commitment for node {:?}", sender_id);
                             },
                         },
                         Err(err) => {
@@ -518,7 +515,7 @@ impl Handler<EventMessage> for DkgModule {
                         },
                     }
                 } else {
-                    error!("Part Committment for Node idx {:?} missing ", sender_id);
+                    error!("Part Committment for Node idx {:?} missing", sender_id);
                 }
             },
             Event::HandleAllAcks => {
