@@ -5,11 +5,14 @@ use node::{
     RuntimeModuleState,
 };
 use serial_test::serial;
+use telemetry::TelemetrySubscriber;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
 #[serial]
 async fn node_can_start_as_a_bootstrap_node() {
+    TelemetrySubscriber::init(std::io::stdout).unwrap();
+
     let node_config = create_mock_bootstrap_node_config();
 
     let mut vrrb_node = Node::start(&node_config).await.unwrap();
@@ -19,10 +22,11 @@ async fn node_can_start_as_a_bootstrap_node() {
         .unwrap();
 
     assert!(vrrb_node.is_bootstrap());
-    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 
     vrrb_node.stop();
+
+    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
 }
 
 #[tokio::test]

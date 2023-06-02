@@ -57,20 +57,20 @@ impl Node {
         let runtime_components = setup_runtime_components(&config, &router, events_tx).await?;
 
         let runtime_component_handles = vec![
-            runtime_components.state_handle,
-            runtime_components.mempool_handle,
-            runtime_components.jsonrpc_server_handle,
-            runtime_components.gossip_handle,
-            runtime_components.dkg_handle,
-            runtime_components.miner_handle,
-            runtime_components.miner_election_handle,
-            runtime_components.quorum_election_handle,
-            runtime_components.farmer_handle,
-            runtime_components.harvester_handle,
-            runtime_components.indexer_handle,
-            runtime_components.dag_handle,
-            runtime_components.grpc_server_handle,
-            runtime_components.node_gui_handle,
+            // runtime_components.state_handle,
+            // runtime_components.mempool_handle,
+            // runtime_components.jsonrpc_server_handle,
+            // runtime_components.gossip_handle,
+            // runtime_components.dkg_handle,
+            // runtime_components.miner_handle,
+            // runtime_components.miner_election_handle,
+            // runtime_components.quorum_election_handle,
+            // runtime_components.farmer_handle,
+            // runtime_components.harvester_handle,
+            // runtime_components.indexer_handle,
+            // runtime_components.dag_handle,
+            // runtime_components.grpc_server_handle,
+            // runtime_components.node_gui_handle,
         ];
 
         // TODO: report error from handle

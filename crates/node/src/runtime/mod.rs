@@ -112,226 +112,251 @@ pub async fn setup_runtime_components(
 ) -> Result<RuntimeComponents> {
     let mut config = original_config.clone();
 
-    let mut mempool_events_rx = router.subscribe(None)?;
-    let vrrbdb_events_rx = router.subscribe(None)?;
-    let network_events_rx = router.subscribe(None)?;
-    let controller_events_rx = router.subscribe(None)?;
-    let miner_events_rx = router.subscribe(None)?;
-    let farmer_events_rx = router.subscribe(None)?;
-    let harvester_events_rx = router.subscribe(None)?;
-    let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
-    let dkg_events_rx = router.subscribe(None)?;
-    let miner_election_events_rx = router.subscribe(None)?;
-    let quorum_election_events_rx = router.subscribe(None)?;
-    let indexer_events_rx = router.subscribe(None)?;
-    let dag_events_rx = router.subscribe(None)?;
-    let _swarm_module_events_rx = router.subscribe(None)?;
-
-    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
-    let mempool = LeftRightMempool::new();
-    let mempool_read_handle_factory = mempool.factory();
-
-    let mempool_module = MempoolModule::new(MempoolModuleConfig {
-        mempool,
-        events_tx: events_tx.clone(),
-    });
-
-    let mut mempool_module_actor = ActorImpl::new(mempool_module);
-
-    let mempool_handle = tokio::spawn(async move {
-        mempool_module_actor
-            .start(&mut mempool_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-
-    let mempool_handle = Some(mempool_handle);
-
-    let (state_read_handle, state_handle) = setup_state_store(
-        &config,
-        events_tx.clone(),
-        vrrbdb_events_rx,
-        dag.clone(),
-        mempool_read_handle_factory.clone(),
-    )
-    .await?;
-
-    let mut gossip_handle = None;
-    let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
-    if !config.disable_networking {
-        let (new_gossip_handle, _, gossip_addr) = setup_gossip_network(
-            &config,
-            events_tx.clone(),
-            network_events_rx,
-            controller_events_rx,
-            state_read_handle.clone(),
-            raptor_sender,
-        )
-        .await?;
-
-        gossip_handle = new_gossip_handle;
-        config.udp_gossip_address = gossip_addr;
-    }
-
-    let raptor_handle = thread::spawn({
-        let events_tx = events_tx.clone();
-        move || {
-            let events_tx = events_tx.clone();
-            loop {
-                let events_tx = events_tx.clone();
-                if let Ok(data) = raptor_receiver.recv() {
-                    match data {
-                        RaptorBroadCastedData::Block(block) => {
-                            tokio::spawn(async move {
-                                let _ = events_tx.send(Event::BlockReceived(block).into()).await;
-                            });
-                        },
-                    }
-                }
-            }
-        }
-    });
-
-    let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
-        &config,
-        events_tx.clone(),
-        state_read_handle.clone(),
-        mempool_read_handle_factory.clone(),
-        jsonrpc_events_rx,
-    )
-    .await?;
-
-    config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
-
-    info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
-
-    let (grpc_server_handle, resolved_grpc_server_addr) = setup_grpc_api_server(
-        &config,
-        events_tx.clone(),
-        state_read_handle.clone(),
-        mempool_read_handle_factory.clone(),
-    )
-    .await?;
-
-    info!("gRPC server address started: {}", resolved_grpc_server_addr);
-
-    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
-
-    let miner_handle = setup_mining_module(
-        &config,
-        events_tx.clone(),
-        state_read_handle.clone(),
-        mempool_read_handle_factory.clone(),
-        dag.clone(),
-        miner_events_rx,
-    )?;
-
-    let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-    let public_key = *config.keypair.get_miner_public_key();
-    let signature = Claim::signature_for_valid_claim(
-        public_key,
-        config.public_ip_address,
-        config
-            .keypair
-            .get_miner_secret_key()
-            .secret_bytes()
-            .to_vec(),
-    )?;
-
-    let claim = Claim::new(
-        public_key,
-        Address::new(public_key),
-        config.public_ip_address,
-        signature,
-    )
-    .map_err(NodeError::from)?;
-
-    let miner_election_handle = setup_miner_election_module(
-        events_tx.clone(),
-        miner_election_events_rx,
-        state_read_handle.clone(),
-        claim.clone(),
-    )?;
-
-    let quorum_election_handle = setup_quorum_election_module(
-        &config,
-        events_tx.clone(),
-        quorum_election_events_rx,
-        state_read_handle.clone(),
-        claim.clone(),
-    )?;
-
-    let (sync_jobs_sender, sync_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-    let (async_jobs_sender, async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-
-    let mut farmer_handle = None;
-    let mut harvester_handle = None;
-
-    let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-    if config.node_type == NodeType::Farmer {
-        farmer_handle = setup_farmer_module(
-            &config,
-            sync_jobs_sender,
-            async_jobs_sender,
-            events_tx.clone(),
-            farmer_events_rx,
-        )?;
-    } else {
-        // Setup harvester
-        harvester_handle = setup_harvester_module(
-            &config,
-            dag.clone(),
-            sync_jobs_sender,
-            async_jobs_sender,
-            events_tx.clone(),
-            events_rx,
-            state_read_handle.clone(),
-            harvester_events_rx,
-        )?
-    };
-
-    let valcore_manager =
-        ValidatorCoreManager::new(8).map_err(|err| NodeError::Other(err.to_string()))?;
-
-    let mut scheduler = setup_scheduler_module(
-        &config,
-        sync_jobs_receiver,
-        async_jobs_receiver,
-        valcore_manager,
-        events_tx.clone(),
-        state_read_handle.clone(),
-    );
-    let scheduler_handle = thread::spawn(move || {
-        scheduler.execute_sync_jobs();
-    });
-    let indexer_handle =
-        setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
-
-    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
-
-    let node_gui_handle = setup_node_gui(&config).await?;
-
-    info!("node gui has started");
+    // let mut mempool_events_rx = router.subscribe(None)?;
+    // let vrrbdb_events_rx = router.subscribe(None)?;
+    // let network_events_rx = router.subscribe(None)?;
+    // let controller_events_rx = router.subscribe(None)?;
+    // let miner_events_rx = router.subscribe(None)?;
+    // let farmer_events_rx = router.subscribe(None)?;
+    // let harvester_events_rx = router.subscribe(None)?;
+    // let jsonrpc_events_rx =
+    // router.subscribe(Some("json-rpc-api-control".into()))?; let dkg_events_rx
+    // = router.subscribe(None)?; let miner_election_events_rx =
+    // router.subscribe(None)?; let quorum_election_events_rx =
+    // router.subscribe(None)?; let indexer_events_rx = router.subscribe(None)?;
+    // let dag_events_rx = router.subscribe(None)?;
+    // let _swarm_module_events_rx = router.subscribe(None)?;
+    //
+    // let dag: Arc<RwLock<BullDag<Block, String>>> =
+    // Arc::new(RwLock::new(BullDag::new())); let mempool =
+    // LeftRightMempool::new(); let mempool_read_handle_factory =
+    // mempool.factory();
+    //
+    // let mempool_module = MempoolModule::new(MempoolModuleConfig {
+    //     mempool,
+    //     events_tx: events_tx.clone(),
+    // });
+    //
+    // let mut mempool_module_actor = ActorImpl::new(mempool_module);
+    //
+    // let mempool_handle = tokio::spawn(async move {
+    //     mempool_module_actor
+    //         .start(&mut mempool_events_rx)
+    //         .await
+    //         .map_err(|err| NodeError::Other(err.to_string()))
+    // });
+    //
+    // let mempool_handle = Some(mempool_handle);
+    //
+    // let (state_read_handle, state_handle) = setup_state_store(
+    //     &config,
+    //     events_tx.clone(),
+    //     vrrbdb_events_rx,
+    //     dag.clone(),
+    //     mempool_read_handle_factory.clone(),
+    // )
+    // .await?;
+    //
+    // let mut gossip_handle = None;
+    // let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
+    // if !config.disable_networking {
+    //     let (new_gossip_handle, _, gossip_addr) = setup_gossip_network(
+    //         &config,
+    //         events_tx.clone(),
+    //         network_events_rx,
+    //         controller_events_rx,
+    //         state_read_handle.clone(),
+    //         raptor_sender,
+    //     )
+    //     .await?;
+    //
+    //     gossip_handle = new_gossip_handle;
+    //     config.udp_gossip_address = gossip_addr;
+    // }
+    //
+    // let raptor_handle = thread::spawn({
+    //     let events_tx = events_tx.clone();
+    //     move || {
+    //         let events_tx = events_tx.clone();
+    //         loop {
+    //             let events_tx = events_tx.clone();
+    //             if let Ok(data) = raptor_receiver.recv() {
+    //                 match data {
+    //                     RaptorBroadCastedData::Block(block) => {
+    //                         tokio::spawn(async move {
+    //                             let _ =
+    // events_tx.send(Event::BlockReceived(block).into()).await;
+    // });                     },
+    //                 }
+    //             }
+    //         }
+    //     }
+    // });
+    //
+    // let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) =
+    // setup_rpc_api_server(     &config,
+    //     events_tx.clone(),
+    //     state_read_handle.clone(),
+    //     mempool_read_handle_factory.clone(),
+    //     jsonrpc_events_rx,
+    // )
+    // .await?;
+    //
+    // config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
+    //
+    // info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
+    //
+    // let (grpc_server_handle, resolved_grpc_server_addr) = setup_grpc_api_server(
+    //     &config,
+    //     events_tx.clone(),
+    //     state_read_handle.clone(),
+    //     mempool_read_handle_factory.clone(),
+    // )
+    // .await?;
+    //
+    // info!("gRPC server address started: {}", resolved_grpc_server_addr);
+    //
+    // let dag: Arc<RwLock<BullDag<Block, String>>> =
+    // Arc::new(RwLock::new(BullDag::new()));
+    //
+    // let miner_handle = setup_mining_module(
+    //     &config,
+    //     events_tx.clone(),
+    //     state_read_handle.clone(),
+    //     mempool_read_handle_factory.clone(),
+    //     dag.clone(),
+    //     miner_events_rx,
+    // )?;
+    //
+    // let dkg_handle = setup_dkg_module(&config, events_tx.clone(),
+    // dkg_events_rx)?; let public_key = *config.keypair.get_miner_public_key();
+    // let signature = Claim::signature_for_valid_claim(
+    //     public_key,
+    //     config.public_ip_address,
+    //     config
+    //         .keypair
+    //         .get_miner_secret_key()
+    //         .secret_bytes()
+    //         .to_vec(),
+    // )?;
+    //
+    // let claim = Claim::new(
+    //     public_key,
+    //     Address::new(public_key),
+    //     config.public_ip_address,
+    //     signature,
+    // )
+    // .map_err(NodeError::from)?;
+    //
+    // let miner_election_handle = setup_miner_election_module(
+    //     events_tx.clone(),
+    //     miner_election_events_rx,
+    //     state_read_handle.clone(),
+    //     claim.clone(),
+    // )?;
+    //
+    // let quorum_election_handle = setup_quorum_election_module(
+    //     &config,
+    //     events_tx.clone(),
+    //     quorum_election_events_rx,
+    //     state_read_handle.clone(),
+    //     claim.clone(),
+    // )?;
+    //
+    // let (sync_jobs_sender, sync_jobs_receiver) =
+    // crossbeam_channel::unbounded::<Job>(); let (async_jobs_sender,
+    // async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
+    //
+    // let mut farmer_handle = None;
+    // let mut harvester_handle = None;
+    //
+    // let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    //
+    // if config.node_type == NodeType::Farmer {
+    //     farmer_handle = setup_farmer_module(
+    //         &config,
+    //         sync_jobs_sender,
+    //         async_jobs_sender,
+    //         events_tx.clone(),
+    //         farmer_events_rx,
+    //     )?;
+    // } else {
+    //     // Setup harvester
+    //     harvester_handle = setup_harvester_module(
+    //         &config,
+    //         dag.clone(),
+    //         sync_jobs_sender,
+    //         async_jobs_sender,
+    //         events_tx.clone(),
+    //         events_rx,
+    //         state_read_handle.clone(),
+    //         harvester_events_rx,
+    //     )?
+    // };
+    //
+    // let valcore_manager =
+    //     ValidatorCoreManager::new(8).map_err(|err|
+    // NodeError::Other(err.to_string()))?;
+    //
+    // let mut scheduler = setup_scheduler_module(
+    //     &config,
+    //     sync_jobs_receiver,
+    //     async_jobs_receiver,
+    //     valcore_manager,
+    //     events_tx.clone(),
+    //     state_read_handle.clone(),
+    // );
+    // let scheduler_handle = thread::spawn(move || {
+    //     scheduler.execute_sync_jobs();
+    // });
+    // let indexer_handle =
+    //     setup_indexer_module(&config, indexer_events_rx,
+    // mempool_read_handle_factory)?;
+    //
+    // let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
+    //
+    // let node_gui_handle = setup_node_gui(&config).await?;
+    //
+    // info!("node gui has started");
+    //
+    // let runtime_components = RuntimeComponents {
+    //     node_config: config,
+    //     mempool_handle,
+    //     state_handle,
+    //     gossip_handle,
+    //     jsonrpc_server_handle,
+    //     miner_handle,
+    //     dkg_handle,
+    //     miner_election_handle,
+    //     quorum_election_handle,
+    //     farmer_handle,
+    //     harvester_handle,
+    //     indexer_handle,
+    //     dag_handle,
+    //     raptor_handle: Some(raptor_handle),
+    //     scheduler_handle: Some(scheduler_handle),
+    //     grpc_server_handle,
+    //     node_gui_handle,
+    // };
 
     let runtime_components = RuntimeComponents {
-        node_config: config,
-        mempool_handle,
-        state_handle,
-        gossip_handle,
-        jsonrpc_server_handle,
-        miner_handle,
-        dkg_handle,
-        miner_election_handle,
-        quorum_election_handle,
-        farmer_handle,
-        harvester_handle,
-        indexer_handle,
-        dag_handle,
-        raptor_handle: Some(raptor_handle),
-        scheduler_handle: Some(scheduler_handle),
-        grpc_server_handle,
-        node_gui_handle,
+        node_config: config.clone(),
+        mempool_handle: None,
+        state_handle: None,
+        gossip_handle: None,
+        jsonrpc_server_handle: None,
+        miner_handle: None,
+        dkg_handle: None,
+        miner_election_handle: None,
+        quorum_election_handle: None,
+        farmer_handle: None,
+        harvester_handle: None,
+        indexer_handle: None,
+        dag_handle: None,
+        raptor_handle: None,
+        scheduler_handle: None,
+        grpc_server_handle: None,
+        node_gui_handle: None,
     };
 
     Ok(runtime_components)

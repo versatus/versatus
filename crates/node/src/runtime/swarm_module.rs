@@ -199,7 +199,7 @@ mod tests {
 
         let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
 
-        let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
+        let (ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
 
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);

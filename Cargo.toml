@@ -14,8 +14,13 @@ lto = "thin"
 name = "vrrb"
 path = "crates/cli/src/main.rs"
 
+[[bin]]
+name = "minichain"
+path = "crates/cli/src/bin/minichain.rs"
+
 [dependencies]
 tokio = { workspace = true }
+node = { workspace = true }
 telemetry = { workspace = true }
 cli = { workspace = true }
 anyhow = { workspace = true }
