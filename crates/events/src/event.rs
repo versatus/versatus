@@ -46,7 +46,8 @@ pub enum Event {
     #[default]
     NoOp,
     Stop,
-
+    FetchPeers(usize),
+    DHTStoreRequest(String, String),
     /// New txn came from network, requires validation
     NewTxnCreated(Txn),
 
