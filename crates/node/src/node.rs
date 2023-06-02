@@ -26,7 +26,6 @@ pub struct Node {
     config: NodeConfig,
 
     // NOTE: core node features
-    // router_handle: JoinHandle<()>,
     running_status: RuntimeModuleState,
 
     // TODO: make this private
@@ -41,7 +40,7 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 impl Node {
     pub async fn start(config: &NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
-        let mut config = config.clone();
+        let config = config.clone();
 
         info!("Launching Node {}", &config.id);
 
@@ -55,7 +54,7 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
-        let runtime_components = setup_runtime_components(&mut config, &router, events_tx).await?;
+        let runtime_components = setup_runtime_components(&config, &router, events_tx).await?;
 
         let runtime_component_handles = vec![
             runtime_components.state_handle,
@@ -123,13 +122,13 @@ impl Node {
 
         if let Some(handle) = raptor_handle {
             if let Err(err) = handle.join() {
-                error!("Raptor handle is not shutdown");
+                error!("Raptor handle is not shutdown: {err:?}");
             }
         }
 
         if let Some(handle) = scheduler_handle {
             if let Err(err) = handle.join() {
-                error!("Scheduler handle is not shutdown");
+                error!("Scheduler handle is not shutdown: {err:?}");
             }
         }
 
