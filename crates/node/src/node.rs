@@ -40,7 +40,7 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 impl Node {
     pub async fn start(config: &NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
-        let config = config.clone();
+        let mut config = config.clone();
 
         info!("Launching Node {}", &config.id);
 
@@ -87,10 +87,10 @@ impl Node {
 
         let running_status = RuntimeModuleState::Running;
 
-        info!("Node {} is ready", config.id);
+        info!("Node {} is ready", runtime_components.node_config.id);
 
         Ok(Self {
-            config,
+            config: runtime_components.node_config,
             running_status,
             keypair,
             cancel_token,
