@@ -46,6 +46,7 @@ use crate::{
     broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
+    node,
     scheduler::{Job, JobSchedulerController},
     NodeError,
     Result,
@@ -125,6 +126,7 @@ pub async fn setup_runtime_components(
     let quorum_election_events_rx = router.subscribe(None)?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
+    let swarm_module_events_rx = router.subscribe(None)?;
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
     let mempool = LeftRightMempool::new();
