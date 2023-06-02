@@ -7,7 +7,11 @@
 # should work for _most_ linux distros and `.cargo/bin` is automatically
 # added to your $PATH for convenience.
 #
-# To start a new instance, simply run: `nix-shell`
+# To start the dev shell, simply run: `nix-shell`
+#
+# By default `nix-shell` opens a new `bash` shell. If you would like to use
+# your own, for example `zsh`, you can open a new instance directly after: `zsh`.
+# For more information on this limitation see https://nixos.wiki/wiki/Development_environment_with_nix-shell#direnv
 
 { pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-22.11.tar.gz") {} }:
 
