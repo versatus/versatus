@@ -4,11 +4,7 @@ use async_trait::async_trait;
 use block::{
     header::BlockHeader,
     valid::{BlockValidationData, Valid},
-    Block,
-    ConvergenceBlock,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
+    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -362,15 +358,24 @@ impl Handler<EventMessage> for DagModule {
                         if let Block::Convergence { mut block } = block.get_data() {
                             block.append_certificate(certificate);
                             self.last_confirmed_block_header = Some(block.get_header());
-                            let _ = self.events_tx.send(EventMessage::new(
-                                None,
-                                Event::MineProposalBlock(
-                                    block.hash.clone(),
-                                    block.get_header().round,
-                                    block.get_header().epoch,
-                                    self.claim.clone(),
-                                ),
-                            ));
+                            if let Err(err) = self
+                                .events_tx
+                                .send(EventMessage::new(
+                                    None,
+                                    Event::MineProposalBlock(
+                                        block.hash.clone(),
+                                        block.get_header().round,
+                                        block.get_header().epoch,
+                                        self.claim.clone(),
+                                    ),
+                                ))
+                                .await
+                            {
+                                let err_note = format!(
+                                    "Failed to send EventMessage for MineProposalBlock: {err}"
+                                );
+                                return Err(theater::TheaterError::Other(err_note));
+                            }
                         }
                         // Emit event for state update
                     }
