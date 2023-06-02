@@ -12,26 +12,26 @@ type Port = usize;
 
 #[derive(Debug, Clone)]
 pub struct SwarmModuleConfig {
-    pub port: Port,
-    pub bootstrap_node: Option<BootStrapNodeDetails>,
+    pub addr: SocketAddr,
+    pub bootstrap_node_config: Option<BootstrapNodeConfig>,
 }
 
 #[derive(Debug, Clone)]
-pub struct BootStrapNodeDetails {
+pub struct BootstrapNodeConfig {
     pub addr: SocketAddr,
     pub key: String,
 }
 
 #[derive(Clone)]
 pub struct SwarmModule {
-    pub node: KademliaNode,
-    is_bootstrap_node: bool,
-    refresh_interval: Option<u64>,
-    ping_interval: Option<u64>,
-    status: ActorState,
-    label: ActorLabel,
+    kademlia_node: KademliaNode,
     id: ActorId,
+    label: ActorLabel,
+    status: ActorState,
     events_tx: EventPublisher,
+    ping_interval: Option<u64>,
+    refresh_interval: Option<u64>,
+    is_bootstrap_node: bool,
 }
 
 impl SwarmModule {
@@ -41,48 +41,55 @@ impl SwarmModule {
         ping_interval: Option<u64>,
         events_tx: EventPublisher,
     ) -> Result<Self> {
+        // TODO: figure out what this flag is meant to be used for
         let mut is_bootstrap_node = false;
 
-        let kademlia_node = if let Some(bootstrap_node) = config.bootstrap_node {
-            match hex::decode(bootstrap_node.key) {
-                Ok(key_bytes) => match Key::try_from(key_bytes) {
-                    Ok(key) => {
-                        let bootstrap_node_data = NodeData::new(
-                            bootstrap_node.addr.ip().to_string(),
-                            bootstrap_node.addr.port().to_string(),
-                            format!(
-                                "{}:{}",
-                                bootstrap_node.addr.ip(),
-                                bootstrap_node.addr.port()
-                            ),
-                            key,
-                        );
-                        is_bootstrap_node = true;
-                        KademliaNode::new(
-                            "127.0.0.1",
-                            config.port.to_string().as_str(),
-                            Some(bootstrap_node_data),
-                        )
-                    },
-                    Err(_) => {
-                        return Err(NodeError::Other(String::from(
-                            "Invalid Node Key, Node Key should be 32bytes",
-                        )));
-                    },
-                },
-                Err(_e) => {
-                    return Err(NodeError::Other(String::from(
-                        "Invalid Hex string key for boostrap_node key",
-                    )));
-                },
-            }
+        let kademlia_node = if let Some(bootstrap_node_config) = config.bootstrap_node_config {
+            let node_key_bytes = hex::decode(bootstrap_node_config.key).map_err(|err| {
+                NodeError::Other(format!(
+                    "Invalid hex string key for boostrap node key: {err}",
+                ))
+            })?;
+
+            let kademlia_key = Key::try_from(node_key_bytes).map_err(|err| {
+                NodeError::Other(format!("Node key should have a 32 byte length: {err}"))
+            })?;
+
+            let bootstrap_node_addr_str = format!(
+                "{}:{}",
+                bootstrap_node_config.addr.ip(),
+                bootstrap_node_config.addr.port(),
+            );
+
+            // TODO: figure out why kademlia_dht needs the ip, port and then the whole
+            // address separately
+            // NOTE: this snippet turns the bootstrap node config into a NodeData struct
+            // that kademlia_dht understands
+            let bootstrap_node_data = NodeData::new(
+                bootstrap_node_config.addr.ip().to_string(),
+                bootstrap_node_config.addr.port().to_string(),
+                bootstrap_node_addr_str,
+                kademlia_key,
+            );
+
+            is_bootstrap_node = true;
+
+            KademliaNode::new(
+                config.addr.ip().to_string().as_str(),
+                config.addr.port().to_string().as_str(),
+                Some(bootstrap_node_data),
+            )
         } else {
-            //boostrap Node creation
-            KademliaNode::new("127.0.0.1", config.port.to_string().as_str(), None)
+            // NOTE: become a bootstrap node if none is provided
+            KademliaNode::new(
+                config.addr.ip().to_string().as_str(),
+                config.addr.port().to_string().as_str(),
+                None,
+            )
         };
 
         Ok(Self {
-            node: kademlia_node,
+            kademlia_node,
             is_bootstrap_node,
             refresh_interval,
             ping_interval,
@@ -91,6 +98,14 @@ impl SwarmModule {
             label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
         })
+    }
+
+    pub fn node_ref(&self) -> &KademliaNode {
+        &self.kademlia_node
+    }
+
+    pub fn node_mut(&mut self) -> &mut KademliaNode {
+        &mut self.kademlia_node
     }
 
     fn name(&self) -> String {
@@ -119,7 +134,7 @@ impl Handler<EventMessage> for SwarmModule {
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
             Event::Stop => {
-                self.node.kill();
+                self.node_ref().kill();
                 return Ok(ActorState::Stopped);
             },
             Event::NoOp => {},
@@ -155,8 +170,8 @@ mod tests {
 
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 0,
-                bootstrap_node: None,
+                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                bootstrap_node_config: None,
             },
             None,
             None,
@@ -186,8 +201,8 @@ mod tests {
 
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 6061,
-                bootstrap_node: None,
+                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                bootstrap_node_config: None,
             },
             None,
             None,
@@ -195,24 +210,20 @@ mod tests {
         )
         .unwrap();
 
-        let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
-
-        let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
-            tokio::sync::broadcast::channel::<Event>(10);
+        let key = bootstrap_swarm_module.node_ref().node_data().id.0.to_vec();
 
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, _events_node_rx) =
-            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (events_node_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
 
         let swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 6062,
-                bootstrap_node: Some(BootStrapNodeDetails {
+                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                bootstrap_node_config: Some(BootstrapNodeConfig {
                     addr: SocketAddr::new(
                         IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
                         bootstrap_swarm_module
-                            .node
+                            .node_ref()
                             .node_data()
                             .port
                             .parse()
@@ -227,9 +238,9 @@ mod tests {
         )
         .unwrap();
 
-        let _node_key = swarm_module.node.node_data().id.0;
+        let node_key = swarm_module.node_ref().node_data().id.0;
 
-        let _current_node_id = swarm_module.node.node_data().id;
+        let current_node_id = swarm_module.node_ref().node_data().id;
 
         let mut swarm_module = ActorImpl::new(swarm_module);
 
@@ -243,11 +254,11 @@ mod tests {
         });
 
         let nodes = bootstrap_swarm_module
-            .node
+            .node_ref()
             .routing_table
             .lock()
             .unwrap()
-            .get_closest_nodes(&bootstrap_swarm_module.node.node_data().id, 3);
+            .get_closest_nodes(&bootstrap_swarm_module.node_ref().node_data().id, 3);
 
         dbg!(&nodes);
 
@@ -258,12 +269,13 @@ mod tests {
 
     #[tokio::test]
     #[serial]
+    // TODO: figure out what this test is meant to verify
     async fn swarm_runtime_test_unreachable_peers() {
         let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let mut bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 0,
-                bootstrap_node: None,
+                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                bootstrap_node_config: None,
             },
             None,
             None,
@@ -271,21 +283,20 @@ mod tests {
         )
         .unwrap();
 
-        let key = bootstrap_swarm_module.node.node_data().id.0.to_vec();
-        let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
-            tokio::sync::broadcast::channel::<Event>(10);
+        let key = bootstrap_swarm_module.node_ref().node_data().id.0.to_vec();
+
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, _events_node_rx) =
-            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let (events_node_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
         let swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                port: 0,
-                bootstrap_node: Some(BootStrapNodeDetails {
+                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                bootstrap_node_config: Some(BootstrapNodeConfig {
                     addr: SocketAddr::new(
-                        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                        IpAddr::V4(Ipv4Addr::LOCALHOST),
                         bootstrap_swarm_module
-                            .node
+                            .node_ref()
                             .node_data()
                             .port
                             .parse()
@@ -300,35 +311,40 @@ mod tests {
         )
         .unwrap();
 
-        let current_node_id = swarm_module.node.node_data().id;
-        let target_port = swarm_module.node.node_data().port;
+        let current_node_id = swarm_module.node_ref().node_data().id;
+        let target_port = swarm_module.node_ref().node_data().port;
 
         let mut swarm_module = ActorImpl::new(swarm_module);
         let (ctrl_tx, mut ctrl_rx) =
             tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
+
         assert_eq!(swarm_module.status(), ActorState::Stopped);
 
         let handle = tokio::spawn(async move {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        let _s = bootstrap_swarm_module.node.rpc_ping(&NodeData {
-            ip: "127.0.0.1".to_string(),
-            port: target_port.clone(),
-            addr: "127.0.0.1".to_string() + &*target_port,
-            id: current_node_id,
-        });
+        let res = bootstrap_swarm_module
+            .node_mut()
+            .rpc_ping(&NodeData {
+                ip: "127.0.0.1".to_string(),
+                port: target_port.clone(),
+                addr: "127.0.0.1".to_string() + &*target_port,
+                id: current_node_id,
+            })
+            .unwrap();
 
         ctrl_tx.send(Event::Stop.into()).unwrap();
         handle.await.unwrap();
 
-        let s = bootstrap_swarm_module.node.rpc_ping(&NodeData {
-            ip: "127.0.0.1".to_string(),
-            port: "6064".to_string(),
-            addr: "127.0.0.1:6064".to_string(),
-            id: current_node_id,
-        });
-
-        assert!(s.is_none());
+        let res = bootstrap_swarm_module
+            .node_mut()
+            .rpc_ping(&NodeData {
+                ip: "127.0.0.1".to_string(),
+                port: "6064".to_string(),
+                addr: "127.0.0.1:6064".to_string(),
+                id: current_node_id,
+            })
+            .unwrap();
     }
 }

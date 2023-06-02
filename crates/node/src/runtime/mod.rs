@@ -42,7 +42,7 @@ use self::{
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
-    swarm_module::{BootStrapNodeDetails, SwarmModule, SwarmModuleConfig},
+    swarm_module::{BootstrapNodeConfig, SwarmModule, SwarmModuleConfig},
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
@@ -525,16 +525,16 @@ fn setup_swarm_module(
     events_tx: EventPublisher,
     mut events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 7777);
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
-    let bootstrap_details = BootStrapNodeDetails {
+    let bootstrap_details = BootstrapNodeConfig {
         addr,
         key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
     };
 
     let swarm_module_config = SwarmModuleConfig {
-        port: 7777,
-        bootstrap_node: Some(bootstrap_details),
+        addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+        bootstrap_node_config: Some(bootstrap_details),
     };
 
     let module = SwarmModule::new(swarm_module_config, Some(5), Some(5), events_tx);
