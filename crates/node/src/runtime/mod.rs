@@ -125,6 +125,7 @@ pub async fn setup_runtime_components(
     let quorum_election_events_rx = router.subscribe(None)?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
+    let _swarm_module_events_rx = router.subscribe(None)?;
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
     let mempool = LeftRightMempool::new();
