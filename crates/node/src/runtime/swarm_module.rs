@@ -244,7 +244,7 @@ mod tests {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        let nodes = bootstrap_swarm_module
+        let _nodes = bootstrap_swarm_module
             .node
             .routing_table
             .lock()
