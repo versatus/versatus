@@ -27,6 +27,7 @@ pkgs.mkShell rec {
     # build dependencies
     clang
     libclang.lib
+    libiconv
     rocksdb
     openssl.dev
     pkg-config
