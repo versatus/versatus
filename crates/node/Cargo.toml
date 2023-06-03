@@ -31,6 +31,7 @@ serde = { workspace = true }
 blake3 = { workspace = true }
 pickledb = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
 ritelinked = { workspace = true }
@@ -67,7 +68,7 @@ vrrb_http = { workspace = true }
 vrrb_grpc = { workspace = true }
 messr = { workspace = true }
 utils = { workspace = true }
-maglev =  { workspace = true }
+maglev = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }
