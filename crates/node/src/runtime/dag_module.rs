@@ -1,8 +1,3 @@
-use std::{
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-};
-
 use async_trait::async_trait;
 use block::{
     header::BlockHeader,
@@ -13,19 +8,14 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
-use miner::test_helpers::{
-    create_address, create_and_sign_message, create_claim, create_claims, create_miner,
-};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
+use std::sync::{Arc, RwLock};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::claim::Claim;
-
-use crate::test_utils::create_keypair;
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
@@ -371,7 +361,7 @@ impl Handler<EventMessage> for DagModule {
                             .map(|vertex| vertex.get_data())
                     })
                 {
-                    block.append_certificate(certificate);
+                    block.append_certificate(certificate.clone());
                     self.last_confirmed_block_header = Some(block.get_header());
                     mine_block = Some(block.clone());
                 }
@@ -392,6 +382,8 @@ impl Handler<EventMessage> for DagModule {
                         );
                         return Err(TheaterError::Other(err_msg));
                     }
+                } else {
+                    println!("Missing ConvergenceBlock for certificate: {certificate:?}");
                 }
             },
             Event::HarvesterPublicKey(pubkey_bytes) => {
