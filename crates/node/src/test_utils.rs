@@ -304,7 +304,7 @@ pub(crate) fn create_dag_module() -> DagModule {
     let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
     let signature =
         Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
-    let claim = create_claim(&pk, &addr, ip_address, signature.clone());
+    let claim = create_claim(&pk, &addr, ip_address, signature);
     let (events_tx, _) = tokio::sync::mpsc::channel(events::DEFAULT_BUFFER);
 
     DagModule::new(miner.dag, events_tx, claim)
