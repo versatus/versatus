@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, RwLock},
+};
 
 use async_trait::async_trait;
 use block::{
@@ -10,13 +13,19 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
+use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
+use miner::test_helpers::{
+    create_address, create_and_sign_message, create_claim, create_claims, create_miner,
+};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::claim::Claim;
+
+use crate::test_utils::create_keypair;
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
@@ -268,7 +277,7 @@ impl DagModule {
                     .public_key()
                     .verify(&signature, validation_data.payload_hash)),
                 Err(e) => Err(SignerError::SignatureVerificationError(format!(
-                    "Error parsing threshold signature details : {:?}",
+                    "Error parsing threshold signature details: {:?}",
                     e
                 ))),
             }
@@ -319,19 +328,19 @@ impl Handler<EventMessage> for DagModule {
                 Block::Genesis { block } => {
                     if let Err(e) = self.append_genesis(&block) {
                         let err_note = format!("Encountered GraphError: {e:?}");
-                        return Err(theater::TheaterError::Other(err_note));
+                        return Err(TheaterError::Other(err_note));
                     };
                 },
                 Block::Proposal { block } => {
                     if let Err(e) = self.append_proposal(&block) {
                         let err_note = format!("Encountered GraphError: {e:?}");
-                        return Err(theater::TheaterError::Other(err_note));
+                        return Err(TheaterError::Other(err_note));
                     }
                 },
                 Block::Convergence { block } => {
                     if let Err(e) = self.append_convergence(&block) {
                         let err_note = format!("Encountered GraphError: {e:?}");
-                        return Err(theater::TheaterError::Other(err_note));
+                        return Err(TheaterError::Other(err_note));
                     }
                     if block.certificate.is_none() {
                         if let Some(header) = self.last_confirmed_block_header.clone() {
@@ -346,38 +355,42 @@ impl Handler<EventMessage> for DagModule {
                                 let err_note = format!(
                                     "Failed to send EventMessage for PrecheckConvergenceBlock: {err}"
                                 );
-                                return Err(theater::TheaterError::Other(err_note));
+                                return Err(TheaterError::Other(err_note));
                             }
                         }
                     }
                 },
             },
             Event::BlockCertificate(certificate) => {
-                if let Ok(mut dag) = self.dag.write() {
-                    if let Some(block) = dag.get_vertex_mut(certificate.block_hash.clone()) {
-                        if let Block::Convergence { mut block } = block.get_data() {
-                            block.append_certificate(certificate);
-                            self.last_confirmed_block_header = Some(block.get_header());
-                            if let Err(err) = self
-                                .events_tx
-                                .send(EventMessage::new(
-                                    None,
-                                    Event::MineProposalBlock(
-                                        block.hash.clone(),
-                                        block.get_header().round,
-                                        block.get_header().epoch,
-                                        self.claim.clone(),
-                                    ),
-                                ))
-                                .await
-                            {
-                                let err_note = format!(
-                                    "Failed to send EventMessage for MineProposalBlock: {err}"
-                                );
-                                return Err(theater::TheaterError::Other(err_note));
-                            }
-                        }
-                        // Emit event for state update
+                let mut mine_block: Option<ConvergenceBlock> = None;
+                let block_hash = certificate.block_hash.clone();
+                if let Ok(Some(Block::Convergence { mut block })) =
+                    self.dag.write().map(|mut bull_dag| {
+                        bull_dag
+                            .get_vertex_mut(block_hash)
+                            .map(|vertex| vertex.get_data())
+                    })
+                {
+                    block.append_certificate(certificate);
+                    self.last_confirmed_block_header = Some(block.get_header());
+                    mine_block = Some(block.clone());
+                }
+                if let Some(block) = mine_block {
+                    let proposal_block = Event::MineProposalBlock(
+                        block.hash.clone(),
+                        block.get_header().round,
+                        block.get_header().epoch,
+                        self.claim.clone(),
+                    );
+                    if let Err(err) = self
+                        .events_tx
+                        .send(EventMessage::new(None, proposal_block.clone()))
+                        .await
+                    {
+                        let err_msg = format!(
+                            "Error occurred while broadcasting event {proposal_block:?}\ndetails: {err:?}"
+                        );
+                        return Err(TheaterError::Other(err_msg));
                     }
                 }
             },
@@ -392,5 +405,24 @@ impl Handler<EventMessage> for DagModule {
             _ => {},
         }
         Ok(ActorState::Running)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::test_utils::{create_blank_certificate, create_dag_module};
+    use events::Event;
+    use theater::{ActorState, Handler};
+
+    #[tokio::test]
+    async fn handle_event_block_certificate() {
+        let mut dag_module = create_dag_module();
+        let certificate = create_blank_certificate(dag_module.claim.signature.clone());
+        let message: messr::Message<Event> = Event::BlockCertificate(certificate).into();
+
+        assert_eq!(
+            ActorState::Running,
+            dag_module.handle(message).await.unwrap()
+        );
     }
 }

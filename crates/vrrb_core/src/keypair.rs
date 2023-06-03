@@ -8,9 +8,7 @@ use std::{
 
 use bs58::encode;
 use hbbft::crypto::{
-    serde_impl::SerdeSecret,
-    PublicKey as ValidatorPublicKey,
-    SecretKey as ValidatorSecretKey,
+    serde_impl::SerdeSecret, PublicKey as ValidatorPublicKey, SecretKey as ValidatorSecretKey,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use ring::digest::{Context, SHA256};
@@ -448,7 +446,7 @@ impl Serialize for KeyPair {
     }
 }
 
-#[allow(clippy::derived_hash_with_manual_eq)]
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for KeyPair {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash miner_kp
