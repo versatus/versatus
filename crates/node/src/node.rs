@@ -42,6 +42,10 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
+        if let None = config.bootstrap_config {
+            dbg!("Config: {:?}", config.clone());
+        }
+
         info!("Launching Node {}", &config.id);
 
         let keypair = config.keypair.clone();

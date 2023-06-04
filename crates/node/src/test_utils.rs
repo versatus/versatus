@@ -19,6 +19,14 @@ use vrrb_core::{
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
+macro_rules! rand_in_range {
+    ($min:expr, $max:expr) => {{
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        rng.gen_range($min..=$max)
+    }};
+}
+
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
     let id = Uuid::new_v4().to_string();
@@ -28,16 +36,24 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
     let idx = 100;
 
-    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let rendezvous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let rendezvous_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let public_ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let port_start = rand_in_range!(9292, 19292);
+
+    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 1);
+    let jsonrpc_server_address =
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 2);
+    let udp_gossip_address =
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 3);
+    let raptorq_gossip_address =
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 4);
+    let rendezvous_local_address =
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 5);
+    let rendezvous_server_address =
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 6);
+    let public_ip_address =
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start + 7);
     let grpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 50051);
 
-    let main_bootstrap_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 10)), 0);
+    let main_bootstrap_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port_start);
     let bootstrap_node_addresses = vec![main_bootstrap_addr];
 
     NodeConfigBuilder::default()
