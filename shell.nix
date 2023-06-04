@@ -18,6 +18,10 @@
 pkgs.mkShell rec {
   name = "vrrb-dev";
 
+  nativeBuildInputs = with pkgs; [
+    pkg-config
+  ];
+
   buildInputs = with pkgs; [
     # dev tools
     which
@@ -27,12 +31,13 @@ pkgs.mkShell rec {
     # build dependencies
     clang
     libclang.lib
-    libiconv
     rocksdb
     openssl.dev
-    pkg-config
     rustup
-  ];
+  ] ++ lib.optionals stdenv.isDarwin [
+    libiconv
+    darwin.apple_sdk.frameworks.Security
+    ];
 
   RUSTC_VERSION = pkgs.lib.readFile ./rust-toolchain.toml;
 
