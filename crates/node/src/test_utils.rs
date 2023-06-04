@@ -11,7 +11,7 @@ use bulldag::{graph::BullDag, vertex::Vertex};
 use primitives::{generate_account_keypair, Address, NodeType, RawSignature};
 use secp256k1::{Message, PublicKey, SecretKey};
 use uuid::Uuid;
-use vrrb_config::{NodeConfig, NodeConfigBuilder};
+use vrrb_config::{BootstrapConfig, NodeConfig, NodeConfigBuilder};
 use vrrb_core::{
     account::Account,
     claim::Claim,
@@ -86,7 +86,10 @@ pub fn create_mock_full_node_config_with_bootstrap(
 ) -> NodeConfig {
     let mut node_config = create_mock_full_node_config();
 
-    node_config.bootstrap_node_addresses = bootstrap_node_addresses;
+    node_config.bootstrap_node_addresses = bootstrap_node_addresses.clone();
+    node_config.bootstrap_config = Some(BootstrapConfig {
+        addresses: bootstrap_node_addresses,
+    });
     node_config
 }
 

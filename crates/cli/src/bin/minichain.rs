@@ -6,25 +6,47 @@ async fn main() {
         .await
         .unwrap();
 
-    let mut node_1 = Node::start(&node::test_utils::create_mock_full_node_config())
-        .await
-        .unwrap();
+    let bootstrap_node_addresses = node_0.get_public_ip_address();
 
-    let mut node_2 = Node::start(&node::test_utils::create_mock_full_node_config())
-        .await
-        .unwrap();
+    let mut node_1 = Node::start(
+        &node::test_utils::create_mock_full_node_config_with_bootstrap(vec![
+            bootstrap_node_addresses,
+        ]),
+    )
+    .await
+    .unwrap();
 
-    let mut node_3 = Node::start(&node::test_utils::create_mock_full_node_config())
-        .await
-        .unwrap();
+    let mut node_2 = Node::start(
+        &node::test_utils::create_mock_full_node_config_with_bootstrap(vec![
+            bootstrap_node_addresses,
+        ]),
+    )
+    .await
+    .unwrap();
 
-    let mut node_4 = Node::start(&node::test_utils::create_mock_full_node_config())
-        .await
-        .unwrap();
+    let mut node_3 = Node::start(
+        &node::test_utils::create_mock_full_node_config_with_bootstrap(vec![
+            bootstrap_node_addresses,
+        ]),
+    )
+    .await
+    .unwrap();
 
-    let mut node_5 = Node::start(&node::test_utils::create_mock_full_node_config())
-        .await
-        .unwrap();
+    let mut node_4 = Node::start(
+        &node::test_utils::create_mock_full_node_config_with_bootstrap(vec![
+            bootstrap_node_addresses,
+        ]),
+    )
+    .await
+    .unwrap();
+
+    let mut node_5 = Node::start(
+        &node::test_utils::create_mock_full_node_config_with_bootstrap(vec![
+            bootstrap_node_addresses,
+        ]),
+    )
+    .await
+    .unwrap();
     //
     // do soemthing in between
     //

@@ -1,6 +1,7 @@
 mod bootstrap;
 mod node_config;
 
+pub use bootstrap::*;
 pub use node_config::*;
 
 #[cfg(test)]
