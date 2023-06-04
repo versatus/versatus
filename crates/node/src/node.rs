@@ -42,6 +42,19 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let mut config = config.clone();
 
+        if let None = config.bootstrap_config {
+            dbg!(
+                "I am Bootstrap Node - Address: {:?}",
+                config.public_ip_address.clone()
+            );
+        } else {
+            dbg!("I am not bootstrap");
+            dbg!(
+                "Bootstrap Node Address {:?}",
+                config.bootstrap_config.clone()
+            );
+        }
+
         info!("Launching Node {}", &config.id);
 
         let keypair = config.keypair.clone();
