@@ -15,7 +15,7 @@
 
 { pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-22.11.tar.gz") {} }:
 
-pkgs.mkShell rec {
+pkgs.mkShell {
   name = "vrrb-dev";
 
   nativeBuildInputs = with pkgs; [
