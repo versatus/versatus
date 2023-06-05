@@ -3,9 +3,10 @@
 # For installation steps see: https://nix.dev/tutorials/install-nix
 #
 # This dev shell provides some basic developer tools for debugging
-# as well as the necessary build dependencies. The toolchain path 
-# should work for _most_ linux distros and `.cargo/bin` is automatically
-# added to your $PATH for convenience.
+# as well as the necessary build dependencies. The rust toolchain
+# and rust-analyzer are provided by fenix and `.cargo/bin` is automatically
+# added to your $PATH for convenience. For a list of platforms supprted by
+# fenix, see: https://github.com/nix-community/fenix#supported-platforms-and-targets
 #
 # To start the dev shell, simply run: `nix-shell`
 #
@@ -15,11 +16,15 @@
 
 { pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-22.11.tar.gz") {} }:
 
+let
+  fenix = import (fetchTarball "https://github.com/nix-community/fenix/archive/main.tar.gz") {};
+in
 pkgs.mkShell {
-  name = "vrrb-dev";
+  name = "vrrb-dev"; 
 
-  nativeBuildInputs = with pkgs; [
-    pkg-config
+  nativeBuildInputs = [
+    # rust toolchain
+    (fenix.fromToolchainFile { dir = ./.; })
   ];
 
   buildInputs = with pkgs; [
@@ -29,21 +34,12 @@ pkgs.mkShell {
     zlib
 
     # build dependencies
-    clang
-    libclang.lib
     rocksdb
     openssl.dev
-    rustup
-  ] ++ lib.optionals stdenv.isDarwin [
     libiconv
-    darwin.apple_sdk.frameworks.Security
-    ];
-
-  RUSTC_VERSION = pkgs.lib.readFile ./rust-toolchain.toml;
+  ];
 
   shellHook = ''
-    export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
-    export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
     export LIBCLANG_PATH="${pkgs.libclang.lib}/lib";
     export ROCKSDB_LIB_DIR="${pkgs.rocksdb}/lib";
   '';
