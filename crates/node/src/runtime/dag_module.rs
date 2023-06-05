@@ -383,7 +383,7 @@ impl Handler<EventMessage> for DagModule {
                         return Err(TheaterError::Other(err_msg));
                     }
                 } else {
-                    println!("Missing ConvergenceBlock for certificate: {certificate:?}");
+                    telemetry::debug!("Missing ConvergenceBlock for certificate: {certificate:?}");
                 }
             },
             Event::HarvesterPublicKey(pubkey_bytes) => {
