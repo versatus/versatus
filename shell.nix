@@ -20,7 +20,7 @@ let
   fenix = import (fetchTarball "https://github.com/nix-community/fenix/archive/main.tar.gz") {};
 in
 pkgs.mkShell {
-  name = "vrrb-dev"; 
+  name = "vrrb-dev";
 
   nativeBuildInputs = [
     # rust toolchain
