@@ -250,10 +250,14 @@ impl Handler<EventMessage> for FarmerModule {
             // Receive the Vote from scheduler
             Event::ProcessedVotes(JobResult::Votes((votes, farmer_quorum_threshold))) => {
                 for vote in votes.iter().flatten() {
-                    let _ = self
+                    if let Err(err) = self
                         .broadcast_events_tx
                         .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
-                        .await;
+                        .await
+                    {
+                        let err_msg = format!("failed to send vote: {err}");
+                        return Err(theater::TheaterError::Other(err_msg));
+                    }
                 }
             },
             Event::NoOp => {},

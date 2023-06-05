@@ -254,25 +254,29 @@ impl JobSchedulerController {
                             if let Ok(signature) =
                                 sig_provider.generate_partial_signature(block_hash_bytes)
                             {
-                                if let Ok(dkg_state) = sig_provider.dkg_state.read() {
-                                    if let Some(secret_share) = &dkg_state.secret_key_share {
-                                        if let Err(err) = self
-                                            .events_tx
-                                            .send(
-                                                Event::ConvergenceBlockPartialSign(
-                                                    JobResult::ConvergenceBlockPartialSign(
-                                                        block.hash,
-                                                        secret_share.public_key_share(),
-                                                        signature,
-                                                    ),
-                                                )
-                                                .into(),
+                                if let Ok(Some(secret_share)) = sig_provider
+                                    .dkg_state
+                                    .read()
+                                    .map(|dkg_state| dkg_state.secret_key_share.clone())
+                                {
+                                    if let Err(err) = self
+                                        .events_tx
+                                        .send(
+                                            Event::ConvergenceBlockPartialSign(
+                                                JobResult::ConvergenceBlockPartialSign(
+                                                    block.hash.clone(),
+                                                    secret_share.public_key_share(),
+                                                    signature.clone(),
+                                                ),
                                             )
-                                            .await
-                                        {
-                                            let err_msg = format!("failed to send convergence block partial sign: {err}");
-                                            return Err(NodeError::Other(err_msg));
-                                        }
+                                            .into(),
+                                        )
+                                        .await
+                                    {
+                                        let err_msg = format!(
+                                            "failed to send convergence block partial sign: {err}"
+                                        );
+                                        return Err(NodeError::Other(err_msg));
                                     }
                                 }
                             }
