@@ -378,7 +378,7 @@ impl Handler<EventMessage> for DagModule {
                         .await
                     {
                         let err_msg = format!(
-                            "Error occurred while broadcasting event {proposal_block:?}\ndetails: {err:?}"
+                            "Error occurred while broadcasting event {proposal_block:?}: {err:?}"
                         );
                         return Err(TheaterError::Other(err_msg));
                     }
