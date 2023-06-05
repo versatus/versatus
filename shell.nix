@@ -25,6 +25,8 @@ pkgs.mkShell {
   nativeBuildInputs = [
     # rust toolchain
     (fenix.fromToolchainFile { dir = ./.; })
+    pkgs.pkg-config
+    pkgs.clang
   ];
 
   buildInputs = with pkgs; [
