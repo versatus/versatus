@@ -21,3 +21,4 @@ tmp_key
 *.DS_Store
 
 infra/gui/node_modules
+node_modules
