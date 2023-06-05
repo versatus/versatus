@@ -11,11 +11,7 @@ use dashmap::DashMap;
 use events::{Event, EventMessage, EventPublisher, JobResult, Vote};
 use hbbft::crypto::{PublicKeyShare, SignatureShare};
 use primitives::{
-    GroupPublicKey,
-    HarvesterQuorumThreshold,
-    NodeIdx,
-    QuorumThreshold,
-    RawSignature,
+    GroupPublicKey, HarvesterQuorumThreshold, NodeIdx, QuorumThreshold, RawSignature,
 };
 use ritelinked::LinkedHashMap;
 use signer::signer::{SignatureProvider, Signer};
@@ -180,12 +176,12 @@ impl HarvesterModule {
 
     /// Generate Certificate for convergence block and then broadcast it to the
     /// network
-    fn generate_and_broadcast_certificate(
+    async fn generate_and_broadcast_certificate(
         &self,
         block_hash: BlockHash,
         certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
         sig_provider: &SignatureProvider,
-    ) {
+    ) -> Result<(), theater::TheaterError> {
         if certificates_share.len() >= self.quorum_threshold {
             //Generate a new certificate for the block
             let mut sig_shares = BTreeMap::new();
@@ -204,12 +200,20 @@ impl HarvesterModule {
                     next_root_hash: "".to_string(),
                     block_hash,
                 };
-                let _ = self.broadcast_events_tx.send(EventMessage::new(
-                    None,
-                    Event::SendBlockCertificate(certificate),
-                ));
+                if let Err(err) = self
+                    .broadcast_events_tx
+                    .send(EventMessage::new(
+                        None,
+                        Event::SendBlockCertificate(certificate),
+                    ))
+                    .await
+                {
+                    let err_msg = format!("failed to send block certificate: {err}");
+                    return Err(theater::TheaterError::Other(err_msg));
+                }
             }
         }
+        Ok(())
     }
 }
 
@@ -397,21 +401,31 @@ impl Handler<EventMessage> for HarvesterModule {
                                             if new_certificate_share.len()
                                                 <= sig_provider.quorum_config.upper_bound as usize
                                             {
-                                                self.broadcast_events_tx.send(EventMessage::new(
-                                                    None,
-                                                    Event::SendPeerConvergenceBlockSign(
-                                                        self.harvester_id,
-                                                        block_hash.clone(),
-                                                        public_key_share.to_bytes().to_vec(),
-                                                        partial_signature,
-                                                    ),
-                                                ));
+                                                if let Err(err) = self
+                                                    .broadcast_events_tx
+                                                    .send(EventMessage::new(
+                                                        None,
+                                                        Event::SendPeerConvergenceBlockSign(
+                                                            self.harvester_id,
+                                                            block_hash.clone(),
+                                                            public_key_share.to_bytes().to_vec(),
+                                                            partial_signature,
+                                                        ),
+                                                    ))
+                                                    .await
+                                                {
+                                                    let err_msg = format!("failed to send peer convergence block sign: {err}");
+                                                    return Err(theater::TheaterError::Other(
+                                                        err_msg,
+                                                    ));
+                                                }
 
                                                 self.generate_and_broadcast_certificate(
                                                     block_hash,
                                                     &new_certificate_share,
                                                     sig_provider,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                     }
@@ -483,7 +497,8 @@ impl Handler<EventMessage> for HarvesterModule {
                                     block_hash,
                                     &new_certificate_share,
                                     sig_provider,
-                                );
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -493,9 +508,9 @@ impl Handler<EventMessage> for HarvesterModule {
                 let claims = block.claims.clone();
                 let txns = block.txns.clone();
                 let proposal_block_hashes = block.header.ref_hashes.clone();
+                let mut pre_check = true;
+                let mut tmp_proposal_blocks = Vec::new();
                 if let Ok(dag) = self.dag.read() {
-                    let mut tmp_proposal_blocks = Vec::new();
-
                     for proposal_block_hash in proposal_block_hashes.iter() {
                         if let Some(block) = dag.get_vertex(proposal_block_hash.clone()) {
                             if let Block::Proposal { block } = block.get_data() {
@@ -503,7 +518,6 @@ impl Handler<EventMessage> for HarvesterModule {
                             }
                         }
                     }
-                    let mut pre_check = true;
                     for (ref_hash, claim_hashset) in claims.iter() {
                         match dag.get_vertex(ref_hash.clone()) {
                             Some(block) => {
@@ -542,8 +556,11 @@ impl Handler<EventMessage> for HarvesterModule {
                             }
                         }
                     }
-                    if pre_check {
-                        let _ = self.broadcast_events_tx.send(EventMessage::new(
+                }
+                if pre_check {
+                    if let Err(err) = self
+                        .broadcast_events_tx
+                        .send(EventMessage::new(
                             None,
                             Event::CheckConflictResolution((
                                 tmp_proposal_blocks,
@@ -551,7 +568,11 @@ impl Handler<EventMessage> for HarvesterModule {
                                 last_confirmed_block_header.next_block_seed,
                                 block,
                             )),
-                        ));
+                        ))
+                        .await
+                    {
+                        let err_msg = format!("failed to send conflict resolution check: {err}");
+                        return Err(theater::TheaterError::Other(err_msg));
                     }
                 }
             },

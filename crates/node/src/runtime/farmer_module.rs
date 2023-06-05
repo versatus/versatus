@@ -214,10 +214,20 @@ impl Handler<EventMessage> for FarmerModule {
                         {
                             let addresses: Vec<SocketAddr> =
                                 broadcast_addresses.iter().cloned().collect();
-                            let _ = self.broadcast_events_tx.send(EventMessage::new(
-                                None,
-                                Event::ForwardTxn((txn.1, addresses)),
-                            ));
+                            if let Err(err) = self
+                                .broadcast_events_tx
+                                .send(EventMessage::new(
+                                    None,
+                                    Event::ForwardTxn((txn.1.clone(), addresses.clone())),
+                                ))
+                                .await
+                            {
+                                let err_msg = format!(
+                                    "failed to forward txn {:?} to peers {addresses:?}: {err}",
+                                    txn.1
+                                );
+                                return Err(theater::TheaterError::Other(err_msg));
+                            }
                         }
                     } else {
                         new_txns.push(txn);
