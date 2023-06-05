@@ -537,7 +537,7 @@ fn setup_swarm_module(
         bootstrap_node_config: Some(bootstrap_details),
     };
 
-    let module = SwarmModule::new(swarm_module_config, Some(5), Some(5), events_tx);
+    let module = SwarmModule::new(swarm_module_config, events_tx);
 
     match module {
         Ok(swarm_module) => {

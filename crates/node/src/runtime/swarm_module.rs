@@ -29,21 +29,10 @@ pub struct SwarmModule {
     label: ActorLabel,
     status: ActorState,
     events_tx: EventPublisher,
-    ping_interval: Option<u64>,
-    refresh_interval: Option<u64>,
-    is_bootstrap_node: bool,
 }
 
 impl SwarmModule {
-    pub fn new(
-        config: SwarmModuleConfig,
-        refresh_interval: Option<u64>,
-        ping_interval: Option<u64>,
-        events_tx: EventPublisher,
-    ) -> Result<Self> {
-        // TODO: figure out what this flag is meant to be used for
-        let mut is_bootstrap_node = false;
-
+    pub fn new(config: SwarmModuleConfig, events_tx: EventPublisher) -> Result<Self> {
         let kademlia_node = if let Some(bootstrap_node_config) = config.bootstrap_node_config {
             let node_key_bytes = hex::decode(bootstrap_node_config.key).map_err(|err| {
                 NodeError::Other(format!(
@@ -72,8 +61,6 @@ impl SwarmModule {
                 kademlia_key,
             );
 
-            is_bootstrap_node = true;
-
             KademliaNode::new(
                 config.addr.ip().to_string().as_str(),
                 config.addr.port().to_string().as_str(),
@@ -90,9 +77,6 @@ impl SwarmModule {
 
         Ok(Self {
             kademlia_node,
-            is_bootstrap_node,
-            refresh_interval,
-            ping_interval,
             events_tx,
             status: ActorState::Stopped,
             label: String::from("State"),
@@ -133,6 +117,28 @@ impl Handler<EventMessage> for SwarmModule {
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
+            Event::FetchPeers(no) => {
+                let key = self.kademlia_node.node_data().id.clone();
+                let closest_nodes = self
+                    .kademlia_node
+                    .routing_table
+                    .lock()
+                    .unwrap()
+                    .get_closest_nodes(&key, no);
+
+                for node in closest_nodes {
+                    println!("Closest Node with Key : {:?} :{:?}", key, node);
+                }
+            },
+            Event::DHTStoreRequest(key, value) => {
+                info!(
+                    "Storing into DHT Store Request  :{:?}:{:?}",
+                    KademliaNode::get_key(key.as_str()),
+                    value
+                );
+                self.kademlia_node
+                    .insert(KademliaNode::get_key(key.as_str()), value.as_str());
+            },
             Event::Stop => {
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
@@ -155,11 +161,16 @@ impl Handler<EventMessage> for SwarmModule {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::{
+        net::{IpAddr, Ipv4Addr},
+        thread,
+        time::Duration,
+    };
 
     use events::{Event, EventMessage, DEFAULT_BUFFER};
     use serial_test::serial;
     use theater::ActorImpl;
+    use tokio::sync::broadcast::{Receiver, Sender};
 
     use super::*;
 
@@ -167,14 +178,11 @@ mod tests {
     #[serial]
     async fn swarm_runtime_module_starts_and_stops() {
         let (events_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
                 bootstrap_node_config: None,
             },
-            None,
-            None,
             events_tx,
         )
         .unwrap();
@@ -198,105 +206,200 @@ mod tests {
     #[serial]
     async fn swarm_runtime_add_peers() {
         let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
                 bootstrap_node_config: None,
             },
-            None,
-            None,
-            events_tx,
+            events_tx.clone(),
         )
         .unwrap();
 
-        let key = bootstrap_swarm_module.node_ref().node_data().id.0.to_vec();
+        let key = bootstrap_swarm_module
+            .kademlia_node
+            .node_data()
+            .id
+            .0
+            .to_vec();
+        let mut handles = Vec::new();
+        let mut ctrl_txs = Vec::new();
+        for port in 6062..=6070 {
+            let (ctrl_tx, mut ctrl_rx) =
+                tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
+            let swarm_module = SwarmModule::new(
+                SwarmModuleConfig {
+                    addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
+                    bootstrap_node_config: Some(BootstrapNodeConfig {
+                        addr: SocketAddr::new(
+                            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                            bootstrap_swarm_module
+                                .kademlia_node
+                                .node_data()
+                                .port
+                                .parse()
+                                .unwrap(),
+                        ),
+                        key: hex::encode(key.clone()),
+                    }),
+                },
+                events_tx,
+            )
+            .unwrap();
+            let handle = start_swarm_module(swarm_module, ctrl_rx).await;
+            handles.push(handle);
+            ctrl_txs.push(ctrl_tx);
+        }
+        for ctrl_tx in ctrl_txs.iter() {
+            ctrl_tx.send(Event::FetchPeers(3).into()).unwrap();
+        }
+        for ctrl_tx in ctrl_txs.iter() {
+            ctrl_tx.send(Event::Stop.into()).unwrap();
+        }
 
-        assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        for handle in handles {
+            handle.await.unwrap();
+        }
+    }
 
-        let swarm_module = SwarmModule::new(
-            SwarmModuleConfig {
-                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
-                bootstrap_node_config: Some(BootstrapNodeConfig {
-                    addr: SocketAddr::new(
-                        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                        bootstrap_swarm_module
-                            .node_ref()
-                            .node_data()
-                            .port
-                            .parse()
-                            .unwrap(),
-                    ),
-                    key: hex::encode(key),
-                }),
-            },
-            None,
-            None,
-            events_node_tx,
-        )
-        .unwrap();
-
-        let node_key = swarm_module.node_ref().node_data().id.0;
-
-        let current_node_id = swarm_module.node_ref().node_data().id;
-
-        let mut swarm_module = ActorImpl::new(swarm_module);
-
-        let (ctrl_tx, mut ctrl_rx) =
-            tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
-
-        assert_eq!(swarm_module.status(), ActorState::Stopped);
-
-        let handle = tokio::spawn(async move {
-            swarm_module.start(&mut ctrl_rx).await.unwrap();
-        });
-
-        let nodes = bootstrap_swarm_module
-            .node_ref()
-            .routing_table
-            .lock()
-            .unwrap()
-            .get_closest_nodes(&bootstrap_swarm_module.node_ref().node_data().id, 3);
-
-        dbg!(&nodes);
-
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-
-        handle.await.unwrap();
+    async fn start_swarm_module(
+        swarm_module: SwarmModule,
+        mut ctrl_rx: Receiver<EventMessage>,
+    ) -> tokio::task::JoinHandle<()> {
+        let mut actor_impl = ActorImpl::new(swarm_module);
+        assert_eq!(actor_impl.status(), ActorState::Stopped);
+        tokio::spawn(async move {
+            actor_impl.start(&mut ctrl_rx).await.unwrap();
+        })
     }
 
     #[tokio::test]
     #[serial]
-    // TODO: figure out what this test is meant to verify
+    async fn swarm_runtime_fetch_data_from_dht_peers() {
+        let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+        let bootstrap_swarm_module = SwarmModule::new(
+            SwarmModuleConfig {
+                addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
+                bootstrap_node_config: None,
+            },
+            events_tx.clone(),
+        )
+        .unwrap();
+
+        let key = bootstrap_swarm_module
+            .kademlia_node
+            .node_data()
+            .id
+            .0
+            .to_vec();
+        let mut handles = Vec::new();
+        let mut ctrl_txs = Vec::new();
+        let mut swarm_nodes = vec![];
+        for port in 6062..=6065 {
+            let (ctrl_tx, mut ctrl_rx) =
+                tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
+            let swarm_module = SwarmModule::new(
+                SwarmModuleConfig {
+                    addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
+                    bootstrap_node_config: Some(BootstrapNodeConfig {
+                        addr: SocketAddr::new(
+                            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                            bootstrap_swarm_module
+                                .kademlia_node
+                                .node_data()
+                                .port
+                                .parse()
+                                .unwrap(),
+                        ),
+                        key: hex::encode(key.clone()),
+                    }),
+                },
+                events_tx,
+            )
+            .unwrap();
+            if port == 6062 {
+                let handle = start_swarm_module(swarm_module, ctrl_rx).await;
+                handles.push(handle);
+                ctrl_txs.push(ctrl_tx);
+            } else {
+                swarm_nodes.push(swarm_module);
+            }
+        }
+        if let Some(ctrl_tx) = ctrl_txs.get(0) {
+            ctrl_tx
+                .send(Event::DHTStoreRequest(String::from("Hello"), String::from("Vrrb")).into())
+                .unwrap();
+        }
+
+        thread::sleep(Duration::from_secs(2));
+
+        for ctrl_tx in ctrl_txs.iter() {
+            ctrl_tx.send(Event::Stop.into()).unwrap();
+        }
+
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
+        assert_eq!(
+            swarm_nodes
+                .get_mut(0)
+                .unwrap()
+                .kademlia_node
+                .get(&KademliaNode::get_key("Hello")),
+            Some("Vrrb".to_string())
+        );
+        assert_eq!(
+            swarm_nodes
+                .get_mut(1)
+                .unwrap()
+                .kademlia_node
+                .get(&KademliaNode::get_key("Hello")),
+            Some("Vrrb".to_string())
+        );
+        assert_eq!(
+            swarm_nodes
+                .get_mut(2)
+                .unwrap()
+                .kademlia_node
+                .get(&KademliaNode::get_key("Hello")),
+            Some("Vrrb".to_string())
+        );
+    }
+
+
+    #[tokio::test]
+    #[serial]
     async fn swarm_runtime_test_unreachable_peers() {
         let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let mut bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
                 bootstrap_node_config: None,
             },
-            None,
-            None,
             events_tx,
         )
         .unwrap();
-
-        let key = bootstrap_swarm_module.node_ref().node_data().id.0.to_vec();
-
+        let key = bootstrap_swarm_module
+            .kademlia_node
+            .node_data()
+            .id
+            .0
+            .to_vec();
+        let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
+            tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
 
-        let (events_node_tx, _) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
-
+        let (events_node_tx, _events_node_rx) =
+            tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
         let swarm_module = SwarmModule::new(
             SwarmModuleConfig {
-                addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0),
+                addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
                 bootstrap_node_config: Some(BootstrapNodeConfig {
                     addr: SocketAddr::new(
-                        IpAddr::V4(Ipv4Addr::LOCALHOST),
+                        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
                         bootstrap_swarm_module
-                            .node_ref()
+                            .kademlia_node
                             .node_data()
                             .port
                             .parse()
@@ -305,46 +408,38 @@ mod tests {
                     key: hex::encode(key.clone()),
                 }),
             },
-            None,
-            None,
             events_node_tx,
         )
         .unwrap();
 
-        let current_node_id = swarm_module.node_ref().node_data().id;
-        let target_port = swarm_module.node_ref().node_data().port;
+        let current_node_id = swarm_module.kademlia_node.node_data().id;
+        let target_port = swarm_module.kademlia_node.node_data().port;
 
         let mut swarm_module = ActorImpl::new(swarm_module);
         let (ctrl_tx, mut ctrl_rx) =
             tokio::sync::broadcast::channel::<EventMessage>(DEFAULT_BUFFER);
-
         assert_eq!(swarm_module.status(), ActorState::Stopped);
-
         let handle = tokio::spawn(async move {
             swarm_module.start(&mut ctrl_rx).await.unwrap();
         });
 
-        let res = bootstrap_swarm_module
-            .node_mut()
-            .rpc_ping(&NodeData {
-                ip: "127.0.0.1".to_string(),
-                port: target_port.clone(),
-                addr: "127.0.0.1".to_string() + &*target_port,
-                id: current_node_id,
-            })
-            .unwrap();
+        let _s = bootstrap_swarm_module.kademlia_node.rpc_ping(&NodeData {
+            ip: "127.0.0.1".to_string(),
+            port: target_port.clone(),
+            addr: "127.0.0.1".to_string() + &*target_port,
+            id: current_node_id,
+        });
 
         ctrl_tx.send(Event::Stop.into()).unwrap();
         handle.await.unwrap();
 
-        let res = bootstrap_swarm_module
-            .node_mut()
-            .rpc_ping(&NodeData {
-                ip: "127.0.0.1".to_string(),
-                port: "6064".to_string(),
-                addr: "127.0.0.1:6064".to_string(),
-                id: current_node_id,
-            })
-            .unwrap();
+        let s = bootstrap_swarm_module.kademlia_node.rpc_ping(&NodeData {
+            ip: "127.0.0.1".to_string(),
+            port: "6064".to_string(),
+            addr: "127.0.0.1:6064".to_string(),
+            id: current_node_id,
+        });
+
+        assert!(s.is_none());
     }
 }

@@ -51,6 +51,10 @@ pub enum Event {
     NoOp,
     Stop,
 
+    /// Swarm module events
+    FetchPeers(usize),
+    DHTStoreRequest(String, String),
+
     /// New txn came from network, requires validation
     NewTxnCreated(Txn),
 
