@@ -25,6 +25,7 @@ use crate::{
 pub struct Node {
     config: NodeConfig,
 
+    // NOTE: core node features
     running_status: RuntimeModuleState,
 
     // TODO: make this private
@@ -132,7 +133,6 @@ impl Node {
         }
 
         info!("Shutdown complete");
-
         Ok(())
     }
 

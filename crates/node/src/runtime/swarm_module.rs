@@ -206,6 +206,7 @@ mod tests {
     #[serial]
     async fn swarm_runtime_add_peers() {
         let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
@@ -255,7 +256,6 @@ mod tests {
         for ctrl_tx in ctrl_txs.iter() {
             ctrl_tx.send(Event::Stop.into()).unwrap();
         }
-
 
         for handle in handles {
             handle.await.unwrap();
@@ -386,6 +386,7 @@ mod tests {
             .id
             .0
             .to_vec();
+      
         let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
