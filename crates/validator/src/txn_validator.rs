@@ -55,14 +55,14 @@ pub enum TxnValidatorError {
     AccountNotFound(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 // TODO: make validator configurable
-pub struct TxnValidator {}
+pub struct TxnValidator;
 
 impl TxnValidator {
     /// Creates a new Txn validator
     pub fn new() -> TxnValidator {
-        TxnValidator {}
+        TxnValidator
     }
 
     /// An entire Txn validator
@@ -143,7 +143,7 @@ impl TxnValidator {
         // TODO: revisit seconds vs nanoseconds for timestamp
         // let timestamp = duration.as_nanos();
         if txn.timestamp > 0 && txn.timestamp < timestamp {
-            return Ok(());
+            Ok(())
         } else {
             Err(TxnValidatorError::OutOfBoundsTimestamp(
                 txn.timestamp,

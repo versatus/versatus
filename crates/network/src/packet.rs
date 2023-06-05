@@ -256,7 +256,6 @@ pub fn batch_writer(batch_recv: Receiver<(String, Vec<u8>)>) {
     }
 }
 
-
 /// This function receives packets, decodes them using a RaptorQ decoder, and
 /// forwards the decoded data to a batch send channel.
 ///
@@ -321,21 +320,20 @@ pub fn reassemble_packets(
                 let result = decoder.decode(EncodingPacket::deserialize(
                     &received_packet.0[40_usize..received_packet.1],
                 ));
-                if result.is_some() {}
                 if let Some(result_bytes) = result {
                     batch_id_hashset.insert(batch_id);
                     if let Ok(batch_id_str) = str::from_utf8(&batch_id) {
                         let batch_id_str = String::from(batch_id_str);
                         let msg = (batch_id_str, result_bytes);
                         if let Ok(data) = String::from_utf8(msg.1.clone()) {
-                            let data = data.trim_end_matches('\0').to_string().replace("\\", "");
+                            let data = data.trim_end_matches('\0').to_string().replace('\\', "");
                             match serde_json::from_str::<RaptorBroadCastedData>(&data) {
                                 Ok(data) => {
                                     let _ = batch_send.send(data);
                                 },
                                 Err(e) => {
                                     error!(
-                                        "Error occured while unmarshalling  :{:?}",
+                                        "Error occured while unmarshalling: {:?}",
                                         e.to_string()
                                     );
                                 },
@@ -353,7 +351,7 @@ pub fn reassemble_packets(
                         1_usize,
                         Decoder::new(ObjectTransmissionInformation::new(
                             payload_length as u64,
-                            symbol_size as u16,
+                            symbol_size,
                             1,
                             1,
                             8,

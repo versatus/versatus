@@ -7,8 +7,6 @@ use anyhow::{Context, Result};
 use reqwest::StatusCode;
 
 pub use crate::mempool::*;
-// use serde_json::{Error as JsonError, json};
-// use serde::{Deserialize, Serialize};
 
 pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
     let url = "http://localhost:3444/transactions"; // TODO: Move to config
@@ -37,10 +35,7 @@ pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
 #[cfg(test)]
 mod tests {
 
-    use std::{
-        collections::{HashMap, HashSet},
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::collections::{HashMap, HashSet};
 
     use primitives::{Address, Signature};
     use rand::{thread_rng, Rng};
@@ -89,7 +84,7 @@ mod tests {
         });
 
         let mut mpooldb = LeftRightMempool::new();
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn) {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 assert_eq!(1, mpooldb.size());
@@ -121,7 +116,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -130,7 +125,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -174,7 +169,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.insert(txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -183,7 +178,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
+        match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
             },
@@ -219,7 +214,7 @@ mod tests {
         let txn_id = txn.digest();
 
         let mut mpooldb = LeftRightMempool::new();
-        match mpooldb.add_txn(&txn, TxnStatus::Pending) {
+        match mpooldb.insert(txn.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -351,7 +346,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.insert(txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -360,7 +355,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
+        match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
             },
@@ -415,7 +410,7 @@ mod tests {
 
         let mut mpooldb = LeftRightMempool::new();
 
-        match mpooldb.add_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.insert(txn1.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             },
@@ -424,7 +419,7 @@ mod tests {
             },
         };
 
-        match mpooldb.add_txn(&txn2, TxnStatus::Pending) {
+        match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
             },
@@ -447,12 +442,6 @@ mod tests {
     fn remove_txn_batch() {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-
 
         let mut txns = HashSet::<Txn>::new();
 
@@ -478,7 +467,7 @@ mod tests {
         }
 
         let mut mpooldb = LeftRightMempool::new();
-        match mpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
+        match mpooldb.extend(txns.clone()) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size());
             },
@@ -524,7 +513,7 @@ mod tests {
             txns.insert(txn);
         }
 
-        match lrmpooldb.add_txn_batch(&txns, TxnStatus::Pending) {
+        match lrmpooldb.extend(txns) {
             Ok(_) => {
                 assert_eq!(txn_id_max - 1, lrmpooldb.size());
             },

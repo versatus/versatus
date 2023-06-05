@@ -1,20 +1,19 @@
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;
-use common::generate_random_claim;
+use common::_generate_random_claim;
 use serial_test::serial;
-
 
 #[test]
 #[serial]
 fn claims_can_be_added() {
     let mut db = VrrbDb::new(VrrbDbConfig::default());
 
-    let claim1 = generate_random_claim();
-    let claim2 = generate_random_claim();
-    let claim3 = generate_random_claim();
-    let claim4 = generate_random_claim();
-    let claim5 = generate_random_claim();
+    let claim1 = _generate_random_claim();
+    let claim2 = _generate_random_claim();
+    let claim3 = _generate_random_claim();
+    let claim4 = _generate_random_claim();
+    let claim5 = _generate_random_claim();
 
     db.insert_claim(claim1).unwrap();
 

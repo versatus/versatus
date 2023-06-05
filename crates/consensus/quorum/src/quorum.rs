@@ -43,7 +43,6 @@ pub struct Quorum {
 }
 
 ///generic types from Election trait defined here for Quorums
-type Timestamp = u128;
 type Height = u128;
 type BlockHash = String;
 type Seed = u64;
@@ -128,8 +127,8 @@ impl Quorum {
         claims
             .into_iter()
             .filter(|claim| {
-                (claim.eligibility == Eligibility::Harvester
-                    && claim.eligibility == Eligibility::Farmer)
+                claim.eligibility == Eligibility::Harvester
+                    && claim.eligibility == Eligibility::Farmer
             })
             .for_each(|claim| {
                 eligible_claims.push(claim);
@@ -152,12 +151,7 @@ impl Quorum {
 
         let election_results: BTreeMap<U256, Claim> = claims
             .iter()
-            .map(|claim| {
-                (
-                    claim.get_election_result(self.quorum_seed.clone()),
-                    claim.clone(),
-                )
-            })
+            .map(|claim| (claim.get_election_result(self.quorum_seed), claim.clone()))
             .collect();
 
         if election_results.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
@@ -165,8 +159,8 @@ impl Quorum {
         }
 
         let pubkeys: Vec<String> = election_results
-            .iter()
-            .map(|(_, claim)| claim.public_key.clone().to_string())
+            .values()
+            .map(|claim| claim.public_key.clone().to_string())
             .take(num_claims)
             .collect();
 

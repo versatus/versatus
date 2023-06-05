@@ -1,11 +1,9 @@
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
-    str::FromStr,
 };
 
 use async_trait::async_trait;
-use bincode::config;
 use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, JobResult};
 use maglev::*;
@@ -14,10 +12,7 @@ use primitives::{GroupPublicKey, NodeIdx, PeerId, QuorumThreshold};
 use signer::signer::SignatureProvider;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
-use vrrb_core::{
-    keypair::KeyPair,
-    txn::{TransactionDigest, Txn},
-};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::scheduler::Job;
 
@@ -92,12 +87,12 @@ pub struct FarmerModule {
     pub harvester_peers: HashSet<SocketAddr>,
     pub neighbouring_farmer_quorum_peers: HashMap<GroupPublicKey, HashSet<SocketAddr>>,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     broadcast_events_tx: EventPublisher,
     quorum_threshold: QuorumThreshold,
     sync_jobs_sender: Sender<Job>,
-    async_jobs_sender: Sender<Job>,
+    _async_jobs_sender: Sender<Job>,
 }
 
 impl FarmerModule {
@@ -112,12 +107,11 @@ impl FarmerModule {
         async_jobs_sender: Sender<Job>,
     ) -> Self {
         let lrmpooldb = LeftRightMempool::new();
-
         Self {
             sig_provider,
             tx_mempool: lrmpooldb,
             status: ActorState::Stopped,
-            label: String::from("Farmer"),
+            _label: String::from("Farmer"),
             id: uuid::Uuid::new_v4().to_string(),
             group_public_key,
             farmer_id,
@@ -125,7 +119,7 @@ impl FarmerModule {
             broadcast_events_tx,
             quorum_threshold,
             sync_jobs_sender,
-            async_jobs_sender,
+            _async_jobs_sender: async_jobs_sender,
             harvester_peers: Default::default(),
             neighbouring_farmer_quorum_peers: HashMap::default(),
         }
@@ -219,7 +213,7 @@ impl Handler<EventMessage> for FarmerModule {
                             self.neighbouring_farmer_quorum_peers.get(&group_public_key)
                         {
                             let addresses: Vec<SocketAddr> =
-                                broadcast_addresses.into_iter().cloned().collect();
+                                broadcast_addresses.iter().cloned().collect();
                             let _ = self.broadcast_events_tx.send(EventMessage::new(
                                 None,
                                 Event::ForwardTxn((txn.1, addresses)),
@@ -244,16 +238,12 @@ impl Handler<EventMessage> for FarmerModule {
                 }
             },
             // Receive the Vote from scheduler
-            Event::ProcessedVotes(job_result) => {
-                if let JobResult::Votes((votes, farmer_quorum_threshold)) = job_result {
-                    for vote_opt in votes.iter() {
-                        if let Some(vote) = vote_opt {
-                            let _ = self
-                                .broadcast_events_tx
-                                .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
-                                .await;
-                        }
-                    }
+            Event::ProcessedVotes(JobResult::Votes((votes, farmer_quorum_threshold))) => {
+                for vote in votes.iter().flatten() {
+                    let _ = self
+                        .broadcast_events_tx
+                        .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
+                        .await;
                 }
             },
             Event::NoOp => {},

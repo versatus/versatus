@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 
 use crate::{result::Result, NodeError};
 
@@ -17,7 +17,7 @@ pub struct SwarmModuleConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct BootstrapNodeConfig {
+pub struct BootStrapNodeDetails {
     pub addr: SocketAddr,
     pub key: String,
 }
@@ -66,6 +66,7 @@ impl SwarmModule {
                 config.addr.port().to_string().as_str(),
                 Some(bootstrap_node_data),
             )
+          
         } else {
             // NOTE: become a bootstrap node if none is provided
             KademliaNode::new(
@@ -79,7 +80,7 @@ impl SwarmModule {
             kademlia_node,
             events_tx,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
         })
     }
@@ -206,6 +207,7 @@ mod tests {
     #[serial]
     async fn swarm_runtime_add_peers() {
         let (events_tx, _events_rx) = tokio::sync::mpsc::channel::<EventMessage>(DEFAULT_BUFFER);
+
         let bootstrap_swarm_module = SwarmModule::new(
             SwarmModuleConfig {
                 addr: "127.0.0.1:6061".parse::<SocketAddr>().unwrap(),
@@ -255,7 +257,6 @@ mod tests {
         for ctrl_tx in ctrl_txs.iter() {
             ctrl_tx.send(Event::Stop.into()).unwrap();
         }
-
 
         for handle in handles {
             handle.await.unwrap();
@@ -386,6 +387,7 @@ mod tests {
             .id
             .0
             .to_vec();
+      
         let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);

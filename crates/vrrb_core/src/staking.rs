@@ -12,7 +12,6 @@ pub type Certificate = (Vec<u8>, PayloadHash);
 pub const MIN_STAKE_FARMER: u128 = 10_000;
 pub const MIN_STAKE_VALIDATOR: u128 = 50_000;
 
-
 pub type Result<T> = std::result::Result<T, StakeError>;
 
 #[derive(Debug, Error, PartialEq, Clone, Serialize, Deserialize, Eq)]
@@ -91,7 +90,6 @@ pub struct Stake {
     certificate: Option<Certificate>,
 }
 
-
 impl Stake {
     pub const MAX: u128 = 100_000;
     pub const MIN: u128 = 10_000;
@@ -141,7 +139,7 @@ impl Stake {
             });
         }
 
-        return None;
+        None
     }
 
     /// This function returns the validator quorum public key which was used to
@@ -177,7 +175,7 @@ impl Stake {
             return address.clone();
         }
 
-        return self.from.clone();
+        self.from.clone()
     }
 
     /// Returns the StakeUpdate enum variant for this particular
@@ -193,7 +191,7 @@ impl Stake {
 
     /// Returns the ecdsa signature of the particular instance
     pub fn get_signature(&self) -> Signature {
-        self.signature.clone()
+        self.signature
     }
 
     /// Returns t he payload which is the hashed data
@@ -215,13 +213,14 @@ impl Stake {
 
     /// Adds a certificate to the instance.
     pub fn certify(&mut self, certificate: Certificate) -> Result<()> {
-        if certificate.0.len() != 96 {
+        const VALID_CERTIFICATE_LENGTH: usize = 96;
+        if certificate.0.len() != VALID_CERTIFICATE_LENGTH {
             return Err(StakeError::InvalidCertificate);
         }
 
         self.certificate = Some(certificate);
 
-        return Ok(());
+        Ok(())
     }
 
     /// Verifies the signature of the StakeTransaction
@@ -245,7 +244,6 @@ mod tests {
 
     use super::*;
     use crate::{keypair::KeyPair, staking::StakeUpdate};
-
 
     #[test]
     fn should_create_new_stake() {

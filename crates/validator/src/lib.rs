@@ -11,7 +11,7 @@ mod tests {
     use std::collections::HashMap;
 
     use primitives::{Address, Signature};
-    use rand::{rngs::StdRng, Rng, SeedableRng};
+    use rand::{rngs::StdRng, Rng};
     use secp256k1::ecdsa;
     use vrrb_core::{account::Account, keypair::KeyPair, txn::*};
 
@@ -19,7 +19,7 @@ mod tests {
 
     // TODO: Use proper txns when there will be proper txn validation
     // implemented
-    fn random_string(rng: &mut StdRng) -> String {
+    fn _random_string(rng: &mut StdRng) -> String {
         format!("{}", rng.gen::<u32>())
     }
 

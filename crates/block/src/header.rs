@@ -46,7 +46,7 @@ impl BlockHeader {
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
         let ref_hashes = vec![hex::encode(hash_data!("Genesis_Ref_hash".to_string()))];
-        let ref_hashes_hash = hex::encode(hash_data!(ref_hashes.clone()));
+        let ref_hashes_hash = hex::encode(hash_data!(ref_hashes));
         let genesis_last_hash = hex::encode(hash_data!("Genesis_Last_Hash".to_string()));
         let message = {
             hex::encode(hash_data!(ref_hashes_hash, genesis_last_hash))
@@ -54,7 +54,7 @@ impl BlockHeader {
                 .to_vec()
         };
 
-        let mut vrf = VVRF::new(&message, &secret_key.secret_bytes().to_vec());
+        let mut vrf = VVRF::new(&message, secret_key.secret_bytes().as_ref());
 
         let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
 

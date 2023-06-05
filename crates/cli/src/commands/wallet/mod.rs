@@ -118,7 +118,7 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             )
             .await?;
 
-            println!("{}", digest);
+            println!("{digest}");
 
             Ok(())
         },
@@ -134,7 +134,7 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
                 let account_info = serde_json::to_string_pretty(&account)
                     .map_err(|err| CliError::Other(err.to_string()))?;
 
-                println!("{}", account_info);
+                println!("{account_info}");
             };
 
             Ok(())
@@ -179,7 +179,7 @@ fn restore_accounts_and_addresses(
         let (_, public) = read_or_generate_keypair_file(&path.join("keys"))
             .map_err(|err| CliError::Other(err.to_string()))?;
 
-        let address = Address::new(public.clone());
+        let address = Address::new(public);
 
         accounts.insert(address.clone(), account);
         addresses.insert(alias, address.clone());

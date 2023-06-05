@@ -29,7 +29,7 @@ impl Bloom {
         self.filter.is_empty()
     }
 
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.filter.len()
     }
 
@@ -46,13 +46,18 @@ mod tests {
     fn test_insert_filter() {
         let mut filter = Bloom::new(1000);
         let key = "1";
-        filter.push(key);
+        filter
+            .push(key)
+            .expect("test_insert_filter failed to push key");
         assert!(!filter.is_empty());
     }
+    #[test]
     fn test_delete_filter() {
         let mut filter = Bloom::new(1000);
         let key = "1";
-        filter.push(key);
+        filter
+            .push(key)
+            .expect("test_delete_filter failed to push key");
         assert!(!filter.is_empty());
         filter.delete(key);
         assert!(filter.is_empty());

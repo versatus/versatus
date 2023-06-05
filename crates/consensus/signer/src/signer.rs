@@ -287,14 +287,14 @@ impl Signer for SignatureProvider {
                     if let Ok(sig_share) = SignatureShare::from_bytes(signature_arr) {
                         Ok(public_key_share.verify(&sig_share, payload_hash))
                     } else {
-                        return Err(SignerError::CorruptSignatureShare(String::from(
+                        Err(SignerError::CorruptSignatureShare(String::from(
                             "Corrupt signature share",
-                        )));
+                        )))
                     }
                 } else {
-                    return Err(SignerError::PartialSignatureError(String::from(
+                    Err(SignerError::PartialSignatureError(String::from(
                         "Signature must be 96 byte array",
-                    )));
+                    )))
                 }
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
@@ -310,14 +310,14 @@ impl Signer for SignatureProvider {
                     if let Ok(signature) = Signature::from_bytes(signature_arr) {
                         Ok(public_key_set.public_key().verify(&signature, payload_hash))
                     } else {
-                        return Err(SignerError::ThresholdSignatureError(String::from(
+                        Err(SignerError::ThresholdSignatureError(String::from(
                             "Corrupt signature",
-                        )));
+                        )))
                     }
                 } else {
-                    return Err(SignerError::ThresholdSignatureError(String::from(
+                    Err(SignerError::ThresholdSignatureError(String::from(
                         "Signature must be 96 byte array",
-                    )));
+                    )))
                 }
             },
         }

@@ -7,6 +7,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
+use tracing::error;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
@@ -19,38 +20,14 @@ use crate::{
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
-#[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
 
-    // NOTE: core node features
-    // router_handle: JoinHandle<()>,
     running_status: RuntimeModuleState,
-    // control_rx: UnboundedReceiver<Event>,
-    // events_tx: EventPublisher,
 
     // TODO: make this private
     pub keypair: KeyPair,
 
-    // NOTE: optional node components
-    // vm: Option<Cpu>,
-    // state_handle: RuntimeHandle,
-    // mempool_handle: RuntimeHandle,
-    // gossip_handle: RuntimeHandle,
-    // miner_handle: RuntimeHandle,
-    // jsonrpc_server_handle: RuntimeHandle,
-    // dkg_handle: RuntimeHandle,
-    // miner_election_handle: RuntimeHandle,
-    // quorum_election_handle: RuntimeHandle,
-    // farmer_handle: RuntimeHandle,
-    // harvester_handle: RuntimeHandle,
-    // indexer_handle: RuntimeHandle,
-    // dag_handle: RuntimeHandle,
-    // raptor_handle: RaptorHandle,
-    // scheduler_handle: SchedulerHandle,
-    // grpc_server_handle: RuntimeHandle,
-    // node_gui_handle: RuntimeHandle,
-    // runtime_component_handles: HashSet<RuntimeHandle>,
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
 }
@@ -74,7 +51,7 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
-        let runtime_components = setup_runtime_components(&mut config, &router, events_tx).await?;
+        let runtime_components = setup_runtime_components(&config, &router, events_tx).await?;
 
         let runtime_component_handles = vec![
             runtime_components.state_handle,
@@ -91,8 +68,6 @@ impl Node {
             runtime_components.dag_handle,
             runtime_components.grpc_server_handle,
             runtime_components.node_gui_handle,
-            // runtime_component_handles.push(runtime_components.raptor_handle);
-            // runtime_component_handles.push(runtime_components.scheduler_handle);
         ];
 
         // TODO: report error from handle
@@ -103,13 +78,16 @@ impl Node {
             cloned_token,
             runtime_component_handles,
             router_handle,
+            runtime_components.raptor_handle,
+            runtime_components.scheduler_handle,
         ));
 
         let running_status = RuntimeModuleState::Running;
-        info!("Node {} is ready", config.id);
+
+        info!("Node {} is ready", runtime_components.node_config.id);
 
         Ok(Self {
-            config,
+            config: runtime_components.node_config,
             running_status,
             keypair,
             cancel_token,
@@ -122,6 +100,8 @@ impl Node {
         cancel_token: CancellationToken,
         runtime_component_handles: Vec<RuntimeHandle>,
         router_handle: JoinHandle<()>,
+        raptor_handle: RaptorHandle,
+        scheduler_handle: SchedulerHandle,
     ) -> Result<()> {
         info!("Node {} is up and running", id);
 
@@ -131,12 +111,23 @@ impl Node {
         for handle in runtime_component_handles {
             if let Some(handle) = handle {
                 handle.await??;
-                dbg!("Shutdown complete for handle");
                 info!("Shutdown complete for handle");
             }
         }
 
         router_handle.await?;
+
+        if let Some(handle) = raptor_handle {
+            if let Err(err) = handle.join() {
+                error!("Raptor handle is not shutdown: {err:?}");
+            }
+        }
+
+        if let Some(handle) = scheduler_handle {
+            if let Err(err) = handle.join() {
+                error!("Scheduler handle is not shutdown: {err:?}");
+            }
+        }
 
         info!("Shutdown complete");
 

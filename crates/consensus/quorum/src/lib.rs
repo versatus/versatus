@@ -15,8 +15,6 @@ mod tests {
 
     use crate::{election::Election, quorum::Quorum};
 
-    static TEST_ADDR: &str = "0x0000000000000000000000000000000000000000";
-
     #[test]
     fn it_works() {
         assert_eq!(2 + 2, 4);
@@ -205,7 +203,6 @@ mod tests {
             assert!(Quorum::new(seed, 0).is_err());
         }
     }
-
 
     #[test]
     #[ignore = "temporarily disabled while the crate is refactored"]

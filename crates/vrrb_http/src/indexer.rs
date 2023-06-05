@@ -33,7 +33,7 @@ impl IndexerClient {
     }
 
     pub async fn post_tx(self, txn_record: &TxnRecord) -> Result<StatusCode> {
-        let req_json = serde_json::to_string(txn_record).map_err(|e| Error::SerdeJson(e));
+        let req_json = serde_json::to_string(txn_record).map_err(Error::SerdeJson);
 
         let response = self
             .client
@@ -46,9 +46,8 @@ impl IndexerClient {
 
 #[cfg(test)]
 mod tests {
-    use mempool::{TxnRecord, TxnStatus};
-    use serde_json::json;
-    use vrrb_core::txn::{TransactionDigest, Txn};
+    use mempool::TxnRecord;
+    use vrrb_core::txn::Txn;
     use wiremock::{
         http::Method,
         matchers::{method, path},
@@ -70,7 +69,6 @@ mod tests {
 
         let txn = Txn::default();
         let txn_record = TxnRecord::new(txn);
-        let expected_body = json!(txn_record).to_string();
 
         let response = ResponseTemplate::new(200).set_body_json(txn_record.to_owned());
 
@@ -83,14 +81,6 @@ mod tests {
         let result = client.post_tx(&txn_record).await;
 
         assert!(result.is_ok());
-        let request_body = mock_server
-            .received_requests()
-            .await
-            .unwrap()
-            .pop()
-            .unwrap()
-            .body
-            .to_vec();
     }
 
     #[tokio::test]
@@ -105,14 +95,11 @@ mod tests {
 
         wiremock::Mock::mount(mock, &mock_server).await;
 
-        let base_url = mock_server.address();
-
         let indexer_config = IndexerClientConfig { base_url: url };
         let indexer_client = IndexerClient::new(indexer_config).unwrap();
 
         let txn = Txn::default();
         let txn_record = TxnRecord::new(txn);
-        let expected_body = json!(txn_record).to_string();
 
         let result = indexer_client.post_tx(&txn_record).await;
 

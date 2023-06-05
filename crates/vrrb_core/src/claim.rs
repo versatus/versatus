@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use ethereum_types::U256;
-use primitives::{Address, PublicKey, RawSignature, SecretKey, SerializedSecretKey};
+use primitives::{Address, PublicKey, SerializedSecretKey};
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
@@ -11,11 +11,9 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::{
-    keypair,
     keypair::{KeyPairError, Keypair},
     ownable::Ownable,
-    staking::{Result as StakeResult, Stake, StakeError, StakeUpdate},
-    verifiable::Verifiable,
+    staking::{Stake, StakeError, StakeUpdate},
 };
 
 pub type Result<T> = std::result::Result<T, ClaimError>;
@@ -75,7 +73,6 @@ impl std::fmt::Display for Eligibility {
         }
     }
 }
-
 
 impl Claim {
     /// Creates a new claim from a public key, address and nonce.
@@ -243,7 +240,7 @@ impl Claim {
             ));
         }
 
-        if let Some(_) = stake_txn.get_certificate() {
+        if stake_txn.get_certificate().is_some() {
             let prev_stake = self.stake;
             self.stake_txns.push(stake_txn);
             self.stake = self.check_stake_utxo();
@@ -255,7 +252,7 @@ impl Claim {
             return Ok(());
         }
 
-        return Err(StakeError::UncertifiedStake);
+        Err(StakeError::UncertifiedStake)
     }
 
     fn depositing_claim(&self, stake_txn: &Stake) -> bool {
@@ -288,7 +285,7 @@ impl Claim {
     /// event.
     fn slash_calculator(&self, pct: u8, value: u128) -> u128 {
         let slash = (value as f64) * (pct as f64 / 100f64);
-        return value - slash as u128;
+        value - slash as u128
     }
 
     pub fn get_stake(&self) -> u128 {
@@ -353,7 +350,6 @@ impl Claim {
     }
 }
 
-
 /// Implements the Ownable trait on a claim
 impl Ownable for Claim {
     type Pubkey = PublicKey;
@@ -413,8 +409,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -423,13 +417,10 @@ mod tests {
         .unwrap();
         let mut claim = Claim::new(public_key.clone(), address, ip_address, signature).unwrap();
 
-
         let ip_address_new = "127.0.0.1:8081".parse::<SocketAddr>().unwrap();
         let mut hasher_new = Sha256::new();
         hasher_new.update(public_key.to_string().clone());
         hasher_new.update(ip_address_new.to_string().clone());
-        let result = hasher_new.finalize();
-        let new_hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address_new,
@@ -450,8 +441,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -471,8 +460,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -525,8 +512,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -559,8 +544,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -580,7 +563,6 @@ mod tests {
         )
         .unwrap();
 
-
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
         assert!(claim.update_stake(stake).is_ok());
@@ -596,8 +578,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -633,8 +613,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -684,8 +662,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -720,8 +696,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -773,8 +747,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
@@ -809,8 +781,6 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
-        let result = hasher.finalize();
-        let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,

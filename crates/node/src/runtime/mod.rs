@@ -22,7 +22,6 @@ use vrrb_config::NodeConfig;
 use vrrb_core::{
     bloom::Bloom,
     claim::{Claim, ClaimError},
-    keypair::Keypair,
 };
 use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
@@ -49,6 +48,14 @@ use crate::{
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
     node,
+    scheduler::{Job, JobSchedulerController},
+    NodeError,
+    Result,
+};
+use crate::{
+    broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
+    dkg_module::DkgModuleConfig,
+    farmer_module::PULL_TXN_BATCH_SIZE,
     scheduler::{Job, JobSchedulerController},
     NodeError,
     Result,
@@ -161,10 +168,9 @@ pub async fn setup_runtime_components(
     .await?;
 
     let mut gossip_handle = None;
-    let mut raptor_handle = None;
     let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
     if !config.disable_networking {
-        let (new_gossip_handle, new_raptor_handle, gossip_addr) = setup_gossip_network(
+        let (new_gossip_handle, _, gossip_addr) = setup_gossip_network(
             &config,
             events_tx.clone(),
             network_events_rx,
@@ -175,7 +181,6 @@ pub async fn setup_runtime_components(
         .await?;
 
         gossip_handle = new_gossip_handle;
-        raptor_handle = new_raptor_handle;
         config.udp_gossip_address = gossip_addr;
     }
 
@@ -195,8 +200,6 @@ pub async fn setup_runtime_components(
                     }
                 }
             }
-
-            true
         }
     });
 
@@ -319,8 +322,7 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle =
-        setup_dag_module(dag.clone(), events_tx.clone(), dag_events_rx, claim.clone())?;
+    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
 
     let node_gui_handle = setup_node_gui(&config).await?;
 
@@ -350,9 +352,6 @@ pub async fn setup_runtime_components(
     Ok(runtime_components)
 }
 
-fn setup_event_routing_system() -> EventRouter {
-    EventRouter::default()
-}
 async fn setup_gossip_network(
     config: &NodeConfig,
     events_tx: EventPublisher,
@@ -467,12 +466,14 @@ async fn setup_rpc_api_server(
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) =
         JsonRpcServer::run(&jsonrpc_server_config)
             .await
-            .map_err(|err| NodeError::Other(format!("unable to satrt JSON-RPC server: {}", err)))?;
+            .map_err(|err| NodeError::Other(format!("unable to start JSON-RPC server: {err}")))?;
 
     let jsonrpc_server_handle = tokio::spawn(async move {
         if let Ok(evt) = jsonrpc_events_rx.recv().await {
             if let Event::Stop = evt.into() {
-                jsonrpc_server_handle.stop();
+                jsonrpc_server_handle.stop().map_err(|err| {
+                    NodeError::Other(format!("JSON-RPC event has stopped: {err}"))
+                })?;
                 return Ok(());
             }
         }
@@ -818,11 +819,11 @@ fn setup_scheduler_module(
     )
 }
 
-fn setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-fn setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
@@ -831,19 +832,19 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
         info!("Configuring Node {}", &config.id);
         info!("Ensuring environment has required dependencies");
 
-        match Command::new("npm").args(&["version"]).status() {
+        match Command::new("npm").args(["version"]).status() {
             Ok(_) => info!("NodeJS is installed"),
             Err(e) => {
-                return Err(NodeError::Other(format!("NodeJS is not installed: {}", e)).into());
+                return Err(NodeError::Other(format!("NodeJS is not installed: {e}")));
             },
         }
 
         info!("Ensuring yarn is installed");
-        match Command::new("yarn").args(&["--version"]).status() {
+        match Command::new("yarn").args(["--version"]).status() {
             Ok(_) => info!("Yarn is installed"),
             Err(e) => {
                 let install_yarn = Command::new("npm")
-                    .args(&["install", "-g", "yarn"])
+                    .args(["install", "-g", "yarn"])
                     .current_dir("infra/ui")
                     .output();
 
@@ -860,15 +861,15 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
 
         info!("Installing dependencies");
         match Command::new("yarn")
-            .args(&["install"])
+            .args(["install"])
             .current_dir("infra/ui")
             .status()
         {
             Ok(_) => info!("Dependencies installed successfully"),
             Err(e) => {
-                return Err(
-                    NodeError::Other(format!("Failed to install dependencies: {}", e)).into(),
-                );
+                return Err(NodeError::Other(format!(
+                    "Failed to install dependencies: {e}"
+                )));
             },
         }
 

@@ -11,11 +11,11 @@ async fn node_rpc_api_returns_node_type() {
     let mut vrrb_node = Node::start(&node_config).await.unwrap();
     let addr = vrrb_node.jsonrpc_server_address();
 
-    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
-
     let client = create_client(addr).await.unwrap();
 
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 
     vrrb_node.stop();
+
+    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
 }

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use axum::{body::Body, http::Request};
 use axum_server::tls_rustls::RustlsConfig;
 use events::Event;
@@ -50,10 +48,12 @@ async fn server_starts_and_stops() {
 #[tokio::test]
 #[ignore = "refactoring tls support on another PR"]
 async fn server_uses_https() {
-    let tls_config =
-        RustlsConfig::from_pem(common::MOCK_TEST_CERT.into(), common::MOCK_TEST_KEY.into())
-            .await
-            .unwrap();
+    let tls_config = RustlsConfig::from_pem(
+        common::_MOCK_TEST_CERT.into(),
+        common::_MOCK_TEST_KEY.into(),
+    )
+    .await
+    .unwrap();
 
     let config = HttpApiServerConfig {
         address: "127.0.0.1:0".into(),

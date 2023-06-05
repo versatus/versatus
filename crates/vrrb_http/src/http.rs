@@ -62,7 +62,7 @@ impl HttpClient {
             .await
             .send()
             .await
-            .map_err(|e| Error::RequestError(e))
+            .map_err(Error::RequestError)
     }
 
     pub async fn post(&self, path: &str, body: &str) -> Result<Response> {
@@ -71,14 +71,12 @@ impl HttpClient {
             .body(body.to_owned())
             .send()
             .await
-            .map_err(|e| Error::RequestError(e))
+            .map_err(Error::RequestError)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
     use serde_json::json;
     use wiremock::{matchers::path, Mock, MockServer, ResponseTemplate};
 

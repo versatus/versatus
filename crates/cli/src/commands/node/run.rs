@@ -239,7 +239,7 @@ impl RunOpts {
             dettached: other.dettached,
             debug_config: other.debug_config,
             id: self.id.clone().or(other.id.clone()),
-            idx: self.idx.clone().or(other.idx),
+            idx: self.idx.or(other.idx),
             node_type,
             data_dir,
             db_path,
@@ -301,7 +301,6 @@ pub async fn run(args: RunOpts) -> Result<()> {
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
     let (ctrl_tx, ctrl_rx) = tokio::sync::mpsc::unbounded_channel::<Event>();
 
-    // let vrrb_node = Node::start(&node_config, ctrl_rx)
     let mut vrrb_node = Node::start(&node_config)
         .await
         .map_err(|_| CliError::Other(String::from("failed to listen for ctrl+c")))?;

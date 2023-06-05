@@ -10,7 +10,7 @@ use crate::result::{CliError, Result};
 #[derive(Debug, Subcommand)]
 pub enum NodeCmd {
     /// Run a node with the provided configuration
-    Run(RunOpts),
+    Run(Box<RunOpts>),
 
     /// Prints currrent node configuration
     Info,
@@ -29,8 +29,8 @@ pub async fn exec(args: NodeOpts) -> Result<()> {
     let sub_cmd = args.subcommand;
 
     match sub_cmd {
-        NodeCmd::Run(opts) => run(opts).await,
+        NodeCmd::Run(opts) => run(*opts).await,
         NodeCmd::Info => Ok(()),
-        _ => Err(CliError::InvalidCommand(format!("{:?}", sub_cmd))),
+        _ => Err(CliError::InvalidCommand(format!("{sub_cmd:?}"))),
     }
 }

@@ -15,7 +15,7 @@ use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
 use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
@@ -269,7 +269,7 @@ pub struct StateModuleConfig {
 pub struct StateModule {
     db: VrrbDb,
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
@@ -284,7 +284,7 @@ impl StateModule {
             db: config.db,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            label: String::from("State"),
+            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
             dag: config.dag,
         }
@@ -437,7 +437,7 @@ impl StateModule {
 
     /// Returns a read handle for the StateStore to be able to read
     /// values from it.
-    fn get_state_store_handle(&self) -> StateStoreReadHandle {
+    fn _get_state_store_handle(&self) -> StateStoreReadHandle {
         self.db.state_store_factory().handle()
     }
 
@@ -491,9 +491,10 @@ impl StateModule {
 
         let mut proposals = Vec::new();
 
-        blocks.iter().for_each(|block| match &block {
-            Block::Proposal { block } => proposals.push(block.clone()),
-            _ => {},
+        blocks.iter().for_each(|block| {
+            if let Block::Proposal { block } = &block {
+                proposals.push(block.clone())
+            }
         });
 
         proposals
@@ -632,7 +633,7 @@ mod tests {
     use primitives::Address;
     use serial_test::serial;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use theater::ActorImpl;
+    use theater::{Actor, ActorImpl};
     use tokio::sync::mpsc::channel;
     use vrrb_core::{account::Account, txn::Txn};
 
@@ -816,7 +817,7 @@ mod tests {
 
         for (address, _) in accounts.iter() {
             let account = store.get(address).unwrap();
-            let digests = account.digests.clone();
+            let _digests = account.digests.clone();
         }
     }
 }

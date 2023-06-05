@@ -15,7 +15,6 @@ use primitives::{
     RAPTOR_DECODER_CACHE_LIMIT,
     RAPTOR_DECODER_CACHE_TTL_IN_SECS,
 };
-use qp2p::ConnectionError;
 pub use qp2p::{
     Config,
     Connection,
@@ -78,6 +77,11 @@ pub struct BroadcastEngine {
     pub raptor_num_packet_blast: usize,
 }
 
+type EndpointWithConnections = (
+    Endpoint,
+    IncomingConnections,
+    Option<(Connection, ConnectionIncoming)>,
+);
 const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p.";
 
 impl BroadcastEngine {
@@ -96,13 +100,7 @@ impl BroadcastEngine {
     }
 
     #[telemetry::instrument]
-    async fn new_endpoint(
-        port: u16,
-    ) -> Result<(
-        Endpoint,
-        IncomingConnections,
-        Option<(Connection, ConnectionIncoming)>,
-    )> {
+    async fn new_endpoint(port: u16) -> Result<EndpointWithConnections> {
         let (endpoint, incoming_connections, conn_opts) = Endpoint::new_peer(
             (Ipv6Addr::LOCALHOST, port),
             &[],
@@ -150,7 +148,7 @@ impl BroadcastEngine {
                 },
             }
         }
-        return Ok(BroadcastStatus::Success);
+        Ok(BroadcastStatus::Success)
     }
 
     #[telemetry::instrument]
@@ -240,11 +238,11 @@ impl BroadcastEngine {
             Ok(conn) => {
                 let conn = conn?.0;
                 let _ = conn.send((Bytes::new(), Bytes::new(), msg.clone())).await;
-                return Ok(BroadcastStatus::Success);
+                Ok(BroadcastStatus::Success)
             },
             Err(e) => {
                 error!("Connection error  {addr}: {e}");
-                return Err(BroadcastError::Other(e.to_string()));
+                Err(BroadcastError::Other(e.to_string()))
             },
         }
     }
