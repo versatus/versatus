@@ -242,7 +242,7 @@ mod tests {
                         key: hex::encode(key.clone()),
                     }),
                 },
-                events_tx,
+                events_tx.clone(),
             )
             .unwrap();
             let handle = start_swarm_module(swarm_module, ctrl_rx).await;
@@ -314,7 +314,7 @@ mod tests {
                         key: hex::encode(key.clone()),
                     }),
                 },
-                events_tx,
+                events_tx.clone(),
             )
             .unwrap();
             if port == 6062 {
