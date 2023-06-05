@@ -103,6 +103,7 @@ pub struct RuntimeComponents {
     pub scheduler_handle: SchedulerHandle,
     pub grpc_server_handle: RuntimeHandle,
     pub node_gui_handle: RuntimeHandle,
+    pub swarm_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -357,9 +358,14 @@ pub async fn setup_runtime_components(
         scheduler_handle: None,
         grpc_server_handle: None,
         node_gui_handle: None,
+        swarm_handle: None,
     };
 
     Ok(runtime_components)
+}
+
+async fn setup_swarm_module() -> Result<Option<(JoinHandle<Result<()>>, SocketAddr)>> {
+    todo!()
 }
 
 async fn setup_gossip_network(

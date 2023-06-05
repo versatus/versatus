@@ -1,12 +1,14 @@
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
-use events::{Event, EventMessage, EventPublisher};
+use events::{Event, EventMessage, EventPublisher, PeerData};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
 use crate::{result::Result, NodeError};
+
+const KEY_LENGTH: usize = 32;
 
 type Port = usize;
 
@@ -27,7 +29,6 @@ pub struct SwarmModule {
     pub node: KademliaNode,
     status: ActorState,
     id: ActorId,
-
     // TODO: address unread variables
     _is_bootstrap_node: bool,
     _refresh_interval: Option<u64>,
@@ -98,6 +99,28 @@ impl SwarmModule {
     fn name(&self) -> String {
         String::from("Swarm module")
     }
+
+    /// Takes PeerData, converts it into proper Kademlia Key and Value,
+    /// with the value being a string representation of the SocketAddr
+    /// of the peer to be added
+    fn add_peer(&mut self, peer: PeerData) -> Result<()> {
+        // Verify the PeerId is 256 bits
+        if peer.peer_id.len() != 32 {
+            return Err(NodeError::Other("PeerId is incorrect length".to_string()));
+        }
+
+        let value = peer.address.to_string();
+        let mut key_bytes = [0; KEY_LENGTH];
+
+        peer.peer_id.iter().enumerate().for_each(|(idx, byte)| {
+            key_bytes[idx] = *byte;
+        });
+
+        let key = Key::new(key_bytes);
+        self.node.insert(key, &value);
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -125,6 +148,15 @@ impl Handler<EventMessage> for SwarmModule {
                 return Ok(ActorState::Stopped);
             },
             Event::NoOp => {},
+            Event::PeerJoined(peer_data) => {
+                //TODO: replace with map_err
+                if let Err(e) = self.add_peer(peer_data) {
+                    return Err(TheaterError::Other(format!(
+                        "unable to add new peer: {:?}",
+                        e
+                    )));
+                }
+            },
             _ => {},
         }
 

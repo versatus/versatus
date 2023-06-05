@@ -84,6 +84,7 @@ impl Node {
             // runtime_components.dag_handle,
             // runtime_components.grpc_server_handle,
             // runtime_components.node_gui_handle,
+            // runtime_components.swarm_handle,
         ];
 
         // TODO: report error from handle
