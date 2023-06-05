@@ -243,7 +243,7 @@ mod tests {
                         key: hex::encode(key.clone()),
                     }),
                 },
-                events_tx,
+                events_tx.clone(),
             )
             .unwrap();
             let handle = start_swarm_module(swarm_module, ctrl_rx).await;
@@ -386,7 +386,7 @@ mod tests {
             .id
             .0
             .to_vec();
-      
+
         let (_ctrl_boot_strap_tx, _ctrl_boot_strap_rx) =
             tokio::sync::broadcast::channel::<Event>(10);
         assert_eq!(bootstrap_swarm_module.status(), ActorState::Stopped);
