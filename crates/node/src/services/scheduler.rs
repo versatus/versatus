@@ -13,6 +13,8 @@ use tracing::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
+use crate::NodeError;
+
 /// The `JobSchedulerController` to manage `JobScheduler`,
 /// Properties:
 ///
@@ -98,7 +100,7 @@ impl JobSchedulerController {
         }
     }
 
-    pub async fn execute_sync_jobs(&mut self) {
+    pub async fn execute_sync_jobs(&mut self) -> Result<(), NodeError> {
         loop {
             if let Ok(job) = self.sync_jobs_receiver.try_recv() {
                 match job {
@@ -159,8 +161,7 @@ impl JobSchedulerController {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            let _ = self
-                                .events_tx
+                            self.events_tx
                                 .send(
                                     Event::ProcessedVotes(JobResult::Votes((
                                         votes,
@@ -168,7 +169,12 @@ impl JobSchedulerController {
                                     )))
                                     .into(),
                                 )
-                                .await;
+                                .await
+                                .map_err(|err| {
+                                    NodeError::Other(format!(
+                                        "failed to send processed votes: {err}"
+                                    ))
+                                })?
                         }
                     },
                     Job::CertifyTxn((
@@ -213,8 +219,7 @@ impl JobSchedulerController {
                                     votes_map.clone(),
                                 );
                                 if let Ok(threshold_signature) = result {
-                                    let _ = self
-                                        .events_tx
+                                    self.events_tx
                                         .send(
                                             Event::CertifiedTxn(JobResult::CertifiedTxn(
                                                 votes.clone(),
@@ -227,7 +232,12 @@ impl JobSchedulerController {
                                             ))
                                             .into(),
                                         )
-                                        .await;
+                                        .await
+                                        .map_err(|err| {
+                                            NodeError::Other(format!(
+                                                "failed to send certified txn: {err}"
+                                            ))
+                                        })?
                                 } else {
                                     error!("Quorum signature generation failed");
                                 }
@@ -243,19 +253,28 @@ impl JobSchedulerController {
                             if let Ok(signature) =
                                 sig_provider.generate_partial_signature(block_hash_bytes)
                             {
-                                if let Ok(dkg_state) = sig_provider.dkg_state.read() {
-                                    if let Some(secret_share) = &dkg_state.secret_key_share {
-                                        let _ = self.events_tx.send(
+                                if let Ok(Some(secret_share)) = sig_provider
+                                    .dkg_state
+                                    .read()
+                                    .map(|dkg_state| dkg_state.secret_key_share.clone())
+                                {
+                                    self.events_tx
+                                        .send(
                                             Event::ConvergenceBlockPartialSign(
                                                 JobResult::ConvergenceBlockPartialSign(
-                                                    block.hash,
+                                                    block.hash.clone(),
                                                     secret_share.public_key_share(),
-                                                    signature,
+                                                    signature.clone(),
                                                 ),
                                             )
                                             .into(),
-                                        );
-                                    }
+                                        )
+                                        .await
+                                        .map_err(|err| {
+                                            NodeError::Other(format!(
+                                            "failed to send convergence block partial sign: {err}"
+                                        ))
+                                        })?
                                 }
                             }
                         }

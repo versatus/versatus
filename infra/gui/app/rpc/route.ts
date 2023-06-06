@@ -22,14 +22,22 @@ export async function POST(request: Request) {
     },
     data: data,
   }
-
-  const resp = await axios
+  return await axios
     .request(config)
     .then((response) => {
-      return response.data
+      if (response.data.error) throw new Error(response.data.error.message)
+      return NextResponse.json(response.data)
     })
     .catch((error) => {
-      console.log(error)
+      const respInit: ResponseInit = {
+        status: 400,
+      }
+      const message = error.message
+      return NextResponse.json(
+        {
+          message,
+        },
+        respInit
+      )
     })
-  return NextResponse.json(resp)
 }
