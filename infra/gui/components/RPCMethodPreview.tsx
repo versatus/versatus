@@ -8,6 +8,7 @@ import {
 import { JsonViewer } from '@textea/json-viewer'
 
 const RPCMethodPreview = ({ address }: { address: string }) => {
+
   const [rpcResp, setRpcResp] = useState<any>(null)
   const [method, setMethod] = useState<string>('')
   const getMemPoolTest = async () => {

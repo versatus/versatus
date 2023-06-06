@@ -46,6 +46,7 @@ use crate::{
     broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
+    node,
     scheduler::{Job, JobSchedulerController},
     NodeError,
     Result,
@@ -789,8 +790,8 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
             Ok(_) => info!("Yarn is installed"),
             Err(e) => {
                 let install_yarn = Command::new("npm")
-                    .args(["install", "-g", "yarn"])
-                    .current_dir("infra/ui")
+                    .args(&["install", "-g", "yarn"])
+                    .current_dir("infra/gui")
                     .output();
 
                 match install_yarn {
@@ -804,8 +805,8 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
 
         info!("Installing dependencies");
         match Command::new("yarn")
-            .args(["install"])
-            .current_dir("infra/ui")
+            .args(&["install"])
+            .current_dir("infra/gui")
             .status()
         {
             Ok(_) => info!("Dependencies installed successfully"),
@@ -820,8 +821,8 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
 
         let node_gui_handle = tokio::spawn(async move {
             Command::new("yarn")
-                .args(["dev"])
-                .current_dir("infra/ui")
+                .args(&["dev"])
+                .current_dir("infra/gui")
                 .spawn();
 
             Ok(())

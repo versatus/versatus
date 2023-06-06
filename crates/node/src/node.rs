@@ -14,10 +14,7 @@ use vrrb_core::keypair::KeyPair;
 use crate::{
     result::Result,
     runtime::{setup_runtime_components, RuntimeHandle},
-    NodeType,
-    RaptorHandle,
-    RuntimeModuleState,
-    SchedulerHandle,
+    NodeType, RaptorHandle, RuntimeModuleState, SchedulerHandle,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
