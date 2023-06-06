@@ -281,7 +281,6 @@ pub type QuorumPubkey = String;
 mod tests {
     use std::{
         collections::{HashMap, HashSet},
-        thread,
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -373,9 +372,7 @@ mod tests {
             ValidatorCoreManager::new(8).unwrap(),
             vrrbdb_read_handle,
         );
-        thread::spawn(move || {
-            job_scheduler.execute_sync_jobs();
-        });
+        tokio::spawn(async move { job_scheduler.execute_sync_jobs().await });
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
         let dkg_engine = dkg_engines.pop().unwrap();
         let group_public_key = dkg_engine

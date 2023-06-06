@@ -253,11 +253,12 @@ impl JobSchedulerController {
                             if let Ok(signature) =
                                 sig_provider.generate_partial_signature(block_hash_bytes)
                             {
-                                if let Ok(Some(secret_share)) = sig_provider
+                                let secret_share_opt = sig_provider
                                     .dkg_state
                                     .read()
                                     .map(|dkg_state| dkg_state.secret_key_share.clone())
-                                {
+                                    .map_err(|err| NodeError::Other(format!("dkg_state lock was returned in a poisoned state: {err}")))?;
+                                if let Some(secret_share) = secret_share_opt {
                                     self.events_tx
                                         .send(
                                             Event::ConvergenceBlockPartialSign(
