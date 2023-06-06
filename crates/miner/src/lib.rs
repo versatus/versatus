@@ -5,13 +5,6 @@ pub mod block_builder;
 pub mod conflict_resolver;
 pub mod miner_impl;
 pub mod test_helpers;
-// mod miner_v1;
-
-/// Legacy miner implementation
-#[deprecated(note = "use v2 instead")]
-pub mod v1 {
-    // pub use crate::miner_v1::*;
-}
 
 pub mod v2 {
     pub use crate::miner::*;

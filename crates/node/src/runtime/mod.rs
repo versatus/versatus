@@ -820,10 +820,13 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
         info!("Spawning UI");
 
         let node_gui_handle = tokio::spawn(async move {
-            Command::new("yarn")
-                .args(&["dev"])
+            if let Err(err) = Command::new("yarn")
+                .args(["dev"])
                 .current_dir("infra/gui")
-                .spawn();
+                .spawn()
+            {
+                telemetry::error!("Failed to spawn UI: {}", err);
+            }
 
             Ok(())
         });

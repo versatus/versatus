@@ -316,11 +316,11 @@ impl LeftRightMempool {
     /// Was the Txn validated ? And when ?
     // TODO: rethink validated txn storage
     pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
-        match self.get(&txn.digest()) {
+        match self.get(&txn.id()) {
             Some(found) if matches!(found.status, TxnStatus::Validated) => {
                 Ok(found.validated_timestamp)
             },
-            _ => Err(MempoolError::TransactionNotFound(txn.digest())),
+            _ => Err(MempoolError::TransactionNotFound(txn.id())),
         }
     }
 

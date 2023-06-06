@@ -4,7 +4,6 @@ use std::{
 };
 
 use config::{Config, ConfigError, File};
-use events::Event;
 use node::{Node, NodeType};
 use primitives::{DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use serde::Deserialize;
