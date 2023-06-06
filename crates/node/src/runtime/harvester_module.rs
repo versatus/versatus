@@ -204,17 +204,17 @@ impl HarvesterModule {
                     next_root_hash: "".to_string(),
                     block_hash,
                 };
-                if let Err(err) = self
-                    .broadcast_events_tx
+                self.broadcast_events_tx
                     .send(EventMessage::new(
                         None,
                         Event::SendBlockCertificate(certificate),
                     ))
                     .await
-                {
-                    let err_msg = format!("failed to send block certificate: {err}");
-                    return Err(theater::TheaterError::Other(err_msg));
-                }
+                    .map_err(|err| {
+                        theater::TheaterError::Other(format!(
+                            "failed to send block certificate: {err}"
+                        ))
+                    })?
             }
         }
         Ok(())
@@ -405,7 +405,7 @@ impl Handler<EventMessage> for HarvesterModule {
                                             if new_certificate_share.len()
                                                 <= sig_provider.quorum_config.upper_bound as usize
                                             {
-                                                if let Err(err) = self
+                                                self
                                                     .broadcast_events_tx
                                                     .send(EventMessage::new(
                                                         None,
@@ -416,13 +416,9 @@ impl Handler<EventMessage> for HarvesterModule {
                                                             partial_signature,
                                                         ),
                                                     ))
-                                                    .await
-                                                {
-                                                    let err_msg = format!("failed to send peer convergence block sign: {err}");
-                                                    return Err(theater::TheaterError::Other(
-                                                        err_msg,
-                                                    ));
-                                                }
+                                                    .await.map_err(|err| theater::TheaterError::Other(
+                                                        format!("failed to send peer convergence block sign: {err}")
+                                                    ))?;
 
                                                 self.generate_and_broadcast_certificate(
                                                     block_hash,
@@ -562,8 +558,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     }
                 }
                 if pre_check {
-                    if let Err(err) = self
-                        .broadcast_events_tx
+                    self.broadcast_events_tx
                         .send(EventMessage::new(
                             None,
                             Event::CheckConflictResolution((
@@ -574,10 +569,11 @@ impl Handler<EventMessage> for HarvesterModule {
                             )),
                         ))
                         .await
-                    {
-                        let err_msg = format!("failed to send conflict resolution check: {err}");
-                        return Err(theater::TheaterError::Other(err_msg));
-                    }
+                        .map_err(|err| {
+                            theater::TheaterError::Other(format!(
+                                "failed to send conflict resolution check: {err}"
+                            ))
+                        })?
                 }
             },
             Event::NoOp => {},
