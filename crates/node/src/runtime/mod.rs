@@ -67,7 +67,7 @@ pub mod swarm_module;
 
 pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
-pub type SchedulerHandle = Option<JoinHandle<Result<()>>>;
+pub type SchedulerHandle = Option<thread::JoinHandle<Result<()>>>;
 
 impl From<MinerError> for NodeError {
     fn from(_error: MinerError) -> Self {
@@ -302,7 +302,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
     );
-    let scheduler_handle = tokio::spawn(async move { scheduler.execute_sync_jobs() });
+    let scheduler_handle = thread::spawn(move || scheduler.execute_sync_jobs());
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
