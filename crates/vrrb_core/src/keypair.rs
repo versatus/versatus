@@ -8,7 +8,9 @@ use std::{
 
 use bs58::encode;
 use hbbft::crypto::{
-    serde_impl::SerdeSecret, PublicKey as ValidatorPublicKey, SecretKey as ValidatorSecretKey,
+    serde_impl::SerdeSecret,
+    PublicKey as ValidatorPublicKey,
+    SecretKey as ValidatorSecretKey,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use ring::digest::{Context, SHA256};

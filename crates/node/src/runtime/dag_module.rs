@@ -1,8 +1,14 @@
+use std::sync::{Arc, RwLock};
+
 use async_trait::async_trait;
 use block::{
     header::BlockHeader,
     valid::{BlockValidationData, Valid},
-    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
+    Block,
+    ConvergenceBlock,
+    GenesisBlock,
+    InnerBlock,
+    ProposalBlock,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -12,7 +18,6 @@ use events::{Event, EventMessage, EventPublisher};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
-use std::sync::{Arc, RwLock};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::claim::Claim;
@@ -402,9 +407,10 @@ impl Handler<EventMessage> for DagModule {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{create_blank_certificate, create_dag_module};
     use events::Event;
     use theater::{ActorState, Handler};
+
+    use crate::test_utils::{create_blank_certificate, create_dag_module};
 
     #[tokio::test]
     async fn handle_event_block_certificate() {

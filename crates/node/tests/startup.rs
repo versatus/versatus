@@ -59,5 +59,4 @@ async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
     vrrb_node.stop();
     assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
-
 }

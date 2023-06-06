@@ -30,7 +30,11 @@ use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     dag_module::DagModule,
     election_module::{
-        ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult, QuorumElection,
+        ElectionModule,
+        ElectionModuleConfig,
+        MinerElection,
+        MinerElectionResult,
+        QuorumElection,
         QuorumElectionResult,
     },
     indexer_module::IndexerModuleConfig,
@@ -44,7 +48,8 @@ use crate::{
     farmer_module::PULL_TXN_BATCH_SIZE,
     node,
     scheduler::{Job, JobSchedulerController},
-    NodeError, Result,
+    NodeError,
+    Result,
 };
 
 pub mod broadcast_module;
