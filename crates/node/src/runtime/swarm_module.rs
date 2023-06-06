@@ -4,7 +4,8 @@ use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorLabel, ActorState, Handler};
+use theater::{Actor, ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use tracing::debug;
 
 use crate::{result::Result, NodeError};
 
@@ -123,11 +124,11 @@ impl Handler<EventMessage> for SwarmModule {
                     .kademlia_node
                     .routing_table
                     .lock()
-                    .unwrap()
+                    .map_err(|err| TheaterError::Other(err.to_string()))?
                     .get_closest_nodes(&key, no);
 
                 for node in closest_nodes {
-                    println!("Closest Node with Key : {:?} :{:?}", key, node);
+                    debug!("Closest Node with Key : {:?} :{:?}", key, node);
                 }
             },
             Event::DHTStoreRequest(key, value) => {
