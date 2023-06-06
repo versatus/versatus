@@ -11,7 +11,11 @@ use dashmap::DashMap;
 use events::{Event, EventMessage, EventPublisher, JobResult, Vote};
 use hbbft::crypto::{PublicKeyShare, SignatureShare};
 use primitives::{
-    GroupPublicKey, HarvesterQuorumThreshold, NodeIdx, QuorumThreshold, RawSignature,
+    GroupPublicKey,
+    HarvesterQuorumThreshold,
+    NodeIdx,
+    QuorumThreshold,
+    RawSignature,
 };
 use ritelinked::LinkedHashMap;
 use signer::signer::{SignatureProvider, Signer};
@@ -176,12 +180,12 @@ impl HarvesterModule {
 
     /// Generate Certificate for convergence block and then broadcast it to the
     /// network
-    fn generate_and_broadcast_certificate(
+    async fn generate_and_broadcast_certificate(
         &self,
         block_hash: BlockHash,
         certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
         sig_provider: &SignatureProvider,
-    ) {
+    ) -> Result<(), theater::TheaterError> {
         if certificates_share.len() >= self.quorum_threshold {
             //Generate a new certificate for the block
             let mut sig_shares = BTreeMap::new();
@@ -200,12 +204,20 @@ impl HarvesterModule {
                     next_root_hash: "".to_string(),
                     block_hash,
                 };
-                let _ = self.broadcast_events_tx.send(EventMessage::new(
-                    None,
-                    Event::SendBlockCertificate(certificate),
-                ));
+                self.broadcast_events_tx
+                    .send(EventMessage::new(
+                        None,
+                        Event::SendBlockCertificate(certificate),
+                    ))
+                    .await
+                    .map_err(|err| {
+                        theater::TheaterError::Other(format!(
+                            "failed to send block certificate: {err}"
+                        ))
+                    })?
             }
         }
+        Ok(())
     }
 }
 
@@ -393,21 +405,27 @@ impl Handler<EventMessage> for HarvesterModule {
                                             if new_certificate_share.len()
                                                 <= sig_provider.quorum_config.upper_bound as usize
                                             {
-                                                self.broadcast_events_tx.send(EventMessage::new(
-                                                    None,
-                                                    Event::SendPeerConvergenceBlockSign(
-                                                        self.harvester_id,
-                                                        block_hash.clone(),
-                                                        public_key_share.to_bytes().to_vec(),
-                                                        partial_signature,
-                                                    ),
-                                                ));
+                                                self
+                                                    .broadcast_events_tx
+                                                    .send(EventMessage::new(
+                                                        None,
+                                                        Event::SendPeerConvergenceBlockSign(
+                                                            self.harvester_id,
+                                                            block_hash.clone(),
+                                                            public_key_share.to_bytes().to_vec(),
+                                                            partial_signature,
+                                                        ),
+                                                    ))
+                                                    .await.map_err(|err| theater::TheaterError::Other(
+                                                        format!("failed to send peer convergence block sign: {err}")
+                                                    ))?;
 
                                                 self.generate_and_broadcast_certificate(
                                                     block_hash,
                                                     &new_certificate_share,
                                                     sig_provider,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                     }
@@ -479,7 +497,8 @@ impl Handler<EventMessage> for HarvesterModule {
                                     block_hash,
                                     &new_certificate_share,
                                     sig_provider,
-                                );
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -539,8 +558,7 @@ impl Handler<EventMessage> for HarvesterModule {
                     }
                 }
                 if pre_check {
-                    if let Err(err) = self
-                        .broadcast_events_tx
+                    self.broadcast_events_tx
                         .send(EventMessage::new(
                             None,
                             Event::CheckConflictResolution((
@@ -551,10 +569,11 @@ impl Handler<EventMessage> for HarvesterModule {
                             )),
                         ))
                         .await
-                    {
-                        let err_msg = format!("failed to send conflict resolution check: {err}");
-                        return Err(theater::TheaterError::Other(err_msg));
-                    }
+                        .map_err(|err| {
+                            theater::TheaterError::Other(format!(
+                                "failed to send conflict resolution check: {err}"
+                            ))
+                        })?
                 }
             },
             Event::NoOp => {},
