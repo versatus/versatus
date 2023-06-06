@@ -513,6 +513,17 @@ async fn setup_grpc_api_server(
     Ok((Some(handle), address))
 }
 
+fn generate_hex_string(length: usize) -> String {
+    let hex_chars: Vec<char> = "0123456789abcdef".chars().collect();
+    let mut hex_string = String::new();
+
+    while hex_string.len() < length {
+        hex_string.push_str(&hex_chars.iter().collect::<String>());
+    }
+
+    hex_string.chars().take(length).collect()
+}
+
 fn setup_swarm_module(
     config: &NodeConfig,
     events_tx: EventPublisher,
@@ -522,7 +533,7 @@ fn setup_swarm_module(
 
     let bootstrap_details = BootstrapNodeConfig {
         addr,
-        key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
+        key: generate_hex_string(64),
     };
 
     let swarm_module_config = SwarmModuleConfig {
