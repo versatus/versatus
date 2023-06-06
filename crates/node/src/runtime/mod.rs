@@ -789,8 +789,8 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
             Ok(_) => info!("Yarn is installed"),
             Err(e) => {
                 let install_yarn = Command::new("npm")
-                    .args(["install", "-g", "yarn"])
-                    .current_dir("infra/ui")
+                    .args(&["install", "-g", "yarn"])
+                    .current_dir("infra/gui")
                     .output();
 
                 match install_yarn {
@@ -804,8 +804,8 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
 
         info!("Installing dependencies");
         match Command::new("yarn")
-            .args(["install"])
-            .current_dir("infra/ui")
+            .args(&["install"])
+            .current_dir("infra/gui")
             .status()
         {
             Ok(_) => info!("Dependencies installed successfully"),
@@ -819,10 +819,13 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
         info!("Spawning UI");
 
         let node_gui_handle = tokio::spawn(async move {
-            Command::new("yarn")
+            if let Err(err) = Command::new("yarn")
                 .args(["dev"])
-                .current_dir("infra/ui")
-                .spawn()?;
+                .current_dir("infra/gui")
+                .spawn()
+            {
+                telemetry::error!("Failed to spawn UI: {}", err);
+            }
 
             Ok(())
         });

@@ -58,7 +58,7 @@ clean: clean-ui
 	$(Q)echo "--- Deleted binaries and documentation"
 
 clean-ui:
-	$(Q)rm -rf infra/ui/node_modules infra/ui/.next
+	$(Q)rm -rf infra/gui/node_modules infra/gui/.next
 	$(Q)echo "--- Deleted UI build artifacts"
 
 run:
