@@ -214,20 +214,18 @@ impl Handler<EventMessage> for FarmerModule {
                         {
                             let addresses: Vec<SocketAddr> =
                                 broadcast_addresses.iter().cloned().collect();
-                            if let Err(err) = self
-                                .broadcast_events_tx
+                            self.broadcast_events_tx
                                 .send(EventMessage::new(
                                     None,
                                     Event::ForwardTxn((txn.1.clone(), addresses.clone())),
                                 ))
                                 .await
-                            {
-                                let err_msg = format!(
-                                    "failed to forward txn {:?} to peers {addresses:?}: {err}",
-                                    txn.1
-                                );
-                                return Err(theater::TheaterError::Other(err_msg));
-                            }
+                                .map_err(|err| {
+                                    theater::TheaterError::Other(format!(
+                                        "failed to forward txn {:?} to peers {addresses:?}: {err}",
+                                        txn.1
+                                    ))
+                                })?
                         }
                     } else {
                         new_txns.push(txn);
@@ -250,14 +248,12 @@ impl Handler<EventMessage> for FarmerModule {
             // Receive the Vote from scheduler
             Event::ProcessedVotes(JobResult::Votes((votes, farmer_quorum_threshold))) => {
                 for vote in votes.iter().flatten() {
-                    if let Err(err) = self
-                        .broadcast_events_tx
+                    self.broadcast_events_tx
                         .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
                         .await
-                    {
-                        let err_msg = format!("failed to send vote: {err}");
-                        return Err(theater::TheaterError::Other(err_msg));
-                    }
+                        .map_err(|err| {
+                            theater::TheaterError::Other(format!("failed to send vote: {err}"))
+                        })?
                 }
             },
             Event::NoOp => {},
