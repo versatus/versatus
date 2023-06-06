@@ -118,14 +118,14 @@ impl Handler<EventMessage> for SwarmModule {
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
-            Event::FetchPeers(no) => {
+            Event::FetchPeers(count) => {
                 let key = self.kademlia_node.node_data().id.clone();
                 let closest_nodes = self
                     .kademlia_node
                     .routing_table
                     .lock()
                     .map_err(|err| TheaterError::Other(err.to_string()))?
-                    .get_closest_nodes(&key, no);
+                    .get_closest_nodes(&key, count);
 
                 for node in closest_nodes {
                     debug!("Closest Node with Key : {:?} :{:?}", key, node);
