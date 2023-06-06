@@ -302,7 +302,7 @@ pub async fn setup_runtime_components(
         events_tx.clone(),
         state_read_handle.clone(),
     );
-    let scheduler_handle = tokio::spawn(async move { scheduler.execute_sync_jobs().await });
+    let scheduler_handle = tokio::spawn(async move { scheduler.execute_sync_jobs() });
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 

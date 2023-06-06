@@ -127,7 +127,7 @@ impl Node {
         }
 
         if let Some(handle) = scheduler_handle {
-            if let Err(err) = handle.await? {
+            if let Err(err) = handle.await {
                 error!("Scheduler handle is not shutdown: {err:?}");
             }
         }
