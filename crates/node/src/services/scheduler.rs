@@ -161,8 +161,7 @@ impl JobSchedulerController {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            if let Err(err) = self
-                                .events_tx
+                            self.events_tx
                                 .send(
                                     Event::ProcessedVotes(JobResult::Votes((
                                         votes,
@@ -171,10 +170,11 @@ impl JobSchedulerController {
                                     .into(),
                                 )
                                 .await
-                            {
-                                let err_msg = format!("failed to send processed votes: {err}");
-                                return Err(NodeError::Other(err_msg));
-                            }
+                                .map_err(|err| {
+                                    NodeError::Other(format!(
+                                        "failed to send processed votes: {err}"
+                                    ))
+                                })?
                         }
                     },
                     Job::CertifyTxn((
@@ -219,8 +219,7 @@ impl JobSchedulerController {
                                     votes_map.clone(),
                                 );
                                 if let Ok(threshold_signature) = result {
-                                    if let Err(err) = self
-                                        .events_tx
+                                    self.events_tx
                                         .send(
                                             Event::CertifiedTxn(JobResult::CertifiedTxn(
                                                 votes.clone(),
@@ -234,11 +233,11 @@ impl JobSchedulerController {
                                             .into(),
                                         )
                                         .await
-                                    {
-                                        let err_msg =
-                                            format!("failed to send certified txn: {err}");
-                                        return Err(NodeError::Other(err_msg));
-                                    }
+                                        .map_err(|err| {
+                                            NodeError::Other(format!(
+                                                "failed to send certified txn: {err}"
+                                            ))
+                                        })?
                                 } else {
                                     error!("Quorum signature generation failed");
                                 }
@@ -259,8 +258,7 @@ impl JobSchedulerController {
                                     .read()
                                     .map(|dkg_state| dkg_state.secret_key_share.clone())
                                 {
-                                    if let Err(err) = self
-                                        .events_tx
+                                    self.events_tx
                                         .send(
                                             Event::ConvergenceBlockPartialSign(
                                                 JobResult::ConvergenceBlockPartialSign(
@@ -272,12 +270,11 @@ impl JobSchedulerController {
                                             .into(),
                                         )
                                         .await
-                                    {
-                                        let err_msg = format!(
+                                        .map_err(|err| {
+                                            NodeError::Other(format!(
                                             "failed to send convergence block partial sign: {err}"
-                                        );
-                                        return Err(NodeError::Other(err_msg));
-                                    }
+                                        ))
+                                        })?
                                 }
                             }
                         }
