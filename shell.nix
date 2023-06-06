@@ -37,7 +37,7 @@ pkgs.mkShell {
     rocksdb
     openssl.dev
     libiconv
-  ];
+  ] ++ lib.optionals stdenv.isDarwin [darwin.apple_sdk.frameworks.Security];
 
   shellHook = ''
     export LIBCLANG_PATH="${pkgs.libclang.lib}/lib";
