@@ -30,11 +30,7 @@ use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     dag_module::DagModule,
     election_module::{
-        ElectionModule,
-        ElectionModuleConfig,
-        MinerElection,
-        MinerElectionResult,
-        QuorumElection,
+        ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult, QuorumElection,
         QuorumElectionResult,
     },
     indexer_module::IndexerModuleConfig,
@@ -48,8 +44,7 @@ use crate::{
     farmer_module::PULL_TXN_BATCH_SIZE,
     node,
     scheduler::{Job, JobSchedulerController},
-    NodeError,
-    Result,
+    NodeError, Result,
 };
 
 pub mod broadcast_module;
@@ -820,10 +815,13 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
         info!("Spawning UI");
 
         let node_gui_handle = tokio::spawn(async move {
-            Command::new("yarn")
-                .args(&["dev"])
+            if let Err(err) = Command::new("yarn")
+                .args(["dev"])
                 .current_dir("infra/gui")
-                .spawn();
+                .spawn()
+            {
+                telemetry::error!("Failed to spawn UI: {}", err);
+            }
 
             Ok(())
         });

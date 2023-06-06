@@ -18,11 +18,11 @@ async fn node_can_start_as_a_bootstrap_node() {
         .await
         .unwrap();
 
+    vrrb_node.stop();
+
     assert!(vrrb_node.is_bootstrap());
     assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
-
-    vrrb_node.stop();
 }
 
 #[tokio::test]
