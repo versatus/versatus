@@ -9,7 +9,7 @@ use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
-use tracing::error;
+use telemetry::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
@@ -163,22 +163,17 @@ impl JobSchedulerController {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
+                            let event = JobResult::Votes((votes, farmer_quorum_threshold));
                             rt.block_on(async {
                                 self.events_tx
-                                    .send(
-                                        Event::ProcessedVotes(JobResult::Votes((
-                                            votes,
-                                            farmer_quorum_threshold,
-                                        )))
-                                        .into(),
-                                    )
+                                    .send(Event::ProcessedVotes(event.clone()).into())
                                     .await
-                                    .map_err(|err| {
-                                        NodeError::Other(format!(
-                                            "failed to send processed votes: {err}"
-                                        ))
+                                    .unwrap_or_else(|err| {
+                                        error!(
+                                            "failed to send processed votes for {event:?}: {err}"
+                                        )
                                     })
-                            })?;
+                            });
                         }
                     },
                     Job::CertifyTxn((
@@ -218,32 +213,31 @@ impl JobSchedulerController {
                             .map(|(key, votes_map)| (*key, votes_map.clone()));
                         if validated {
                             if let Some((is_txn_valid, votes_map)) = most_votes_share {
-                                let result = sig_provider.generate_quorum_signature(
-                                    farmer_quorum_threshold as u16,
-                                    votes_map.clone(),
-                                );
-                                if let Ok(threshold_signature) = result {
+                                if let Ok(threshold_signature) = sig_provider
+                                    .generate_quorum_signature(
+                                        farmer_quorum_threshold as u16,
+                                        votes_map.clone(),
+                                    )
+                                {
                                     rt.block_on(async {
+                                        let event = JobResult::CertifiedTxn(
+                                            votes.clone(),
+                                            threshold_signature,
+                                            txn_id.clone(),
+                                            farmer_quorum_key.clone(),
+                                            farmer_id.clone(),
+                                            Box::new(txn.clone()),
+                                            is_txn_valid,
+                                        );
                                         self.events_tx
-                                            .send(
-                                                Event::CertifiedTxn(JobResult::CertifiedTxn(
-                                                    votes.clone(),
-                                                    threshold_signature,
-                                                    txn_id.clone(),
-                                                    farmer_quorum_key.clone(),
-                                                    farmer_id.clone(),
-                                                    Box::new(txn.clone()),
-                                                    is_txn_valid,
-                                                ))
-                                                .into(),
-                                            )
+                                            .send(Event::CertifiedTxn(event.clone()).into())
                                             .await
-                                            .map_err(|err| {
-                                                NodeError::Other(format!(
-                                                    "failed to send certified txn: {err}"
-                                                ))
+                                            .unwrap_or_else(|err| {
+                                                error!(
+                                                    "failed to send certified txn for {event:?}: {err}"
+                                                )
                                             })
-                                    })?;
+                                    });
                                 } else {
                                     error!("Quorum signature generation failed");
                                 }
@@ -265,25 +259,26 @@ impl JobSchedulerController {
                                     .map(|dkg_state| dkg_state.secret_key_share.clone())
                                     .map_err(|err| NodeError::Other(format!("dkg_state lock was returned in a poisoned state: {err}")))?;
                                 if let Some(secret_share) = secret_share_opt {
+                                    let event = JobResult::ConvergenceBlockPartialSign(
+                                        block.hash.clone(),
+                                        secret_share.public_key_share(),
+                                        signature.clone(),
+                                    );
                                     rt.block_on(async {
-                                            self.events_tx
-                                                .send(
-                                                    Event::ConvergenceBlockPartialSign(
-                                                        JobResult::ConvergenceBlockPartialSign(
-                                                            block.hash.clone(),
-                                                            secret_share.public_key_share(),
-                                                            signature.clone(),
-                                                        ),
-                                                    )
-                                                    .into(),
+                                        self.events_tx
+                                            .send(
+                                                Event::ConvergenceBlockPartialSign(
+                                                    event.clone()
                                                 )
-                                                .await
-                                                .map_err(|err| {
-                                                    NodeError::Other(format!(
-                                                        "failed to send convergence block partial sign: {err}"
-                                                    ))
-                                                })
-                                        })?;
+                                                .into(),
+                                            )
+                                            .await
+                                            .unwrap_or_else(|err| {
+                                                error!(
+                                                    "failed to send convergence block partial sign for {event:?}: {err}"
+                                                )
+                                            })
+                                    });
                                 }
                             }
                         }
