@@ -127,8 +127,12 @@ impl Handler<EventMessage> for SwarmModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?
                     .get_closest_nodes(&key, count);
 
+                println!("==============================");
+                println!("{:?}", closest_nodes);
+                println!("==============================");
+
                 for node in closest_nodes {
-                    debug!("Closest Node with Key : {:?} :{:?}", key, node);
+                    println!("Closest Node with Key : {:?} :{:?}", key, node);
                 }
             },
             Event::DHTStoreRequest(key, value) => {

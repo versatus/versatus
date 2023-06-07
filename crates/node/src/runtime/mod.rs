@@ -526,6 +526,17 @@ fn setup_swarm_module(
         bootstrap_node_config: None,
     };
 
+    /*
+    let conf =  BootstrapNodeConfig {
+        addr: "23.236.60.54:6061".parse::<SocketAddr>().unwrap(),
+        key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
+    };
+    let swarm_module_config = SwarmModuleConfig {
+        addr,
+        bootstrap_node_config: Some(conf),
+    };
+    */
+
     let module = SwarmModule::new(swarm_module_config, events_tx);
 
     match module {

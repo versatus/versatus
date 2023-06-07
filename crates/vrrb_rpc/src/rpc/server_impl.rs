@@ -34,6 +34,14 @@ impl RpcApiServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
         let values = self.vrrbdb_read_handle.state_store_values();
 
+        // FOR DEBUG ////////////////////
+        let event = Event::FetchPeers(10);
+        self.events_tx.send(event.into()).await.map_err(|err| {
+            error!("could not queue transaction to mempool: {err}");
+            Error::Custom(err.to_string())
+        })?;
+        /////////////////////////////////
+
         Ok(values)
     }
 
