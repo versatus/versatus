@@ -47,11 +47,13 @@ impl<F: std::future::Future> Timeout for F {
 
 impl BroadcastModule {
     pub async fn new(config: BroadcastModuleConfig) -> Result<Self> {
-        let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address_port, 32)
-            .await
-            .map_err(|err| {
-                NodeError::Other(format!("unable to setup broadcast engine: {err:?}"))
-            })?;
+        let broadcast_engine = BroadcastEngine::new(
+            config.udp_gossip_address_port,
+            config.raptorq_gossip_address_port,
+            32,
+        )
+        .await
+        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {err:?}")))?;
 
         Ok(Self {
             id: Uuid::new_v4(),

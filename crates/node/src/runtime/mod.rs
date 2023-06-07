@@ -30,11 +30,7 @@ use self::{
     broadcast_module::{BroadcastModule, BroadcastModuleConfig},
     dag_module::DagModule,
     election_module::{
-        ElectionModule,
-        ElectionModuleConfig,
-        MinerElection,
-        MinerElectionResult,
-        QuorumElection,
+        ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult, QuorumElection,
         QuorumElectionResult,
     },
     indexer_module::IndexerModuleConfig,
@@ -49,8 +45,7 @@ use crate::{
     farmer_module::PULL_TXN_BATCH_SIZE,
     node,
     scheduler::{Job, JobSchedulerController},
-    NodeError,
-    Result,
+    NodeError, Result,
 };
 
 pub mod broadcast_module;
@@ -368,9 +363,13 @@ async fn setup_gossip_network(
 
     let addr = broadcast_module.local_addr();
 
-    let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
-        .await
-        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
+    let broadcast_engine = BroadcastEngine::new(
+        config.udp_gossip_address.port(),
+        config.raptorq_gossip_address.port(),
+        32,
+    )
+    .await
+    .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
 
     let broadcast_resolved_addr = broadcast_engine.local_addr();
 

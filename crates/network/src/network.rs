@@ -11,17 +11,11 @@ use bytes::Bytes;
 use crossbeam_channel::{unbounded, Sender};
 use futures::{stream::FuturesUnordered, StreamExt};
 use primitives::{
-    DEFAULT_CONNECTION_TIMEOUT_IN_SECS,
-    RAPTOR_DECODER_CACHE_LIMIT,
+    DEFAULT_CONNECTION_TIMEOUT_IN_SECS, RAPTOR_DECODER_CACHE_LIMIT,
     RAPTOR_DECODER_CACHE_TTL_IN_SECS,
 };
 pub use qp2p::{
-    Config,
-    Connection,
-    ConnectionIncoming,
-    Endpoint,
-    IncomingConnections,
-    RetryConfig,
+    Config, Connection, ConnectionIncoming, Endpoint, IncomingConnections, RetryConfig,
 };
 use raptorq::Decoder;
 use serde::{Deserialize, Serialize};
@@ -33,15 +27,8 @@ use crate::{
     config::BroadcastError,
     message::Message,
     packet::{
-        generate_batch_id,
-        packet_forwarder,
-        reassemble_packets,
-        recv_mmsg,
-        split_into_packets,
-        RaptorBroadCastedData,
-        BATCH_ID_SIZE,
-        MTU_SIZE,
-        NUM_RCVMMSGS,
+        generate_batch_id, packet_forwarder, reassemble_packets, recv_mmsg, split_into_packets,
+        RaptorBroadCastedData, BATCH_ID_SIZE, MTU_SIZE, NUM_RCVMMSGS,
     },
     types::config::BroadcastStatus,
 };
@@ -87,8 +74,12 @@ const CONNECTION_CLOSED: &str = "The connection was closed intentionally by qp2p
 impl BroadcastEngine {
     /// Create a new broadcast engine for each node
     #[telemetry::instrument]
-    pub async fn new(raptor_udp_port: u16, raptor_num_packet_blast: usize) -> Result<Self> {
-        let (node, incoming_conns, _) = Self::new_endpoint(raptor_udp_port).await?;
+    pub async fn new(
+        quic_port: u16,
+        raptor_udp_port: u16,
+        raptor_num_packet_blast: usize,
+    ) -> Result<Self> {
+        let (node, incoming_conns, _) = Self::new_endpoint(quic_port).await?;
 
         Ok(Self {
             peer_connection_list: HashMap::new(),
@@ -441,20 +432,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_successful_connection() {
-        let mut b1 = BroadcastEngine::new(1234, 1145).await.unwrap();
-        let mut b2 = BroadcastEngine::new(1235, 1145).await.unwrap();
-
+        let mut b1 = BroadcastEngine::new(0, 0, 32).await.unwrap();
+        let mut b2 = BroadcastEngine::new(0, 0, 32).await.unwrap();
         let _ = b1
             .add_peer_connection(vec![SocketAddr::new(
                 std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-                1235,
+                b2.local_addr().port(),
             )])
             .await;
 
         let _ = b2
             .add_peer_connection(vec![SocketAddr::new(
                 std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-                1234,
+                b1.local_addr().port(),
             )])
             .await;
 
@@ -466,31 +456,31 @@ mod tests {
 
         let _ = b1.remove_peer_connection(vec![SocketAddr::new(
             std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-            1234,
+            b2.local_addr().port(),
         )]);
-        let _ = b1.remove_peer_connection(vec![SocketAddr::new(
+        let _ = b2.remove_peer_connection(vec![SocketAddr::new(
             std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-            1235,
+            b1.local_addr().port(),
         )]);
     }
 
     #[tokio::test]
     async fn test_broadcast_message_to_peers() {
-        let mut b1 = BroadcastEngine::new(1236, 1145).await.unwrap();
-        let mut b2 = BroadcastEngine::new(1237, 1145).await.unwrap();
-        let mut b3 = BroadcastEngine::new(1238, 1145).await.unwrap();
+        let mut b1 = BroadcastEngine::new(0, 0, 32).await.unwrap();
+        let mut b2 = BroadcastEngine::new(0, 0, 32).await.unwrap();
+        let mut b3 = BroadcastEngine::new(0, 0, 32).await.unwrap();
 
         let _ = b1
             .add_peer_connection(vec![SocketAddr::new(
                 std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-                1237,
+                b2.local_addr().port(),
             )])
             .await;
 
         let _ = b1
             .add_peer_connection(vec![SocketAddr::new(
                 std::net::IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
-                1238,
+                b3.local_addr().port(),
             )])
             .await;
 
