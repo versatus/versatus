@@ -520,14 +520,15 @@ fn setup_swarm_module(
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     // TODO: allow a `swarm_module_config & other configuration to be provided from
     // NodeConfig
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 6061);
-    let swarm_module_config = SwarmModuleConfig {
-        addr,
-        bootstrap_node_config: None,
-    };
 
-    /*
-    let conf =  BootstrapNodeConfig {
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 6061);
+
+    // let swarm_module_config = SwarmModuleConfig {
+    //     addr,
+    //     bootstrap_node_config: None,
+    // };
+
+    let conf = BootstrapNodeConfig {
         addr: "23.236.60.54:6061".parse::<SocketAddr>().unwrap(),
         key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_owned(),
     };
@@ -535,7 +536,6 @@ fn setup_swarm_module(
         addr,
         bootstrap_node_config: Some(conf),
     };
-    */
 
     let module = SwarmModule::new(swarm_module_config, events_tx);
 
