@@ -39,6 +39,7 @@ pub type BlockBytes = Vec<u8>;
 pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
 pub type MinerClaim = Claim;
+pub type Count = usize;
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -46,6 +47,10 @@ pub enum Event {
     #[default]
     NoOp,
     Stop,
+
+    /// Swarm module events
+    FetchPeers(Count),
+    DHTStoreRequest(String, String),
 
     /// New txn came from network, requires validation
     NewTxnCreated(Txn),

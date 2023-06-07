@@ -96,7 +96,7 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
-kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
+kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs", branch = "main" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
 decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }

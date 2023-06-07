@@ -1,5 +1,5 @@
 use std::{
-    net::SocketAddr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     process::Command,
     sync::{Arc, RwLock},
     thread,
@@ -14,7 +14,7 @@ use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
-use telemetry::info;
+use telemetry::{error, info};
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
@@ -41,11 +41,13 @@ use self::{
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
+    swarm_module::{BootstrapNodeConfig, SwarmModule, SwarmModuleConfig},
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
     dkg_module::DkgModuleConfig,
     farmer_module::PULL_TXN_BATCH_SIZE,
+    node,
     scheduler::{Job, JobSchedulerController},
     NodeError,
     Result,
@@ -103,6 +105,7 @@ pub struct RuntimeComponents {
     pub scheduler_handle: SchedulerHandle,
     pub grpc_server_handle: RuntimeHandle,
     pub node_gui_handle: RuntimeHandle,
+    pub swarm_module_handle: RuntimeHandle,
 }
 
 pub async fn setup_runtime_components(
@@ -125,7 +128,7 @@ pub async fn setup_runtime_components(
     let quorum_election_events_rx = router.subscribe(None)?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
-    let _swarm_module_events_rx = router.subscribe(None)?;
+    let swarm_module_events_rx = router.subscribe(None)?;
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
     let mempool = LeftRightMempool::new();
@@ -214,6 +217,9 @@ pub async fn setup_runtime_components(
     .await?;
 
     info!("gRPC server address started: {}", resolved_grpc_server_addr);
+
+    let swarm_module_handle =
+        setup_swarm_module(&config, events_tx.clone(), swarm_module_events_rx)?;
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -332,6 +338,7 @@ pub async fn setup_runtime_components(
         scheduler_handle: Some(scheduler_handle),
         grpc_server_handle,
         node_gui_handle,
+        swarm_module_handle,
     };
 
     Ok(runtime_components)
@@ -504,6 +511,42 @@ async fn setup_grpc_api_server(
     info!("gRPC server started at {}", &address);
 
     Ok((Some(handle), address))
+}
+
+fn setup_swarm_module(
+    config: &NodeConfig,
+    events_tx: EventPublisher,
+    mut events_rx: EventSubscriber,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    // TODO: allow a `swarm_module_config & other configuration to be provided from
+    // NodeConfig
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+    let swarm_module_config = SwarmModuleConfig {
+        addr,
+        bootstrap_node_config: None,
+    };
+
+    let module = SwarmModule::new(swarm_module_config, events_tx);
+
+    match module {
+        Ok(swarm_module) => {
+            let mut swarm_module_actor = ActorImpl::new(swarm_module);
+            let swarm_handle = tokio::spawn(async move {
+                swarm_module_actor
+                    .start(&mut events_rx)
+                    .await
+                    .map_err(|err| NodeError::Other(err.to_string()))
+            });
+
+            info!("Swarm module started at {}", addr);
+
+            Ok(Some(swarm_handle))
+        },
+        Err(err) => {
+            error!("{}", format!("{}", err));
+            Err(err)
+        },
+    }
 }
 
 fn setup_mining_module(
@@ -796,7 +839,9 @@ async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<
                 match install_yarn {
                     Ok(_) => (),
                     Err(_) => {
-                        return Err(NodeError::Other(format!("Failed to install yarn: {e}")));
+                        return Err(
+                            NodeError::Other(format!("Failed to install yarn: {}", e)).into()
+                        );
                     },
                 }
             },

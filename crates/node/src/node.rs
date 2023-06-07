@@ -133,7 +133,6 @@ impl Node {
         }
 
         info!("Shutdown complete");
-
         Ok(())
     }
 
