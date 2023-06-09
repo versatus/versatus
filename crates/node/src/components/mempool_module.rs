@@ -1,12 +1,20 @@
 use async_trait::async_trait;
-use events::{Event, EventMessage, EventPublisher};
-use mempool::LeftRightMempool;
+use events::{Event, EventMessage, EventPublisher, EventSubscriber};
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::txn::TransactionDigest;
 
-use crate::MEMPOOL_THRESHOLD_SIZE;
+use crate::{
+    NodeError,
+    RuntimeComponent,
+    RuntimeComponentHandle,
+    RuntimeComponentHealthReport,
+    RuntimeHandle,
+    MEMPOOL_THRESHOLD_SIZE,
+};
 
+#[derive(Debug, Clone)]
 pub struct MempoolModuleConfig {
     pub mempool: LeftRightMempool,
     pub events_tx: EventPublisher,
@@ -32,6 +40,49 @@ impl MempoolModule {
             label: String::from("Mempool"),
             cutoff_transaction: None,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct MempoolModuleComponentConfig {
+    pub events_tx: EventPublisher,
+    pub mempool_events_rx: EventSubscriber,
+}
+
+#[async_trait]
+impl RuntimeComponent<MempoolModuleComponentConfig, MempoolReadHandleFactory> for MempoolModule {
+    async fn setup(
+        args: MempoolModuleComponentConfig,
+    ) -> crate::Result<RuntimeComponentHandle<MempoolReadHandleFactory>> {
+        let mut mempool_events_rx = args.mempool_events_rx;
+
+        let mempool = LeftRightMempool::new();
+        let mempool_read_handle_factory = mempool.factory();
+
+        let mempool_module = MempoolModule::new(MempoolModuleConfig {
+            mempool,
+            events_tx: args.events_tx,
+        });
+
+        let mut mempool_module_actor = ActorImpl::new(mempool_module);
+
+        let mempool_handle = tokio::spawn(async move {
+            mempool_module_actor
+                .start(&mut mempool_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
+
+        let mempool_handle = Some(mempool_handle);
+
+        let component_handle =
+            RuntimeComponentHandle::new(mempool_handle, mempool_read_handle_factory);
+
+        Ok(component_handle)
+    }
+
+    async fn stop(&mut self) -> crate::Result<()> {
+        todo!()
     }
 }
 

@@ -14,7 +14,7 @@ use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::scheduler::Job;
+use crate::components::scheduler::Job;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -300,7 +300,7 @@ mod tests {
         txn::{NewTxnArgs, Txn},
     };
 
-    use crate::{
+    use crate::components::{
         farmer_module::FarmerModule,
         scheduler::{Job, JobSchedulerController},
     };

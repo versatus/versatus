@@ -10,7 +10,7 @@ use bulldag::graph::BullDag;
 use crossbeam_channel::{unbounded, Sender};
 use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use miner::{result::MinerError, MinerConfig};
+use miner::MinerConfig;
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
@@ -19,91 +19,35 @@ use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use vrrb_core::{
-    bloom::Bloom,
-    claim::{Claim, ClaimError},
-};
-use vrrb_grpc::server::{GrpcServer, GrpcServerConfig};
+use vrrb_core::{bloom::Bloom, claim::Claim};
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
-use self::{
-    broadcast_module::{BroadcastModule, BroadcastModuleConfig},
-    dag_module::DagModule,
-    election_module::{
-        ElectionModule,
-        ElectionModuleConfig,
-        MinerElection,
-        MinerElectionResult,
-        QuorumElection,
-        QuorumElectionResult,
-    },
-    indexer_module::IndexerModuleConfig,
-    mempool_module::{MempoolModule, MempoolModuleConfig},
-    mining_module::{MiningModule, MiningModuleConfig},
-    state_module::StateModule,
-};
 use crate::{
-    broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
-    dkg_module::DkgModuleConfig,
-    farmer_module::PULL_TXN_BATCH_SIZE,
-    scheduler::{Job, JobSchedulerController},
-    NodeError,
-    Result,
+    components::{
+        broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
+        broadcast_module::{BroadcastModule, BroadcastModuleConfig},
+        dag_module::DagModule,
+        dkg_module::{self, DkgModuleConfig},
+        election_module::{
+            ElectionModule,
+            ElectionModuleConfig,
+            MinerElection,
+            MinerElectionResult,
+            QuorumElection,
+            QuorumElectionResult,
+        },
+        farmer_module::{self, PULL_TXN_BATCH_SIZE},
+        harvester_module,
+        indexer_module::{self, IndexerModuleConfig},
+        mempool_module::{MempoolModule, MempoolModuleComponentConfig, MempoolModuleConfig},
+        mining_module::{MiningModule, MiningModuleConfig},
+        scheduler::{Job, JobSchedulerController},
+        state_module::{self, StateModule},
+    },
+    result::{NodeError, Result},
+    RuntimeComponent,
+    RuntimeComponents,
 };
-
-pub mod broadcast_module;
-pub mod credit_model_module;
-pub mod dag_module;
-pub mod dkg_module;
-pub mod election_module;
-pub mod farmer_module;
-pub mod harvester_module;
-pub mod indexer_module;
-pub mod mempool_module;
-pub mod mining_module;
-pub mod reputation_module;
-pub mod state_module;
-pub mod swarm_module;
-
-pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
-pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
-pub type SchedulerHandle = Option<std::thread::JoinHandle<()>>;
-
-impl From<MinerError> for NodeError {
-    fn from(_error: MinerError) -> Self {
-        NodeError::Other(String::from(
-            "Error occurred while creating instance of miner ",
-        ))
-    }
-}
-impl From<ClaimError> for NodeError {
-    fn from(_error: ClaimError) -> Self {
-        NodeError::Other(String::from(
-            "Error occurred while creating claim for the node",
-        ))
-    }
-}
-
-#[derive(Debug)]
-pub struct RuntimeComponents {
-    pub node_config: NodeConfig,
-    pub mempool_handle: RuntimeHandle,
-    pub state_handle: RuntimeHandle,
-    pub gossip_handle: RuntimeHandle,
-    pub jsonrpc_server_handle: RuntimeHandle,
-    pub miner_handle: RuntimeHandle,
-    pub dkg_handle: RuntimeHandle,
-    pub miner_election_handle: RuntimeHandle,
-    pub quorum_election_handle: RuntimeHandle,
-    pub farmer_handle: RuntimeHandle,
-    pub harvester_handle: RuntimeHandle,
-    pub indexer_handle: RuntimeHandle,
-    pub dag_handle: RuntimeHandle,
-    pub raptor_handle: RaptorHandle,
-    pub scheduler_handle: SchedulerHandle,
-    pub grpc_server_handle: RuntimeHandle,
-    pub node_gui_handle: RuntimeHandle,
-}
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
@@ -125,27 +69,17 @@ pub async fn setup_runtime_components(
     let quorum_election_events_rx = router.subscribe(None)?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
-    let _swarm_module_events_rx = router.subscribe(None)?;
+    let swarm_module_events_rx = router.subscribe(None)?;
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
-    let mempool = LeftRightMempool::new();
-    let mempool_read_handle_factory = mempool.factory();
 
-    let mempool_module = MempoolModule::new(MempoolModuleConfig {
-        mempool,
+    let mempool_component_handle = MempoolModule::setup(MempoolModuleComponentConfig {
         events_tx: events_tx.clone(),
-    });
+        mempool_events_rx,
+    })
+    .await?;
 
-    let mut mempool_module_actor = ActorImpl::new(mempool_module);
-
-    let mempool_handle = tokio::spawn(async move {
-        mempool_module_actor
-            .start(&mut mempool_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-
-    let mempool_handle = Some(mempool_handle);
+    let mempool_read_handle_factory = mempool_component_handle.data().clone();
 
     let (state_read_handle, state_handle) = setup_state_store(
         &config,
@@ -204,16 +138,6 @@ pub async fn setup_runtime_components(
     config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
 
     info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
-
-    let (grpc_server_handle, resolved_grpc_server_addr) = setup_grpc_api_server(
-        &config,
-        events_tx.clone(),
-        state_read_handle.clone(),
-        mempool_read_handle_factory.clone(),
-    )
-    .await?;
-
-    info!("gRPC server address started: {}", resolved_grpc_server_addr);
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -305,6 +229,7 @@ pub async fn setup_runtime_components(
     let scheduler_handle = thread::spawn(move || {
         scheduler.execute_sync_jobs();
     });
+
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
@@ -316,22 +241,21 @@ pub async fn setup_runtime_components(
 
     let runtime_components = RuntimeComponents {
         node_config: config,
-        mempool_handle,
-        state_handle,
-        gossip_handle,
-        jsonrpc_server_handle,
-        miner_handle,
-        dkg_handle,
-        miner_election_handle,
-        quorum_election_handle,
-        farmer_handle,
-        harvester_handle,
-        indexer_handle,
-        dag_handle,
+        mempool_handle: mempool_component_handle.handle(),
+        state_handle: None,
+        gossip_handle: None,
+        jsonrpc_server_handle: None,
+        miner_handle: None,
+        dkg_handle: None,
+        miner_election_handle: None,
+        quorum_election_handle: None,
+        farmer_handle: None,
+        harvester_handle: None,
+        indexer_handle: None,
+        dag_handle: None,
         raptor_handle: Some(raptor_handle),
         scheduler_handle: Some(scheduler_handle),
-        grpc_server_handle,
-        node_gui_handle,
+        node_gui_handle: None,
     };
 
     Ok(runtime_components)
@@ -476,35 +400,36 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-async fn setup_grpc_api_server(
-    config: &NodeConfig,
-    events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
-    mempool_read_handle_factory: MempoolReadHandleFactory,
-    // mut jsonrpc_events_rx: EventSubscriber,
-) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-    let grpc_server_config = GrpcServerConfig {
-        address: config.grpc_server_address,
-        node_type: config.node_type,
-        events_tx,
-        vrrbdb_read_handle,
-        mempool_read_handle_factory,
-    };
-
-    let address = grpc_server_config.address;
-
-    let handle = tokio::spawn(async move {
-        let _resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
-            .await
-            .map_err(|err| NodeError::Other(format!("unable to start gRPC server, {}", err)))
-            .expect("gRPC server to start");
-        Ok(())
-    });
-
-    info!("gRPC server started at {}", &address);
-
-    Ok((Some(handle), address))
-}
+// async fn setup_grpc_api_server(
+//     config: &NodeConfig,
+//     events_tx: EventPublisher,
+//     vrrbdb_read_handle: VrrbDbReadHandle,
+//     mempool_read_handle_factory: MempoolReadHandleFactory,
+//     // mut jsonrpc_events_rx: EventSubscriber,
+// ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
+//     let grpc_server_config = GrpcServerConfig {
+//         address: config.grpc_server_address,
+//         node_type: config.node_type,
+//         events_tx,
+//         vrrbdb_read_handle,
+//         mempool_read_handle_factory,
+//     };
+//
+//     let address = grpc_server_config.address;
+//
+//     let handle = tokio::spawn(async move {
+//         let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
+//             .await
+//             .map_err(|err| NodeError::Other(format!("unable to start gRPC
+// server, {}", err)))             .expect("gRPC server to start");
+//
+//         Ok(())
+//     });
+//
+//     info!("gRPC server started at {}", &address);
+//
+//     Ok((Some(handle), address))
+// }
 
 fn setup_mining_module(
     config: &NodeConfig,
