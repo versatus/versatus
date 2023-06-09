@@ -20,7 +20,7 @@ use vrrb_core::{
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::dag_module::DagModule;
+use crate::components::dag_module::DagModule;
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();

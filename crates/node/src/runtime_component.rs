@@ -32,6 +32,10 @@ pub struct RuntimeComponentHandle<D: Sized> {
 }
 
 impl<D: Sized + Clone> RuntimeComponentHandle<D> {
+    pub fn new(task_handle: RuntimeHandle, data: D) -> Self {
+        Self { task_handle, data }
+    }
+
     pub fn handle(self) -> RuntimeHandle {
         self.task_handle
     }
