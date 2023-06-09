@@ -3,7 +3,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, GenesisBlock, InnerBlock, ProposalBlock};
+use block::{
+    invalid::InvalidBlockErrorReason,
+    Block,
+    GenesisBlock,
+    InnerBlock,
+    ProposalBlock,
+    TxnList,
+};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
 use primitives::{Address, PublicKey, SecretKey, Signature};

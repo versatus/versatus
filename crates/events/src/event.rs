@@ -24,6 +24,7 @@ pub type BlockBytes = Vec<u8>;
 pub type HeaderBytes = Vec<u8>;
 pub type ConflictBytes = Vec<u8>;
 pub type MinerClaim = Claim;
+pub type Count = usize;
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -37,6 +38,12 @@ pub enum Event {
     /// `Stop` is an event that signals the node to stop its execution and handling of events.
     Stop,
 
+    /// `FetchPeers(Count),` is an event that is triggered when something nearest neighbors within smart are fetched.
+    FetchPeers(Count),
+
+    /// ` DHTStoreRequest(String, String)` is an event that is triggered when something is stored in swarm dht.
+    DHTStoreRequest(String, String),
+  
     /// `NewTxnCreated(Txn)` is an event that is triggered when a new transaction is received from the
     /// rpc node and needs to be validated. The `Txn` parameter contains the details of the transaction
     /// that needs to be validated.
