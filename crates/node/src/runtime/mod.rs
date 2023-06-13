@@ -320,7 +320,7 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
+    let dag_handle = setup_dag_module(dag, events_tx.clone(), dag_events_rx, claim)?;
 
     spawn_interval_thread(
         REGISTER_REQUEST,
@@ -334,7 +334,7 @@ pub async fn setup_runtime_components(
     )?;
     spawn_interval_thread(
         SYNC_FARMER_NAMESPACES_REQUEST,
-        events_tx.clone(),
+        events_tx,
         Event::PullFarmerNamespaces,
     )?;
 

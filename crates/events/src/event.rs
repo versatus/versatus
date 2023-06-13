@@ -307,7 +307,16 @@ pub enum Event {
     /// with the convergence block.
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
 
+    /// `GeneratePayloadForPeerRegistration` is an event that initiates the
+    /// peer registration for potential peers of a neighboring quorum pool.
     GeneratePayloadForPeerRegistration,
+    /// `InitiateSyncPeers` is an event that triggers the verification of
+    /// potential peers of a neighboring quorum pool.
+    InitiateSyncPeers,
+    /// `PullFarmerNamespaces` is an event that calls the
+    /// `broadcast_controller::pull_namespaces()` method, which sends the
+    /// serialized farmer namespace as a `Packet`.
+    PullFarmerNamespaces,
 }
 
 impl From<&theater::Message> for Event {
