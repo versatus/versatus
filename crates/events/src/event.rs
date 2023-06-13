@@ -306,6 +306,8 @@ pub enum Event {
     /// as well as verifying the claim hashes and transaction hashes associated
     /// with the convergence block.
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
+
+    GeneratePayloadForPeerRegistration,
 }
 
 impl From<&theater::Message> for Event {

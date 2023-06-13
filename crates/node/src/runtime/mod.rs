@@ -13,7 +13,14 @@ use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, 
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use miner::{result::MinerError, MinerConfig};
 use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
-use primitives::{Address, NodeType, QuorumType::Farmer};
+use primitives::{
+    Address,
+    NodeType,
+    QuorumType::Farmer,
+    REGISTER_REQUEST,
+    RETRIEVE_PEERS_REQUEST,
+    SYNC_FARMER_NAMESPACES_REQUEST,
+};
 use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::{error, info};
 use theater::{Actor, ActorImpl};
@@ -314,6 +321,22 @@ pub async fn setup_runtime_components(
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
     let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
+
+    spawn_interval_thread(
+        REGISTER_REQUEST,
+        events_tx.clone(),
+        Event::GeneratePayloadForPeerRegistration,
+    )?;
+    spawn_interval_thread(
+        RETRIEVE_PEERS_REQUEST,
+        events_tx.clone(),
+        Event::InitiateSyncPeers,
+    )?;
+    spawn_interval_thread(
+        SYNC_FARMER_NAMESPACES_REQUEST,
+        events_tx.clone(),
+        Event::PullFarmerNamespaces,
+    )?;
 
     let node_gui_handle = setup_node_gui(&config).await?;
 
