@@ -1,7 +1,6 @@
 pub mod result;
 
 mod node;
-mod node_type;
 mod runtime_component;
 mod runtime_module;
 
@@ -11,7 +10,6 @@ pub(crate) mod runtime;
 
 pub mod test_utils;
 
-pub use node_type::*;
 pub use result::*;
 pub use runtime::*;
 pub use runtime_component::*;

@@ -21,7 +21,8 @@ where
     async fn stop(&mut self) -> Result<()>;
 }
 
-pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
+pub type RuntimeHandle = JoinHandle<Result<()>>;
+pub type OptionalRuntimeHandle = Option<RuntimeHandle>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<thread::JoinHandle<()>>;
 
@@ -56,19 +57,19 @@ impl<D: Sized + Clone> RuntimeComponentHandle<D> {
 #[derive(Debug)]
 pub struct RuntimeComponents {
     pub node_config: NodeConfig,
-    pub mempool_handle: RuntimeHandle,
-    pub state_handle: RuntimeHandle,
-    pub gossip_handle: RuntimeHandle,
-    pub jsonrpc_server_handle: RuntimeHandle,
-    pub miner_handle: RuntimeHandle,
-    pub dkg_handle: RuntimeHandle,
-    pub miner_election_handle: RuntimeHandle,
-    pub quorum_election_handle: RuntimeHandle,
-    pub farmer_handle: RuntimeHandle,
-    pub harvester_handle: RuntimeHandle,
-    pub indexer_handle: RuntimeHandle,
-    pub dag_handle: RuntimeHandle,
+    pub mempool_handle: OptionalRuntimeHandle,
+    pub state_handle: OptionalRuntimeHandle,
+    pub gossip_handle: OptionalRuntimeHandle,
+    pub jsonrpc_server_handle: OptionalRuntimeHandle,
+    pub miner_handle: OptionalRuntimeHandle,
+    pub dkg_handle: OptionalRuntimeHandle,
+    pub miner_election_handle: OptionalRuntimeHandle,
+    pub quorum_election_handle: OptionalRuntimeHandle,
+    pub farmer_handle: OptionalRuntimeHandle,
+    pub harvester_handle: OptionalRuntimeHandle,
+    pub indexer_handle: OptionalRuntimeHandle,
+    pub dag_handle: OptionalRuntimeHandle,
     pub raptor_handle: RaptorHandle,
     pub scheduler_handle: SchedulerHandle,
-    pub node_gui_handle: RuntimeHandle,
+    pub node_gui_handle: OptionalRuntimeHandle,
 }
