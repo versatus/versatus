@@ -2,7 +2,8 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     process::Command,
     sync::{Arc, RwLock},
-    thread,
+    thread::{self, sleep},
+    time::Duration,
 };
 
 use block::Block;
@@ -811,6 +812,29 @@ fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
 
 fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
+}
+
+fn spawn_interval_thread(
+    interval: Duration,
+    events_tx: EventPublisher,
+    event: Event,
+) -> Result<()> {
+    let rc = tokio::runtime::Runtime::new()?;
+    thread::spawn(move || -> Result<()> {
+        loop {
+            sleep(interval);
+            rc.block_on(async {
+                events_tx
+                    .send(EventMessage::new(None, event.clone()))
+                    .await
+                    .unwrap_or_else(|err| {
+                        telemetry::error!("failed to send event {event:?}: {err}");
+                    });
+            })
+        }
+    });
+
+    Ok(())
 }
 
 async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<()>>>> {

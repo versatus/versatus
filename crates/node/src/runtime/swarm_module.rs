@@ -338,7 +338,6 @@ mod tests {
             ctrl_tx.send(Event::Stop.into()).unwrap();
         }
 
-
         for handle in handles {
             handle.await.unwrap();
         }
@@ -367,7 +366,6 @@ mod tests {
             Some("Vrrb".to_string())
         );
     }
-
 
     #[tokio::test]
     #[serial]
