@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventRouter, Topic};
+use events::{Event, EventPublisher, EventRouter, Topic};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
@@ -13,10 +13,11 @@ use vrrb_core::keypair::KeyPair;
 
 use crate::{
     result::Result,
-    runtime::{setup_runtime_components, RuntimeHandle},
+    runtime::setup_runtime_components,
+    NodeState,
     NodeType,
+    OptionalRuntimeHandle,
     RaptorHandle,
-    RuntimeModuleState,
     SchedulerHandle,
 };
 
@@ -26,7 +27,7 @@ pub struct Node {
     config: NodeConfig,
 
     // NOTE: core node features
-    running_status: RuntimeModuleState,
+    running_status: NodeState,
 
     // TODO: make this private
     pub keypair: KeyPair,
@@ -54,7 +55,8 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
-        let runtime_components = setup_runtime_components(&config, &router, events_tx).await?;
+        let runtime_components =
+            setup_runtime_components(&config, &router, events_tx.clone()).await?;
 
         let runtime_component_handles = vec![
             runtime_components.state_handle,
@@ -69,7 +71,6 @@ impl Node {
             runtime_components.harvester_handle,
             runtime_components.indexer_handle,
             runtime_components.dag_handle,
-            runtime_components.grpc_server_handle,
             runtime_components.node_gui_handle,
         ];
 
@@ -79,15 +80,14 @@ impl Node {
         let runtime_control_handle = tokio::spawn(Self::run_node_main_process(
             config.id.clone(),
             cloned_token,
+            events_tx,
             runtime_component_handles,
             router_handle,
             runtime_components.raptor_handle,
             runtime_components.scheduler_handle,
         ));
 
-        let running_status = RuntimeModuleState::Running;
-
-        info!("Node {} is ready", runtime_components.node_config.id);
+        let running_status = NodeState::Running;
 
         Ok(Self {
             config: runtime_components.node_config,
@@ -101,7 +101,8 @@ impl Node {
     async fn run_node_main_process(
         id: String,
         cancel_token: CancellationToken,
-        runtime_component_handles: Vec<RuntimeHandle>,
+        events_tx: EventPublisher,
+        runtime_component_handles: Vec<OptionalRuntimeHandle>,
         router_handle: JoinHandle<()>,
         raptor_handle: RaptorHandle,
         scheduler_handle: SchedulerHandle,
@@ -110,6 +111,8 @@ impl Node {
 
         // NOTE: wait for stop signal
         cancel_token.cancelled().await;
+
+        events_tx.send(Event::Stop.into()).await?;
 
         for handle in runtime_component_handles {
             if let Some(handle) = handle {
@@ -137,10 +140,13 @@ impl Node {
         Ok(())
     }
 
+    // pub async fn stop(&mut self) {
     pub fn stop(&mut self) {
-        self.running_status = RuntimeModuleState::Terminating;
+        // pub async fn stop(self) {
+        self.running_status = NodeState::Terminating;
         self.cancel_token.cancel();
-        self.running_status = RuntimeModuleState::Stopped;
+        self.running_status = NodeState::Stopped;
+        // self.runtime_control_handle.await.unwrap().unwrap();
     }
 
     pub async fn config(&self) -> NodeConfig {
@@ -166,7 +172,7 @@ impl Node {
         matches!(self.node_type(), NodeType::Bootstrap)
     }
 
-    pub fn status(&self) -> RuntimeModuleState {
+    pub fn status(&self) -> NodeState {
         self.running_status.clone()
     }
 
@@ -188,5 +194,10 @@ impl Node {
 
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
+    }
+
+    /// Reports metrics about the node's health
+    pub fn health_check(&self) -> Result<()> {
+        todo!();
     }
 }

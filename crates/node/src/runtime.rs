@@ -42,7 +42,7 @@ use crate::{
         mempool_module::{MempoolModule, MempoolModuleComponentConfig, MempoolModuleConfig},
         mining_module::{MiningModule, MiningModuleConfig},
         scheduler::{Job, JobSchedulerController},
-        state_module::{self, StateModule},
+        state_module::{self, StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
     RuntimeComponent,
@@ -81,14 +81,24 @@ pub async fn setup_runtime_components(
 
     let mempool_read_handle_factory = mempool_component_handle.data().clone();
 
-    let (state_read_handle, state_handle) = setup_state_store(
-        &config,
-        events_tx.clone(),
-        vrrbdb_events_rx,
-        dag.clone(),
-        mempool_read_handle_factory.clone(),
-    )
+    let state_component_handle = StateModule::setup(StateModuleComponentConfig {
+        events_tx: events_tx.clone(),
+        state_events_rx: vrrbdb_events_rx,
+        node_config: config.clone(),
+        dag: dag.clone(),
+    })
     .await?;
+
+    let state_read_handle = state_component_handle.data().clone();
+
+    // let (state_read_handle, state_handle) = setup_state_store(
+    //     &config,
+    //     events_tx.clone(),
+    //     vrrbdb_events_rx,
+    //     dag.clone(),
+    //     mempool_read_handle_factory.clone(),
+    // )
+    // .await?;
 
     let mut gossip_handle = None;
     let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
@@ -241,8 +251,8 @@ pub async fn setup_runtime_components(
 
     let runtime_components = RuntimeComponents {
         node_config: config,
-        mempool_handle: mempool_component_handle.handle(),
-        state_handle: None,
+        mempool_handle: Some(mempool_component_handle.handle()),
+        state_handle: Some(state_component_handle.handle()),
         gossip_handle: None,
         jsonrpc_server_handle: None,
         miner_handle: None,
