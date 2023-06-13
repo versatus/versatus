@@ -140,13 +140,10 @@ impl Node {
         Ok(())
     }
 
-    // pub async fn stop(&mut self) {
     pub fn stop(&mut self) {
-        // pub async fn stop(self) {
         self.running_status = NodeState::Terminating;
         self.cancel_token.cancel();
         self.running_status = NodeState::Stopped;
-        // self.runtime_control_handle.await.unwrap().unwrap();
     }
 
     pub async fn config(&self) -> NodeConfig {
