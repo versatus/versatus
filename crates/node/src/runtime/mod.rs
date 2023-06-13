@@ -814,8 +814,9 @@ fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
 }
 
-/// Spawns threads for handling the syncing of peers into a neighboring quorum
-/// pool.
+/// Spawns a thread for handling the syncing of peers into a neighboring quorum
+/// pool. The thread will continue to attempt to send its event until
+/// the peer leaves the network.
 fn spawn_interval_thread(
     interval: Duration,
     events_tx: EventPublisher,
@@ -824,7 +825,6 @@ fn spawn_interval_thread(
     let rc = tokio::runtime::Runtime::new()?;
     thread::spawn(move || -> Result<()> {
         loop {
-            // is this loop infinite?
             sleep(interval);
             rc.block_on(async {
                 events_tx
