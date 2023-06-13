@@ -69,6 +69,7 @@ vrrb_grpc = { workspace = true }
 messr = { workspace = true }
 utils = { workspace = true }
 maglev = { workspace = true }
+dyswarm = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

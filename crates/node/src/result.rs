@@ -1,10 +1,12 @@
 use std::net::AddrParseError;
 
 use events::EventMessage;
+use miner::result::MinerError;
 use network::config::BroadcastError;
 use theater::TheaterError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TryRecvError;
+use vrrb_core::claim::ClaimError;
 
 #[derive(Debug, Error)]
 pub enum NodeError {
@@ -43,6 +45,15 @@ pub enum NodeError {
 
     #[error("{0}")]
     Messr(#[from] messr::Error),
+
+    #[error("{0}")]
+    Dyswarm(#[from] dyswarm::types::DyswarmError),
+
+    #[error("Error while creating instance of miner: {0}")]
+    Miner(#[from] MinerError),
+
+    #[error("Error while creating claim for node: {0}")]
+    Claim(#[from] ClaimError),
 
     #[error("{0}")]
     Core(#[from] vrrb_core::Error),
