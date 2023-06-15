@@ -29,6 +29,7 @@ pub type ByteSlice<'a> = &'a [u8];
 pub type PayloadHash = ByteVec;
 pub type RawSignature = ByteVec;
 pub type PeerId = ByteVec;
+pub type KademliaPeerId = kademlia_dht::Key;
 pub type FarmerId = ByteVec;
 pub type IsTxnValid = bool;
 pub type PublicKeyShareVec = ByteVec;

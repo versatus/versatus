@@ -60,6 +60,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .rendezvous_server_address(rendezvous_server_address)
         .udp_gossip_address(udp_gossip_address)
         .raptorq_gossip_address(raptorq_gossip_address)
+        .kademlia_peer_id(None)
         .kademlia_liveness_address(default_node_config.kademlia_liveness_address)
         .public_ip_address(public_ip_address)
         .grpc_server_address(grpc_server_address)
