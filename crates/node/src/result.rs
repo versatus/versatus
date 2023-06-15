@@ -2,7 +2,6 @@ use std::net::AddrParseError;
 
 use events::EventMessage;
 use miner::result::MinerError;
-use network::config::BroadcastError;
 use theater::TheaterError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TryRecvError;
@@ -24,9 +23,6 @@ pub enum NodeError {
 
     #[error("{0}")]
     Storage(#[from] storage::storage_utils::StorageError),
-
-    #[error("{0}")]
-    Broadcast(#[from] BroadcastError),
 
     #[error("{0}")]
     TryRecv(#[from] TryRecvError),

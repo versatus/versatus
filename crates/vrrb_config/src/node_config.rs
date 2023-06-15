@@ -23,20 +23,20 @@ pub struct NodeConfig {
     /// Directory used to persist all VRRB node information to disk
     pub data_dir: PathBuf,
 
+    /// Path where the database log file resides on disk
     pub db_path: PathBuf,
 
-    /// `pub public_ip_address: SocketAddr` is defining a public IP address for
-    /// the node. This is the IP address that other nodes in the network
-    /// will use to connect to this node. `SocketAddr` is a struct that
-    /// represents a socket address, which includes both an IP address and a
-    /// port number.
+    /// Address the Node listens for protocol events
     pub public_ip_address: SocketAddr,
 
-    /// Address the node listens for network events through RaptorQ
-    pub raptorq_gossip_address: SocketAddr,
+    /// Address used by Kademlia DHT listens for liveness pings
+    pub kademlia_liveness_address: SocketAddr,
 
     /// Address the node listens for network events through udp2p
     pub udp_gossip_address: SocketAddr,
+
+    /// Address the node listens for network events through RaptorQ
+    pub raptorq_gossip_address: SocketAddr,
 
     /// This is the address that the node will use to connect to the rendezvous
     /// server.
@@ -45,16 +45,11 @@ pub struct NodeConfig {
     /// This is the address that the node will use to connect to the rendezvous
     /// server.
     pub rendezvous_server_address: SocketAddr,
+
     /// The type of the node, used for custom impl's based on the type the
     /// capabilities may vary.
-    //TODO: Change this to a generic that takes anything that implements the NodeAuth trait.
-    //TODO: Create different custom structs for different kinds of nodes with different
     // authorization so that we can have custom impl blocks based on the type.
     pub node_type: NodeType,
-
-    /// The address of the bootstrap node(s), used for peer discovery and
-    /// initial state sync
-    pub bootstrap_node_addresses: Vec<SocketAddr>,
 
     /// The address each node's HTTPs server listen to connection
     pub http_api_address: SocketAddr,
@@ -117,7 +112,6 @@ impl NodeConfig {
             raptorq_gossip_address: self.raptorq_gossip_address,
             udp_gossip_address: self.udp_gossip_address,
             node_type: self.node_type,
-            bootstrap_node_addresses: self.bootstrap_node_addresses.clone(),
             http_api_address: self.http_api_address,
             http_api_title: self.http_api_title.clone(),
             http_api_version: self.http_api_version.clone(),
@@ -146,10 +140,10 @@ impl Default for NodeConfig {
             public_ip_address: ipv4_localhost_with_random_port,
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             udp_gossip_address: ipv4_localhost_with_random_port,
+            kademlia_liveness_address: ipv4_localhost_with_random_port,
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
             node_type: NodeType::Full,
-            bootstrap_node_addresses: vec![],
             http_api_address: ipv4_localhost_with_random_port,
             http_api_title: String::from("VRRB Node"),
             http_api_version: String::from("v.0.1.0"),
