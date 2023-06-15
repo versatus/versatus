@@ -7,13 +7,12 @@ use std::{
 
 use block::Block;
 use bulldag::graph::BullDag;
-use crossbeam_channel::{unbounded, Sender};
+use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
-use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
-use network::{network::BroadcastEngine, packet::RaptorBroadCastedData};
 use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
@@ -24,8 +23,6 @@ use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use crate::{
     components::{
-        broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
-        broadcast_module::{BroadcastModule, BroadcastModuleConfig},
         dag_module::DagModule,
         dkg_module::{self, DkgModuleConfig},
         election_module::{
@@ -39,10 +36,11 @@ use crate::{
         farmer_module::{self, PULL_TXN_BATCH_SIZE},
         harvester_module,
         indexer_module::{self, IndexerModuleConfig},
-        mempool_module::{MempoolModule, MempoolModuleComponentConfig, MempoolModuleConfig},
+        mempool_module::{MempoolModule, MempoolModuleComponentConfig},
         mining_module::{MiningModule, MiningModuleConfig},
+        network::{NetworkModule, NetworkModuleComponentConfig},
         scheduler::{Job, JobSchedulerController},
-        state_module::{self, StateModule, StateModuleComponentConfig},
+        state_module::{StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
     RuntimeComponent,
@@ -91,50 +89,25 @@ pub async fn setup_runtime_components(
 
     let state_read_handle = state_component_handle.data().clone();
 
-    // let (state_read_handle, state_handle) = setup_state_store(
-    //     &config,
-    //     events_tx.clone(),
-    //     vrrbdb_events_rx,
-    //     dag.clone(),
-    //     mempool_read_handle_factory.clone(),
-    // )
-    // .await?;
+    let network_component_handle = NetworkModule::setup(NetworkModuleComponentConfig {
+        node_id: config.id.clone(),
+        events_tx: events_tx.clone(),
+        config: config.clone(),
+        network_events_rx,
+        node_type: config.node_type,
+        vrrbdb_read_handle: state_read_handle.clone(),
+    })
+    .await?;
 
-    let mut gossip_handle = None;
-    let (raptor_sender, raptor_receiver) = unbounded::<RaptorBroadCastedData>();
-    if !config.disable_networking {
-        let (new_gossip_handle, _, gossip_addr) = setup_gossip_network(
-            &config,
-            events_tx.clone(),
-            network_events_rx,
-            controller_events_rx,
-            state_read_handle.clone(),
-            raptor_sender,
-        )
-        .await?;
+    let resolved_network_data = network_component_handle.data();
 
-        gossip_handle = new_gossip_handle;
-        config.udp_gossip_address = gossip_addr;
-    }
+    // TODO: update both the UDP and the RaptorQ gossip addresses once they're
+    // resolved by the underlying engine within dyswarm
+    config.udp_gossip_address = resolved_network_data.resolved_udp_gossip_address;
+    // NOTE: not working yet
+    // config.raptorq_gossip_address = network_component_handle.data();
 
-    let raptor_handle = thread::spawn({
-        let events_tx = events_tx.clone();
-        move || {
-            let events_tx = events_tx.clone();
-            loop {
-                let events_tx = events_tx.clone();
-                if let Ok(data) = raptor_receiver.recv() {
-                    match data {
-                        RaptorBroadCastedData::Block(block) => {
-                            tokio::spawn(async move {
-                                let _ = events_tx.send(Event::BlockReceived(block).into()).await;
-                            });
-                        },
-                    }
-                }
-            }
-        }
-    });
+    config.kademlia_peer_id = Some(resolved_network_data.kademlia_peer_id);
 
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,
@@ -161,7 +134,7 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
-    let public_key = *config.keypair.get_miner_public_key();
+    let public_key = config.keypair.get_miner_public_key().to_owned();
     let signature = Claim::signature_for_valid_claim(
         public_key,
         config.public_ip_address,
@@ -245,7 +218,10 @@ pub async fn setup_runtime_components(
 
     let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
 
-    let node_gui_handle = setup_node_gui(&config).await?;
+    let mut node_gui_handle = None;
+    if config.gui {
+        node_gui_handle = setup_node_gui(&config).await?;
+    }
 
     info!("node gui has started");
 
@@ -263,108 +239,12 @@ pub async fn setup_runtime_components(
         harvester_handle: None,
         indexer_handle: None,
         dag_handle: None,
-        raptor_handle: Some(raptor_handle),
-        scheduler_handle: Some(scheduler_handle),
+        raptor_handle: None,
+        scheduler_handle: None,
         node_gui_handle: None,
     };
 
     Ok(runtime_components)
-}
-
-async fn setup_gossip_network(
-    config: &NodeConfig,
-    events_tx: EventPublisher,
-    mut network_events_rx: EventSubscriber,
-    controller_events_rx: EventSubscriber,
-    vrrbdb_read_handle: VrrbDbReadHandle,
-    raptor_sender: Sender<RaptorBroadCastedData>,
-) -> Result<(
-    Option<JoinHandle<Result<()>>>,
-    Option<JoinHandle<(Result<()>, Result<()>)>>,
-    SocketAddr,
-)> {
-    let broadcast_module = BroadcastModule::new(BroadcastModuleConfig {
-        events_tx: events_tx.clone(),
-        vrrbdb_read_handle,
-        udp_gossip_address_port: config.udp_gossip_address.port(),
-        raptorq_gossip_address_port: config.raptorq_gossip_address.port(),
-        node_type: config.node_type,
-        node_id: config.id.as_bytes().to_vec(),
-    })
-    .await?;
-
-    let addr = broadcast_module.local_addr();
-
-    let broadcast_engine = BroadcastEngine::new(config.udp_gossip_address.port(), 32)
-        .await
-        .map_err(|err| NodeError::Other(format!("unable to setup broadcast engine: {:?}", err)))?;
-
-    let broadcast_resolved_addr = broadcast_engine.local_addr();
-
-    let mut bcast_controller = BroadcastEngineController::new(
-        BroadcastEngineControllerConfig::new(broadcast_engine, events_tx.clone()),
-    );
-
-    let broadcast_controller_handle = tokio::spawn(async move {
-        let broadcast_handle = bcast_controller.listen(controller_events_rx).await;
-        let raptor_handle = bcast_controller
-            .engine
-            .process_received_packets(bcast_controller.engine.raptor_udp_port, raptor_sender)
-            .await;
-
-        let raptor_handle = raptor_handle.map_err(NodeError::Broadcast);
-        (broadcast_handle, raptor_handle)
-    });
-
-    let mut broadcast_module_actor = ActorImpl::new(broadcast_module);
-
-    let broadcast_handle = tokio::spawn(async move {
-        broadcast_module_actor
-            .start(&mut network_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-
-    info!("Broadcast engine listening on {}", broadcast_resolved_addr);
-
-    Ok((
-        Some(broadcast_handle),
-        Some(broadcast_controller_handle),
-        addr,
-    ))
-}
-
-async fn setup_state_store(
-    config: &NodeConfig,
-    events_tx: EventPublisher,
-    mut state_events_rx: EventSubscriber,
-    dag: Arc<RwLock<BullDag<Block, String>>>,
-    _mempool_read_handle_factory: MempoolReadHandleFactory,
-) -> Result<(VrrbDbReadHandle, Option<JoinHandle<Result<()>>>)> {
-    let mut vrrbdb_config = VrrbDbConfig::default();
-
-    if config.db_path() != &vrrbdb_config.path {
-        vrrbdb_config.with_path(config.db_path().to_path_buf());
-    }
-
-    let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
-
-    let vrrbdb_read_handle = db.read_handle();
-
-    let state_module = StateModule::new(state_module::StateModuleConfig { events_tx, db, dag });
-
-    let mut state_module_actor = ActorImpl::new(state_module);
-
-    let state_handle = tokio::spawn(async move {
-        state_module_actor
-            .start(&mut state_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-
-    info!("State store is operational");
-
-    Ok((vrrbdb_read_handle, Some(state_handle)))
 }
 
 async fn setup_rpc_api_server(
@@ -409,37 +289,6 @@ async fn setup_rpc_api_server(
 
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
-
-// async fn setup_grpc_api_server(
-//     config: &NodeConfig,
-//     events_tx: EventPublisher,
-//     vrrbdb_read_handle: VrrbDbReadHandle,
-//     mempool_read_handle_factory: MempoolReadHandleFactory,
-//     // mut jsonrpc_events_rx: EventSubscriber,
-// ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
-//     let grpc_server_config = GrpcServerConfig {
-//         address: config.grpc_server_address,
-//         node_type: config.node_type,
-//         events_tx,
-//         vrrbdb_read_handle,
-//         mempool_read_handle_factory,
-//     };
-//
-//     let address = grpc_server_config.address;
-//
-//     let handle = tokio::spawn(async move {
-//         let resolved_grpc_server_addr = GrpcServer::run(&grpc_server_config)
-//             .await
-//             .map_err(|err| NodeError::Other(format!("unable to start gRPC
-// server, {}", err)))             .expect("gRPC server to start");
-//
-//         Ok(())
-//     });
-//
-//     info!("gRPC server started at {}", &address);
-//
-//     Ok((Some(handle), address))
-// }
 
 fn setup_mining_module(
     config: &NodeConfig,

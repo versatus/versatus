@@ -1,21 +1,25 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use primitives::NodeId;
+use primitives::{KademliaPeerId, NodeId};
 use serde::Deserialize;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BootstrapConfig {
-    pub id: NodeId,
-    pub addr: SocketAddr,
+    pub id: KademliaPeerId,
+    pub udp_gossip_addr: SocketAddr,
+    pub raptorq_gossip_addr: SocketAddr,
+    pub kademlia_liveness_addr: SocketAddr,
 }
 
 impl Default for BootstrapConfig {
     fn default() -> Self {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
         BootstrapConfig {
-            id: Uuid::nil().to_string(),
-            addr,
+            id: KademliaPeerId::default(),
+            raptorq_gossip_addr: addr,
+            kademlia_liveness_addr: addr,
+            udp_gossip_addr: addr,
         }
     }
 }

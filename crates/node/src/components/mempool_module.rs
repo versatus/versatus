@@ -73,7 +73,7 @@ impl RuntimeComponent<MempoolModuleComponentConfig, MempoolReadHandleFactory> fo
                 .map_err(|err| NodeError::Other(err.to_string()))
         });
 
-        let mempool_handle = Some(mempool_handle);
+        let mempool_handle = mempool_handle;
 
         let component_handle =
             RuntimeComponentHandle::new(mempool_handle, mempool_read_handle_factory);

@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use events::{Event, EventPublisher, EventRouter, Topic};
+use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
@@ -12,10 +13,11 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
+    node_health_report::NodeHealthReport,
     result::Result,
     runtime::setup_runtime_components,
+    NodeError,
     NodeState,
-    NodeType,
     OptionalRuntimeHandle,
     RaptorHandle,
     SchedulerHandle,
@@ -41,7 +43,7 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 impl Node {
     pub async fn start(config: &NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
-        let mut config = config.clone();
+        let config = config.clone();
 
         info!("Launching Node {}", &config.id);
 
@@ -140,10 +142,11 @@ impl Node {
         Ok(())
     }
 
-    pub fn stop(&mut self) {
-        self.running_status = NodeState::Terminating;
+    pub async fn stop(self) -> Result<()> {
         self.cancel_token.cancel();
-        self.running_status = NodeState::Stopped;
+        self.runtime_control_handle
+            .await?
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
 
     pub async fn config(&self) -> NodeConfig {
@@ -160,6 +163,11 @@ impl Node {
         self.config.idx
     }
 
+    /// Returns the idx of the Node
+    pub fn kademlia_peer_id(&self) -> KademliaPeerId {
+        self.config.kademlia_peer_id.unwrap_or_default()
+    }
+
     /// Returns the node's type
     pub fn node_type(&self) -> NodeType {
         self.config.node_type
@@ -169,12 +177,12 @@ impl Node {
         matches!(self.node_type(), NodeType::Bootstrap)
     }
 
-    pub fn status(&self) -> NodeState {
-        self.running_status.clone()
-    }
-
     pub fn keypair(&self) -> KeyPair {
         self.keypair.clone()
+    }
+
+    pub fn public_address(&self) -> SocketAddr {
+        self.config.public_ip_address
     }
 
     pub fn udp_gossip_address(&self) -> SocketAddr {
@@ -185,8 +193,8 @@ impl Node {
         self.config.raptorq_gossip_address
     }
 
-    pub fn bootstrap_node_addresses(&self) -> Vec<SocketAddr> {
-        self.config.bootstrap_node_addresses.clone()
+    pub fn kademlia_liveness_address(&self) -> SocketAddr {
+        self.config.kademlia_liveness_address
     }
 
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
@@ -194,7 +202,7 @@ impl Node {
     }
 
     /// Reports metrics about the node's health
-    pub fn health_check(&self) -> Result<()> {
-        todo!();
+    pub fn health_check(&self) -> Result<NodeHealthReport> {
+        Ok(NodeHealthReport::default())
     }
 }

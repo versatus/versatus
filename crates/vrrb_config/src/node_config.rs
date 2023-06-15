@@ -5,7 +5,7 @@ use std::{
 };
 
 use derive_builder::Builder;
-use primitives::{NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
+use primitives::{KademliaPeerId, NodeId, NodeIdx, NodeType, PeerId, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
@@ -28,6 +28,10 @@ pub struct NodeConfig {
 
     /// Address the Node listens for protocol events
     pub public_ip_address: SocketAddr,
+
+    /// ID used to identify a given node within a Kademlia DHT.
+    // TODO: figure out how to merge this with id field and have kademlia-dht-rs accept it
+    pub kademlia_peer_id: Option<KademliaPeerId>,
 
     /// Address used by Kademlia DHT listens for liveness pings
     pub kademlia_liveness_address: SocketAddr,
@@ -140,6 +144,7 @@ impl Default for NodeConfig {
             public_ip_address: ipv4_localhost_with_random_port,
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             udp_gossip_address: ipv4_localhost_with_random_port,
+            kademlia_peer_id: None,
             kademlia_liveness_address: ipv4_localhost_with_random_port,
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
