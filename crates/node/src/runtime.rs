@@ -226,7 +226,9 @@ pub async fn setup_runtime_components(
         node_config: config,
         mempool_handle: Some(mempool_component_handle.handle()),
         state_handle: Some(state_component_handle.handle()),
-        gossip_handle: None,
+        gossip_handle: Some(network_component_handle.handle()),
+        //
+        // TODO: re-enable these
         jsonrpc_server_handle: None,
         miner_handle: None,
         dkg_handle: None,

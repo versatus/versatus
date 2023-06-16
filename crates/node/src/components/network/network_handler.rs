@@ -29,10 +29,9 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
         // internal router can pick them up and forward them to the appropriate
         // components
 
-        println!("{} received: {:?}", self.node_id, msg);
         if &self.node_id == "node-0" {
             self.events_tx
-                .send(Event::Other("Hello world".to_string()).into())
+                .send(Event::Ping(self.node_id.clone()).into())
                 .await
                 .unwrap();
         }

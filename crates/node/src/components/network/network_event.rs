@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use events::Vote;
 use mempool::TxnRecord;
-use primitives::{FarmerQuorumThreshold, NodeType, PeerId};
+use primitives::{FarmerQuorumThreshold, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -83,8 +83,7 @@ pub enum NetworkEvent {
     },
     ForwardedTxn(TxnRecord),
 
-    /// Bogus event meant for testing purposes. Remove soon
-    Other(String),
+    Ping(NodeId),
 
     #[default]
     Empty,

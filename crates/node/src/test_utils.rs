@@ -333,7 +333,7 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> crate::Resul
     let msg = dyswarm::types::Message {
         id: dyswarm::types::MessageId::new_v4(),
         timestamp: 0i64,
-        data: NetworkEvent::Other(data),
+        data: NetworkEvent::Ping(data),
     };
 
     client.send_data_via_quic(msg, addr).await?;

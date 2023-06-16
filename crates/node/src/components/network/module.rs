@@ -298,17 +298,15 @@ impl Handler<EventMessage> for NetworkModule {
                 return Ok(ActorState::Stopped);
             },
 
-            Event::Other(data) => {
-                let data = format!("forwarded message from {}: {}", self.node_id, data);
+            Event::Ping(node_id) => {
+                let data = format!("ping from {} to {}", node_id, self.node_id);
 
                 let timestamp = chrono::Utc::now().timestamp();
 
                 let msg = dyswarm::types::Message {
                     id: dyswarm::types::MessageId::new_v4(),
-                    // timestamp: chrono::Utc::now().timestamp(),
-                    // timestamp: 0,
                     timestamp,
-                    data: NetworkEvent::Other(data),
+                    data: NetworkEvent::Ping(node_id),
                 };
 
                 let nid = self.kademlia_node.node_data().id;

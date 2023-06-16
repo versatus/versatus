@@ -17,6 +17,7 @@ use primitives::{
     Epoch,
     FarmerQuorumThreshold,
     HarvesterQuorumThreshold,
+    NodeId,
     NodeIdx,
     PublicKeyShareVec,
     QuorumPublicKey,
@@ -306,6 +307,8 @@ pub enum Event {
     /// as well as verifying the claim hashes and transaction hashes associated
     /// with the convergence block.
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
+
+    Ping(NodeId),
 }
 
 impl From<&theater::Message> for Event {
