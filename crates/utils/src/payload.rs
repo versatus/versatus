@@ -1,3 +1,6 @@
+use serde::{de::DeserializeOwned, Serialize};
+use sha2::{Digest, Sha256};
+
 #[macro_export]
 macro_rules! create_payload {
     ($($x:expr),*) => {{
@@ -32,4 +35,15 @@ macro_rules! hash_data {
 
         hasher.finalize()
     }};
+}
+
+/// Generates a 256 bit hash from the given data
+pub fn digest_data_to_bytes<T: Serialize + DeserializeOwned>(data: &T) -> Vec<u8> {
+    let serialized = bincode::serialize(data).unwrap_or_default();
+    let mut hasher = Sha256::new();
+
+    hasher.update(serialized);
+    let hash = hasher.finalize();
+
+    hash.to_vec()
 }

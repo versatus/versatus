@@ -4,8 +4,8 @@ use std::{
 };
 
 use config::{Config, ConfigError, File};
-use node::{Node, NodeType};
-use primitives::{DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
+use node::Node;
+use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use serde::Deserialize;
 use telemetry::{info, warn};
 use uuid::Uuid;

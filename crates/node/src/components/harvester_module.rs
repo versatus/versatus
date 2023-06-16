@@ -30,7 +30,7 @@ use vrrb_core::{
     txn::{QuorumCertifiedTxn, TransactionDigest, VoteReceipt},
 };
 
-use crate::{farmer_module::PULL_TXN_BATCH_SIZE, scheduler::Job};
+use crate::components::{farmer_module::PULL_TXN_BATCH_SIZE, scheduler::Job};
 
 /// `CERTIFIED_TXNS_FILTER_SIZE` is a constant that defines the size of the
 /// bloom filter used by the `HarvesterModule` to store the certified
@@ -609,7 +609,7 @@ mod tests {
     use theater::{Actor, ActorImpl, ActorState};
     use vrrb_core::{account::Account, bloom::Bloom, keypair::Keypair};
 
-    use crate::{harvester_module::HarvesterModule, scheduler::Job};
+    use crate::components::{harvester_module::HarvesterModule, scheduler::Job};
 
     #[tokio::test]
     async fn harvester_runtime_module_starts_and_stops() {
