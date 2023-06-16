@@ -298,9 +298,9 @@ impl Handler<EventMessage> for NetworkModule {
                 return Ok(ActorState::Stopped);
             },
 
+            // TODO: remove all that experimental code below and replace it with the appropriate
+            // behavior
             Event::Ping(node_id) => {
-                let data = format!("ping from {} to {}", node_id, self.node_id);
-
                 let timestamp = chrono::Utc::now().timestamp();
 
                 let msg = dyswarm::types::Message {
