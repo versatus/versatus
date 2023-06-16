@@ -20,7 +20,7 @@ use vrrb_core::{
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::components::dag_module::DagModule;
+use crate::components::{dag_module::DagModule, network::NetworkEvent};
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
@@ -318,4 +318,25 @@ pub(crate) fn create_blank_certificate(claim_signature: String) -> block::Certif
         next_root_hash: "".to_string(),
         block_hash: "".to_string(),
     }
+}
+
+pub async fn create_dyswarm_client(addr: SocketAddr) -> crate::Result<dyswarm::client::Client> {
+    let client_config = dyswarm::client::Config { addr };
+    let client = dyswarm::client::Client::new(client_config).await?;
+
+    Ok(client)
+}
+
+pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> crate::Result<()> {
+    let client = create_dyswarm_client(addr).await?;
+
+    let msg = dyswarm::types::Message {
+        id: dyswarm::types::MessageId::new_v4(),
+        timestamp: 0i64,
+        data: NetworkEvent::Other(data),
+    };
+
+    client.send_data_via_quic(msg, addr).await?;
+
+    Ok(())
 }

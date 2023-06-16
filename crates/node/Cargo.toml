@@ -12,6 +12,7 @@ vrrb_core = { workspace = true }
 events = { workspace = true }
 telemetry = { workspace = true }
 vrrb_config = { workspace = true }
+chrono = { workspace = true }
 lr_trie = { workspace = true }
 storage = { workspace = true }
 wallet = { workspace = true }

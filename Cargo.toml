@@ -14,11 +14,17 @@ lto = "thin"
 name = "vrrb"
 path = "crates/cli/src/main.rs"
 
+[[bin]]
+name = "minichain"
+path = "minichain/src/main.rs"
+
 [dependencies]
 tokio = { workspace = true }
 telemetry = { workspace = true }
 cli = { workspace = true }
 anyhow = { workspace = true }
+node = { workspace = true }
+vrrb_config = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["rusty-hook"]
@@ -43,7 +49,6 @@ members = [
     "crates/miner",
     "crates/wallet",
     "crates/mempool",
-    "crates/network",
     "crates/node",
     "crates/storage",
     "crates/storage/lr_trie",
@@ -53,6 +58,7 @@ members = [
     "crates/utils",
     "crates/vrrb_http",
     "crates/vrrb_grpc",
+    "minichain",
 ]
 
 [workspace.dependencies]
@@ -67,7 +73,6 @@ block = { path = "crates/block" }
 miner = { path = "crates/miner" }
 wallet = { path = "crates/wallet" }
 mempool = { path = "crates/mempool" }
-network = { path = "crates/network" }
 telemetry = { path = "crates/telemetry" }
 validator = { path = "crates/validator" }
 utils = { path = "crates/utils" }
@@ -96,7 +101,8 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
-kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
+# kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
+kademlia-dht = { path = "../kademlia-dht" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
 decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }

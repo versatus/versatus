@@ -83,6 +83,9 @@ pub enum NetworkEvent {
     },
     ForwardedTxn(TxnRecord),
 
+    /// Bogus event meant for testing purposes. Remove soon
+    Other(String),
+
     #[default]
     Empty,
 }

@@ -12,6 +12,7 @@ use tracing::debug;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::NodeConfig;
 
+use super::NetworkEvent;
 use crate::{
     components::network::DyswarmHandler,
     result::Result,
@@ -24,6 +25,7 @@ use crate::{
 pub struct NetworkModule {
     id: ActorId,
     label: ActorLabel,
+    node_id: NodeId,
     status: ActorState,
     events_tx: EventPublisher,
     kademlia_node: KademliaNode,
@@ -36,6 +38,8 @@ pub struct NetworkModule {
 
 #[derive(Debug, Clone)]
 pub struct NetworkModuleConfig {
+    pub node_id: NodeId,
+
     /// Address used by Dyswarm to listen for protocol events
     pub udp_gossip_addr: SocketAddr,
 
@@ -70,16 +74,18 @@ impl NetworkModule {
         let dyswarm_client = dyswarm::client::Client::new(dyswarm_client_config).await?;
 
         let kademlia_node = Self::setup_kademlia_node(config.clone())?;
+        config.kademlia_liveness_addr = kademlia_node.node_data().addr;
 
         let events_tx = config.events_tx;
 
-        let handler = DyswarmHandler::new(events_tx.clone());
+        let handler = DyswarmHandler::new(config.node_id.clone(), events_tx.clone());
 
         let dyswarm_server_handle = dyswarm_server.run(handler).await?;
 
         Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
+            node_id: config.node_id,
             label: String::from("State"),
             status: ActorState::Stopped,
             kademlia_node,
@@ -110,14 +116,21 @@ impl NetworkModule {
             // address separately
             // NOTE: this snippet turns the bootstrap node config into a NodeData struct
             // that kademlia_dht understands
-            let bootstrap_node_data =
-                NodeData::new(bootstrap_node_config.kademlia_liveness_addr, kademlia_key);
+            let bootstrap_node_data = NodeData::new(
+                kademlia_key,
+                bootstrap_node_config.kademlia_liveness_addr,
+                bootstrap_node_config.udp_gossip_addr,
+            );
 
-            KademliaNode::new(config.kademlia_liveness_addr, Some(bootstrap_node_data))
+            KademliaNode::new(
+                config.kademlia_liveness_addr,
+                config.udp_gossip_addr,
+                Some(bootstrap_node_data),
+            )
         } else {
             // NOTE: become a bootstrap node if no bootstrap info is provided
             info!("Becoming a bootstrap node");
-            KademliaNode::new(config.kademlia_liveness_addr, None)
+            KademliaNode::new(config.kademlia_liveness_addr, config.udp_gossip_addr, None)
         };
 
         Ok(kademlia_node)
@@ -145,6 +158,11 @@ impl NetworkModule {
         self.kademlia_node.node_data().id
     }
 
+    /// Address this module listens on for liveness pings
+    pub fn kademlia_liveness_addr(&self) -> SocketAddr {
+        self.kademlia_node.node_data().addr
+    }
+
     pub fn node_ref(&self) -> &KademliaNode {
         &self.kademlia_node
     }
@@ -170,8 +188,9 @@ pub struct NetworkModuleComponentConfig {
 
 #[derive(Debug, Clone)]
 pub struct NetworkModuleComponentResolvedData {
-    pub resolved_udp_gossip_address: SocketAddr,
     pub kademlia_peer_id: KademliaPeerId,
+    pub kademlia_liveness_address: SocketAddr,
+    pub resolved_udp_gossip_address: SocketAddr,
 }
 
 #[async_trait]
@@ -184,6 +203,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         let mut network_events_rx = args.network_events_rx;
 
         let network_module_config = NetworkModuleConfig {
+            node_id: args.node_id,
             udp_gossip_addr: args.config.udp_gossip_address,
             raptorq_gossip_addr: args.config.raptorq_gossip_address,
             kademlia_liveness_addr: args.config.kademlia_liveness_address,
@@ -195,6 +215,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 
         let network_listen_resolved_addr = network_module.local_addr();
         let kademlia_dht_resolved_id = network_module.kademlia_peer_id();
+        let kademlia_resolved_liveness_addr = network_module.kademlia_liveness_addr();
 
         let mut network_module_actor = ActorImpl::new(network_module);
 
@@ -208,8 +229,9 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         info!("Network module is operational");
 
         let network_component_resolved_data = NetworkModuleComponentResolvedData {
-            resolved_udp_gossip_address: network_listen_resolved_addr,
             kademlia_peer_id: kademlia_dht_resolved_id,
+            kademlia_liveness_address: kademlia_resolved_liveness_addr,
+            resolved_udp_gossip_address: network_listen_resolved_addr,
         };
 
         let component_handle =
@@ -248,9 +270,7 @@ impl Handler<EventMessage> for NetworkModule {
                 let key = self.node_ref().node_data().id.clone();
                 let closest_nodes = self
                     .node_ref()
-                    .routing_table
-                    .lock()
-                    .map_err(|err| TheaterError::Other(err.to_string()))?
+                    .get_routing_table()
                     .get_closest_nodes(&key, count);
 
                 for node in closest_nodes {
@@ -269,6 +289,33 @@ impl Handler<EventMessage> for NetworkModule {
             Event::Stop => {
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
+            },
+
+            Event::Other(data) => {
+                let data = format!("forwarded message from {}: {}", self.node_id, data);
+
+                let timestamp = chrono::Utc::now().timestamp();
+
+                let msg = dyswarm::types::Message {
+                    id: dyswarm::types::MessageId::new_v4(),
+                    // timestamp: chrono::Utc::now().timestamp(),
+                    // timestamp: 0,
+                    timestamp,
+                    data: NetworkEvent::Other(data),
+                };
+
+                let nid = self.kademlia_node.node_data().id;
+                let rtt = self.kademlia_node.get_routing_table();
+                let closest_nodes = rtt.get_closest_nodes(&nid, 7);
+
+                // TODO: store additional data within kademlia nodes. later look at multiplexing
+                // data+kademlia over a single port
+                for node_data in closest_nodes {
+                    self.dyswarm_client
+                        .send_data_via_quic(msg.clone(), node_data.udp_gossip_addr)
+                        .await
+                        .unwrap();
+                }
             },
             Event::NoOp => {},
             _ => {},

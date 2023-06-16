@@ -108,6 +108,7 @@ pub async fn setup_runtime_components(
     // config.raptorq_gossip_address = network_component_handle.data();
 
     config.kademlia_peer_id = Some(resolved_network_data.kademlia_peer_id);
+    config.kademlia_liveness_address = resolved_network_data.kademlia_liveness_address;
 
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,
