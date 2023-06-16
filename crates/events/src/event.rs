@@ -1,30 +1,13 @@
 use std::net::SocketAddr;
 
 use block::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    Conflict,
-    ConvergenceBlock,
-    ProposalBlock,
-    RefHash,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
 use ethereum_types::U256;
 use mempool::TxnRecord;
 use primitives::{
-    Address,
-    Epoch,
-    FarmerQuorumThreshold,
-    HarvesterQuorumThreshold,
-    NodeId,
-    NodeIdx,
-    PublicKeyShareVec,
-    QuorumPublicKey,
-    QuorumSize,
-    RawSignature,
-    Round,
-    Seed,
+    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, PublicKeyShareVec, QuorumPublicKey,
+    QuorumSize, RawSignature, Round, Seed,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
