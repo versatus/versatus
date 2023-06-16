@@ -41,7 +41,6 @@ use self::{
     mempool_module::{MempoolModule, MempoolModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     state_module::StateModule,
-    swarm_module::{BootstrapNodeConfig, SwarmModule, SwarmModuleConfig},
 };
 use crate::{
     broadcast_controller::{BroadcastEngineController, BroadcastEngineControllerConfig},
@@ -65,7 +64,6 @@ pub mod mempool_module;
 pub mod mining_module;
 pub mod reputation_module;
 pub mod state_module;
-pub mod swarm_module;
 
 pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
@@ -218,9 +216,6 @@ pub async fn setup_runtime_components(
 
     info!("gRPC server address started: {}", resolved_grpc_server_addr);
 
-    let swarm_module_handle =
-        setup_swarm_module(&config, events_tx.clone(), swarm_module_events_rx)?;
-
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_handle = setup_mining_module(
@@ -336,7 +331,7 @@ pub async fn setup_runtime_components(
         scheduler_handle: Some(scheduler_handle),
         grpc_server_handle,
         node_gui_handle,
-        swarm_module_handle,
+        swarm_module_handle: None,
     };
 
     Ok(runtime_components)
@@ -509,42 +504,6 @@ async fn setup_grpc_api_server(
     info!("gRPC server started at {}", &address);
 
     Ok((Some(handle), address))
-}
-
-fn setup_swarm_module(
-    config: &NodeConfig,
-    events_tx: EventPublisher,
-    mut events_rx: EventSubscriber,
-) -> Result<Option<JoinHandle<Result<()>>>> {
-    // TODO: allow a `swarm_module_config & other configuration to be provided from
-    // NodeConfig
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-    let swarm_module_config = SwarmModuleConfig {
-        addr,
-        bootstrap_node_config: None,
-    };
-
-    let module = SwarmModule::new(swarm_module_config, events_tx);
-
-    match module {
-        Ok(swarm_module) => {
-            let mut swarm_module_actor = ActorImpl::new(swarm_module);
-            let swarm_handle = tokio::spawn(async move {
-                swarm_module_actor
-                    .start(&mut events_rx)
-                    .await
-                    .map_err(|err| NodeError::Other(err.to_string()))
-            });
-
-            info!("Swarm module started at {}", addr);
-
-            Ok(Some(swarm_handle))
-        },
-        Err(err) => {
-            error!("{}", format!("{}", err));
-            Err(err)
-        },
-    }
 }
 
 fn setup_mining_module(
