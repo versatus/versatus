@@ -101,14 +101,10 @@ pub async fn setup_runtime_components(
 
     let resolved_network_data = network_component_handle.data();
 
-    // TODO: update both the UDP and the RaptorQ gossip addresses once they're
-    // resolved by the underlying engine within dyswarm
-    config.udp_gossip_address = resolved_network_data.resolved_udp_gossip_address;
-    // NOTE: not working yet
-    // config.raptorq_gossip_address = network_component_handle.data();
-
     config.kademlia_peer_id = Some(resolved_network_data.kademlia_peer_id);
-    config.kademlia_liveness_address = resolved_network_data.kademlia_liveness_address;
+    config.udp_gossip_address = resolved_network_data.resolved_udp_gossip_address;
+    config.raptorq_gossip_address = resolved_network_data.resolved_raptorq_gossip_address;
+    config.kademlia_liveness_address = resolved_network_data.resolved_kademlia_liveness_address;
 
     let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
         &config,

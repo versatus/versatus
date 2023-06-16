@@ -148,6 +148,10 @@ impl NetworkModule {
         self.udp_gossip_addr
     }
 
+    pub fn dp_gossip_addr(&self) -> SocketAddr {
+        self.udp_gossip_addr
+    }
+
     /// Address this module listens on for network events via RaptorQ
     pub fn raptorq_gossip_addr(&self) -> SocketAddr {
         self.raptorq_gossip_addr
@@ -189,8 +193,9 @@ pub struct NetworkModuleComponentConfig {
 #[derive(Debug, Clone)]
 pub struct NetworkModuleComponentResolvedData {
     pub kademlia_peer_id: KademliaPeerId,
-    pub kademlia_liveness_address: SocketAddr,
+    pub resolved_kademlia_liveness_address: SocketAddr,
     pub resolved_udp_gossip_address: SocketAddr,
+    pub resolved_raptorq_gossip_address: SocketAddr,
 }
 
 #[async_trait]
@@ -213,9 +218,10 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 
         let network_module = NetworkModule::new(network_module_config).await?;
 
-        let network_listen_resolved_addr = network_module.local_addr();
+        let resolved_udp_gossip_address = network_module.udp_gossip_addr();
         let kademlia_dht_resolved_id = network_module.kademlia_peer_id();
-        let kademlia_resolved_liveness_addr = network_module.kademlia_liveness_addr();
+        let resolved_kademlia_liveness_address = network_module.kademlia_liveness_addr();
+        let resolved_raptorq_gossip_address = network_module.raptorq_gossip_addr();
 
         let mut network_module_actor = ActorImpl::new(network_module);
 
@@ -230,8 +236,9 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 
         let network_component_resolved_data = NetworkModuleComponentResolvedData {
             kademlia_peer_id: kademlia_dht_resolved_id,
-            kademlia_liveness_address: kademlia_resolved_liveness_addr,
-            resolved_udp_gossip_address: network_listen_resolved_addr,
+            resolved_kademlia_liveness_address,
+            resolved_udp_gossip_address,
+            resolved_raptorq_gossip_address,
         };
 
         let component_handle =
