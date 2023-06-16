@@ -181,10 +181,6 @@ impl Node {
         self.config.raptorq_gossip_address
     }
 
-    pub fn bootstrap_node_addresses(&self) -> Vec<SocketAddr> {
-        self.config.bootstrap_node_addresses.clone()
-    }
-
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
     }

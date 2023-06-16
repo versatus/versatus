@@ -2,6 +2,7 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
+// Represents a UUID serialized into a string
 pub type NodeId = String;
 pub type NodeIdx = u16;
 pub type NodeIdentifier = String;

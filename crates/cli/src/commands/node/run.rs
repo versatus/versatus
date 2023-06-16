@@ -125,9 +125,8 @@ impl From<RunOpts> for NodeConfig {
             grpc_server_address: opts.grpc_server_address,
             preload_mock_state: default_node_config.preload_mock_state,
             bootstrap_config: default_node_config.bootstrap_config,
-            bootstrap_node_addresses: opts
-                .bootstrap_node_addresses
-                .unwrap_or(default_node_config.bootstrap_node_addresses),
+            kademlia_liveness_address: default_node_config.kademlia_liveness_address,
+            kademlia_peer_id: default_node_config.kademlia_peer_id,
 
             // TODO: avoid double key generation
             // This a random keypair gets generated here, but then afterwards we read it from disk
