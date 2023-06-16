@@ -1,10 +1,7 @@
-use std::net::SocketAddr;
-
 use async_trait::async_trait;
 use dyswarm::{server::ServerConfig, types::Message as DyswarmMessage};
-use events::{Event, EventMessage, EventPublisher, EventSubscriber};
+use events::{Event, EventPublisher, EventSubscriber};
 use primitives::NodeId;
-use telemetry::info;
 
 use crate::components::network::NetworkEvent;
 
@@ -28,6 +25,11 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
         // TODO: deserialize network events into internal events and publish them so the
         // internal router can pick them up and forward them to the appropriate
         // components
+
+        if let NetworkEvent::Ping(node_id) = msg.data {
+            let data = format!("ping from {} to {}", node_id, self.node_id);
+            println!("{}", data);
+        }
 
         if &self.node_id == "node-0" {
             self.events_tx
