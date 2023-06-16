@@ -1,6 +1,7 @@
 mod bootstrap;
 mod node_config;
 
+pub use bootstrap::*;
 pub use node_config::*;
 
 #[cfg(test)]
@@ -30,7 +31,7 @@ mod tests {
             .http_api_version(String::from("1.0"))
             .http_api_shutdown_timeout(None)
             .node_type(NodeType::Full)
-            .bootstrap_node_addresses(vec![addr])
+            .kademlia_liveness_address(addr)
             .rendezvous_local_address(addr)
             .rendezvous_server_address(addr)
             .public_ip_address(addr)
