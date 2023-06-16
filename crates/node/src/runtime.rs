@@ -47,6 +47,48 @@ use crate::{
     RuntimeComponents,
 };
 
+<<<<<<< HEAD:crates/node/src/runtime.rs
+=======
+pub mod broadcast_module;
+pub mod credit_model_module;
+pub mod dag_module;
+pub mod dkg_module;
+pub mod election_module;
+pub mod farmer_module;
+pub mod harvester_module;
+pub mod indexer_module;
+pub mod mempool_module;
+pub mod mining_module;
+pub mod reputation_module;
+pub mod state_module;
+
+pub type RuntimeHandle = Option<JoinHandle<Result<()>>>;
+pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
+pub type SchedulerHandle = Option<thread::JoinHandle<Result<()>>>;
+
+#[derive(Debug)]
+pub struct RuntimeComponents {
+    pub node_config: NodeConfig,
+    pub mempool_handle: RuntimeHandle,
+    pub state_handle: RuntimeHandle,
+    pub gossip_handle: RuntimeHandle,
+    pub jsonrpc_server_handle: RuntimeHandle,
+    pub miner_handle: RuntimeHandle,
+    pub dkg_handle: RuntimeHandle,
+    pub miner_election_handle: RuntimeHandle,
+    pub quorum_election_handle: RuntimeHandle,
+    pub farmer_handle: RuntimeHandle,
+    pub harvester_handle: RuntimeHandle,
+    pub indexer_handle: RuntimeHandle,
+    pub dag_handle: RuntimeHandle,
+    pub raptor_handle: RaptorHandle,
+    pub scheduler_handle: SchedulerHandle,
+    pub grpc_server_handle: RuntimeHandle,
+    pub node_gui_handle: RuntimeHandle,
+    pub swarm_module_handle: RuntimeHandle,
+}
+
+>>>>>>> 52466ab8 (update):crates/node/src/runtime/mod.rs
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     router: &EventRouter,
