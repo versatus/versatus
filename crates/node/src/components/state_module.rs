@@ -9,13 +9,14 @@ use async_trait::async_trait;
 use block::{Block, BlockHash, ConvergenceBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher};
+use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
-use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
+use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use vrrb_config::NodeConfig;
 use vrrb_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
@@ -23,7 +24,13 @@ use vrrb_core::{
     txn::{Token, TransactionDigest, Txn},
 };
 
-use crate::{result::Result, NodeError};
+use crate::{
+    result::Result,
+    NodeError,
+    RuntimeComponent,
+    RuntimeComponentHandle,
+    RuntimeComponents,
+};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient
@@ -617,6 +624,57 @@ impl Handler<EventMessage> for StateModule {
         }
 
         Ok(ActorState::Running)
+    }
+}
+
+#[derive(Debug)]
+pub struct StateModuleComponentConfig {
+    pub events_tx: EventPublisher,
+    pub state_events_rx: EventSubscriber,
+    pub node_config: NodeConfig,
+    pub dag: Arc<RwLock<BullDag<Block, String>>>,
+}
+
+#[async_trait]
+impl RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle> for StateModule {
+    async fn setup(
+        args: StateModuleComponentConfig,
+    ) -> crate::Result<RuntimeComponentHandle<VrrbDbReadHandle>> {
+        let dag = args.dag;
+        let events_tx = args.events_tx;
+        let mut state_events_rx = args.state_events_rx;
+        let node_config = args.node_config;
+
+        let mut vrrbdb_config = VrrbDbConfig::default();
+
+        if node_config.db_path() != &vrrbdb_config.path {
+            vrrbdb_config.with_path(node_config.db_path().to_path_buf());
+        }
+
+        let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+
+        let vrrbdb_read_handle = db.read_handle();
+
+        let state_module = StateModule::new(StateModuleConfig { db, events_tx, dag });
+
+        let mut state_module_actor = ActorImpl::new(state_module);
+
+        let state_handle = tokio::spawn(async move {
+            state_module_actor
+                .start(&mut state_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
+
+        info!("State store is operational");
+
+        let component_handle = RuntimeComponentHandle::new(state_handle, vrrbdb_read_handle);
+
+        Ok(component_handle)
+    }
+
+    async fn stop(&mut self) -> crate::Result<()> {
+        todo!()
     }
 }
 

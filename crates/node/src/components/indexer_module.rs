@@ -5,7 +5,6 @@ use telemetry::{info, warn};
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
 
-#[derive(Debug, Clone)]
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }

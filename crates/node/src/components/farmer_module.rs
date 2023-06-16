@@ -14,7 +14,7 @@ use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::scheduler::Job;
+use crate::components::scheduler::Job;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -300,7 +300,7 @@ mod tests {
         txn::{NewTxnArgs, Txn},
     };
 
-    use crate::{
+    use crate::components::{
         farmer_module::FarmerModule,
         scheduler::{Job, JobSchedulerController},
     };
@@ -373,7 +373,9 @@ mod tests {
             ValidatorCoreManager::new(8).unwrap(),
             vrrbdb_read_handle,
         );
-        thread::spawn(move || job_scheduler.execute_sync_jobs());
+        thread::spawn(move || {
+            job_scheduler.execute_sync_jobs();
+        });
         let mut dkg_engines = test_utils::generate_dkg_engine_with_states().await;
         let dkg_engine = dkg_engines.pop().unwrap();
         let group_public_key = dkg_engine
