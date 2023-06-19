@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher};
+use patriecia::Database;
 use primitives::NodeId;
 use quorum::{
     election::Election,
@@ -45,23 +46,26 @@ pub struct ElectionResult {
     pub node_id: NodeId,
 }
 
-pub struct ElectionModule<E, T>
+pub struct ElectionModule<E, T, D>
 where
     E: ElectionType,
     T: ElectionOutcome,
+    D: Database,
 {
     _election_type: E,
     status: ActorState,
     id: ActorId,
     _label: ActorLabel,
-    pub db_read_handle: VrrbDbReadHandle,
+    pub db_read_handle: VrrbDbReadHandle<D>,
     pub local_claim: Claim,
     pub outcome: Option<T>,
     pub events_tx: EventPublisher,
 }
 
-impl ElectionModule<MinerElection, MinerElectionResult> {
-    pub fn new(config: ElectionModuleConfig) -> ElectionModule<MinerElection, MinerElectionResult> {
+impl<D: Database> ElectionModule<MinerElection, MinerElectionResult, D> {
+    pub fn new(
+        config: ElectionModuleConfig<D>,
+    ) -> ElectionModule<MinerElection, MinerElectionResult, D> {
         ElectionModule {
             _election_type: MinerElection,
             status: ActorState::Stopped,
@@ -79,10 +83,10 @@ impl ElectionModule<MinerElection, MinerElectionResult> {
     }
 }
 
-impl ElectionModule<QuorumElection, QuorumElectionResult> {
+impl<D: Database> ElectionModule<QuorumElection, QuorumElectionResult, D> {
     pub fn new(
-        config: ElectionModuleConfig,
-    ) -> ElectionModule<QuorumElection, QuorumElectionResult> {
+        config: ElectionModuleConfig<D>,
+    ) -> ElectionModule<QuorumElection, QuorumElectionResult, D> {
         ElectionModule {
             _election_type: QuorumElection,
             status: ActorState::Stopped,
@@ -107,7 +111,7 @@ impl ElectionOutcome for MinerElectionResult {}
 impl ElectionOutcome for QuorumElectionResult {}
 
 #[async_trait]
-impl Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult> {
+impl<D: Database> Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult, D> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -156,7 +160,9 @@ impl Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult
 }
 
 #[async_trait]
-impl Handler<EventMessage> for ElectionModule<QuorumElection, QuorumElectionResult> {
+impl<D: Database> Handler<EventMessage>
+    for ElectionModule<QuorumElection, QuorumElectionResult, D>
+{
     fn id(&self) -> ActorId {
         self.id.clone()
     }
