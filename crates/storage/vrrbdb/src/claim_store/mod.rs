@@ -2,6 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use ethereum_types::U256;
 use lr_trie::{LeftRightTrie, H256};
+use patriecia::Database;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
@@ -14,7 +15,7 @@ pub type Claims = Vec<Claim>;
 pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct ClaimStore {
+pub struct ClaimStore<D: Database> {
     trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter>,
 }
 

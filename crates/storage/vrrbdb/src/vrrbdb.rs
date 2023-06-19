@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use ethereum_types::U256;
 use lr_trie::H256;
+use patriecia::Database;
 use primitives::Address;
 use serde_json::json;
 use storage_utils::{Result, StorageError};
@@ -22,15 +23,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct VrrbDbConfig {
+pub struct VrrbDbConfig<D: Database> {
     pub path: PathBuf,
-    pub state_store_path: Option<String>,
-    pub transaction_store_path: Option<String>,
-    pub event_store_path: Option<String>,
-    pub claim_store_path: Option<String>,
+    pub state_store_backing_db: Option<D>,
+    pub transaction_store_backing_db: Option<D>,
+    pub claim_store_backing_db: Option<D>,
 }
 
-impl VrrbDbConfig {
+impl<D: Database> VrrbDbConfig<D> {
     pub fn with_path(&mut self, path: PathBuf) -> Self {
         self.path = path;
 
@@ -38,7 +38,7 @@ impl VrrbDbConfig {
     }
 }
 
-impl Default for VrrbDbConfig {
+impl<D: Database + Default> Default for VrrbDbConfig<D> {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -46,26 +46,29 @@ impl Default for VrrbDbConfig {
 
         Self {
             path,
-            state_store_path: None,
-            transaction_store_path: None,
-            event_store_path: None,
-            claim_store_path: None,
+            state_store_backing_db: Default::default(),
+            transaction_store_backing_db: Default::default(),
+            claim_store_backing_db: Default::default(),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct VrrbDb {
-    state_store: StateStore,
-    transaction_store: TransactionStore,
-    claim_store: ClaimStore,
+pub struct VrrbDb<D: Database> {
+    state_store: StateStore<D>,
+    transaction_store: TransactionStore<D>,
+    claim_store: ClaimStore<D>,
 }
 
-impl VrrbDb {
-    pub fn new(config: VrrbDbConfig) -> Self {
-        let state_store = StateStore::new(&config.path);
-        let transaction_store = TransactionStore::new(&config.path);
-        let claim_store = ClaimStore::new(&config.path);
+impl<D: Database> VrrbDb<D> {
+    pub fn new(config: VrrbDbConfig<D>) -> Self {
+        let state_store_backing_db = config.state_store_backing_db.unwrap_or_default();
+        let transaction_store_backing_db = config.transaction_store_backing_db.unwrap_or_default();
+        let claim_store_backing_db = config.claim_store_backing_db.unwrap_or_default();
+
+        let state_store = StateStore::new(state_store_backing_db);
+        let transaction_store = TransactionStore::new(transaction_store_backing_db);
+        let claim_store = ClaimStore::new(claim_store_backing_db);
 
         Self {
             state_store,

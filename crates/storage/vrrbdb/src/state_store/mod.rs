@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
+use patriecia::Database;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
@@ -14,7 +15,7 @@ pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct StateStore {
+pub struct StateStore<D: Database> {
     trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter>,
 }
 

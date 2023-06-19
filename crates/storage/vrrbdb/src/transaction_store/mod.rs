@@ -1,6 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use lr_trie::{LeftRightTrie, Proof, H256};
+use patriecia::Database;
 use storage_utils::Result;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
@@ -10,7 +11,7 @@ mod transaction_store_rh;
 pub use transaction_store_rh::*;
 
 #[derive(Debug, Clone)]
-pub struct TransactionStore {
+pub struct TransactionStore<D: Database> {
     trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter>,
 }
 
