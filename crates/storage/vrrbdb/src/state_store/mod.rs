@@ -16,10 +16,10 @@ pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
 pub struct StateStore<D: Database> {
-    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, Address, Account, D>,
 }
 
-impl Default for StateStore {
+impl<D: Database> Default for StateStore<D> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -34,7 +34,7 @@ impl Default for StateStore {
     }
 }
 
-impl StateStore {
+impl<D: Database> StateStore<D> {
     /// Returns new, empty instance of StateDb
 
     pub fn new(path: &Path) -> Self {
@@ -133,7 +133,7 @@ impl StateStore {
 
     /// Retain returns new StateDb with which all Accounts that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> StateStore
+    pub fn retain<F>(&self, _filter: F) -> StateStore<D>
     where
         F: FnMut(&Account) -> bool,
     {

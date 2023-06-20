@@ -13,13 +13,8 @@ use vrrb_core::{
 };
 
 use crate::{
-    ClaimStore,
-    ClaimStoreReadHandleFactory,
-    StateStore,
-    StateStoreReadHandleFactory,
-    TransactionStore,
-    TransactionStoreReadHandleFactory,
-    VrrbDbReadHandle,
+    ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
+    TransactionStore, TransactionStoreReadHandleFactory, VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
@@ -53,7 +48,7 @@ impl<D: Database + Default> Default for VrrbDbConfig<D> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VrrbDb<D: Database> {
     state_store: StateStore<D>,
     transaction_store: TransactionStore<D>,
@@ -89,7 +84,7 @@ impl<D: Database> VrrbDb<D> {
         self.claim_store.commit();
     }
 
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn read_handle(&self) -> VrrbDbReadHandle<D> {
         VrrbDbReadHandle::new(
             self.state_store.factory(),
             self.transaction_store_factory(),
@@ -98,9 +93,9 @@ impl<D: Database> VrrbDb<D> {
     }
 
     pub fn new_with_stores(
-        state_store: StateStore,
-        transaction_store: TransactionStore,
-        claim_store: ClaimStore,
+        state_store: StateStore<D>,
+        transaction_store: TransactionStore<D>,
+        claim_store: ClaimStore<D>,
     ) -> Self {
         Self {
             state_store,
@@ -138,7 +133,7 @@ impl<D: Database> VrrbDb<D> {
 
     /// Produces a reader factory that can be used to generate read_handles into
     /// the claim trie
-    pub fn claim_store_factory(&self) -> ClaimStoreReadHandleFactory {
+    pub fn claim_store_factory(&self) -> ClaimStoreReadHandleFactory<D> {
         self.claim_store.factory()
     }
 
@@ -209,17 +204,7 @@ impl<D: Database> VrrbDb<D> {
     }
 }
 
-impl Clone for VrrbDb {
-    fn clone(&self) -> VrrbDb {
-        Self {
-            state_store: self.state_store.clone(),
-            transaction_store: self.transaction_store.clone(),
-            claim_store: self.claim_store.clone(),
-        }
-    }
-}
-
-impl Display for VrrbDb {
+impl<D: Database> Display for VrrbDb<D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let state_entries = self.state_store_factory().handle().entries();
         let transaction_entries = self

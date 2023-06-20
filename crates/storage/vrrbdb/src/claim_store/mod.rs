@@ -16,10 +16,10 @@ pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
 #[derive(Debug, Clone)]
 pub struct ClaimStore<D: Database> {
-    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, U256, Claim, D>,
 }
 
-impl Default for ClaimStore {
+impl<D: Database> Default for ClaimStore<D> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -34,11 +34,9 @@ impl Default for ClaimStore {
     }
 }
 
-impl ClaimStore {
+impl<D: Database> ClaimStore<D> {
     /// Returns new, empty instance of ClaimDb
-    pub fn new(path: &Path) -> Self {
-        let path = path.join("claim");
-        let db_adapter = RocksDbAdapter::new(path, "claim").unwrap_or_default();
+    pub fn new(db_adapter: D) -> Self {
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
@@ -46,7 +44,7 @@ impl ClaimStore {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> ClaimStoreReadHandle {
+    pub fn read_handle(&self) -> ClaimStoreReadHandle<D> {
         let inner = self.trie.handle();
         ClaimStoreReadHandle::new(inner)
     }
@@ -123,7 +121,7 @@ impl ClaimStore {
 
     /// Retain returns new ClaimDb with which all Claims that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> ClaimStore
+    pub fn retain<F>(&self, _filter: F) -> ClaimStore<D>
     where
         F: FnMut(&Claim) -> bool,
     {
@@ -175,8 +173,7 @@ impl ClaimStore {
     //    /// Updates an Claim in the database under given PublicKey
     //    ///
     //    /// If succesful commits the change. Otherwise returns an error.
-    //    pub fn update(&mut self, key: NodeId, update: UpdateArgs) -> Result<()> {
-    //        self.update_uncommited(key, update)?;
+    //    pub fn update(&mut self, key: NodeId, update: UpdateArgs) -> Result<()> {ClaimStoreRead
     //        self.commit_changes();
     //        Ok(())
     //    }
@@ -279,7 +276,7 @@ impl ClaimStore {
         self.trie.extend(claims)
     }
 
-    pub fn factory(&self) -> ClaimStoreReadHandleFactory {
+    pub fn factory(&self) -> ClaimStoreReadHandleFactory<D> {
         let inner = self.trie.factory();
 
         ClaimStoreReadHandleFactory::new(inner)

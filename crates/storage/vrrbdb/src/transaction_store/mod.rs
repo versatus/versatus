@@ -12,10 +12,10 @@ pub use transaction_store_rh::*;
 
 #[derive(Debug, Clone)]
 pub struct TransactionStore<D: Database> {
-    trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, TransactionDigest, Txn, D>,
 }
 
-impl Default for TransactionStore {
+impl<D: Database> Default for TransactionStore<D> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -30,7 +30,7 @@ impl Default for TransactionStore {
     }
 }
 
-impl TransactionStore {
+impl<D: Database> TransactionStore<D> {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");

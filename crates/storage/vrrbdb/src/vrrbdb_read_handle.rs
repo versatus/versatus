@@ -16,14 +16,14 @@ use crate::{
 pub struct VrrbDbReadHandle<D: Database> {
     state_store_handle_factory: StateStoreReadHandleFactory,
     transaction_store_handle_factory: TransactionStoreReadHandleFactory,
-    claim_store_handle_factory: ClaimStoreReadHandleFactory,
+    claim_store_handle_factory: ClaimStoreReadHandleFactory<D>,
 }
 
 impl<D: Database> VrrbDbReadHandle<D> {
     pub fn new(
         state_store_handle_factory: StateStoreReadHandleFactory,
         transaction_store_handle_factory: TransactionStoreReadHandleFactory,
-        claim_store_handle_factory: ClaimStoreReadHandleFactory,
+        claim_store_handle_factory: ClaimStoreReadHandleFactory<D>,
     ) -> Self {
         Self {
             state_store_handle_factory,
