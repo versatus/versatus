@@ -11,6 +11,7 @@ use crossbeam_channel::Sender;
 use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
 use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
+use patriecia::Database;
 use primitives::{Address, NodeType, QuorumType::Farmer};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -26,12 +27,8 @@ use crate::{
         dag_module::DagModule,
         dkg_module::{self, DkgModuleConfig},
         election_module::{
-            ElectionModule,
-            ElectionModuleConfig,
-            MinerElection,
-            MinerElectionResult,
-            QuorumElection,
-            QuorumElectionResult,
+            ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult,
+            QuorumElection, QuorumElectionResult,
         },
         farmer_module::{self, PULL_TXN_BATCH_SIZE},
         harvester_module,
@@ -43,8 +40,7 @@ use crate::{
         state_module::{StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
-    RuntimeComponent,
-    RuntimeComponents,
+    RuntimeComponent, RuntimeComponents,
 };
 
 pub async fn setup_runtime_components(
@@ -246,10 +242,10 @@ pub async fn setup_runtime_components(
     Ok(runtime_components)
 }
 
-async fn setup_rpc_api_server(
+async fn setup_rpc_api_server<'a, D: 'static + Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
@@ -289,10 +285,10 @@ async fn setup_rpc_api_server(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-fn setup_mining_module(
+fn setup_mining_module<D: Database>(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     mut miner_events_rx: EventSubscriber,
@@ -370,10 +366,10 @@ fn setup_dkg_module(
     }
 }
 
-fn setup_miner_election_module(
+fn setup_miner_election_module<D: Database>(
     events_tx: EventPublisher,
     mut miner_election_events_rx: EventSubscriber,
-    db_read_handle: VrrbDbReadHandle,
+    db_read_handle: VrrbDbReadHandle<D>,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module_config = ElectionModuleConfig {
@@ -381,8 +377,8 @@ fn setup_miner_election_module(
         events_tx,
         local_claim,
     };
-    let module: ElectionModule<MinerElection, MinerElectionResult> =
-        { ElectionModule::<MinerElection, MinerElectionResult>::new(module_config) };
+    let module: ElectionModule<MinerElection, MinerElectionResult, D> =
+        { ElectionModule::<MinerElection, MinerElectionResult, D>::new(module_config) };
 
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
@@ -395,11 +391,11 @@ fn setup_miner_election_module(
     Ok(Some(miner_election_module_handle))
 }
 
-fn setup_quorum_election_module(
+fn setup_quorum_election_module<D: Database>(
     _config: &NodeConfig,
     events_tx: EventPublisher,
     mut quorum_election_events_rx: EventSubscriber,
-    db_read_handle: VrrbDbReadHandle,
+    db_read_handle: VrrbDbReadHandle<D>,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module_config = ElectionModuleConfig {
@@ -408,8 +404,8 @@ fn setup_quorum_election_module(
         local_claim,
     };
 
-    let module: ElectionModule<QuorumElection, QuorumElectionResult> =
-        { ElectionModule::<QuorumElection, QuorumElectionResult>::new(module_config) };
+    let module: ElectionModule<QuorumElection, QuorumElectionResult, D> =
+        { ElectionModule::<QuorumElection, QuorumElectionResult, D>::new(module_config) };
 
     let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
@@ -529,13 +525,13 @@ fn setup_indexer_module(
     Ok(Some(indexer_handle))
 }
 
-fn setup_scheduler_module(
+fn setup_scheduler_module<D: Database>(
     config: &NodeConfig,
     sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    vrrbdb_read_handle: VrrbDbReadHandle<D>,
 ) -> JobSchedulerController {
     JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
