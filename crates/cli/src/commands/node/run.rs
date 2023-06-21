@@ -309,7 +309,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
         .await
         .map_err(|err| CliError::Other(format!("failed to listen for ctrl+c: {err}")))?;
 
-    vrrb_node.stop();
+    vrrb_node.stop().await?;
 
     info!("Node stopped");
 
