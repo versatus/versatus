@@ -45,7 +45,6 @@ members = [
     "crates/miner",
     "crates/wallet",
     "crates/mempool",
-    "crates/network",
     "crates/node",
     "crates/storage",
     "crates/storage/lr_trie",
