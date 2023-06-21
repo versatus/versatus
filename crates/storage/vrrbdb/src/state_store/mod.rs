@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use lr_trie::{LeftRightTrie, H256};
 use patriecia::Database;
@@ -37,9 +37,7 @@ impl<D: Database> Default for StateStore<D> {
 impl<D: Database> StateStore<D> {
     /// Returns new, empty instance of StateDb
 
-    pub fn new(path: &Path) -> Self {
-        let path = path.join("state");
-        let db_adapter = RocksDbAdapter::new(path, "state").unwrap_or_default();
+    pub fn new(db_adapter: D) -> Self {
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
@@ -47,7 +45,7 @@ impl<D: Database> StateStore<D> {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> StateStoreReadHandle {
+    pub fn read_handle(&self) -> StateStoreReadHandle<D> {
         let inner = self.trie.handle();
         StateStoreReadHandle::new(inner)
     }
@@ -285,7 +283,7 @@ impl<D: Database> StateStore<D> {
         self.trie.extend(accounts)
     }
 
-    pub fn factory(&self) -> StateStoreReadHandleFactory {
+    pub fn factory(&self) -> StateStoreReadHandleFactory<D> {
         let inner = self.trie.factory();
 
         StateStoreReadHandleFactory::new(inner)

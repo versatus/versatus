@@ -121,13 +121,13 @@ impl<D: Database> VrrbDb<D> {
 
     /// Produces a reader factory that can be used to generate read handles into
     /// the state trie.
-    pub fn state_store_factory(&self) -> StateStoreReadHandleFactory {
+    pub fn state_store_factory(&self) -> StateStoreReadHandleFactory<D> {
         self.state_store.factory()
     }
 
     /// Produces a reader factory that can be used to generate read handles into
     /// the the transaction trie.
-    pub fn transaction_store_factory(&self) -> TransactionStoreReadHandleFactory {
+    pub fn transaction_store_factory(&self) -> TransactionStoreReadHandleFactory<D> {
         self.transaction_store.factory()
     }
 

@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use ethereum_types::U256;
 use lr_trie::{LeftRightTrie, H256};

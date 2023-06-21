@@ -6,15 +6,13 @@ use primitives::NodeId;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
-use crate::RocksDbAdapter;
-
 #[derive(Debug, Clone)]
 pub struct ClaimStoreReadHandle<D: Database> {
     inner: InnerTrieWrapper<D>,
 }
 
 impl<D: Database> ClaimStoreReadHandle<D> {
-    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+    pub fn new(inner: InnerTrieWrapper<D>) -> Self {
         Self { inner }
     }
 
@@ -73,7 +71,7 @@ pub struct ClaimStoreReadHandleFactory<D: Database> {
 }
 
 impl<D: Database> ClaimStoreReadHandleFactory<D> {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+    pub fn new(inner: ReadHandleFactory<InnerTrie<D>>) -> Self {
         Self { inner }
     }
 

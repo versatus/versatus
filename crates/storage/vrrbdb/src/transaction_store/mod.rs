@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use lr_trie::{LeftRightTrie, Proof, H256};
 use patriecia::Database;
@@ -32,15 +32,13 @@ impl<D: Database> Default for TransactionStore<D> {
 
 impl<D: Database> TransactionStore<D> {
     /// Returns new, empty instance of TransactionStore
-    pub fn new(path: &Path) -> Self {
-        let path = path.join("transactions");
-        let db_adapter = RocksDbAdapter::new(path, "transactions").unwrap_or_default();
+    pub fn new(db_adapter: D) -> Self {
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
     }
 
-    pub fn factory(&self) -> TransactionStoreReadHandleFactory {
+    pub fn factory(&self) -> TransactionStoreReadHandleFactory<D> {
         let inner = self.trie.factory();
 
         TransactionStoreReadHandleFactory::new(inner)
@@ -50,7 +48,7 @@ impl<D: Database> TransactionStore<D> {
         self.trie.publish();
     }
 
-    pub fn read_handle(&self) -> TransactionStoreReadHandle {
+    pub fn read_handle(&self) -> TransactionStoreReadHandle<D> {
         let inner = self.trie.handle();
         TransactionStoreReadHandle::new(inner)
     }
