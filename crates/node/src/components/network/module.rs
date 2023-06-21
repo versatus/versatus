@@ -14,10 +14,7 @@ use vrrb_config::NodeConfig;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
+    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
     RuntimeComponentHandle,
 };
 

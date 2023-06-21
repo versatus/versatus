@@ -26,16 +26,14 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
         // internal router can pick them up and forward them to the appropriate
         // components
 
-        if let NetworkEvent::Ping(node_id) = msg.data {
-            let data = format!("ping from {} to {}", node_id, self.node_id);
-            println!("{}", data);
-        }
-
-        if &self.node_id == "node-0" {
-            self.events_tx
-                .send(Event::Ping(self.node_id.clone()).into())
-                .await
-                .unwrap();
+        match msg.data {
+            // TODO: handle all network events here
+            NetworkEvent::Ping(node_id) => {
+                let log_data = format!("ping from {} to {}", node_id, self.node_id);
+                telemetry::info!("{}", log_data);
+                println!("{}", node_id);
+            },
+            _ => {},
         }
 
         Ok(())
