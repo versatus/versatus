@@ -6,33 +6,31 @@ use primitives::Address;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
-use crate::RocksDbAdapter;
-
 mod state_store_rh;
 pub use state_store_rh::*;
 
 pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StateStore<D: Database> {
     trie: LeftRightTrie<'static, Address, Account, D>,
 }
 
-impl<D: Database> Default for StateStore<D> {
-    fn default() -> Self {
-        let db_path = storage_utils::get_node_data_dir()
-            .unwrap_or_default()
-            .join("db")
-            .join("state");
+// impl<D: Database> Default for StateStore<D> {
+//     fn default() -> Self {
+//         let db_path = storage_utils::get_node_data_dir()
+//             .unwrap_or_default()
+//             .join("db")
+//             .join("state");
 
-        let db_adapter = RocksDbAdapter::new(db_path, "state").unwrap_or_default();
+//         let db_adapter = RocksDbAdapter::new(db_path, "state").unwrap_or_default();
 
-        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+//         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
-        Self { trie }
-    }
-}
+//         Self { trie }
+//     }
+// }
 
 impl<D: Database> StateStore<D> {
     /// Returns new, empty instance of StateDb

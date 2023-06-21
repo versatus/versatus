@@ -33,8 +33,8 @@ pub struct MinerElection;
 #[derive(Clone, Debug)]
 pub struct QuorumElection;
 
-pub struct ElectionModuleConfig {
-    pub db_read_handle: VrrbDbReadHandle,
+pub struct ElectionModuleConfig<D: Database> {
+    pub db_read_handle: VrrbDbReadHandle<D>,
     pub events_tx: EventPublisher,
     pub local_claim: Claim,
 }

@@ -24,9 +24,7 @@ use vrrb_core::{
     txn::{Token, TransactionDigest, Txn},
 };
 
-use crate::{
-    result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle, RuntimeComponents,
-};
+use crate::{result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient
@@ -440,7 +438,7 @@ impl<D: Database> StateModule<D> {
 
     /// Returns a read handle for the StateStore to be able to read
     /// values from it.
-    fn _get_state_store_handle(&self) -> StateStoreReadHandle {
+    fn _get_state_store_handle(&self) -> StateStoreReadHandle<D> {
         self.db.state_store_factory().handle()
     }
 
@@ -632,12 +630,12 @@ pub struct StateModuleComponentConfig {
 }
 
 #[async_trait]
-impl<D: Database> RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle>
+impl<D: Database> RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle<D>>
     for StateModule<D>
 {
     async fn setup(
         args: StateModuleComponentConfig,
-    ) -> crate::Result<RuntimeComponentHandle<VrrbDbReadHandle>> {
+    ) -> crate::Result<RuntimeComponentHandle<VrrbDbReadHandle<D>>> {
         let dag = args.dag;
         let events_tx = args.events_tx;
         let mut state_events_rx = args.state_events_rx;

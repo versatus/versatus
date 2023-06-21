@@ -6,33 +6,31 @@ use patriecia::Database;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
-use crate::RocksDbAdapter;
-
 mod claim_store_rh;
 pub use claim_store_rh::*;
 
 pub type Claims = Vec<Claim>;
 pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ClaimStore<D: Database> {
     trie: LeftRightTrie<'static, U256, Claim, D>,
 }
 
-impl<D: Database> Default for ClaimStore<D> {
-    fn default() -> Self {
-        let db_path = storage_utils::get_node_data_dir()
-            .unwrap_or_default()
-            .join("db")
-            .join("claim");
+// impl<D: Database> Default for ClaimStore<D> {
+//     fn default() -> Self {
+//         let db_path = storage_utils::get_node_data_dir()
+//             .unwrap_or_default()
+//             .join("db")
+//             .join("claim");
 
-        let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
+//         let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
 
-        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+//         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
-        Self { trie }
-    }
-}
+//         Self { trie }
+//     }
+// }
 
 impl<D: Database> ClaimStore<D> {
     /// Returns new, empty instance of ClaimDb

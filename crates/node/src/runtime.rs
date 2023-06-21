@@ -449,14 +449,14 @@ fn setup_farmer_module(
     Ok(Some(farmer_handle))
 }
 
-fn setup_harvester_module(
+fn setup_harvester_module<D: Database>(
     config: &NodeConfig,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
-    vrrb_db_handle: VrrbDbReadHandle,
+    vrrb_db_handle: VrrbDbReadHandle<D>,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -532,7 +532,7 @@ fn setup_scheduler_module<D: Database>(
     validator_core_manager: ValidatorCoreManager,
     events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle<D>,
-) -> JobSchedulerController {
+) -> JobSchedulerController<D> {
     JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
         events_tx,

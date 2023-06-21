@@ -6,13 +6,10 @@ use events::EventPublisher;
 use mempool::MempoolReadHandleFactory;
 use node_read_service::v1::{
     node_read_service_server::{NodeReadService, NodeReadServiceServer},
-    GetFullMempoolRequest,
-    GetFullMempoolResponse,
-    GetNodeTypeRequest,
-    GetNodeTypeResponse,
-    Token as NodeToken,
-    TransactionRecord,
+    GetFullMempoolRequest, GetFullMempoolResponse, GetNodeTypeRequest, GetNodeTypeResponse,
+    Token as NodeToken, TransactionRecord,
 };
+use patriecia::Database;
 use primitives::NodeType;
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -78,21 +75,21 @@ impl From<RpcTransactionRecord> for TransactionRecord {
 }
 
 #[derive(Debug)]
-pub struct NodeRead {
+pub struct NodeRead<D: Database> {
     pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub events_tx: EventPublisher,
 }
 
-impl NodeRead {
-    pub fn init(self) -> NodeReadServiceServer<NodeRead> {
+impl<D: Database + 'static> NodeRead<D> {
+    pub fn init(self) -> NodeReadServiceServer<NodeRead<D>> {
         NodeReadServiceServer::new(self)
     }
 }
 
 #[tonic::async_trait]
-impl NodeReadService for NodeRead {
+impl<D: Database + 'static> NodeReadService for NodeRead<D> {
     async fn get_node_type(
         &self,
         _request: Request<GetNodeTypeRequest>,

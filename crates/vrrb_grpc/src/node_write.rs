@@ -6,10 +6,9 @@ use events::{Event, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use node_write_service::v1::{
     node_write_service_server::{NodeWriteService, NodeWriteServiceServer},
-    CreateTransactionRequest,
-    Token as NodeToken,
-    TransactionRecord,
+    CreateTransactionRequest, Token as NodeToken, TransactionRecord,
 };
+use patriecia::Database;
 use primitives::NodeType;
 use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
@@ -108,21 +107,21 @@ impl From<CreateTransactionRequest> for NewTxnArgs {
 }
 
 #[derive(Debug)]
-pub struct NodeWrite {
+pub struct NodeWrite<D: Database> {
     pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub events_tx: EventPublisher,
 }
 
-impl NodeWrite {
-    pub fn init(self) -> NodeWriteServiceServer<NodeWrite> {
+impl<D: Database + 'static> NodeWrite<D> {
+    pub fn init(self) -> NodeWriteServiceServer<NodeWrite<D>> {
         NodeWriteServiceServer::new(self)
     }
 }
 
 #[tonic::async_trait]
-impl NodeWriteService for NodeWrite {
+impl<D: Database + 'static> NodeWriteService for NodeWrite<D> {
     async fn create_transaction(
         &self,
         request: Request<CreateTransactionRequest>,

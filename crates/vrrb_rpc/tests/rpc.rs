@@ -1,6 +1,7 @@
 use std::{collections::HashMap, net::SocketAddr};
 
 use events::{EventMessage, DEFAULT_BUFFER};
+use patriecia::MemoryDB;
 use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use tokio::sync::mpsc::channel;
@@ -22,7 +23,7 @@ async fn server_can_publish_transactions_to_be_created() {
     let (events_tx, _events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
     // Set up RPC Server to accept connection from client
-    let mut json_rpc_server_config = JsonRpcServerConfig::default();
+    let mut json_rpc_server_config = JsonRpcServerConfig::<MemoryDB>::default();
     json_rpc_server_config.events_tx = events_tx;
 
     let (handle, rpc_server_address) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();

@@ -5,30 +5,28 @@ use patriecia::Database;
 use storage_utils::Result;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::RocksDbAdapter;
-
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TransactionStore<D: Database> {
     trie: LeftRightTrie<'static, TransactionDigest, Txn, D>,
 }
 
-impl<D: Database> Default for TransactionStore<D> {
-    fn default() -> Self {
-        let db_path = storage_utils::get_node_data_dir()
-            .unwrap_or_default()
-            .join("db")
-            .join("transactions");
+// impl<D: Database> Default for TransactionStore<D> {
+//     fn default() -> Self {
+//         let db_path = storage_utils::get_node_data_dir()
+//             .unwrap_or_default()
+//             .join("db")
+//             .join("transactions");
 
-        let db_adapter = RocksDbAdapter::new(db_path, "transactions").unwrap_or_default();
+//         let db_adapter = RocksDbAdapter::new(db_path, "transactions").unwrap_or_default();
 
-        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+//         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
-        Self { trie }
-    }
-}
+//         Self { trie }
+//     }
+// }
 
 impl<D: Database> TransactionStore<D> {
     /// Returns new, empty instance of TransactionStore

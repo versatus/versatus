@@ -30,7 +30,7 @@ pub struct MiningModuleConfig<D: Database> {
 }
 
 impl<D: Database> MiningModule<D> {
-    pub fn new(cfg: MiningModuleConfig) -> Self {
+    pub fn new(cfg: MiningModuleConfig<D>) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             label: String::from("Miner"),

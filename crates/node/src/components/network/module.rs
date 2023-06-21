@@ -1,23 +1,21 @@
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
-use dyswarm::{server::ServerConfig, types::Message as DyswarmMessage};
+use dyswarm::server::ServerConfig;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
+use patriecia::Database;
 use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use tracing::debug;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::NodeConfig;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
+    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
     RuntimeComponentHandle,
 };
 
@@ -177,14 +175,14 @@ impl NetworkModule {
 }
 
 #[derive(Debug)]
-pub struct NetworkModuleComponentConfig {
+pub struct NetworkModuleComponentConfig<D: Database> {
     pub config: NodeConfig,
     // TODO: remove this attribute
     pub node_id: NodeId,
     pub events_tx: EventPublisher,
     pub node_type: NodeType,
     pub network_events_rx: EventSubscriber,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     //
     // TODO: figure out how to safely remove this raptor sender
     // pub raptor_sender: Sender<RaptorBroadCastedData>,
@@ -199,11 +197,12 @@ pub struct NetworkModuleComponentResolvedData {
 }
 
 #[async_trait]
-impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolvedData>
+impl<D: Database>
+    RuntimeComponent<NetworkModuleComponentConfig<D>, NetworkModuleComponentResolvedData>
     for NetworkModule
 {
     async fn setup(
-        args: NetworkModuleComponentConfig,
+        args: NetworkModuleComponentConfig<D>,
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
 

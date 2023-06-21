@@ -7,6 +7,7 @@ use std::{
 
 use events::{EventPublisher, DEFAULT_BUFFER};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use patriecia::Database;
 use primitives::NodeType;
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tokio::sync::mpsc::channel;
@@ -16,9 +17,9 @@ use tonic_reflection;
 use crate::{node_read::NodeRead, node_write::NodeWrite};
 
 #[derive(Debug, Clone)]
-pub struct GrpcServerConfig {
+pub struct GrpcServerConfig<D: Database> {
     pub address: SocketAddr,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
     pub events_tx: EventPublisher,
@@ -28,7 +29,9 @@ pub struct GrpcServerConfig {
 pub struct GrpcServer;
 
 impl GrpcServer {
-    pub async fn run(config: &GrpcServerConfig) -> anyhow::Result<SocketAddr> {
+    pub async fn run<D: Database + 'static>(
+        config: &GrpcServerConfig<D>,
+    ) -> anyhow::Result<SocketAddr> {
         let addr = config.address;
 
         let reflection_service = tonic_reflection::server::Builder::configure()
@@ -72,8 +75,8 @@ impl GrpcServer {
 
 // NOTE: I feel like this needs discussion, default db_path here would be
 // different then the actual?
-impl Default for GrpcServerConfig {
-    fn default() -> GrpcServerConfig {
+impl<D: Database> Default for GrpcServerConfig<D> {
+    fn default() -> GrpcServerConfig<D> {
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 50051);
         let mut vrrbdb_config = VrrbDbConfig::default();
 

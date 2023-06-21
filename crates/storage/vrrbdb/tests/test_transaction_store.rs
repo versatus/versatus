@@ -1,5 +1,6 @@
 use std::env;
 
+use patriecia::MemoryDB;
 use serial_test::serial;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 mod common;
@@ -12,12 +13,11 @@ fn transactions_can_be_added() {
     let temp_dir_path = env::temp_dir();
     let state_backup_path = temp_dir_path.join(format!("{}", _generate_random_string()));
 
-    let mut db = VrrbDb::new(VrrbDbConfig {
+    let mut db = VrrbDb::<MemoryDB>::new(VrrbDbConfig {
         path: state_backup_path,
-        state_store_path: None,
-        transaction_store_path: None,
-        event_store_path: None,
-        claim_store_path: None,
+        state_store_backing_db: None,
+        transaction_store_backing_db: None,
+        claim_store_backing_db: None,
     });
 
     let txn1 = _generate_random_valid_transaction();
