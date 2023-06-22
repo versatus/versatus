@@ -13,21 +13,6 @@ pub struct TransactionStore<D: Database> {
     trie: LeftRightTrie<'static, TransactionDigest, Txn, D>,
 }
 
-// impl<D: Database> Default for TransactionStore<D> {
-//     fn default() -> Self {
-//         let db_path = storage_utils::get_node_data_dir()
-//             .unwrap_or_default()
-//             .join("db")
-//             .join("transactions");
-
-//         let db_adapter = RocksDbAdapter::new(db_path, "transactions").unwrap_or_default();
-
-//         let trie = LeftRightTrie::new(Arc::new(db_adapter));
-
-//         Self { trie }
-//     }
-// }
-
 impl<D: Database> TransactionStore<D> {
     /// Returns new, empty instance of TransactionStore
     pub fn new(db_adapter: D) -> Self {

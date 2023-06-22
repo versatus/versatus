@@ -17,21 +17,6 @@ pub struct StateStore<D: Database> {
     trie: LeftRightTrie<'static, Address, Account, D>,
 }
 
-// impl<D: Database> Default for StateStore<D> {
-//     fn default() -> Self {
-//         let db_path = storage_utils::get_node_data_dir()
-//             .unwrap_or_default()
-//             .join("db")
-//             .join("state");
-
-//         let db_adapter = RocksDbAdapter::new(db_path, "state").unwrap_or_default();
-
-//         let trie = LeftRightTrie::new(Arc::new(db_adapter));
-
-//         Self { trie }
-//     }
-// }
-
 impl<D: Database> StateStore<D> {
     /// Returns new, empty instance of StateDb
 

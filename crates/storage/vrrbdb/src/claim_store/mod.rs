@@ -17,21 +17,6 @@ pub struct ClaimStore<D: Database> {
     trie: LeftRightTrie<'static, U256, Claim, D>,
 }
 
-// impl<D: Database> Default for ClaimStore<D> {
-//     fn default() -> Self {
-//         let db_path = storage_utils::get_node_data_dir()
-//             .unwrap_or_default()
-//             .join("db")
-//             .join("claim");
-
-//         let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
-
-//         let trie = LeftRightTrie::new(Arc::new(db_adapter));
-
-//         Self { trie }
-//     }
-// }
-
 impl<D: Database> ClaimStore<D> {
     /// Returns new, empty instance of ClaimDb
     pub fn new(db_adapter: D) -> Self {
