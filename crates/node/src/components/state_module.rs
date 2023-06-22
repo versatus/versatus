@@ -630,7 +630,7 @@ pub struct StateModuleComponentConfig {
 }
 
 #[async_trait]
-impl<D: Database> RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle<D>>
+impl<D: Database + 'static> RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle<D>>
     for StateModule<D>
 {
     async fn setup(

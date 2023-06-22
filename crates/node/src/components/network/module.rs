@@ -197,7 +197,7 @@ pub struct NetworkModuleComponentResolvedData {
 }
 
 #[async_trait]
-impl<D: Database>
+impl<D: Database + 'static>
     RuntimeComponent<NetworkModuleComponentConfig<D>, NetworkModuleComponentResolvedData>
     for NetworkModule
 {

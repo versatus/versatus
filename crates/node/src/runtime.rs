@@ -13,7 +13,7 @@ use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
 use patriecia::Database;
 use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::vrrbdb::VrrbDbReadHandle;
+use storage::vrrbdb::{RocksDbAdapter, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
@@ -75,7 +75,7 @@ pub async fn setup_runtime_components(
 
     let mempool_read_handle_factory = mempool_component_handle.data().clone();
 
-    let state_component_handle = StateModule::setup(StateModuleComponentConfig {
+    let state_component_handle = StateModule::<RocksDbAdapter>::setup(StateModuleComponentConfig {
         events_tx: events_tx.clone(),
         state_events_rx: vrrbdb_events_rx,
         node_config: config.clone(),
@@ -285,7 +285,7 @@ async fn setup_rpc_api_server<'a, D: 'static + Database>(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-fn setup_mining_module<D: Database>(
+fn setup_mining_module<D: Database + 'static>(
     config: &NodeConfig,
     events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle<D>,
@@ -366,7 +366,7 @@ fn setup_dkg_module(
     }
 }
 
-fn setup_miner_election_module<D: Database>(
+fn setup_miner_election_module<D: Database + 'static>(
     events_tx: EventPublisher,
     mut miner_election_events_rx: EventSubscriber,
     db_read_handle: VrrbDbReadHandle<D>,
@@ -391,7 +391,7 @@ fn setup_miner_election_module<D: Database>(
     Ok(Some(miner_election_module_handle))
 }
 
-fn setup_quorum_election_module<D: Database>(
+fn setup_quorum_election_module<D: Database + 'static>(
     _config: &NodeConfig,
     events_tx: EventPublisher,
     mut quorum_election_events_rx: EventSubscriber,
@@ -449,7 +449,7 @@ fn setup_farmer_module(
     Ok(Some(farmer_handle))
 }
 
-fn setup_harvester_module<D: Database>(
+fn setup_harvester_module<D: Database + 'static>(
     config: &NodeConfig,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
