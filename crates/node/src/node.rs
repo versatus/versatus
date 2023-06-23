@@ -136,12 +136,14 @@ impl Node {
         Ok(())
     }
 
+    /// Stops a [Node].
+    /// Returns `true` if it's successfully terminated.
     pub async fn stop(self) -> Result<bool> {
         self.cancel_token.cancel();
         let cancelled = self.cancel_token.is_cancelled();
         self.runtime_control_handle
             .await?
-            .map_err(|err| NodeError::Other(err.to_string()));
+            .map_err(|err| NodeError::Other(err.to_string()))?;
         Ok(cancelled)
     }
 
