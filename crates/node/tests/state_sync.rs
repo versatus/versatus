@@ -12,8 +12,8 @@ async fn nodes_can_synchronize_state() {
     let node_config_1 = create_mock_full_node_config();
     let node_config_2 = create_mock_full_node_config();
 
-    let mut vrrb_node_1 = Node::start(&node_config_1).await.unwrap();
-    let mut vrrb_node_2 = Node::start(&node_config_2).await.unwrap();
+    let vrrb_node_1 = Node::start(&node_config_1).await.unwrap();
+    let vrrb_node_2 = Node::start(&node_config_2).await.unwrap();
 
     let client_1 = create_client(vrrb_node_1.jsonrpc_server_address())
         .await
@@ -22,9 +22,6 @@ async fn nodes_can_synchronize_state() {
     let client_2 = create_client(vrrb_node_2.jsonrpc_server_address())
         .await
         .unwrap();
-
-    assert!(vrrb_node_1.is_stopped());
-    assert!(vrrb_node_2.is_stopped());
 
     for _ in 0..1_00 {
         let (sk, pk) = generate_account_keypair();
@@ -51,7 +48,6 @@ async fn nodes_can_synchronize_state() {
     let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
 
     assert!(!mempool_snapshot.is_empty());
-
-    vrrb_node_1.stop();
-    vrrb_node_2.stop();
+    assert!(vrrb_node_1.stop().await.unwrap());
+    assert!(vrrb_node_2.stop().await.unwrap());
 }
