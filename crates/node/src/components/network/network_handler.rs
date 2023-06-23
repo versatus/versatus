@@ -30,7 +30,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 kademlia_liveness_addr,
             } => {
                 // telemetry::info!("Node {} joined network", node_id);
-                println!("node {} joined network", node_id);
+                println!("{} node {} joined network", node_type, node_id);
             },
 
             _ => {},
