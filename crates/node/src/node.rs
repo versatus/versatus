@@ -93,9 +93,6 @@ impl Node {
             runtime_control_handle,
         })
     }
-    pub fn is_stopped(&self) -> bool {
-        self.cancel_token.is_cancelled()
-    }
 
     async fn run_node_main_process(
         id: String,
