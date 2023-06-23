@@ -602,7 +602,7 @@ mod tests {
     use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
-    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
+    use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState};
     use vrrb_core::{account::Account, bloom::Bloom, keypair::Keypair};
 
@@ -632,7 +632,7 @@ mod tests {
 
         let vrrbdb_read_handle = db.read_handle();
 
-        let harvester_swarm_module = HarvesterModule::new(
+        let harvester_swarm_module = HarvesterModule::<RocksDbAdapter>::new(
             Bloom::new(10000),
             None,
             vec![],

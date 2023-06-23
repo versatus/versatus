@@ -641,7 +641,7 @@ impl<D: Database + 'static> RuntimeComponent<StateModuleComponentConfig, VrrbDbR
         let mut state_events_rx = args.state_events_rx;
         let node_config = args.node_config;
 
-        let mut vrrbdb_config = VrrbDbConfig::default();
+        let mut vrrbdb_config: VrrbDbConfig<D> = VrrbDbConfig::default();
 
         if node_config.db_path() != &vrrbdb_config.path {
             vrrbdb_config.with_path(node_config.db_path().to_path_buf());
@@ -703,7 +703,7 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig::<MemoryDB>::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -737,7 +737,7 @@ mod tests {
         let _temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let db_config = VrrbDbConfig::<MemoryDB>::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -775,7 +775,7 @@ mod tests {
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig::<MemoryDB>::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -817,7 +817,7 @@ mod tests {
 
     #[tokio::test]
     async fn vrrbdb_should_update_with_new_block() {
-        let db_config = VrrbDbConfig::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
         let db = VrrbDb::new(db_config);
         let accounts: Vec<(Address, Account)> = produce_accounts(5);
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
