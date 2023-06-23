@@ -32,6 +32,11 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 // telemetry::info!("Node {} joined network", node_id);
                 println!("{} node {} joined network", node_type, node_id);
             },
+            NetworkEvent::Broadcast(claim)
+             => {
+                // telemetry::info!("Node {} joined network", node_id);
+                println!("Node ID {:?} recieved claim {:#?}", claim.public_key,self.node_id);
+            },
 
             _ => {},
         }

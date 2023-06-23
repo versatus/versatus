@@ -2,12 +2,14 @@ use std::{
     collections::{BTreeMap, HashSet},
     net::SocketAddr,
 };
+use kademlia_dht::NodeType as KNodeType;
 
 use async_trait::async_trait;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
+use hbbft::subset::MessageContent::Broadcast;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{KademliaPeerId, NodeId, NodeType};
@@ -65,6 +67,19 @@ pub struct NetworkModuleConfig {
 
     pub events_tx: EventPublisher,
 }
+
+pub fn convert_node_type(node_type: NodeType) -> KNodeType {
+    match node_type {
+        NodeType::Bootstrap => KNodeType::Bootstrap,
+        NodeType::Farmer => KNodeType::Farmer,
+        NodeType::Validator => KNodeType::Harvester,
+        NodeType::Miner => KNodeType::Miner,
+        _=>  KNodeType::Other("Unknown node type".to_string()),
+    }
+}
+
+
+
 
 impl NetworkModule {
     pub async fn new(config: NetworkModuleConfig) -> Result<Self> {
@@ -136,17 +151,19 @@ impl NetworkModule {
                 kademlia_key,
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
+                KNodeType::Bootstrap
             );
 
             KademliaNode::new(
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
+                convert_node_type(config.node_type),
             )?
         } else {
             // NOTE: become a bootstrap node if no bootstrap info is provided
             info!("Becoming a bootstrap node");
-            KademliaNode::new(config.kademlia_liveness_addr, config.udp_gossip_addr, None)?
+            KademliaNode::new(config.kademlia_liveness_addr, config.udp_gossip_addr, None,KNodeType::Bootstrap)?
         };
 
         Ok(kademlia_node)
@@ -297,7 +314,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         let mut network_module_actor = ActorImpl::new(network_module);
 
         let network_handle = tokio::spawn(async move {
-            network_module_actor
+               network_module_actor
                 .start(&mut network_events_rx)
                 .await
                 .map_err(|err| NodeError::Other(err.to_string()))
@@ -349,9 +366,8 @@ impl Handler<EventMessage> for NetworkModule {
                     .node_ref()
                     .get_routing_table()
                     .get_closest_nodes(&key, count);
-
                 for node in closest_nodes {
-                    debug!("Closest Node with Key : {:?} :{:?}", key, node);
+                    debug!("Closest Node with Key : {:?} :{:?}", key, node.node_type);
                 }
             },
             Event::DHTStoreRequest(key, value) => {
@@ -362,6 +378,26 @@ impl Handler<EventMessage> for NetworkModule {
                 );
                 self.kademlia_node
                     .insert(KademliaNode::get_key(key.as_str()), value.as_str());
+            },
+            //To be removed in future
+            Event::BroadcastClaim(claim)=> {
+                let closest_nodes = self
+                    .node_ref()
+                    .get_routing_table()
+                    .get_closest_nodes(&self.node_ref().node_data().id, 8);
+                let socket_address=closest_nodes.iter().map(|node|node.addr).collect::<Vec<SocketAddr>>();
+                println!("socket address: {:?}", socket_address);
+                self.dyswarm_client.add_peers(socket_address);
+                let status =self.dyswarm_client.broadcast(BroadcastArgs{
+                    config: Default::default(),
+                    message: dyswarm::types::Message {
+                        id: dyswarm::types::MessageId::new_v4(),
+                        timestamp: 0i64,
+                        data: NetworkEvent::Broadcast(claim),
+                    },
+                    erasure_count: 0
+                }).await;
+                println!("Broadcast status: {:?}", status);
             },
             Event::Stop => {
                 // NOTE: stop the node

@@ -16,6 +16,7 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
+use events::Event::BroadcastClaim;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
 use vrrb_core::{bloom::Bloom, claim::Claim};
@@ -149,6 +150,8 @@ pub async fn setup_runtime_components(
         signature,
     )
     .map_err(NodeError::from)?;
+
+    let _=events_tx.clone().send(EventMessage::new(None,BroadcastClaim(claim.clone()))).await.unwrap();
 
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),

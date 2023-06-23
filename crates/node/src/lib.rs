@@ -1,6 +1,6 @@
 pub mod result;
 
-mod node;
+pub mod node;
 mod runtime_component;
 mod runtime_module;
 

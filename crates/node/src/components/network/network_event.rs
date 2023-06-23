@@ -4,6 +4,7 @@ use events::Vote;
 use mempool::TxnRecord;
 use primitives::{FarmerQuorumThreshold, KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
+use vrrb_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 /// Represents data trasmitted over the VRRB network by nodes that participate
@@ -92,6 +93,7 @@ pub enum NetworkEvent {
     ForwardedTxn(TxnRecord),
 
     Ping(NodeId),
+    Broadcast(Claim),
 
     #[default]
     Empty,

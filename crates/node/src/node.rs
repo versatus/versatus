@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventPublisher, EventRouter, Topic};
+use events::{Event, EventMessage, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;
 use tokio::{
@@ -9,6 +9,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use tracing::error;
+use events::Event::{FetchPeers, PullCandidatesForElection};
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
@@ -78,7 +79,6 @@ impl Node {
 
         // TODO: report error from handle
         let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
-
         let runtime_control_handle = tokio::spawn(Self::run_node_main_process(
             config.id.clone(),
             cloned_token,
@@ -90,7 +90,6 @@ impl Node {
         ));
 
         let running_status = NodeState::Running;
-
         Ok(Self {
             config: runtime_components.node_config,
             running_status,

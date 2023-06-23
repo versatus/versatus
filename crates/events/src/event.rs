@@ -306,6 +306,8 @@ pub enum Event {
     /// with the convergence block.
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
 
+    PullCandidatesForElection,
+    BroadcastClaim(Claim),
     Ping(NodeId),
 }
 
