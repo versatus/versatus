@@ -1,4 +1,4 @@
-use node::{test_utils::create_mock_full_node_config, Node, RuntimeModuleState};
+use node::{test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
 use vrrb_core::txn::NewTxnArgs;
@@ -23,8 +23,8 @@ async fn nodes_can_synchronize_state() {
         .await
         .unwrap();
 
-    assert_eq!(vrrb_node_1.status(), RuntimeModuleState::Stopped);
-    assert_eq!(vrrb_node_2.status(), RuntimeModuleState::Stopped);
+    assert!(vrrb_node_1.is_stopped());
+    assert!(vrrb_node_2.is_stopped());
 
     for _ in 0..1_00 {
         let (sk, pk) = generate_account_keypair();

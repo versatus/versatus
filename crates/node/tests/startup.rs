@@ -1,9 +1,8 @@
 use node::{
     test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
-    Node,
-    NodeType,
-    RuntimeModuleState,
+    Node, NodeState, RuntimeModuleState,
 };
+use primitives::node::NodeType;
 use serial_test::serial;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
@@ -18,10 +17,10 @@ async fn node_can_start_as_a_bootstrap_node() {
         .await
         .unwrap();
 
-    vrrb_node.stop();
-
     assert!(vrrb_node.is_bootstrap());
-    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
+    let is_cancelled = vrrb_node.stop().await.unwrap();
+
+    assert!(is_cancelled);
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 }
 
@@ -56,7 +55,7 @@ async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
 
     assert!(vrrb_node.is_bootstrap());
 
-    vrrb_node.stop();
-    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
+    let is_cancelled = vrrb_node.stop().await.unwrap();
+    assert!(is_cancelled);
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 }
