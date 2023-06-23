@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use events::Vote;
 use mempool::TxnRecord;
-use primitives::{FarmerQuorumThreshold, NodeId, NodeType, PeerId};
+use primitives::{FarmerQuorumThreshold, KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -61,6 +61,14 @@ pub enum NetworkEvent {
     },
     ResetPeerConnection {
         peer_id: PeerId,
+    },
+    PeerJoined {
+        node_id: NodeId,
+        node_type: NodeType,
+        kademlia_peer_id: KademliaPeerId,
+        udp_gossip_addr: SocketAddr,
+        raptorq_gossip_addr: SocketAddr,
+        kademlia_liveness_addr: SocketAddr,
     },
     RemovePeer {
         peer_id: PeerId,

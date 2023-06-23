@@ -90,11 +90,10 @@ pub async fn setup_runtime_components(
     let state_read_handle = state_component_handle.data().clone();
 
     let network_component_handle = NetworkModule::setup(NetworkModuleComponentConfig {
+        config: config.clone(),
         node_id: config.id.clone(),
         events_tx: events_tx.clone(),
-        config: config.clone(),
         network_events_rx,
-        node_type: config.node_type,
         vrrbdb_read_handle: state_read_handle.clone(),
     })
     .await?;
@@ -131,6 +130,7 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
+
     let public_key = config.keypair.get_miner_public_key().to_owned();
     let signature = Claim::signature_for_valid_claim(
         public_key,
@@ -381,6 +381,7 @@ fn setup_miner_election_module(
         events_tx,
         local_claim,
     };
+
     let module: ElectionModule<MinerElection, MinerElectionResult> =
         { ElectionModule::<MinerElection, MinerElectionResult>::new(module_config) };
 

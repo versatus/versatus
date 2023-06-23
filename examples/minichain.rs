@@ -40,17 +40,6 @@ async fn main() {
         nodes.push(node);
     }
 
-    send_data_over_quic(
-        String::from("hello world"),
-        bootstrap_node_config.udp_gossip_addr,
-    )
-    .await
-    .unwrap();
-
-    //
-    // do something in between
-    //
-
     for node in nodes {
         println!("shutting down node {}", node.id());
 
