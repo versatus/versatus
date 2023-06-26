@@ -162,28 +162,6 @@ jobs:
           command: test
           args: --manifest-path ./crates/miner/Cargo.toml
 
-  test-network:
-    name: test network
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install dev-dependencies
-        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
-      - name: Checkout sources
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - name: cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path ./crates/network/Cargo.toml
-
   test-node:
     name: test node
     runs-on: ubuntu-latest
