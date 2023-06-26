@@ -8,6 +8,9 @@ use telemetry::TelemetrySubscriber;
 
 #[tokio::main]
 async fn main() {
+    std::env::set_var("VRRB_ENVIRONMENT", "mainnet");
+    std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
+
     TelemetrySubscriber::init(std::io::stdout).unwrap();
 
     let mut nodes = vec![];
