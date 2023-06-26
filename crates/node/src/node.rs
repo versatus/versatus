@@ -3,10 +3,7 @@ use std::net::SocketAddr;
 use events::{
     Event,
     Event::{FetchPeers, PullCandidatesForElection},
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    Topic,
+    EventMessage, EventPublisher, EventRouter, Topic,
 };
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;

@@ -38,6 +38,7 @@ utils = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }
 sha2 = { workspace = true }
+patriecia = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

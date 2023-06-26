@@ -291,7 +291,7 @@ mod tests {
     use primitives::Address;
     use secp256k1::Message;
     use signer::signer::SignatureProvider;
-    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
+    use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState};
     use validator::validator_core_manager::ValidatorCoreManager;
     use vrrb_core::{
@@ -365,7 +365,7 @@ mod tests {
         let db = VrrbDb::new(db_config);
         let vrrbdb_read_handle = db.read_handle();
 
-        let mut job_scheduler = JobSchedulerController::new(
+        let mut job_scheduler = JobSchedulerController::<RocksDbAdapter>::new(
             vec![0],
             events_tx,
             sync_jobs_receiver,

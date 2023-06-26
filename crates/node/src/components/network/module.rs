@@ -7,6 +7,7 @@ use dyswarm::{
 };
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
+use patriecia::Database;
 use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -281,14 +282,14 @@ impl NetworkModule {
 }
 
 #[derive(Debug)]
-pub struct NetworkModuleComponentConfig {
+pub struct NetworkModuleComponentConfig<D: Database> {
     pub config: NodeConfig,
 
     // TODO: remove this attribute
     pub node_id: NodeId,
     pub events_tx: EventPublisher,
     pub network_events_rx: EventSubscriber,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
 }
 
 #[derive(Debug, Clone)]
@@ -300,11 +301,12 @@ pub struct NetworkModuleComponentResolvedData {
 }
 
 #[async_trait]
-impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolvedData>
+impl<D: Database + 'static>
+    RuntimeComponent<NetworkModuleComponentConfig<D>, NetworkModuleComponentResolvedData>
     for NetworkModule
 {
     async fn setup(
-        args: NetworkModuleComponentConfig,
+        args: NetworkModuleComponentConfig<D>,
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
 

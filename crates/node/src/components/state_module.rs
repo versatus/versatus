@@ -11,7 +11,7 @@ use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use lr_trie::ReadHandleFactory;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
+use patriecia::{db::MemoryDB, inner::InnerTrie, Database};
 use primitives::Address;
 use storage::vrrbdb::{
     RocksDbAdapter,
@@ -30,13 +30,7 @@ use vrrb_core::{
     txn::{Token, TransactionDigest, Txn},
 };
 
-use crate::{
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
-    RuntimeComponents,
-};
+use crate::{result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient
@@ -268,8 +262,8 @@ impl FromTxn for HashSet<StateUpdate> {
 
 /// Provides a convenient configuration struct for buildin a
 /// StateModule
-pub struct StateModuleConfig {
-    pub db: VrrbDb,
+pub struct StateModuleConfig<D: Database> {
+    pub db: VrrbDb<D>,
     pub events_tx: EventPublisher,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
@@ -279,8 +273,8 @@ pub struct StateModuleConfig {
 /// necessary to transition the network's global state from
 /// t to t+1.
 #[derive(Debug)]
-pub struct StateModule {
-    db: VrrbDb,
+pub struct StateModule<D: Database> {
+    db: VrrbDb<D>,
     status: ActorState,
     _label: ActorLabel,
     id: ActorId,
@@ -291,8 +285,8 @@ pub struct StateModule {
 /// StateModule manages all state persistence and updates within VrrbNodes
 /// it runs as an indepdendant module such that it can be enabled and disabled
 /// as necessary.
-impl StateModule {
-    pub fn new(config: StateModuleConfig) -> Self {
+impl<D: Database> StateModule<D> {
+    pub fn new(config: StateModuleConfig<D>) -> Self {
         Self {
             db: config.db,
             events_tx: config.events_tx,
@@ -304,7 +298,7 @@ impl StateModule {
     }
 }
 
-impl StateModule {
+impl<D: Database> StateModule<D> {
     fn name(&self) -> String {
         String::from("State")
     }
@@ -320,7 +314,7 @@ impl StateModule {
     /// Produces the read handle for the VrrbDb instance in this
     /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
     /// each of the StateStore, TransactionStore and ClaimStore.
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn read_handle(&self) -> VrrbDbReadHandle<D> {
         self.db.read_handle()
     }
 
@@ -450,7 +444,7 @@ impl StateModule {
 
     /// Returns a read handle for the StateStore to be able to read
     /// values from it.
-    fn _get_state_store_handle(&self) -> StateStoreReadHandle {
+    fn _get_state_store_handle(&self) -> StateStoreReadHandle<D> {
         self.db.state_store_factory().handle()
     }
 
@@ -558,7 +552,7 @@ fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, Upd
 }
 
 #[async_trait]
-impl Handler<EventMessage> for StateModule {
+impl<D: Database> Handler<EventMessage> for StateModule<D> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -646,16 +640,18 @@ pub struct StateModuleComponentConfig {
 }
 
 #[async_trait]
-impl RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle> for StateModule {
+impl<D: Database + 'static> RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle<D>>
+    for StateModule<D>
+{
     async fn setup(
         args: StateModuleComponentConfig,
-    ) -> crate::Result<RuntimeComponentHandle<VrrbDbReadHandle>> {
+    ) -> crate::Result<RuntimeComponentHandle<VrrbDbReadHandle<D>>> {
         let dag = args.dag;
         let events_tx = args.events_tx;
         let mut state_events_rx = args.state_events_rx;
         let node_config = args.node_config;
 
-        let mut vrrbdb_config = VrrbDbConfig::default();
+        let mut vrrbdb_config: VrrbDbConfig<D> = VrrbDbConfig::default();
 
         if node_config.db_path() != &vrrbdb_config.path {
             vrrbdb_config.with_path(node_config.db_path().to_path_buf());
@@ -707,10 +703,7 @@ mod tests {
 
     use super::*;
     use crate::test_utils::{
-        produce_accounts,
-        produce_convergence_block,
-        produce_genesis_block,
-        produce_proposal_blocks,
+        produce_accounts, produce_convergence_block, produce_genesis_block, produce_proposal_blocks,
     };
 
     #[tokio::test]
@@ -720,7 +713,7 @@ mod tests {
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -754,7 +747,7 @@ mod tests {
         let _temp_dir_path = env::temp_dir().join("state.json");
 
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let db_config = VrrbDbConfig::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 
@@ -792,7 +785,7 @@ mod tests {
 
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let db_config = VrrbDbConfig::default();
+        let db_config: VrrbDbConfig<MemoryDB> = VrrbDbConfig::default();
 
         let db = VrrbDb::new(db_config);
 

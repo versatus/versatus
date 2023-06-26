@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use patriecia::MemoryDB;
 use primitives::Address;
 use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
@@ -16,7 +17,7 @@ pub async fn create_wallet_with_rpc_client() {
         .expect("Unable to create Socket Address");
 
     // Set up RPC Server to accept connection from client
-    let json_rpc_server_config = JsonRpcServerConfig::default();
+    let json_rpc_server_config = JsonRpcServerConfig::<MemoryDB>::default();
 
     let (server_handle, _) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
 
@@ -37,7 +38,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
     let (events_tx, _events_rx) = channel(100);
 
     // Set up RPC Server to accept connection from client
-    let mut json_rpc_server_config = JsonRpcServerConfig::default();
+    let mut json_rpc_server_config = JsonRpcServerConfig::<MemoryDB>::default();
     json_rpc_server_config.events_tx = events_tx;
 
     let (handle, socket_addr) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
@@ -89,7 +90,7 @@ pub async fn wallet_sends_create_account_request_to_rpc_server() {
     let (events_tx, _events_rx) = channel(100);
 
     // Set up RPC Server to accept connection from client
-    let mut json_rpc_server_config = JsonRpcServerConfig::default();
+    let mut json_rpc_server_config = JsonRpcServerConfig::<MemoryDB>::default();
     json_rpc_server_config.events_tx = events_tx;
 
     let (handle, socket_addr) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();

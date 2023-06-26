@@ -5,6 +5,7 @@ use crossbeam_channel::Receiver;
 use events::{Event, EventPublisher, JobResult, Vote};
 use job_scheduler::JobScheduler;
 use mempool::TxnRecord;
+use patriecia::Database;
 use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
@@ -47,13 +48,13 @@ use crate::NodeError;
 /// JobSchedulerController to retrieve data from the database as needed for its
 /// job scheduling tasks. The specific implementation and functionality of
 /// VrrbDbReadHandle would depend on
-pub struct JobSchedulerController {
+pub struct JobSchedulerController<D: Database> {
     pub job_scheduler: JobScheduler,
     events_tx: EventPublisher,
     sync_jobs_receiver: Receiver<Job>,
     _async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
 }
 
 pub enum Job {
@@ -81,14 +82,14 @@ pub enum Job {
     SignConvergenceBlock(SignatureProvider, ConvergenceBlock),
 }
 
-impl JobSchedulerController {
+impl<D: Database> JobSchedulerController<D> {
     pub fn new(
         peer_id: PeerID,
         events_tx: EventPublisher,
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
-        vrrbdb_read_handle: VrrbDbReadHandle,
+        vrrbdb_read_handle: VrrbDbReadHandle<D>,
     ) -> Self {
         Self {
             job_scheduler: JobScheduler::new(peer_id),
