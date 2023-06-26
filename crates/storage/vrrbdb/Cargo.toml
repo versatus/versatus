@@ -21,6 +21,7 @@ serde_json = { workspace = true }
 serial_test = { workspace = true }
 telemetry = { workspace = true }
 ethereum-types = { workspace = true }
+rand = "0.8.5"
 
 [dev-dependencies]
 rand = { workspace = true }
