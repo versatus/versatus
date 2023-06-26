@@ -19,7 +19,7 @@ pub enum Error {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
-#[serde(try_from = "String")]
+// #[serde(try_from = "String")]
 pub enum NodeType {
     /// A Node that can archive, validate and mine tokens
     Full = 0,

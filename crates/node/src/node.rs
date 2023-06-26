@@ -1,6 +1,10 @@
 use std::net::SocketAddr;
 
-use events::{Event, EventPublisher, EventRouter, Topic};
+use events::{
+    Event,
+    Event::{FetchPeers, PullCandidatesForElection},
+    EventMessage, EventPublisher, EventRouter, Topic,
+};
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;
 use tokio::{
@@ -13,14 +17,8 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    node_health_report::NodeHealthReport,
-    result::Result,
-    runtime::setup_runtime_components,
-    NodeError,
-    NodeState,
-    OptionalRuntimeHandle,
-    RaptorHandle,
-    SchedulerHandle,
+    node_health_report::NodeHealthReport, result::Result, runtime::setup_runtime_components,
+    NodeError, NodeState, OptionalRuntimeHandle, RaptorHandle, SchedulerHandle,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -78,7 +76,6 @@ impl Node {
 
         // TODO: report error from handle
         let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
-
         let runtime_control_handle = tokio::spawn(Self::run_node_main_process(
             config.id.clone(),
             cloned_token,
@@ -90,7 +87,6 @@ impl Node {
         ));
 
         let running_status = NodeState::Running;
-
         Ok(Self {
             config: runtime_components.node_config,
             running_status,
@@ -142,11 +138,15 @@ impl Node {
         Ok(())
     }
 
-    pub async fn stop(self) -> Result<()> {
+    /// Stops a [Node].
+    /// Returns `true` if it's successfully terminated.
+    pub async fn stop(self) -> Result<bool> {
         self.cancel_token.cancel();
+        let cancelled = self.cancel_token.is_cancelled();
         self.runtime_control_handle
             .await?
-            .map_err(|err| NodeError::Other(err.to_string()))
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        Ok(cancelled)
     }
 
     pub async fn config(&self) -> NodeConfig {

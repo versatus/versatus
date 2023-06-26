@@ -1,28 +1,13 @@
 use std::net::SocketAddr;
 
 use block::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    ConvergenceBlock,
-    ProposalBlock,
-    RefHash,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
 use ethereum_types::U256;
 use mempool::TxnRecord;
 use primitives::{
-    Address,
-    Epoch,
-    FarmerQuorumThreshold,
-    NodeId,
-    NodeIdx,
-    PublicKeyShareVec,
-    QuorumPublicKey,
-    QuorumSize,
-    RawSignature,
-    Round,
-    Seed,
+    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, PublicKeyShareVec, QuorumPublicKey,
+    QuorumSize, RawSignature, Round, Seed,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
@@ -105,13 +90,13 @@ pub enum Event {
     // separately?
     BlockConfirmed(Vec<u8>),
 
-    /// `ClaimCreated(Vec<u8>)` represents a claim that is created for the node
+    /// `ClaimCreated(Claim)` represents a claim that is created for the node
     /// then has to be broadcasted.
-    ClaimCreated(Vec<u8>),
+    ClaimCreated(Claim),
 
     /// `ClaimAbandoned(String,Vec<u8>)` represents a claim that turned out to
     /// be invalid.
-    ClaimAbandoned(String, Vec<u8>),
+    ClaimAbandoned(NodeId, Claim),
 
     ///  `SlashClaims`represent slashing of claims of the nodes.More information
     /// yet to be added.
@@ -306,6 +291,8 @@ pub enum Event {
     /// with the convergence block.
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
 
+    PullCandidatesForElection,
+    BroadcastClaim(Claim),
     Ping(NodeId),
 }
 

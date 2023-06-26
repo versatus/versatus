@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use dyswarm::{server::ServerConfig, types::Message as DyswarmMessage};
-use events::{Event, EventPublisher, EventSubscriber};
+use dyswarm::types::Message as DyswarmMessage;
+use events::EventPublisher;
 use primitives::NodeId;
 
 use crate::components::network::NetworkEvent;
@@ -20,22 +20,27 @@ impl DyswarmHandler {
 #[async_trait]
 impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
     async fn handle(&self, msg: DyswarmMessage<NetworkEvent>) -> dyswarm::types::Result<()> {
-        // TODO: remove all that experimental hacky code below and replace it with
-        // proper event publishing
-        // TODO: deserialize network events into internal events and publish them so the
-        // internal router can pick them up and forward them to the appropriate
-        // components
+        match msg.data {
+            NetworkEvent::PeerJoined {
+                node_id,
+                node_type,
+                kademlia_peer_id,
+                udp_gossip_addr,
+                raptorq_gossip_addr,
+                kademlia_liveness_addr,
+            } => {
+                telemetry::info!("Node {} joined network", node_id);
+            },
+            NetworkEvent::ClaimCreated { node_id, claim } => {
+                telemetry::info!(
+                    "Node ID {} recieved claim from {}: {:#?}",
+                    self.node_id,
+                    node_id,
+                    claim.public_key
+                );
+            },
 
-        if let NetworkEvent::Ping(node_id) = msg.data {
-            let data = format!("ping from {} to {}", node_id, self.node_id);
-            println!("{}", data);
-        }
-
-        if &self.node_id == "node-0" {
-            self.events_tx
-                .send(Event::Ping(self.node_id.clone()).into())
-                .await
-                .unwrap();
+            _ => {},
         }
 
         Ok(())

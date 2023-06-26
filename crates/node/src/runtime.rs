@@ -8,7 +8,10 @@ use std::{
 use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
-use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
+use events::{
+    Event, Event::BroadcastClaim, EventMessage, EventPublisher, EventRouter, EventSubscriber,
+    DEFAULT_BUFFER,
+};
 use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
 use patriecia::Database;
@@ -86,11 +89,10 @@ pub async fn setup_runtime_components(
     let state_read_handle = state_component_handle.data().clone();
 
     let network_component_handle = NetworkModule::setup(NetworkModuleComponentConfig {
+        config: config.clone(),
         node_id: config.id.clone(),
         events_tx: events_tx.clone(),
-        config: config.clone(),
         network_events_rx,
-        node_type: config.node_type,
         vrrbdb_read_handle: state_read_handle.clone(),
     })
     .await?;
@@ -127,6 +129,7 @@ pub async fn setup_runtime_components(
     )?;
 
     let dkg_handle = setup_dkg_module(&config, events_tx.clone(), dkg_events_rx)?;
+
     let public_key = config.keypair.get_miner_public_key().to_owned();
     let signature = Claim::signature_for_valid_claim(
         public_key,
@@ -145,6 +148,10 @@ pub async fn setup_runtime_components(
         signature,
     )
     .map_err(NodeError::from)?;
+
+    events_tx
+        .send(Event::ClaimCreated(claim.clone()).into())
+        .await?;
 
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),

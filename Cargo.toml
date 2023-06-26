@@ -45,7 +45,6 @@ members = [
     "crates/miner",
     "crates/wallet",
     "crates/mempool",
-    "crates/network",
     "crates/node",
     "crates/storage",
     "crates/storage/lr_trie",
@@ -98,7 +97,7 @@ udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
-kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs", branch = "main" }
+kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs", branch = "feat-metadata-includes-node-type" }
 rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
 decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
