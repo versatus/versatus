@@ -18,10 +18,7 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
+    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
     RuntimeComponentHandle,
     DEFAULT_ERASURE_COUNT,
 };
@@ -156,6 +153,7 @@ impl NetworkModule {
         } else {
             // NOTE: become a bootstrap node if no bootstrap info is provided
             info!("Becoming a bootstrap node");
+
             KademliaNode::new(
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,

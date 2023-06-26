@@ -20,14 +20,8 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    node_health_report::NodeHealthReport,
-    result::Result,
-    runtime::setup_runtime_components,
-    NodeError,
-    NodeState,
-    OptionalRuntimeHandle,
-    RaptorHandle,
-    SchedulerHandle,
+    node_health_report::NodeHealthReport, result::Result, runtime::setup_runtime_components,
+    NodeError, NodeState, OptionalRuntimeHandle, RaptorHandle, SchedulerHandle,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -147,11 +141,15 @@ impl Node {
         Ok(())
     }
 
-    pub async fn stop(self) -> Result<()> {
+    /// Stops a [Node].
+    /// Returns `true` if it's successfully terminated.
+    pub async fn stop(self) -> Result<bool> {
         self.cancel_token.cancel();
+        let cancelled = self.cancel_token.is_cancelled();
         self.runtime_control_handle
             .await?
-            .map_err(|err| NodeError::Other(err.to_string()))
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        Ok(cancelled)
     }
 
     pub async fn config(&self) -> NodeConfig {

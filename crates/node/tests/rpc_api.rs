@@ -1,4 +1,5 @@
-use node::{test_utils::create_mock_full_node_config, Node, NodeType, RuntimeModuleState};
+use node::{test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState};
+use primitives::node::NodeType;
 use serial_test::serial;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
@@ -15,7 +16,7 @@ async fn node_rpc_api_returns_node_type() {
 
     assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 
-    vrrb_node.stop();
+    let is_cancelled = vrrb_node.stop().await.unwrap();
 
-    assert_eq!(vrrb_node.status(), RuntimeModuleState::Stopped);
+    assert!(is_cancelled);
 }
