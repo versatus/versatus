@@ -10,12 +10,9 @@ use crossbeam_channel::Sender;
 use dashmap::DashMap;
 use events::{Event, EventMessage, EventPublisher, JobResult, Vote};
 use hbbft::crypto::{PublicKeyShare, SignatureShare};
+use patriecia::Database;
 use primitives::{
-    GroupPublicKey,
-    HarvesterQuorumThreshold,
-    NodeIdx,
-    QuorumThreshold,
-    RawSignature,
+    GroupPublicKey, HarvesterQuorumThreshold, NodeIdx, QuorumThreshold, RawSignature,
 };
 use ritelinked::LinkedHashMap;
 use signer::signer::{SignatureProvider, Signer};
@@ -110,13 +107,13 @@ pub const BLOCK_CERTIFICATES_CACHE_LIMIT: usize = 5;
 /// * `async_jobs_sender`: A Sender object used to send asynchronous jobs to be
 ///   executed by the Scheduler.
 
-pub struct HarvesterModule {
+pub struct HarvesterModule<D: Database> {
     pub quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub certified_txns_filter: Bloom,
     pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
     pub convergence_block_certificates:
         Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
     pub harvester_id: NodeIdx,
@@ -132,7 +129,7 @@ pub struct HarvesterModule {
     pub keypair: KeyPair,
 }
 
-impl HarvesterModule {
+impl<D: Database> HarvesterModule<D> {
     pub fn new(
         certified_txns_filter: Bloom,
         sig_provider: Option<SignatureProvider>,
@@ -143,7 +140,7 @@ impl HarvesterModule {
         dag: Arc<RwLock<BullDag<Block, String>>>,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
-        vrrbdb_read_handle: VrrbDbReadHandle,
+        vrrbdb_read_handle: VrrbDbReadHandle<D>,
         keypair: KeyPair,
         harvester_id: NodeIdx,
     ) -> Self {
@@ -222,7 +219,7 @@ impl HarvesterModule {
 }
 
 #[async_trait]
-impl Handler<EventMessage> for HarvesterModule {
+impl<D: Database> Handler<EventMessage> for HarvesterModule<D> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -605,7 +602,7 @@ mod tests {
     use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use lazy_static::lazy_static;
     use primitives::Address;
-    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
+    use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState};
     use vrrb_core::{account::Account, bloom::Bloom, keypair::Keypair};
 
@@ -635,7 +632,7 @@ mod tests {
 
         let vrrbdb_read_handle = db.read_handle();
 
-        let harvester_swarm_module = HarvesterModule::new(
+        let harvester_swarm_module = HarvesterModule::<RocksDbAdapter>::new(
             Bloom::new(10000),
             None,
             vec![],
