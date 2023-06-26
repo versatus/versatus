@@ -109,10 +109,7 @@ impl Default for RocksDbAdapter {
 
         let db_result = new_db_instance(options, path.into(), &cf);
         match db_result {
-            Ok(db) => Self {
-                db,
-                column: DEFAULT_COLUMN_FAMILY_NAME.to_string(),
-            },
+            Ok(db) => Self { db, column: cf },
             Err(e) => {
                 error!("Failed to create default database: {}", e);
                 Self::default()
