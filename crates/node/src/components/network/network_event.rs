@@ -56,13 +56,21 @@ pub enum NetworkEvent {
         requestor_id: String,
         sender_id: String,
     },
+
+    ClaimCreated {
+        node_id: NodeId,
+        claim: Claim,
+    },
+
     ClaimAbandoned {
         claim: Vec<u8>,
         sender_id: String,
     },
+
     ResetPeerConnection {
         peer_id: PeerId,
     },
+
     PeerJoined {
         node_id: NodeId,
         node_type: NodeType,
@@ -71,15 +79,19 @@ pub enum NetworkEvent {
         raptorq_gossip_addr: SocketAddr,
         kademlia_liveness_addr: SocketAddr,
     },
+
     RemovePeer {
         peer_id: PeerId,
         socket_addr: SocketAddr,
     },
+
     AddPeer(primitives::PeerId, SocketAddr, NodeType),
+
     DKGPartCommitment {
         part_commitment: Vec<u8>,
         sender_id: u16,
     },
+
     DKGPartAcknowledgement {
         curr_node_id: u16,
         sender_id: u16,
@@ -90,10 +102,10 @@ pub enum NetworkEvent {
         vote: Vote,
         farmer_quorum_threshold: FarmerQuorumThreshold,
     },
+
     ForwardedTxn(TxnRecord),
 
     Ping(NodeId),
-    Broadcast(Claim),
 
     #[default]
     Empty,

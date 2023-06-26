@@ -341,9 +341,7 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> crate::Resul
     Ok(())
 }
 
-
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{seq::SliceRandom, thread_rng};
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
@@ -366,4 +364,3 @@ pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
 
     array
 }
-

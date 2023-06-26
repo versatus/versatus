@@ -1,24 +1,20 @@
-use std::{
-    collections::{BTreeMap, HashSet},
-    net::SocketAddr,
-};
-use kademlia_dht::NodeType as KNodeType;
+use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
-use hbbft::subset::MessageContent::Broadcast;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
-use kademlia_dht::{Key, Node as KademliaNode, NodeData};
+use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
 use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use tracing::debug;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::NodeConfig;
+use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
@@ -74,12 +70,9 @@ pub fn convert_node_type(node_type: NodeType) -> KNodeType {
         NodeType::Farmer => KNodeType::Farmer,
         NodeType::Validator => KNodeType::Harvester,
         NodeType::Miner => KNodeType::Miner,
-        _=>  KNodeType::Other("Unknown node type".to_string()),
+        _ => KNodeType::Other("Unknown node type".to_string()),
     }
 }
-
-
-
 
 impl NetworkModule {
     pub async fn new(config: NetworkModuleConfig) -> Result<Self> {
@@ -151,7 +144,7 @@ impl NetworkModule {
                 kademlia_key,
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
-                KNodeType::Bootstrap
+                KNodeType::Bootstrap,
             );
 
             KademliaNode::new(
@@ -163,7 +156,12 @@ impl NetworkModule {
         } else {
             // NOTE: become a bootstrap node if no bootstrap info is provided
             info!("Becoming a bootstrap node");
-            KademliaNode::new(config.kademlia_liveness_addr, config.udp_gossip_addr, None,KNodeType::Bootstrap)?
+            KademliaNode::new(
+                config.kademlia_liveness_addr,
+                config.udp_gossip_addr,
+                None,
+                KNodeType::Bootstrap,
+            )?
         };
 
         Ok(kademlia_node)
@@ -215,18 +213,14 @@ impl NetworkModule {
     async fn broadcast_join_intent(&mut self) -> Result<()> {
         let timestamp = chrono::Utc::now().timestamp();
 
-        let msg = dyswarm::types::Message {
-            id: dyswarm::types::MessageId::new_v4(),
-            timestamp,
-            data: NetworkEvent::PeerJoined {
-                node_id: self.node_id.clone(),
-                node_type: self.node_type(),
-                kademlia_peer_id: self.kademlia_peer_id(),
-                udp_gossip_addr: self.udp_gossip_addr(),
-                raptorq_gossip_addr: self.raptorq_gossip_addr(),
-                kademlia_liveness_addr: self.kademlia_liveness_addr(),
-            },
-        };
+        let msg = dyswarm::types::Message::new(NetworkEvent::PeerJoined {
+            node_id: self.node_id.clone(),
+            node_type: self.node_type(),
+            kademlia_peer_id: self.kademlia_peer_id(),
+            udp_gossip_addr: self.udp_gossip_addr(),
+            raptorq_gossip_addr: self.raptorq_gossip_addr(),
+            kademlia_liveness_addr: self.kademlia_liveness_addr(),
+        });
 
         let nid = self.kademlia_node.node_data().id;
         let rt = self.kademlia_node.get_routing_table();
@@ -255,8 +249,32 @@ impl NetworkModule {
         Ok(())
     }
 
-    async fn broadcast_claim(&mut self) -> Result<()> {
-        todo!()
+    async fn broadcast_claim(&mut self, claim: Claim) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let node_id = self.node_id.clone();
+
+        let message = dyswarm::types::Message::new(NetworkEvent::ClaimCreated { node_id, claim });
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -314,7 +332,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         let mut network_module_actor = ActorImpl::new(network_module);
 
         let network_handle = tokio::spawn(async move {
-               network_module_actor
+            network_module_actor
                 .start(&mut network_events_rx)
                 .await
                 .map_err(|err| NodeError::Other(err.to_string()))
@@ -379,25 +397,9 @@ impl Handler<EventMessage> for NetworkModule {
                 self.kademlia_node
                     .insert(KademliaNode::get_key(key.as_str()), value.as_str());
             },
-            //To be removed in future
-            Event::BroadcastClaim(claim)=> {
-                let closest_nodes = self
-                    .node_ref()
-                    .get_routing_table()
-                    .get_closest_nodes(&self.node_ref().node_data().id, 8);
-                let socket_address=closest_nodes.iter().map(|node|node.addr).collect::<Vec<SocketAddr>>();
-                println!("socket address: {:?}", socket_address);
-                self.dyswarm_client.add_peers(socket_address);
-                let status =self.dyswarm_client.broadcast(BroadcastArgs{
-                    config: Default::default(),
-                    message: dyswarm::types::Message {
-                        id: dyswarm::types::MessageId::new_v4(),
-                        timestamp: 0i64,
-                        data: NetworkEvent::Broadcast(claim),
-                    },
-                    erasure_count: 0
-                }).await;
-                println!("Broadcast status: {:?}", status);
+            Event::ClaimCreated(claim) => {
+                info!("broadcasting claim to peers");
+                self.broadcast_claim(claim).await?;
             },
             Event::Stop => {
                 // NOTE: stop the node

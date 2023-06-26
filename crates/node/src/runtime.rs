@@ -8,7 +8,15 @@ use std::{
 use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
-use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
+use events::{
+    Event,
+    Event::BroadcastClaim,
+    EventMessage,
+    EventPublisher,
+    EventRouter,
+    EventSubscriber,
+    DEFAULT_BUFFER,
+};
 use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
 use primitives::{Address, NodeType, QuorumType::Farmer};
@@ -16,7 +24,6 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
-use events::Event::BroadcastClaim;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
 use vrrb_core::{bloom::Bloom, claim::Claim};
@@ -151,7 +158,9 @@ pub async fn setup_runtime_components(
     )
     .map_err(NodeError::from)?;
 
-    let _=events_tx.clone().send(EventMessage::new(None,BroadcastClaim(claim.clone()))).await.unwrap();
+    events_tx
+        .send(Event::ClaimCreated(claim.clone()).into())
+        .await?;
 
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
