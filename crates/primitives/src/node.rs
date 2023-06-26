@@ -94,4 +94,3 @@ impl From<usize> for NodeType {
         }
     }
 }
-
