@@ -48,7 +48,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .idx(idx)
         .data_dir(data_dir)
         .db_path(db_path)
-        .node_type(NodeType::Full)
+        .node_type(NodeType::Bootstrap)
         .bootstrap_config(None)
         .http_api_address(http_api_address)
         .http_api_title(String::from("HTTP Node API"))
@@ -339,4 +339,28 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> crate::Resul
     client.send_data_via_quic(msg, addr).await?;
 
     Ok(())
+}
+
+use rand::{seq::SliceRandom, thread_rng};
+
+pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
+    let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
+    let farmer_count = n * 2 / total_elements;
+    let harvester_count = n * 2 / total_elements;
+    let miner_count = n * 4 / total_elements;
+
+    let mut array = Vec::with_capacity(n);
+    for _ in 0..farmer_count {
+        array.push(NodeType::Farmer);
+    }
+    for _ in 0..harvester_count {
+        array.push(NodeType::Validator);
+    }
+    for _ in 0..miner_count {
+        array.push(NodeType::Miner);
+    }
+
+    array.shuffle(&mut thread_rng());
+
+    array
 }
