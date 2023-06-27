@@ -109,6 +109,9 @@ pub enum Event {
     /// then has to be broadcasted.
     ClaimCreated(Claim),
 
+    /// `ClaimReceived(Claim)` represents a claim emitted by another node
+    ClaimReceived(Claim),
+
     /// `ClaimAbandoned(String,Vec<u8>)` represents a claim that turned out to
     /// be invalid.
     ClaimAbandoned(NodeId, Claim),

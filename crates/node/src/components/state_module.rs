@@ -13,7 +13,13 @@ use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
-use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{
+    RocksDbAdapter,
+    StateStoreReadHandle,
+    VrrbDb,
+    VrrbDbConfig,
+    VrrbDbReadHandle,
+};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::NodeConfig;
@@ -618,6 +624,11 @@ impl Handler<EventMessage> for StateModule {
                 if let Err(err) = self.update_state(block_hash) {
                     telemetry::error!("error updating state: {}", err);
                 }
+            },
+            Event::ClaimCreated(claim) => {},
+            Event::ClaimReceived(claim) => {
+                dbg!(&claim.address);
+                telemetry::info!("Storing claim from: {:?}", claim.address);
             },
             Event::NoOp => {},
             _ => {},

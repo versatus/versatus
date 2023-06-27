@@ -8,7 +8,7 @@ use telemetry::TelemetrySubscriber;
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("VRRB_ENVIRONMENT", "mainnet");
+    std::env::set_var("VRRB_ENVIRONMENT", "main");
     std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
 
     TelemetrySubscriber::init(std::io::stdout).unwrap();
@@ -17,6 +17,8 @@ async fn main() {
 
     let mut config = node::test_utils::create_mock_full_node_config();
     config.id = String::from("node-0");
+
+    dbg!(config.data_dir());
 
     let node_0 = Node::start(&config).await.unwrap();
 

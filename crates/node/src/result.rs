@@ -1,5 +1,6 @@
 use std::net::AddrParseError;
 
+use dyswarm::types::DyswarmError;
 use events::EventMessage;
 use miner::result::MinerError;
 use theater::TheaterError;
@@ -63,5 +64,11 @@ pub type Result<T> = std::result::Result<T, NodeError>;
 impl From<NodeError> for TheaterError {
     fn from(err: NodeError) -> Self {
         TheaterError::Other(err.to_string())
+    }
+}
+
+impl From<NodeError> for DyswarmError {
+    fn from(err: NodeError) -> Self {
+        DyswarmError::Other(err.to_string())
     }
 }

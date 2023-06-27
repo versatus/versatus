@@ -38,6 +38,7 @@ impl TelemetrySubscriber {
                 .with_writer(out)
                 .with_file(is_local_env)
                 .with_line_number(is_local_env)
+                .with_target(is_local_env)
                 .finish();
 
             sub.try_init()?;
