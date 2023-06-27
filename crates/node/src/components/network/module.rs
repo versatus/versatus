@@ -8,9 +8,9 @@ use dyswarm::{
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
 use patriecia::Database;
-use primitives::{KademliaPeerId, NodeId, NodeType};
+use primitives::{address, KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
+use telemetry::{error, info};
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use tracing::debug;
 use utils::payload::digest_data_to_bytes;
@@ -19,12 +19,8 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
-    DEFAULT_ERASURE_COUNT,
+    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
+    RuntimeComponentHandle, DEFAULT_ERASURE_COUNT,
 };
 
 #[derive(Debug)]
@@ -410,6 +406,31 @@ impl Handler<EventMessage> for NetworkModule {
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
             },
+            Event::ElectedQuorum(quorum) => {
+                let addresses = self.dyswarm_client.get_peer_connections();
+                let _ = self.dyswarm_client.remove_peers(addresses.clone());
+                self.dyswarm_client.clear_connection_list();
+
+                let quic_addresses: Vec<SocketAddr> = quorum
+                    .nodes_addresses
+                    .iter()
+                    .map(|(socket_addr, _)| socket_addr.clone())
+                    .collect();
+
+                let raptor_addresses: Vec<SocketAddr> = quorum
+                    .nodes_addresses
+                    .iter()
+                    .map(|(socket_addr, port)| SocketAddr::new(socket_addr.ip(), *port))
+                    .collect();
+                if let Err(err) = self.dyswarm_client.add_peers(quic_addresses).await {
+                    error!("Error occurred while adding peers: {}", err);
+                }
+                self.dyswarm_client.add_raptor_peers(raptor_addresses);
+                if let Err(err) = self.events_tx.send(Event::DkgInitiate.into()).await {
+                    error!("Error occurred while sending event to publisher: {}", err);
+                }
+            },
+
             Event::NoOp => {},
             _ => {},
         }

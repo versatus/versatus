@@ -9,12 +9,7 @@ use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
 use events::{
-    Event,
-    Event::BroadcastClaim,
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    EventSubscriber,
+    Event, Event::BroadcastClaim, EventMessage, EventPublisher, EventRouter, EventSubscriber,
     DEFAULT_BUFFER,
 };
 use mempool::MempoolReadHandleFactory;
@@ -35,12 +30,8 @@ use crate::{
         dag_module::DagModule,
         dkg_module::{self, DkgModuleConfig},
         election_module::{
-            ElectionModule,
-            ElectionModuleConfig,
-            MinerElection,
-            MinerElectionResult,
-            QuorumElection,
-            QuorumElectionResult,
+            ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult,
+            QuorumElection, QuorumElectionResult,
         },
         farmer_module::{self, PULL_TXN_BATCH_SIZE},
         harvester_module,
@@ -52,8 +43,7 @@ use crate::{
         state_module::{StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
-    RuntimeComponent,
-    RuntimeComponents,
+    RuntimeComponent, RuntimeComponents,
 };
 
 pub async fn setup_runtime_components(
@@ -144,6 +134,7 @@ pub async fn setup_runtime_components(
     let signature = Claim::signature_for_valid_claim(
         public_key,
         config.public_ip_address,
+        config.raptorq_gossip_address.port(),
         config
             .keypair
             .get_miner_secret_key()
@@ -155,6 +146,7 @@ pub async fn setup_runtime_components(
         public_key,
         Address::new(public_key),
         config.public_ip_address,
+        config.raptorq_gossip_address.port(),
         signature,
     )
     .map_err(NodeError::from)?;
@@ -318,6 +310,7 @@ fn setup_mining_module<D: Database + 'static>(
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
         ip_address: config.public_ip_address,
+        raptor_port: config.raptorq_gossip_address.port(),
         dag,
     };
 

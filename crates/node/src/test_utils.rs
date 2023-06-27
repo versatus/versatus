@@ -105,11 +105,12 @@ fn produce_random_claims(n: usize) -> HashSet<Claim> {
             let signature = Claim::signature_for_valid_claim(
                 kp.miner_kp.1,
                 ip_address,
+                1023,
                 kp.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
 
-            Claim::new(kp.miner_kp.1, address, ip_address, signature).unwrap()
+            Claim::new(kp.miner_kp.1, address, ip_address, 1023, signature).unwrap()
         })
         .collect()
 }
@@ -160,11 +161,12 @@ pub fn produce_proposal_blocks(
             let signature = Claim::signature_for_valid_claim(
                 kp.miner_kp.1,
                 ip_address,
+                1023,
                 kp.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
 
-            let from = Claim::new(kp.miner_kp.1, address, ip_address, signature).unwrap();
+            let from = Claim::new(kp.miner_kp.1, address, ip_address, 1023, signature).unwrap();
             let txs = produce_random_txs(&accounts);
             let claims = produce_random_claims(ntx);
 
@@ -302,8 +304,8 @@ pub(crate) fn create_dag_module() -> DagModule {
     let addr = create_address(&pk);
     let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
     let signature =
-        Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
-    let claim = create_claim(&pk, &addr, ip_address, signature);
+        Claim::signature_for_valid_claim(pk, ip_address, 1023, sk.secret_bytes().to_vec()).unwrap();
+    let claim = create_claim(&pk, &addr, ip_address, 1023, signature);
     let (events_tx, _) = tokio::sync::mpsc::channel(events::DEFAULT_BUFFER);
 
     DagModule::new(miner.dag, events_tx, claim)

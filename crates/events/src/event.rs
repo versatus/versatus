@@ -1,28 +1,13 @@
 use std::net::SocketAddr;
 
 use block::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    ConvergenceBlock,
-    ProposalBlock,
-    RefHash,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
 use ethereum_types::U256;
 use mempool::TxnRecord;
 use primitives::{
-    Address,
-    Epoch,
-    FarmerQuorumThreshold,
-    NodeId,
-    NodeIdx,
-    PublicKeyShareVec,
-    QuorumPublicKey,
-    QuorumSize,
-    RawSignature,
-    Round,
-    Seed,
+    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, PublicKeyShareVec, QuorumPublicKey,
+    QuorumSize, RawSignature, Round, Seed,
 };
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
@@ -147,10 +132,12 @@ pub enum Event {
     /// message has been received from the network, and has to be recorded
     /// in the part message store.
     PartMessage(u16, Vec<u8>),
+    /// `SendPartMessage(u16,Vec<u8>)` is an event that is triggered when part message has been received from the network,
+    /// and has to be recorded in the part message store.
+    SendPartMessage(u16, Vec<u8>),
 
-    /// `SendAck(u16,u16,Vec<u8>)` is an event that is triggered when part
-    /// commitment has been acknowledged by the current node ,it has to be
-    /// broadcasted to the other members of the Elected Quorum.
+    /// `SendAck(u16,u16,Vec<u8>)` is an event that is triggered when part commitment has been acknowledged by the
+    /// current node ,it has to be broadcasted to the other members of the Elected Quorum.
     SendAck(u16, u16, Vec<u8>),
 
     /// `HandleAllAcks` is an event that is triggered to handle all the

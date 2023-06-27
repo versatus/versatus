@@ -10,16 +10,8 @@ use events::{Event, EventMessage, EventPublisher, SyncPeerData};
 use hbbft::crypto::{PublicKey, SecretKeyShare};
 use laminar::{Config, Packet, Socket, SocketEvent};
 use primitives::{
-    NodeIdx,
-    NodeType,
-    NodeTypeBytes,
-    PKShareBytes,
-    PayloadBytes,
-    QuorumPublicKey,
-    QuorumType,
-    RawSignature,
-    REGISTER_REQUEST,
-    RETRIEVE_PEERS_REQUEST,
+    NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, QuorumType,
+    RawSignature, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST,
 };
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
@@ -442,7 +434,7 @@ impl Handler<EventMessage> for DkgModule {
                                     let _ = self
                                         .broadcast_events_tx
                                         .send(
-                                            Event::PartMessage(node_idx, part_committment_bytes)
+                                            Event::SendPartMessage(node_idx, part_committment_bytes)
                                                 .into(),
                                         )
                                         .await.map_err(|e| {

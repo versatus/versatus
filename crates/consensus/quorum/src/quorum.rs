@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+use std::net::SocketAddr;
 
 use ethereum_types::U256;
+use primitives::RaptorUdpPort;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vrrb_core::{
@@ -40,6 +42,7 @@ pub struct Quorum {
     pub master_pubkeys: Vec<String>,
     pub quorum_pk: String,
     pub election_block_height: u128,
+    pub nodes_addresses: Vec<(SocketAddr, RaptorUdpPort)>,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -109,6 +112,7 @@ impl Quorum {
                 master_pubkeys: Vec::new(),
                 quorum_pk: String::new(),
                 election_block_height: height,
+                nodes_addresses: Vec::new(),
             })
         }
     }
@@ -158,14 +162,21 @@ impl Quorum {
             return Err(InvalidQuorum::InvalidPointerSumError(claims));
         }
 
-        let pubkeys: Vec<String> = election_results
+        let public_keys: Vec<String> = election_results
             .values()
             .map(|claim| claim.public_key.clone().to_string())
             .take(num_claims)
             .collect();
 
-        let final_pubkeys = Vec::from_iter(pubkeys[0..num_claims].iter().cloned());
+        let address: Vec<(SocketAddr, RaptorUdpPort)> = election_results
+            .values()
+            .map(|claim| (claim.ip_address.clone(), claim.raptor_port))
+            .take(num_claims)
+            .collect();
+
+        let final_pubkeys = Vec::from_iter(public_keys[0..num_claims].iter().cloned());
         self.master_pubkeys = final_pubkeys;
+        self.nodes_addresses = address;
 
         Ok(self)
     }

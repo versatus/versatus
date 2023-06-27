@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use ethereum_types::U256;
-use primitives::{Address, PublicKey, SerializedSecretKey};
+use primitives::{Address, PublicKey, RaptorUdpPort, SerializedSecretKey};
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
@@ -49,6 +49,7 @@ pub struct Claim {
     pub hash: U256,
     pub eligibility: Eligibility,
     pub ip_address: SocketAddr,
+    pub raptor_port: u16,
     pub signature: String,
     stake: u128,
     stake_txns: Vec<Stake>,
@@ -80,11 +81,13 @@ impl Claim {
         public_key: PublicKey,
         address: Address,
         ip_address: SocketAddr,
+        raptor_port: RaptorUdpPort,
         signature: String,
     ) -> Result<Claim> {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string());
         hasher.update(ip_address.to_string());
+        hasher.update(raptor_port.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let mut msg_hash: Vec<u8> = Vec::new();
@@ -102,6 +105,7 @@ impl Claim {
                 hash,
                 eligibility: Eligibility::None,
                 ip_address,
+                raptor_port,
                 signature,
                 stake: 0,
                 stake_txns: vec![],
@@ -120,6 +124,7 @@ impl Claim {
     ///   which represents a socket
     /// address, including an IP address and a port number. It is used as part
     /// of the data that is hashed to create a signature for a valid claim.
+    /// * `raptor_port`: The `raptor_port` parameter is of u16 representing udp port for communicating raptor packets.
     /// * `secret_key`: The secret key is a serialized version of the private
     ///   key used for ECDSA
     /// signing. It is needed to sign the hash of the public key and IP address
@@ -134,11 +139,13 @@ impl Claim {
     pub fn signature_for_valid_claim(
         public_key: PublicKey,
         ip_address: SocketAddr,
+        raptor_port: RaptorUdpPort,
         secret_key: SerializedSecretKey,
     ) -> Result<String> {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string());
         hasher.update(ip_address.to_string());
+        hasher.update(raptor_port.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let mut msg_hash: Vec<u8> = Vec::new();
@@ -378,11 +385,13 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
@@ -392,11 +401,12 @@ mod tests {
             hash,
             eligibility: Eligibility::None,
             ip_address: "127.0.0.1:8080".parse().unwrap(),
+            raptor_port: 1023,
             signature: signature.clone(),
             stake: 0,
             stake_txns: vec![],
         };
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(public_key, address, ip_address, 1023, signature).unwrap();
         assert_eq!(test_claim, claim);
     }
 
@@ -409,25 +419,30 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key.clone(), address, ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key.clone(), address, ip_address, 1023, signature).unwrap();
 
         let ip_address_new = "127.0.0.1:8081".parse::<SocketAddr>().unwrap();
         let mut hasher_new = Sha256::new();
         hasher_new.update(public_key.to_string().clone());
         hasher_new.update(ip_address_new.to_string().clone());
+        hasher_new.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address_new,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let status = claim.update_claim_socketaddr(signature, public_key.clone(), ip_address_new);
+        let status = claim.update_claim_socketaddr(signature, public_key, ip_address_new);
         assert!(status.is_ok());
         assert_eq!(claim.ip_address, ip_address_new);
     }
@@ -441,13 +456,15 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(public_key, address, ip_address, 1023, signature).unwrap();
         assert_eq!(0, claim.get_stake());
     }
 
@@ -460,13 +477,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key.clone(), address, ip_address, 1023, signature).unwrap();
         assert_eq!(0, claim.get_stake_txns().len());
     }
 
@@ -479,15 +499,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-
         let mut xor_val = [0u64; 4];
         let seed: u64 = u64::default();
         hash.clone().0.iter().enumerate().for_each(|(idx, x)| {
@@ -495,8 +516,7 @@ mod tests {
         });
 
         let test_election_result = U256(xor_val);
-
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(public_key, address, ip_address, 1023, signature).unwrap();
 
         let election_result = claim.get_election_result(seed);
 
@@ -512,13 +532,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -544,13 +567,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -578,14 +604,22 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim =
-            Claim::new(public_key, address.clone(), ip_address.clone(), signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address.clone(),
+            1023,
+            signature,
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -613,13 +647,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
         let amount = StakeUpdate::Add(10_000u128);
         let mut stake = Stake::new(
             amount,
@@ -662,13 +699,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
 
         let amount = StakeUpdate::Withdrawal(5_000u128);
         let mut stake = Stake::new(
@@ -696,13 +736,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -747,13 +790,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
 
         let amount = StakeUpdate::Slash(25u8);
         let mut stake = Stake::new(
@@ -781,14 +827,16 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string().clone());
         hasher.update(ip_address.to_string().clone());
+        hasher.update(1023.to_string());
         let signature = Claim::signature_for_valid_claim(
             public_key.clone(),
             ip_address,
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
-
+        let mut claim =
+            Claim::new(public_key, address.clone(), ip_address, 1023, signature).unwrap();
         let amount = StakeUpdate::Add(10_000u128);
 
         let mut stake = Stake::new(

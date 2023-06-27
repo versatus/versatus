@@ -25,16 +25,10 @@ mod tests {
     };
 
     use crate::test_helpers::{
-        build_single_proposal_block,
-        build_single_proposal_block_from_txns,
-        create_and_sign_message,
-        create_miner,
-        create_miner_from_keypair,
-        create_miner_from_keypair_and_dag,
-        create_miner_from_keypair_return_dag,
-        create_miner_return_dag,
-        create_txns,
-        mine_genesis,
+        build_single_proposal_block, build_single_proposal_block_from_txns,
+        create_and_sign_message, create_miner, create_miner_from_keypair,
+        create_miner_from_keypair_and_dag, create_miner_from_keypair_return_dag,
+        create_miner_return_dag, create_txns, mine_genesis,
     };
 
     #[test]
@@ -45,6 +39,7 @@ mod tests {
         let signature = Claim::signature_for_valid_claim(
             kp.miner_kp.1.clone(),
             ip_address.clone(),
+            1023,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
@@ -52,6 +47,7 @@ mod tests {
             kp.miner_kp.1.clone(),
             address.clone(),
             ip_address,
+            1023,
             signature,
         )
         .unwrap();

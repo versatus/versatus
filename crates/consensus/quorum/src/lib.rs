@@ -31,11 +31,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -72,11 +79,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
 
             dummy_claims.push(claim);
         });
@@ -108,11 +122,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -141,11 +162,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -178,11 +206,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
 
@@ -215,11 +250,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -256,11 +298,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                1023,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                1023,
+                signature,
+            )
+            .unwrap();
             //let boxed_claim = Box::new(claim);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());

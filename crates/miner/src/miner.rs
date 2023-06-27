@@ -7,22 +7,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 
 use block::{
-    block::Block,
-    header::BlockHeader,
-    ClaimHash,
-    ClaimList,
-    ConsolidatedClaims,
-    ConsolidatedTxns,
-    ConvergenceBlock,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    QuorumCertifiedTxnList,
-    RefHash,
+    block::Block, header::BlockHeader, ClaimHash, ClaimList, ConsolidatedClaims, ConsolidatedTxns,
+    ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
-use primitives::{Address, Epoch, PublicKey, Signature};
+use primitives::{Address, Epoch, PublicKey, RaptorUdpPort, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -70,7 +60,7 @@ pub enum MinerStatus {
 /// use vrrb_core::keypair::{MinerPk, MinerSk};
 /// use std::sync::{Arc, RwLock};
 /// use bulldag::graph::BullDag;
-/// use primitives::Address;
+/// use primitives::{Address, RaptorUdpPort};
 /// use reward::reward::Reward;
 /// use block::{Block, header::BlockHeader};
 ///
@@ -79,6 +69,7 @@ pub enum MinerStatus {
 ///     pub secret_key: MinerSk,
 ///     pub public_key: MinerPk,
 ///     pub ip_address:SocketAddr,
+///     pub raptor_port: RaptorUdpPort,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>
 /// }
 #[derive(Debug)]
@@ -86,6 +77,7 @@ pub struct MinerConfig {
     pub secret_key: MinerSk,
     pub public_key: MinerPk,
     pub ip_address: SocketAddr,
+    pub raptor_port: RaptorUdpPort,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
@@ -97,7 +89,7 @@ pub struct MinerConfig {
 /// ```
 /// use std::net::SocketAddr;
 /// use vrrb_core::{claim::Claim, keypair::{MinerPk, MinerSk}};
-/// use primitives::Address;
+/// use primitives::{Address, RaptorUdpPort};
 /// use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder, miner::MinerStatus};
 /// use block::{Block, ConvergenceBlock, header::BlockHeader, InnerBlock};
 /// use reward::reward::Reward;
@@ -110,6 +102,7 @@ pub struct MinerConfig {
 ///     public_key: MinerPk,
 ///     address: Address,
 ///     pub ip_address:SocketAddr,
+///     pub raptor_port: RaptorUdpPort,
 ///     pub claim: Claim,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 ///     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
@@ -122,6 +115,7 @@ pub struct Miner {
     public_key: MinerPk,
     address: Address,
     pub ip_address: SocketAddr,
+    pub raptor_port: RaptorUdpPort,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
@@ -167,7 +161,7 @@ impl Miner {
     ///     public_key,
     ///     ip_address,
     ///     dag,
-    /// };
+    ///     raptor_port: 1023};
     ///
     /// let miner = Miner::new(config);
     ///
@@ -178,6 +172,7 @@ impl Miner {
         let signature = Claim::signature_for_valid_claim(
             config.public_key,
             config.ip_address,
+            config.raptor_port,
             config.secret_key.secret_bytes().to_vec(),
         )
         .map_err(MinerError::from)?;
@@ -185,6 +180,7 @@ impl Miner {
             config.public_key,
             address.clone(),
             config.ip_address,
+            config.raptor_port,
             signature,
         )
         .map_err(MinerError::from)?;
@@ -192,6 +188,7 @@ impl Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
             address,
+            raptor_port: config.raptor_port,
             ip_address: config.ip_address,
             claim,
             dag: config.dag,
@@ -221,6 +218,7 @@ impl Miner {
         let signature = Claim::signature_for_valid_claim(
             self.public_key(),
             self.ip_address(),
+            self.raptor_port,
             self.secret_key.secret_bytes().to_vec(),
         )
         .map_err(MinerError::from)?;
@@ -228,6 +226,7 @@ impl Miner {
             self.public_key(),
             self.address(),
             self.ip_address(),
+            self.raptor_port,
             signature,
         )
         .map_err(MinerError::from)?;
