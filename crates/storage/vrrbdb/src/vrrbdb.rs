@@ -13,8 +13,13 @@ use vrrb_core::{
 };
 
 use crate::{
-    ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
-    TransactionStore, TransactionStoreReadHandleFactory, VrrbDbReadHandle,
+    ClaimStore,
+    ClaimStoreReadHandleFactory,
+    StateStore,
+    StateStoreReadHandleFactory,
+    TransactionStore,
+    TransactionStoreReadHandleFactory,
+    VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]

@@ -9,7 +9,12 @@ use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
 use events::{
-    Event, Event::BroadcastClaim, EventMessage, EventPublisher, EventRouter, EventSubscriber,
+    Event,
+    Event::BroadcastClaim,
+    EventMessage,
+    EventPublisher,
+    EventRouter,
+    EventSubscriber,
     DEFAULT_BUFFER,
 };
 use mempool::MempoolReadHandleFactory;
@@ -30,8 +35,12 @@ use crate::{
         dag_module::DagModule,
         dkg_module::{self, DkgModuleConfig},
         election_module::{
-            ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult,
-            QuorumElection, QuorumElectionResult,
+            ElectionModule,
+            ElectionModuleConfig,
+            MinerElection,
+            MinerElectionResult,
+            QuorumElection,
+            QuorumElectionResult,
         },
         farmer_module::{self, PULL_TXN_BATCH_SIZE},
         harvester_module,
@@ -43,7 +52,8 @@ use crate::{
         state_module::{StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
-    RuntimeComponent, RuntimeComponents,
+    RuntimeComponent,
+    RuntimeComponents,
 };
 
 pub async fn setup_runtime_components(

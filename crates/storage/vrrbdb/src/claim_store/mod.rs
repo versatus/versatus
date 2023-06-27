@@ -156,8 +156,8 @@ impl<D: Database> ClaimStore<D> {
     //    /// Updates an Claim in the database under given PublicKey
     //    ///
     //    /// If succesful commits the change. Otherwise returns an error.
-    //    pub fn update(&mut self, key: NodeId, update: UpdateArgs) -> Result<()> {ClaimStoreRead
-    //        self.commit_changes();
+    //    pub fn update(&mut self, key: NodeId, update: UpdateArgs) -> Result<()>
+    // {ClaimStoreRead        self.commit_changes();
     //        Ok(())
     //    }
     //
