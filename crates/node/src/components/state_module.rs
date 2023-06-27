@@ -693,7 +693,10 @@ mod tests {
 
     use super::*;
     use crate::test_utils::{
-        produce_accounts, produce_convergence_block, produce_genesis_block, produce_proposal_blocks,
+        produce_accounts,
+        produce_convergence_block,
+        produce_genesis_block,
+        produce_proposal_blocks,
     };
 
     #[tokio::test]
