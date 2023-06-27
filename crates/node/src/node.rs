@@ -20,8 +20,14 @@ use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
 use crate::{
-    node_health_report::NodeHealthReport, result::Result, runtime::setup_runtime_components,
-    NodeError, NodeState, OptionalRuntimeHandle, RaptorHandle, SchedulerHandle,
+    node_health_report::NodeHealthReport,
+    result::Result,
+    runtime::setup_runtime_components,
+    NodeError,
+    NodeState,
+    OptionalRuntimeHandle,
+    RaptorHandle,
+    SchedulerHandle,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
