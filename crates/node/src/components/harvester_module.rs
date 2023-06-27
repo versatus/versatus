@@ -12,7 +12,11 @@ use events::{Event, EventMessage, EventPublisher, JobResult, Vote};
 use hbbft::crypto::{PublicKeyShare, SignatureShare};
 use patriecia::Database;
 use primitives::{
-    GroupPublicKey, HarvesterQuorumThreshold, NodeIdx, QuorumThreshold, RawSignature,
+    GroupPublicKey,
+    HarvesterQuorumThreshold,
+    NodeIdx,
+    QuorumThreshold,
+    RawSignature,
 };
 use ritelinked::LinkedHashMap;
 use signer::signer::{SignatureProvider, Signer};
