@@ -1,6 +1,8 @@
 use node::{
     test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
-    Node, NodeState, RuntimeModuleState,
+    Node,
+    NodeState,
+    RuntimeModuleState,
 };
 use primitives::node::NodeType;
 use serial_test::serial;
@@ -17,11 +19,12 @@ async fn node_can_start_as_a_bootstrap_node() {
         .await
         .unwrap();
 
+    assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
+
     assert!(vrrb_node.is_bootstrap());
     let is_cancelled = vrrb_node.stop().await.unwrap();
 
     assert!(is_cancelled);
-    assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 }
 
 #[tokio::test]
@@ -55,7 +58,8 @@ async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
 
     assert!(vrrb_node.is_bootstrap());
 
+    assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
+
     let is_cancelled = vrrb_node.stop().await.unwrap();
     assert!(is_cancelled);
-    assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
 }

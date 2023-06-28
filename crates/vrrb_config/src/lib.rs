@@ -32,6 +32,7 @@ mod tests {
             .http_api_shutdown_timeout(None)
             .node_type(NodeType::Full)
             .kademlia_liveness_address(addr)
+            .kademlia_peer_id(None)
             .rendezvous_local_address(addr)
             .rendezvous_server_address(addr)
             .public_ip_address(addr)
