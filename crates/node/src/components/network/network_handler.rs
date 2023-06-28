@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
 use events::{Event, EventPublisher};
 use primitives::NodeId;
+use tracing::error;
 
 use crate::{components::network::NetworkEvent, NodeError};
 
@@ -45,6 +46,18 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     .send(evt.into())
                     .await
                     .map_err(NodeError::from)?;
+            },
+            NetworkEvent::PartMessage(sender_id, part_committment) => {
+                if let Err(err) = self
+                    .events_tx
+                    .send(Event::PartMessage(sender_id, part_committment).into())
+                    .await
+                {
+                    error!(
+                        "Error occurred while sending event to dkg module: {:?}",
+                        err
+                    );
+                }
             },
 
             _ => {},

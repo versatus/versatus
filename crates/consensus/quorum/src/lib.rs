@@ -9,7 +9,7 @@ mod tests {
         net::SocketAddr,
     };
 
-    use primitives::Address;
+    use primitives::{Address, RaptorUdpPort};
     use sha256::digest;
     use vrrb_core::{claim::Claim, keypair::KeyPair};
 
@@ -19,6 +19,8 @@ mod tests {
     fn it_works() {
         assert_eq!(2 + 2, 4);
     }
+
+    pub(crate) const TEST_PORT_NUMBER : RaptorUdpPort = 1023;
 
     #[test]
     fn not_enough_claims() {
@@ -31,7 +33,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -39,7 +41,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();
@@ -79,7 +81,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -87,7 +89,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();
@@ -122,7 +124,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -130,7 +132,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();
@@ -162,7 +164,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -170,7 +172,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();
@@ -206,7 +208,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -214,7 +216,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();
@@ -250,7 +252,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -258,7 +260,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();
@@ -298,7 +300,7 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
@@ -306,7 +308,7 @@ mod tests {
                 public_key,
                 Address::new(public_key),
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 signature,
             )
             .unwrap();

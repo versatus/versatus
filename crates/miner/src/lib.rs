@@ -30,7 +30,7 @@ mod tests {
         create_miner_from_keypair_and_dag, create_miner_from_keypair_return_dag,
         create_miner_return_dag, create_txns, mine_genesis,
     };
-
+  pub (crate) const TEST_PORT_NUMBER:u16=1023;
     #[test]
     fn test_create_miner() {
         let kp = Keypair::random();
@@ -39,7 +39,7 @@ mod tests {
         let signature = Claim::signature_for_valid_claim(
             kp.miner_kp.1.clone(),
             ip_address.clone(),
-            1023,
+            TEST_PORT_NUMBER,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
@@ -47,7 +47,7 @@ mod tests {
             kp.miner_kp.1.clone(),
             address.clone(),
             ip_address,
-            1023,
+            TEST_PORT_NUMBER,
             signature,
         )
         .unwrap();

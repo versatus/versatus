@@ -23,6 +23,7 @@ use crate::{result::MinerError, Miner, MinerConfig};
 /// Move this into primitives and call it simply `BlockDag`
 pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
 
+pub (crate) const TEST_PORT_NUMBER:u16=1023;
 /// Helper function to create a random Miner.
 pub fn create_miner() -> Miner {
     let (secret_key, public_key) = create_keypair();
@@ -32,7 +33,7 @@ pub fn create_miner() -> Miner {
         secret_key,
         public_key,
         ip_address,
-        raptor_port: 1023,
+        raptor_port: TEST_PORT_NUMBER,
         dag,
     };
     Miner::new(config).unwrap()
@@ -46,7 +47,7 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     let config = MinerConfig {
         secret_key,
         ip_address,
-        raptor_port: 1023,
+        raptor_port: TEST_PORT_NUMBER,
         public_key,
         dag,
     };
@@ -178,9 +179,9 @@ pub fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
         let addr = create_address(&pk);
         let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
         let signature =
-            Claim::signature_for_valid_claim(pk, ip_address, 1023, sk.secret_bytes().to_vec())
+            Claim::signature_for_valid_claim(pk, ip_address, TEST_PORT_NUMBER, sk.secret_bytes().to_vec())
                 .unwrap();
-        let claim = create_claim(&pk, &addr, ip_address, 1023, signature);
+        let claim = create_claim(&pk, &addr, ip_address, TEST_PORT_NUMBER, signature);
         (claim.hash, claim)
     })
 }
@@ -254,11 +255,11 @@ pub fn build_multiple_proposal_blocks_single_round(
             let signature = Claim::signature_for_valid_claim(
                 public_key,
                 ip_address,
-                1023,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim = Claim::new(public_key, address, ip_address, 1023, signature).unwrap();
+            let claim = Claim::new(public_key, address, ip_address, TEST_PORT_NUMBER, signature).unwrap();
             let prop = build_single_proposal_block(
                 last_block_hash.clone(),
                 n_txns,

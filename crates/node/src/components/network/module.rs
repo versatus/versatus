@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
+use chrono::Utc;
+use dyswarm::types::Message;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -408,7 +410,7 @@ impl Handler<EventMessage> for NetworkModule {
             },
             Event::ElectedQuorum(quorum) => {
                 let addresses = self.dyswarm_client.get_peer_connections();
-                let _ = self.dyswarm_client.remove_peers(addresses.clone());
+                self.dyswarm_client.remove_peers(addresses.clone());
                 self.dyswarm_client.clear_connection_list();
 
                 let quic_addresses: Vec<SocketAddr> = quorum
@@ -428,6 +430,27 @@ impl Handler<EventMessage> for NetworkModule {
                 self.dyswarm_client.add_raptor_peers(raptor_addresses);
                 if let Err(err) = self.events_tx.send(Event::DkgInitiate.into()).await {
                     error!("Error occurred while sending event to publisher: {}", err);
+                }
+            },
+            Event::SendPartMessage(node_id, part_commitment) => {
+                let msg = Message {
+                    id: dyswarm::types::MessageId::new_v4(),
+                    timestamp: Utc::now().timestamp(),
+                    data: NetworkEvent::PartMessage(node_id, part_commitment),
+                };
+                if let Err(err) = self
+                    .dyswarm_client
+                    .broadcast(BroadcastArgs {
+                        config: BroadcastConfig { unreliable: false },
+                        message: msg,
+                        erasure_count: 0,
+                    })
+                    .await
+                {
+                    error!(
+                        "Error occurred during broadcasting part committment: {:?}",
+                        err
+                    );
                 }
             },
 

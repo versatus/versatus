@@ -5,10 +5,7 @@ use block::{
 };
 use ethereum_types::U256;
 use mempool::TxnRecord;
-use primitives::{
-    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, PublicKeyShareVec, QuorumPublicKey,
-    QuorumSize, RawSignature, Round, Seed,
-};
+use primitives::{Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, PartCommitmentBytes, PublicKeyShareVec, QuorumPublicKey, QuorumSize, RawSignature, Round, Seed, SenderId};
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
@@ -126,15 +123,15 @@ pub enum Event {
     /// `AckPartCommitment(u16)` is an event that is triggered when part
     /// commitment has been received from the network, and now it has to be
     /// acknowledged
-    AckPartCommitment(u16),
+    AckPartCommitment(SenderId),
 
     /// `PartMessage(u16,Vec<u8>)` is an event that is triggered when part
     /// message has been received from the network, and has to be recorded
     /// in the part message store.
-    PartMessage(u16, Vec<u8>),
+    PartMessage(SenderId, PartCommitmentBytes),
     /// `SendPartMessage(u16,Vec<u8>)` is an event that is triggered when part message has been received from the network,
     /// and has to be recorded in the part message store.
-    SendPartMessage(u16, Vec<u8>),
+    SendPartMessage(SenderId, PartCommitmentBytes),
 
     /// `SendAck(u16,u16,Vec<u8>)` is an event that is triggered when part commitment has been acknowledged by the
     /// current node ,it has to be broadcasted to the other members of the Elected Quorum.
