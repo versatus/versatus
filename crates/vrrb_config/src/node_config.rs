@@ -13,7 +13,7 @@ use vrrb_core::keypair::Keypair;
 use crate::bootstrap::BootstrapConfig;
 
 #[derive(Builder, Debug, Clone, Deserialize)]
-pub struct NodeConfig {
+pub struct NodeConfig<D: patriecia::Database> {
     /// UUID that identifies each node
     pub id: NodeId,
 
@@ -90,9 +90,11 @@ pub struct NodeConfig {
 
     #[builder(default = "false")]
     pub disable_networking: bool,
+
+    pub backing_storage: Option<D>,
 }
 
-impl NodeConfig {
+impl<D: patriecia::Database> NodeConfig<D> {
     pub fn db_path(&self) -> &PathBuf {
         // TODO: refactor to Option and check if present and return configured db path
         // or default path within vrrb's data dir
@@ -162,6 +164,7 @@ impl Default for NodeConfig {
             keypair: Keypair::random(),
             gui: false,
             disable_networking: false,
+            backing_storage: None,
         }
     }
 }
