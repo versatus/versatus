@@ -177,7 +177,7 @@ impl Claim {
     /// a `Result` type, which can either be `Ok(())` if the signature is valid,
     /// or an `Err(ClaimError)` if the signature is invalid.
     pub fn is_valid_claim(msg_hash: &[u8], signature: String, pub_key: Vec<u8>) -> Result<()> {
-        Keypair::verify_ecdsa_sign(signature, msg_hash, pub_key).map_err(ClaimError::from)
+       Keypair::verify_ecdsa_sign(signature, msg_hash, pub_key).map_err(ClaimError::from)
     }
 
     /// This function updates the IP address of a claim and verifies its
@@ -204,10 +204,12 @@ impl Claim {
         signature: String,
         public_key: PublicKey,
         ip_address: SocketAddr,
+        raptor_port: u16,
     ) -> Result<()> {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string());
         hasher.update(ip_address.to_string());
+        hasher.update(raptor_port.to_string());
         let result = hasher.finalize();
         let hash = U256::from_big_endian(&result[..]);
         let mut msg_hash: Vec<u8> = Vec::new();
@@ -443,7 +445,7 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let status = claim.update_claim_socketaddr(signature, public_key, ip_address_new);
+        let status = claim.update_claim_socketaddr(signature, public_key, ip_address_new,TEST_PORT_NUMBER);
         assert!(status.is_ok());
         assert_eq!(claim.ip_address, ip_address_new);
     }
