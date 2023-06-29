@@ -33,8 +33,8 @@ pub struct MinerElection;
 #[derive(Clone, Debug)]
 pub struct QuorumElection;
 
-pub struct ElectionModuleConfig<D: Database> {
-    pub db_read_handle: VrrbDbReadHandle<D>,
+pub struct ElectionModuleConfig {
+    pub db_read_handle: VrrbDbReadHandle,
     pub events_tx: EventPublisher,
     pub local_claim: Claim,
 }
@@ -46,26 +46,23 @@ pub struct ElectionResult {
     pub node_id: NodeId,
 }
 
-pub struct ElectionModule<E, T, D>
-where
-    E: ElectionType,
-    T: ElectionOutcome,
-    D: Database,
+pub struct ElectionModule<E, T>
+    where
+        E: ElectionType,
+        T: ElectionOutcome,
 {
     _election_type: E,
     status: ActorState,
     id: ActorId,
     _label: ActorLabel,
-    pub db_read_handle: VrrbDbReadHandle<D>,
+    pub db_read_handle: VrrbDbReadHandle,
     pub local_claim: Claim,
     pub outcome: Option<T>,
     pub events_tx: EventPublisher,
 }
 
-impl<D: Database> ElectionModule<MinerElection, MinerElectionResult, D> {
-    pub fn new(
-        config: ElectionModuleConfig<D>,
-    ) -> ElectionModule<MinerElection, MinerElectionResult, D> {
+impl ElectionModule<MinerElection, MinerElectionResult> {
+    pub fn new(config: ElectionModuleConfig) -> ElectionModule<MinerElection, MinerElectionResult> {
         ElectionModule {
             _election_type: MinerElection,
             status: ActorState::Stopped,
@@ -83,10 +80,10 @@ impl<D: Database> ElectionModule<MinerElection, MinerElectionResult, D> {
     }
 }
 
-impl<D: Database> ElectionModule<QuorumElection, QuorumElectionResult, D> {
+impl ElectionModule<QuorumElection, QuorumElectionResult> {
     pub fn new(
-        config: ElectionModuleConfig<D>,
-    ) -> ElectionModule<QuorumElection, QuorumElectionResult, D> {
+        config: ElectionModuleConfig,
+    ) -> ElectionModule<QuorumElection, QuorumElectionResult> {
         ElectionModule {
             _election_type: QuorumElection,
             status: ActorState::Stopped,
@@ -103,7 +100,6 @@ impl<D: Database> ElectionModule<QuorumElection, QuorumElectionResult, D> {
         String::from("Quorum Election Module")
     }
 }
-
 impl ElectionType for MinerElection {}
 impl ElectionType for QuorumElection {}
 
@@ -111,7 +107,7 @@ impl ElectionOutcome for MinerElectionResult {}
 impl ElectionOutcome for QuorumElectionResult {}
 
 #[async_trait]
-impl<D: Database> Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult, D> {
+impl Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -160,9 +156,7 @@ impl<D: Database> Handler<EventMessage> for ElectionModule<MinerElection, MinerE
 }
 
 #[async_trait]
-impl<D: Database> Handler<EventMessage>
-    for ElectionModule<QuorumElection, QuorumElectionResult, D>
-{
+impl Handler<EventMessage> for ElectionModule<QuorumElection, QuorumElectionResult> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }

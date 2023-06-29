@@ -1,18 +1,20 @@
 use std::collections::HashMap;
 
 use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::{inner::InnerTrie, Database};
+use patriecia::inner::InnerTrie;
 use primitives::NodeId;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
+use crate::RocksDbAdapter;
+
 #[derive(Debug, Clone)]
-pub struct ClaimStoreReadHandle<D: Database> {
-    inner: InnerTrieWrapper<D>,
+pub struct ClaimStoreReadHandle {
+    inner: InnerTrieWrapper<RocksDbAdapter>,
 }
 
-impl<D: Database> ClaimStoreReadHandle<D> {
-    pub fn new(inner: InnerTrieWrapper<D>) -> Self {
+impl ClaimStoreReadHandle {
+    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
         Self { inner }
     }
 
@@ -66,16 +68,16 @@ impl<D: Database> ClaimStoreReadHandle<D> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ClaimStoreReadHandleFactory<D: Database> {
-    inner: ReadHandleFactory<InnerTrie<D>>,
+pub struct ClaimStoreReadHandleFactory {
+    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
 }
 
-impl<D: Database> ClaimStoreReadHandleFactory<D> {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<D>>) -> Self {
+impl ClaimStoreReadHandleFactory {
+    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> ClaimStoreReadHandle<D> {
+    pub fn handle(&self) -> ClaimStoreReadHandle {
         let handle = self
             .inner
             .handle()

@@ -78,7 +78,7 @@ pub async fn setup_runtime_components(
 
     let mempool_read_handle_factory = mempool_component_handle.data().clone();
 
-    let state_component_handle = StateModule::<RocksDbAdapter>::setup(StateModuleComponentConfig {
+    let state_component_handle = StateModule::setup(StateModuleComponentConfig {
         events_tx: events_tx.clone(),
         state_events_rx: vrrbdb_events_rx,
         node_config: config.clone(),
@@ -251,10 +251,10 @@ pub async fn setup_runtime_components(
     Ok(runtime_components)
 }
 
-async fn setup_rpc_api_server<'a, D: 'static + Database>(
+async fn setup_rpc_api_server(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(Option<JoinHandle<Result<()>>>, SocketAddr)> {
@@ -294,10 +294,10 @@ async fn setup_rpc_api_server<'a, D: 'static + Database>(
     Ok((jsonrpc_server_handle, resolved_jsonrpc_server_addr))
 }
 
-fn setup_mining_module<D: Database + 'static>(
+fn setup_mining_module(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    vrrbdb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     mut miner_events_rx: EventSubscriber,
@@ -376,10 +376,10 @@ fn setup_dkg_module(
     }
 }
 
-fn setup_miner_election_module<D: Database + 'static>(
+fn setup_miner_election_module(
     events_tx: EventPublisher,
     mut miner_election_events_rx: EventSubscriber,
-    db_read_handle: VrrbDbReadHandle<D>,
+    db_read_handle: VrrbDbReadHandle,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module_config = ElectionModuleConfig {
@@ -387,8 +387,8 @@ fn setup_miner_election_module<D: Database + 'static>(
         events_tx,
         local_claim,
     };
-    let module: ElectionModule<MinerElection, MinerElectionResult, D> =
-        { ElectionModule::<MinerElection, MinerElectionResult, D>::new(module_config) };
+    let module: ElectionModule<MinerElection, MinerElectionResult> =
+        { ElectionModule::<MinerElection, MinerElectionResult>::new(module_config) };
 
     let mut miner_election_module_actor = ActorImpl::new(module);
     let miner_election_module_handle = tokio::spawn(async move {
@@ -401,11 +401,11 @@ fn setup_miner_election_module<D: Database + 'static>(
     Ok(Some(miner_election_module_handle))
 }
 
-fn setup_quorum_election_module<D: Database + 'static>(
+fn setup_quorum_election_module(
     _config: &NodeConfig,
     events_tx: EventPublisher,
     mut quorum_election_events_rx: EventSubscriber,
-    db_read_handle: VrrbDbReadHandle<D>,
+    db_read_handle: VrrbDbReadHandle,
     local_claim: Claim,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module_config = ElectionModuleConfig {
@@ -414,8 +414,8 @@ fn setup_quorum_election_module<D: Database + 'static>(
         local_claim,
     };
 
-    let module: ElectionModule<QuorumElection, QuorumElectionResult, D> =
-        { ElectionModule::<QuorumElection, QuorumElectionResult, D>::new(module_config) };
+    let module: ElectionModule<QuorumElection, QuorumElectionResult> =
+        { ElectionModule::<QuorumElection, QuorumElectionResult>::new(module_config) };
 
     let mut quorum_election_module_actor = ActorImpl::new(module);
     let quorum_election_module_handle = tokio::spawn(async move {
@@ -459,14 +459,14 @@ fn setup_farmer_module(
     Ok(Some(farmer_handle))
 }
 
-fn setup_harvester_module<D: Database + 'static>(
+fn setup_harvester_module(
     config: &NodeConfig,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     sync_jobs_sender: Sender<Job>,
     async_jobs_sender: Sender<Job>,
     broadcast_events_tx: EventPublisher,
     events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
-    vrrb_db_handle: VrrbDbReadHandle<D>,
+    vrrb_db_handle: VrrbDbReadHandle,
     mut harvester_events_rx: EventSubscriber,
 ) -> Result<Option<JoinHandle<Result<()>>>> {
     let module = harvester_module::HarvesterModule::new(
@@ -535,14 +535,14 @@ fn setup_indexer_module(
     Ok(Some(indexer_handle))
 }
 
-fn setup_scheduler_module<D: Database>(
+fn setup_scheduler_module(
     config: &NodeConfig,
     sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle<D>,
-) -> JobSchedulerController<D> {
+    vrrbdb_read_handle: VrrbDbReadHandle,
+) -> JobSchedulerController {
     JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
         events_tx,

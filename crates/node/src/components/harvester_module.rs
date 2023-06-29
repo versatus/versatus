@@ -110,14 +110,13 @@ pub const BLOCK_CERTIFICATES_CACHE_LIMIT: usize = 5;
 ///   executed by the Scheduler.
 /// * `async_jobs_sender`: A Sender object used to send asynchronous jobs to be
 ///   executed by the Scheduler.
-
-pub struct HarvesterModule<D: Database> {
+pub struct HarvesterModule {
     pub quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub certified_txns_filter: Bloom,
     pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub group_public_key: GroupPublicKey,
     pub sig_provider: Option<SignatureProvider>,
-    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub convergence_block_certificates:
         Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
     pub harvester_id: NodeIdx,
@@ -133,7 +132,7 @@ pub struct HarvesterModule<D: Database> {
     pub keypair: KeyPair,
 }
 
-impl<D: Database> HarvesterModule<D> {
+impl HarvesterModule {
     pub fn new(
         certified_txns_filter: Bloom,
         sig_provider: Option<SignatureProvider>,
@@ -144,7 +143,7 @@ impl<D: Database> HarvesterModule<D> {
         dag: Arc<RwLock<BullDag<Block, String>>>,
         sync_jobs_sender: Sender<Job>,
         async_jobs_sender: Sender<Job>,
-        vrrbdb_read_handle: VrrbDbReadHandle<D>,
+        vrrbdb_read_handle: VrrbDbReadHandle,
         keypair: KeyPair,
         harvester_id: NodeIdx,
     ) -> Self {
@@ -223,7 +222,7 @@ impl<D: Database> HarvesterModule<D> {
 }
 
 #[async_trait]
-impl<D: Database> Handler<EventMessage> for HarvesterModule<D> {
+impl Handler<EventMessage> for HarvesterModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -634,7 +633,7 @@ mod tests {
 
         let vrrbdb_read_handle = db.read_handle();
 
-        let harvester_swarm_module = HarvesterModule::<RocksDbAdapter>::new(
+        let harvester_swarm_module = HarvesterModule::new(
             Bloom::new(10000),
             None,
             vec![],

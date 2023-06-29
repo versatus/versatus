@@ -8,8 +8,7 @@ use serial_test::serial;
 #[test]
 #[serial]
 fn claims_can_be_added() {
-    let mut db = VrrbDb::<MemoryDB>::new(VrrbDbConfig::default());
-
+    let mut db = VrrbDb::new(VrrbDbConfig::default());
     let claim1 = _generate_random_claim();
     let claim2 = _generate_random_claim();
     let claim3 = _generate_random_claim();

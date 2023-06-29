@@ -9,7 +9,7 @@ use serial_test::serial;
 #[test]
 #[serial]
 fn accounts_can_be_added() {
-    let mut db = VrrbDb::<MemoryDB>::new(VrrbDbConfig::default());
+    let mut db = VrrbDb::new(VrrbDbConfig::default());
 
     let (_, addr1) = _generate_random_address();
     let (_, addr2) = _generate_random_address();

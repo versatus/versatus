@@ -10,7 +10,6 @@ use node_write_service::v1::{
     Token as NodeToken,
     TransactionRecord,
 };
-use patriecia::Database;
 use primitives::NodeType;
 use secp256k1::{ecdsa::Signature, PublicKey};
 use serde::{Deserialize, Serialize};
@@ -109,21 +108,21 @@ impl From<CreateTransactionRequest> for NewTxnArgs {
 }
 
 #[derive(Debug)]
-pub struct NodeWrite<D: Database> {
+pub struct NodeWrite {
     pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub events_tx: EventPublisher,
 }
 
-impl<D: Database + 'static> NodeWrite<D> {
-    pub fn init(self) -> NodeWriteServiceServer<NodeWrite<D>> {
+impl NodeWrite {
+    pub fn init(self) -> NodeWriteServiceServer<NodeWrite> {
         NodeWriteServiceServer::new(self)
     }
 }
 
 #[tonic::async_trait]
-impl<D: Database + 'static> NodeWriteService for NodeWrite<D> {
+impl NodeWriteService for NodeWrite {
     async fn create_transaction(
         &self,
         request: Request<CreateTransactionRequest>,

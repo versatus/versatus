@@ -365,7 +365,7 @@ mod tests {
         let db = VrrbDb::new(db_config);
         let vrrbdb_read_handle = db.read_handle();
 
-        let mut job_scheduler = JobSchedulerController::<RocksDbAdapter>::new(
+        let mut job_scheduler = JobSchedulerController::new(
             vec![0],
             events_tx,
             sync_jobs_receiver,

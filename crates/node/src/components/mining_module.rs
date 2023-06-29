@@ -11,26 +11,26 @@ use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler};
 use vrrb_core::txn::Txn;
 
-pub struct MiningModule<D: Database> {
+pub struct MiningModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
     miner: Miner,
-    _vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    _vrrbdb_read_handle: VrrbDbReadHandle,
     _mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 #[derive(Debug, Clone)]
-pub struct MiningModuleConfig<D: Database> {
+pub struct MiningModuleConfig {
     pub events_tx: EventPublisher,
     pub miner: Miner,
-    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
-impl<D: Database> MiningModule<D> {
-    pub fn new(cfg: MiningModuleConfig<D>) -> Self {
+impl MiningModule {
+    pub fn new(cfg: MiningModuleConfig) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             label: String::from("Miner"),
@@ -42,7 +42,7 @@ impl<D: Database> MiningModule<D> {
         }
     }
 }
-impl<D: Database> MiningModule<D> {
+impl MiningModule {
     fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
         let mut handle = self._mempool_read_handle_factory.handle();
 
@@ -60,7 +60,7 @@ impl<D: Database> MiningModule<D> {
 }
 
 #[async_trait]
-impl<D: Database> Handler<EventMessage> for MiningModule<D> {
+impl Handler<EventMessage> for MiningModule {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -146,4 +146,4 @@ impl<D: Database> Handler<EventMessage> for MiningModule<D> {
 }
 
 // TODO: figure out how to avoid this
-unsafe impl<D: Database> Send for MiningModule<D> {}
+unsafe impl Send for MiningModule {}

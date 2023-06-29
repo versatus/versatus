@@ -1,27 +1,45 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use lr_trie::{LeftRightTrie, Proof, H256};
-use patriecia::Database;
 use storage_utils::Result;
 use vrrb_core::txn::{TransactionDigest, Txn};
+
+use crate::RocksDbAdapter;
 
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
 
-#[derive(Debug, Clone, Default)]
-pub struct TransactionStore<D: Database> {
-    trie: LeftRightTrie<'static, TransactionDigest, Txn, D>,
+#[derive(Debug, Clone)]
+pub struct TransactionStore {
+    trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter>,
 }
 
-impl<D: Database> TransactionStore<D> {
+impl Default for TransactionStore {
+    fn default() -> Self {
+        let db_path = storage_utils::get_node_data_dir()
+            .unwrap_or_default()
+            .join("db")
+            .join("transactions");
+
+        let db_adapter = RocksDbAdapter::new(db_path, "transactions").unwrap_or_default();
+
+        let trie = LeftRightTrie::new(Arc::new(db_adapter));
+
+        Self { trie }
+    }
+}
+
+impl TransactionStore {
     /// Returns new, empty instance of TransactionStore
-    pub fn new(db_adapter: D) -> Self {
+    pub fn new(path: &Path) -> Self {
+        let path = path.join("transactions");
+        let db_adapter = RocksDbAdapter::new(path, "transactions").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }
     }
 
-    pub fn factory(&self) -> TransactionStoreReadHandleFactory<D> {
+    pub fn factory(&self) -> TransactionStoreReadHandleFactory {
         let inner = self.trie.factory();
 
         TransactionStoreReadHandleFactory::new(inner)
@@ -31,7 +49,7 @@ impl<D: Database> TransactionStore<D> {
         self.trie.publish();
     }
 
-    pub fn read_handle(&self) -> TransactionStoreReadHandle<D> {
+    pub fn read_handle(&self) -> TransactionStoreReadHandle {
         let inner = self.trie.handle();
         TransactionStoreReadHandle::new(inner)
     }

@@ -280,14 +280,14 @@ impl NetworkModule {
 }
 
 #[derive(Debug)]
-pub struct NetworkModuleComponentConfig<D: Database> {
+pub struct NetworkModuleComponentConfig {
     pub config: NodeConfig,
 
     // TODO: remove this attribute
     pub node_id: NodeId,
     pub events_tx: EventPublisher,
     pub network_events_rx: EventSubscriber,
-    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
 }
 
 #[derive(Debug, Clone)]
@@ -299,12 +299,11 @@ pub struct NetworkModuleComponentResolvedData {
 }
 
 #[async_trait]
-impl<D: Database + 'static>
-    RuntimeComponent<NetworkModuleComponentConfig<D>, NetworkModuleComponentResolvedData>
-    for NetworkModule
+impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolvedData>
+for NetworkModule
 {
     async fn setup(
-        args: NetworkModuleComponentConfig<D>,
+        args: NetworkModuleComponentConfig,
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
 

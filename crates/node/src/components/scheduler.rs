@@ -48,13 +48,13 @@ use crate::NodeError;
 /// JobSchedulerController to retrieve data from the database as needed for its
 /// job scheduling tasks. The specific implementation and functionality of
 /// VrrbDbReadHandle would depend on
-pub struct JobSchedulerController<D: Database> {
+pub struct JobSchedulerController{
     pub job_scheduler: JobScheduler,
     events_tx: EventPublisher,
     sync_jobs_receiver: Receiver<Job>,
     _async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
-    pub vrrbdb_read_handle: VrrbDbReadHandle<D>,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
 }
 
 pub enum Job {
@@ -82,14 +82,14 @@ pub enum Job {
     SignConvergenceBlock(SignatureProvider, ConvergenceBlock),
 }
 
-impl<D: Database> JobSchedulerController<D> {
+impl JobSchedulerController {
     pub fn new(
         peer_id: PeerID,
         events_tx: EventPublisher,
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
-        vrrbdb_read_handle: VrrbDbReadHandle<D>,
+        vrrbdb_read_handle: VrrbDbReadHandle,
     ) -> Self {
         Self {
             job_scheduler: JobScheduler::new(peer_id),
