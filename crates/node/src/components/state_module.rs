@@ -13,7 +13,13 @@ use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
-use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{
+    RocksDbAdapter,
+    StateStoreReadHandle,
+    VrrbDb,
+    VrrbDbConfig,
+    VrrbDbReadHandle,
+};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::NodeConfig;
@@ -619,6 +625,10 @@ impl Handler<EventMessage> for StateModule {
                     telemetry::error!("error updating state: {}", err);
                 }
             },
+            Event::ClaimCreated(claim) => {},
+            Event::ClaimReceived(claim) => {
+                telemetry::info!("Storing claim from: {}", claim.address);
+            },
             Event::NoOp => {},
             _ => {},
         }
@@ -824,7 +834,8 @@ mod tests {
 
     #[tokio::test]
     async fn vrrbdb_should_update_with_new_block() {
-        let db_config = VrrbDbConfig::default();
+        let path = std::env::temp_dir().join("db");
+        let db_config = VrrbDbConfig::default().with_path(path);
         let db = VrrbDb::new(db_config);
         let accounts: Vec<(Address, Account)> = produce_accounts(5);
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));

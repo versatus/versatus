@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
-use events::EventPublisher;
+use events::{Event, EventPublisher};
 use primitives::NodeId;
 
-use crate::components::network::NetworkEvent;
+use crate::{components::network::NetworkEvent, NodeError};
 
 #[derive(Debug, Clone)]
 pub struct DyswarmHandler {
@@ -33,11 +33,18 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
             },
             NetworkEvent::ClaimCreated { node_id, claim } => {
                 telemetry::info!(
-                    "Node ID {} recieved claim from {}: {:#?}",
+                    "Node ID {} recieved claim from {}: {}",
                     self.node_id,
                     node_id,
                     claim.public_key
                 );
+
+                let evt = Event::ClaimReceived(claim);
+
+                self.events_tx
+                    .send(evt.into())
+                    .await
+                    .map_err(NodeError::from)?;
             },
 
             _ => {},
