@@ -627,7 +627,6 @@ impl Handler<EventMessage> for StateModule {
             },
             Event::ClaimCreated(claim) => {},
             Event::ClaimReceived(claim) => {
-                // dbg!(&claim.address);
                 telemetry::info!("Storing claim from: {}", claim.address);
             },
             Event::NoOp => {},
