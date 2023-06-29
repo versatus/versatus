@@ -577,9 +577,7 @@ impl Handler<EventMessage> for HarvesterModule {
                 }
             },
             Event::NoOp => {},
-            _ => {
-                error!("Unexpected event,Can only certify Txns and Convergence block,and can mine proposal block");
-            },
+            _ => {},
         }
 
         Ok(ActorState::Running)
