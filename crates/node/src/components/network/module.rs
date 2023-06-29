@@ -64,7 +64,7 @@ pub struct NetworkModuleConfig {
     pub events_tx: EventPublisher,
 }
 
-#[deprecated(note = "node types will be removed from kademlia-dh-rs soon")]
+#[deprecated(note = "node types will be removed from kademlia-dh-rs")]
 pub fn convert_node_type(node_type: NodeType) -> KNodeType {
     match node_type {
         NodeType::Bootstrap => KNodeType::Bootstrap,
