@@ -54,6 +54,7 @@ members = [
     "crates/utils",
     "crates/vrrb_http",
     "crates/vrrb_grpc",
+    "crates/wasm_loader",
 ]
 
 [workspace.dependencies]

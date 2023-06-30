@@ -1,0 +1,13 @@
+[package]
+name = "wasm_loader"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.10.0"
+log = "0.4"
+test-log = "0.2.12"
+wasmer = "4.0.0"
+wasmparser = "0.107.0"
