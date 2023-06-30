@@ -9,17 +9,13 @@ use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
 use events::{
-    Event,
-    Event::BroadcastClaim,
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    EventSubscriber,
+    Event, Event::BroadcastClaim, EventMessage, EventPublisher, EventRouter, EventSubscriber,
     DEFAULT_BUFFER,
 };
 use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
 use primitives::{Address, NodeType, QuorumType::Farmer};
+use std::time::Duration;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl};
@@ -34,12 +30,8 @@ use crate::{
         dag_module::DagModule,
         dkg_module::{self, DkgModuleConfig},
         election_module::{
-            ElectionModule,
-            ElectionModuleConfig,
-            MinerElection,
-            MinerElectionResult,
-            QuorumElection,
-            QuorumElectionResult,
+            ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult,
+            QuorumElection, QuorumElectionResult,
         },
         farmer_module::{self, PULL_TXN_BATCH_SIZE},
         harvester_module,
@@ -51,15 +43,14 @@ use crate::{
         state_module::{StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
-    RuntimeComponent,
-    RuntimeComponents,
+    RuntimeComponent, RuntimeComponents,
 };
 
 pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     router: &EventRouter,
     events_tx: EventPublisher,
-) -> Result<RuntimeComponents> {
+) -> Result<(RuntimeComponents, Claim)> {
     let mut config = original_config.clone();
 
     let mut mempool_events_rx = router.subscribe(None)?;
@@ -158,9 +149,21 @@ pub async fn setup_runtime_components(
     )
     .map_err(NodeError::from)?;
 
-    events_tx
-        .send(Event::ClaimCreated(claim.clone()).into())
-        .await?;
+    /*
+    thread::spawn(
+
+        {   thread::sleep(Duration::from_secs(5));
+            let new_events=events_tx.clone();
+            let new_claim=claim.clone();
+            move ||{
+        let rt=tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            new_events
+            .send(Event::ClaimCreated(new_claim.clone()).into())
+            .await;
+        });
+    }});
+    */
 
     let miner_election_handle = setup_miner_election_module(
         events_tx.clone(),
@@ -225,7 +228,7 @@ pub async fn setup_runtime_components(
     let indexer_handle =
         setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
 
-    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
+    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim.clone())?;
 
     let mut node_gui_handle = None;
     if config.gui {
@@ -255,7 +258,7 @@ pub async fn setup_runtime_components(
         node_gui_handle: None,
     };
 
-    Ok(runtime_components)
+    Ok((runtime_components, claim))
 }
 
 async fn setup_rpc_api_server(

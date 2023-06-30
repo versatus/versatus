@@ -18,12 +18,8 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
-    DEFAULT_ERASURE_COUNT,
+    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
+    RuntimeComponentHandle, DEFAULT_ERASURE_COUNT,
 };
 
 #[derive(Debug)]
@@ -252,30 +248,36 @@ impl NetworkModule {
     }
 
     async fn broadcast_claim(&mut self, claim: Claim) -> Result<()> {
-        let closest_nodes = self
-            .node_ref()
-            .get_routing_table()
-            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+        loop {
+            let closest_nodes = self
+                .node_ref()
+                .get_routing_table()
+                .get_closest_nodes(&self.node_ref().node_data().id, 8);
 
-        let socket_address = closest_nodes
-            .iter()
-            .map(|node| node.udp_gossip_addr)
-            .collect();
+            if closest_nodes.len() < 7 {
+                continue;
+            }
+            let socket_address = closest_nodes
+                .iter()
+                .map(|node| node.udp_gossip_addr)
+                .collect();
 
-        self.dyswarm_client.add_peers(socket_address).await?;
+            self.dyswarm_client.add_peers(socket_address).await?;
 
-        let node_id = self.node_id.clone();
+            let node_id = self.node_id.clone();
 
-        let message = dyswarm::types::Message::new(NetworkEvent::ClaimCreated { node_id, claim });
+            let message =
+                dyswarm::types::Message::new(NetworkEvent::ClaimCreated { node_id, claim });
 
-        self.dyswarm_client
-            .broadcast(BroadcastArgs {
-                config: Default::default(),
-                message,
-                erasure_count: 0,
-            })
-            .await?;
-
+            self.dyswarm_client
+                .broadcast(BroadcastArgs {
+                    config: Default::default(),
+                    message,
+                    erasure_count: 0,
+                })
+                .await?;
+            break;
+        }
         Ok(())
     }
 }

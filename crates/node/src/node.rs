@@ -3,10 +3,7 @@ use std::net::SocketAddr;
 use events::{
     Event,
     Event::{FetchPeers, PullCandidatesForElection},
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    Topic,
+    EventMessage, EventPublisher, EventRouter, Topic,
 };
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;
@@ -17,17 +14,11 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 use vrrb_config::NodeConfig;
-use vrrb_core::keypair::KeyPair;
+use vrrb_core::{claim::Claim, keypair::KeyPair};
 
 use crate::{
-    node_health_report::NodeHealthReport,
-    result::Result,
-    runtime::setup_runtime_components,
-    NodeError,
-    NodeState,
-    OptionalRuntimeHandle,
-    RaptorHandle,
-    SchedulerHandle,
+    node_health_report::NodeHealthReport, result::Result, runtime::setup_runtime_components,
+    NodeError, NodeState, OptionalRuntimeHandle, RaptorHandle, SchedulerHandle,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -43,6 +34,8 @@ pub struct Node {
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
+    events_tx: EventPublisher,
+    claim: Claim,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
@@ -65,7 +58,7 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
-        let runtime_components =
+        let (runtime_components, claim) =
             setup_runtime_components(&config, &router, events_tx.clone()).await?;
 
         let runtime_component_handles = vec![
@@ -89,7 +82,7 @@ impl Node {
         let runtime_control_handle = tokio::spawn(Self::run_node_main_process(
             config.id.clone(),
             cloned_token,
-            events_tx,
+            events_tx.clone(),
             runtime_component_handles,
             router_handle,
             runtime_components.raptor_handle,
@@ -103,6 +96,8 @@ impl Node {
             keypair,
             cancel_token,
             runtime_control_handle,
+            events_tx: events_tx.clone(),
+            claim,
         })
     }
 
@@ -147,9 +142,6 @@ impl Node {
 
         Ok(())
     }
-
-    /// Stops a [Node].
-    /// Returns `true` if it's successfully terminated.
     pub async fn stop(self) -> Result<bool> {
         self.cancel_token.cancel();
         let cancelled = self.cancel_token.is_cancelled();
@@ -157,6 +149,13 @@ impl Node {
             .await?
             .map_err(|err| NodeError::Other(err.to_string()))?;
         Ok(cancelled)
+    }
+    pub async fn send_claim(&self) {
+        let new_events = self.events_tx.clone();
+        let new_claim = self.claim.clone();
+        new_events
+            .send(Event::ClaimCreated(new_claim.clone()).into())
+            .await;
     }
 
     pub async fn config(&self) -> NodeConfig {

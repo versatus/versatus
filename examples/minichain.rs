@@ -1,4 +1,8 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    thread,
+    time::Duration,
+};
 
 use node::{
     test_utils::{self, generate_nodes_pattern, send_data_over_quic},
@@ -47,7 +51,13 @@ async fn main() {
         nodes.push(node);
     }
 
+    let mut new_nodes = vec![];
     for node in nodes {
+        node.send_claim().await;
+        new_nodes.push(node);
+    }
+    thread::sleep(Duration::from_secs(10));
+    for node in new_nodes {
         println!(
             "shutting down node {} type {:?}",
             node.id(),
@@ -57,3 +67,13 @@ async fn main() {
         node.stop().await.unwrap();
     }
 }
+
+// A node boostrap node
+
+// Claim---> Broadcasting
+
+//Node 1
+//Node 2 2mins
+//Node 3 5mins
+
+// Node 10 ,7mins
