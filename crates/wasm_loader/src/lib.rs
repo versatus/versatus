@@ -7,9 +7,26 @@
 pub mod wasm_loader {
     use std::collections::HashMap;
 
-    use log::{debug, info};
+    //use log::{debug, info};
+    use telemetry::log::{debug,info};
     use wasmer::wat2wasm;
     use wasmparser::{Parser, Payload};
+
+    // Constants
+    /// The primary namespace used by WASI implementations.
+    const WASI_NAMESPACE_PREVIEW1: &str = "wasi_snapshot_preview1";
+    /// The namespace used by Javy for JS->WASM.
+    const JAVY_NAMESPACE_QUICKJS: &str = "javy_quickjs_provider_v1";
+    /// The magic bytes at the start of every WASM v1 object.
+    const WASM_MAGIC: &[u8; 4] = &[0x00, 0x61, 0x73, 0x6d];
+    /// The offset from which to have the WASM parser start. Currently always 0.
+    const WASM_PARSE_OFFSET: u64 = 0;
+    /// Default entry point for WASM modules (think main()).
+    const WASI_ENTRY_POINT: &str = "_start";
+    /// A VRRB-specific magic string potentially exported by modules
+    const VRRB_WASM_MAGIC: &str = "_vrrb_abi_magic";
+    /// A VRRB-specific version number potentially exported by modules
+    const VRRB_WASM_VERSION: &str = "_vrrb_abi_version";
 
     /// A struct to represent some loaded and parsed WASM.
     #[derive(Default, Debug)]
@@ -20,7 +37,7 @@ pub mod wasm_loader {
         /// Represents the size of the WASM binary.
         wasm_size: usize,
         /// True is this module uses WASI interfaces. Currently tested by the
-        /// presence of the "wasi_snapshot_preview1" namespace.
+        /// presence of the [WASI_NAMESPACE_PREVIEW1] namespace.
         is_wasi: bool,
         /// True if this WASM module was compiled with Javy and needs the
         /// quickjs library.
@@ -59,16 +76,14 @@ pub mod wasm_loader {
             let mut has_start = false;
             let mut has_vrrb = false;
 
-            let wasm_magic = vec![0x00, 0x61, 0x73, 0x6d]; // '\0asm' -- WASM magic
-                                                           // Read WASM bytes from file
             let mut bytes = std::fs::read(filename)?;
 
-            // If it's not WASM, try converting from WAT first?
-            let byte_header = Vec::from_iter(bytes[0..4].iter().cloned());
-            if byte_header != wasm_magic {
+            // If it's not WASM (checking the magic first 4 bytes), try converting from WAT first.
+            let byte_header = &bytes[0..4];
+            if byte_header != WASM_MAGIC {
                 // It's not WASM, so let's try compiling it from WAT
                 info!("{} isn't WASM, trying to compile from WAT", filename);
-                debug!("{:?} != {:?}", byte_header, wasm_magic);
+                debug!("{:?} != {:?}", byte_header, WASM_MAGIC);
                 bytes = wat2wasm(&bytes)?.into_owned();
                 from_wat = true;
             }
@@ -76,7 +91,7 @@ pub mod wasm_loader {
             // Map of namespaces and the symbols this module expects to import.
             let mut imports_map: HashMap<String, Vec<String>> = HashMap::new();
             // Parse out WASM symbols
-            for payload in Parser::new(0).parse_all(&bytes) {
+            for payload in Parser::new(WASM_PARSE_OFFSET).parse_all(&bytes) {
                 match payload {
                     Ok(p) => {
                         match p {
@@ -89,15 +104,15 @@ pub mod wasm_loader {
                                     //debug!("Export {:?}", export);
 
                                     // Check whether this is an exported entry point
-                                    if export.name == "_start" {
+                                    if export.name == WASI_ENTRY_POINT {
                                         has_start = true;
                                     }
                                     // Or whether it's using any VRRB magic. This should check more
                                     // than just the existence of the global export, and should
                                     // later check the magic number and version as we define those
                                     // interfaces more. XXX.
-                                    if export.name == "_vrrb_abi_magic"
-                                        || export.name == "_vrrb_abi_version"
+                                    if export.name == VRRB_WASM_MAGIC
+                                        || export.name == VRRB_WASM_VERSION
                                     {
                                         has_vrrb = true;
                                     }
@@ -107,7 +122,7 @@ pub mod wasm_loader {
                                 for import in s {
                                     // Create a new vector if one doesn't exist
                                     let import = import?;
-                                    if imports_map.get(import.module) == None {
+                                    if imports_map.get(import.module).is_none() {
                                         imports_map.insert(import.module.to_string(), Vec::new());
                                     }
 
@@ -119,11 +134,11 @@ pub mod wasm_loader {
                                     // Remember having seen certain import namespaces.
                                     // WASI preview1? Note, we should add the WASIX namespace
                                     // later.
-                                    if import.module == "wasi_snapshot_preview1" {
+                                    if import.module == WASI_NAMESPACE_PREVIEW1 {
                                         is_wasi = true;
                                     }
                                     // Javy's dependency namespace?
-                                    if import.module == "javy_quickjs_provider_v1" {
+                                    if import.module == JAVY_NAMESPACE_QUICKJS {
                                         is_javy = true;
                                     }
 
@@ -158,7 +173,7 @@ pub mod wasm_loader {
 
     #[cfg(test)]
     mod tests {
-        use test_log::test;
+        //use test_log::test;
 
         use crate::wasm_loader::WasmLoader;
 
