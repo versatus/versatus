@@ -4,10 +4,9 @@ use std::{
     sync::Arc,
 };
 
-use keccak_hash::H256;
 pub use left_right::ReadHandleFactory;
 use left_right::{ReadHandle, WriteHandle};
-use patriecia::{db::Database, inner::InnerTrie};
+use patriecia::{db::Database, inner::InnerTrie, H256};
 use serde::{Deserialize, Serialize};
 
 use crate::{InnerTrieWrapper, LeftRightTrieError, Operation, Proof, Result};
