@@ -21,6 +21,7 @@ cli = { workspace = true }
 anyhow = { workspace = true }
 node = { workspace = true }
 vrrb_config = { workspace = true }
+vrrb_rpc = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["rusty-hook"]
@@ -53,7 +54,6 @@ members = [
     "crates/telemetry",
     "crates/utils",
     "crates/vrrb_http",
-    "crates/vrrb_grpc",
     "crates/wasm_loader",
 ]
 
@@ -89,7 +89,6 @@ job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
 vrrb_http = { path = "crates/vrrb_http" }
-vrrb_grpc = { path = "crates/vrrb_grpc" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }

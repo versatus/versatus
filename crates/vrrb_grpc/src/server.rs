@@ -56,6 +56,7 @@ impl GrpcServer {
             mempool_read_handle_factory: config.mempool_read_handle_factory.clone(),
             events_tx: config.events_tx.clone(),
         };
+
         let node_write_service = node_write.init();
 
         Server::builder()

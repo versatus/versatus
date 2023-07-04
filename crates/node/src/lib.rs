@@ -4,9 +4,16 @@ pub mod node;
 mod runtime_component;
 mod runtime_module;
 
-pub mod components;
+pub(crate) mod api;
+pub(crate) mod consensus;
+pub(crate) mod dag_module;
+pub(crate) mod indexer_module;
+pub(crate) mod mining_module;
+pub(crate) mod network;
 pub(crate) mod node_health_report;
 pub(crate) mod runtime;
+pub(crate) mod state_manager;
+pub(crate) mod ui;
 
 pub mod test_utils;
 
@@ -16,10 +23,6 @@ pub use runtime_component::*;
 pub use runtime_module::*;
 
 pub use crate::node::*;
-
-/// The maximum size in kilobytes of transactions that can be in the mempool at
-/// any given time.
-pub(crate) const MEMPOOL_THRESHOLD_SIZE: usize = 2048;
 
 /// Represents the number of packets that can be lost and still be able to
 /// reconstruct the message.

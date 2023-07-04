@@ -14,17 +14,20 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use events::{Event, EventMessage, EventPublisher};
+use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
 use telemetry::info;
-use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use tokio::task::JoinHandle;
 use vrrb_core::claim::Claim;
+
+use crate::{NodeError, Result};
 
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
-pub type GraphResult<T> = Result<T, GraphError>;
+pub type GraphResult<T> = std::result::Result<T, GraphError>;
 ///
 /// The runtime module that manages the DAG, both exposing
 /// data within and appending blocks to it.
@@ -50,9 +53,7 @@ pub type GraphResult<T> = Result<T, GraphError>;
 /// ```
 pub struct DagModule {
     status: ActorState,
-    label: ActorLabel,
     id: ActorId,
-    #[allow(unused)]
     events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
@@ -68,7 +69,6 @@ impl DagModule {
     ) -> Self {
         Self {
             status: ActorState::Stopped,
-            label: String::from("Dag"),
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
             dag,
@@ -291,7 +291,7 @@ impl Handler<EventMessage> for DagModule {
     }
 
     fn label(&self) -> ActorLabel {
-        self.label.clone()
+        format!("DAG::{}", self.id())
     }
 
     fn status(&self) -> ActorState {
@@ -303,15 +303,11 @@ impl Handler<EventMessage> for DagModule {
     }
 
     fn on_start(&self) {
-        info!("{}-{} starting", self.label(), self.id(),);
+        info!("{} starting", self.label());
     }
 
     fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.label(),
-            self.id(),
-        );
+        info!("{} received stop signal. Stopping", self.label());
     }
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
@@ -403,6 +399,25 @@ impl Handler<EventMessage> for DagModule {
         }
         Ok(ActorState::Running)
     }
+}
+
+pub fn setup_dag_module(
+    dag: Arc<RwLock<BullDag<Block, String>>>,
+    events_tx: EventPublisher,
+    mut dag_module_events_rx: EventSubscriber,
+    claim: Claim,
+) -> Result<Option<JoinHandle<crate::Result<()>>>> {
+    let module = DagModule::new(dag, events_tx, claim);
+
+    let mut dag_module_actor = ActorImpl::new(module);
+    let dag_module_handle = tokio::spawn(async move {
+        dag_module_actor
+            .start(&mut dag_module_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    Ok(Some(dag_module_handle))
 }
 
 #[cfg(test)]

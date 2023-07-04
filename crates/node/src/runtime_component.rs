@@ -1,4 +1,4 @@
-use std::thread;
+use std::{collections::HashMap, thread};
 
 use tokio::task::JoinHandle;
 use vrrb_config::NodeConfig;
@@ -21,24 +21,34 @@ where
     async fn stop(&mut self) -> Result<()>;
 }
 
+pub type RuntimeComponentLabel = String;
 pub type RuntimeHandle = JoinHandle<Result<()>>;
-pub type OptionalRuntimeHandle = Option<RuntimeHandle>;
+pub type OptionalRuntimeHandle = Option<(RuntimeHandle, RuntimeComponentLabel)>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
 pub type SchedulerHandle = Option<thread::JoinHandle<()>>;
 
 #[derive(Debug)]
 pub struct RuntimeComponentHandle<D: Sized> {
+    label: String,
     task_handle: RuntimeHandle,
     data: D,
 }
 
 impl<D: Sized + Clone> RuntimeComponentHandle<D> {
-    pub fn new(task_handle: RuntimeHandle, data: D) -> Self {
-        Self { task_handle, data }
+    pub fn new(task_handle: RuntimeHandle, data: D, label: String) -> Self {
+        Self {
+            task_handle,
+            data,
+            label,
+        }
     }
 
     pub fn handle(self) -> RuntimeHandle {
         self.task_handle
+    }
+
+    pub fn label(&self) -> String {
+        self.label.clone()
     }
 
     pub fn data(&self) -> D {
@@ -54,22 +64,27 @@ impl<D: Sized + Clone> RuntimeComponentHandle<D> {
     }
 }
 
-#[derive(Debug)]
-pub struct RuntimeComponents {
-    pub node_config: NodeConfig,
-    pub mempool_handle: OptionalRuntimeHandle,
-    pub state_handle: OptionalRuntimeHandle,
-    pub gossip_handle: OptionalRuntimeHandle,
-    pub jsonrpc_server_handle: OptionalRuntimeHandle,
-    pub miner_handle: OptionalRuntimeHandle,
-    pub dkg_handle: OptionalRuntimeHandle,
-    pub miner_election_handle: OptionalRuntimeHandle,
-    pub quorum_election_handle: OptionalRuntimeHandle,
-    pub farmer_handle: OptionalRuntimeHandle,
-    pub harvester_handle: OptionalRuntimeHandle,
-    pub indexer_handle: OptionalRuntimeHandle,
-    pub dag_handle: OptionalRuntimeHandle,
-    pub raptor_handle: RaptorHandle,
-    pub scheduler_handle: SchedulerHandle,
-    pub node_gui_handle: OptionalRuntimeHandle,
+#[derive(Debug, Default)]
+pub struct RuntimeComponentManager {
+    components: HashMap<RuntimeComponentLabel, RuntimeHandle>,
+}
+
+impl RuntimeComponentManager {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Registers a RuntimeComponentHandle within the manager's store.
+    pub fn register_component(&mut self, label: RuntimeComponentLabel, handle: RuntimeHandle) {
+        self.components.insert(label, handle);
+    }
+
+    pub async fn stop(self) -> crate::Result<()> {
+        for (label, handle) in self.components {
+            handle.await??;
+            telemetry::info!("Shutdown complete for {label}");
+        }
+
+        Ok(())
+    }
 }

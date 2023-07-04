@@ -6,6 +6,7 @@ use std::{
     str::FromStr,
 };
 
+// TODO: remove or reconsider base58 encoding
 use bs58::encode;
 use hbbft::crypto::{
     serde_impl::SerdeSecret,
@@ -30,21 +31,23 @@ pub type SecretKeys = (MinerSk, ValidatorSecretKey);
 pub type PublicKeys = (MinerPk, ValidatorPublicKey);
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+/// Represents a set of keys meant to be used to either mine blocks or validate
+/// transactions.
 pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
     pub validator_kp: (ValidatorSecretKey, ValidatorPublicKey),
 }
 
-/// Alias for KeyPair, to avoid frustrations because of subtle typos
+// NOTE: Alias for KeyPair, to avoid frustrations because of subtle typos
 pub type Keypair = KeyPair;
 
 #[derive(Error, Debug)]
 pub enum KeyPairError {
     #[error("Failed to deserialize the secret key from bytes")]
     InvalidKeyPair,
-    #[error("Failed to serialize the  key to bytes, details :{0}")]
+    #[error("Failed to serialize the key to bytes, details: {0}")]
     SerializeKeyError(String, String),
-    #[error("Failed to read key from file ,details :{0}")]
+    #[error("Failed to read key from file, details: {0}")]
     FailedToReadFromFile(String),
     #[error("Invalid Hex represenation of secret key")]
     InvalidHex,
@@ -52,9 +55,9 @@ pub enum KeyPairError {
     IOError(String),
     #[error("Failed to deserialize the public key from bytes")]
     InvalidPublicKey,
-    #[error("Invalid signature ,details : {0}")]
+    #[error("Invalid signature, details: {0}")]
     InvalidSignature(String),
-    #[error("ECDSA Signature Verification failed ,details : {0}")]
+    #[error("ECDSA Signature Verification failed, details: {0}")]
     SignatureVerificationFailed(String),
     #[error("Failed to de-serialize {0} key ")]
     InvalidKey(String),

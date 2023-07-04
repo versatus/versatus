@@ -1,13 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{
-    Event,
-    Event::{FetchPeers, PullCandidatesForElection},
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    Topic,
-};
+use events::{Event, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;
 use tokio::{
@@ -15,7 +8,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::error;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 
@@ -27,6 +19,7 @@ use crate::{
     NodeState,
     OptionalRuntimeHandle,
     RaptorHandle,
+    RuntimeComponentManager,
     SchedulerHandle,
 };
 
@@ -48,7 +41,6 @@ pub struct Node {
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
 impl Node {
-    #[telemetry::instrument(fields(node_id = config.id), skip_all)]
     pub async fn start(config: &NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let config = config.clone();
@@ -65,24 +57,8 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
-        let runtime_components =
+        let (runtime_component_manager, updated_node_config) =
             setup_runtime_components(&config, &router, events_tx.clone()).await?;
-
-        let runtime_component_handles = vec![
-            runtime_components.state_handle,
-            runtime_components.mempool_handle,
-            runtime_components.jsonrpc_server_handle,
-            runtime_components.gossip_handle,
-            runtime_components.dkg_handle,
-            runtime_components.miner_handle,
-            runtime_components.miner_election_handle,
-            runtime_components.quorum_election_handle,
-            runtime_components.farmer_handle,
-            runtime_components.harvester_handle,
-            runtime_components.indexer_handle,
-            runtime_components.dag_handle,
-            runtime_components.node_gui_handle,
-        ];
 
         // TODO: report error from handle
         let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
@@ -90,15 +66,13 @@ impl Node {
             config.id.clone(),
             cloned_token,
             events_tx,
-            runtime_component_handles,
+            runtime_component_manager,
             router_handle,
-            runtime_components.raptor_handle,
-            runtime_components.scheduler_handle,
         ));
 
         let running_status = NodeState::Running;
         Ok(Self {
-            config: runtime_components.node_config,
+            config: updated_node_config,
             running_status,
             keypair,
             cancel_token,
@@ -110,10 +84,8 @@ impl Node {
         id: String,
         cancel_token: CancellationToken,
         events_tx: EventPublisher,
-        runtime_component_handles: Vec<OptionalRuntimeHandle>,
+        runtime_component_manager: RuntimeComponentManager,
         router_handle: JoinHandle<()>,
-        raptor_handle: RaptorHandle,
-        scheduler_handle: SchedulerHandle,
     ) -> Result<()> {
         info!("Node {} is up and running", id);
 
@@ -122,26 +94,9 @@ impl Node {
 
         events_tx.send(Event::Stop.into()).await?;
 
-        for handle in runtime_component_handles {
-            if let Some(handle) = handle {
-                handle.await??;
-                info!("Shutdown complete for handle");
-            }
-        }
+        runtime_component_manager.stop().await?;
 
         router_handle.await?;
-
-        if let Some(handle) = raptor_handle {
-            if let Err(err) = handle.join() {
-                error!("Raptor handle is not shutdown: {err:?}");
-            }
-        }
-
-        if let Some(handle) = scheduler_handle {
-            if let Err(err) = handle.join() {
-                error!("Scheduler handle is not shutdown: {err:?}");
-            }
-        }
 
         info!("Shutdown complete");
 
@@ -156,6 +111,7 @@ impl Node {
         self.runtime_control_handle
             .await?
             .map_err(|err| NodeError::Other(err.to_string()))?;
+
         Ok(cancelled)
     }
 

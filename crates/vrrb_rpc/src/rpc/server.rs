@@ -58,7 +58,7 @@ impl Default for JsonRpcServerConfig {
         let mempool = LeftRightMempool::default();
         let mempool_read_handle_factory = mempool.factory();
 
-        let node_type = NodeType::RPCNode;
+        let node_type = NodeType::Full;
         let (events_tx, _) = channel(DEFAULT_BUFFER);
 
         JsonRpcServerConfig {

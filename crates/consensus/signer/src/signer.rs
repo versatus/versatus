@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, PoisonError, RwLock, RwLockReadGuard},
 };
 
-use dkg_engine::types::{config::ThresholdConfig, DkgState};
+use dkg_engine::{types::config::ThresholdConfig, DkgState};
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
 use primitives::{NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
 

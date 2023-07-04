@@ -54,23 +54,11 @@ pub enum Event {
     /// handling of events.
     Stop,
 
-    /// `FetchPeers(Count),` is an event that is triggered when something
-    /// nearest neighbors within smart are fetched.
-    FetchPeers(Count),
-
-    /// ` DHTStoreRequest(String, String)` is an event that is triggered when
-    /// something is stored in swarm dht.
-    DHTStoreRequest(String, String),
-
     /// `NewTxnCreated(Txn)` is an event that is triggered when a new
     /// transaction is received from the rpc node and needs to be validated.
     /// The `Txn` parameter contains the details of the transaction
     /// that needs to be validated.
     NewTxnCreated(Txn),
-
-    /// `ForwardTxn` is an event that is used to forward a transaction that is
-    /// not meant to be processed by the current quorum to a list of peers.
-    ForwardTxn((TxnRecord, Vec<SocketAddr>)),
 
     /// `TxnValidated(Txn)` is an event that is triggered when a transaction has
     /// been validated by the validator module. The `Txn` parameter contains
@@ -92,6 +80,7 @@ pub enum Event {
     /// from the mempool. This event is used by Harvester to trigger build
     /// of proposal blocks when confirmed transactions in pool reaches a
     /// threshold.
+    #[deprecated]
     MempoolSizeThesholdReached {
         cutoff_transaction: TransactionDigest,
     },
@@ -116,75 +105,8 @@ pub enum Event {
     /// be invalid.
     ClaimAbandoned(NodeId, Claim),
 
-    ///  `SlashClaims`represent slashing of claims of the nodes.More information
-    /// yet to be added.
-    SlashClaims(Vec<String>),
-
-    /// `SyncPeers(Vec<SyncPeerData>)` is an event that is triggered
-    /// periodically, typically every `X` seconds, to synchronize the peers
-    /// of the current Quorum with the Rendezvous nodes. It also includes
-    /// the synchronization of peers from neighboring farmer quorums.
-    SyncPeers(Vec<SyncPeerData>),
-
-    //Event to tell Farmer node to sign the Transaction
-    //the validator module has validated this transaction
-    ValidTxn(TransactionDigest),
-
     /// A peer joined the network, should be added to the node's peer list
     PeerJoined(PeerData),
-
-    /// `DkgInitiate` is an event that is triggered to initiate the distributed
-    /// key generation process for the Quorum after the quorum has been
-    /// elected.
-    DkgInitiate,
-
-    /// `AckPartCommitment(u16)` is an event that is triggered when part
-    /// commitment has been received from the network, and now it has to be
-    /// acknowledged
-    AckPartCommitment(u16),
-
-    /// `PartMessage(u16,Vec<u8>)` is an event that is triggered when part
-    /// message has been received from the network, and has to be recorded
-    /// in the part message store.
-    PartMessage(u16, Vec<u8>),
-
-    /// `SendAck(u16,u16,Vec<u8>)` is an event that is triggered when part
-    /// commitment has been acknowledged by the current node ,it has to be
-    /// broadcasted to the other members of the Elected Quorum.
-    SendAck(u16, u16, Vec<u8>),
-
-    /// `HandleAllAcks` is an event that is triggered to handle all the
-    /// acknowledgments of partial commitments given by Nodes elected for
-    /// Quorum.
-    HandleAllAcks,
-
-    /// `GenerateKeySet` is an event that triggers the generation of a public
-    /// key set from which the distributed group public key can be generated
-    /// for the Quorum. The generated key set serves as the foundation for
-    /// establishing trustworthy and robust Quorum.
-    GenerateKeySet,
-
-    /// `HarvesterPublicKey(Vec<u8>)` is an event that carries a vector of bytes
-    /// representing the public key of a harvester node. This event is used
-    /// to communicate the public key of a harvester node to other nodes in
-    /// the network.
-    HarvesterPublicKey(Vec<u8>),
-
-    /// The`Farm` event represents the process of fetching a batch of
-    /// transactions from the transaction mem-pool and sending them to the
-    /// scheduler. The scheduler then validates and votes on these
-    /// transactions.
-    Farm,
-
-    /// `Vote(Vote, FarmerQuorumThreshold)` is an event that triggered when vote
-    /// on transaction is received from neighboring peers of Quorum.
-    Vote(Vote, FarmerQuorumThreshold),
-
-    /// `MineProposalBlock` is an event that triggers the mining of a proposal
-    /// block by a farmer node after every `X` seconds. The proposal block
-    /// contains a list of transactions that have been validated and certified
-    /// by the farmer node
-    MineProposalBlock(RefHash, Round, Epoch, Claim),
 
     /// `CreateAccountRequested((Address, AccountBytes))` is triggered when
     /// request for Account creation on the chain has been requested.
@@ -194,65 +116,26 @@ pub enum Event {
     /// request for Account updation on the chain has been requested.
     AccountUpdateRequested((Address, AccountBytes)),
 
-    /// `MinerElection(HeaderBytes)` is an event that is triggered after the
-    /// last convergence block is mined and the proposal blocks are built.
-    MinerElection(HeaderBytes),
-
-    /// `ElectedMiner((U256, Claim))` is an event that is triggered after the
-    /// last convergence block is mined and the elected miner mines a new
-    /// convergence block.
-    ElectedMiner((U256, Claim)),
-
-    /// `QuorumElection(HeaderBytes)` is an event that is triggered to initiate
-    /// the Quorum Election process, once the elected candidates have
-    /// broadcasted their claims to each other.
-    QuorumElection(HeaderBytes),
-
-    /// `ElectedQuorum(Quorum)` is an event that is triggered when Quorum is
-    /// successfully elected.
-    ElectedQuorum(Quorum),
-
-    /// `MinedBlock(Block)` is an event that occurs when either the harvester
-    /// has successfully mined a `ProposalBlock` or the miner has
-    /// successfully mined a `ConvergenceBlock`.
-    MinedBlock(Block),
-
-    /// `EmptyPeerSync` is an event that is triggered when a current node has no
-    /// peers.
-    EmptyPeerSync,
-
     /// `PeerSyncFailed(Vec<SocketAddr>)` is an event that is triggered when a
     /// peer address synchronization attempt fails. The `Vec<SocketAddr>`
     /// parameter contains a list of socket addresses of the peers
     /// that failed to synchronize their address.
     PeerSyncFailed(Vec<SocketAddr>),
 
-    /// `ProcessedVotes` is an event that is triggered when a batch of
-    /// transactions has been validated and then voted by node's scheduler.
-    /// The `JobResult` parameter contains the result of the processing, which
-    /// includes the vote . This vote is then broadcasted to other peers to
-    /// certify the transaction once threshold is reached.
-    ProcessedVotes(JobResult),
-
+    // TODO: refactor all the events below
+    // ==========================================================================
+    ///
+    ///
     /// `UpdateState` is an event that triggers the update of the node's state
     /// to a new block hash. This event is used to update the node's state
     /// after a last new convergence block has been certified .
     UpdateState(BlockHash),
 
-    /// `CertifiedTxn(JobResult)` is an event that is triggered when a
-    /// transaction has been certified by a quorum using Job Scheduler. The
-    /// `JobResult` parameter contains the result of the certification process,
-    /// which includes the certified transaction and the certificate that
-    /// proves its validity.
-    CertifiedTxn(JobResult),
-
-    /// `AddHarvesterPeer(SocketAddr)` is an event that is used to add a new
-    /// harvester peer to the farmer node's list of harvester peers.
-    AddHarvesterPeer(SocketAddr),
-
-    /// `RemoveHarvesterPeer(SocketAddr)` is an event that is used to remove a
-    /// harvester peer from the farmer node's list of harvester peers.
-    RemoveHarvesterPeer(SocketAddr),
+    /// `MineProposalBlock` is an event that triggers the mining of a proposal
+    /// block by a farmer node after every `X` seconds. The proposal block
+    /// contains a list of transactions that have been validated and certified
+    /// by the farmer node
+    MineProposalBlock(RefHash, Round, Epoch, Claim),
 
     /// `ConvergenceBlockPartialSign(JobResult)` is an event that is triggered
     /// when a node has partially signed a convergence block. The
@@ -309,8 +192,12 @@ pub enum Event {
     /// with the convergence block.
     PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
 
-    PullCandidatesForElection,
-    BroadcastClaim(Claim),
+    /// `HarvesterPublicKey(Vec<u8>)` is an event that carries a vector of bytes
+    /// representing the public key of a harvester node. This event is used
+    /// to communicate the public key of a harvester node to other nodes in
+    /// the network.
+    HarvesterPublicKey(Vec<u8>),
+
     Ping(NodeId),
 }
 

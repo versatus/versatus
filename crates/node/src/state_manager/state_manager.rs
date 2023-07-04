@@ -1,30 +1,25 @@
 use std::{
     collections::{HashMap, HashSet},
-    hash::Hash,
     str::FromStr,
     sync::{Arc, RwLock},
 };
 
-use async_trait::async_trait;
 use block::{Block, BlockHash, ConvergenceBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher, EventSubscriber};
-use lr_trie::ReadHandleFactory;
-use patriecia::{db::MemoryDB, inner::InnerTrie};
+use events::{Event, EventPublisher};
+use mempool::LeftRightMempool;
 use primitives::Address;
-use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::NodeConfig;
+use theater::{Actor, ActorId, ActorState, Handler};
 use vrrb_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
-    serde_helpers::decode_from_binary_byte_slice,
     txn::{Token, TransactionDigest, Txn},
 };
 
-use crate::{result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle};
+use crate::{NodeError, Result, RuntimeComponent, RuntimeComponentHandle};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient
@@ -255,74 +250,55 @@ impl FromTxn for HashSet<StateUpdate> {
 }
 
 /// Provides a convenient configuration struct for buildin a
-/// StateModule
-pub struct StateModuleConfig {
-    pub db: VrrbDb,
+/// StateManager
+#[derive(Debug, Clone)]
+pub struct StateManagerConfig {
+    pub database: VrrbDb,
     pub events_tx: EventPublisher,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
+    pub mempool: LeftRightMempool,
 }
 
-/// The StateModule struct, which is the primary actor in
-/// the module. Provides convenient access to all the data
-/// necessary to transition the network's global state from
-/// t to t+1.
 #[derive(Debug)]
-pub struct StateModule {
-    db: VrrbDb,
-    status: ActorState,
-    _label: ActorLabel,
-    id: ActorId,
-    events_tx: EventPublisher,
-    dag: Arc<RwLock<BullDag<Block, String>>>,
+pub struct StateManager {
+    pub(crate) id: ActorId,
+    pub(crate) status: ActorState,
+    pub(crate) events_tx: EventPublisher,
+    pub(crate) dag: Arc<RwLock<BullDag<Block, String>>>,
+    pub(crate) database: VrrbDb,
+    pub(crate) mempool: LeftRightMempool,
 }
 
-/// StateModule manages all state persistence and updates within VrrbNodes
-/// it runs as an indepdendant module such that it can be enabled and disabled
-/// as necessary.
-impl StateModule {
-    pub fn new(config: StateModuleConfig) -> Self {
+impl StateManager {
+    pub fn new(config: StateManagerConfig) -> Self {
         Self {
-            db: config.db,
+            id: uuid::Uuid::new_v4().to_string(),
+            database: config.database,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            _label: String::from("State"),
-            id: uuid::Uuid::new_v4().to_string(),
             dag: config.dag,
+            mempool: config.mempool,
         }
-    }
-}
-
-impl StateModule {
-    fn name(&self) -> String {
-        String::from("State")
-    }
-
-    /// Produces a reader factory that can be used to generate read handles into
-    /// the state tree.
-    #[deprecated(note = "use self.read_handle instead")]
-    pub fn factory(&self) -> ReadHandleFactory<InnerTrie<MemoryDB>> {
-        // TODO: make this method return a custom factory
-        todo!()
     }
 
     /// Produces the read handle for the VrrbDb instance in this
     /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
     /// each of the StateStore, TransactionStore and ClaimStore.
     pub fn read_handle(&self) -> VrrbDbReadHandle {
-        self.db.read_handle()
+        self.database.read_handle()
     }
 
     /// Inserts a Transaction into the TransactionStore and
     /// emits an event to inform other modules that a Transaction
     /// has been added to the TransactionStore.
     // This is unneccessary under the system architecture, btw.
-    async fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
+    pub(crate) async fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
         let txn_hash = txn.id();
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
 
         //TODO: call checked methods instead
-        self.db.insert_transaction(txn)?;
+        self.database.insert_transaction(txn)?;
 
         let event = Event::TxnAddedToMempool(txn_hash);
 
@@ -332,7 +308,7 @@ impl StateModule {
     }
 
     pub fn commit(&mut self) {
-        self.db.commit_state();
+        self.database.commit_state();
     }
 
     /// Given the hash of a `ConvergenceBlock` this method
@@ -345,7 +321,7 @@ impl StateModule {
             let update_args = get_update_args(update_list);
             let consolidated_update_args = consolidate_update_args(update_args);
             consolidated_update_args.into_iter().for_each(|(_, args)| {
-                if let Err(err) = self.db.update_account(args) {
+                if let Err(err) = self.database.update_account(args) {
                     telemetry::error!("error updating account: {err}");
                 }
             });
@@ -376,7 +352,7 @@ impl StateModule {
             nested.into_iter().flatten().collect()
         };
 
-        self.db
+        self.database
             .extend_transactions(consolidated.into_iter().collect());
     }
 
@@ -395,7 +371,8 @@ impl StateModule {
             nested.into_iter().flatten().collect()
         };
 
-        self.db.extend_claims(consolidated.into_iter().collect());
+        self.database
+            .extend_claims(consolidated.into_iter().collect());
     }
 
     /// Provides a method to convert a `RoundBlocks` wrapper struct into
@@ -426,20 +403,20 @@ impl StateModule {
     /// Inserts an account into the `VrrbDb` `StateStore`. This method Should
     /// only be used for *new* accounts
     pub fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
-        self.db
+        self.database
             .insert_account(key, account)
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
     pub fn extend_accounts(&mut self, accounts: Vec<(Address, Account)>) -> Result<()> {
-        self.db.extend_accounts(accounts);
+        self.database.extend_accounts(accounts);
         Ok(())
     }
 
     /// Returns a read handle for the StateStore to be able to read
     /// values from it.
     fn _get_state_store_handle(&self) -> StateStoreReadHandle {
-        self.db.state_store_factory().handle()
+        self.database.state_store_factory().handle()
     }
 
     /// Enters into the DAG and collects and returns the current round
@@ -543,340 +520,4 @@ fn consolidate_update_args(updates: HashSet<UpdateArgs>) -> HashMap<Address, Upd
     }
 
     consolidated_updates
-}
-
-#[async_trait]
-impl Handler<EventMessage> for StateModule {
-    fn id(&self) -> ActorId {
-        self.id.clone()
-    }
-
-    fn label(&self) -> ActorLabel {
-        self.name()
-    }
-
-    fn status(&self) -> ActorState {
-        self.status.clone()
-    }
-
-    fn set_status(&mut self, actor_status: ActorState) {
-        self.status = actor_status;
-    }
-
-    fn on_start(&self) {
-        info!("{}-{} starting", self.label(), self.id(),);
-    }
-
-    fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.name(),
-            self.label()
-        );
-    }
-
-    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
-        match event.into() {
-            Event::Stop => {
-                return Ok(ActorState::Stopped);
-            },
-
-            Event::TxnValidated(txn) => {
-                self.confirm_txn(txn)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
-
-            Event::CreateAccountRequested((address, account_bytes)) => {
-                telemetry::info!(
-                    "creating account {address} with new state",
-                    address = address.to_string()
-                );
-
-                if let Ok(account) = decode_from_binary_byte_slice(&account_bytes) {
-                    self.insert_account(address.clone(), account)
-                        .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                    telemetry::info!("account {address} created", address = address.to_string());
-                }
-            },
-            Event::AccountUpdateRequested((_address, _account_bytes)) => {
-                //                if let Ok(account) =
-                // decode_from_binary_byte_slice(&account_bytes) {
-                // self.update_account(address, account)
-                // .map_err(|err| TheaterError::Other(err.to_string()))?;
-                //               }
-                todo!()
-            },
-            Event::UpdateState(block_hash) => {
-                if let Err(err) = self.update_state(block_hash) {
-                    telemetry::error!("error updating state: {}", err);
-                }
-            },
-            Event::ClaimCreated(claim) => {},
-            Event::ClaimReceived(claim) => {
-                telemetry::info!("Storing claim from: {}", claim.address);
-            },
-            Event::NoOp => {},
-            _ => {},
-        }
-
-        Ok(ActorState::Running)
-    }
-}
-
-#[derive(Debug)]
-pub struct StateModuleComponentConfig {
-    pub events_tx: EventPublisher,
-    pub state_events_rx: EventSubscriber,
-    pub node_config: NodeConfig,
-    pub dag: Arc<RwLock<BullDag<Block, String>>>,
-}
-
-#[async_trait]
-impl RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle> for StateModule {
-    async fn setup(
-        args: StateModuleComponentConfig,
-    ) -> crate::Result<RuntimeComponentHandle<VrrbDbReadHandle>> {
-        let dag = args.dag;
-        let events_tx = args.events_tx;
-        let mut state_events_rx = args.state_events_rx;
-        let node_config = args.node_config;
-
-        let mut vrrbdb_config = VrrbDbConfig::default();
-
-        if node_config.db_path() != &vrrbdb_config.path {
-            vrrbdb_config.with_path(node_config.db_path().to_path_buf());
-        }
-
-        let db = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
-
-        let vrrbdb_read_handle = db.read_handle();
-
-        let state_module = StateModule::new(StateModuleConfig { db, events_tx, dag });
-
-        let mut state_module_actor = ActorImpl::new(state_module);
-
-        let state_handle = tokio::spawn(async move {
-            state_module_actor
-                .start(&mut state_events_rx)
-                .await
-                .map_err(|err| NodeError::Other(err.to_string()))
-        });
-
-        info!("State store is operational");
-
-        let component_handle = RuntimeComponentHandle::new(state_handle, vrrbdb_read_handle);
-
-        Ok(component_handle)
-    }
-
-    async fn stop(&mut self) -> crate::Result<()> {
-        todo!()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{
-        env,
-        sync::{Arc, RwLock},
-    };
-
-    use block::{Block, BlockHash};
-    use bulldag::{graph::BullDag, vertex::Vertex};
-    use events::{Event, DEFAULT_BUFFER};
-    use primitives::Address;
-    use serial_test::serial;
-    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use theater::{Actor, ActorImpl};
-    use tokio::sync::mpsc::channel;
-    use vrrb_core::{account::Account, txn::Txn};
-
-    use super::*;
-    use crate::test_utils::{
-        produce_accounts, produce_convergence_block, produce_genesis_block, produce_proposal_blocks,
-    };
-
-    #[tokio::test]
-    #[serial]
-    async fn state_runtime_module_starts_and_stops() {
-        let _temp_dir_path = env::temp_dir().join("state.json");
-
-        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-        let db_config = VrrbDbConfig::default();
-
-        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
-
-        let db = VrrbDb::new(db_config);
-
-        let state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            db,
-            dag: dag.clone(),
-        });
-
-        let mut state_module = ActorImpl::new(state_module);
-
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
-
-        assert_eq!(state_module.status(), ActorState::Stopped);
-
-        let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).await.unwrap();
-            assert_eq!(state_module.status(), ActorState::Terminating);
-        });
-
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-
-        handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn state_runtime_receives_new_txn_event() {
-        let _temp_dir_path = env::temp_dir().join("state.json");
-
-        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-        let db_config = VrrbDbConfig::default();
-
-        let db = VrrbDb::new(db_config);
-
-        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
-
-        let state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            db,
-            dag: dag.clone(),
-        });
-
-        let mut state_module = ActorImpl::new(state_module);
-
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
-
-        assert_eq!(state_module.status(), ActorState::Stopped);
-
-        let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).await.unwrap();
-        });
-
-        ctrl_tx
-            .send(Event::NewTxnCreated(Txn::null_txn()).into())
-            .unwrap();
-
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-
-        handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn state_runtime_can_publish_events() {
-        let _temp_dir_path = env::temp_dir().join("state.json");
-
-        let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-        let db_config = VrrbDbConfig::default();
-
-        let db = VrrbDb::new(db_config);
-
-        let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
-
-        let state_module = StateModule::new(StateModuleConfig {
-            events_tx,
-            db,
-            dag: dag.clone(),
-        });
-
-        let mut state_module = ActorImpl::new(state_module);
-
-        let events_handle = tokio::spawn(async move {
-            let _res = events_rx.recv().await;
-        });
-
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
-
-        assert_eq!(state_module.status(), ActorState::Stopped);
-
-        let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).await.unwrap();
-        });
-
-        // TODO: implement all state && validation ops
-
-        ctrl_tx
-            .send(Event::NewTxnCreated(Txn::null_txn()).into())
-            .unwrap();
-
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-
-        handle.await.unwrap();
-        events_handle.await.unwrap();
-    }
-
-    pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
-
-    #[ignore = "state write is not yet persistent in the state module"]
-    #[tokio::test]
-    async fn vrrbdb_should_update_with_new_block() {
-        let path = std::env::temp_dir().join("db");
-        let db_config = VrrbDbConfig::default().with_path(path);
-        let db = VrrbDb::new(db_config);
-        let accounts: Vec<(Address, Account)> = produce_accounts(5);
-        let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
-        let (events_tx, _) = channel(100);
-        let config = StateModuleConfig {
-            db,
-            events_tx,
-            dag: dag.clone(),
-        };
-        let mut state_module = StateModule::new(config);
-        let state_res = state_module.extend_accounts(accounts.clone());
-        let genesis = produce_genesis_block();
-
-        assert!(state_res.is_ok());
-
-        let gblock: Block = genesis.clone().into();
-        let gvtx: Vertex<Block, BlockHash> = gblock.into();
-        if let Ok(mut guard) = dag.write() {
-            guard.add_vertex(&gvtx);
-        }
-
-        let proposals = produce_proposal_blocks(genesis.hash, accounts.clone(), 5, 5);
-
-        let edges: Vec<(Vertex<Block, BlockHash>, Vertex<Block, BlockHash>)> = {
-            proposals
-                .into_iter()
-                .map(|pblock| {
-                    let pblock: Block = pblock.into();
-                    let pvtx: Vertex<Block, BlockHash> = pblock.into();
-                    (gvtx.clone(), pvtx)
-                })
-                .collect()
-        };
-
-        if let Ok(mut guard) = dag.write() {
-            edges
-                .iter()
-                .for_each(|(source, reference)| guard.add_edge((source, reference)));
-        }
-
-        let block_hash = produce_convergence_block(dag).unwrap();
-        state_module.update_state(block_hash).unwrap();
-
-        state_module.commit();
-
-        let handle = state_module.read_handle();
-        let store = handle.state_store_values();
-
-        for (address, _) in accounts.iter() {
-            let account = store.get(address).unwrap();
-            let digests = account.digests.clone();
-            dbg!(&digests);
-            assert!(digests.get_sent().len() > 0);
-            assert!(digests.get_recv().len() > 0);
-            assert!(digests.get_stake().len() == 0);
-        }
-    }
 }

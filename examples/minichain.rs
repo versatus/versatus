@@ -1,10 +1,17 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use node::{
-    test_utils::{self, generate_nodes_pattern, send_data_over_quic},
+    test_utils::{
+        self,
+        create_mock_transaction_args,
+        create_node_rpc_client,
+        generate_nodes_pattern,
+        send_data_over_quic,
+    },
     Node,
 };
 use telemetry::TelemetrySubscriber;
+use vrrb_rpc::rpc::api::RpcApiClient;
 
 #[tokio::main]
 async fn main() {
@@ -19,6 +26,8 @@ async fn main() {
     config.id = String::from("node-0");
 
     let node_0 = Node::start(&config).await.unwrap();
+
+    let node_0_rpc_addr = node_0.jsonrpc_server_address();
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
     let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
@@ -47,12 +56,24 @@ async fn main() {
         nodes.push(node);
     }
 
+    // let rpc_client = create_node_rpc_client(node_0_rpc_addr).await;
+    //
+    // for i in 0..10 {
+    //     let args = create_mock_transaction_args(i * 3);
+    //
+    //     rpc_client.create_txn(args).await.unwrap();
+    // }
+
+    // dbg!(rpc_client.get_full_mempool().await.unwrap().len());
+
     for node in nodes {
+        println!();
         println!(
             "shutting down node {} type {:?}",
             node.id(),
             node.node_type()
         );
+        println!();
 
         node.stop().await.unwrap();
     }
