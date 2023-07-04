@@ -4,7 +4,10 @@ use hbbft::sync_key_gen::{PartOutcome, SyncKeyGen};
 use primitives::NodeType;
 use rand::rngs::OsRng;
 
-use crate::types::{DkgEngine, DkgError, DkgResult};
+use crate::{
+    result::{DkgError, DkgResult},
+    DkgEngine,
+};
 
 /// This is a trait that is implemented by the `DkgEngine` struct. It contains
 /// the functions that are required to run the DKG protocol.
@@ -19,6 +22,7 @@ pub trait DkgGenerator {
 
     fn generate_key_sets(&mut self) -> Self::DkgStatus;
 }
+
 impl DkgGenerator for DkgEngine {
     type DkgStatus = Result<DkgResult, DkgError>;
 
