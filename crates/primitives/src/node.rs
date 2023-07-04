@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{default, fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -16,11 +16,12 @@ pub enum Error {
     Other(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
     /// Catch-All node type that can serve as a validator and miner
+    #[default]
     Full = 0,
     /// Bootstrap nodes can only serve as a bootstrap node to kickstart a
     /// network
@@ -67,7 +68,6 @@ impl From<String> for NodeType {
 impl From<usize> for NodeType {
     fn from(node_type: usize) -> Self {
         match node_type {
-            0 => NodeType::Full,
             1 => NodeType::Bootstrap,
             2 => NodeType::Miner,
             3 => NodeType::Validator,

@@ -1,3 +1,4 @@
+/// This module contains the basic structure of simple transaction
 use std::{
     cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,
@@ -34,7 +35,6 @@ use crate::{
 };
 
 pub const BASE_FEE: u128 = 0x2D79883D2000;
-/// This module contains the basic structure of simple transaction
 
 /// A simple custom error type
 #[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]

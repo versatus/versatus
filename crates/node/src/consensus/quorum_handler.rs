@@ -7,7 +7,7 @@ use events::{Event, EventMessage, EventPublisher, EventSubscriber, PeerData};
 use primitives::NodeId;
 use quorum::{
     election::Election,
-    quorum::{InvalidQuorum, Quorum},
+    quorum::{Quorum, QuorumError},
 };
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -49,15 +49,17 @@ impl Handler<EventMessage> for QuorumModule {
                 return Ok(ActorState::Stopped);
             },
 
-            Event::NodeAddedToPeerList(_) => {
-                // TODO: consider refactoring this into an if let clause instead
-                let quorum_membership_config = self.membership_config.clone().ok_or(
-                    TheaterError::Other("failed to read quorum_membership_config".into()),
-                )?;
+            Event::NodeAddedToPeerList(peer_data) => {},
 
-                if self.can_genesis_election_be_triggered() {
-                    self.trigger_genesis_election(quorum_membership_config);
-                }
+            Event::GenesisQuorumMembersAvailable => {
+                dbg!("assign members to quorum && trigger election");
+                dbg!(&self.node_config.clone().bootstrap_quorum_config.unwrap());
+
+                // if matches!(cfg.node_config.node_type,
+                // primitives::NodeType::Bootstrap) {
+                //     dbg!(&cfg.node_config.id);
+                //     dbg!("QuorumModule::new", &cfg.membership_config);
+                // }
             },
 
             // TODO: refactor these event handlers to properly match architecture

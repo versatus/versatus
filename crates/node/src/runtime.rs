@@ -3,21 +3,17 @@ use std::sync::{Arc, RwLock};
 use block::Block;
 use bulldag::graph::BullDag;
 use events::{Event, EventPublisher, EventRouter, DEFAULT_BUFFER};
-use primitives::Address;
+use primitives::{Address, NodeType};
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
-use vrrb_config::NodeConfig;
+use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use crate::{
     api::setup_rpc_api_server,
     consensus::{
-        self,
-        ConsensusModule,
-        ConsensusModuleComponentConfig,
-        QuorumMembershipConfig,
-        QuorumModuleComponentConfig,
+        self, ConsensusModule, ConsensusModuleComponentConfig, QuorumModuleComponentConfig,
     },
     dag_module::setup_dag_module,
     indexer_module::{self, setup_indexer_module, IndexerModuleConfig},
@@ -26,8 +22,7 @@ use crate::{
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerComponentConfig},
     ui::setup_node_gui,
-    RuntimeComponent,
-    RuntimeComponentManager,
+    RuntimeComponent, RuntimeComponentManager,
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;

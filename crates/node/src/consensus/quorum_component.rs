@@ -3,15 +3,20 @@ use std::collections::{BTreeMap, HashMap};
 use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
+use events::{Event, EventMessage, EventPublisher, EventSubscriber, PeerData};
 use events::{EventPublisher, EventSubscriber};
-use primitives::NodeId;
+use primitives::{NodeId, NodeType};
 use quorum::{
     election::Election,
-    quorum::{InvalidQuorum, Quorum},
+    quorum::{Quorum, QuorumError},
 };
 use storage::vrrbdb::VrrbDbReadHandle;
+use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorState};
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumKind, QuorumMember};
+use vrrb_config::{
+    BootstrapQuorumConfig, NodeConfig, QuorumKind, QuorumMembership, QuorumMembershipConfig,
+};
+
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
@@ -24,14 +29,7 @@ pub struct QuorumModule {
     pub(crate) node_config: NodeConfig,
     pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
-    pub(crate) genesis_quorum_available_peers: HashMap<NodeId, bool>,
     pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct QuorumMembershipConfig {
-    pub quorum_kind: QuorumKind,
-    pub quorum_members: Vec<QuorumMember>,
 }
 
 #[derive(Debug, Clone)]
@@ -44,14 +42,18 @@ pub struct QuorumModuleConfig {
 
 impl QuorumModule {
     pub fn new(cfg: QuorumModuleConfig) -> Self {
-        let mut genesis_quorum_available_peers = HashMap::new();
-
-        if let Some(quorum_membership_config) = cfg.membership_config.clone() {
-            genesis_quorum_available_peers = quorum_membership_config
-                .quorum_members
-                .iter()
-                .map(|member| (member.node_id.clone(), false))
-                .collect();
+        if cfg.node_config.node_type == NodeType::Bootstrap {
+            // TODO: turn into info log
+            println!(
+                "waiting for {} members to join the bootstrap quorum",
+                &cfg.node_config
+                    .clone()
+                    .bootstrap_quorum_config
+                    .unwrap()
+                    .membership_config
+                    .quorum_members
+                    .len(),
+            );
         }
 
         Self {
@@ -61,7 +63,6 @@ impl QuorumModule {
             events_tx: cfg.events_tx,
             membership_config: None,
             node_config: cfg.node_config,
-            genesis_quorum_available_peers,
             bootstrap_quorum_config: None,
         }
     }
@@ -83,10 +84,8 @@ impl QuorumModule {
         );
     }
 
-    pub(crate) fn can_genesis_election_be_triggered(&self) -> bool {
-        self.genesis_quorum_available_peers
-            .iter()
-            .all(|(_, available)| *available)
+    async fn assign_membership_to_node(&self) {
+        //
     }
 
     async fn start_genesis_quorum_election(&mut self) {
@@ -97,7 +96,7 @@ impl QuorumModule {
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,
-    ) -> Result<Quorum, InvalidQuorum> {
+    ) -> Result<Quorum, QuorumError> {
         let last_block_height = header.block_height;
         let seed = header.next_block_seed;
 
@@ -108,7 +107,7 @@ impl QuorumModule {
             }
         }
 
-        Err(InvalidQuorum::InvalidSeedError())
+        Err(QuorumError::InvalidSeedError)
     }
 
     fn elect_miner(

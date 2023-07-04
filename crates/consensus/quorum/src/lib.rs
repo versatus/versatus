@@ -16,11 +16,6 @@ mod tests {
     use crate::{election::Election, quorum::Quorum};
 
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-
-    #[test]
     fn not_enough_claims() {
         let mut dummy_claims: Vec<Claim> = Vec::new();
 

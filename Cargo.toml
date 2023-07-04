@@ -28,6 +28,8 @@ node = { workspace = true }
 vrrb_config = { workspace = true }
 clap = { workspace = true }
 wasm_loader = { workspace = true }
+primitives = { workspace = true }
+vrrb_rpc = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["rusty-hook"]
