@@ -153,15 +153,15 @@ impl DkgModule {
         String::from("DKG module")
     }
 
-    pub async fn process_rendezvous_response(&self) {
-        let receiver = self.socket.get_event_receiver();
-        let sender = self.socket.get_packet_sender();
-        loop {
-            if let Ok(event) = receiver.recv() {
-                self.process_rendezvous_event(&event, &sender).await
-            }
-        }
-    }
+    // pub async fn process_rendezvous_response(&self) {
+    //     let receiver = self.socket.get_event_receiver();
+    //     let sender = self.socket.get_packet_sender();
+    //     loop {
+    //         if let Ok(event) = receiver.recv() {
+    //             self.process_rendezvous_event(&event, &sender).await
+    //         }
+    //     }
+    // }
 
     pub fn send_register_retrieve_peers_request(&self) {
         let sender = self.socket.get_packet_sender();

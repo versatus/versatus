@@ -1,4 +1,5 @@
 pub mod consensus;
+pub mod crypto;
 pub mod dag_module;
 pub mod dkg_module;
 pub mod election_module;

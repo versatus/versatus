@@ -1,4 +1,3 @@
-pub mod config;
 use std::collections::{BTreeMap, HashMap};
 
 use hbbft::{
@@ -7,9 +6,8 @@ use hbbft::{
 };
 use primitives::{NodeIdx, NodeType};
 use rand::rngs::OsRng;
-use thiserror::Error;
 
-use crate::types::config::ThresholdConfig;
+use crate::config::ThresholdConfig;
 
 pub type NodeID = u16;
 pub type SenderID = u16;
@@ -80,49 +78,6 @@ pub struct DkgState {
     pub sync_key_gen: Option<SyncKeyGen<u16>>,
 
     pub random_number_gen: Option<OsRng>,
-}
-
-/// List of all possible errors related to synchronous dkg generation .
-#[derive(Error, Debug)]
-pub enum DkgError {
-    #[error("Not enough peer public messages keys to start DKG process")]
-    NotEnoughPeerPublicKeys,
-    #[error("Sync key Generation instance not created .")]
-    SyncKeyGenInstanceNotCreated,
-    #[error("Not enough part messages received")]
-    NotEnoughPartMsgsReceived,
-    #[error("Atleast t+1 parts needs to be completed for DKG generation to happen")]
-    NotEnoughPartsCompleted,
-    #[error("Not enough ack messages received")]
-    NotEnoughAckMsgsReceived,
-    #[error("Partial Committment not generated")]
-    PartCommitmentNotGenerated,
-    #[error("Partial Committment missing for node with index {0}")]
-    PartMsgMissingForNode(u16),
-    #[error("Partial Message already acknowledge for node with index {0}")]
-    PartMsgAlreadyAcknowledge(u16),
-    #[error("Invalid Part Message Error: {0}")]
-    InvalidPartMessage(String),
-    #[error("Invalid Ack Message Error: {0}")]
-    InvalidAckMessage(String),
-    #[error("Unknown error occurred while synckeygen process , Details :{0} ")]
-    SyncKeyGenError(String),
-    #[error("Invalid Key {0}  Value {1}")]
-    ConfigInvalidValue(String, String),
-    #[error("Only MasterNode should participate in DKG generation process")]
-    InvalidNode,
-    #[error("All participants of Quorum need to actively participate in DKG")]
-    ObserverNotAllowed,
-    #[error("Unknown Error: {0}")]
-    Unknown(String),
-}
-
-#[derive(Debug)]
-pub enum DkgResult {
-    PartMessageGenerated(u16, Part),
-    PartMessageAcknowledged,
-    AllAcksHandled,
-    KeySetsGenerated,
 }
 
 impl DkgEngine {

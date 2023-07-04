@@ -31,10 +31,11 @@ pub enum NodeType {
     Miner = 3,
     Bootstrap = 4,
     Validator = 5,
-    MasterNode = 6,
-    RPCNode = 7,
+    // MasterNode = 6,
+    // RPCNode = 7,
     Farmer = 8,
-    Unknown = 100,
+    Harvester = 9,
+    // Unknown = 100,
 }
 
 impl fmt::Display for NodeType {
