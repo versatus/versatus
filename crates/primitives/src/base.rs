@@ -62,6 +62,8 @@ pub type QuorumPublicKey = ByteVec;
 pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
 pub type PartCommitmentBytes = ByteVec;
+pub type AckBytes = ByteVec;
 pub type SenderId = u16;
+pub type CurrentNodeId = u16;
 
 pub type LastBlockHeight = u128;

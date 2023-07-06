@@ -1,11 +1,33 @@
 use std::net::SocketAddr;
 
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
+    header::BlockHeader,
+    Block,
+    BlockHash,
+    Certificate,
+    ConvergenceBlock,
+    ProposalBlock,
+    RefHash,
 };
 use ethereum_types::U256;
 use mempool::TxnRecord;
-use primitives::{Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, PartCommitmentBytes, PublicKeyShareVec, QuorumPublicKey, QuorumSize, RawSignature, Round, Seed, SenderId};
+use primitives::{
+    AckBytes,
+    Address,
+    CurrentNodeId,
+    Epoch,
+    FarmerQuorumThreshold,
+    NodeId,
+    NodeIdx,
+    PartCommitmentBytes,
+    PublicKeyShareVec,
+    QuorumPublicKey,
+    QuorumSize,
+    RawSignature,
+    Round,
+    Seed,
+    SenderId,
+};
 use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
@@ -129,13 +151,19 @@ pub enum Event {
     /// message has been received from the network, and has to be recorded
     /// in the part message store.
     PartMessage(SenderId, PartCommitmentBytes),
-    /// `SendPartMessage(u16,Vec<u8>)` is an event that is triggered when part message has been received from the network,
-    /// and has to be recorded in the part message store.
+    /// `SendPartMessage(u16,Vec<u8>)` is an event that is triggered when part
+    /// message has been received from the network, and has to be recorded
+    /// in the part message store.
     SendPartMessage(SenderId, PartCommitmentBytes),
 
-    /// `SendAck(u16,u16,Vec<u8>)` is an event that is triggered when part commitment has been acknowledged by the
-    /// current node ,it has to be broadcasted to the other members of the Elected Quorum.
-    SendAck(u16, u16, Vec<u8>),
+    /// `Ack(CurrentNodeId, SenderId, AckBytes)` is an event that is triggered
+    /// when ack has been recieved for committment
+    Ack(CurrentNodeId, SenderId, AckBytes),
+
+    /// `SendAck(NodeId,SenderId,AckBytes)` is an event that is triggered when
+    /// part commitment has been acknowledged by the current node ,it has to
+    /// be broadcasted to the other members of the Elected Quorum.
+    SendAck(CurrentNodeId, SenderId, AckBytes),
 
     /// `HandleAllAcks` is an event that is triggered to handle all the
     /// acknowledgments of partial commitments given by Nodes elected for

@@ -59,7 +59,18 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     );
                 }
             },
-
+            NetworkEvent::Ack(current_node_id, sender_id, ack_bytes) => {
+                if let Err(err) = self
+                    .events_tx
+                    .send(Event::Ack(current_node_id, sender_id, ack_bytes).into())
+                    .await
+                {
+                    error!(
+                        "Error occurred while sending event to dkg module: {:?}",
+                        err
+                    );
+                }
+            },
             _ => {},
         }
 

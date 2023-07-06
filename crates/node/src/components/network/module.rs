@@ -2,10 +2,10 @@ use std::net::SocketAddr;
 
 use async_trait::async_trait;
 use chrono::Utc;
-use dyswarm::types::Message;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
+    types::Message,
 };
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
@@ -21,8 +21,12 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
-    RuntimeComponentHandle, DEFAULT_ERASURE_COUNT,
+    components::network::DyswarmHandler,
+    result::Result,
+    NodeError,
+    RuntimeComponent,
+    RuntimeComponentHandle,
+    DEFAULT_ERASURE_COUNT,
 };
 
 #[derive(Debug)]
@@ -300,7 +304,7 @@ pub struct NetworkModuleComponentResolvedData {
 
 #[async_trait]
 impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolvedData>
-for NetworkModule
+    for NetworkModule
 {
     async fn setup(
         args: NetworkModuleComponentConfig,
@@ -436,6 +440,27 @@ impl Handler<EventMessage> for NetworkModule {
                     id: dyswarm::types::MessageId::new_v4(),
                     timestamp: Utc::now().timestamp(),
                     data: NetworkEvent::PartMessage(node_id, part_commitment),
+                };
+                if let Err(err) = self
+                    .dyswarm_client
+                    .broadcast(BroadcastArgs {
+                        config: BroadcastConfig { unreliable: false },
+                        message: msg,
+                        erasure_count: 0,
+                    })
+                    .await
+                {
+                    error!(
+                        "Error occurred during broadcasting part committment: {:?}",
+                        err
+                    );
+                }
+            },
+            Event::SendAck(node_id, sender_id, ack_bytes) => {
+                let msg = Message {
+                    id: dyswarm::types::MessageId::new_v4(),
+                    timestamp: Utc::now().timestamp(),
+                    data: NetworkEvent::Ack(node_id, sender_id, ack_bytes),
                 };
                 if let Err(err) = self
                     .dyswarm_client

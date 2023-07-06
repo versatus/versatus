@@ -1,9 +1,8 @@
 use patriecia::db::Database;
 use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
-use rand::Rng;
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
 use storage_utils::{get_node_data_dir, StorageError};
-use telemetry::{error, info};
+use telemetry::error;
 
 #[derive(Debug)]
 pub struct RocksDbAdapter {
@@ -103,9 +102,6 @@ impl Default for RocksDbAdapter {
         options.set_error_if_exists(false);
         options.create_if_missing(true);
         options.create_missing_column_families(true);
-        let id = generate_random_id();
-        let path = create_unique_db_path(&id);
-        let cf = create_unique_cf(&id);
 
         // TODO: fix this unwrap
         let db = new_db_instance(
@@ -118,21 +114,8 @@ impl Default for RocksDbAdapter {
         Self {
             db,
             column: DEFAULT_COLUMN_FAMILY_NAME.to_string(),
-       }
+        }
     }
-}
-fn generate_random_id() -> String {
-    let mut rng = rand::thread_rng();
-
-    (0..5)
-        .map(|_| rng.sample(rand::distributions::Alphanumeric) as char)
-        .collect()
-}
-fn create_unique_db_path(id: &str) -> String {
-    format!("{}{}", DEFAULT_VRRB_DB_PATH, id)
-}
-fn create_unique_cf(id: &str) -> String {
-    format!("{}{}", DEFAULT_COLUMN_FAMILY_NAME, id)
 }
 
 impl Database for RocksDbAdapter {
