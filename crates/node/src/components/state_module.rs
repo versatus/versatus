@@ -282,7 +282,6 @@ pub struct StateModuleConfig {
 pub struct StateModule {
     db: VrrbDb,
     status: ActorState,
-    _label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
@@ -297,7 +296,6 @@ impl StateModule {
             db: config.db,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            _label: String::from("State"),
             id: uuid::Uuid::new_v4().to_string(),
             dag: config.dag,
         }
@@ -305,10 +303,6 @@ impl StateModule {
 }
 
 impl StateModule {
-    fn name(&self) -> String {
-        String::from("State")
-    }
-
     /// Produces a reader factory that can be used to generate read handles into
     /// the state tree.
     #[deprecated(note = "use self.read_handle instead")]
@@ -564,7 +558,7 @@ impl Handler<EventMessage> for StateModule {
     }
 
     fn label(&self) -> ActorLabel {
-        self.name()
+        format!("State::{}", self.id())
     }
 
     fn status(&self) -> ActorState {
@@ -576,15 +570,11 @@ impl Handler<EventMessage> for StateModule {
     }
 
     fn on_start(&self) {
-        info!("{}-{} starting", self.label(), self.id(),);
+        info!("{} starting", self.label());
     }
 
     fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.name(),
-            self.label()
-        );
+        info!("{} received stop signal. Stopping", self.label());
     }
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
@@ -667,6 +657,8 @@ impl RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle> for StateMod
 
         let state_module = StateModule::new(StateModuleConfig { db, events_tx, dag });
 
+        let label = state_module.label();
+
         let mut state_module_actor = ActorImpl::new(state_module);
 
         let state_handle = tokio::spawn(async move {
@@ -678,7 +670,7 @@ impl RuntimeComponent<StateModuleComponentConfig, VrrbDbReadHandle> for StateMod
 
         info!("State store is operational");
 
-        let component_handle = RuntimeComponentHandle::new(state_handle, vrrbdb_read_handle);
+        let component_handle = RuntimeComponentHandle::new(state_handle, vrrbdb_read_handle, label);
 
         Ok(component_handle)
     }

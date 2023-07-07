@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use async_trait::async_trait;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
@@ -24,7 +26,6 @@ pub struct MempoolModuleConfig {
 pub struct MempoolModule {
     mempool: LeftRightMempool,
     status: ActorState,
-    label: ActorLabel,
     id: ActorId,
     events_tx: EventPublisher,
     cutoff_transaction: Option<TransactionDigest>,
@@ -37,7 +38,6 @@ impl MempoolModule {
             mempool: config.mempool,
             events_tx: config.events_tx,
             status: ActorState::Stopped,
-            label: String::from("Mempool"),
             cutoff_transaction: None,
         }
     }
@@ -64,6 +64,8 @@ impl RuntimeComponent<MempoolModuleComponentConfig, MempoolReadHandleFactory> fo
             events_tx: args.events_tx,
         });
 
+        let label = mempool_module.label();
+
         let mut mempool_module_actor = ActorImpl::new(mempool_module);
 
         let mempool_handle = tokio::spawn(async move {
@@ -76,7 +78,7 @@ impl RuntimeComponent<MempoolModuleComponentConfig, MempoolReadHandleFactory> fo
         let mempool_handle = mempool_handle;
 
         let component_handle =
-            RuntimeComponentHandle::new(mempool_handle, mempool_read_handle_factory);
+            RuntimeComponentHandle::new(mempool_handle, mempool_read_handle_factory, label);
 
         Ok(component_handle)
     }
@@ -93,7 +95,7 @@ impl Handler<EventMessage> for MempoolModule {
     }
 
     fn label(&self) -> ActorLabel {
-        self.label.clone()
+        format!("Mempool::{}", self.id())
     }
 
     fn status(&self) -> ActorState {
@@ -101,7 +103,7 @@ impl Handler<EventMessage> for MempoolModule {
     }
 
     fn on_start(&self) {
-        info!("{}-{} starting", self.label(), self.id(),);
+        info!("{} starting", self.label());
     }
 
     fn set_status(&mut self, actor_status: ActorState) {
@@ -109,11 +111,7 @@ impl Handler<EventMessage> for MempoolModule {
     }
 
     fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.label(),
-            self.id(),
-        );
+        info!("{} received stop signal. Stopping", self.label());
     }
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {

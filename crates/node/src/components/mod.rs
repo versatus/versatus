@@ -11,3 +11,4 @@ pub mod mining_module;
 pub mod network;
 pub mod scheduler;
 pub mod state_module;
+pub mod ui;

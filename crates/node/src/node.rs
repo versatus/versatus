@@ -122,10 +122,10 @@ impl Node {
 
         events_tx.send(Event::Stop.into()).await?;
 
-        for handle in runtime_component_handles {
-            if let Some(handle) = handle {
+        for component_handle in runtime_component_handles {
+            if let Some((handle, label)) = component_handle {
                 handle.await??;
-                info!("Shutdown complete for handle");
+                info!("Shutdown complete for {label}");
             }
         }
 
@@ -156,6 +156,7 @@ impl Node {
         self.runtime_control_handle
             .await?
             .map_err(|err| NodeError::Other(err.to_string()))?;
+
         Ok(cancelled)
     }
 

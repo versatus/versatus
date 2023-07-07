@@ -1,10 +1,16 @@
+use std::collections::HashSet;
+
 use block::{ProposalBlock, RefHash};
 use events::Vote;
-use primitives::{Epoch, FarmerQuorumThreshold, Round};
+use hbbft::crypto::PublicKeyShare;
+use primitives::{BlockHash, Epoch, FarmerQuorumThreshold, NodeIdx, RawSignature, Round};
 use ritelinked::LinkedHashMap;
+use signer::signer::SignatureProvider;
 use storage::vrrbdb::VrrbDbReadHandle;
 use vrrb_core::{
+    bloom::Bloom,
     claim::Claim,
+    keypair::Keypair,
     txn::{QuorumCertifiedTxn, TransactionDigest},
 };
 
@@ -14,18 +20,19 @@ pub const PULL_TXN_BATCH_SIZE: usize = 100;
 pub struct ConsensusModule {
     vrrbdb_read_handle: VrrbDbReadHandle,
     quorum_certified_txns: Vec<QuorumCertifiedTxn>,
-    keypair: KeyPair,
-
+    keypair: Keypair,
     certified_txns_filter: Bloom,
-    votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
-    group_public_key: GroupPublicKey,
-    sig_provider: Option<SignatureProvider>,
-    vrrbdb_read_handle: VrrbDbReadHandle,
-    convergence_block_certificates:
-        Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
-    harvester_id: NodeIdx,
-    dag: Arc<RwLock<BullDag<Block, String>>>,
-    quorum_threshold: QuorumThreshold,
+    // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
+    // group_public_key: GroupPublicKey,
+    // sig_provider: Option<SignatureProvider>,
+    // vrrbdb_read_handle: VrrbDbReadHandle,
+    // convergence_block_certificates:
+    //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
+    //
+    //
+    // harvester_id: NodeIdx,
+    // dag: Arc<RwLock<BullDag<Block, String>>>,
+    // quorum_threshold: QuorumThreshold,
     //
     //
     // sync_jobs_sender: Sender<Job>,
@@ -41,12 +48,12 @@ impl ConsensusModule {
     async fn certify_block(&self) {}
 
     async fn mine_proposal_block(
-        &self,
+        &mut self,
         ref_hash: RefHash,
         round: Round,
         epoch: Epoch,
         claim: Claim,
-    ) {
+    ) -> ProposalBlock {
         let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
 
         // NOTE: Read updated claims
@@ -173,12 +180,13 @@ impl ConsensusModule {
         //
     }
 
-    async fn generate_and_broadcast_certificate(
+    fn generate_and_broadcast_certificate(
         &self,
         block_hash: BlockHash,
         certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
         sig_provider: &SignatureProvider,
     ) -> Result<(), theater::TheaterError> {
+        todo!()
         // if certificates_share.len() >= self.quorum_threshold {
         //     //Generate a new certificate for the block
         //     let mut sig_shares = BTreeMap::new();

@@ -50,9 +50,7 @@ pub type GraphResult<T> = Result<T, GraphError>;
 /// ```
 pub struct DagModule {
     status: ActorState,
-    label: ActorLabel,
     id: ActorId,
-    #[allow(unused)]
     events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
@@ -68,7 +66,6 @@ impl DagModule {
     ) -> Self {
         Self {
             status: ActorState::Stopped,
-            label: String::from("Dag"),
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
             dag,
@@ -291,7 +288,7 @@ impl Handler<EventMessage> for DagModule {
     }
 
     fn label(&self) -> ActorLabel {
-        self.label.clone()
+        format!("DAG::{}", self.id())
     }
 
     fn status(&self) -> ActorState {
@@ -303,15 +300,11 @@ impl Handler<EventMessage> for DagModule {
     }
 
     fn on_start(&self) {
-        info!("{}-{} starting", self.label(), self.id(),);
+        info!("{} starting", self.label());
     }
 
     fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.label(),
-            self.id(),
-        );
+        info!("{} received stop signal. Stopping", self.label());
     }
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
