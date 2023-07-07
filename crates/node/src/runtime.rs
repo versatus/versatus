@@ -49,6 +49,7 @@ use crate::{
         network::{NetworkModule, NetworkModuleComponentConfig},
         scheduler::{Job, JobSchedulerController},
         state_module::{StateModule, StateModuleComponentConfig},
+        ui::setup_node_gui,
     },
     result::{NodeError, Result},
     RuntimeComponent,
@@ -230,15 +231,27 @@ pub async fn setup_runtime_components(
     let mut node_gui_handle = None;
     if config.gui {
         node_gui_handle = setup_node_gui(&config).await?;
+        info!("Node UI started");
     }
 
-    info!("node gui has started");
+    let mempool_component_handle_label = mempool_component_handle.label();
+    let state_component_handle_label = state_component_handle.label();
+    let network_component_handle_label = network_component_handle.label();
 
     let runtime_components = RuntimeComponents {
         node_config: config,
-        mempool_handle: Some(mempool_component_handle.handle()),
-        state_handle: Some(state_component_handle.handle()),
-        gossip_handle: Some(network_component_handle.handle()),
+        mempool_handle: Some((
+            mempool_component_handle.handle(),
+            mempool_component_handle_label,
+        )),
+        state_handle: Some((
+            state_component_handle.handle(),
+            state_component_handle_label,
+        )),
+        gossip_handle: Some((
+            network_component_handle.handle(),
+            network_component_handle_label,
+        )),
         //
         // TODO: re-enable these
         jsonrpc_server_handle: None,
@@ -566,70 +579,4 @@ fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
 
 fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
     Ok(None)
-}
-
-async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<()>>>> {
-    if config.gui {
-        info!("Configuring Node {}", &config.id);
-        info!("Ensuring environment has required dependencies");
-
-        match Command::new("npm").args(["version"]).status() {
-            Ok(_) => info!("NodeJS is installed"),
-            Err(e) => {
-                return Err(NodeError::Other(format!("NodeJS is not installed: {e}")));
-            },
-        }
-
-        info!("Ensuring yarn is installed");
-        match Command::new("yarn").args(["--version"]).status() {
-            Ok(_) => info!("Yarn is installed"),
-            Err(e) => {
-                let install_yarn = Command::new("npm")
-                    .args(&["install", "-g", "yarn"])
-                    .current_dir("infra/gui")
-                    .output();
-
-                match install_yarn {
-                    Ok(_) => (),
-                    Err(_) => {
-                        return Err(NodeError::Other(format!("Failed to install yarn: {e}")));
-                    },
-                }
-            },
-        }
-
-        info!("Installing dependencies");
-        match Command::new("yarn")
-            .args(&["install"])
-            .current_dir("infra/gui")
-            .status()
-        {
-            Ok(_) => info!("Dependencies installed successfully"),
-            Err(e) => {
-                return Err(NodeError::Other(format!(
-                    "Failed to install dependencies: {e}"
-                )));
-            },
-        }
-
-        info!("Spawning UI");
-
-        let node_gui_handle = tokio::spawn(async move {
-            if let Err(err) = Command::new("yarn")
-                .args(["dev"])
-                .current_dir("infra/gui")
-                .spawn()
-            {
-                telemetry::error!("Failed to spawn UI: {}", err);
-            }
-
-            Ok(())
-        });
-
-        info!("Finished spawning UI");
-        Ok(Some(node_gui_handle))
-    } else {
-        info!("GUI not enabled");
-        Ok(None)
-    }
 }

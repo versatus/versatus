@@ -29,7 +29,6 @@ use crate::{
 #[derive(Debug)]
 pub struct NetworkModule {
     id: ActorId,
-    label: ActorLabel,
     node_id: NodeId,
     node_type: NodeType,
     status: ActorState,
@@ -108,7 +107,6 @@ impl NetworkModule {
             events_tx,
             node_id: config.node_id,
             node_type: config.node_type,
-            label: String::from("State"),
             status: ActorState::Stopped,
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
@@ -319,6 +317,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;
+        let label = network_module.label();
 
         let resolved_udp_gossip_address = network_module.udp_gossip_addr();
         let kademlia_dht_resolved_id = network_module.kademlia_peer_id();
@@ -350,7 +349,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         };
 
         let component_handle =
-            RuntimeComponentHandle::new(network_handle, network_component_resolved_data);
+            RuntimeComponentHandle::new(network_handle, network_component_resolved_data, label);
 
         Ok(component_handle)
     }
@@ -367,7 +366,7 @@ impl Handler<EventMessage> for NetworkModule {
     }
 
     fn label(&self) -> ActorLabel {
-        String::from("NetworkModule")
+        format!("Network::{}", self.id())
     }
 
     fn status(&self) -> ActorState {

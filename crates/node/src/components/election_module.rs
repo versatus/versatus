@@ -126,7 +126,7 @@ impl Handler<EventMessage> for ElectionModule<MinerElection, MinerElectionResult
 
     fn on_stop(&self) {
         info!(
-            "{}-{} received stop signal. Stopping",
+            "{}:{} received stop signal. Stopping",
             self.name(),
             self.label()
         );
@@ -175,7 +175,7 @@ impl Handler<EventMessage> for ElectionModule<QuorumElection, QuorumElectionResu
 
     fn on_stop(&self) {
         info!(
-            "{}-{} received stop signal. Stopping",
+            "{}:{} received stop signal. Stopping",
             self.name(),
             self.label()
         );
@@ -243,3 +243,109 @@ fn elect_quorum(
 
     Err(InvalidQuorum::InvalidSeedError())
 }
+//
+//
+// #[derive(Debug)]
+// pub struct ElectionModuleComponentConfig {
+//     pub events_tx: EventPublisher,
+// }
+//
+// #[async_trait]
+// impl RuntimeComponent<MempoolModuleComponentConfig, MempoolReadHandleFactory>
+// for ElectionModule {     async fn setup(
+//         args: ElectionModuleComponentConfig,
+//     ) -> crate::Result<RuntimeComponentHandle<MempoolReadHandleFactory>> {
+//         todo!()
+//     }
+//
+//     async fn stop(&mut self) -> crate::Result<()> {
+//         todo!()
+//     }
+// }
+//
+
+// fn setup_miner_election_module(
+//     events_tx: EventPublisher,
+//     mut miner_election_events_rx: EventSubscriber,
+//     db_read_handle: VrrbDbReadHandle,
+//     local_claim: Claim,
+// ) -> Result<Option<JoinHandle<Result<()>>>> {
+//     let module_config = ElectionModuleConfig {
+//         db_read_handle,
+//         events_tx,
+//         local_claim,
+//     };
+//
+//     let module: ElectionModule<MinerElection, MinerElectionResult> =
+//         { ElectionModule::<MinerElection,
+// MinerElectionResult>::new(module_config) };
+//
+//     let mut miner_election_module_actor = ActorImpl::new(module);
+//     let miner_election_module_handle = tokio::spawn(async move {
+//         miner_election_module_actor
+//             .start(&mut miner_election_events_rx)
+//             .await
+//             .map_err(|err| NodeError::Other(err.to_string()))
+//     });
+//
+//     Ok(Some(miner_election_module_handle))
+// }
+//
+// fn setup_quorum_election_module(
+//     _config: &NodeConfig,
+//     events_tx: EventPublisher,
+//     mut quorum_election_events_rx: EventSubscriber,
+//     db_read_handle: VrrbDbReadHandle,
+//     local_claim: Claim,
+// ) -> Result<Option<JoinHandle<Result<()>>>> {
+//     let module_config = ElectionModuleConfig {
+//         db_read_handle,
+//         events_tx,
+//         local_claim,
+//     };
+//
+//     let module: ElectionModule<QuorumElection, QuorumElectionResult> =
+//         { ElectionModule::<QuorumElection,
+// QuorumElectionResult>::new(module_config) };
+//
+//     let mut quorum_election_module_actor = ActorImpl::new(module);
+//     let quorum_election_module_handle = tokio::spawn(async move {
+//         quorum_election_module_actor
+//             .start(&mut quorum_election_events_rx)
+//             .await
+//             .map_err(|err| NodeError::Other(err.to_string()))
+//     });
+//
+//     Ok(Some(quorum_election_module_handle))
+// }
+//
+// fn setup_farmer_module(
+//     config: &NodeConfig,
+//     sync_jobs_sender: Sender<Job>,
+//     async_jobs_sender: Sender<Job>,
+//     events_tx: EventPublisher,
+//     mut farmer_events_rx: EventSubscriber,
+// ) -> Result<Option<JoinHandle<Result<()>>>> {
+//     let module = farmer_module::FarmerModule::new(
+//         None,
+//         vec![],
+//         config.keypair.get_peer_id().into_bytes(),
+//         // Farmer Node Idx should be updated either by Election or Bootstrap
+// node should assign idx         0,
+//         events_tx,
+//         // Quorum Threshold should be updated on the election,
+//         1,
+//         sync_jobs_sender,
+//         async_jobs_sender,
+//     );
+//
+//     let mut farmer_module_actor = ActorImpl::new(module);
+//     let farmer_handle = tokio::spawn(async move {
+//         farmer_module_actor
+//             .start(&mut farmer_events_rx)
+//             .await
+//             .map_err(|err| NodeError::Other(err.to_string()))
+//     });
+//
+//     Ok(Some(farmer_handle))
+// }
