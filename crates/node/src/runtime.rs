@@ -8,15 +8,7 @@ use std::{
 use block::Block;
 use bulldag::graph::BullDag;
 use crossbeam_channel::Sender;
-use events::{
-    Event,
-    Event::BroadcastClaim,
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    EventSubscriber,
-    DEFAULT_BUFFER,
-};
+use events::{Event, EventMessage, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
 use mempool::MempoolReadHandleFactory;
 use miner::MinerConfig;
 use primitives::{Address, NodeType, QuorumType::Farmer};
@@ -34,12 +26,8 @@ use crate::{
         dag_module::DagModule,
         dkg_module::{self, DkgModuleConfig},
         election_module::{
-            ElectionModule,
-            ElectionModuleConfig,
-            MinerElection,
-            MinerElectionResult,
-            QuorumElection,
-            QuorumElectionResult,
+            ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult,
+            QuorumElection, QuorumElectionResult,
         },
         farmer_module::{self, PULL_TXN_BATCH_SIZE},
         harvester_module,
@@ -51,8 +39,7 @@ use crate::{
         state_module::{StateModule, StateModuleComponentConfig},
     },
     result::{NodeError, Result},
-    RuntimeComponent,
-    RuntimeComponents,
+    RuntimeComponent, RuntimeComponents,
 };
 
 pub async fn setup_runtime_components(
@@ -65,7 +52,6 @@ pub async fn setup_runtime_components(
     let mut mempool_events_rx = router.subscribe(None)?;
     let vrrbdb_events_rx = router.subscribe(None)?;
     let network_events_rx = router.subscribe(None)?;
-    let controller_events_rx = router.subscribe(None)?;
     let miner_events_rx = router.subscribe(None)?;
     let farmer_events_rx = router.subscribe(None)?;
     let harvester_events_rx = router.subscribe(None)?;
@@ -75,8 +61,6 @@ pub async fn setup_runtime_components(
     let quorum_election_events_rx = router.subscribe(None)?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
-    let swarm_module_events_rx = router.subscribe(None)?;
-
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let mempool_component_handle = MempoolModule::setup(MempoolModuleComponentConfig {
@@ -143,6 +127,7 @@ pub async fn setup_runtime_components(
     let signature = Claim::signature_for_valid_claim(
         public_key,
         config.public_ip_address,
+        config.raptorq_gossip_address.port(),
         config
             .keypair
             .get_miner_secret_key()
@@ -154,6 +139,7 @@ pub async fn setup_runtime_components(
         public_key,
         Address::new(public_key),
         config.public_ip_address,
+        config.raptorq_gossip_address.port(),
         signature,
     )
     .map_err(NodeError::from)?;
@@ -243,7 +229,7 @@ pub async fn setup_runtime_components(
         // TODO: re-enable these
         jsonrpc_server_handle: None,
         miner_handle: None,
-        dkg_handle: None,
+        dkg_handle,
         miner_election_handle: None,
         quorum_election_handle: None,
         farmer_handle: None,
@@ -317,6 +303,7 @@ fn setup_mining_module(
         secret_key: *miner_secret_key,
         public_key: *miner_public_key,
         ip_address: config.public_ip_address,
+        raptor_port: config.raptorq_gossip_address.port(),
         dag,
     };
 

@@ -7,22 +7,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 
 use block::{
-    block::Block,
-    header::BlockHeader,
-    ClaimHash,
-    ClaimList,
-    ConsolidatedClaims,
-    ConsolidatedTxns,
-    ConvergenceBlock,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    QuorumCertifiedTxnList,
-    RefHash,
+    block::Block, header::BlockHeader, ClaimHash, ClaimList, ConsolidatedClaims, ConsolidatedTxns,
+    ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
-use primitives::{Address, Epoch, PublicKey, Signature};
+use primitives::{Address, Epoch, PublicKey, RaptorUdpPort, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -79,6 +69,7 @@ pub enum MinerStatus {
 ///     pub secret_key: MinerSk,
 ///     pub public_key: MinerPk,
 ///     pub ip_address:SocketAddr,
+///     pub raptor_port: RaptorUdpPort,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>
 /// }
 #[derive(Debug)]
@@ -86,6 +77,7 @@ pub struct MinerConfig {
     pub secret_key: MinerSk,
     pub public_key: MinerPk,
     pub ip_address: SocketAddr,
+    pub raptor_port: RaptorUdpPort,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 }
 
@@ -110,6 +102,7 @@ pub struct MinerConfig {
 ///     public_key: MinerPk,
 ///     address: Address,
 ///     pub ip_address:SocketAddr,
+///     pub raptor_port: RaptorUdpPort,
 ///     pub claim: Claim,
 ///     pub dag: Arc<RwLock<BullDag<Block, String>>>,
 ///     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
@@ -122,6 +115,7 @@ pub struct Miner {
     public_key: MinerPk,
     address: Address,
     pub ip_address: SocketAddr,
+    pub raptor_port: RaptorUdpPort,
     pub claim: Claim,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
     pub last_block: Option<Arc<dyn InnerBlock<Header = BlockHeader, RewardType = Reward>>>,
@@ -178,6 +172,7 @@ impl Miner {
         let signature = Claim::signature_for_valid_claim(
             config.public_key,
             config.ip_address,
+            config.raptor_port,
             config.secret_key.secret_bytes().to_vec(),
         )
         .map_err(MinerError::from)?;
@@ -185,6 +180,7 @@ impl Miner {
             config.public_key,
             address.clone(),
             config.ip_address,
+            config.raptor_port,
             signature,
         )
         .map_err(MinerError::from)?;
@@ -193,6 +189,7 @@ impl Miner {
             public_key: config.public_key,
             address,
             ip_address: config.ip_address,
+            raptor_port: config.raptor_port,
             claim,
             dag: config.dag,
             last_block: None,
@@ -221,6 +218,7 @@ impl Miner {
         let signature = Claim::signature_for_valid_claim(
             self.public_key(),
             self.ip_address(),
+            self.raptor_port,
             self.secret_key.secret_bytes().to_vec(),
         )
         .map_err(MinerError::from)?;
@@ -228,6 +226,7 @@ impl Miner {
             self.public_key(),
             self.address(),
             self.ip_address(),
+            self.raptor_port,
             signature,
         )
         .map_err(MinerError::from)?;

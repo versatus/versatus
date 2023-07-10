@@ -3,14 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{
-    invalid::InvalidBlockErrorReason,
-    Block,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    TxnList,
-};
+use block::{Block, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
 use primitives::{Address, PublicKey, SecretKey, Signature};
@@ -28,6 +21,8 @@ use crate::{result::MinerError, Miner, MinerConfig};
 /// Move this into primitives and call it simply `BlockDag`
 pub type MinerDag = Arc<RwLock<BullDag<Block, String>>>;
 
+pub(crate) const TEST_PORT_NUMBER: u16 = 1023;
+
 /// Helper function to create a random Miner.
 pub fn create_miner() -> Miner {
     let (secret_key, public_key) = create_keypair();
@@ -37,6 +32,7 @@ pub fn create_miner() -> Miner {
         secret_key,
         public_key,
         ip_address,
+        raptor_port: TEST_PORT_NUMBER,
         dag,
     };
     Miner::new(config).unwrap()
@@ -50,6 +46,7 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     let config = MinerConfig {
         secret_key,
         ip_address,
+        raptor_port: TEST_PORT_NUMBER,
         public_key,
         dag,
     };
@@ -85,9 +82,10 @@ pub fn create_claim(
     pk: &PublicKey,
     addr: &Address,
     ip_address: SocketAddr,
+    raptor_port: u16,
     signature: String,
 ) -> Claim {
-    Claim::new(*pk, addr.clone(), ip_address, signature).unwrap()
+    Claim::new(*pk, addr.clone(), ip_address, raptor_port, signature).unwrap()
 }
 
 /// Helper function to create a random message and signature
@@ -179,9 +177,14 @@ pub fn create_claims(n: usize) -> impl Iterator<Item = (U256, Claim)> {
         let (sk, pk) = create_keypair();
         let addr = create_address(&pk);
         let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-        let signature =
-            Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
-        let claim = create_claim(&pk, &addr, ip_address, signature);
+        let signature = Claim::signature_for_valid_claim(
+            pk,
+            ip_address,
+            TEST_PORT_NUMBER,
+            sk.secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let claim = create_claim(&pk, &addr, ip_address, TEST_PORT_NUMBER, signature);
         (claim.hash, claim)
     })
 }
@@ -255,10 +258,12 @@ pub fn build_multiple_proposal_blocks_single_round(
             let signature = Claim::signature_for_valid_claim(
                 public_key,
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+            let claim =
+                Claim::new(public_key, address, ip_address, TEST_PORT_NUMBER, signature).unwrap();
             let prop = build_single_proposal_block(
                 last_block_hash.clone(),
                 n_txns,

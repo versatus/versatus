@@ -9,7 +9,7 @@ mod tests {
         net::SocketAddr,
     };
 
-    use primitives::Address;
+    use primitives::{Address, RaptorUdpPort};
     use sha256::digest;
     use vrrb_core::{claim::Claim, keypair::KeyPair};
 
@@ -19,6 +19,8 @@ mod tests {
     fn it_works() {
         assert_eq!(2 + 2, 4);
     }
+
+    pub(crate) const TEST_PORT_NUMBER: RaptorUdpPort = 1023;
 
     #[test]
     fn not_enough_claims() {
@@ -31,11 +33,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -72,11 +81,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
 
             dummy_claims.push(claim);
         });
@@ -108,11 +124,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -141,11 +164,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -178,11 +208,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
 
@@ -215,11 +252,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -256,11 +300,18 @@ mod tests {
             let signature = Claim::signature_for_valid_claim(
                 public_key.clone(),
                 ip_address,
+                TEST_PORT_NUMBER,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                TEST_PORT_NUMBER,
+                signature,
+            )
+            .unwrap();
             //let boxed_claim = Box::new(claim);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());

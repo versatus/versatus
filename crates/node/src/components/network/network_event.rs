@@ -2,7 +2,10 @@ use std::net::SocketAddr;
 
 use events::Vote;
 use mempool::TxnRecord;
-use primitives::{FarmerQuorumThreshold, KademliaPeerId, NodeId, NodeType, PeerId};
+use primitives::{
+    AckBytes, CurrentNodeId, FarmerQuorumThreshold, KademliaPeerId, NodeId, NodeType,
+    PartCommitmentBytes, PeerId, SenderId,
+};
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
 
@@ -106,6 +109,10 @@ pub enum NetworkEvent {
     ForwardedTxn(TxnRecord),
 
     Ping(NodeId),
+
+    PartMessage(SenderId, PartCommitmentBytes),
+
+    Ack(CurrentNodeId, SenderId, AckBytes),
 
     #[default]
     Empty,

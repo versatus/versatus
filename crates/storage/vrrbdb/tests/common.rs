@@ -78,6 +78,7 @@ pub fn _generate_random_claim() -> Claim {
     let signature = Claim::signature_for_valid_claim(
         public_key,
         ip_address,
+        1023,
         keypair.get_miner_secret_key().secret_bytes().to_vec(),
     )
     .unwrap();
@@ -85,6 +86,7 @@ pub fn _generate_random_claim() -> Claim {
         public_key,
         Address::new(public_key),
         ip_address.clone(),
+        1023,
         signature,
     )
     .unwrap()

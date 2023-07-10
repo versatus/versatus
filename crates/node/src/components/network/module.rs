@@ -1,15 +1,16 @@
-use std::net::SocketAddr;
-
 use async_trait::async_trait;
+use chrono::Utc;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
+    types::Message,
 };
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
 use primitives::{KademliaPeerId, NodeId, NodeType};
+use std::net::SocketAddr;
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
+use telemetry::{error, info};
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use tracing::debug;
 use utils::payload::digest_data_to_bytes;
@@ -18,12 +19,8 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
-    DEFAULT_ERASURE_COUNT,
+    components::network::DyswarmHandler, result::Result, NodeError, RuntimeComponent,
+    RuntimeComponentHandle, DEFAULT_ERASURE_COUNT,
 };
 
 #[derive(Debug)]
@@ -403,6 +400,73 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
             },
+            Event::ElectedQuorum(quorum) => {
+                let addresses = self.dyswarm_client.get_peer_connections();
+                self.dyswarm_client.remove_peers(addresses.clone());
+                self.dyswarm_client.clear_connection_list();
+
+                let quic_addresses: Vec<SocketAddr> = quorum
+                    .nodes_addresses
+                    .iter()
+                    .map(|(socket_addr, _)| socket_addr.clone())
+                    .collect();
+
+                let raptor_addresses: Vec<SocketAddr> = quorum
+                    .nodes_addresses
+                    .iter()
+                    .map(|(socket_addr, port)| SocketAddr::new(socket_addr.ip(), *port))
+                    .collect();
+                if let Err(err) = self.dyswarm_client.add_peers(quic_addresses).await {
+                    error!("Error occurred while adding peers: {}", err);
+                }
+                self.dyswarm_client.add_raptor_peers(raptor_addresses);
+                if let Err(err) = self.events_tx.send(Event::DkgInitiate.into()).await {
+                    error!("Error occurred while sending event to publisher: {}", err);
+                }
+            },
+            Event::SendPartMessage(node_id, part_commitment) => {
+                let msg = Message {
+                    id: dyswarm::types::MessageId::new_v4(),
+                    timestamp: Utc::now().timestamp(),
+                    data: NetworkEvent::PartMessage(node_id, part_commitment),
+                };
+                if let Err(err) = self
+                    .dyswarm_client
+                    .broadcast(BroadcastArgs {
+                        config: BroadcastConfig { unreliable: false },
+                        message: msg,
+                        erasure_count: 0,
+                    })
+                    .await
+                {
+                    error!(
+                        "Error occurred during broadcasting part committment: {:?}",
+                        err
+                    );
+                }
+            },
+            Event::SendAck(node_id, sender_id, ack_bytes) => {
+                let msg = Message {
+                    id: dyswarm::types::MessageId::new_v4(),
+                    timestamp: Utc::now().timestamp(),
+                    data: NetworkEvent::Ack(node_id, sender_id, ack_bytes),
+                };
+                if let Err(err) = self
+                    .dyswarm_client
+                    .broadcast(BroadcastArgs {
+                        config: BroadcastConfig { unreliable: false },
+                        message: msg,
+                        erasure_count: 0,
+                    })
+                    .await
+                {
+                    error!(
+                        "Error occurred during broadcasting part committment: {:?}",
+                        err
+                    );
+                }
+            },
+
             Event::Stop => {
                 // NOTE: stop the node
                 self.node_ref().kill();

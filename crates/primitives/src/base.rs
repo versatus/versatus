@@ -24,6 +24,7 @@ pub const DEFAULT_CONNECTION_TIMEOUT_IN_SECS: u64 = 2;
 pub const RAPTOR_DECODER_CACHE_LIMIT: usize = 10000;
 pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;
 
+pub type RaptorUdpPort = u16;
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
 pub type PayloadHash = ByteVec;
@@ -61,3 +62,7 @@ pub type QuorumPublicKey = ByteVec;
 pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
 pub type LastBlockHeight = u128;
+pub type PartCommitmentBytes = ByteVec;
+pub type AckBytes = ByteVec;
+pub type SenderId = u16;
+pub type CurrentNodeId = u16;

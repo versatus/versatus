@@ -7,22 +7,18 @@ use dkg_engine::{
     types::{config::ThresholdConfig, DkgEngine, DkgResult},
 };
 use events::{Event, EventMessage, EventPublisher, SyncPeerData};
-use hbbft::crypto::{PublicKey, SecretKeyShare};
+use hbbft::{
+    crypto::{PublicKey, SecretKeyShare},
+    sync_key_gen::Ack,
+};
 use laminar::{Config, Packet, Socket, SocketEvent};
 use primitives::{
-    NodeIdx,
-    NodeType,
-    NodeTypeBytes,
-    PKShareBytes,
-    PayloadBytes,
-    QuorumPublicKey,
-    QuorumType,
-    RawSignature,
-    REGISTER_REQUEST,
-    RETRIEVE_PEERS_REQUEST,
+    NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, QuorumType,
+    RawSignature, REGISTER_REQUEST, RETRIEVE_PEERS_REQUEST,
 };
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
+use sha2::digest::typenum::Pow;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use tracing::error;
@@ -442,7 +438,7 @@ impl Handler<EventMessage> for DkgModule {
                                     let _ = self
                                         .broadcast_events_tx
                                         .send(
-                                            Event::PartMessage(node_idx, part_committment_bytes)
+                                            Event::SendPartMessage(node_idx, part_committment_bytes)
                                                 .into(),
                                         )
                                         .await.map_err(|e| {
@@ -474,6 +470,16 @@ impl Handler<EventMessage> for DkgModule {
                         .entry(node_idx)
                         .or_insert_with(|| part_committment);
                 };
+                let _ = self
+                        .broadcast_events_tx
+                        .send(
+                            Event::AckPartCommitment(node_idx)
+                                .into(),
+                        )
+                        .await.map_err(|e| {
+                            error!("Error occured while sending part message to broadcast event channel {:?}", e);
+                            TheaterError::Other(format!("{e:?}"))
+                        });
             },
             Event::AckPartCommitment(sender_id) => {
                 if self
@@ -505,6 +511,16 @@ impl Handler<EventMessage> for DkgModule {
                                         });
                                     };
                                 }
+                                let quorum_size = self.dkg_engine.threshold_config.upper_bound;
+                                if self.dkg_engine.dkg_state.ack_message_store.len()
+                                    == quorum_size.pow(2) as usize
+                                    && self.dkg_engine.dkg_state.public_key_set.is_none()
+                                {
+                                    let _ = self.broadcast_events_tx.send(Event::HandleAllAcks.into()).await.map_err(|e| {
+                                        error!("Error occured while sending ack message to broadcast event channel {:?}", e);
+                                        TheaterError::Other(format!("{e:?}"))
+                                    });
+                                }
                             },
                             _ => {
                                 error!("Error occured while acknowledging partial commitment for node {:?}", sender_id);
@@ -518,11 +534,61 @@ impl Handler<EventMessage> for DkgModule {
                     error!("Part Committment for Node idx {:?} missing", sender_id);
                 }
             },
+            Event::Ack(current_node_id, sender_id, ack_bytes) => {
+                if self
+                    .dkg_engine
+                    .dkg_state
+                    .ack_message_store
+                    .contains_key(&(current_node_id, sender_id))
+                {
+                    error!(
+                        "Part Committment for Node idx {:?} already acknowledge",
+                        sender_id
+                    );
+                } else {
+                    let ack_result = bincode::deserialize::<Ack>(&ack_bytes);
+                    if let Ok(ack) = ack_result {
+                        if self
+                            .dkg_engine
+                            .dkg_state
+                            .ack_message_store
+                            .contains_key(&(current_node_id, sender_id))
+                        {
+                            if self
+                                .dkg_engine
+                                .dkg_state
+                                .ack_message_store
+                                .insert((current_node_id, sender_id), ack)
+                                .is_some()
+                            {
+                                let quorum_size = self.dkg_engine.threshold_config.upper_bound;
+                                if self.dkg_engine.dkg_state.ack_message_store.len()
+                                    == quorum_size.pow(2) as usize
+                                    && self.dkg_engine.dkg_state.public_key_set.is_none()
+                                {
+                                    let _ = self.broadcast_events_tx.send(Event::HandleAllAcks.into()).await.map_err(|e| {
+                                        error!("Error occurred while sending ack message to broadcast event channel: {:?}", e);
+                                        TheaterError::Other(format!("{:?}", e))
+                                    });
+                                }
+                            }
+                        }
+                    } else {
+                        error!(
+                            "Deserialization failed for ack_bytes for {:?}, {:?} pair",
+                            current_node_id, sender_id
+                        );
+                    }
+                }
+            },
             Event::HandleAllAcks => {
                 let result = self.dkg_engine.handle_ack_messages();
                 match result {
                     Ok(status) => {
-                        info!("DKG Handle All Acks status {:?}", status);
+                        let _ = self.broadcast_events_tx.send(Event::GenerateKeySet.into()).await.map_err(|e| {
+                            error!("Error occurred while sending ack message to broadcast event channel: {:?}", e);
+                            TheaterError::Other(format!("{:?}", e))
+                        });
                     },
                     Err(e) => {
                         error!("Error occured while handling all the acks {:?}", e);
