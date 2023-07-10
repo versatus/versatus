@@ -14,29 +14,7 @@ use telemetry::log::{debug, error};
 use wasmer::wat2wasm;
 use wasmparser::{Parser, Payload};
 
-// Constants
-/// The initial public version of the WASI interface.
-const WASI_NAMESPACE_UNSTABLE: &str = "wasi_unstable";
-/// The primary namespace used by WASI implementations.
-const WASI_NAMESPACE_PREVIEW1: &str = "wasi_snapshot_preview1";
-/// The WASIX soon-to-be standard for 32bit WASIX
-const WASIX_NAMESPACE_32V1: &str = "wasix_32v1";
-/// The WASIX soon-to-be standard for 64bit WASIX
-const WASIX_NAMESPACE_64V1: &str = "wasix_64v1";
-
-/// The namespace used by Javy for JS->WASM.
-const JAVY_NAMESPACE_QUICKJS: &str = "javy_quickjs_provider_v1";
-
-/// The magic bytes at the start of every WASM v1 object.
-const WASM_MAGIC: &[u8; 4] = &[0x00, 0x61, 0x73, 0x6d];
-/// The offset from which to have the WASM parser start. Currently always 0.
-const WASM_PARSE_OFFSET: u64 = 0;
-/// Default entry point for WASM modules (think main()).
-const WASI_ENTRY_POINT: &str = "_start";
-/// A VRRB-specific magic string potentially exported by modules
-const VRRB_WASM_MAGIC: &str = "_vrrb_abi_magic";
-/// A VRRB-specific version number potentially exported by modules
-const VRRB_WASM_VERSION: &str = "_vrrb_abi_version";
+use crate::constants;
 
 /// A struct to represent some loaded and parsed WASM.
 #[derive(Default, Debug, Clone, Builder)]
@@ -49,6 +27,8 @@ pub struct WasmLoader {
     #[builder(default = "0")]
     #[builder(private)]
     pub wasm_size: usize,
+    // XXX: look at a cleaner interface for all of these booleans as we get a better handle on
+    // what that interface should be able to expose or how it's most likely to end up being used.
     /// True if this module uses WASI interfaces. True for [WASI_NAMESPACE_UNSTABLE],
     /// [WASI_NAMESPACE_PREVIEW1], [WASIX_NAMESPACE_32V1] and [WASIX_NAMESPACE_64V1].
     #[builder(default = "false")]
@@ -109,7 +89,7 @@ impl WasmLoaderBuilder {
             },
         }
 
-        // Should be unreachable
+        // Is unreachable
     }
 
     /// Simple function to compare the first four bytes of an array with the well-known
@@ -117,12 +97,9 @@ impl WasmLoaderBuilder {
     fn contains_magic(&self, bytes: &Vec<u8>) -> bool {
         let header = &bytes[0..4];
 
-        if header == WASM_MAGIC {
-            return true;
-        }
         debug!("WASM header missing: {:02x?}", header);
-
-        false
+        // return whether the header is equal to the [WASM_MAGIC] constant.
+        header == constants::WASM_MAGIC
     }
 
     /// Parses the provided WASM binary and collects hints about requirements,
@@ -141,7 +118,7 @@ impl WasmLoaderBuilder {
         }
 
         if let Some(wasm) = &self.wasm_bytes {
-            for payload in Parser::new(WASM_PARSE_OFFSET).parse_all(&wasm) {
+            for payload in Parser::new(constants::WASM_PARSE_OFFSET).parse_all(&wasm) {
                 match payload {
                     Ok(p) => {
                         match p {
@@ -154,13 +131,13 @@ impl WasmLoaderBuilder {
 
                                     debug!("Export: {:?}", export);
 
-                                    if export.name == WASI_ENTRY_POINT {
+                                    if export.name == constants::WASI_ENTRY_POINT {
                                         debug!("Has entry point: {}", export.name);
                                         new.has_start = Some(true);
                                     }
 
-                                    if export.name == VRRB_WASM_MAGIC
-                                        || export.name == VRRB_WASM_VERSION
+                                    if export.name == constants::VRRB_WASM_MAGIC
+                                        || export.name == constants::VRRB_WASM_VERSION
                                     {
                                         debug!("Has VRRB symbol: {}", export.name);
                                         new.has_vrrb = Some(true);
@@ -171,7 +148,7 @@ impl WasmLoaderBuilder {
                             },
                             Payload::ImportSection(s) => {
                                 for import in s {
-                                    let import = import.unwrap();
+                                    let import = import.expect("Import section is malformed");
 
                                     debug!("Import: {:?}", import);
 
@@ -184,20 +161,20 @@ impl WasmLoaderBuilder {
                                         .expect("Vector creation failed.")
                                         .push(import.name.to_string());
 
-                                    if import.module == WASI_NAMESPACE_PREVIEW1
-                                        || import.module == WASI_NAMESPACE_UNSTABLE
+                                    if import.module == constants::WASI_NAMESPACE_PREVIEW1
+                                        || import.module == constants::WASI_NAMESPACE_UNSTABLE
                                     {
                                         new.is_wasi = Some(true);
                                     }
 
-                                    if import.module == WASIX_NAMESPACE_32V1
-                                        || import.module == WASIX_NAMESPACE_64V1
+                                    if import.module == constants::WASIX_NAMESPACE_32V1
+                                        || import.module == constants::WASIX_NAMESPACE_64V1
                                     {
                                         new.is_wasi = Some(true);
                                         new.is_wasix = Some(true);
                                     }
 
-                                    if import.module == JAVY_NAMESPACE_QUICKJS {
+                                    if import.module == constants::JAVY_NAMESPACE_QUICKJS {
                                         new.needs_javy = Some(true);
                                     }
                                 }
