@@ -33,6 +33,7 @@ pub type KademliaPeerId = kademlia_dht::Key;
 pub type FarmerId = ByteVec;
 pub type IsTxnValid = bool;
 pub type PublicKeyShareVec = ByteVec;
+pub type RaptorUdpPort = u16;
 
 #[deprecated(note = "Use TransactionDigest instead")]
 pub type TxHash = ByteVec;
@@ -55,9 +56,12 @@ pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;
-
 pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
 pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
 pub type LastBlockHeight = u128;
+pub type PartCommitmentBytes = ByteVec;
+pub type AckBytes = ByteVec;
+pub type SenderId = u16;
+pub type CurrentNodeId = u16;
