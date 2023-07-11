@@ -10,7 +10,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
-use crate::bootstrap::BootstrapConfig;
+use crate::{bootstrap::BootstrapConfig, BootstrapQuorumConfig};
 
 #[derive(Builder, Debug, Clone, Deserialize)]
 pub struct NodeConfig {
@@ -80,8 +80,11 @@ pub struct NodeConfig {
     #[builder(default = "false")]
     pub preload_mock_state: bool,
 
-    /// Bootstrap configuration
+    /// Bootstrap configuration used to connect to a bootstrap node.
     pub bootstrap_config: Option<BootstrapConfig>,
+
+    /// Optional Genesis Quorum configuration used to bootstrap a new quorum
+    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
     pub keypair: Keypair,
 
@@ -162,6 +165,7 @@ impl Default for NodeConfig {
             keypair: Keypair::random(),
             gui: false,
             disable_networking: false,
+            bootstrap_quorum_config: None,
         }
     }
 }
