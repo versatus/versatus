@@ -13,13 +13,7 @@ use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use lr_trie::ReadHandleFactory;
 use patriecia::{db::MemoryDB, inner::InnerTrie};
 use primitives::Address;
-use storage::vrrbdb::{
-    RocksDbAdapter,
-    StateStoreReadHandle,
-    VrrbDb,
-    VrrbDbConfig,
-    VrrbDbReadHandle,
-};
+use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::NodeConfig;
@@ -30,13 +24,7 @@ use vrrb_core::{
     txn::{Token, TransactionDigest, Txn},
 };
 
-use crate::{
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
-    RuntimeComponents,
-};
+use crate::{result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient
@@ -707,10 +695,7 @@ mod tests {
 
     use super::*;
     use crate::test_utils::{
-        produce_accounts,
-        produce_convergence_block,
-        produce_genesis_block,
-        produce_proposal_blocks,
+        produce_accounts, produce_convergence_block, produce_genesis_block, produce_proposal_blocks,
     };
 
     #[tokio::test]
@@ -832,6 +817,7 @@ mod tests {
 
     pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
 
+    #[ignore = "state write is not yet persistent in the state module"]
     #[tokio::test]
     async fn vrrbdb_should_update_with_new_block() {
         let path = std::env::temp_dir().join("db");
@@ -886,7 +872,11 @@ mod tests {
 
         for (address, _) in accounts.iter() {
             let account = store.get(address).unwrap();
-            let _digests = account.digests.clone();
+            let digests = account.digests.clone();
+            dbg!(&digests);
+            assert!(digests.get_sent().len() > 0);
+            assert!(digests.get_recv().len() > 0);
+            assert!(digests.get_stake().len() == 0);
         }
     }
 }

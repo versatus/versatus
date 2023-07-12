@@ -4,7 +4,7 @@ pub mod node;
 mod runtime_component;
 mod runtime_module;
 
-pub(crate) mod components;
+pub mod components;
 pub(crate) mod node_health_report;
 pub(crate) mod runtime;
 
