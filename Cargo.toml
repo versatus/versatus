@@ -14,6 +14,10 @@ lto = "thin"
 name = "vrrb"
 path = "crates/cli/src/main.rs"
 
+[[bin]]
+name = "vrrb-wasm"
+path = "crates/wasm_cli/src/main.rs"
+
 [dependencies]
 tokio = { workspace = true }
 telemetry = { workspace = true }
@@ -55,6 +59,7 @@ members = [
     "crates/vrrb_http",
     "crates/vrrb_grpc",
     "crates/wasm_loader",
+    "crates/wasm_cli",
 ]
 
 [workspace.dependencies]
@@ -90,6 +95,7 @@ job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
 vrrb_http = { path = "crates/vrrb_http" }
 vrrb_grpc = { path = "crates/vrrb_grpc" }
+wasm_loader = { path = "crates/wasm_loader" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
@@ -113,7 +119,7 @@ secp256k1 = { version = "0.25.0", features = [
 ] }
 
 # NOTE: External crates
-clap = { version = "3.2.20", features = ["derive"] }
+clap = { version = "3.2.20", features = ["derive", "cargo"] }
 assert_cmd = "2.0.4"
 sha256 = "1.1.1"
 rand = { version = "0.8.5", features = ["std"] }
