@@ -179,7 +179,6 @@ impl DkgModule {
 
         // Spawning threads for retrieve peers request and register request
         DkgModule::spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST), tx1);
-
         DkgModule::spawn_interval_thread(Duration::from_secs(REGISTER_REQUEST), tx2);
 
         loop {

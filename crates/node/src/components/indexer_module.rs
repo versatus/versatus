@@ -1,9 +1,13 @@
 use async_trait::async_trait;
-use events::{Event, EventMessage};
+use events::{Event, EventMessage, EventSubscriber};
 use mempool::MempoolReadHandleFactory;
 use telemetry::{info, warn};
-use theater::{ActorId, ActorLabel, ActorState, Handler};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+use tokio::task::JoinHandle;
+use vrrb_config::NodeConfig;
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
+
+use crate::{NodeError, Result};
 
 pub struct IndexerModuleConfig {
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
@@ -91,6 +95,29 @@ impl Handler<EventMessage> for IndexerModule {
 
         Ok(ActorState::Running)
     }
+}
+
+pub fn setup_indexer_module(
+    _config: &NodeConfig,
+    mut indexer_events_rx: EventSubscriber,
+    mempool_read_handle_factory: MempoolReadHandleFactory,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let config = IndexerModuleConfig {
+        mempool_read_handle_factory,
+    };
+
+    let module = IndexerModule::new(config);
+
+    let mut indexer_module_actor = ActorImpl::new(module);
+
+    let indexer_handle = tokio::spawn(async move {
+        indexer_module_actor
+            .start(&mut indexer_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    Ok(Some(indexer_handle))
 }
 
 #[cfg(test)]

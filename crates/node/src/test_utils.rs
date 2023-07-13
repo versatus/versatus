@@ -8,7 +8,7 @@ use std::{
 
 use block::{Block, BlockHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
-use miner::test_helpers::{create_address, create_claim, create_miner};
+pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{generate_account_keypair, Address, NodeType, RawSignature};
 use secp256k1::{Message, PublicKey, SecretKey};
 use uuid::Uuid;
@@ -19,6 +19,7 @@ use vrrb_core::{
     keypair::Keypair,
     txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
+use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 use crate::components::{dag_module::DagModule, network::NetworkEvent};
 
@@ -65,6 +66,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .public_ip_address(public_ip_address)
         .grpc_server_address(grpc_server_address)
         .disable_networking(false)
+        .bootstrap_quorum_config(None)
         .build()
         .unwrap()
 }
@@ -363,4 +365,44 @@ pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     array.shuffle(&mut thread_rng());
 
     array
+}
+
+/// Creates an instance of a RpcApiClient for testing.
+pub async fn create_node_rpc_client(rpc_addr: SocketAddr) -> impl RpcApiClient {
+    create_client(rpc_addr).await.unwrap()
+}
+
+/// Creates a mock `NewTxnArgs` struct meant to be used for testing.
+pub fn create_mock_transaction_args(n: usize) -> NewTxnArgs {
+    let (sk, pk) = create_keypair();
+    let (_, rpk) = create_keypair();
+    let saddr = create_address(&pk);
+    let raddr = create_address(&rpk);
+    let amount = (n.pow(2)) as u128;
+    let token = None;
+
+    NewTxnArgs {
+        timestamp: 0,
+        sender_address: saddr,
+        sender_public_key: pk,
+        receiver_address: raddr,
+        token,
+        amount,
+        signature: sk
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+        validators: None,
+        nonce: n as u128,
+    }
+
+    // NewTxnArgs {
+    //     timestamp: chrono::Utc::now().timestamp(),
+    //     sender_address: todo!(),
+    //     sender_public_key: todo!(),
+    //     receiver_address: todo!(),
+    //     token: todo!(),
+    //     amount: todo!(),
+    //     signature: todo!(),
+    //     validators: todo!(),
+    //     nonce: todo!(),
+    // }
 }

@@ -272,6 +272,37 @@ impl Handler<EventMessage> for FarmerModule {
     }
 }
 
+pub fn setup_farmer_module(
+    config: &NodeConfig,
+    sync_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
+    events_tx: EventPublisher,
+    mut farmer_events_rx: EventSubscriber,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module = farmer_module::FarmerModule::new(
+        None,
+        vec![],
+        config.keypair.get_peer_id().into_bytes(),
+        // Farmer Node Idx should be updated either by Election or Bootstrap node should assign idx
+        0,
+        events_tx,
+        // Quorum Threshold should be updated on the election,
+        1,
+        sync_jobs_sender,
+        async_jobs_sender,
+    );
+
+    let mut farmer_module_actor = ActorImpl::new(module);
+    let farmer_handle = tokio::spawn(async move {
+        farmer_module_actor
+            .start(&mut farmer_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+
+    Ok(Some(farmer_handle))
+}
+
 pub trait QuorumMember {}
 // TODO: Move this to primitives
 pub type QuorumId = String;

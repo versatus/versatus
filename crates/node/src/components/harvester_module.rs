@@ -592,6 +592,40 @@ impl Handler<EventMessage> for HarvesterModule {
     }
 }
 
+pub fn setup_harvester_module(
+    config: &NodeConfig,
+    dag: Arc<RwLock<BullDag<Block, String>>>,
+    sync_jobs_sender: Sender<Job>,
+    async_jobs_sender: Sender<Job>,
+    broadcast_events_tx: EventPublisher,
+    events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
+    vrrb_db_handle: VrrbDbReadHandle,
+    mut harvester_events_rx: EventSubscriber,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module = harvester_module::HarvesterModule::new(
+        Bloom::new(PULL_TXN_BATCH_SIZE),
+        None,
+        vec![],
+        events_rx,
+        broadcast_events_tx,
+        1,
+        dag,
+        sync_jobs_sender,
+        async_jobs_sender,
+        vrrb_db_handle,
+        config.keypair.clone(),
+        config.idx,
+    );
+    let mut harvester_module_actor = ActorImpl::new(module);
+    let harvester_handle = tokio::spawn(async move {
+        harvester_module_actor
+            .start(&mut harvester_events_rx)
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
+    });
+    Ok(Some(harvester_handle))
+}
+
 #[cfg(test)]
 mod tests {
     use std::{

@@ -67,6 +67,7 @@ impl DkgModule {
                 threshold: config.quorum_threshold as u16,
             },
         );
+
         let socket_result = Socket::bind_with_config(
             rendezvous_local_addr,
             Config {
@@ -541,6 +542,46 @@ impl Handler<EventMessage> for DkgModule {
         }
 
         Ok(ActorState::Running)
+    }
+}
+
+pub fn setup_dkg_module(
+    config: &NodeConfig,
+    events_tx: EventPublisher,
+    mut dkg_events_rx: EventSubscriber,
+) -> Result<Option<JoinHandle<Result<()>>>> {
+    let module = dkg_module::DkgModule::new(
+        0,
+        config.node_type,
+        config.keypair.validator_kp.0.clone(),
+        DkgModuleConfig {
+            quorum_type: Some(Farmer),
+            quorum_size: 30,
+            /* Need to be decided either will be preconfigured or decided by
+             * Bootstrap Node */
+            quorum_threshold: 15,
+            /* Need to be decided either will be preconfigured or decided
+             * by Bootstrap Node */
+        },
+        config.rendezvous_local_address,
+        config.rendezvous_local_address,
+        config.udp_gossip_address.port(),
+        events_tx,
+    );
+
+    if let Ok(dkg_module) = module {
+        let mut dkg_module_actor = ActorImpl::new(dkg_module);
+        let dkg_handle = tokio::spawn(async move {
+            dkg_module_actor
+                .start(&mut dkg_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
+        Ok(Some(dkg_handle))
+    } else {
+        Err(NodeError::Other(String::from(
+            "Failed to instantiate dkg module",
+        )))
     }
 }
 

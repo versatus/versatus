@@ -188,13 +188,18 @@ impl Handler<EventMessage> for FarmerModule {
                 self.harvester_peers.remove(&peer);
             },
             /*
+             *
+             *
             Event::SyncNeighbouringFarmerQuorum(peers_details) => {
                 for (group_public_key, addressess) in peers_details {
                     self.neighbouring_farmer_quorum_peers
                         .insert(group_public_key, addressess);
                 }
-            },*/
-            //Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
+            }
+            *
+            *
+            */
+            // Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
             // them to scheduler to get it validated and voted
             Event::Farm => {
                 let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
@@ -203,8 +208,11 @@ impl Handler<EventMessage> for FarmerModule {
                     .keys()
                     .cloned()
                     .collect();
+
                 let maglev_hash_ring = Maglev::new(keys);
+
                 let mut new_txns = vec![];
+
                 for txn in txns.into_iter() {
                     if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned() {
                         if group_public_key == self.group_public_key {
@@ -214,6 +222,7 @@ impl Handler<EventMessage> for FarmerModule {
                         {
                             let addresses: Vec<SocketAddr> =
                                 broadcast_addresses.iter().cloned().collect();
+
                             self.broadcast_events_tx
                                 .send(EventMessage::new(
                                     None,

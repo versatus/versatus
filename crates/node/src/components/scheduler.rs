@@ -11,6 +11,7 @@ use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
 use tracing::error;
 use validator::validator_core_manager::ValidatorCoreManager;
+use vrrb_config::NodeConfig;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::NodeError;
@@ -283,4 +284,22 @@ impl JobSchedulerController {
             }
         }
     }
+}
+
+pub fn setup_scheduler_module(
+    config: &NodeConfig,
+    sync_jobs_receiver: crossbeam_channel::Receiver<Job>,
+    async_jobs_receiver: crossbeam_channel::Receiver<Job>,
+    validator_core_manager: ValidatorCoreManager,
+    events_tx: EventPublisher,
+    vrrbdb_read_handle: VrrbDbReadHandle,
+) -> JobSchedulerController {
+    JobSchedulerController::new(
+        hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
+        events_tx,
+        sync_jobs_receiver,
+        async_jobs_receiver,
+        validator_core_manager,
+        vrrbdb_read_handle,
+    )
 }

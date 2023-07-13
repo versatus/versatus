@@ -1,12 +1,16 @@
 use std::collections::HashSet;
 
+use async_trait::async_trait;
 use block::{ProposalBlock, RefHash};
-use events::Vote;
+use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
 use hbbft::crypto::PublicKeyShare;
 use primitives::{BlockHash, Epoch, FarmerQuorumThreshold, NodeIdx, RawSignature, Round};
 use ritelinked::LinkedHashMap;
 use signer::signer::SignatureProvider;
 use storage::vrrbdb::VrrbDbReadHandle;
+use telemetry::info;
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+use vrrb_config::NodeConfig;
 use vrrb_core::{
     bloom::Bloom,
     claim::Claim,
@@ -14,10 +18,21 @@ use vrrb_core::{
     txn::{QuorumCertifiedTxn, TransactionDigest},
 };
 
+use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
+
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
+
+#[derive(Debug, Clone)]
+pub struct ConsensusModuleConfig {
+    pub events_tx: EventPublisher,
+    pub keypair: Keypair,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+}
 
 #[derive(Debug)]
 pub struct ConsensusModule {
+    id: ActorId,
+    status: ActorState,
     vrrbdb_read_handle: VrrbDbReadHandle,
     quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     keypair: Keypair,
@@ -45,7 +60,22 @@ pub struct ConsensusModule {
 }
 
 impl ConsensusModule {
+    pub fn new(cfg: ConsensusModuleConfig) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            status: ActorState::Stopped,
+            vrrbdb_read_handle: cfg.vrrbdb_read_handle,
+            quorum_certified_txns: vec![],
+            keypair: cfg.keypair,
+            certified_txns_filter: Bloom::new(10),
+        }
+    }
+
     async fn certify_block(&self) {}
+
+    async fn mine_genesis_block(&self) {
+        //
+    }
 
     async fn mine_proposal_block(
         &mut self,
@@ -447,4 +477,81 @@ impl ConsensusModule {
     //     Event::NoOp => {},
     //     _ => {},
     // }
+}
+
+#[async_trait]
+impl Handler<EventMessage> for ConsensusModule {
+    fn id(&self) -> ActorId {
+        self.id.clone()
+    }
+
+    fn label(&self) -> ActorLabel {
+        format!("Consensus::{}", self.id())
+    }
+
+    fn status(&self) -> ActorState {
+        self.status.clone()
+    }
+
+    fn set_status(&mut self, actor_status: ActorState) {
+        self.status = actor_status;
+    }
+
+    fn on_start(&self) {
+        info!("{} starting", self.label());
+    }
+
+    fn on_stop(&self) {
+        info!("{} received stop signal. Stopping", self.label());
+    }
+
+    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
+        match event.into() {
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
+            },
+            Event::NoOp => {},
+            _ => {},
+        }
+        Ok(ActorState::Running)
+    }
+}
+
+#[derive(Debug)]
+pub struct ConsensusModuleComponentConfig {
+    pub events_tx: EventPublisher,
+    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub consensus_events_rx: EventSubscriber,
+    pub node_config: NodeConfig,
+}
+
+#[async_trait]
+impl RuntimeComponent<ConsensusModuleComponentConfig, ()> for ConsensusModule {
+    async fn setup(
+        args: ConsensusModuleComponentConfig,
+    ) -> crate::Result<RuntimeComponentHandle<()>> {
+        let module = ConsensusModule::new(ConsensusModuleConfig {
+            events_tx: args.events_tx,
+            vrrbdb_read_handle: args.vrrbdb_read_handle,
+            keypair: args.node_config.keypair,
+        });
+
+        let mut consensus_events_rx = args.consensus_events_rx;
+        let mut consensus_module_actor = ActorImpl::new(module);
+        let label = consensus_module_actor.label();
+        let consensus_handle = tokio::spawn(async move {
+            consensus_module_actor
+                .start(&mut consensus_events_rx)
+                .await
+                .map_err(|err| NodeError::Other(err.to_string()))
+        });
+
+        let component_handle = RuntimeComponentHandle::new(consensus_handle, (), label);
+
+        Ok(component_handle)
+    }
+
+    async fn stop(&mut self) -> crate::Result<()> {
+        todo!()
+    }
 }

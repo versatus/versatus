@@ -1,59 +1,10 @@
-use std::{
-    net::SocketAddr,
-    process::Command,
-    sync::{Arc, RwLock},
-    thread,
-};
+use std::process::Command;
 
-use block::Block;
-use bulldag::graph::BullDag;
-use crossbeam_channel::Sender;
-use events::{
-    Event,
-    Event::BroadcastClaim,
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    EventSubscriber,
-    DEFAULT_BUFFER,
-};
-use mempool::MempoolReadHandleFactory;
-use miner::MinerConfig;
-use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
-use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use vrrb_core::{bloom::Bloom, claim::Claim};
-use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
-use crate::{
-    components::{
-        dag_module::DagModule,
-        dkg_module::{self, DkgModuleConfig},
-        election_module::{
-            ElectionModule,
-            ElectionModuleConfig,
-            MinerElection,
-            MinerElectionResult,
-            QuorumElection,
-            QuorumElectionResult,
-        },
-        farmer_module::{self, PULL_TXN_BATCH_SIZE},
-        harvester_module,
-        indexer_module::{self, IndexerModuleConfig},
-        mempool_module::{MempoolModule, MempoolModuleComponentConfig},
-        mining_module::{MiningModule, MiningModuleConfig},
-        network::{NetworkModule, NetworkModuleComponentConfig},
-        scheduler::{Job, JobSchedulerController},
-        state_module::{StateModule, StateModuleComponentConfig},
-    },
-    result::{NodeError, Result},
-    RuntimeComponent,
-    RuntimeComponents,
-};
+use crate::result::{NodeError, Result};
 
 pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<()>>>> {
     if config.gui {
