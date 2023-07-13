@@ -6,6 +6,7 @@ use std::{
     str::FromStr,
 };
 
+// TODO: remove or reconsider base58 encoding
 use bs58::encode;
 use hbbft::crypto::{
     serde_impl::SerdeSecret,
@@ -30,12 +31,14 @@ pub type SecretKeys = (MinerSk, ValidatorSecretKey);
 pub type PublicKeys = (MinerPk, ValidatorPublicKey);
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+/// Represents a set of keys meant to be used to either mine blocks or validate
+/// transactions.
 pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
     pub validator_kp: (ValidatorSecretKey, ValidatorPublicKey),
 }
 
-/// Alias for KeyPair, to avoid frustrations because of subtle typos
+// NOTE: Alias for KeyPair, to avoid frustrations because of subtle typos
 pub type Keypair = KeyPair;
 
 #[derive(Error, Debug)]

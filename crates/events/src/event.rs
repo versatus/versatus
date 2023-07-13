@@ -196,7 +196,7 @@ pub enum Event {
 
     /// `MinerElection(HeaderBytes)` is an event that is triggered after the
     /// last convergence block is mined and the proposal blocks are built.
-    MinerElection(HeaderBytes),
+    MinerElection(BlockHeader),
 
     /// `ElectedMiner((U256, Claim))` is an event that is triggered after the
     /// last convergence block is mined and the elected miner mines a new
@@ -206,7 +206,7 @@ pub enum Event {
     /// `QuorumElection(HeaderBytes)` is an event that is triggered to initiate
     /// the Quorum Election process, once the elected candidates have
     /// broadcasted their claims to each other.
-    QuorumElection(HeaderBytes),
+    QuorumElection(BlockHeader),
 
     /// `ElectedQuorum(Quorum)` is an event that is triggered when Quorum is
     /// successfully elected.

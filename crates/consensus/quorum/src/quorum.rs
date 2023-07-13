@@ -33,7 +33,7 @@ pub enum InvalidQuorum {
     ClaimError(),
 }
 
-///Quorum struct which is created and modified when an election is run
+/// Quorum struct which is created and modified when an election is run
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct Quorum {
     pub quorum_seed: u64,
@@ -55,7 +55,7 @@ impl Election for Quorum {
     type Return = Self;
     type Seed = Seed;
 
-    ///a miner calls this fxn to generate a u64 seed for the election using the
+    /// A miner calls this fxn to generate a u64 seed for the election using the
     /// vrrb_vrf crate
     fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, InvalidQuorum> {
         if !Quorum::check_validity(payload.0) {
@@ -77,7 +77,7 @@ impl Election for Quorum {
         Ok(random_number)
     }
 
-    ///master nodes run elections to determine the next master node quorum
+    /// Master nodes run elections to determine the next master node quorum
     fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
         if self.election_block_height == 0 {
             return Err(InvalidQuorum::InvalidChildBlockError());
@@ -98,7 +98,7 @@ impl Election for Quorum {
 }
 
 impl Quorum {
-    ///makes a new Quorum and initializes seed, child block height, and child
+    /// Makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
     pub fn new(seed: u64, height: u128) -> Result<Quorum, InvalidQuorum> {
         if !Quorum::check_validity(height) {
@@ -113,7 +113,7 @@ impl Quorum {
         }
     }
 
-    ///checks if the child block height is valid ,its used at seed and quorum
+    ///checks if the child block height is valid, its used at seed and quorum
     /// creation
     pub fn check_validity(height: Height) -> bool {
         height > 0
@@ -133,14 +133,17 @@ impl Quorum {
             .for_each(|claim| {
                 eligible_claims.push(claim);
             });
+
         if eligible_claims.len() < 20 {
             return Err(InvalidQuorum::InsufficientNodesError());
         }
+
         let eligible_claims = eligible_claims;
+
         Ok(eligible_claims)
     }
 
-    ///gets the final quorum by getting 51% of master nodes with lowest pointer
+    /// Gets the final quorum by getting 51% of master nodes with lowest pointer
     /// sums
     pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
         if self.quorum_seed == 0 {
@@ -165,6 +168,7 @@ impl Quorum {
             .collect();
 
         let final_pubkeys = Vec::from_iter(pubkeys[0..num_claims].iter().cloned());
+
         self.master_pubkeys = final_pubkeys;
 
         Ok(self)

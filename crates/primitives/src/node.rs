@@ -16,12 +16,13 @@ pub enum Error {
     Other(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
 // #[serde(try_from = "String")]
 pub enum NodeType {
     /// A Node that can archive, validate and mine tokens
+    #[default]
     Full = 0,
     /// Same as `NodeType::Full` but without archiving capabilities
     Light = 1,
@@ -31,7 +32,7 @@ pub enum NodeType {
     Miner = 3,
     Bootstrap = 4,
     Validator = 5,
-    // MasterNode = 6,
+    MasterNode = 6,
     // RPCNode = 7,
     Farmer = 8,
     Harvester = 9,
@@ -56,7 +57,7 @@ impl FromStr for NodeType {
             "bootstrap" => Ok(NodeType::Bootstrap),
             "validator" => Ok(NodeType::Validator),
             "masternode" => Ok(NodeType::MasterNode),
-            "rpc" => Ok(NodeType::RPCNode),
+            // "rpc" => Ok(NodeType::RPCNode),
             _ => Err(Error::Other("invalid node type".into())),
         }
     }
@@ -65,16 +66,14 @@ impl FromStr for NodeType {
 impl From<String> for NodeType {
     fn from(src: String) -> Self {
         match src.to_ascii_lowercase().as_str() {
-            "full" => NodeType::Full,
             "light" => NodeType::Light,
             "archive" => NodeType::Archive,
             "miner" => NodeType::Miner,
             "bootstrap" => NodeType::Bootstrap,
             "validator" => NodeType::Validator,
-            "masternode" => NodeType::MasterNode,
             "farmer" => NodeType::Farmer,
-            "rpc" => NodeType::RPCNode,
-            _ => NodeType::Unknown,
+            "masternode" => NodeType::MasterNode,
+            _ => NodeType::Full,
         }
     }
 }
@@ -82,16 +81,14 @@ impl From<String> for NodeType {
 impl From<usize> for NodeType {
     fn from(node_type: usize) -> Self {
         match node_type {
-            0 => NodeType::Full,
             1 => NodeType::Light,
             2 => NodeType::Archive,
             3 => NodeType::Miner,
             4 => NodeType::Bootstrap,
             5 => NodeType::Validator,
             6 => NodeType::MasterNode,
-            7 => NodeType::RPCNode,
             8 => NodeType::Farmer,
-            _ => NodeType::Unknown,
+            _ => NodeType::Full,
         }
     }
 }
