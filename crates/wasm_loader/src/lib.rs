@@ -1,18 +1,20 @@
-pub mod wasm_loader;
 mod constants;
+pub mod wasm_loader;
 
 #[cfg(test)]
 mod loader_tests {
-    use crate::wasm_loader::WasmLoaderBuilder;
     use telemetry::log::debug;
     use test_log::test;
+
+    use crate::wasm_loader::WasmLoaderBuilder;
 
     // constants to some precompiled WASM modules to aid in some basic testing.
     // A module containing some WASI symbols and some VRRB symbols
     const SIMPLE_WASI_TEST_MODULE: &str = "test_data/simple.wasi";
     // A module with a Javy dependency
     const SIMPLE_JAVY_TEST_MODULE: &str = "test_data/simple-javy.wasm";
-    // A WASM module represented as Web Assembly Text (WAT) to be assembled/compiled to binary
+    // A WASM module represented as Web Assembly Text (WAT) to be assembled/compiled
+    // to binary
     const SIMPLE_WAT_TEST_MODULE: &str = "test_data/simple.wat";
 
     #[test]

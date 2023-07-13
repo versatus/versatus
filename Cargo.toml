@@ -25,6 +25,8 @@ cli = { workspace = true }
 anyhow = { workspace = true }
 node = { workspace = true }
 vrrb_config = { workspace = true }
+clap = { workspace = true }
+wasm_loader = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["rusty-hook"]
@@ -119,7 +121,7 @@ secp256k1 = { version = "0.25.0", features = [
 ] }
 
 # NOTE: External crates
-clap = { version = "3.2.20", features = ["derive", "cargo"] }
+clap = { version = "3.2.20", features = ["derive"] }
 assert_cmd = "2.0.4"
 sha256 = "1.1.1"
 rand = { version = "0.8.5", features = ["std"] }

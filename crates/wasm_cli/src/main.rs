@@ -9,10 +9,10 @@ fn main() -> anyhow::Result<()> {
     // Process subcommand
     match &cli.cmd {
         Some(cli::WasmCommands::Describe(opts)) => {
-            commands::describe::run(opts)?;
+            commands::describe::run(&opts)?;
         },
         Some(cli::WasmCommands::Validate(opts)) => {
-            commands::validate::run(opts)?;
+            commands::validate::run(&opts)?;
         },
         None => {},
     }
