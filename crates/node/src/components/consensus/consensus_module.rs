@@ -37,6 +37,7 @@ pub struct ConsensusModule {
     quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     keypair: Keypair,
     certified_txns_filter: Bloom,
+    //
     // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     // group_public_key: GroupPublicKey,
     // sig_provider: Option<SignatureProvider>,
@@ -71,7 +72,9 @@ impl ConsensusModule {
         }
     }
 
-    async fn certify_block(&self) {}
+    async fn certify_block(&self) {
+        //
+    }
 
     async fn mine_genesis_block(&self) {
         //

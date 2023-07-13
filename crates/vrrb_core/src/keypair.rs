@@ -45,9 +45,9 @@ pub type Keypair = KeyPair;
 pub enum KeyPairError {
     #[error("Failed to deserialize the secret key from bytes")]
     InvalidKeyPair,
-    #[error("Failed to serialize the  key to bytes, details :{0}")]
+    #[error("Failed to serialize the key to bytes, details: {0}")]
     SerializeKeyError(String, String),
-    #[error("Failed to read key from file ,details :{0}")]
+    #[error("Failed to read key from file, details: {0}")]
     FailedToReadFromFile(String),
     #[error("Invalid Hex represenation of secret key")]
     InvalidHex,
@@ -55,9 +55,9 @@ pub enum KeyPairError {
     IOError(String),
     #[error("Failed to deserialize the public key from bytes")]
     InvalidPublicKey,
-    #[error("Invalid signature ,details : {0}")]
+    #[error("Invalid signature, details: {0}")]
     InvalidSignature(String),
-    #[error("ECDSA Signature Verification failed ,details : {0}")]
+    #[error("ECDSA Signature Verification failed, details: {0}")]
     SignatureVerificationFailed(String),
     #[error("Failed to de-serialize {0} key ")]
     InvalidKey(String),

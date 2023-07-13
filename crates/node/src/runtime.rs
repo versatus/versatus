@@ -1,22 +1,14 @@
-use std::{
-    sync::{Arc, RwLock},
-    thread,
-};
+use std::sync::{Arc, RwLock};
 
 use block::Block;
 use bulldag::graph::BullDag;
-use events::{Event, EventPublisher, EventRouter, EventSubscriber, DEFAULT_BUFFER};
-use mempool::MempoolReadHandleFactory;
-use miner::MinerConfig;
-use primitives::{Address, NodeType, QuorumType::Farmer};
-use storage::vrrbdb::VrrbDbReadHandle;
+use events::{Event, EventPublisher, EventRouter, DEFAULT_BUFFER};
+use primitives::Address;
 use telemetry::info;
 use theater::{Actor, ActorImpl};
 use tokio::task::JoinHandle;
-use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
-use vrrb_core::{bloom::Bloom, claim::Claim};
-use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
+use vrrb_core::claim::Claim;
 
 use crate::{
     api::setup_rpc_api_server,
@@ -25,21 +17,14 @@ use crate::{
             self,
             ConsensusModule,
             ConsensusModuleComponentConfig,
+            QuorumMembershipConfig,
             QuorumModuleComponentConfig,
         },
         dag_module::{setup_dag_module, DagModule},
-        // dkg_module::{self, DkgModuleConfig},
-        // election_module::{
-        //     ElectionModule, ElectionModuleConfig, MinerElection, MinerElectionResult,
-        //     QuorumElection, QuorumElectionResult,
-        // },
-        // farmer_module::{self, PULL_TXN_BATCH_SIZE},
-        // harvester_module,
         indexer_module::{self, setup_indexer_module, IndexerModuleConfig},
         mempool_module::{MempoolModule, MempoolModuleComponentConfig},
         mining_module::{MiningModule, MiningModuleComponentConfig},
         network::{NetworkModule, NetworkModuleComponentConfig},
-        scheduler::{Job, JobSchedulerController},
         state_module::{StateModule, StateModuleComponentConfig},
         ui::setup_node_gui,
     },
@@ -60,19 +45,12 @@ pub async fn setup_runtime_components(
     let mut mempool_events_rx = router.subscribe(None)?;
     let vrrbdb_events_rx = router.subscribe(None)?;
     let network_events_rx = router.subscribe(None)?;
-    let controller_events_rx = router.subscribe(None)?;
     let miner_events_rx = router.subscribe(None)?;
-    let farmer_events_rx = router.subscribe(None)?;
-    let harvester_events_rx = router.subscribe(None)?;
     let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
-    let dkg_events_rx = router.subscribe(None)?;
-    let miner_election_events_rx = router.subscribe(None)?;
-    let quorum_election_events_rx = router.subscribe(None)?;
     let quorum_events_rx = router.subscribe(None)?;
     let consensus_events_rx = router.subscribe(None)?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
-    let swarm_module_events_rx = router.subscribe(None)?;
 
     let mut runtime_manager = RuntimeComponentManager::new();
 
@@ -164,6 +142,7 @@ pub async fn setup_runtime_components(
     // dkg_events_rx)?;
 
     let public_key = config.keypair.get_miner_public_key().to_owned();
+
     let signature = Claim::signature_for_valid_claim(
         public_key,
         config.public_ip_address,
@@ -182,14 +161,22 @@ pub async fn setup_runtime_components(
     )
     .map_err(NodeError::from)?;
 
-    events_tx
-        .send(Event::ClaimCreated(claim.clone()).into())
-        .await?;
+    // TODO: revisit this
+    // events_tx
+    //     .send(Event::ClaimCreated(claim.clone()).into())
+    //     .await?;
+
+    let mut membership_config = QuorumMembershipConfig::default();
+
+    if let Some(bootstrap_quorum_config) = config.bootstrap_quorum_config.clone() {
+        // membership_config =
+    }
 
     let quorum_component = consensus::QuorumModule::setup(QuorumModuleComponentConfig {
         events_tx: events_tx.clone(),
         quorum_events_rx,
         vrrbdb_read_handle: state_read_handle.clone(),
+        membership_config,
     })
     .await?;
 
@@ -205,57 +192,7 @@ pub async fn setup_runtime_components(
 
     runtime_manager.register_component(consensus_component.label(), consensus_component.handle());
 
-    // let (sync_jobs_sender, sync_jobs_receiver) =
-    // crossbeam_channel::unbounded::<Job>(); let (async_jobs_sender,
-    // async_jobs_receiver) = crossbeam_channel::unbounded::<Job>();
-
-    // let mut farmer_handle = None;
-    // let mut harvester_handle = None;
-
-    let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-    //
-    // TODO: re-enable these modules
-    //
-    //
-    // if config.node_type == NodeType::Farmer {
-    //     farmer_handle = setup_farmer_module(
-    //         &config,
-    //         sync_jobs_sender,
-    //         async_jobs_sender,
-    //         events_tx.clone(),
-    //         farmer_events_rx,
-    //     )?;
-    // } else {
-    //     // Setup harvester
-    //     harvester_handle = setup_harvester_module(
-    //         &config,
-    //         dag.clone(),
-    //         sync_jobs_sender,
-    //         async_jobs_sender,
-    //         events_tx.clone(),
-    //         events_rx,
-    //         state_read_handle.clone(),
-    //         harvester_events_rx,
-    //     )?
-    // };
-    //
-    // let valcore_manager =
-    //     ValidatorCoreManager::new(8).map_err(|err|
-    // NodeError::Other(err.to_string()))?;
-    //
-    // let mut scheduler = setup_scheduler_module(
-    //     &config,
-    //     sync_jobs_receiver,
-    //     async_jobs_receiver,
-    //     valcore_manager,
-    //     events_tx.clone(),
-    //     state_read_handle.clone(),
-    // );
-    //
-    // let scheduler_handle = thread::spawn(move || {
-    //     scheduler.execute_sync_jobs();
-    // });
+    // let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
     if config.enable_block_indexing {
         let handle = setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;

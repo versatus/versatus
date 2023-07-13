@@ -1,13 +1,6 @@
 use std::net::SocketAddr;
 
-use events::{
-    Event,
-    Event::{FetchPeers, PullCandidatesForElection},
-    EventMessage,
-    EventPublisher,
-    EventRouter,
-    Topic,
-};
+use events::{Event, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::info;
 use tokio::{
@@ -15,7 +8,6 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::error;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
 

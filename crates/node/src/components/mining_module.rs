@@ -98,52 +98,52 @@ impl Handler<EventMessage> for MiningModule {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {
-                if self.miner.check_claim(winner_claim.hash) {
-                    let mining_result = self.miner.try_mine();
-
-                    if let Ok(block) = mining_result {
-                        let _ = self
-                            .events_tx
-                            .send(Event::MinedBlock(block.clone()).into())
-                            .await
-                            .map_err(|err| {
-                                theater::TheaterError::Other(format!(
-                                    "failed to send mined block to event bus: {err}"
-                                ))
-                            });
-                    }
-                };
-            },
-            Event::CheckConflictResolution((proposal_blocks, round, seed, convergence_block)) => {
-                let tmp_proposal_blocks = proposal_blocks.clone();
-                let resolved_proposals_set = self
-                    .miner
-                    .resolve(&tmp_proposal_blocks, round, seed)
-                    .iter()
-                    .cloned()
-                    .collect::<HashSet<ProposalBlock>>();
-
-                let proposal_blocks_set = proposal_blocks
-                    .iter()
-                    .cloned()
-                    .collect::<HashSet<ProposalBlock>>();
-
-                if proposal_blocks_set == resolved_proposals_set {
-                    if let Err(err) = self
-                        .events_tx
-                        .send(EventMessage::new(
-                            None,
-                            Event::SignConvergenceBlock(convergence_block),
-                        ))
-                        .await
-                    {
-                        theater::TheaterError::Other(format!(
-                            "failed to send EventMessage for Event::SignConvergenceBlock: {err}"
-                        ));
-                    };
-                }
-            },
+            // Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {
+            //     if self.miner.check_claim(winner_claim.hash) {
+            //         let mining_result = self.miner.try_mine();
+            //
+            //         if let Ok(block) = mining_result {
+            //             let _ = self
+            //                 .events_tx
+            //                 .send(Event::MinedBlock(block.clone()).into())
+            //                 .await
+            //                 .map_err(|err| {
+            //                     theater::TheaterError::Other(format!(
+            //                         "failed to send mined block to event bus: {err}"
+            //                     ))
+            //                 });
+            //         }
+            //     };
+            // },
+            // Event::CheckConflictResolution((proposal_blocks, round, seed, convergence_block)) =>
+            // {     let tmp_proposal_blocks = proposal_blocks.clone();
+            //     let resolved_proposals_set = self
+            //         .miner
+            //         .resolve(&tmp_proposal_blocks, round, seed)
+            //         .iter()
+            //         .cloned()
+            //         .collect::<HashSet<ProposalBlock>>();
+            //
+            //     let proposal_blocks_set = proposal_blocks
+            //         .iter()
+            //         .cloned()
+            //         .collect::<HashSet<ProposalBlock>>();
+            //
+            //     if proposal_blocks_set == resolved_proposals_set {
+            //         if let Err(err) = self
+            //             .events_tx
+            //             .send(EventMessage::new(
+            //                 None,
+            //                 Event::SignConvergenceBlock(convergence_block),
+            //             ))
+            //             .await
+            //         {
+            //             theater::TheaterError::Other(format!(
+            //                 "failed to send EventMessage for Event::SignConvergenceBlock: {err}"
+            //             ));
+            //         };
+            //     }
+            // },
             Event::NoOp => {},
             _ => {},
         }

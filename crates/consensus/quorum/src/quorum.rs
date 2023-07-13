@@ -11,26 +11,25 @@ use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::election::Election;
 
-///Error type for Quorum
 #[derive(Error, Debug)]
-pub enum InvalidQuorum {
-    #[error("inavlid seed generated")]
-    InvalidSeedError(),
+pub enum QuorumError {
+    #[error("invalid seed generated")]
+    InvalidSeedError,
 
     #[error("invalid pointer sum")]
     InvalidPointerSumError(Vec<Claim>),
 
     #[error("invalid child block")]
-    InvalidChildBlockError(),
+    InvalidChildBlockError,
 
     #[error("not enough eligible nodes")]
-    InsufficientNodesError(),
+    InsufficientNodesError,
 
     #[error("quorum does not contain a seed")]
-    NoSeedError(),
+    NoSeedError,
 
     #[error("none values from claim")]
-    ClaimError(),
+    ClaimError,
 }
 
 /// Quorum struct which is created and modified when an election is run
@@ -50,16 +49,16 @@ type Seed = u64;
 ///Payload data comes from current child block
 impl Election for Quorum {
     type Ballot = Vec<Claim>;
-    type Error = InvalidQuorum;
+    type Error = QuorumError;
     type Payload = (Height, BlockHash);
     type Return = Self;
     type Seed = Seed;
 
     /// A miner calls this fxn to generate a u64 seed for the election using the
     /// vrrb_vrf crate
-    fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, InvalidQuorum> {
+    fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, QuorumError> {
         if !Quorum::check_validity(payload.0) {
-            return Err(InvalidQuorum::InvalidChildBlockError());
+            return Err(QuorumError::InvalidChildBlockError);
         }
         let mut vvrf = VVRF::new(
             (payload.1).as_bytes(),
@@ -67,7 +66,7 @@ impl Election for Quorum {
         );
 
         if VVRF::verify_seed(&mut vvrf).is_err() {
-            return Err(InvalidQuorum::InvalidSeedError());
+            return Err(QuorumError::InvalidSeedError);
         }
 
         let mut random_number = vvrf.generate_u64();
@@ -80,7 +79,7 @@ impl Election for Quorum {
     /// Master nodes run elections to determine the next master node quorum
     fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
         if self.election_block_height == 0 {
-            return Err(InvalidQuorum::InvalidChildBlockError());
+            return Err(QuorumError::InvalidChildBlockError);
         }
 
         let eligible_claims = match Quorum::get_eligible_claims(ballot) {
@@ -100,9 +99,9 @@ impl Election for Quorum {
 impl Quorum {
     /// Makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
-    pub fn new(seed: u64, height: u128) -> Result<Quorum, InvalidQuorum> {
+    pub fn new(seed: u64, height: u128) -> Result<Quorum, QuorumError> {
         if !Quorum::check_validity(height) {
-            Err(InvalidQuorum::InvalidChildBlockError())
+            Err(QuorumError::InvalidChildBlockError)
         } else {
             Ok(Quorum {
                 quorum_seed: seed,
@@ -122,7 +121,7 @@ impl Quorum {
     ///gets all claims that belong to eligible nodes (master nodes)
     /// needs to be modifed as claim field eligible:  bool needs to become a uX
     /// of staked amt
-    pub fn get_eligible_claims(claims: Vec<Claim>) -> Result<Vec<Claim>, InvalidQuorum> {
+    pub fn get_eligible_claims(claims: Vec<Claim>) -> Result<Vec<Claim>, QuorumError> {
         let mut eligible_claims = Vec::<Claim>::new();
         claims
             .into_iter()
@@ -135,7 +134,7 @@ impl Quorum {
             });
 
         if eligible_claims.len() < 20 {
-            return Err(InvalidQuorum::InsufficientNodesError());
+            return Err(QuorumError::InsufficientNodesError);
         }
 
         let eligible_claims = eligible_claims;
@@ -145,9 +144,9 @@ impl Quorum {
 
     /// Gets the final quorum by getting 51% of master nodes with lowest pointer
     /// sums
-    pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<&Quorum, InvalidQuorum> {
+    pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<&Quorum, QuorumError> {
         if self.quorum_seed == 0 {
-            return Err(InvalidQuorum::NoSeedError());
+            return Err(QuorumError::NoSeedError);
         }
 
         let num_claims = ((claims.len() as f32) * 0.51).ceil() as usize;
@@ -158,7 +157,7 @@ impl Quorum {
             .collect();
 
         if election_results.len() < (((claims.len() as f32) * 0.65).ceil() as usize) {
-            return Err(InvalidQuorum::InvalidPointerSumError(claims));
+            return Err(QuorumError::InvalidPointerSumError(claims));
         }
 
         let pubkeys: Vec<String> = election_results
