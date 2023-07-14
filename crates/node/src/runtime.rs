@@ -177,6 +177,7 @@ pub async fn setup_runtime_components(
         quorum_events_rx,
         vrrbdb_read_handle: state_read_handle.clone(),
         membership_config,
+        node_config: config.clone(),
     })
     .await?;
 

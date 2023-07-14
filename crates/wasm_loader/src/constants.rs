@@ -1,4 +1,3 @@
-
 // Constants
 /// The initial public version of the WASI interface.
 pub const WASI_NAMESPACE_UNSTABLE: &str = "wasi_unstable";
@@ -22,4 +21,3 @@ pub const WASI_ENTRY_POINT: &str = "_start";
 pub const VRRB_WASM_MAGIC: &str = "_vrrb_abi_magic";
 /// A VRRB-specific version number potentially exported by modules
 pub const VRRB_WASM_VERSION: &str = "_vrrb_abi_version";
-

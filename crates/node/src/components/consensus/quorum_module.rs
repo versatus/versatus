@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    default,
-};
+use std::collections::{BTreeMap, HashMap};
 
 use async_trait::async_trait;
 use block::header::BlockHeader;
@@ -15,7 +12,7 @@ use quorum::{
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
-use vrrb_config::{QuorumKind, QuorumMember};
+use vrrb_config::{NodeConfig, QuorumKind, QuorumMember};
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
@@ -26,36 +23,45 @@ pub struct QuorumModule {
     status: ActorState,
     events_tx: EventPublisher,
     vrrbdb_read_handle: VrrbDbReadHandle,
-    membership_config: QuorumMembershipConfig,
+    membership_config: Option<QuorumMembershipConfig>,
+    node_config: NodeConfig,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct QuorumMembershipConfig {
     pub quorum_kind: QuorumKind,
     pub quorum_members: Vec<QuorumMember>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QuorumModuleConfig {
     pub events_tx: EventPublisher,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
-    pub membership_config: QuorumMembershipConfig,
+    pub membership_config: Option<QuorumMembershipConfig>,
+    pub node_config: NodeConfig,
 }
 
 impl QuorumModule {
     pub fn new(cfg: QuorumModuleConfig) -> Self {
+        if let Some(quorum_membership_config) = cfg.membership_config.clone() {
+            // TODO: remove this debug print
+            dbg!("quorum membership config found");
+            dbg!(&quorum_membership_config);
+        }
+
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
             vrrbdb_read_handle: cfg.vrrbdb_read_handle,
             events_tx: cfg.events_tx,
-            membership_config: Default::default(),
+            membership_config: None,
+            node_config: cfg.node_config,
         }
     }
 
     /// Replaces the current quorum membership configuration to the given one.
     pub fn reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
-        self.membership_config = membership_config;
+        self.membership_config = Some(membership_config);
     }
 
     fn elect_quorum(
@@ -142,20 +148,10 @@ impl Handler<EventMessage> for QuorumModule {
                 // NOTE: check whether whitelisted peers joined the network to trigger a genesis
                 // block generation event
 
-                let matching_peers = self
-                    .membership_config
-                    .quorum_members
-                    .iter()
-                    .filter(|whitelisted_member| {
-                        peer_data.node_id == whitelisted_member.node_id
-                            && peer_data.udp_gossip_addr == whitelisted_member.udp_gossip_address
-                            && peer_data.raptorq_gossip_addr
-                                == whitelisted_member.raptorq_gossip_address
-                    })
-                    .collect::<Vec<&QuorumMember>>();
-
-                if !matching_peers.is_empty() {
-                    dbg!("whitelisted peers joined network, generating genesis block");
+                if let Some(quorum_membership_config) = self.membership_config.clone() {
+                    dbg!("quorum membership config found");
+                    dbg!(&quorum_membership_config);
+                    dbg!(&peer_data);
                 }
             },
 
@@ -200,6 +196,7 @@ pub struct QuorumModuleComponentConfig {
     pub quorum_events_rx: EventSubscriber,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub membership_config: QuorumMembershipConfig,
+    pub node_config: NodeConfig,
 }
 
 #[async_trait]
@@ -208,8 +205,8 @@ impl RuntimeComponent<QuorumModuleComponentConfig, ()> for QuorumModule {
         let module = QuorumModule::new(QuorumModuleConfig {
             events_tx: args.events_tx,
             vrrbdb_read_handle: args.vrrbdb_read_handle,
-            // TODO: read from config
-            membership_config: args.membership_config,
+            membership_config: Some(args.membership_config),
+            node_config: args.node_config,
         });
 
         let mut quorum_events_rx = args.quorum_events_rx;
