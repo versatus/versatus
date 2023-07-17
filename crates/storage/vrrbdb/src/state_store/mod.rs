@@ -63,6 +63,7 @@ impl StateStore {
     /// Commits uncommitted changes to the underlying trie by calling
     /// `publish()` Will wait for EACH ReadHandle to be consumed.
     fn commit_changes(&mut self) {
+        // println!("committed");
         self.trie.publish();
     }
 
@@ -163,8 +164,12 @@ impl StateStore {
 
     /// Updates a given account if it exists within the store
     fn update_uncommited(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
-        let mut account = self
-            .read_handle()
+        // Non-deterministic read handle cannot find addresses reliably
+        let read_handle = self.read_handle();
+        dbg!(&read_handle);
+        dbg!(&read_handle.entries());
+
+        let mut account = read_handle
             .get(&key)
             .map_err(|err| StorageError::Other(err.to_string()))?;
 
@@ -181,9 +186,13 @@ impl StateStore {
     ///
     /// If succesful commits the change. Otherwise returns an error.
     pub fn update(&mut self, update: UpdateArgs) -> Result<()> {
+        // println!("update:");
+        // dbg!(&update);
         let key = update.address.clone();
-        self.update_uncommited(key, update)?;
+
+        self.update_uncommited(key, update.clone())?;
         self.commit_changes();
+
         Ok(())
     }
 
