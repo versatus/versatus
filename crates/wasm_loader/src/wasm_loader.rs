@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 
+use anyhow::Result;
 use derive_builder::Builder;
 // Use and review of log macros within this crate:
 //   * error for *user-actionable* information to be visible to a developer or operator
@@ -95,6 +96,14 @@ impl WasmLoaderBuilder {
         // Is unreachable
     }
 
+    /// Build a WasmLoader given the path to a filename.
+    pub fn from_filename(filename: &str) -> Result<WasmLoader> {
+        Ok(WasmLoaderBuilder::default()
+            .wasm_bytes(std::fs::read(filename)?)
+            .parse()?
+            .build()?)
+    }
+
     /// Simple function to compare the first four bytes of an array with the
     /// well-known WASM magic string, '\0asm'.
     fn contains_magic(&self, bytes: &Vec<u8>) -> bool {
@@ -108,7 +117,7 @@ impl WasmLoaderBuilder {
     /// Parses the provided WASM binary and collects hints about requirements,
     /// dependencies, interface versions, etc. Must be called to create a valid
     /// object. Should be called right before build() and after wasm_bytes().
-    pub fn parse(&mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn parse(&mut self) -> Result<Self> {
         let mut new = self.clone();
         let mut imports: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -186,7 +195,7 @@ impl WasmLoaderBuilder {
                             _other => {},
                         }
                     },
-                    Err(e) => return Err(Box::new(e)),
+                    Err(e) => return Err(e.into()),
                 }
             }
         }

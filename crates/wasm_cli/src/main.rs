@@ -1,9 +1,10 @@
 mod cli;
 mod commands;
 
+use anyhow::Result;
 use clap::Parser;
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let cli = cli::WasmCli::parse();
 
     // Process subcommand

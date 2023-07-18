@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Result;
 use clap::Parser;
 use wasm_loader::wasm_loader::WasmLoaderBuilder;
 
@@ -14,22 +15,18 @@ pub struct DescribeOpts {
 /// targetted toward developers of WASM modules. It should attempt to describe
 /// how the module might, or might not, be viable as an off-chain smart contract
 /// compute job.
-pub fn run(opts: &DescribeOpts) -> anyhow::Result<()> {
+pub fn run(opts: &DescribeOpts) -> Result<()> {
     let filename = opts.wasm.to_str().expect("Need path name");
     println!("Running describe for {}", filename);
-    let w = WasmLoaderBuilder::default()
-        .wasm_bytes(std::fs::read(filename).unwrap())
-        .parse()
-        .unwrap()
-        .build()?;
+    let wasm_loader = WasmLoaderBuilder::from_filename(filename)?;
 
-    println!("WASM?  {}", w.from_wat);
-    println!("WASI?  {}", w.is_wasi);
-    println!("WASIX? {}", w.is_wasix);
-    println!("Javy?  {}", w.needs_javy);
-    println!("Start? {}", w.has_start);
-    println!("VRRB?  {}", w.has_vrrb);
-    println!("Namespaces: {:?}", w.imports.keys());
+    println!("WASM?  {}", wasm_loader.from_wat);
+    println!("WASI?  {}", wasm_loader.is_wasi);
+    println!("WASIX? {}", wasm_loader.is_wasix);
+    println!("Javy?  {}", wasm_loader.needs_javy);
+    println!("Start? {}", wasm_loader.has_start);
+    println!("VRRB?  {}", wasm_loader.has_vrrb);
+    println!("Namespaces: {:?}", wasm_loader.imports.keys());
 
     Ok(())
 }

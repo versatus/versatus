@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Result;
 use clap::Parser;
 use wasm_loader::wasm_loader::WasmLoaderBuilder;
 
@@ -10,9 +11,14 @@ pub struct ValidateOpts {
     wasm: PathBuf,
 }
 
-pub fn run(opts: &ValidateOpts) -> anyhow::Result<()> {
-    let supported_namespaces: Vec<String> =
-        vec!["env".to_string(), "wasi_snapshot_preview1".to_string()];
+/// Constants for a currently support namespaces.
+// XXX: If we keep this, move the constants and the check to the wasm_loader
+// crate as an associated function rather than keep the logic here.
+const ENV: &str = "env";
+const WASI_SNAPSHOT_PREVIEW1: &str = "wasi_snapshot_preview1";
+const SUPPORTED_NAMESPACES: &[&str] = &[ENV, WASI_SNAPSHOT_PREVIEW1];
+
+pub fn run(opts: &ValidateOpts) -> Result<()> {
     let mut expected_to_run = true;
     let filename = opts.wasm.to_str().expect("Need path name");
     println!("Running describe for {}", filename);
@@ -39,7 +45,7 @@ pub fn run(opts: &ValidateOpts) -> anyhow::Result<()> {
 
     let mut extra_namespaces = vec![];
     for key in w.imports.keys().into_iter() {
-        if !supported_namespaces.contains(key) {
+        if !SUPPORTED_NAMESPACES.contains(&key.as_str()) {
             extra_namespaces.push(key);
         }
     }
