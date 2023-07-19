@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::Parser;
 use wasm_loader::wasm_loader::WasmLoaderBuilder;
 
@@ -16,7 +16,10 @@ pub struct DescribeOpts {
 /// how the module might, or might not, be viable as an off-chain smart contract
 /// compute job.
 pub fn run(opts: &DescribeOpts) -> Result<()> {
-    let filename = opts.wasm.to_str().expect("Need path name");
+    let filename = opts
+        .wasm
+        .to_str()
+        .ok_or(anyhow!("Failed to convert filename to valid string."))?;
     println!("Running describe for {}", filename);
     let wasm_loader = WasmLoaderBuilder::from_filename(filename)?;
 
