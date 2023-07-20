@@ -137,6 +137,8 @@ impl From<RunOpts> for NodeConfig {
             gui: opts.gui,
             rendezvous_server_address: opts.rendezvous_server_address,
             public_ip_address: opts.raptorq_gossip_address,
+            bootstrap_quorum_config: default_node_config.bootstrap_quorum_config,
+            enable_block_indexing: default_node_config.enable_block_indexing,
         }
     }
 }

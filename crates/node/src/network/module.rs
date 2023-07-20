@@ -11,14 +11,13 @@ use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
-use tracing::debug;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::NodeConfig;
 use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    components::network::DyswarmHandler,
+    network::DyswarmHandler,
     result::Result,
     NodeError,
     RuntimeComponent,
@@ -29,7 +28,6 @@ use crate::{
 #[derive(Debug)]
 pub struct NetworkModule {
     id: ActorId,
-    label: ActorLabel,
     node_id: NodeId,
     node_type: NodeType,
     status: ActorState,
@@ -108,7 +106,6 @@ impl NetworkModule {
             events_tx,
             node_id: config.node_id,
             node_type: config.node_type,
-            label: String::from("State"),
             status: ActorState::Stopped,
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
@@ -319,6 +316,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;
+        let label = network_module.label();
 
         let resolved_udp_gossip_address = network_module.udp_gossip_addr();
         let kademlia_dht_resolved_id = network_module.kademlia_peer_id();
@@ -350,7 +348,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         };
 
         let component_handle =
-            RuntimeComponentHandle::new(network_handle, network_component_resolved_data);
+            RuntimeComponentHandle::new(network_handle, network_component_resolved_data, label);
 
         Ok(component_handle)
     }
@@ -367,7 +365,7 @@ impl Handler<EventMessage> for NetworkModule {
     }
 
     fn label(&self) -> ActorLabel {
-        String::from("NetworkModule")
+        format!("Network::{}", self.id())
     }
 
     fn status(&self) -> ActorState {
@@ -380,29 +378,21 @@ impl Handler<EventMessage> for NetworkModule {
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
-            Event::FetchPeers(count) => {
-                let key = self.node_ref().node_data().id;
-                let closest_nodes = self
-                    .node_ref()
-                    .get_routing_table()
-                    .get_closest_nodes(&key, count);
-                for node in closest_nodes {
-                    debug!("Closest Node with Key : {:?} :{:?}", key, node.node_type);
-                }
-            },
-            Event::DHTStoreRequest(key, value) => {
-                info!(
-                    "Storing into DHT Store Request: {:?}:{:?}",
-                    KademliaNode::get_key(key.as_str()),
-                    value
+            Event::PeerJoined(peer_data) => {
+                info!("Storing peer information from {} in DHT", peer_data.node_id);
+
+                // TODO: revisit this insert method
+                self.kademlia_node.insert(
+                    peer_data.kademlia_peer_id,
+                    &peer_data.kademlia_liveness_addr.to_string(),
                 );
-                self.kademlia_node
-                    .insert(KademliaNode::get_key(key.as_str()), value.as_str());
             },
+
             Event::ClaimCreated(claim) => {
-                info!("broadcasting claim to peers");
+                info!("Broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
             },
+
             Event::Stop => {
                 // NOTE: stop the node
                 self.node_ref().kill();

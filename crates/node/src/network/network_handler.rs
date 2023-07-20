@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
-use events::{Event, EventPublisher};
+use events::{Event, EventPublisher, PeerData};
 use primitives::NodeId;
 
-use crate::{components::network::NetworkEvent, NodeError};
+use crate::{network::NetworkEvent, NodeError};
 
 #[derive(Debug, Clone)]
 pub struct DyswarmHandler {
@@ -30,6 +30,20 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 kademlia_liveness_addr,
             } => {
                 telemetry::info!("Node {} joined network", node_id);
+
+                let evt = Event::PeerJoined(PeerData {
+                    node_id,
+                    node_type,
+                    kademlia_peer_id,
+                    udp_gossip_addr,
+                    raptorq_gossip_addr,
+                    kademlia_liveness_addr,
+                });
+
+                self.events_tx
+                    .send(evt.into())
+                    .await
+                    .map_err(NodeError::from)?;
             },
             NetworkEvent::ClaimCreated { node_id, claim } => {
                 telemetry::info!(
