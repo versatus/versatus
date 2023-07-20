@@ -1,7 +1,9 @@
 mod bootstrap;
+mod bootstrap_quorum;
 mod node_config;
 
 pub use bootstrap::*;
+pub use bootstrap_quorum::*;
 pub use node_config::*;
 
 #[cfg(test)]
