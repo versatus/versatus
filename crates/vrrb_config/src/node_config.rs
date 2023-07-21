@@ -10,7 +10,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
-use crate::bootstrap::BootstrapConfig;
+use crate::{bootstrap::BootstrapConfig, BootstrapQuorumConfig};
 
 #[derive(Builder, Debug, Clone, Deserialize)]
 pub struct NodeConfig {
@@ -74,22 +74,37 @@ pub struct NodeConfig {
     pub jsonrpc_server_address: SocketAddr,
 
     /// Address the node listens for gRPC connections
+    #[deprecated(note = "deprecated in favor of the JSON-RPC API")]
     pub grpc_server_address: SocketAddr,
 
     // TODO: refactor env-aware options
     #[builder(default = "false")]
     pub preload_mock_state: bool,
 
-    /// Bootstrap configuration
+    /// Bootstrap configuration used to connect to a bootstrap node.
     pub bootstrap_config: Option<BootstrapConfig>,
 
+    /// Optional Genesis Quorum configuration used to bootstrap a new quorum
+    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
+
+    /// Keys used to mine blocks and sign transactions
+    // TODO: rename type to more intuitive name that reflects that there's two keypairs contained
+    // within this data structure
     pub keypair: Keypair,
 
     #[builder(default = "false")]
+    /// Enables the node's reporting and control UI
+    // TODO: consider renaming to enable_ui instead
     pub gui: bool,
 
     #[builder(default = "false")]
+    /// Disables all broadcasting or listening capabilities of the node
     pub disable_networking: bool,
+
+    #[builder(default = "false")]
+    /// Enables block and transaction indexing via webhook calls to external
+    /// services
+    pub enable_block_indexing: bool,
 }
 
 impl NodeConfig {
@@ -162,6 +177,8 @@ impl Default for NodeConfig {
             keypair: Keypair::random(),
             gui: false,
             disable_networking: false,
+            bootstrap_quorum_config: None,
+            enable_block_indexing: false,
         }
     }
 }

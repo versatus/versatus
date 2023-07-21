@@ -1,8 +1,0 @@
-version: v1
-name: buf.build/mattberryhill/vrrb
-breaking:
-  use:
-    - FILE
-lint:
-  use:
-    - DEFAULT

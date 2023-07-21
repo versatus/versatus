@@ -7,6 +7,8 @@ use primitives::{
     FarmerId,
     FarmerQuorumThreshold,
     IsTxnValid,
+    KademliaPeerId,
+    NodeId,
     NodeIdx,
     NodeType,
     PeerId,
@@ -17,9 +19,12 @@ use vrrb_core::txn::{TransactionDigest, Txn};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
-    pub address: SocketAddr,
+    pub node_id: NodeId,
     pub node_type: NodeType,
-    pub peer_id: PeerId,
+    pub kademlia_peer_id: KademliaPeerId,
+    pub udp_gossip_addr: SocketAddr,
+    pub raptorq_gossip_addr: SocketAddr,
+    pub kademlia_liveness_addr: SocketAddr,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]

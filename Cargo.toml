@@ -59,7 +59,6 @@ members = [
     "crates/telemetry",
     "crates/utils",
     "crates/vrrb_http",
-    "crates/vrrb_grpc",
     "crates/wasm_loader",
     "crates/wasm_cli",
 ]
