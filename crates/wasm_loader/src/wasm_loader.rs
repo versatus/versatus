@@ -4,12 +4,15 @@
 //! strings) from files or other locations and perform some basic VRRB sanity
 //! checking or inspection of the loaded module(s).
 
-use derive_builder::Builder;
 use std::collections::HashMap;
+
+use anyhow::Result;
+use derive_builder::Builder;
 // Use and review of log macros within this crate:
 //   * error for *user-actionable* information to be visible to a developer or operator
 //   * info for information that is useful to a compute developer or operator, but not fatal
-//   * debug for information useful to maintainers in being able to remotely troubleshoot issues
+//   * debug for information useful to maintainers in being able to remotely troubleshoot
+//     issues
 use telemetry::log::{debug, error};
 use wasmer::wat2wasm;
 use wasmparser::{Parser, Payload};
@@ -29,8 +32,9 @@ pub struct WasmLoader {
     pub wasm_size: usize,
     // XXX: look at a cleaner interface for all of these booleans as we get a better handle on
     // what that interface should be able to expose or how it's most likely to end up being used.
-    /// True if this module uses WASI interfaces. True for [WASI_NAMESPACE_UNSTABLE],
-    /// [WASI_NAMESPACE_PREVIEW1], [WASIX_NAMESPACE_32V1] and [WASIX_NAMESPACE_64V1].
+    /// True if this module uses WASI interfaces. True for
+    /// [WASI_NAMESPACE_UNSTABLE], [WASI_NAMESPACE_PREVIEW1],
+    /// [WASIX_NAMESPACE_32V1] and [WASIX_NAMESPACE_64V1].
     #[builder(default = "false")]
     #[builder(private)]
     pub is_wasi: bool,
@@ -68,8 +72,8 @@ pub struct WasmLoader {
 }
 
 impl WasmLoaderBuilder {
-    /// Performs some validation on the built WasmLoader struct. Called automatically
-    /// as part of [WasmLoaderBuilder::build].
+    /// Performs some validation on the built WasmLoader struct. Called
+    /// automatically as part of [WasmLoaderBuilder::build].
     fn validate(&self) -> Result<(), String> {
         // validate that we have some bytes that look WASMey.
         match &self.wasm_bytes {
@@ -92,8 +96,16 @@ impl WasmLoaderBuilder {
         // Is unreachable
     }
 
-    /// Simple function to compare the first four bytes of an array with the well-known
-    /// WASM magic string, '\0asm'.
+    /// Build a WasmLoader given the path to a filename.
+    pub fn from_filename(filename: &str) -> Result<WasmLoader> {
+        Ok(WasmLoaderBuilder::default()
+            .wasm_bytes(std::fs::read(filename)?)
+            .parse()?
+            .build()?)
+    }
+
+    /// Simple function to compare the first four bytes of an array with the
+    /// well-known WASM magic string, '\0asm'.
     fn contains_magic(&self, bytes: &Vec<u8>) -> bool {
         let header = &bytes[0..4];
 
@@ -105,7 +117,7 @@ impl WasmLoaderBuilder {
     /// Parses the provided WASM binary and collects hints about requirements,
     /// dependencies, interface versions, etc. Must be called to create a valid
     /// object. Should be called right before build() and after wasm_bytes().
-    pub fn parse(&mut self) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn parse(&mut self) -> Result<Self> {
         let mut new = self.clone();
         let mut imports: HashMap<String, Vec<String>> = HashMap::new();
 
@@ -143,7 +155,8 @@ impl WasmLoaderBuilder {
                                         new.has_vrrb = Some(true);
                                     }
 
-                                    // XXX: in the future, keep the exports list too
+                                    // XXX: in the future, keep the exports list
+                                    // too
                                 }
                             },
                             Payload::ImportSection(s) => {
@@ -182,7 +195,7 @@ impl WasmLoaderBuilder {
                             _other => {},
                         }
                     },
-                    Err(e) => return Err(Box::new(e)),
+                    Err(e) => return Err(e.into()),
                 }
             }
         }

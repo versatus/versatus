@@ -14,6 +14,10 @@ lto = "thin"
 name = "vrrb"
 path = "crates/cli/src/main.rs"
 
+[[bin]]
+name = "vrrb-wasm"
+path = "crates/wasm_cli/src/main.rs"
+
 [dependencies]
 tokio = { workspace = true }
 telemetry = { workspace = true }
@@ -21,6 +25,8 @@ cli = { workspace = true }
 anyhow = { workspace = true }
 node = { workspace = true }
 vrrb_config = { workspace = true }
+clap = { workspace = true }
+wasm_loader = { workspace = true }
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["rusty-hook"]
@@ -54,6 +60,7 @@ members = [
     "crates/utils",
     "crates/vrrb_http",
     "crates/wasm_loader",
+    "crates/wasm_cli",
 ]
 
 [workspace.dependencies]
@@ -88,6 +95,8 @@ job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
 vrrb_http = { path = "crates/vrrb_http" }
+vrrb_grpc = { path = "crates/vrrb_grpc" }
+wasm_loader = { path = "crates/wasm_loader" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
