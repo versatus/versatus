@@ -21,7 +21,7 @@ use vrrb_core::{
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
-use crate::network::NetworkEvent;
+use crate::{dag_module::DagModule, network::NetworkEvent};
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
@@ -295,6 +295,20 @@ pub fn create_txn_from_accounts(
     let _digest = TransactionDigest::from(txn_digest_vec);
 
     txn
+}
+
+/// Creates a `DagModule` for testing the event handler.
+pub(crate) fn create_dag_module() -> DagModule {
+    let miner = create_miner();
+    let (sk, pk) = create_keypair();
+    let addr = create_address(&pk);
+    let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    let signature =
+        Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+    let claim = create_claim(&pk, &addr, ip_address, signature);
+    let (events_tx, _) = tokio::sync::mpsc::channel(events::DEFAULT_BUFFER);
+
+    DagModule::new(miner.dag, events_tx, claim)
 }
 
 /// Creates a blank `block::Certificate` from a `Claim` signature.

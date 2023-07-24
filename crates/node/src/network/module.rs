@@ -10,13 +10,14 @@ use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
 use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use utils::payload::digest_data_to_bytes;
-use vrrb_config::NodeConfig;
+use vrrb_config::{BootstrapQuorumConfig, NodeConfig};
 use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
+    consensus::QuorumMembershipConfig,
     network::DyswarmHandler,
     result::Result,
     NodeError,
@@ -39,6 +40,7 @@ pub struct NetworkModule {
     kademlia_liveness_addr: SocketAddr,
     dyswarm_server_handle: dyswarm::server::ServerHandle,
     dyswarm_client: dyswarm::client::Client,
+    membership_config: Option<QuorumMembershipConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +60,8 @@ pub struct NetworkModuleConfig {
 
     /// Configuration used to connect to a bootstrap node
     pub bootstrap_node_config: Option<vrrb_config::BootstrapConfig>,
+
+    pub membership_config: Option<QuorumMembershipConfig>,
 
     pub events_tx: EventPublisher,
 }
@@ -116,6 +120,7 @@ impl NetworkModule {
             raptorq_gossip_addr: config.raptorq_gossip_addr,
             dyswarm_server_handle,
             dyswarm_client,
+            membership_config: config.membership_config,
         })
     }
 
@@ -210,8 +215,6 @@ impl NetworkModule {
     }
 
     async fn broadcast_join_intent(&mut self) -> Result<()> {
-        let timestamp = chrono::Utc::now().timestamp();
-
         let msg = dyswarm::types::Message::new(NetworkEvent::PeerJoined {
             node_id: self.node_id.clone(),
             node_type: self.node_type(),
@@ -286,6 +289,7 @@ pub struct NetworkModuleComponentConfig {
     pub events_tx: EventPublisher,
     pub network_events_rx: EventSubscriber,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -305,6 +309,15 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
 
+        let mut membership_config = Some(QuorumMembershipConfig::default());
+
+        if let Some(bootstrap_quorum_config) = args.bootstrap_quorum_config {
+            membership_config = Some(QuorumMembershipConfig {
+                quorum_members: bootstrap_quorum_config.quorum_members,
+                quorum_kind: bootstrap_quorum_config.quorum_kind,
+            });
+        }
+
         let network_module_config = NetworkModuleConfig {
             node_id: args.node_id.clone(),
             node_type: args.config.node_type,
@@ -313,6 +326,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             kademlia_liveness_addr: args.config.kademlia_liveness_address,
             bootstrap_node_config: args.config.bootstrap_config,
             events_tx: args.events_tx,
+            membership_config,
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;
@@ -386,6 +400,11 @@ impl Handler<EventMessage> for NetworkModule {
                     peer_data.kademlia_peer_id,
                     &peer_data.kademlia_liveness_addr.to_string(),
                 );
+
+                self.events_tx
+                    .send(Event::NodeAddedToPeerList(peer_data.clone()).into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
             Event::ClaimCreated(claim) => {
