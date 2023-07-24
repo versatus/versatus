@@ -6,6 +6,13 @@ pub struct Bloom {
     filter: CuckooFilter<DefaultHasher>,
 }
 
+impl std::fmt::Debug for Bloom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: implement debug for filter
+        f.debug_struct("Bloom").finish()
+    }
+}
+
 impl Bloom {
     pub fn new(limit: usize) -> Bloom {
         Bloom {
