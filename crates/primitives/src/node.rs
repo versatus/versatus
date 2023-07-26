@@ -19,22 +19,18 @@ pub enum Error {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
-// #[serde(try_from = "String")]
 pub enum NodeType {
-    /// A Node that can archive, validate and mine tokens
+    /// Catch-All node type that can serve as a validator and miner
     Full = 0,
-    /// Same as `NodeType::Full` but without archiving capabilities
-    Light = 1,
-    /// Archives all transactions processed in the blockchain
-    Archive = 2,
-    /// Mining node
-    Miner = 3,
-    Bootstrap = 4,
-    Validator = 5,
-    MasterNode = 6,
-    RPCNode = 7,
-    Farmer = 8,
-    Unknown = 100,
+    /// Bootstrap nodes can only serve as a bootstrap node to kickstart a
+    /// network
+    Bootstrap = 1,
+    /// A Miner node can participate in miner elections to produce convergence
+    /// blocks
+    Miner = 2,
+    /// A Validator node can participate in quorum elections to validate
+    /// transactions, create proposal blocks and certify convergence blocks
+    Validator = 3,
 }
 
 impl fmt::Display for NodeType {
@@ -49,13 +45,9 @@ impl FromStr for NodeType {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "full" => Ok(NodeType::Full),
-            "light" => Ok(NodeType::Light),
-            "archive" => Ok(NodeType::Archive),
             "miner" => Ok(NodeType::Miner),
             "bootstrap" => Ok(NodeType::Bootstrap),
             "validator" => Ok(NodeType::Validator),
-            "masternode" => Ok(NodeType::MasterNode),
-            "rpc" => Ok(NodeType::RPCNode),
             _ => Err(Error::Other("invalid node type".into())),
         }
     }
@@ -64,16 +56,10 @@ impl FromStr for NodeType {
 impl From<String> for NodeType {
     fn from(src: String) -> Self {
         match src.to_ascii_lowercase().as_str() {
-            "full" => NodeType::Full,
-            "light" => NodeType::Light,
-            "archive" => NodeType::Archive,
             "miner" => NodeType::Miner,
             "bootstrap" => NodeType::Bootstrap,
             "validator" => NodeType::Validator,
-            "masternode" => NodeType::MasterNode,
-            "farmer" => NodeType::Farmer,
-            "rpc" => NodeType::RPCNode,
-            _ => NodeType::Unknown,
+            _ => NodeType::Full,
         }
     }
 }
@@ -82,15 +68,10 @@ impl From<usize> for NodeType {
     fn from(node_type: usize) -> Self {
         match node_type {
             0 => NodeType::Full,
-            1 => NodeType::Light,
-            2 => NodeType::Archive,
-            3 => NodeType::Miner,
-            4 => NodeType::Bootstrap,
-            5 => NodeType::Validator,
-            6 => NodeType::MasterNode,
-            7 => NodeType::RPCNode,
-            8 => NodeType::Farmer,
-            _ => NodeType::Unknown,
+            1 => NodeType::Bootstrap,
+            2 => NodeType::Miner,
+            3 => NodeType::Validator,
+            _ => NodeType::Full,
         }
     }
 }
