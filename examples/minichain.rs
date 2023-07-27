@@ -34,14 +34,11 @@ async fn main() {
 
     nodes.push(node_0);
 
-    let nodes_types = generate_nodes_pattern(8);
-
     for i in 1..8 {
         let mut config = node::test_utils::create_mock_full_node_config();
 
         config.id = format!("node-{}", i);
         config.bootstrap_config = Some(bootstrap_node_config.clone());
-        config.node_type = nodes_types.get(i).unwrap().to_owned();
 
         let node = Node::start(&config).await.unwrap();
         nodes.push(node);
