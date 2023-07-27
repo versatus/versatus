@@ -38,7 +38,7 @@ impl DkgGenerator for DkgEngine {
         if self.dkg_state.peer_public_keys.len() as u16 != self.threshold_config.upper_bound {
             return Err(DkgError::NotEnoughPeerPublicKeys);
         }
-        if self.node_type != NodeType::MasterNode {
+        if self.node_type != NodeType::Full {
             return Err(DkgError::InvalidNode);
         }
         let secret_key = self.secret_key.clone();

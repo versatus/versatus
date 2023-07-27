@@ -511,6 +511,7 @@ mod tests {
         let serialized_keypair = write_keypair_file(&keypair, &outfile).unwrap();
         let keypair_vec_validator: Vec<u8> = hex::decode(&serialized_keypair.0).unwrap();
         let keypair_vec_miner: Vec<u8> = hex::decode(&serialized_keypair.1).unwrap();
+
         assert!(Path::new(&outfile).exists());
         let read_keypair = read_keypair_file(&outfile).unwrap().to_bytes().unwrap();
         assert_eq!(keypair_vec_validator, read_keypair.0);

@@ -305,6 +305,7 @@ pub(crate) fn create_dag_module() -> DagModule {
     let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
     let signature =
         Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+
     let claim = create_claim(&pk, &addr, ip_address, signature);
     let (events_tx, _) = tokio::sync::mpsc::channel(events::DEFAULT_BUFFER);
 
@@ -352,9 +353,6 @@ pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let miner_count = n * 4 / total_elements;
 
     let mut array = Vec::with_capacity(n);
-    for _ in 0..farmer_count {
-        array.push(NodeType::Farmer);
-    }
     for _ in 0..harvester_count {
         array.push(NodeType::Validator);
     }

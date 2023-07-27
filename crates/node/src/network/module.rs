@@ -70,7 +70,7 @@ pub struct NetworkModuleConfig {
 pub fn convert_node_type(node_type: NodeType) -> KNodeType {
     match node_type {
         NodeType::Bootstrap => KNodeType::Bootstrap,
-        NodeType::Farmer => KNodeType::Farmer,
+        NodeType::Validator => KNodeType::Farmer,
         NodeType::Validator => KNodeType::Harvester,
         NodeType::Miner => KNodeType::Miner,
         _ => KNodeType::Other("Unknown node type".to_string()),

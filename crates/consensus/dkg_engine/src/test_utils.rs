@@ -62,9 +62,6 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
         let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
         let _secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
 
-        // let (_, msg_receiver) = unbounded_channel::<(Packet,
-        // std::net::SocketAddr)>(); let (msg_sender, _) = unbounded_channel();
-
         dkg_instances.push(DkgEngine {
             node_idx: i,
             node_type,
@@ -86,7 +83,7 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
 }
 
 pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
-    let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+    let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
     let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
     let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
     let mut dkg_engine_node2 = dkg_engines.pop().unwrap();
