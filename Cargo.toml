@@ -5,6 +5,7 @@ version = "0.1.0"
 authors = ["VRRB Labs <info@vrrb.io>"]
 edition = "2021"
 readme = "README.md"
+default-run = "vrrb"
 
 [profile.release]
 opt-level = 3
