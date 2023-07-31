@@ -142,7 +142,7 @@ impl DkgGenerator for DkgEngine {
             ));
         }
 
-        if self.node_type != NodeType::MasterNode {
+        if self.node_type != NodeType::Full {
             return Err(DkgError::InvalidNode);
         }
 
