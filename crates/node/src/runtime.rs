@@ -54,11 +54,6 @@ pub async fn setup_runtime_components(
 
     let mut membership_config = QuorumMembershipConfig::default();
 
-    if let Some(bootstrap_quorum_config) = config.bootstrap_quorum_config.clone() {
-        membership_config.quorum_kind = bootstrap_quorum_config.quorum_kind;
-        membership_config.quorum_members = bootstrap_quorum_config.quorum_members;
-    }
-
     let state_component_handle = StateManager::setup(StateManagerComponentConfig {
         events_tx: events_tx.clone(),
         state_events_rx: vrrbdb_events_rx,
