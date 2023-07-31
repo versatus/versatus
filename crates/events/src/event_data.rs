@@ -11,7 +11,6 @@ use primitives::{
     NodeId,
     NodeIdx,
     NodeType,
-    PeerId,
     RawSignature,
 };
 use serde::{Deserialize, Serialize};

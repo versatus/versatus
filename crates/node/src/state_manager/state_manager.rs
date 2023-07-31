@@ -12,14 +12,14 @@ use mempool::LeftRightMempool;
 use primitives::Address;
 use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorState, Handler};
+use theater::{ActorId, ActorState};
 use vrrb_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
     txn::{Token, TransactionDigest, Txn},
 };
 
-use crate::{NodeError, Result, RuntimeComponent, RuntimeComponentHandle};
+use crate::{NodeError, Result};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient

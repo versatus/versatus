@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use primitives::{KademliaPeerId, NodeId};
+use primitives::KademliaPeerId;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]

@@ -124,7 +124,7 @@ impl JobPool {
         if let Ok(mut workers_count) = self.state.jobs_count.lock() {
             if deadline.is_none() {
                 if let Ok(waiting_workers) = self.state.shutdown.wait(workers_count) {
-                    // this reassignment is never read, not sure what the intention is...
+                    //todo: this reassignment is never read, not sure what the intention is...
                     workers_count = waiting_workers;
                 };
             } else {

@@ -8,10 +8,7 @@ use tokio::task::JoinHandle;
 use vrrb_config::NodeConfig;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
-use crate::{
-    result::{NodeError, Result},
-    RuntimeComponentHandle,
-};
+use crate::result::{NodeError, Result};
 
 pub async fn setup_rpc_api_server(
     config: &NodeConfig,
