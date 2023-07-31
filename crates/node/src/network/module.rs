@@ -311,13 +311,6 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 
         let mut membership_config = Some(QuorumMembershipConfig::default());
 
-        if let Some(bootstrap_quorum_config) = args.bootstrap_quorum_config {
-            membership_config = Some(QuorumMembershipConfig {
-                quorum_members: bootstrap_quorum_config.quorum_members,
-                quorum_kind: bootstrap_quorum_config.quorum_kind,
-            });
-        }
-
         let network_module_config = NetworkModuleConfig {
             node_id: args.node_id.clone(),
             node_type: args.config.node_type,

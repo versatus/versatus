@@ -66,6 +66,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .public_ip_address(public_ip_address)
         .grpc_server_address(grpc_server_address)
         .disable_networking(false)
+        .quorum_config(None)
         .bootstrap_quorum_config(None)
         .build()
         .unwrap()
