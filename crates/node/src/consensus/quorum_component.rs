@@ -11,20 +11,14 @@ use events::{
     EventSubscriber,
     PeerData,
 };
-use primitives::{NodeId, NodeType};
+use primitives::{NodeId, NodeType, QuorumKind};
 use quorum::{
     election::Election,
     quorum::{Quorum, QuorumError},
 };
 use storage::vrrbdb::VrrbDbReadHandle;
 use theater::{Actor, ActorId, ActorImpl, ActorState};
-use vrrb_config::{
-    BootstrapQuorumConfig,
-    NodeConfig,
-    QuorumKind,
-    QuorumMembership,
-    QuorumMembershipConfig,
-};
+use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembership, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
@@ -92,10 +86,21 @@ impl QuorumModule {
         self.membership_config = Some(membership_config);
     }
 
-    async fn assign_membership_to_quorum(&self, peer_data: PeerData) -> crate::Result<()> {
+    async fn assign_membership_to_quorum(
+        &self,
+        quorum_kind: QuorumKind,
+        peer_data: PeerData,
+        peers: Vec<PeerData>,
+    ) -> crate::Result<()> {
+        let node_id = peer_data.node_id.clone();
         let assigned_membership = AssignedQuorumMembership {
-            node_id: peer_data.node_id,
+            quorum_kind,
+            node_id: node_id.clone(),
             kademlia_peer_id: peer_data.kademlia_peer_id,
+            peers: peers
+                .into_iter()
+                .filter(|peer| peer.node_id == node_id)
+                .collect::<Vec<PeerData>>(),
         };
 
         self.events_tx
@@ -111,10 +116,38 @@ impl QuorumModule {
     ) -> crate::Result<()> {
         let unassigned_peers = peer_list
             .into_iter()
+            .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
             .collect::<Vec<PeerData>>();
 
-        dbg!(unassigned_peers);
+        // NOTE: select 30% of nodes to be harvester nodes and make the rest farmers
+        let unassigned_peers_count = unassigned_peers.len();
+        let harvester_count = (unassigned_peers_count as f64 * 0.3).ceil() as usize;
+
+        // TODO: pick nodes at random
+        let mut harvester_peers = unassigned_peers
+            .clone()
+            .into_iter()
+            .take(harvester_count)
+            .collect::<Vec<PeerData>>();
+
+        for intended_harvester in harvester_peers.iter() {
+            self.assign_membership_to_quorum(
+                QuorumKind::Harvester,
+                intended_harvester.clone(),
+                harvester_peers.clone(),
+            )
+            .await?;
+        }
+
+        for intended_farmer in unassigned_peers.iter() {
+            self.assign_membership_to_quorum(
+                QuorumKind::Farmer,
+                intended_farmer.clone(),
+                unassigned_peers.clone(),
+            )
+            .await?;
+        }
 
         Ok(())
     }

@@ -11,6 +11,7 @@ use primitives::{
     NodeId,
     NodeIdx,
     NodeType,
+    QuorumKind,
     RawSignature,
 };
 use serde::{Deserialize, Serialize};
@@ -112,4 +113,6 @@ pub enum JobResult {
 pub struct AssignedQuorumMembership {
     pub node_id: NodeId,
     pub kademlia_peer_id: KademliaPeerId,
+    pub quorum_kind: QuorumKind,
+    pub peers: Vec<PeerData>,
 }

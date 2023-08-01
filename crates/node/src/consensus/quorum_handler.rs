@@ -12,7 +12,7 @@ use quorum::{
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::{NodeConfig, QuorumKind, QuorumMember};
+use vrrb_config::{NodeConfig, QuorumMember};
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{consensus::QuorumModule, NodeError, RuntimeComponent, RuntimeComponentHandle};
