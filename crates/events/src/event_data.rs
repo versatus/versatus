@@ -107,3 +107,9 @@ pub enum JobResult {
     /// block.
     ConvergenceBlockPartialSign(BlockHash, PublicKeyShare, RawSignature),
 }
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
+pub struct AssignedQuorumMembership {
+    pub node_id: NodeId,
+    pub kademlia_peer_id: KademliaPeerId,
+}

@@ -45,20 +45,35 @@ impl Handler<EventMessage> for QuorumModule {
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
-            Event::Stop => {
-                return Ok(ActorState::Stopped);
-            },
+            Event::NodeAddedToPeerList(peer_data) => {
+                if let Some(quorum_config) = self.bootstrap_quorum_config.clone() {
+                    let node_id = peer_data.node_id.clone();
 
-            Event::NodeAddedToPeerList(peer_data) => {},
+                    let quorum_member_ids = quorum_config
+                        .membership_config
+                        .quorum_members
+                        .iter()
+                        .cloned()
+                        .map(|membership| membership.member.node_id)
+                        .collect::<Vec<NodeId>>();
 
-            Event::GenesisQuorumMembersAvailable => {
-                dbg!("assign members to quorum && trigger election");
+                    if quorum_member_ids.contains(&node_id) {
+                        self.bootstrap_quorum_available_nodes
+                            .insert(node_id, (peer_data, true));
+                    }
 
-                // if matches!(cfg.node_config.node_type,
-                // primitives::NodeType::Bootstrap) {
-                //     dbg!(&cfg.node_config.id);
-                //     dbg!("QuorumModule::new", &cfg.membership_config);
-                // }
+                    let available_nodes = self.bootstrap_quorum_available_nodes.clone();
+                    let all_nodes_available =
+                        available_nodes.iter().all(|(_, (_, is_online))| *is_online);
+
+                    if all_nodes_available {
+                        info!("All quorum members are online. Triggering genesis quorum elections");
+
+                        self.assign_peer_list_to_quorums(available_nodes)
+                            .await
+                            .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    }
+                }
             },
 
             // TODO: refactor these event handlers to properly match architecture
@@ -90,8 +105,12 @@ impl Handler<EventMessage> for QuorumModule {
             //         telemetry::error!("{}", err);
             //     }
             // },
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
+            },
             _ => {},
         }
+
         Ok(ActorState::Running)
     }
 }

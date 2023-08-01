@@ -59,33 +59,6 @@ impl Handler<EventMessage> for NetworkModule {
                     .send(Event::NodeAddedToPeerList(peer_data.clone()).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                if let Some(quorum_config) = self.bootstrap_quorum_config.clone() {
-                    let node_id = peer_data.node_id;
-
-                    let quorum_member_ids = quorum_config
-                        .membership_config
-                        .quorum_members
-                        .iter()
-                        .cloned()
-                        .map(|membership| membership.member.node_id)
-                        .collect::<Vec<NodeId>>();
-
-                    if quorum_member_ids.contains(&node_id) {
-                        self.bootstrap_quorum_available_nodes.insert(node_id, true);
-                    }
-
-                    let available_nodes = self.bootstrap_quorum_available_nodes.clone();
-
-                    if available_nodes.iter().all(|(_, is_online)| *is_online) {
-                        info!("All quorum members are online. Triggering genesis quorum elections");
-
-                        self.events_tx
-                            .send(Event::GenesisQuorumMembersAvailable.into())
-                            .await
-                            .map_err(|err| TheaterError::Other(err.to_string()))?;
-                    }
-                }
             },
 
             Event::ClaimCreated(claim) => {
@@ -98,7 +71,6 @@ impl Handler<EventMessage> for NetworkModule {
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
             },
-            Event::NoOp => {},
             _ => {},
         }
 

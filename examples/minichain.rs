@@ -125,7 +125,7 @@ async fn main() {
         nodes.push(miner_node);
     }
 
-    tokio::time::sleep(Duration::from_secs(4)).await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
 
     // let rpc_client = create_node_rpc_client(node_0_rpc_addr).await;
     //
