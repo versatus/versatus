@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, PeerData};
-use events::{EventPublisher, EventSubscriber};
 use primitives::{NodeId, NodeType};
 use quorum::{
     election::Election,
@@ -14,9 +13,12 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorState};
 use vrrb_config::{
-    BootstrapQuorumConfig, NodeConfig, QuorumKind, QuorumMembership, QuorumMembershipConfig,
+    BootstrapQuorumConfig,
+    NodeConfig,
+    QuorumKind,
+    QuorumMembership,
+    QuorumMembershipConfig,
 };
-
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
