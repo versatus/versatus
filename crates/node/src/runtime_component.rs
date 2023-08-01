@@ -1,7 +1,6 @@
 use std::{collections::HashMap, thread};
 
 use tokio::task::JoinHandle;
-use vrrb_config::NodeConfig;
 
 use crate::Result;
 

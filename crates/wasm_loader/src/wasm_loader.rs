@@ -79,7 +79,7 @@ impl WasmLoaderBuilder {
         match &self.wasm_bytes {
             Some(b) => {
                 // Try to match the magic header bytes
-                if self.contains_magic(&b) {
+                if self.contains_magic(b) {
                     debug!("WASM header looks legit");
                     return Ok(());
                 } else {
@@ -106,7 +106,7 @@ impl WasmLoaderBuilder {
 
     /// Simple function to compare the first four bytes of an array with the
     /// well-known WASM magic string, '\0asm'.
-    fn contains_magic(&self, bytes: &Vec<u8>) -> bool {
+    fn contains_magic(&self, bytes: &[u8]) -> bool {
         let header = &bytes[0..4];
 
         debug!("WASM header missing: {:02x?}", header);
@@ -125,12 +125,12 @@ impl WasmLoaderBuilder {
         debug!("Checking for WAT");
         if let Some(wat) = &self.wat_text {
             debug!("Found WASM Text -- attempting to compile to WASM");
-            new.wasm_bytes = Some(wat2wasm(&wat)?.into_owned());
+            new.wasm_bytes = Some(wat2wasm(wat)?.into_owned());
             new.from_wat = Some(true);
         }
 
         if let Some(wasm) = &self.wasm_bytes {
-            for payload in Parser::new(constants::WASM_PARSE_OFFSET).parse_all(&wasm) {
+            for payload in Parser::new(constants::WASM_PARSE_OFFSET).parse_all(wasm) {
                 match payload {
                     Ok(p) => {
                         match p {

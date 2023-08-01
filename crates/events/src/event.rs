@@ -9,26 +9,20 @@ use block::{
     ProposalBlock,
     RefHash,
 };
-use ethereum_types::U256;
-use mempool::TxnRecord;
 use primitives::{
     Address,
     Epoch,
-    FarmerQuorumThreshold,
     NodeId,
     NodeIdx,
     PublicKeyShareVec,
-    QuorumPublicKey,
-    QuorumSize,
     RawSignature,
     Round,
     Seed,
 };
-use quorum::quorum::Quorum;
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
+    txn::{TransactionDigest, Txn},
 };
 
 use crate::event_data::*;

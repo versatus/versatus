@@ -44,12 +44,12 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
     }
 
     let mut extra_namespaces = vec![];
-    for key in w.imports.keys().into_iter() {
+    for key in w.imports.keys() {
         if !SUPPORTED_NAMESPACES.contains(&key.as_str()) {
             extra_namespaces.push(key);
         }
     }
-    if extra_namespaces.len() != 0 {
+    if !extra_namespaces.is_empty() {
         println!(
             "Found references to unexpected namespaces: {:?}",
             extra_namespaces

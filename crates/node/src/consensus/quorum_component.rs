@@ -3,15 +3,14 @@ use std::collections::{BTreeMap, HashMap};
 use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher, EventSubscriber, PeerData};
+use events::{EventPublisher, EventSubscriber};
 use primitives::NodeId;
 use quorum::{
     election::Election,
     quorum::{InvalidQuorum, Quorum},
 };
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+use theater::{Actor, ActorId, ActorImpl, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumKind, QuorumMember};
 use vrrb_core::claim::{Claim, Eligibility};
 

@@ -5,7 +5,7 @@ use std::{
 };
 
 use derive_builder::Builder;
-use primitives::{KademliaPeerId, NodeId, NodeIdx, NodeType, PeerId, DEFAULT_VRRB_DATA_DIR_PATH};
+use primitives::{KademliaPeerId, NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;

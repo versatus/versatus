@@ -1,22 +1,8 @@
-use std::collections::HashSet;
-
 use async_trait::async_trait;
-use block::{ProposalBlock, RefHash};
-use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use hbbft::crypto::PublicKeyShare;
-use primitives::{BlockHash, Epoch, FarmerQuorumThreshold, NodeIdx, RawSignature, Round};
-use ritelinked::LinkedHashMap;
-use signer::signer::SignatureProvider;
+use events::{EventPublisher, EventSubscriber};
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+use theater::{Actor, ActorImpl};
 use vrrb_config::NodeConfig;
-use vrrb_core::{
-    bloom::Bloom,
-    claim::Claim,
-    keypair::Keypair,
-    txn::{QuorumCertifiedTxn, TransactionDigest},
-};
 
 use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},

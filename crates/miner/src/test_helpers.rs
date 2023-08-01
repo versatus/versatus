@@ -4,12 +4,10 @@ use std::{
 };
 
 use block::{
-    invalid::InvalidBlockErrorReason,
     Block,
     GenesisBlock,
     InnerBlock,
     ProposalBlock,
-    TxnList,
 };
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
