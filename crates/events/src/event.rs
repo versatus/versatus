@@ -9,16 +9,7 @@ use block::{
     ProposalBlock,
     RefHash,
 };
-use primitives::{
-    Address,
-    Epoch,
-    NodeId,
-    NodeIdx,
-    PublicKeyShareVec,
-    RawSignature,
-    Round,
-    Seed,
-};
+use primitives::{Address, Epoch, NodeId, NodeIdx, PublicKeyShareVec, RawSignature, Round, Seed};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
@@ -118,6 +109,12 @@ pub enum Event {
     /// parameter contains a list of socket addresses of the peers
     /// that failed to synchronize their address.
     PeerSyncFailed(Vec<SocketAddr>),
+
+    /// `BlockCreated(Block)` is an event that occurs whenever a block of any
+    /// kind is created
+    BlockCreated(Block),
+
+    GenesisQuorumMembersAvailable,
 
     // TODO: refactor all the events below
     // ==========================================================================

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr, ops::AddAssign};
 
 use async_trait::async_trait;
 use dyswarm::{
@@ -6,18 +6,18 @@ use dyswarm::{
     server::ServerConfig,
 };
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
-use kademlia_dht::{Key, Node as KademliaNode, NodeData, NodeType as KNodeType};
+use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig};
+use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    consensus::QuorumMembershipConfig,
     network::DyswarmHandler,
     result::Result,
     NodeError,
@@ -28,19 +28,23 @@ use crate::{
 
 #[derive(Debug)]
 pub struct NetworkModule {
-    id: ActorId,
-    node_id: NodeId,
-    node_type: NodeType,
-    status: ActorState,
-    events_tx: EventPublisher,
-    is_bootstrap: bool,
-    kademlia_node: KademliaNode,
-    udp_gossip_addr: SocketAddr,
-    raptorq_gossip_addr: SocketAddr,
-    kademlia_liveness_addr: SocketAddr,
-    dyswarm_server_handle: dyswarm::server::ServerHandle,
-    dyswarm_client: dyswarm::client::Client,
-    membership_config: Option<QuorumMembershipConfig>,
+    pub(crate) id: ActorId,
+    pub(crate) node_id: NodeId,
+    pub(crate) node_type: NodeType,
+    pub(crate) status: ActorState,
+    pub(crate) events_tx: EventPublisher,
+    pub(crate) is_bootstrap: bool,
+    pub(crate) kademlia_node: KademliaNode,
+    pub(crate) udp_gossip_addr: SocketAddr,
+    pub(crate) raptorq_gossip_addr: SocketAddr,
+    pub(crate) kademlia_liveness_addr: SocketAddr,
+    pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
+    pub(crate) dyswarm_client: dyswarm::client::Client,
+    pub(crate) membership_config: Option<QuorumMembershipConfig>,
+    pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
+
+    /// A map of all nodes known to are available in the bootstrap quorum
+    pub(crate) bootstrap_quorum_available_nodes: HashMap<NodeId, bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -63,18 +67,9 @@ pub struct NetworkModuleConfig {
 
     pub membership_config: Option<QuorumMembershipConfig>,
 
-    pub events_tx: EventPublisher,
-}
+    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
-#[deprecated(note = "node types will be removed from kademlia-dh-rs")]
-pub fn convert_node_type(node_type: NodeType) -> KNodeType {
-    match node_type {
-        NodeType::Bootstrap => KNodeType::Bootstrap,
-        NodeType::Validator => KNodeType::Farmer,
-        NodeType::Validator => KNodeType::Harvester,
-        NodeType::Miner => KNodeType::Miner,
-        _ => KNodeType::Other("Unknown node type".to_string()),
-    }
+    pub events_tx: EventPublisher,
 }
 
 impl NetworkModule {
@@ -99,16 +94,27 @@ impl NetworkModule {
         let kademlia_node = Self::setup_kademlia_node(config.clone())?;
         config.kademlia_liveness_addr = kademlia_node.node_data().addr;
 
-        let events_tx = config.events_tx;
+        let events_tx = config.events_tx.clone();
 
         let handler = DyswarmHandler::new(config.node_id.clone(), events_tx.clone());
 
         let dyswarm_server_handle = dyswarm_server.run(handler).await?;
 
-        Ok(Self {
+        let mut bootstrap_quorum_available_nodes = HashMap::new();
+
+        if let Some(quorum_config) = config.bootstrap_quorum_config.clone() {
+            bootstrap_quorum_available_nodes = quorum_config
+                .membership_config
+                .quorum_members
+                .into_iter()
+                .map(|membership| (membership.member.node_id, false))
+                .collect::<HashMap<NodeId, bool>>();
+        }
+
+        let mut network_component = Self {
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
-            node_id: config.node_id,
+            node_id: config.node_id.clone(),
             node_type: config.node_type,
             status: ActorState::Stopped,
 
@@ -120,8 +126,49 @@ impl NetworkModule {
             raptorq_gossip_addr: config.raptorq_gossip_addr,
             dyswarm_server_handle,
             dyswarm_client,
-            membership_config: config.membership_config,
-        })
+            membership_config: config.membership_config.clone(),
+            bootstrap_quorum_available_nodes,
+            bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
+        };
+
+        // TODO: revisit on-startup liveness checks later
+        // network_component
+        //     .verify_bootstrap_quorum_members_are_online(&config)
+        //     .await;
+
+        Ok(network_component)
+    }
+
+    pub async fn verify_bootstrap_quorum_members_are_online(
+        &mut self,
+        config: &NetworkModuleConfig,
+    ) {
+        if let Some(bootstrap_quorum_config) = config.bootstrap_quorum_config.clone() {
+            let mut acks: usize = 0;
+
+            let members_count = bootstrap_quorum_config
+                .membership_config
+                .quorum_members
+                .len();
+
+            // TODO: check if all quorum members are alive
+            // miner can produce a genesis block
+            for membership in bootstrap_quorum_config.membership_config.quorum_members {
+                dbg!(&membership.member.kademlia_peer_id);
+
+                let node_data = self.kademlia_node.get(&membership.member.kademlia_peer_id);
+
+                // if let Some(_) = kademlia_node.rpc_ping(&node_data) {
+                //     // NOTE: count this acknowledgement
+                //     acks.add_assign(1);
+                // }
+            }
+
+            if acks >= members_count {
+                let event = Event::GenesisQuorumMembersAvailable;
+                self.events_tx.send(event.into());
+            }
+        }
     }
 
     fn setup_kademlia_node(config: NetworkModuleConfig) -> Result<KademliaNode> {
@@ -147,25 +194,18 @@ impl NetworkModule {
                 kademlia_key,
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
-                KNodeType::Bootstrap,
             );
 
             KademliaNode::new(
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
-                convert_node_type(config.node_type),
             )?
         } else {
             // NOTE: become a bootstrap node if no bootstrap info is provided
             info!("Becoming a bootstrap node");
 
-            KademliaNode::new(
-                config.kademlia_liveness_addr,
-                config.udp_gossip_addr,
-                None,
-                KNodeType::Bootstrap,
-            )?
+            KademliaNode::new(config.kademlia_liveness_addr, config.udp_gossip_addr, None)?
         };
 
         Ok(kademlia_node)
@@ -251,7 +291,7 @@ impl NetworkModule {
         Ok(())
     }
 
-    async fn broadcast_claim(&mut self, claim: Claim) -> Result<()> {
+    pub(crate) async fn broadcast_claim(&mut self, claim: Claim) -> Result<()> {
         let closest_nodes = self
             .node_ref()
             .get_routing_table()
@@ -289,6 +329,7 @@ pub struct NetworkModuleComponentConfig {
     pub events_tx: EventPublisher,
     pub network_events_rx: EventSubscriber,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub membership_config: Option<QuorumMembershipConfig>,
     pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 }
 
@@ -309,8 +350,6 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
 
-        let mut membership_config = Some(QuorumMembershipConfig::default());
-
         let network_module_config = NetworkModuleConfig {
             node_id: args.node_id.clone(),
             node_type: args.config.node_type,
@@ -319,7 +358,8 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             kademlia_liveness_addr: args.config.kademlia_liveness_address,
             bootstrap_node_config: args.config.bootstrap_config,
             events_tx: args.events_tx,
-            membership_config,
+            membership_config: args.membership_config,
+            bootstrap_quorum_config: args.bootstrap_quorum_config,
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;
@@ -362,66 +402,5 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 
     async fn stop(&mut self) -> crate::Result<()> {
         todo!()
-    }
-}
-
-#[async_trait]
-impl Handler<EventMessage> for NetworkModule {
-    fn id(&self) -> ActorId {
-        self.id.clone()
-    }
-
-    fn label(&self) -> ActorLabel {
-        format!("Network::{}", self.id())
-    }
-
-    fn status(&self) -> ActorState {
-        self.status.clone()
-    }
-
-    fn set_status(&mut self, actor_status: ActorState) {
-        self.status = actor_status;
-    }
-
-    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
-        match event.into() {
-            Event::PeerJoined(peer_data) => {
-                info!("Storing peer information from {} in DHT", peer_data.node_id);
-
-                // TODO: revisit this insert method
-                self.kademlia_node.insert(
-                    peer_data.kademlia_peer_id,
-                    &peer_data.kademlia_liveness_addr.to_string(),
-                );
-
-                self.events_tx
-                    .send(Event::NodeAddedToPeerList(peer_data.clone()).into())
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
-
-            Event::ClaimCreated(claim) => {
-                info!("Broadcasting claim to peers");
-                self.broadcast_claim(claim).await?;
-            },
-
-            Event::Stop => {
-                // NOTE: stop the node
-                self.node_ref().kill();
-                return Ok(ActorState::Stopped);
-            },
-            Event::NoOp => {},
-            _ => {},
-        }
-
-        Ok(ActorState::Running)
-    }
-
-    fn on_stop(&self) {
-        info!(
-            "{}-{} received stop signal. Stopping",
-            self.label(),
-            self.id(),
-        );
     }
 }

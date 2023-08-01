@@ -78,6 +78,7 @@ pub async fn setup_runtime_components(
         network_events_rx,
         vrrbdb_read_handle: state_read_handle.clone(),
         bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
+        membership_config: config.quorum_config.clone(),
     })
     .await?;
 

@@ -40,6 +40,9 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     kademlia_liveness_addr,
                 });
 
+                // TODO: once all known peers have been joined, send a `NetworkReady` event so a
+                // dkg can be started and the first quorums can be formed
+
                 self.events_tx
                     .send(evt.into())
                     .await
