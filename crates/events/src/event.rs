@@ -114,7 +114,9 @@ pub enum Event {
     /// kind is created
     BlockCreated(Block),
 
-    GenesisQuorumMembersAvailable,
+    /// Event emitted by a bootrstrap QuorumModule to signal a node was assigned
+    /// to a particular quorum
+    QuorumMembershipAssigned(AssignedQuorumMembership),
 
     // TODO: refactor all the events below
     // ==========================================================================

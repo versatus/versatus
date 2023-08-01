@@ -1,6 +1,7 @@
 mod consensus_component;
 mod consensus_handler;
 mod consensus_module;
+
 mod quorum_component;
 mod quorum_handler;
 

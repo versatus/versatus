@@ -7,7 +7,7 @@ use events::{Event, EventMessage, EventPublisher, EventSubscriber, PeerData};
 use primitives::NodeId;
 use quorum::{
     election::Election,
-    quorum::{InvalidQuorum, Quorum},
+    quorum::{Quorum, QuorumError},
 };
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -45,18 +45,34 @@ impl Handler<EventMessage> for QuorumModule {
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
-            Event::Stop => {
-                return Ok(ActorState::Stopped);
-            },
+            Event::NodeAddedToPeerList(peer_data) => {
+                if let Some(quorum_config) = self.bootstrap_quorum_config.clone() {
+                    let node_id = peer_data.node_id.clone();
 
-            Event::NodeAddedToPeerList(_) => {
-                // TODO: consider refactoring this into an if let clause instead
-                let quorum_membership_config = self.membership_config.clone().ok_or(
-                    TheaterError::Other("failed to read quorum_membership_config".into()),
-                )?;
+                    let quorum_member_ids = quorum_config
+                        .membership_config
+                        .quorum_members
+                        .iter()
+                        .cloned()
+                        .map(|membership| membership.member.node_id)
+                        .collect::<Vec<NodeId>>();
 
-                if self.can_genesis_election_be_triggered() {
-                    self.trigger_genesis_election(quorum_membership_config);
+                    if quorum_member_ids.contains(&node_id) {
+                        self.bootstrap_quorum_available_nodes
+                            .insert(node_id, (peer_data, true));
+                    }
+
+                    let available_nodes = self.bootstrap_quorum_available_nodes.clone();
+                    let all_nodes_available =
+                        available_nodes.iter().all(|(_, (_, is_online))| *is_online);
+
+                    if all_nodes_available {
+                        info!("All quorum members are online. Triggering genesis quorum elections");
+
+                        self.assign_peer_list_to_quorums(available_nodes)
+                            .await
+                            .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    }
                 }
             },
 
@@ -89,8 +105,12 @@ impl Handler<EventMessage> for QuorumModule {
             //         telemetry::error!("{}", err);
             //     }
             // },
+            Event::Stop => {
+                return Ok(ActorState::Stopped);
+            },
             _ => {},
         }
+
         Ok(ActorState::Running)
     }
 }

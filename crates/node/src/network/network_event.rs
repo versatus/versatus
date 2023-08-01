@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use mempool::TxnRecord;
 use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
+use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -26,6 +27,11 @@ pub enum NetworkEvent {
         udp_gossip_addr: SocketAddr,
         raptorq_gossip_addr: SocketAddr,
         kademlia_liveness_addr: SocketAddr,
+    },
+
+    /// Peer was assigned to a specific quorum by a bootstrap node
+    AssignedToQuorum {
+        membership: QuorumMembershipConfig,
     },
 
     /// Peer is unresponsive or signaled its intent to leave the network
