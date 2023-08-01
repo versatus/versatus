@@ -53,7 +53,6 @@ impl Handler<EventMessage> for QuorumModule {
 
             Event::GenesisQuorumMembersAvailable => {
                 dbg!("assign members to quorum && trigger election");
-                dbg!(&self.node_config.clone().bootstrap_quorum_config.unwrap());
 
                 // if matches!(cfg.node_config.node_type,
                 // primitives::NodeType::Bootstrap) {

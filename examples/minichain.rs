@@ -1,8 +1,14 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    time::Duration,
+};
 
 use node::{
     test_utils::{
-        self, create_mock_transaction_args, create_node_rpc_client, generate_nodes_pattern,
+        self,
+        create_mock_transaction_args,
+        create_node_rpc_client,
+        generate_nodes_pattern,
         send_data_over_quic,
     },
     Node,
@@ -10,7 +16,11 @@ use node::{
 use primitives::{KademliaPeerId, NodeType};
 use telemetry::TelemetrySubscriber;
 use vrrb_config::{
-    BootstrapQuorumConfig, QuorumKind, QuorumMember, QuorumMembership, QuorumMembershipConfig,
+    BootstrapQuorumConfig,
+    QuorumKind,
+    QuorumMember,
+    QuorumMembership,
+    QuorumMembershipConfig,
 };
 use vrrb_rpc::rpc::api::RpcApiClient;
 
@@ -114,6 +124,8 @@ async fn main() {
         let miner_node = Node::start(&miner_config).await.unwrap();
         nodes.push(miner_node);
     }
+
+    tokio::time::sleep(Duration::from_secs(4)).await;
 
     // let rpc_client = create_node_rpc_client(node_0_rpc_addr).await;
     //

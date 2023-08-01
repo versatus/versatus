@@ -18,7 +18,11 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    network::DyswarmHandler, result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle,
+    network::DyswarmHandler,
+    result::Result,
+    NodeError,
+    RuntimeComponent,
+    RuntimeComponentHandle,
     DEFAULT_ERASURE_COUNT,
 };
 
