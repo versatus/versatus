@@ -61,9 +61,7 @@ impl Handler<EventMessage> for NetworkModule {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
-            Event::QuorumMembershipAssigned(assigned_membership) => {
-                dbg!(assigned_membership);
-            },
+            Event::QuorumMembershipAssigned(assigned_membership) => {},
 
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");

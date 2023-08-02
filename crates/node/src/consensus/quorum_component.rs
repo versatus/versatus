@@ -99,7 +99,7 @@ impl QuorumModule {
             kademlia_peer_id: peer_data.kademlia_peer_id,
             peers: peers
                 .into_iter()
-                .filter(|peer| peer.node_id == node_id)
+                .filter(|peer| peer.node_id != node_id)
                 .collect::<Vec<PeerData>>(),
         };
 

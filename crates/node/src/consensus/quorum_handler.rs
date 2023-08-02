@@ -69,9 +69,11 @@ impl Handler<EventMessage> for QuorumModule {
                     if all_nodes_available {
                         info!("All quorum members are online. Triggering genesis quorum elections");
 
-                        self.assign_peer_list_to_quorums(available_nodes)
-                            .await
-                            .map_err(|err| TheaterError::Other(err.to_string()))?;
+                        if matches!(self.node_config.node_type, primitives::NodeType::Bootstrap) {
+                            self.assign_peer_list_to_quorums(available_nodes)
+                                .await
+                                .map_err(|err| TheaterError::Other(err.to_string()))?;
+                        }
                     }
                 }
             },
