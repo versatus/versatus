@@ -102,10 +102,13 @@ impl QuorumModule {
                 .filter(|peer| peer.node_id != node_id)
                 .collect::<Vec<PeerData>>(),
         };
+        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership).into();
 
-        self.events_tx
-            .send(Event::QuorumMembershipAssigned(assigned_membership).into())
-            .await?;
+        let em = EventMessage::new(Some("network-events".into()), event);
+
+        // dbg!(&event);
+
+        self.events_tx.send(em).await?;
 
         Ok(())
     }

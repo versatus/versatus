@@ -11,6 +11,7 @@ use block::{
 };
 use primitives::{Address, Epoch, NodeId, NodeIdx, PublicKeyShareVec, RawSignature, Round, Seed};
 use serde::{Deserialize, Serialize};
+use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::{
     claim::Claim,
     txn::{TransactionDigest, Txn},
@@ -116,7 +117,9 @@ pub enum Event {
 
     /// Event emitted by a bootrstrap QuorumModule to signal a node was assigned
     /// to a particular quorum
-    QuorumMembershipAssigned(AssignedQuorumMembership),
+    QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
+
+    // QuorumMembershipConfigCreated(QuorumMembershipConfig),
 
     // TODO: refactor all the events below
     // ==========================================================================

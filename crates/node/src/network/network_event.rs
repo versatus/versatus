@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use events::AssignedQuorumMembership;
 use mempool::TxnRecord;
 use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
@@ -30,8 +31,12 @@ pub enum NetworkEvent {
     },
 
     /// Peer was assigned to a specific quorum by a bootstrap node
-    AssignedToQuorum {
-        membership: QuorumMembershipConfig,
+    AssignmentToQuorumCreated {
+        assigned_membership: AssignedQuorumMembership,
+    },
+
+    AssignmentToQuorumReceived {
+        assigned_membership: AssignedQuorumMembership,
     },
 
     /// Peer is unresponsive or signaled its intent to leave the network

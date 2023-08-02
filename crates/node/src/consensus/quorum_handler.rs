@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, PeerData};
-use primitives::NodeId;
+use primitives::{NodeId, NodeType};
 use quorum::{
     election::Election,
     quorum::{Quorum, QuorumError},
@@ -12,7 +12,7 @@ use quorum::{
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::{NodeConfig, QuorumMember};
+use vrrb_config::{NodeConfig, QuorumMember, QuorumMembership, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{consensus::QuorumModule, NodeError, RuntimeComponent, RuntimeComponentHandle};
@@ -76,6 +76,33 @@ impl Handler<EventMessage> for QuorumModule {
                         }
                     }
                 }
+            },
+            Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
+                let quorum_kind = assigned_membership.quorum_kind.clone();
+                let quorum_membership_config = QuorumMembershipConfig {
+                    quorum_members: assigned_membership
+                        .peers
+                        .into_iter()
+                        .map(|peer| {
+                            let member = QuorumMember {
+                                node_id: peer.node_id,
+                                kademlia_peer_id: peer.kademlia_peer_id,
+                                // TODO: get from kademlia metadata
+                                node_type: NodeType::Validator,
+                                udp_gossip_address: peer.udp_gossip_addr,
+                                raptorq_gossip_address: peer.raptorq_gossip_addr,
+                                kademlia_liveness_address: peer.kademlia_liveness_addr,
+                            };
+
+                            QuorumMembership {
+                                quorum_kind: quorum_kind.clone(),
+                                member,
+                            }
+                        })
+                        .collect(),
+                };
+
+                dbg!(&self.node_config.id, quorum_membership_config);
             },
 
             // TODO: refactor these event handlers to properly match architecture
