@@ -12,6 +12,9 @@ fn main() -> Result<()> {
         Some(cli::WasmCommands::Describe(opts)) => {
             commands::describe::run(opts)?;
         },
+        Some(cli::WasmCommands::Execute(opts)) => {
+            commands::execute::run(opts)?;
+        },
         Some(cli::WasmCommands::Validate(opts)) => {
             commands::validate::run(opts)?;
         },

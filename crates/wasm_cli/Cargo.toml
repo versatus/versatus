@@ -10,3 +10,4 @@ edition = "2021"
 anyhow = { workspace = true }
 clap = { workspace = true }
 wasm_loader = { workspace = true }
+telemetry = { workspace = true }
