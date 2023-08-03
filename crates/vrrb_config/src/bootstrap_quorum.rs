@@ -1,14 +1,7 @@
 use std::net::SocketAddr;
 
-use primitives::{KademliaPeerId, NodeId, NodeType};
+use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind};
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum QuorumKind {
-    #[default]
-    Harvester,
-    Farmer,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuorumMember {

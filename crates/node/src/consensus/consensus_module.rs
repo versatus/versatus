@@ -1,16 +1,17 @@
 use std::collections::HashSet;
 
-use async_trait::async_trait;
-use block::{ProposalBlock, RefHash};
+use block::{Block, ProposalBlock, RefHash};
 use chrono::Duration;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData, Vote};
 use hbbft::crypto::{PublicKeyShare, SecretKeyShare};
 use laminar::{Packet, SocketEvent};
-use mempool::TxnStatus;
+use maglev::Maglev;
+use mempool::{TxnRecord, TxnStatus};
 use primitives::{
     BlockHash,
     Epoch,
     FarmerQuorumThreshold,
+    GroupPublicKey,
     NodeIdx,
     NodeTypeBytes,
     PKShareBytes,
@@ -24,8 +25,7 @@ use serde::{Deserialize, Serialize};
 use signer::signer::SignatureProvider;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
-use vrrb_config::NodeConfig;
+use theater::{Actor, ActorId, ActorState};
 use vrrb_core::{
     bloom::Bloom,
     claim::Claim,
@@ -83,6 +83,7 @@ pub enum RendezvousResponse {
 pub struct ConsensusModule {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
+    pub(crate) events_tx: EventPublisher,
     pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
     pub(crate) quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub(crate) keypair: Keypair,
@@ -95,11 +96,9 @@ pub struct ConsensusModule {
     // convergence_block_certificates:
     //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
     //
-    //
     // harvester_id: NodeIdx,
     // dag: Arc<RwLock<BullDag<Block, String>>>,
     // quorum_threshold: QuorumThreshold,
-    //
     //
     // sync_jobs_sender: Sender<Job>,
     // status: ActorState,
@@ -138,6 +137,7 @@ impl ConsensusModule {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
+            events_tx: cfg.events_tx,
             vrrbdb_read_handle: cfg.vrrbdb_read_handle,
             quorum_certified_txns: vec![],
             keypair: cfg.keypair,
@@ -190,17 +190,14 @@ impl ConsensusModule {
         )
     }
 
-    async fn broadcast_proposal_block(&self) {
-        // move broadcasting to another function
-        // let _ = self
-        //     .broadcast_events_tx
-        //     .send(EventMessage::new(
-        //         None,
-        //         Event::MinedBlock(Block::Proposal {
-        //             block: proposal_block,
-        //         }),
-        //     ))
-        //     .await;
+    async fn broadcast_proposal_block(&self, proposal_block: ProposalBlock) {
+        let event = Event::BlockCreated(Block::Proposal {
+            block: proposal_block,
+        });
+
+        if let Err(err) = self.events_tx.send(event.into()).await {
+            telemetry::error!("{}", err);
+        }
     }
 
     async fn ceritfy_transaction(&self) {
@@ -806,5 +803,62 @@ impl ConsensusModule {
         //         sleep(interval);
         //         let _ = tx.send(());
         //     });
+    }
+
+    // Event  "Farm" fetches a batch of transactions from a transaction mempool and
+    // sends them to scheduler to get it validated and voted
+    pub fn farm_transactions(&mut self, transactions: Vec<(TransactionDigest, TxnRecord)>) {
+        // let keys: Vec<GroupPublicKey> = self
+        //     .neighbouring_farmer_quorum_peers
+        //     .keys()
+        //     .cloned()
+        //     .collect();
+
+        // let maglev_hash_ring = Maglev::new(keys);
+        //
+        //     let mut new_txns = vec![];
+        //
+        //     for txn in txns.into_iter() {
+        //         if let Some(group_public_key) =
+        // maglev_hash_ring.get(&txn.0.clone()).cloned() {
+        // if group_public_key == self.group_public_key {
+        // new_txns.push(txn);             } else if let
+        // Some(broadcast_addresses) =
+        // self.neighbouring_farmer_quorum_peers.get(&group_public_key)
+        //             {
+        //                 let addresses: Vec<SocketAddr> =
+        // broadcast_addresses.iter().cloned().collect();
+        //
+        //                 self.broadcast_events_tx
+        //                     .send(EventMessage::new(
+        //                         None,
+        //                         Event::ForwardTxn((txn.1.clone(),
+        // addresses.clone())),                     ))
+        //                     .await
+        //                     .map_err(|err| {
+        //                         theater::TheaterError::Other(format!(
+        //                             "failed to forward txn {:?} to peers
+        // {addresses:?}:     {err}",
+        //                             txn.1
+        //                         ))
+        //                     })?
+        //             }
+        //         } else {
+        //             new_txns.push(txn);
+        //         }
+        //     }
+        //
+        //     if let Some(sig_provider) = self.sig_provider.clone() {
+        //         if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
+        //             new_txns,
+        //             self.farmer_id.clone(),
+        //             self.farmer_node_idx,
+        //             self.group_public_key.clone(),
+        //             sig_provider,
+        //             self.quorum_threshold,
+        //         ))) {
+        //             telemetry::error!("error sending job to scheduler: {}",
+        // err);         }
+        //     }
     }
 }

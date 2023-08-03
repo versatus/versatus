@@ -41,10 +41,6 @@ pub struct NetworkModule {
     pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
     pub(crate) dyswarm_client: dyswarm::client::Client,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
-    pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
-
-    /// A map of all nodes known to are available in the bootstrap quorum
-    pub(crate) bootstrap_quorum_available_nodes: HashMap<NodeId, bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,8 +62,6 @@ pub struct NetworkModuleConfig {
     pub bootstrap_node_config: Option<vrrb_config::BootstrapConfig>,
 
     pub membership_config: Option<QuorumMembershipConfig>,
-
-    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
     pub events_tx: EventPublisher,
 }
@@ -100,18 +94,7 @@ impl NetworkModule {
 
         let dyswarm_server_handle = dyswarm_server.run(handler).await?;
 
-        let mut bootstrap_quorum_available_nodes = HashMap::new();
-
-        if let Some(quorum_config) = config.bootstrap_quorum_config.clone() {
-            bootstrap_quorum_available_nodes = quorum_config
-                .membership_config
-                .quorum_members
-                .into_iter()
-                .map(|membership| (membership.member.node_id, false))
-                .collect::<HashMap<NodeId, bool>>();
-        }
-
-        let mut network_component = Self {
+        let network_component = Self {
             id: uuid::Uuid::new_v4().to_string(),
             events_tx,
             node_id: config.node_id.clone(),
@@ -127,48 +110,9 @@ impl NetworkModule {
             dyswarm_server_handle,
             dyswarm_client,
             membership_config: config.membership_config.clone(),
-            bootstrap_quorum_available_nodes,
-            bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
         };
 
-        // TODO: revisit on-startup liveness checks later
-        // network_component
-        //     .verify_bootstrap_quorum_members_are_online(&config)
-        //     .await;
-
         Ok(network_component)
-    }
-
-    pub async fn verify_bootstrap_quorum_members_are_online(
-        &mut self,
-        config: &NetworkModuleConfig,
-    ) {
-        if let Some(bootstrap_quorum_config) = config.bootstrap_quorum_config.clone() {
-            let mut acks: usize = 0;
-
-            let members_count = bootstrap_quorum_config
-                .membership_config
-                .quorum_members
-                .len();
-
-            // TODO: check if all quorum members are alive
-            // miner can produce a genesis block
-            for membership in bootstrap_quorum_config.membership_config.quorum_members {
-                dbg!(&membership.member.kademlia_peer_id);
-
-                let node_data = self.kademlia_node.get(&membership.member.kademlia_peer_id);
-
-                // if let Some(_) = kademlia_node.rpc_ping(&node_data) {
-                //     // NOTE: count this acknowledgement
-                //     acks.add_assign(1);
-                // }
-            }
-
-            if acks >= members_count {
-                let event = Event::GenesisQuorumMembersAvailable;
-                self.events_tx.send(event.into());
-            }
-        }
     }
 
     fn setup_kademlia_node(config: NetworkModuleConfig) -> Result<KademliaNode> {
@@ -359,7 +303,6 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             bootstrap_node_config: args.config.bootstrap_config,
             events_tx: args.events_tx,
             membership_config: args.membership_config,
-            bootstrap_quorum_config: args.bootstrap_quorum_config,
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;

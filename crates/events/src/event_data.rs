@@ -11,6 +11,7 @@ use primitives::{
     NodeId,
     NodeIdx,
     NodeType,
+    QuorumKind,
     RawSignature,
 };
 use serde::{Deserialize, Serialize};
@@ -106,4 +107,12 @@ pub enum JobResult {
     ///   signed the convergence
     /// block.
     ConvergenceBlockPartialSign(BlockHash, PublicKeyShare, RawSignature),
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
+pub struct AssignedQuorumMembership {
+    pub node_id: NodeId,
+    pub kademlia_peer_id: KademliaPeerId,
+    pub quorum_kind: QuorumKind,
+    pub peers: Vec<PeerData>,
 }

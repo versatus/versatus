@@ -81,15 +81,15 @@ impl WasmLoaderBuilder {
                 // Try to match the magic header bytes
                 if self.contains_magic(b) {
                     debug!("WASM header looks legit");
-                    return Ok(());
+                    Ok(())
                 } else {
                     error!("Invalid WASM bytes provided");
-                    return Err("WASM Magic header invalid".to_string());
+                    Err("WASM Magic header invalid".to_string())
                 }
             },
             None => {
                 error!("No WASM bytes found");
-                return Err("WASM Magic header not found".to_string());
+                Err("WASM Magic header not found".to_string())
             },
         }
 
