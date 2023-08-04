@@ -40,8 +40,20 @@ async fn node_can_join_network() {
 
     let node_config_1 = create_mock_full_node_config_with_bootstrap(vec![bootstrap_gossip_address]);
     let mut node_1 = Node::start(&node_config_1).await.unwrap();
+    let addr = node_1.jsonrpc_server_address();
 
-    node_1.stop();
+    let client = create_client(addr).await.unwrap();
+
+    assert!(client.is_connected());
+    let state = client.get_full_state().await;
+
+    assert!(state.is_ok());
+    assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
+
+    let is_cancelled = node_1.stop().await.unwrap();
+
+    assert!(is_cancelled);
+
     bootstrap_node.stop();
 }
 
