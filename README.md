@@ -1,5 +1,5 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png?raw=true">
+  <source media="(prefers-color-scheme: dark)" srcset="https://drive.google.com/file/d/1HVgKh_6A7pf2NCWi3epQ3nSYpeufEe8H">
   <img alt="VRRB Logo" src="https://drive.google.com/file/d/1HVgKh_6A7pf2NCWi3epQ3nSYpeufEe8H">
 </picture>
 
