@@ -1,6 +1,6 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://drive.google.com/file/d/1HVgKh_6A7pf2NCWi3epQ3nSYpeufEe8H">
-  <img alt="VRRB Logo" src="https://drive.google.com/file/d/1HVgKh_6A7pf2NCWi3epQ3nSYpeufEe8H">
+  <img alt="VRRB Logo" src="https://drive.google.com/file/d/1HVgKh_6A7pf2NCWi3epQ3nSYpeufEe8H/view">
 </picture>
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption. 
