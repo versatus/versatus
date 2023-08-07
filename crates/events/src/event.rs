@@ -119,7 +119,7 @@ pub enum Event {
     /// to a particular quorum
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
-    // QuorumMembershipConfigCreated(QuorumMembershipConfig),
+    DkgProtocolInitiated,
 
     // TODO: refactor all the events below
     // ==========================================================================

@@ -102,7 +102,11 @@ impl Handler<EventMessage> for QuorumModule {
                         .collect(),
                 };
 
-                dbg!(&self.node_config.id, quorum_membership_config);
+                self.membership_config = Some(quorum_membership_config.clone());
+                self.events_tx
+                    .send(Event::DkgProtocolInitiated.into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
             // TODO: refactor these event handlers to properly match architecture
