@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final1.png?raw=true">
-  <img alt="VRRB Logo" src="https://github.com/vrrb-io/brand-assets/raw/main/logo/vrrb-logo-final2.png?raw=true">
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
+  <img alt="VRRB Logo" src="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
 </picture>
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption. 
@@ -24,7 +24,7 @@ will lead to better end user experiences.
 <br>
 
 <div align="center">
-  <img src="https://drive.google.com/uc?export=view&id=1Nx-DUr8e9ueRrgJ80dickT9S_XSztoAV" alt="nowthatsflexible.gif">
+  <img src="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/memes/fexible-text.gif" alt="nowthatsflexible.gif">
 </div>
 <br>
 <hr>
