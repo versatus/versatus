@@ -1,11 +1,15 @@
-use std::{collections::HashMap, net::SocketAddr, ops::AddAssign};
+use std::{
+    collections::HashMap,
+    net::{AddrParseError, SocketAddr},
+    ops::AddAssign,
+};
 
 use async_trait::async_trait;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
-use events::{Event, EventMessage, EventPublisher, EventSubscriber};
+use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{KademliaPeerId, NodeId, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -57,6 +61,8 @@ pub struct NetworkModuleConfig {
 
     /// Address used to listen for liveness pings
     pub kademlia_liveness_addr: SocketAddr,
+
+    pub kademlia_peer_id: Option<KademliaPeerId>,
 
     /// Configuration used to connect to a bootstrap node
     pub bootstrap_node_config: Option<vrrb_config::BootstrapConfig>,
@@ -141,6 +147,7 @@ impl NetworkModule {
             );
 
             KademliaNode::new(
+                config.kademlia_peer_id,
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
@@ -149,7 +156,12 @@ impl NetworkModule {
             // NOTE: become a bootstrap node if no bootstrap info is provided
             info!("Becoming a bootstrap node");
 
-            KademliaNode::new(config.kademlia_liveness_addr, config.udp_gossip_addr, None)?
+            KademliaNode::new(
+                config.kademlia_peer_id,
+                config.kademlia_liveness_addr,
+                config.udp_gossip_addr,
+                None,
+            )?
         };
 
         Ok(kademlia_node)
@@ -235,6 +247,35 @@ impl NetworkModule {
         Ok(())
     }
 
+    pub(crate) async fn notify_quorum_membership_assignment(
+        &mut self,
+        assigned_membership: AssignedQuorumMembership,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let found_peer = closest_nodes
+            .iter()
+            .find(|node| node.id == assigned_membership.kademlia_peer_id)
+            .ok_or(NodeError::Other(
+                "Could not find peer in routing table".to_string(),
+            ))?;
+
+        let addr = found_peer.udp_gossip_addr;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::AssignmentToQuorumCreated {
+            assigned_membership,
+        });
+
+        self.dyswarm_client
+            .send_data_via_quic(message, addr)
+            .await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn broadcast_claim(&mut self, claim: Claim) -> Result<()> {
         let closest_nodes = self
             .node_ref()
@@ -299,6 +340,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             node_type: args.config.node_type,
             udp_gossip_addr: args.config.udp_gossip_address,
             raptorq_gossip_addr: args.config.raptorq_gossip_address,
+            kademlia_peer_id: args.config.kademlia_peer_id,
             kademlia_liveness_addr: args.config.kademlia_liveness_address,
             bootstrap_node_config: args.config.bootstrap_config,
             events_tx: args.events_tx,
