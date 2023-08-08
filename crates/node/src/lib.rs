@@ -10,7 +10,6 @@ pub(crate) mod dag_module;
 pub(crate) mod indexer_module;
 pub(crate) mod mining_module;
 pub(crate) mod network;
-pub(crate) mod node_health_report;
 pub(crate) mod runtime;
 pub(crate) mod state_manager;
 pub(crate) mod ui;

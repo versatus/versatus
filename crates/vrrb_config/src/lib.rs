@@ -1,5 +1,5 @@
 mod bootstrap;
-mod bootstrap_quorum;
+pub mod bootstrap_quorum;
 mod node_config;
 
 pub use bootstrap::*;

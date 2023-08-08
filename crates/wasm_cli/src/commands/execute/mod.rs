@@ -24,7 +24,7 @@ pub struct ExecuteOpts {
 }
 
 /// Read and parse a WASM object and print high level information that is
-/// targetted toward developers of WASM modules. It should attempt to describe
+/// targeted toward developers of WASM modules. It should attempt to describe
 /// how the module might, or might not, be viable as an off-chain smart contract
 /// compute job.
 pub fn run(opts: &ExecuteOpts) -> Result<()> {

@@ -16,4 +16,6 @@ pub mod storage_utils;
 pub mod txn;
 pub mod updateable;
 pub mod verifiable;
+pub mod node_health_report;
+
 pub use result::*;
