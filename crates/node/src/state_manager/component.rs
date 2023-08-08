@@ -9,6 +9,7 @@ use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use vrrb_config::NodeConfig;
+use vrrb_core::claim::Claim;
 
 use crate::{
     state_manager::{StateManager, StateManagerConfig},
@@ -21,6 +22,7 @@ pub struct StateManagerComponentConfig {
     pub state_events_rx: EventSubscriber,
     pub node_config: NodeConfig,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
+    pub claim: Claim,
 }
 
 #[async_trait]
@@ -52,6 +54,7 @@ impl RuntimeComponent<StateManagerComponentConfig, (VrrbDbReadHandle, MempoolRea
             mempool,
             events_tx,
             dag,
+            claim: args.claim,
         });
 
         let label = state_module.label();

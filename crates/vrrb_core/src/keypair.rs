@@ -8,9 +8,7 @@ use std::{
 
 use bs58::encode;
 use hbbft::crypto::{
-    serde_impl::SerdeSecret,
-    PublicKey as ValidatorPublicKey,
-    SecretKey as ValidatorSecretKey,
+    serde_impl::SerdeSecret, PublicKey as ValidatorPublicKey, SecretKey as ValidatorSecretKey,
 };
 use primitives::SerializedSecretKey as SecretKeyBytes;
 use ring::digest::{Context, SHA256};
@@ -288,6 +286,10 @@ impl KeyPair {
         &self.validator_kp.0
     }
 
+    pub fn get_validator_secret_key_owned(&self) -> ValidatorSecretKey {
+        self.validator_kp.0.clone()
+    }
+
     /// It returns the public key of the validator.
     ///
     /// Returns:
@@ -295,6 +297,10 @@ impl KeyPair {
     /// The public key of the validator.
     pub fn get_validator_public_key(&self) -> &ValidatorPublicKey {
         &self.validator_kp.1
+    }
+
+    pub fn get_validator_public_key_owned(&self) -> ValidatorPublicKey {
+        self.validator_kp.1.clone()
     }
 }
 

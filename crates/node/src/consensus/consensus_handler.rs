@@ -1,14 +1,19 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
+use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
+use primitives::{NodeId, NodeType};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
+use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use vrrb_config::{QuorumMember, QuorumMembershipConfig};
 
-use crate::consensus::ConsensusModule;
+use crate::{consensus::ConsensusModule, state_reader::StateReader};
 
 #[async_trait]
-impl Handler<EventMessage> for ConsensusModule {
+impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + Send + Sync>
+    Handler<EventMessage> for ConsensusModule<S, K>
+{
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -35,9 +40,89 @@ impl Handler<EventMessage> for ConsensusModule {
 
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
+            Event::NodeAddedToPeerList(peer_data) => {
+                if let Some(quorum_config) = self.quorum_driver.bootstrap_quorum_config.clone() {
+                    let node_id = peer_data.node_id.clone();
+
+                    let quorum_member_ids = quorum_config
+                        .membership_config
+                        .quorum_members
+                        .iter()
+                        .cloned()
+                        .map(|member| member.node_id)
+                        .collect::<Vec<NodeId>>();
+
+                    if quorum_member_ids.contains(&node_id) {
+                        self.quorum_driver
+                            .bootstrap_quorum_available_nodes
+                            .insert(node_id, (peer_data, true));
+                    }
+
+                    let available_nodes =
+                        self.quorum_driver.bootstrap_quorum_available_nodes.clone();
+                    let all_nodes_available =
+                        available_nodes.iter().all(|(_, (_, is_online))| *is_online);
+
+                    if all_nodes_available {
+                        info!("All quorum members are online. Triggering genesis quorum elections");
+
+                        if matches!(
+                            self.quorum_driver.node_config.node_type,
+                            primitives::NodeType::Bootstrap
+                        ) {
+                            self.quorum_driver
+                                .assign_peer_list_to_quorums(available_nodes)
+                                .await
+                                .map_err(|err| TheaterError::Other(err.to_string()))?;
+                        }
+                    }
+                }
+            },
+            Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
+                self.handle_quorum_membership_assigment_created(assigned_membership);
+
+                self.dkg_init_dkg_protocol()
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.events_tx
+                    .send(Event::DkgProtocolInitiated.into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+
+            // TODO: refactor these event handlers to properly match architecture
+            // Event::QuorumElection(header) => {
+            //     let claims = self.vrrbdb_read_handle.claim_store_values();
+            //
+            //     if let Ok(quorum) = self.elect_quorum(claims, header) {
+            //         if let Err(err) = self
+            //             .events_tx
+            //             .send(Event::ElectedQuorum(quorum).into())
+            //             .await
+            //         {
+            //             telemetry::error!("{}", err);
+            //         }
+            //     }
+            // },
+            // Event::MinerElection(header) => {
+            //     let claims = self.vrrbdb_read_handle.claim_store_values();
+            //     let mut election_results: BTreeMap<U256, Claim> =
+            //         self.elect_miner(claims, header.block_seed);
+            //
+            //     let winner = Self::get_winner(&mut election_results);
+            //
+            //     if let Err(err) = self
+            //         .events_tx
+            //         .send(Event::ElectedMiner(winner).into())
+            //         .await
+            //     {
+            //         telemetry::error!("{}", err);
+            //     }
+            // },
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
+            _ => {},
             // // The above code is handling an event of type `Vote` in a Rust
             // // program. It checks the integrity of the vote by
             // // verifying that it comes from the actual voter and prevents
@@ -578,7 +663,6 @@ impl Handler<EventMessage> for ConsensusModule {
             //         self.dkg_engine.harvester_public_key = Some(harvester_public_key);
             //     }
             // },
-            _ => {},
         }
 
         Ok(ActorState::Running)

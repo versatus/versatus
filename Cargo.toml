@@ -5,18 +5,18 @@ version = "0.1.0"
 authors = ["Versatus Labs <info@versatus.io>"]
 edition = "2021"
 readme = "README.md"
-default-run = "versatus"
+default-run = "versa"
 
 [profile.release]
 opt-level = 3
 lto = "thin"
 
 [[bin]]
-name = "versatus"
+name = "versa"
 path = "crates/cli/src/main.rs"
 
 [[bin]]
-name = "vrrb-wasm"
+name = "versa-wasm"
 path = "crates/wasm_cli/src/main.rs"
 
 [dependencies]

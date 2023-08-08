@@ -8,9 +8,7 @@ use vrrb_core::{
 };
 
 use crate::{
-    ClaimStoreReadHandleFactory,
-    StateStoreReadHandleFactory,
-    TransactionStoreReadHandleFactory,
+    ClaimStoreReadHandleFactory, StateStoreReadHandleFactory, TransactionStoreReadHandleFactory,
 };
 
 #[derive(Debug, Clone)]

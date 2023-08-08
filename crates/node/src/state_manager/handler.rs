@@ -112,6 +112,18 @@ impl Handler<EventMessage> for StateManager {
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
             },
+            Event::BlockReceived(block) => {
+                self.handle_block_received(block)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+            Event::BlockCertificateCreated(certificate) => {
+                self.block_certificate_created(certificate)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+            Event::HarvesterPublicKeyReceived(public_key_set) => {
+                self.dag.set_harvester_pubkeys(public_key_set)
+            },
             Event::NoOp => {},
             _ => {},
         }

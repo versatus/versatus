@@ -9,12 +9,20 @@ use std::{
 use async_trait::async_trait;
 use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
+use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngineConfig};
+
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
-use primitives::{generate_account_keypair, Address, NodeId, NodeType, RawSignature, Round};
+use primitives::{
+    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
+    Round,
+};
 use secp256k1::{Message, PublicKey, SecretKey};
 use storage::vrrbdb::Claims;
 use uuid::Uuid;
-use vrrb_config::{NodeConfig, NodeConfigBuilder};
+use vrrb_config::{
+    BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
+    ThresholdConfig,
+};
 use vrrb_core::{
     account::Account,
     claim::Claim,
@@ -24,8 +32,8 @@ use vrrb_core::{
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 use crate::{
-    dag_module::DagModule, data_store::DataStore, network::NetworkEvent, result::*,
-    state_reader::StateReader,
+    data_store::DataStore, network::NetworkEvent, state_manager::DagModule,
+    state_reader::StateReader, Node, NodeError, Result, StartArgs,
 };
 
 pub fn create_mock_full_node_config() -> NodeConfig {
@@ -73,6 +81,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .disable_networking(false)
         .quorum_config(None)
         .bootstrap_quorum_config(None)
+        .threshold_config(ThresholdConfig::default())
         .build()
         .unwrap()
 }
@@ -329,14 +338,14 @@ pub(crate) fn create_blank_certificate(claim_signature: String) -> block::Certif
     }
 }
 
-pub async fn create_dyswarm_client(addr: SocketAddr) -> crate::Result<dyswarm::client::Client> {
+pub async fn create_dyswarm_client(addr: SocketAddr) -> Result<dyswarm::client::Client> {
     let client_config = dyswarm::client::Config { addr };
     let client = dyswarm::client::Client::new(client_config).await?;
 
     Ok(client)
 }
 
-pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> crate::Result<()> {
+pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
     let client = create_dyswarm_client(addr).await?;
 
     let msg = dyswarm::types::Message {
@@ -494,5 +503,149 @@ impl DataStore<MockStateReader> for MockStateStore {
 
     fn state_reader(&self) -> MockStateReader {
         todo!()
+    }
+}
+
+/// Creates `n` Node instances that make up a network.
+pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateReader>> {
+    let validator_count = (n as f64 * 0.8).ceil() as usize;
+    let miner_count = n as usize - validator_count;
+
+    let mut nodes = vec![];
+
+    let mut quorum_members = vec![];
+
+    for i in 1..=n as u16 {
+        let udp_port: u16 = 11000 + i;
+        let raptor_port: u16 = 12000 + i;
+        let kademlia_port: u16 = 13000 + i;
+        let member = QuorumMember {
+            node_id: format!("node-{}", i),
+            kademlia_peer_id: KademliaPeerId::rand(),
+            node_type: NodeType::Validator,
+            udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
+            raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
+            kademlia_liveness_address: SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::LOCALHOST),
+                kademlia_port,
+            ),
+        };
+
+        quorum_members.push(member)
+    }
+
+    let bootstrap_quorum_config = BootstrapQuorumConfig {
+        membership_config: QuorumMembershipConfig {
+            quorum_members: quorum_members.clone(),
+            quorum_kind: QuorumKind::Farmer,
+        },
+        genesis_transaction_threshold: 3,
+    };
+
+    let mut config = create_mock_full_node_config();
+    config.id = String::from("node-0");
+
+    config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
+
+    let node_0_args = StartArgs::new(config, MockStateStore::new());
+
+    let node_0 = Node::start(node_0_args).await.unwrap();
+
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
+        id: node_0.kademlia_peer_id(),
+        udp_gossip_addr: addr,
+        raptorq_gossip_addr: addr,
+        kademlia_liveness_addr: addr,
+    };
+
+    bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
+    bootstrap_node_config.raptorq_gossip_addr = node_0.raprtorq_gossip_address();
+    bootstrap_node_config.kademlia_liveness_addr = node_0.kademlia_liveness_address();
+
+    nodes.push(node_0);
+
+    for i in 1..=validator_count - 1 {
+        let mut config = create_mock_full_node_config();
+
+        let quorum_config = quorum_members.get(i - 1).unwrap();
+
+        config.id = format!("node-{}", i);
+        config.bootstrap_config = Some(bootstrap_node_config.clone());
+        config.node_type = NodeType::Validator;
+        config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
+        config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
+        config.udp_gossip_address = quorum_config.udp_gossip_address;
+        config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
+
+        let node_args = StartArgs::new(config, MockStateStore::new());
+
+        let node = Node::start(node_args).await.unwrap();
+        nodes.push(node);
+    }
+
+    for i in validator_count..=validator_count + miner_count {
+        let mut miner_config = create_mock_full_node_config();
+
+        let quorum_config = quorum_members.get(i - 1).unwrap();
+
+        miner_config.id = format!("node-{}", i);
+        miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
+        miner_config.node_type = NodeType::Miner;
+        miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
+        miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
+        miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
+        miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
+
+        let node_args = StartArgs::new(miner_config, MockStateStore::new());
+
+        let miner_node = Node::start(node_args).await.unwrap();
+
+        nodes.push(miner_node);
+    }
+
+    nodes
+}
+
+#[derive(Debug, Clone)]
+pub struct MockDkgEngine {
+    threshold_config: ThresholdConfig,
+}
+
+impl MockDkgEngine {
+    pub fn new(dkg_engine_config: DkgEngineConfig) -> Self {
+        Self {
+            threshold_config: dkg_engine_config.threshold_config,
+        }
+    }
+}
+
+impl DkgGenerator for MockDkgEngine {
+    type DkgStatus = DkgResult;
+
+    type Error = NodeError;
+
+    fn generate_sync_keygen_instance(
+        &mut self,
+        threshold: usize,
+    ) -> dkg_engine::Result<hbbft::sync_key_gen::Part> {
+        todo!()
+    }
+
+    fn ack_partial_commitment(&mut self, node_idx: u16) -> Self::DkgStatus {
+        todo!()
+    }
+
+    fn handle_ack_messages(&mut self) -> Self::DkgStatus {
+        todo!()
+    }
+
+    fn generate_key_sets(&mut self) -> Self::DkgStatus {
+        todo!()
+    }
+
+    fn threshold_config(&self) -> ThresholdConfig {
+        self.threshold_config.clone()
     }
 }

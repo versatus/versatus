@@ -16,15 +16,15 @@ use theater::{Actor, ActorId, ActorImpl, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
-use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
+use crate::{state_reader::StateReader, NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 #[derive(Debug)]
-pub struct QuorumModule {
+pub struct QuorumModule<S: StateReader + Send> {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) events_tx: EventPublisher,
     pub(crate) node_config: NodeConfig,
-    pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
+    pub(crate) vrrbdb_read_handle: S,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
     pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
@@ -33,15 +33,15 @@ pub struct QuorumModule {
 }
 
 #[derive(Debug, Clone)]
-pub struct QuorumModuleConfig {
+pub struct QuorumModuleConfig<S: StateReader + Send> {
     pub events_tx: EventPublisher,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: S,
     pub membership_config: Option<QuorumMembershipConfig>,
     pub node_config: NodeConfig,
 }
 
-impl QuorumModule {
-    pub fn new(cfg: QuorumModuleConfig) -> Self {
+impl<S: StateReader + Send + Sync> QuorumModule<S> {
+    pub fn new(cfg: QuorumModuleConfig<S>) -> Self {
         let mut bootstrap_quorum_available_nodes = HashMap::new();
 
         if let Some(quorum_config) = cfg.node_config.bootstrap_quorum_config.clone() {
@@ -193,45 +193,5 @@ impl QuorumModule {
         }
 
         first
-    }
-}
-
-#[derive(Debug)]
-pub struct QuorumModuleComponentConfig {
-    pub events_tx: EventPublisher,
-    pub quorum_events_rx: EventSubscriber,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
-    pub membership_config: QuorumMembershipConfig,
-    pub node_config: NodeConfig,
-}
-
-#[async_trait]
-impl RuntimeComponent<QuorumModuleComponentConfig, ()> for QuorumModule {
-    async fn setup(args: QuorumModuleComponentConfig) -> crate::Result<RuntimeComponentHandle<()>> {
-        let module = QuorumModule::new(QuorumModuleConfig {
-            events_tx: args.events_tx,
-            vrrbdb_read_handle: args.vrrbdb_read_handle,
-            membership_config: Some(args.membership_config),
-            node_config: args.node_config,
-        });
-
-        let mut quorum_events_rx = args.quorum_events_rx;
-
-        let mut quorum_module_actor = ActorImpl::new(module);
-        let label = quorum_module_actor.label();
-        let quorum_handle = tokio::spawn(async move {
-            quorum_module_actor
-                .start(&mut quorum_events_rx)
-                .await
-                .map_err(|err| NodeError::Other(err.to_string()))
-        });
-
-        let component_handle = RuntimeComponentHandle::new(quorum_handle, (), label);
-
-        Ok(component_handle)
-    }
-
-    async fn stop(&mut self) -> crate::Result<()> {
-        todo!()
     }
 }

@@ -10,7 +10,7 @@ use serde::{de, Deserialize};
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::{info, warn};
 use uuid::Uuid;
-use vrrb_config::NodeConfig;
+use vrrb_config::{NodeConfig, ThresholdConfig};
 use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 use crate::result::{CliError, Result};

@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, PoisonError, RwLock, RwLockReadGuard},
 };
 
-use dkg_engine::prelude::DkgState;
+use dkg_engine::prelude::*;
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
 use primitives::{NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
 use vrrb_config::ThresholdConfig;
@@ -88,8 +88,10 @@ impl Signer for SignatureProvider {
             Some(key) => key,
             None => return Err(SignerError::SecretKeyShareMissing),
         };
+
         let signature = secret_key_share.sign(payload_hash);
         let sig = signature.to_bytes().to_vec();
+
         Ok(sig)
     }
 

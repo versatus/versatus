@@ -48,6 +48,7 @@ impl IndexerClient {
 mod tests {
     use mempool::TxnRecord;
     use vrrb_core::txn::Txn;
+
     use wiremock::{
         http::Method,
         matchers::{method, path},

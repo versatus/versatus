@@ -22,11 +22,12 @@ use crate::{
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
+#[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
 
     // TODO: make this private
-    pub keypair: KeyPair,
+    pub keypair: Keypair,
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,

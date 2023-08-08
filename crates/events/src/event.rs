@@ -1,15 +1,12 @@
 use std::net::SocketAddr;
 
 use block::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    ConvergenceBlock,
-    ProposalBlock,
-    RefHash,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
-use primitives::{Address, Epoch, NodeId, NodeIdx, PublicKeyShareVec, RawSignature, Round, Seed};
+use hbbft::crypto::PublicKeySet;
+use primitives::{
+    Address, Epoch, NodeId, NodeIdx, PublicKey, PublicKeyShareVec, RawSignature, Round, Seed,
+};
 use serde::{Deserialize, Serialize};
 use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::{
@@ -180,7 +177,7 @@ pub enum Event {
     /// `BlockCertificate(Certificate)` is an event that carries a `Certificate`
     /// object representing a proof that a block has been certified by a
     /// quorum. This certificate is then added to convergence block .
-    BlockCertificate(Certificate),
+    BlockCertificateCreated(Certificate),
 
     /// `PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader)` is a function
     /// used to precheck a convergence block before it is signed and added
@@ -195,7 +192,7 @@ pub enum Event {
     /// representing the public key of a harvester node. This event is used
     /// to communicate the public key of a harvester node to other nodes in
     /// the network.
-    HarvesterPublicKey(Vec<u8>),
+    HarvesterPublicKeyReceived(PublicKeySet),
 
     Ping(NodeId),
 }

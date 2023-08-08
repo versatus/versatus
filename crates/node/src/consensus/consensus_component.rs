@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use dkg_engine::dkg::DkgGenerator;
 use events::{EventPublisher, EventSubscriber};
 use storage::vrrbdb::VrrbDbReadHandle;
 use theater::{Actor, ActorImpl};
@@ -6,28 +7,34 @@ use vrrb_config::NodeConfig;
 
 use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
+    state_reader::StateReader,
+    NodeError, RuntimeComponent, RuntimeComponentHandle,
 };
 
 #[derive(Debug)]
-pub struct ConsensusModuleComponentConfig {
+pub struct ConsensusModuleComponentConfig<K: DkgGenerator + std::fmt::Debug + Send + Sync> {
     pub events_tx: EventPublisher,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub consensus_events_rx: EventSubscriber,
     pub node_config: NodeConfig,
+    pub dkg_generator: K,
 }
 
 #[async_trait]
-impl RuntimeComponent<ConsensusModuleComponentConfig, ()> for ConsensusModule {
+impl<
+        S: StateReader + Send + Sync + Clone,
+        K: DkgGenerator + std::fmt::Debug + Send + Sync + 'static,
+    > RuntimeComponent<ConsensusModuleComponentConfig<K>, ()> for ConsensusModule<S, K>
+{
     async fn setup(
-        args: ConsensusModuleComponentConfig,
+        args: ConsensusModuleComponentConfig<K>,
     ) -> crate::Result<RuntimeComponentHandle<()>> {
-        let module = ConsensusModule::new(ConsensusModuleConfig {
+        let module = ConsensusModule::<VrrbDbReadHandle, K>::new(ConsensusModuleConfig {
             events_tx: args.events_tx,
             vrrbdb_read_handle: args.vrrbdb_read_handle,
-            keypair: args.node_config.keypair,
+            keypair: args.node_config.keypair.clone(),
+            node_config: args.node_config.clone(),
+            dkg_generator: args.dkg_generator,
         });
 
         let mut consensus_events_rx = args.consensus_events_rx;

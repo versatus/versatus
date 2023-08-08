@@ -2,30 +2,28 @@ use std::collections::HashSet;
 
 use block::{Block, ProposalBlock, RefHash};
 use chrono::Duration;
-use events::{Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData, Vote};
+use dkg_engine::{
+    dkg::DkgGenerator,
+    types::{DkgEngine, DkgEngineConfig, DkgResult},
+};
+use events::{
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData,
+    Vote,
+};
 use hbbft::crypto::{PublicKeyShare, SecretKeyShare};
 use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
 use mempool::{TxnRecord, TxnStatus};
 use primitives::{
-    BlockHash,
-    Epoch,
-    FarmerQuorumThreshold,
-    GroupPublicKey,
-    NodeIdx,
-    NodeTypeBytes,
-    PKShareBytes,
-    PayloadBytes,
-    QuorumPublicKey,
-    RawSignature,
-    Round,
+    BlockHash, Epoch, FarmerQuorumThreshold, GroupPublicKey, NodeIdx, NodeType, NodeTypeBytes,
+    PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, Round,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use signer::signer::SignatureProvider;
-use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
-use theater::{Actor, ActorId, ActorState};
+use telemetry::error;
+use theater::{Actor, ActorId, ActorState, TheaterError};
+use vrrb_config::{NodeConfig, QuorumMember, QuorumMembershipConfig};
 use vrrb_core::{
     bloom::Bloom,
     claim::Claim,
@@ -33,20 +31,26 @@ use vrrb_core::{
     txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
+use crate::{state_reader::StateReader, test_utils::MockDkgEngine, NodeError, Result};
+
+use super::{QuorumModule, QuorumModuleConfig};
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
-pub trait QuorumMember {}
 // TODO: Move this to primitives
 pub type QuorumId = String;
 pub type QuorumPubkey = String;
 
 #[derive(Debug, Clone)]
-pub struct ConsensusModuleConfig {
+pub struct ConsensusModuleConfig<
+    S: StateReader + Send + Sync,
+    K: DkgGenerator + std::fmt::Debug + Send + Sync,
+> {
     pub events_tx: EventPublisher,
     pub keypair: Keypair,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: S,
+    pub node_config: NodeConfig,
+    pub dkg_generator: K,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -80,14 +84,17 @@ pub enum RendezvousResponse {
 }
 
 #[derive(Debug)]
-pub struct ConsensusModule {
+pub struct ConsensusModule<S: StateReader + Sync + Send + Clone, K: DkgGenerator + std::fmt::Debug>
+{
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) events_tx: EventPublisher,
-    pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
+    pub(crate) vrrbdb_read_handle: S,
     pub(crate) quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
+    pub(crate) quorum_driver: QuorumModule<S>,
+    pub(crate) dkg_engine: K,
     //
     // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     // group_public_key: GroupPublicKey,
@@ -132,8 +139,17 @@ pub struct ConsensusModule {
     // pub keypair: KeyPair,
 }
 
-impl ConsensusModule {
-    pub fn new(cfg: ConsensusModuleConfig) -> Self {
+impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + Send + Sync>
+    ConsensusModule<S, K>
+{
+    pub fn new(cfg: ConsensusModuleConfig<S, K>) -> Self {
+        let quorum_module_config = QuorumModuleConfig {
+            events_tx: cfg.events_tx.clone(),
+            vrrbdb_read_handle: cfg.vrrbdb_read_handle.clone(),
+            membership_config: None,
+            node_config: cfg.node_config.clone(),
+        };
+
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
@@ -142,6 +158,8 @@ impl ConsensusModule {
             quorum_certified_txns: vec![],
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
+            quorum_driver: QuorumModule::new(quorum_module_config),
+            dkg_engine: cfg.dkg_generator,
         }
     }
 
@@ -173,7 +191,7 @@ impl ConsensusModule {
             .into_iter()
             .map(|txn| {
                 if let Err(err) = self.certified_txns_filter.push(&txn.txn().id.to_string()) {
-                    telemetry::error!("Error pushing txn to certified txns filter: {}", err);
+                    error!("Error pushing txn to certified txns filter: {}", err);
                 }
                 (txn.txn().id(), txn.clone())
             })
@@ -196,7 +214,7 @@ impl ConsensusModule {
         });
 
         if let Err(err) = self.events_tx.send(event.into()).await {
-            telemetry::error!("{}", err);
+            error!("{}", err);
         }
     }
 
@@ -288,7 +306,7 @@ impl ConsensusModule {
         block_hash: BlockHash,
         certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
         sig_provider: &SignatureProvider,
-    ) -> Result<(), theater::TheaterError> {
+    ) -> Result<()> {
         todo!()
         // if certificates_share.len() >= self.quorum_threshold {
         //     //Generate a new certificate for the block
@@ -808,6 +826,7 @@ impl ConsensusModule {
     // Event  "Farm" fetches a batch of transactions from a transaction mempool and
     // sends them to scheduler to get it validated and voted
     pub fn farm_transactions(&mut self, transactions: Vec<(TransactionDigest, TxnRecord)>) {
+        //
         // let keys: Vec<GroupPublicKey> = self
         //     .neighbouring_farmer_quorum_peers
         //     .keys()
@@ -862,40 +881,57 @@ impl ConsensusModule {
         //     }
     }
 
-    pub fn handle_dkg_protocol_initiated(&self) {
-        //     let threshold_config = self.dkg_engine.threshold_config.clone();
-        //     if self.quorum_type.clone().is_some() {
-        //         match self
-        //             .dkg_engine
-        //             .generate_sync_keygen_instance(threshold_config.threshold
-        // as usize)         {
-        //             Ok(part_commitment) => {
-        //                 if let DkgResult::PartMessageGenerated(node_idx,
-        // part) = part_commitment                 {
-        //                     if let Ok(part_committment_bytes) =
-        // bincode::serialize(&part) {                         let _ =
-        // self                             .broadcast_events_tx
-        //                             .send(
-        //                                 Event::PartMessage(node_idx,
-        // part_committment_bytes)
-        // .into(),                             )
-        //                             .await.map_err(|e| {
-        //                                 error!("Error occured while sending
-        // part message to broadcast event channel {:?}", e);
-        // TheaterError::Other(format!("{e:?}"))                             });
-        //                     }
-        //                 }
-        //             },
-        //             Err(_e) => {
-        //                 error!("Error occured while generating synchronized
-        // keygen instance for node {:?}", self.dkg_engine.node_idx);
-        // },         }
-        //     } else {
-        //         error!(
-        //             "Cannot participate into DKG ,since current node {:?}
-        // dint win any Quorum Election",
-        // self.dkg_engine.node_idx         );
-        //     }
-        //     return Ok(ActorState::Running);
+    pub fn handle_quorum_membership_assigment_created(
+        &mut self,
+        assigned_membership: AssignedQuorumMembership,
+    ) {
+        let quorum_kind = assigned_membership.quorum_kind.clone();
+        let quorum_membership_config = QuorumMembershipConfig {
+            quorum_members: assigned_membership
+                .peers
+                .into_iter()
+                .map(|peer| {
+                    QuorumMember {
+                        node_id: peer.node_id,
+                        kademlia_peer_id: peer.kademlia_peer_id,
+                        // TODO: get from kademlia metadata
+                        node_type: NodeType::Validator,
+                        udp_gossip_address: peer.udp_gossip_addr,
+                        raptorq_gossip_address: peer.raptorq_gossip_addr,
+                        kademlia_liveness_address: peer.kademlia_liveness_addr,
+                    }
+                })
+                .collect(),
+            quorum_kind,
+        };
+
+        self.quorum_driver.membership_config = Some(quorum_membership_config.clone());
+    }
+
+    pub fn dkg_init_dkg_protocol(&mut self) -> Result<()> {
+        let threshold_config = self.dkg_engine.threshold_config();
+
+        if let Some(quorum_membership_config) = self.quorum_driver.membership_config.clone() {
+            let quorum_kind = quorum_membership_config.quorum_kind();
+
+            let threshold = threshold_config.threshold as usize;
+
+            let dkg_result = self
+                .dkg_engine
+                .generate_sync_keygen_instance(threshold)
+                .map_err(|err| NodeError::Other(err.to_string()))?;
+
+            dbg!(dkg_result);
+
+            // return part
+            // if let DkgResult::PartMessageGenerated(node_idx, part) = dkg_result {
+            //                         .send(Event::PartMessage(node_idx, part_committment_bytes).into())
+            //     // return part
+            // }
+        } else {
+            error!("Cannot participate in DKG");
+        }
+
+        return Ok(());
     }
 }

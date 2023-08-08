@@ -1,4 +1,10 @@
-use node::{test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState, test_utils};
+use node::{
+    test_utils, test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState,
+};
+use node::{
+    test_utils::{create_mock_full_node_config, MockStateStore},
+    Node, NodeState, RuntimeModuleState, StartArgs,
+};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
 use vrrb_core::txn::NewTxnArgs;
@@ -12,17 +18,11 @@ async fn nodes_can_synchronize_state() {
     let node_config_1 = create_mock_full_node_config();
     let node_config_2 = create_mock_full_node_config();
 
-    let start_args1 = node::StartArgs::new(
-        node_config_1,
-        test_utils::MockStateStore::new()
-    );
-    let start_args2 = node::StartArgs::new(
-        node_config_2,
-        test_utils::MockStateStore::new()
-    );
+    let node_args_1 = StartArgs::new(node_config_1, MockStateStore::new());
+    let node_args_2 = StartArgs::new(node_config_2, MockStateStore::new());
 
-    let vrrb_node_1 = Node::start(start_args1).await.unwrap();
-    let vrrb_node_2 = Node::start(start_args2).await.unwrap();
+    let vrrb_node_1 = Node::start(node_args_1).await.unwrap();
+    let vrrb_node_2 = Node::start(node_args_2).await.unwrap();
 
     let client_1 = create_client(vrrb_node_1.jsonrpc_server_address())
         .await
