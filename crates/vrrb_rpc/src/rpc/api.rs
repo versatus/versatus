@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use block::block::Block;
-// use block::types::ClaimHash;
 use jsonrpsee::{core::Error, proc_macros::rpc};
 use primitives::{Address, NodeType, Round};
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
+use block::ClaimHash;
 use vrrb_core::node_health_report::NodeHealthReport;
 use storage::vrrbdb::Claims;
 use vrrb_core::{
@@ -136,10 +136,10 @@ pub trait RpcApi {
     async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>, Error>;
 
     #[method(name = "getClaimHashes")]
-    async fn get_claim_hashes(&self) -> Result<Vec<Claim>, Error>;
+    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error>;
 
     #[method(name = "getClaims")]
-    async fn get_claims(&self, claim_hashes: Vec<Claim>) -> Result<Claims, Error>;
+    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error>;
 
     #[method(name = "getMembershipConfig")]
     async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, Error>;

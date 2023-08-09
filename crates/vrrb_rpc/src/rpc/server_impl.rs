@@ -8,6 +8,7 @@ use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType, Round};
 use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
+use block::ClaimHash;
 use storage::vrrbdb::{Claims, VrrbDbReadHandle};
 use telemetry::{debug, error};
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
@@ -235,11 +236,11 @@ impl RpcApiServer for RpcServerImpl {
         todo!()
     }
 
-    async fn get_claim_hashes(&self) -> Result<Vec<Claim>, Error> {
+    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error> {
         todo!()
     }
 
-    async fn get_claims(&self, claim_hashes: Vec<Claim>) -> Result<Claims, Error> {
+    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error> {
         todo!()
     }
 
