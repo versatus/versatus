@@ -6,11 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+block = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 vrrb_core = { workspace = true }
+vrrb_config = { workspace = true }
 telemetry = { workspace = true }
 primitives = { workspace = true }
 storage = { workspace = true }

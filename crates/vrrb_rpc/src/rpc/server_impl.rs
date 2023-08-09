@@ -1,19 +1,24 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
+use block::block::Block;
 use events::{Event, EventPublisher};
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
-use primitives::{Address, NodeType};
+use primitives::{Address, NodeType, Round};
 use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
-use storage::vrrbdb::VrrbDbReadHandle;
+use block::ClaimHash;
+use storage::vrrbdb::{Claims, VrrbDbReadHandle};
 use telemetry::{debug, error};
+use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::{
     account::Account,
     serde_helpers::encode_to_binary,
     txn::{NewTxnArgs, TransactionDigest, Txn},
 };
+use vrrb_core::claim::Claim;
+use vrrb_core::node_health_report::NodeHealthReport;
 
 use super::{
     api::{FullMempoolSnapshot, RpcApiServer},
@@ -170,6 +175,10 @@ impl RpcApiServer for RpcServerImpl {
         }
     }
 
+    async fn faucet_drip(&self, address: Address) -> Result<(), Error> {
+        todo!()
+    }
+
     async fn sign_transaction(&self, sign_opts: SignOpts) -> Result<String, Error> {
         let payload = format!(
             "{},{},{},{},{},{:?},{}",
@@ -197,5 +206,49 @@ impl RpcApiServer for RpcServerImpl {
         };
 
         Ok(secret_key.sign_ecdsa(msg).to_string())
+    }
+
+    async fn get_round(&self) -> Result<Round, Error> {
+        todo!()
+    }
+
+    async fn get_blocks(&self) -> Result<Vec<Block>, Error> {
+        todo!()
+    }
+
+    async fn get_program(&self) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn call_program(&self) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn get_transaction_count(&self) -> Result<usize, Error> {
+        todo!()
+    }
+
+    async fn get_node_health(&self) -> Result<NodeHealthReport, Error> {
+        todo!()
+    }
+
+    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>, Error> {
+        todo!()
+    }
+
+    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error> {
+        todo!()
+    }
+
+    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error> {
+        todo!()
+    }
+
+    async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, Error> {
+        todo!()
+    }
+
+    async fn get_last_block(&self) -> Result<Block, Error> {
+        todo!()
     }
 }

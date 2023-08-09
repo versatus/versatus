@@ -10,9 +10,9 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
+use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    node_health_report::NodeHealthReport,
     result::Result,
     runtime::setup_runtime_components,
     NodeError,
