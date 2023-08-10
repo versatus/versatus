@@ -11,19 +11,13 @@ use vrrb_core::{
 
 use crate::Result;
 
-#[derive(Debug, Clone)]
-pub struct FullMempoolSnapshot {}
-
-#[derive(Debug, Clone)]
-pub struct FullStateSnapshot {}
-
 #[async_trait::async_trait]
 pub trait StateReader {
     /// Returns a full list of all accounts within state
-    async fn state_snapshot(&self) -> Result<FullStateSnapshot>;
+    async fn state_snapshot(&self) -> Result<HashMap<Address, Account>>;
 
     /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<FullMempoolSnapshot>;
+    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, Txn>>;
 
     /// Get a transaction from state
     async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn>;
