@@ -309,10 +309,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 
     let database = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
 
-    let node_start_args = StartArgs {
-        config: node_config,
-        database,
-    };
+    let node_start_args = StartArgs::new(node_config, database);
 
     let vrrb_node = Node::start(node_start_args)
         .await

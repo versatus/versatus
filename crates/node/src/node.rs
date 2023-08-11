@@ -17,14 +17,15 @@ use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
     result::Result, runtime::setup_runtime_components, state_reader::StateReader,
-    state_store::StateStore, state_writer::StateWriter, NodeError, RuntimeComponentManager,
+    state_store::StateStore, NodeError, RuntimeComponentManager,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
-pub struct Node<S>
+pub struct Node<S, R>
 where
-    S: StateStore + std::fmt::Debug + Default + Send + 'static,
+    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    R: StateReader + Send + 'static,
 {
     config: NodeConfig,
 
@@ -33,26 +34,43 @@ where
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
-    _marker: PhantomData<S>,
+    _marker: PhantomData<(S, R)>,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
 #[derive(Debug, Default, Clone)]
-pub struct StartArgs<S>
+pub struct StartArgs<S, R>
 where
-    S: StateStore + std::fmt::Debug + Default + Send + 'static,
+    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    R: StateReader + Send + 'static,
 {
     pub config: NodeConfig,
     // NOTE: temporary placement, later on figure out a way to merge both config and storage kind
     pub database: S,
+    _marker: PhantomData<R>,
 }
 
-impl<S> Node<S>
+impl<S, R> StartArgs<S, R>
 where
-    S: StateStore + std::fmt::Debug + Default + Send,
+    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    R: StateReader + Send + 'static,
 {
-    pub async fn start(args: StartArgs<S>) -> Result<Node<S>> {
+    pub fn new(config: NodeConfig, database: S) -> Self {
+        Self {
+            config,
+            database,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<S, R> Node<S, R>
+where
+    S: StateStore<R> + std::fmt::Debug + Default + Send,
+    R: StateReader + Send + 'static,
+{
+    pub async fn start(args: StartArgs<S, R>) -> Result<Node<S, R>> {
         // Copy the original config to avoid overwriting the original
         let config = args.config.clone();
 

@@ -49,7 +49,7 @@ impl Default for VrrbDbConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VrrbDb {
     state_store: StateStore,
     transaction_store: TransactionStore,
