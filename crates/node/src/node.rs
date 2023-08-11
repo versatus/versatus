@@ -1,4 +1,7 @@
-use std::net::SocketAddr;
+use std::{
+    marker::{PhantomData, PhantomPinned},
+    net::SocketAddr,
+};
 
 use events::{Event, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
@@ -13,15 +16,16 @@ use vrrb_core::keypair::KeyPair;
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    result::Result,
-    runtime::setup_runtime_components,
-    NodeError,
-    RuntimeComponentManager,
+    result::Result, runtime::setup_runtime_components, state_reader::StateReader,
+    state_store::StateStore, state_writer::StateWriter, NodeError, RuntimeComponentManager,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
-pub struct Node {
+pub struct Node<S>
+where
+    S: StateStore + std::fmt::Debug + Default + Send + 'static,
+{
     config: NodeConfig,
 
     // TODO: make this private
@@ -29,14 +33,28 @@ pub struct Node {
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
+    _marker: PhantomData<S>,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
-impl Node {
-    pub async fn start(config: &NodeConfig) -> Result<Self> {
+#[derive(Debug, Default, Clone)]
+pub struct StartArgs<S>
+where
+    S: StateStore + std::fmt::Debug + Default + Send + 'static,
+{
+    pub config: NodeConfig,
+    // NOTE: temporary placement, later on figure out a way to merge both config and storage kind
+    pub database: S,
+}
+
+impl<S> Node<S>
+where
+    S: StateStore + std::fmt::Debug + Default + Send,
+{
+    pub async fn start(args: StartArgs<S>) -> Result<Node<S>> {
         // Copy the original config to avoid overwriting the original
-        let config = config.clone();
+        let config = args.config.clone();
 
         info!("Launching Node {}", &config.id);
 
@@ -70,6 +88,7 @@ impl Node {
             keypair,
             cancel_token,
             runtime_control_handle,
+            _marker: PhantomData,
         })
     }
 

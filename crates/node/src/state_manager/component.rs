@@ -12,9 +12,7 @@ use vrrb_config::NodeConfig;
 
 use crate::{
     state_manager::{StateManager, StateManagerConfig},
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
+    NodeError, RuntimeComponent, RuntimeComponentHandle,
 };
 
 #[derive(Debug)]

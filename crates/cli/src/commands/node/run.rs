@@ -4,9 +4,10 @@ use std::{
 };
 
 use config::{Config, ConfigError, File};
-use node::Node;
+use node::{Node, StartArgs};
 use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use serde::Deserialize;
+use storage::vrrbdb::VrrbDbConfig;
 use telemetry::{info, warn};
 use uuid::Uuid;
 use vrrb_config::NodeConfig;
@@ -300,7 +301,20 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let vrrb_node = Node::start(&node_config)
+    let mut vrrbdb_config = VrrbDbConfig::default();
+
+    if node_config.db_path() != &vrrbdb_config.path {
+        vrrbdb_config.with_path(node_config.db_path().to_path_buf());
+    }
+
+    let database = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+
+    let node_start_args = StartArgs {
+        config: node_config,
+        database,
+    };
+
+    let vrrb_node = Node::start(node_start_args)
         .await
         .map_err(|_| CliError::Other(String::from("failed to listen for ctrl+c")))?;
 
