@@ -13,6 +13,7 @@ pub(crate) mod network;
 pub(crate) mod runtime;
 pub(crate) mod state_manager;
 pub(crate) mod state_reader;
+pub(crate) mod state_store;
 pub(crate) mod ui;
 
 pub mod test_utils;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use block::{Block, ClaimHash};
-use primitives::{Address, Round};
+use primitives::{Address, NodeId, Round};
 use storage::vrrbdb::Claims;
 use vrrb_core::{
     account::Account,
@@ -43,4 +43,12 @@ pub trait StateReader {
     async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims>;
 
     async fn get_last_block(&self) -> Result<Block>;
+
+    /// Returns a copy of all values stored within the state trie
+    fn state_store_values(&self) -> HashMap<Address, Account>;
+
+    /// Returns a copy of all values stored within the state trie
+    fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn>;
+
+    fn claim_store_values(&self) -> HashMap<NodeId, Claim>;
 }

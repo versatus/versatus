@@ -4,12 +4,7 @@ use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{
-    AssignedQuorumMembership,
-    Event,
-    EventMessage,
-    EventPublisher,
-    EventSubscriber,
-    PeerData,
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
 };
 use primitives::{NodeId, NodeType, QuorumKind};
 use quorum::{
@@ -105,8 +100,6 @@ impl QuorumModule {
         let event = Event::QuorumMembershipAssigmentCreated(assigned_membership).into();
 
         let em = EventMessage::new(Some("network-events".into()), event);
-
-        // dbg!(&event);
 
         self.events_tx.send(em).await?;
 
