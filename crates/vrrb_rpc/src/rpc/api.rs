@@ -127,13 +127,13 @@ pub trait RpcApi {
     async fn call_program(&self) -> Result<(), Error>;
 
     #[method(name = "getTransactionCount")]
-    async fn get_transaction_count(&self) -> Result<usize, Error>;
+    async fn get_transaction_count(&self, account: Address) -> Result<usize, Error>;
 
     #[method(name = "getNodeHealth")]
     async fn get_node_health(&self) -> Result<NodeHealthReport, Error>;
 
     #[method(name = "getClaimsByAccountId")]
-    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>, Error>;
+    async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, Error>;
 
     #[method(name = "getClaimHashes")]
     async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error>;
