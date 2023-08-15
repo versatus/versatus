@@ -162,7 +162,7 @@ impl TxnValidator {
         let address = txn.sender_address.clone();
         if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
             let account = account_state.get(&Address::new(address)).unwrap();
-            if (account.credits - account.debits)
+            if (account.credits() - account.debits())
                 .checked_sub(txn.amount())
                 .is_none()
             {
