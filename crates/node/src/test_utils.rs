@@ -1,16 +1,18 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, RwLock},
     time::Duration,
 };
 
-use block::{Block, BlockHash, GenesisBlock, InnerBlock, ProposalBlock};
+use async_trait::async_trait;
+use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
-use primitives::{generate_account_keypair, Address, NodeType, RawSignature};
+use primitives::{generate_account_keypair, Address, NodeId, NodeType, RawSignature, Round};
 use secp256k1::{Message, PublicKey, SecretKey};
+use storage::vrrbdb::Claims;
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, NodeConfigBuilder};
 use vrrb_core::{
@@ -21,7 +23,10 @@ use vrrb_core::{
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
-use crate::{dag_module::DagModule, network::NetworkEvent};
+use crate::{
+    dag_module::DagModule, data_store::DataStore, network::NetworkEvent, result::*,
+    state_reader::StateReader,
+};
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
@@ -391,5 +396,103 @@ pub fn create_mock_transaction_args(n: usize) -> NewTxnArgs {
             .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
         validators: None,
         nonce: n as u128,
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MockStateStore {}
+
+impl MockStateStore {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MockStateReader {}
+
+impl MockStateReader {
+    pub fn new() -> Self {
+        MockStateReader {}
+    }
+}
+
+#[async_trait]
+impl StateReader for MockStateReader {
+    /// Returns a full list of all accounts within state
+    async fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
+        todo!()
+    }
+
+    /// Returns a full list of transactions pending to be confirmed
+    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, Txn>> {
+        todo!()
+    }
+
+    /// Get a transaction from state
+    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn> {
+        todo!()
+    }
+
+    /// List a group of transactions
+    async fn list_transactions(
+        &self,
+        digests: Vec<TransactionDigest>,
+    ) -> Result<HashMap<TransactionDigest, Txn>> {
+        todo!()
+    }
+
+    async fn get_account(&self, address: Address) -> Result<Account> {
+        todo!()
+    }
+
+    async fn get_round(&self) -> Result<Round> {
+        todo!()
+    }
+
+    async fn get_blocks(&self) -> Result<Vec<Block>> {
+        todo!()
+    }
+
+    async fn get_transaction_count(&self) -> Result<usize> {
+        todo!()
+    }
+
+    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>> {
+        todo!()
+    }
+
+    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>> {
+        todo!()
+    }
+
+    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+        todo!()
+    }
+
+    async fn get_last_block(&self) -> Result<Block> {
+        todo!()
+    }
+
+    fn state_store_values(&self) -> HashMap<Address, Account> {
+        todo!()
+    }
+
+    /// Returns a copy of all values stored within the state trie
+    fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn> {
+        todo!()
+    }
+
+    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
+        todo!()
+    }
+}
+
+#[async_trait]
+impl DataStore<MockStateReader> for MockStateStore {
+    type Error = NodeError;
+
+    fn state_reader(&self) -> MockStateReader {
+        todo!()
     }
 }
