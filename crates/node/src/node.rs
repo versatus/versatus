@@ -10,9 +10,9 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use vrrb_config::NodeConfig;
 use vrrb_core::keypair::KeyPair;
+use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    node_health_report::NodeHealthReport,
     result::Result,
     runtime::setup_runtime_components,
     NodeError,
@@ -46,6 +46,8 @@ impl Node {
 
         let mut router = EventRouter::new();
         router.add_topic(Topic::from("json-rpc-api-control"), Some(1));
+        router.add_topic(Topic::from("network-events"), Some(1000));
+        router.add_topic(Topic::from("consensus-events"), Some(1000));
 
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();

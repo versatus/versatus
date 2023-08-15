@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QuorumMember {
     pub node_id: NodeId,
     pub kademlia_peer_id: KademliaPeerId,
@@ -13,13 +13,13 @@ pub struct QuorumMember {
     pub kademlia_liveness_address: SocketAddr,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QuorumMembership {
     pub member: QuorumMember,
     pub quorum_kind: QuorumKind,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QuorumMembershipConfig {
     pub quorum_members: Vec<QuorumMembership>,
 }

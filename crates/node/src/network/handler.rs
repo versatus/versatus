@@ -1,4 +1,8 @@
-use std::{collections::HashMap, net::SocketAddr, ops::AddAssign};
+use std::{
+    collections::HashMap,
+    net::{AddrParseError, SocketAddr},
+    ops::AddAssign,
+};
 
 use async_trait::async_trait;
 use dyswarm::{
@@ -55,13 +59,19 @@ impl Handler<EventMessage> for NetworkModule {
                     &peer_data.kademlia_liveness_addr.to_string(),
                 );
 
+                let evt = Event::NodeAddedToPeerList(peer_data.clone());
+                let em = EventMessage::new(Some("consensus-events".into()), evt);
+
                 self.events_tx
-                    .send(Event::NodeAddedToPeerList(peer_data.clone()).into())
+                    .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
-            Event::QuorumMembershipAssigned(assigned_membership) => {},
+            Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
+                self.notify_quorum_membership_assignment(assigned_membership)
+                    .await?;
+            },
 
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");

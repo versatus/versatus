@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
-use events::{Event, EventPublisher, PeerData};
-use primitives::NodeId;
+use events::{Event, EventMessage, EventPublisher, PeerData};
+use primitives::{NodeId, NodeType};
+use vrrb_config::{QuorumMember, QuorumMembership, QuorumMembershipConfig};
 
 use crate::{network::NetworkEvent, NodeError};
 
@@ -43,10 +44,9 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 // TODO: once all known peers have been joined, send a `NetworkReady` event so a
                 // dkg can be started and the first quorums can be formed
 
-                self.events_tx
-                    .send(evt.into())
-                    .await
-                    .map_err(NodeError::from)?;
+                let em = EventMessage::new(Some("network-events".into()), evt);
+
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
             NetworkEvent::ClaimCreated { node_id, claim } => {
                 telemetry::info!(
@@ -57,11 +57,24 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 );
 
                 let evt = Event::ClaimReceived(claim);
+                let em = EventMessage::new(Some("network-events".into()), evt);
 
-                self.events_tx
-                    .send(evt.into())
-                    .await
-                    .map_err(NodeError::from)?;
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+
+            NetworkEvent::AssignmentToQuorumCreated {
+                assigned_membership,
+            } => {
+                telemetry::info!(
+                    "Node ID {} recieved assignment to quorum: {:?}",
+                    self.node_id,
+                    assigned_membership.quorum_kind
+                );
+
+                let evt = Event::QuorumMembershipAssigmentCreated(assigned_membership);
+                let em = EventMessage::new(Some("consensus-events".into()), evt);
+
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
             _ => {},

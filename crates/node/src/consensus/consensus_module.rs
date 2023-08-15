@@ -861,4 +861,41 @@ impl ConsensusModule {
         // err);         }
         //     }
     }
+
+    pub fn handle_dkg_protocol_initiated(&self) {
+        //     let threshold_config = self.dkg_engine.threshold_config.clone();
+        //     if self.quorum_type.clone().is_some() {
+        //         match self
+        //             .dkg_engine
+        //             .generate_sync_keygen_instance(threshold_config.threshold
+        // as usize)         {
+        //             Ok(part_commitment) => {
+        //                 if let DkgResult::PartMessageGenerated(node_idx,
+        // part) = part_commitment                 {
+        //                     if let Ok(part_committment_bytes) =
+        // bincode::serialize(&part) {                         let _ =
+        // self                             .broadcast_events_tx
+        //                             .send(
+        //                                 Event::PartMessage(node_idx,
+        // part_committment_bytes)
+        // .into(),                             )
+        //                             .await.map_err(|e| {
+        //                                 error!("Error occured while sending
+        // part message to broadcast event channel {:?}", e);
+        // TheaterError::Other(format!("{e:?}"))                             });
+        //                     }
+        //                 }
+        //             },
+        //             Err(_e) => {
+        //                 error!("Error occured while generating synchronized
+        // keygen instance for node {:?}", self.dkg_engine.node_idx);
+        // },         }
+        //     } else {
+        //         error!(
+        //             "Cannot participate into DKG ,since current node {:?}
+        // dint win any Quorum Election",
+        // self.dkg_engine.node_idx         );
+        //     }
+        //     return Ok(ActorState::Running);
+    }
 }

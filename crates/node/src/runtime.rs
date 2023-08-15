@@ -39,11 +39,11 @@ pub async fn setup_runtime_components(
     let mut config = original_config.clone();
 
     let vrrbdb_events_rx = router.subscribe(None)?;
-    let network_events_rx = router.subscribe(None)?;
+    let network_events_rx = router.subscribe(Some("network-events".into()))?;
     let miner_events_rx = router.subscribe(None)?;
     let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
-    let quorum_events_rx = router.subscribe(None)?;
-    let consensus_events_rx = router.subscribe(None)?;
+    let quorum_events_rx = router.subscribe(Some("consensus-events".into()))?;
+    let consensus_events_rx = router.subscribe(Some("consensus-events".into()))?;
     let indexer_events_rx = router.subscribe(None)?;
     let dag_events_rx = router.subscribe(None)?;
 

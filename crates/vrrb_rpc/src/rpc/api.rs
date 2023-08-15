@@ -1,13 +1,20 @@
 use std::collections::HashMap;
 
+use block::block::Block;
 use jsonrpsee::{core::Error, proc_macros::rpc};
-use primitives::{Address, NodeType};
+use primitives::{Address, NodeType, Round};
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
+use block::ClaimHash;
+use vrrb_core::node_health_report::NodeHealthReport;
+use storage::vrrbdb::Claims;
 use vrrb_core::{
     account::Account,
     txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
 };
+use vrrb_core::claim::Claim;
+use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
+
 
 use crate::rpc::SignOpts;
 
@@ -101,9 +108,42 @@ pub trait RpcApi {
     #[method(name = "getAccount")]
     async fn get_account(&self, address: Address) -> Result<Account, Error>;
 
-    //#[method(name = "faucetDrip")]
-    //async fn faucet_drip(&self, address: Address) -> Result<(), Error>;
+    #[method(name = "faucetDrip")]
+    async fn faucet_drip(&self, address: Address) -> Result<(), Error>;
 
     #[method(name = "signTransaction")]
     async fn sign_transaction(&self, sign_opts: SignOpts) -> Result<String, Error>;
+
+    #[method(name = "getRound")]
+    async fn get_round(&self) -> Result<Round, Error>;
+
+    #[method(name = "getBlocks")]
+    async fn get_blocks(&self) -> Result<Vec<Block>, Error>;
+
+    #[method(name = "getProgram")]
+    async fn get_program(&self) -> Result<(), Error>;
+
+    #[method(name = "callProgram")]
+    async fn call_program(&self) -> Result<(), Error>;
+
+    #[method(name = "getTransactionCount")]
+    async fn get_transaction_count(&self) -> Result<usize, Error>;
+
+    #[method(name = "getNodeHealth")]
+    async fn get_node_health(&self) -> Result<NodeHealthReport, Error>;
+
+    #[method(name = "getClaimsByAccountId")]
+    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>, Error>;
+
+    #[method(name = "getClaimHashes")]
+    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error>;
+
+    #[method(name = "getClaims")]
+    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error>;
+
+    #[method(name = "getMembershipConfig")]
+    async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, Error>;
+
+    #[method(name = "getLastBlock")]
+    async fn get_last_block(&self) -> Result<Block, Error>;
 }
