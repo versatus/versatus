@@ -1,4 +1,7 @@
-use std::net::SocketAddr;
+use std::{
+    marker::{PhantomData, PhantomPinned},
+    net::SocketAddr,
+};
 
 use events::{Event, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
@@ -13,15 +16,17 @@ use vrrb_core::keypair::KeyPair;
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    result::Result,
-    runtime::setup_runtime_components,
-    NodeError,
-    RuntimeComponentManager,
+    result::Result, runtime::setup_runtime_components, state_reader::StateReader,
+    state_store::StateStore, NodeError, RuntimeComponentManager,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
-pub struct Node {
+pub struct Node<S, R>
+where
+    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    R: StateReader + Send + 'static,
+{
     config: NodeConfig,
 
     // TODO: make this private
@@ -29,14 +34,45 @@ pub struct Node {
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
+    _marker: PhantomData<(S, R)>,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
-impl Node {
-    pub async fn start(config: &NodeConfig) -> Result<Self> {
+#[derive(Debug, Default, Clone)]
+pub struct StartArgs<S, R>
+where
+    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    R: StateReader + Send + 'static,
+{
+    pub config: NodeConfig,
+    // NOTE: temporary placement, later on figure out a way to merge both config and storage kind
+    pub database: S,
+    _marker: PhantomData<R>,
+}
+
+impl<S, R> StartArgs<S, R>
+where
+    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    R: StateReader + Send + 'static,
+{
+    pub fn new(config: NodeConfig, database: S) -> Self {
+        Self {
+            config,
+            database,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<S, R> Node<S, R>
+where
+    S: StateStore<R> + std::fmt::Debug + Default + Send,
+    R: StateReader + Send + 'static,
+{
+    pub async fn start(args: StartArgs<S, R>) -> Result<Node<S, R>> {
         // Copy the original config to avoid overwriting the original
-        let config = config.clone();
+        let config = args.config.clone();
 
         info!("Launching Node {}", &config.id);
 
@@ -70,6 +106,7 @@ impl Node {
             keypair,
             cancel_token,
             runtime_control_handle,
+            _marker: PhantomData,
         })
     }
 

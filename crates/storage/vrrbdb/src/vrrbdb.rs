@@ -12,13 +12,8 @@ use vrrb_core::{
 };
 
 use crate::{
-    ClaimStore,
-    ClaimStoreReadHandleFactory,
-    StateStore,
-    StateStoreReadHandleFactory,
-    TransactionStore,
-    TransactionStoreReadHandleFactory,
-    VrrbDbReadHandle,
+    ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
+    TransactionStore, TransactionStoreReadHandleFactory, VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
@@ -54,7 +49,7 @@ impl Default for VrrbDbConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct VrrbDb {
     state_store: StateStore,
     transaction_store: TransactionStore,
