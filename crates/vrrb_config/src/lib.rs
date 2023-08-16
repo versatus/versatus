@@ -41,6 +41,8 @@ mod tests {
             .grpc_server_address(addr)
             .keypair(keypair)
             .bootstrap_config(None)
+            .quorum_config(Some(QuorumMembershipConfig::default()))
+            .bootstrap_quorum_config(Some(BootstrapQuorumConfig::default()))
             .build()
             .unwrap();
     }
