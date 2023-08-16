@@ -1,4 +1,4 @@
-use node::{test_utils::create_mock_bootstrap_node_config, Node};
+use node::{test_utils::create_mock_bootstrap_node_config, Node, test_utils};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
 use vrrb_core::txn::NewTxnArgs;
@@ -9,7 +9,9 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 async fn process_full_node_event_flow() {
     let b_node_config = create_mock_bootstrap_node_config();
 
-    let mut bootstrap_node = Node::start(&b_node_config).await.unwrap();
+    let start_args = node::StartArgs::new(b_node_config, test_utils::MockStateStore::new());
+
+    let mut bootstrap_node = Node::start(start_args).await.unwrap();
 
     let _bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
 

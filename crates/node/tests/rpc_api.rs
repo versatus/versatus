@@ -1,4 +1,4 @@
-use node::{test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState};
+use node::{test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState, test_utils};
 use primitives::node::NodeType;
 use serial_test::serial;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
@@ -9,7 +9,12 @@ async fn node_rpc_api_returns_node_type() {
     let mut node_config = create_mock_full_node_config();
     node_config.node_type = NodeType::Bootstrap;
 
-    let mut vrrb_node = Node::start(&node_config).await.unwrap();
+    let start_args = node::StartArgs::new(
+        node_config,
+        test_utils::MockStateStore::new()
+    );
+
+    let mut vrrb_node = Node::start(start_args).await.unwrap();
     let addr = vrrb_node.jsonrpc_server_address();
 
     let client = create_client(addr).await.unwrap();

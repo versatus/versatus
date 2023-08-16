@@ -149,7 +149,7 @@ impl RpcApiServer for RpcServerImpl {
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
         let addr =
-            Address::from_str(&account.hash).map_err(|err| Error::Custom(err.to_string()))?;
+            Address::from_str(&account.hash()).map_err(|err| Error::Custom(err.to_string()))?;
 
         let event = Event::AccountUpdateRequested((addr, account_bytes));
 

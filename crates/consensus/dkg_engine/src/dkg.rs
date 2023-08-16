@@ -227,7 +227,7 @@ mod tests {
 
     #[tokio::test]
     async fn generate_part_committment_message() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let part_committement_result = dkg_engine.generate_sync_keygen_instance(1);
         assert!(part_committement_result.is_ok());
@@ -239,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn successfull_acknowledge_part_committment_message() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(0);
@@ -252,7 +252,7 @@ mod tests {
 
     #[tokio::test]
     async fn failed_to_acknowledge_part_committment_missing_committment() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let _ = dkg_engine.generate_sync_keygen_instance(1);
         let result = dkg_engine.ack_partial_commitment(1);
@@ -265,7 +265,7 @@ mod tests {
 
     #[tokio::test]
     async fn failed_to_acknowledge_part_committment_missing_syncgen_instance() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let result = dkg_engine.ack_partial_commitment(0);
         assert!(result.is_err());
@@ -277,7 +277,7 @@ mod tests {
 
     #[tokio::test]
     async fn successfull_acknowledge_all_acks() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();
@@ -322,7 +322,7 @@ mod tests {
 
     #[tokio::test]
     async fn successful_generations_of_key_sets() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();

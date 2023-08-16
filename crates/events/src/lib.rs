@@ -18,12 +18,11 @@ pub type Topic = messr::Topic;
 mod tests {
     use super::*;
 
-    #[ignore = "this test fails? @nopestack & @Rakowskiii"]
     #[test]
     fn _event_can_turn_into_router_message() {
         let event = Event::NoOp;
         let message: messr::Message<Event> = event.into();
 
-        assert_eq!(message, messr::Message::new(None, Event::NoOp));
+        assert_eq!(message, messr::Message::new_with_id(message.id,Event::NoOp, None));
     }
 }

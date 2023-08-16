@@ -18,38 +18,14 @@ fn accounts_can_be_added() {
     let (_, addr5) = _generate_random_address();
 
     db.insert_account(
-        addr1,
-        Account {
-            address: Address::default(),
-            hash: String::from(""),
-            nonce: 0,
-            credits: 0,
-            debits: 0,
-            storage: None,
-            code: None,
-            pubkey: vec![],
-            digests: AccountDigests::default(),
-            created_at: 0,
-            updated_at: None,
-        },
+        addr1.clone(),
+        Account::new(addr1.public_key())
     )
     .unwrap();
 
     db.insert_account(
-        addr2,
-        Account {
-            address: Address::default(),
-            hash: String::from(""),
-            nonce: 0,
-            credits: 0,
-            debits: 0,
-            storage: None,
-            code: None,
-            pubkey: vec![],
-            digests: AccountDigests::default(),
-            created_at: 0,
-            updated_at: None,
-        },
+        addr2.clone(),
+        Account::new(addr2.public_key())
     )
     .unwrap();
 
@@ -59,52 +35,16 @@ fn accounts_can_be_added() {
 
     db.extend_accounts(vec![
         (
-            addr3,
-            Account {
-                address: Address::default(),
-                hash: String::from(""),
-                nonce: 0,
-                credits: 0,
-                debits: 0,
-                storage: None,
-                code: None,
-                pubkey: vec![],
-                digests: AccountDigests::default(),
-                created_at: 0,
-                updated_at: None,
-            },
+            addr3.clone(),
+            Account::new(addr3.public_key())
         ),
         (
-            addr4,
-            Account {
-                address: Address::default(),
-                hash: String::from(""),
-                nonce: 0,
-                credits: 0,
-                debits: 0,
-                storage: None,
-                code: None,
-                pubkey: vec![],
-                digests: AccountDigests::default(),
-                created_at: 0,
-                updated_at: None,
-            },
+            addr4.clone(),
+            Account::new(addr4.public_key())
         ),
         (
-            addr5,
-            Account {
-                address: Address::default(),
-                hash: String::from(""),
-                nonce: 0,
-                credits: 0,
-                debits: 0,
-                storage: None,
-                code: None,
-                pubkey: vec![],
-                digests: AccountDigests::default(),
-                created_at: 0,
-                updated_at: None,
-            },
+            addr5.clone(),
+            Account::new(addr5.public_key())
         ),
     ]);
 
