@@ -227,3 +227,8 @@ hex.workspace = true
 criterion.workspace = true
 ethereum-types.workspace = true
 uuid.workspace = true
+
+[[bench]]
+name = "poc"
+harness = false
+
