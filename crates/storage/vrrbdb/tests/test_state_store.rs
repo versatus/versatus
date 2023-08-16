@@ -19,37 +19,13 @@ fn accounts_can_be_added() {
 
     db.insert_account(
         addr1,
-        Account {
-            address: Address::default(),
-            hash: String::from(""),
-            nonce: 0,
-            credits: 0,
-            debits: 0,
-            storage: None,
-            code: None,
-            pubkey: vec![],
-            digests: AccountDigests::default(),
-            created_at: 0,
-            updated_at: None,
-        },
+        Account::default()
     )
     .unwrap();
 
     db.insert_account(
         addr2,
-        Account {
-            address: Address::default(),
-            hash: String::from(""),
-            nonce: 0,
-            credits: 0,
-            debits: 0,
-            storage: None,
-            code: None,
-            pubkey: vec![],
-            digests: AccountDigests::default(),
-            created_at: 0,
-            updated_at: None,
-        },
+        Account::default()
     )
     .unwrap();
 
@@ -60,51 +36,15 @@ fn accounts_can_be_added() {
     db.extend_accounts(vec![
         (
             addr3,
-            Account {
-                address: Address::default(),
-                hash: String::from(""),
-                nonce: 0,
-                credits: 0,
-                debits: 0,
-                storage: None,
-                code: None,
-                pubkey: vec![],
-                digests: AccountDigests::default(),
-                created_at: 0,
-                updated_at: None,
-            },
+            Account::default()
         ),
         (
             addr4,
-            Account {
-                address: Address::default(),
-                hash: String::from(""),
-                nonce: 0,
-                credits: 0,
-                debits: 0,
-                storage: None,
-                code: None,
-                pubkey: vec![],
-                digests: AccountDigests::default(),
-                created_at: 0,
-                updated_at: None,
-            },
+            Account::default()
         ),
         (
             addr5,
-            Account {
-                address: Address::default(),
-                hash: String::from(""),
-                nonce: 0,
-                credits: 0,
-                debits: 0,
-                storage: None,
-                code: None,
-                pubkey: vec![],
-                digests: AccountDigests::default(),
-                created_at: 0,
-                updated_at: None,
-            },
+            Account::default()
         ),
     ]);
 
