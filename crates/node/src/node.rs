@@ -16,15 +16,15 @@ use vrrb_core::keypair::KeyPair;
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    result::Result, runtime::setup_runtime_components, state_reader::StateReader,
-    state_store::StateStore, NodeError, RuntimeComponentManager,
+    data_store::DataStore, result::Result, runtime::setup_runtime_components,
+    state_reader::StateReader, NodeError, RuntimeComponentManager,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
 pub struct Node<S, R>
 where
-    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    S: DataStore<R> + std::fmt::Debug + Default + Send + 'static,
     R: StateReader + Send + 'static,
 {
     config: NodeConfig,
@@ -42,7 +42,7 @@ pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 #[derive(Debug, Default, Clone)]
 pub struct StartArgs<S, R>
 where
-    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    S: DataStore<R> + std::fmt::Debug + Default + Send + 'static,
     R: StateReader + Send + 'static,
 {
     pub config: NodeConfig,
@@ -53,7 +53,7 @@ where
 
 impl<S, R> StartArgs<S, R>
 where
-    S: StateStore<R> + std::fmt::Debug + Default + Send + 'static,
+    S: DataStore<R> + std::fmt::Debug + Default + Send + 'static,
     R: StateReader + Send + 'static,
 {
     pub fn new(config: NodeConfig, database: S) -> Self {
@@ -67,7 +67,7 @@ where
 
 impl<S, R> Node<S, R>
 where
-    S: StateStore<R> + std::fmt::Debug + Default + Send,
+    S: DataStore<R> + std::fmt::Debug + Default + Send,
     R: StateReader + Send + 'static,
 {
     pub async fn start(args: StartArgs<S, R>) -> Result<Node<S, R>> {

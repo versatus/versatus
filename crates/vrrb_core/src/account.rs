@@ -176,16 +176,17 @@ pub type AccountNonce = u128;
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Account {
-    pub hash: String,
-    pub nonce: AccountNonce,
-    pub credits: u128,
-    pub debits: u128,
-    pub storage: Option<String>,
-    pub code: Option<String>,
-    pub pubkey: SerializedPublicKey,
-    pub digests: AccountDigests,
-    pub created_at: i64,
-    pub updated_at: Option<i64>,
+    address: Address,
+    hash: String,
+    nonce: AccountNonce,
+    credits: u128,
+    debits: u128,
+    storage: Option<String>,
+    code: Option<String>,
+    pubkey: SerializedPublicKey,
+    digests: AccountDigests,
+    created_at: i64,
+    updated_at: Option<i64>,
 }
 
 impl Account {
@@ -205,9 +206,12 @@ impl Account {
 
         let hash = format!("{:x}", hasher.finalize());
 
+        let address = Address::new(pubkey);
+
         let pubkey = pubkey.serialize().to_vec();
 
         Account {
+            address,
             hash,
             nonce,
             credits,
@@ -366,6 +370,45 @@ impl Account {
     /// round.
     fn update_nonce(&mut self, nonce: AccountNonce) {
         self.nonce = nonce;
+    }
+
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+    pub fn hash(&self) -> &str {
+        &self.hash
+    }
+    pub fn nonce(&self) -> AccountNonce {
+        self.nonce
+    }
+    pub fn credits(&self) -> u128 {
+        self.credits
+    }
+
+    pub fn set_credits(&mut self, credits: u128) {
+        self.credits = credits;
+    }
+
+    pub fn debits(&self) -> u128 {
+        self.debits
+    }
+    pub fn storage(&self) -> &Option<String> {
+        &self.storage
+    }
+    pub fn code(&self) -> &Option<String> {
+        &self.code
+    }
+    pub fn pubkey(&self) -> &SerializedPublicKey {
+        &self.pubkey
+    }
+    pub fn digests(&self) -> &AccountDigests {
+        &self.digests
+    }
+    pub fn created_at(&self) -> i64 {
+        self.created_at
+    }
+    pub fn updated_at(&self) -> Option<i64> {
+        self.updated_at
     }
 }
 

@@ -68,13 +68,13 @@ impl StateStore {
 
     // Maybe initialize is better name for that?
     fn insert_uncommited(&mut self, key: Address, account: Account) -> Result<()> {
-        if account.debits != 0 {
+        if account.debits() != 0 {
             return Err(StorageError::Other(
                 "cannot insert account with debit".to_string(),
             ));
         }
 
-        if account.nonce != 0 {
+        if account.nonce() != 0 {
             return Err(StorageError::Other(
                 "cannot insert account with nonce bigger than 0".to_string(),
             ));

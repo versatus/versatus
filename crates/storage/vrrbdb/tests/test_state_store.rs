@@ -4,6 +4,7 @@ use vrrbdb::{VrrbDb, VrrbDbConfig};
 mod common;
 use common::_generate_random_address;
 use serial_test::serial;
+use primitives::Address;
 
 #[test]
 #[serial]
@@ -19,6 +20,7 @@ fn accounts_can_be_added() {
     db.insert_account(
         addr1,
         Account {
+            address: Address::default(),
             hash: String::from(""),
             nonce: 0,
             credits: 0,
@@ -36,6 +38,7 @@ fn accounts_can_be_added() {
     db.insert_account(
         addr2,
         Account {
+            address: Address::default(),
             hash: String::from(""),
             nonce: 0,
             credits: 0,
@@ -58,6 +61,7 @@ fn accounts_can_be_added() {
         (
             addr3,
             Account {
+                address: Address::default(),
                 hash: String::from(""),
                 nonce: 0,
                 credits: 0,
@@ -73,6 +77,7 @@ fn accounts_can_be_added() {
         (
             addr4,
             Account {
+                address: Address::default(),
                 hash: String::from(""),
                 nonce: 0,
                 credits: 0,
@@ -88,6 +93,7 @@ fn accounts_can_be_added() {
         (
             addr5,
             Account {
+                address: Address::default(),
                 hash: String::from(""),
                 nonce: 0,
                 credits: 0,

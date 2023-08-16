@@ -215,7 +215,7 @@ mod tests {
 
         for (address, _) in accounts.iter() {
             let account = store.get(address).unwrap();
-            let digests = account.digests.clone();
+            let digests = account.digests().clone();
             dbg!(&digests);
             assert!(digests.get_sent().len() > 0);
             assert!(digests.get_recv().len() > 0);

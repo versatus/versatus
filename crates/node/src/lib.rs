@@ -7,13 +7,13 @@ mod runtime_module;
 pub(crate) mod api;
 pub(crate) mod consensus;
 pub(crate) mod dag_module;
+pub(crate) mod data_store;
 pub(crate) mod indexer_module;
 pub(crate) mod mining_module;
 pub(crate) mod network;
 pub(crate) mod runtime;
 pub(crate) mod state_manager;
 pub(crate) mod state_reader;
-pub(crate) mod state_store;
 pub(crate) mod ui;
 
 pub mod test_utils;

@@ -51,9 +51,7 @@ mod tests {
     use wiremock::{
         http::Method,
         matchers::{method, path},
-        Mock,
-        MockServer,
-        ResponseTemplate,
+        Mock, MockServer, ResponseTemplate,
     };
 
     use super::*;
