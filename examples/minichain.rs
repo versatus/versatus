@@ -5,13 +5,10 @@ use std::{
 
 use node::{
     test_utils::{
-        self,
-        create_mock_transaction_args,
-        create_node_rpc_client,
-        generate_nodes_pattern,
+        self, create_mock_transaction_args, create_node_rpc_client, generate_nodes_pattern,
         send_data_over_quic,
     },
-    Node,
+    Node, StartArgs,
 };
 use primitives::{KademliaPeerId, NodeType, QuorumKind};
 use telemetry::TelemetrySubscriber;
@@ -66,7 +63,9 @@ async fn main() {
 
     config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
 
-    let node_0 = Node::start(&config).await.unwrap();
+    let node_0_args = StartArgs::new(config, test_utils::MockStateStore::new());
+
+    let node_0 = Node::start(node_0_args).await.unwrap();
 
     let node_0_rpc_addr = node_0.jsonrpc_server_address();
 
@@ -98,7 +97,9 @@ async fn main() {
         config.udp_gossip_address = quorum_config.member.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.member.kademlia_peer_id);
 
-        let node = Node::start(&config).await.unwrap();
+        let node_args = StartArgs::new(config, test_utils::MockStateStore::new());
+
+        let node = Node::start(node_args).await.unwrap();
         nodes.push(node);
     }
 
@@ -115,7 +116,9 @@ async fn main() {
         miner_config.udp_gossip_address = quorum_config.member.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.member.kademlia_peer_id);
 
-        let miner_node = Node::start(&miner_config).await.unwrap();
+        let miner_args = StartArgs::new(miner_config, test_utils::MockStateStore::new());
+
+        let miner_node = Node::start(miner_args).await.unwrap();
         nodes.push(miner_node);
     }
 
