@@ -98,7 +98,7 @@ pub fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
         .map(|_| {
             let kp = generate_account_keypair();
             let mut account = Account::new(kp.1);
-            account.credits = 1_000_000_000_000_000_000_000_000_000u128;
+            account.set_credits(1_000_000_000_000_000_000_000_000_000u128);
             (Address::new(kp.1), account)
         })
         .collect()
@@ -281,7 +281,7 @@ pub fn create_txn_from_accounts(
         signature: sk
             .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
         validators: Some(validators),
-        nonce: sender.1.nonce + 1,
+        nonce: sender.1.nonce() + 1,
     };
 
     let mut txn = Txn::new(txn_args);
