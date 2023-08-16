@@ -45,7 +45,7 @@ async fn concurrent_xor_claim_hashes(
         let sender = tx.clone();
         spawn(async move {
             let res = xor_hash(&inner_seed, &hash);
-            sender.send(res);
+            let _ = sender.send(res).await;
         });
     });
 }
