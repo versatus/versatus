@@ -71,46 +71,6 @@ impl RpcApiServer for RpcServerImpl {
         Ok(RpcTransactionRecord::from(txn))
     }
 
-    async fn create_account(&self, address: Address, account: Account) -> Result<(), Error> {
-        let account_bytes =
-            encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
-
-        let event = Event::CreateAccountRequested((address.clone(), account_bytes));
-
-        debug!("{:?}", event);
-
-        self.events_tx
-            .send(event.clone().into())
-            .await
-            .map_err(|err| {
-                error!("could not create account: {err}");
-                Error::Custom(err.to_string())
-            })?;
-
-        telemetry::info!("requested account creation for address: {}", address);
-
-        Ok(())
-    }
-
-    async fn update_account(&self, account: Account) -> Result<(), Error> {
-        debug!("Received an updateAccount RPC request");
-
-        let account_bytes =
-            encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
-
-        let addr =
-            Address::from_str(&account.hash()).map_err(|err| Error::Custom(err.to_string()))?;
-
-        let event = Event::AccountUpdateRequested((addr, account_bytes));
-
-        self.events_tx.send(event.into()).await.map_err(|err| {
-            error!("could not update account: {err}");
-            Error::Custom(err.to_string())
-        })?;
-
-        Ok(())
-    }
-
     async fn get_transaction(
         &self,
         transaction_digest: RpcTransactionDigest,
@@ -159,6 +119,46 @@ impl RpcApiServer for RpcServerImpl {
         });
 
         Ok(values)
+    }
+
+    async fn create_account(&self, address: Address, account: Account) -> Result<(), Error> {
+        let account_bytes =
+            encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
+
+        let event = Event::CreateAccountRequested((address.clone(), account_bytes));
+
+        debug!("{:?}", event);
+
+        self.events_tx
+            .send(event.clone().into())
+            .await
+            .map_err(|err| {
+                error!("could not create account: {err}");
+                Error::Custom(err.to_string())
+            })?;
+
+        telemetry::info!("requested account creation for address: {}", address);
+
+        Ok(())
+    }
+
+    async fn update_account(&self, account: Account) -> Result<(), Error> {
+        debug!("Received an updateAccount RPC request");
+
+        let account_bytes =
+            encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
+
+        let addr =
+            Address::from_str(&account.hash).map_err(|err| Error::Custom(err.to_string()))?;
+
+        let event = Event::AccountUpdateRequested((addr, account_bytes));
+
+        self.events_tx.send(event.into()).await.map_err(|err| {
+            error!("could not update account: {err}");
+            Error::Custom(err.to_string())
+        })?;
+
+        Ok(())
     }
 
     async fn get_account(&self, address: Address) -> Result<Account, Error> {
@@ -224,7 +224,7 @@ impl RpcApiServer for RpcServerImpl {
         todo!()
     }
 
-    async fn get_transaction_count(&self) -> Result<usize, Error> {
+    async fn get_transaction_count(&self, account: Address) -> Result<usize, Error> {
         todo!()
     }
 
@@ -232,16 +232,29 @@ impl RpcApiServer for RpcServerImpl {
         todo!()
     }
 
-    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>, Error> {
-        todo!()
+    async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, Error> {
+        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = claims.iter().map(|(_, claim)| claim.clone()).filter(
+            |claim| claim.address == address
+        ).collect();
+
+        Ok(claims)
     }
 
     async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error> {
-        todo!()
+        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claim_hashes = claims.iter().map(|(_, claim)| claim.hash.clone()).collect();
+
+        Ok(claim_hashes)
     }
 
     async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error> {
-        todo!()
+        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = claims.iter().map(|(_, claim)| claim.clone()).filter(
+            |claim| claim_hashes.contains(&claim.hash)
+        ).collect();
+
+        Ok(claims)
     }
 
     async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, Error> {
