@@ -18,14 +18,14 @@ fn accounts_can_be_added() {
     let (_, addr5) = _generate_random_address();
 
     db.insert_account(
-        addr1,
-        Account::default()
+        addr1.clone(),
+        Account::new(addr1.public_key())
     )
     .unwrap();
 
     db.insert_account(
-        addr2,
-        Account::default()
+        addr2.clone(),
+        Account::new(addr2.public_key())
     )
     .unwrap();
 
@@ -35,16 +35,16 @@ fn accounts_can_be_added() {
 
     db.extend_accounts(vec![
         (
-            addr3,
-            Account::default()
+            addr3.clone(),
+            Account::new(addr3.public_key())
         ),
         (
-            addr4,
-            Account::default()
+            addr4.clone(),
+            Account::new(addr4.public_key())
         ),
         (
-            addr5,
-            Account::default()
+            addr5.clone(),
+            Account::new(addr5.public_key())
         ),
     ]);
 
