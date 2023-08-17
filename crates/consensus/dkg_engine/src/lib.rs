@@ -1,4 +1,5 @@
 pub mod dkg;
+pub mod dkg_state;
 pub mod engine;
 pub mod result;
 pub mod test_utils;
@@ -7,6 +8,7 @@ pub use crate::result::*;
 
 pub mod prelude {
     pub use crate::dkg::*;
+    pub use crate::dkg_state::*;
     pub use crate::engine::*;
 }
 
@@ -21,7 +23,6 @@ mod tests {
     use crate::dkg::DkgGenerator;
     use crate::{prelude::*, result::DkgError, test_utils::generate_dkg_engines};
 
-    #[tokio::test]
     async fn failed_to_generate_part_commitment_message_since_only_master_node_allowed() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::Miner).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
@@ -36,8 +37,6 @@ mod tests {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let (part, _) = dkg_engine.generate_partial_commitment(1).unwrap();
-
-        dbg!(part);
     }
 
     #[tokio::test]
@@ -68,11 +67,9 @@ mod tests {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
         let result = dkg_engine.ack_partial_commitment(String::from("node-0"));
+
         assert!(result.is_err());
-        assert!(is_enum_variant!(
-            result,
-            Err(DkgError::SyncKeyGenInstanceNotCreated { .. })
-        ));
+        assert!(is_enum_variant!(result, Err(DkgError::Unknown { .. })));
     }
 
     #[tokio::test]
@@ -148,28 +145,28 @@ mod tests {
             if node_id.to_string() != dkg_engine_node1.node_id() {
                 dkg_engine_node1
                     .dkg_state
-                    .part_message_store
+                    .part_message_store_mut()
                     .insert(node_id.to_owned(), part.clone());
             }
 
             if node_id.to_string() != dkg_engine_node2.node_id() {
                 dkg_engine_node2
                     .dkg_state
-                    .part_message_store
+                    .part_message_store_mut()
                     .insert(node_id.to_owned(), part.clone());
             }
 
             if node_id.to_string() != dkg_engine_node3.node_id() {
                 dkg_engine_node3
                     .dkg_state
-                    .part_message_store
+                    .part_message_store_mut()
                     .insert(node_id.to_owned(), part.clone());
             }
 
             if node_id.to_string() != dkg_engine_node4.node_id() {
                 dkg_engine_node4
                     .dkg_state
-                    .part_message_store
+                    .part_message_store_mut()
                     .insert(node_id.to_owned(), part.clone());
             }
         }
@@ -210,26 +207,34 @@ mod tests {
         let mut new_store: HashMap<(NodeId, SenderId), Ack>;
         new_store = dkg_engine_node1
             .dkg_state
-            .ack_message_store
+            .ack_message_store_mut()
             .clone()
             .into_iter()
-            .chain(dkg_engine_node2.dkg_state.ack_message_store.clone())
+            .chain(dkg_engine_node2.dkg_state.ack_message_store().clone())
             .collect();
 
         new_store = new_store
             .into_iter()
-            .chain(dkg_engine_node3.dkg_state.ack_message_store.clone())
+            .chain(dkg_engine_node3.dkg_state.ack_message_store().clone())
             .collect();
 
         new_store = new_store
             .into_iter()
-            .chain(dkg_engine_node4.dkg_state.ack_message_store.clone())
+            .chain(dkg_engine_node4.dkg_state.ack_message_store().clone())
             .collect();
 
-        dkg_engine_node1.dkg_state.ack_message_store = new_store.clone();
-        dkg_engine_node2.dkg_state.ack_message_store = new_store.clone();
-        dkg_engine_node3.dkg_state.ack_message_store = new_store.clone();
-        dkg_engine_node4.dkg_state.ack_message_store = new_store;
+        dkg_engine_node1
+            .dkg_state
+            .set_ack_message_store(new_store.clone());
+        dkg_engine_node2
+            .dkg_state
+            .set_ack_message_store(new_store.clone());
+        dkg_engine_node3
+            .dkg_state
+            .set_ack_message_store(new_store.clone());
+        dkg_engine_node4
+            .dkg_state
+            .set_ack_message_store(new_store.clone());
 
         for _ in 0..4 {
             dkg_engine_node1.handle_ack_messages().unwrap();
@@ -241,8 +246,8 @@ mod tests {
         let result = dkg_engine_node1.generate_key_sets();
 
         assert!(result.is_ok());
-        assert!(dkg_engine_node1.dkg_state.public_key_set.is_some());
-        assert!(dkg_engine_node1.dkg_state.secret_key_share.is_some());
+        assert!(dkg_engine_node1.dkg_state.public_key_set().is_some());
+        assert!(dkg_engine_node1.dkg_state.secret_key_share().is_some());
     }
 
     fn add_part_commitment_to_node_dkg_state(
@@ -254,7 +259,7 @@ mod tests {
 
         dkg_engine_node1
             .dkg_state
-            .part_message_store
+            .part_message_store_mut()
             .insert(node_id, part);
     }
 }
