@@ -13,15 +13,10 @@ pub struct QuorumMember {
     pub kademlia_liveness_address: SocketAddr,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct QuorumMembership {
-    pub member: QuorumMember,
-    pub quorum_kind: QuorumKind,
-}
-
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QuorumMembershipConfig {
-    pub quorum_members: Vec<QuorumMembership>,
+    pub quorum_kind: QuorumKind,
+    pub quorum_members: Vec<QuorumMember>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -41,11 +36,7 @@ impl BootstrapQuorumConfig {
 }
 
 impl QuorumMembershipConfig {
-    pub fn members_by_quorum_kind(&self, kind: QuorumKind) -> Vec<QuorumMember> {
-        self.quorum_members
-            .iter()
-            .filter(|m| m.quorum_kind == kind)
-            .map(|m| m.member.clone())
-            .collect()
+    pub fn quorum_kind(&self) -> QuorumKind {
+        self.quorum_kind.clone()
     }
 }

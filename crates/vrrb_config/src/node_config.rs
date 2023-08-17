@@ -10,7 +10,9 @@ use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
-use crate::{bootstrap::BootstrapConfig, BootstrapQuorumConfig, QuorumMembershipConfig};
+use crate::{
+    bootstrap::BootstrapConfig, BootstrapQuorumConfig, QuorumMembershipConfig, ThresholdConfig,
+};
 
 #[derive(Builder, Debug, Clone, Deserialize)]
 pub struct NodeConfig {
@@ -108,6 +110,8 @@ pub struct NodeConfig {
     /// Enables block and transaction indexing via webhook calls to external
     /// services
     pub enable_block_indexing: bool,
+
+    pub threshold_config: ThresholdConfig,
 }
 
 impl NodeConfig {
@@ -182,6 +186,7 @@ impl Default for NodeConfig {
             keypair: Keypair::random(),
             gui: false,
             disable_networking: false,
+            threshold_config: ThresholdConfig::default(),
             enable_block_indexing: false,
         }
     }

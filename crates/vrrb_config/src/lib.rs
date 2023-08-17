@@ -1,15 +1,22 @@
 mod bootstrap;
 pub mod bootstrap_quorum;
 mod node_config;
+pub mod result;
+pub mod test_utils;
+pub mod threshold_config;
 
 pub use bootstrap::*;
 pub use bootstrap_quorum::*;
 pub use node_config::*;
+pub use result::*;
+pub use test_utils::*;
+pub use threshold_config::*;
 
 #[cfg(test)]
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+    use crate::{test_utils::*, ConfigError, ThresholdConfig};
     use primitives::NodeType;
     use vrrb_core::keypair::Keypair;
 
@@ -41,9 +48,23 @@ mod tests {
             .grpc_server_address(addr)
             .keypair(keypair)
             .bootstrap_config(None)
-            .quorum_config(Some(QuorumMembershipConfig::default()))
-            .bootstrap_quorum_config(Some(BootstrapQuorumConfig::default()))
+            .threshold_config(ThresholdConfig::default())
+            .bootstrap_quorum_config(None)
+            .quorum_config(None)
             .build()
             .unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn successful_validate_invalid_threshold_config() {
+        let invalid_config = invalid_threshold_config();
+        invalid_config.validate().unwrap();
+    }
+
+    #[test]
+    fn successful_validate_valid_threshold_config() {
+        let valid_config = valid_threshold_config();
+        valid_config.validate().unwrap();
     }
 }
