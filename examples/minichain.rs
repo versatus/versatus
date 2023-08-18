@@ -11,9 +11,7 @@ use node::{
     Node, StartArgs,
 };
 use primitives::{KademliaPeerId, NodeType, QuorumKind};
-use telemetry::TelemetrySubscriber;
-use vrrb_config::{BootstrapQuorumConfig, QuorumMember, QuorumMembership, QuorumMembershipConfig};
-use vrrb_rpc::rpc::api::RpcApiClient;
+use vrrb_config::{BootstrapQuorumConfig, QuorumMember, QuorumMembershipConfig};
 
 #[tokio::main]
 async fn main() {
@@ -30,22 +28,16 @@ async fn main() {
         let kademlia_port: u16 = 10230 + i;
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
-        let member = QuorumMembership {
-            member: QuorumMember {
-                node_id: format!("node-{}", i),
-                kademlia_peer_id: KademliaPeerId::rand(),
-                node_type: NodeType::Validator,
-                udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
-                raptorq_gossip_address: SocketAddr::new(
-                    IpAddr::V4(Ipv4Addr::LOCALHOST),
-                    raptor_port,
-                ),
-                kademlia_liveness_address: SocketAddr::new(
-                    IpAddr::V4(Ipv4Addr::LOCALHOST),
-                    kademlia_port,
-                ),
-            },
-            quorum_kind: QuorumKind::Farmer,
+        let member = QuorumMember {
+            node_id: format!("node-{}", i),
+            kademlia_peer_id: KademliaPeerId::rand(),
+            node_type: NodeType::Validator,
+            udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
+            raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
+            kademlia_liveness_address: SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::LOCALHOST),
+                kademlia_port,
+            ),
         };
 
         quorum_members.push(member)
@@ -54,6 +46,7 @@ async fn main() {
     let bootstrap_quorum_config = BootstrapQuorumConfig {
         membership_config: QuorumMembershipConfig {
             quorum_members: quorum_members.clone(),
+            quorum_kind: QuorumKind::Farmer,
         },
         genesis_transaction_threshold: 3,
     };
@@ -92,10 +85,10 @@ async fn main() {
         config.id = format!("node-{}", i);
         config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.node_type = NodeType::Validator;
-        config.kademlia_liveness_address = quorum_config.member.kademlia_liveness_address;
-        config.raptorq_gossip_address = quorum_config.member.raptorq_gossip_address;
-        config.udp_gossip_address = quorum_config.member.udp_gossip_address;
-        config.kademlia_peer_id = Some(quorum_config.member.kademlia_peer_id);
+        config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
+        config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
+        config.udp_gossip_address = quorum_config.udp_gossip_address;
+        config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
         let node_args = StartArgs::new(config, test_utils::MockStateStore::new());
 
@@ -111,10 +104,10 @@ async fn main() {
         miner_config.id = format!("node-{}", i);
         miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
         miner_config.node_type = NodeType::Miner;
-        miner_config.kademlia_liveness_address = quorum_config.member.kademlia_liveness_address;
-        miner_config.raptorq_gossip_address = quorum_config.member.raptorq_gossip_address;
-        miner_config.udp_gossip_address = quorum_config.member.udp_gossip_address;
-        miner_config.kademlia_peer_id = Some(quorum_config.member.kademlia_peer_id);
+        miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
+        miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
+        miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
+        miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
         let miner_args = StartArgs::new(miner_config, test_utils::MockStateStore::new());
 
