@@ -3,16 +3,8 @@ use std::net::SocketAddr;
 use block::BlockHash;
 use hbbft::crypto::PublicKeyShare;
 use primitives::{
-    ByteVec,
-    FarmerId,
-    FarmerQuorumThreshold,
-    IsTxnValid,
-    KademliaPeerId,
-    NodeId,
-    NodeIdx,
-    NodeType,
-    QuorumKind,
-    RawSignature,
+    ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeIdx,
+    NodeType, QuorumKind, RawSignature,
 };
 use serde::{Deserialize, Serialize};
 use vrrb_core::txn::{TransactionDigest, Txn};

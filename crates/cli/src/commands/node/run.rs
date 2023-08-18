@@ -6,7 +6,7 @@ use std::{
 use config::{Config, ConfigError, File};
 use node::{Node, StartArgs};
 use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
-use serde::Deserialize;
+use serde::{de, Deserialize};
 use storage::vrrbdb::VrrbDbConfig;
 use telemetry::{info, warn};
 use uuid::Uuid;
@@ -141,6 +141,7 @@ impl From<RunOpts> for NodeConfig {
             bootstrap_quorum_config: default_node_config.bootstrap_quorum_config,
             quorum_config: default_node_config.quorum_config,
             enable_block_indexing: default_node_config.enable_block_indexing,
+            threshold_config: default_node_config.threshold_config,
         }
     }
 }

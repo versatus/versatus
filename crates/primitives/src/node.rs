@@ -31,6 +31,8 @@ pub enum NodeType {
     /// A Validator node can participate in quorum elections to validate
     /// transactions, create proposal blocks and certify convergence blocks
     Validator = 3,
+
+    MasterNode = 4,
 }
 
 impl fmt::Display for NodeType {
@@ -48,6 +50,7 @@ impl FromStr for NodeType {
             "miner" => Ok(NodeType::Miner),
             "bootstrap" => Ok(NodeType::Bootstrap),
             "validator" => Ok(NodeType::Validator),
+            "master" | "masternode" => Ok(NodeType::MasterNode),
             _ => Err(Error::Other("invalid node type".into())),
         }
     }
@@ -59,6 +62,7 @@ impl From<String> for NodeType {
             "miner" => NodeType::Miner,
             "bootstrap" => NodeType::Bootstrap,
             "validator" => NodeType::Validator,
+            "master" | "masternode" => NodeType::MasterNode,
             _ => NodeType::Full,
         }
     }
@@ -71,6 +75,7 @@ impl From<usize> for NodeType {
             1 => NodeType::Bootstrap,
             2 => NodeType::Miner,
             3 => NodeType::Validator,
+            4 => NodeType::MasterNode,
             _ => NodeType::Full,
         }
     }
