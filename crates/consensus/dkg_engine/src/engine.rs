@@ -155,9 +155,9 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::NotEnoughPeerPublicKeys);
         }
 
-        // if self.node_type != NodeType::Full {
-        //     return Err(DkgError::InvalidNode);
-        // }
+        if self.node_type != NodeType::MasterNode {
+            return Err(DkgError::InvalidNode);
+        }
 
         let node_id = self.node_id();
         let secret_key = self.secret_key.clone();
