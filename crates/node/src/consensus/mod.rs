@@ -22,7 +22,7 @@ mod tests {
     };
 
     use bulldag::graph::BullDag;
-    use dkg_engine::{test_utils, types::config::ThresholdConfig};
+    use dkg_engine::test_utils;
     use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use hbbft::crypto::SecretKey;
     use lazy_static::lazy_static;
@@ -32,6 +32,7 @@ mod tests {
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState};
     use validator::validator_core_manager::ValidatorCoreManager;
+    use vrrb_config::ThresholdConfig;
     use vrrb_core::{
         account::Account,
         bloom::Bloom,

@@ -13,7 +13,7 @@ use quorum::{
 };
 use storage::vrrbdb::VrrbDbReadHandle;
 use theater::{Actor, ActorId, ActorImpl, ActorState};
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembership, QuorumMembershipConfig};
+use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
@@ -49,14 +49,14 @@ impl QuorumModule {
                 .membership_config
                 .quorum_members
                 .into_iter()
-                .map(|membership| {
+                .map(|member| {
                     let peer = PeerData {
-                        node_id: membership.member.node_id,
-                        node_type: membership.member.node_type,
-                        kademlia_peer_id: membership.member.kademlia_peer_id,
-                        udp_gossip_addr: membership.member.udp_gossip_address,
-                        raptorq_gossip_addr: membership.member.raptorq_gossip_address,
-                        kademlia_liveness_addr: membership.member.kademlia_liveness_address,
+                        node_id: member.node_id,
+                        node_type: member.node_type,
+                        kademlia_peer_id: member.kademlia_peer_id,
+                        udp_gossip_addr: member.udp_gossip_address,
+                        raptorq_gossip_addr: member.raptorq_gossip_address,
+                        kademlia_liveness_addr: member.kademlia_liveness_address,
                     };
 
                     (peer.node_id.clone(), (peer, false))

@@ -12,7 +12,7 @@ use quorum::{
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::{NodeConfig, QuorumMember, QuorumMembership, QuorumMembershipConfig};
+use vrrb_config::{NodeConfig, QuorumMember, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 use crate::{consensus::QuorumModule, NodeError, RuntimeComponent, RuntimeComponentHandle};
@@ -54,7 +54,7 @@ impl Handler<EventMessage> for QuorumModule {
                         .quorum_members
                         .iter()
                         .cloned()
-                        .map(|membership| membership.member.node_id)
+                        .map(|member| member.node_id)
                         .collect::<Vec<NodeId>>();
 
                     if quorum_member_ids.contains(&node_id) {
@@ -84,7 +84,7 @@ impl Handler<EventMessage> for QuorumModule {
                         .peers
                         .into_iter()
                         .map(|peer| {
-                            let member = QuorumMember {
+                            QuorumMember {
                                 node_id: peer.node_id,
                                 kademlia_peer_id: peer.kademlia_peer_id,
                                 // TODO: get from kademlia metadata
@@ -92,14 +92,10 @@ impl Handler<EventMessage> for QuorumModule {
                                 udp_gossip_address: peer.udp_gossip_addr,
                                 raptorq_gossip_address: peer.raptorq_gossip_addr,
                                 kademlia_liveness_address: peer.kademlia_liveness_addr,
-                            };
-
-                            QuorumMembership {
-                                quorum_kind: quorum_kind.clone(),
-                                member,
                             }
                         })
                         .collect(),
+                    quorum_kind,
                 };
 
                 self.membership_config = Some(quorum_membership_config.clone());
