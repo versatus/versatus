@@ -4,7 +4,7 @@ use block::{Block, ProposalBlock, RefHash};
 use chrono::Duration;
 use dkg_engine::{
     dkg::DkgGenerator,
-    types::{DkgEngine, DkgEngineConfig, DkgResult},
+    prelude::{DkgEngine, DkgEngineConfig},
 };
 use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData,
@@ -918,7 +918,7 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
 
             let dkg_result = self
                 .dkg_engine
-                .generate_sync_keygen_instance(threshold)
+                .generate_partial_commitment(threshold)
                 .map_err(|err| NodeError::Other(err.to_string()))?;
 
             dbg!(dkg_result);

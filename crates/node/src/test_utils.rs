@@ -622,26 +622,22 @@ impl MockDkgEngine {
 }
 
 impl DkgGenerator for MockDkgEngine {
-    type DkgStatus = DkgResult;
-
-    type Error = NodeError;
-
-    fn generate_sync_keygen_instance(
+    fn generate_partial_commitment(
         &mut self,
         threshold: usize,
-    ) -> dkg_engine::Result<hbbft::sync_key_gen::Part> {
+    ) -> dkg_engine::Result<(hbbft::sync_key_gen::Part, NodeId)> {
         todo!()
     }
 
-    fn ack_partial_commitment(&mut self, node_idx: u16) -> Self::DkgStatus {
+    fn ack_partial_commitment(&mut self, node_id: NodeId) -> dkg_engine::Result<()> {
         todo!()
     }
 
-    fn handle_ack_messages(&mut self) -> Self::DkgStatus {
+    fn handle_ack_messages(&mut self) -> dkg_engine::Result<()> {
         todo!()
     }
 
-    fn generate_key_sets(&mut self) -> Self::DkgStatus {
+    fn generate_key_sets(&mut self) -> dkg_engine::Result<()> {
         todo!()
     }
 

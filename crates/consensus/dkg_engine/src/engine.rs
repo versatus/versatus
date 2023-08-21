@@ -50,7 +50,6 @@ pub struct DkgEngine {
 #[derive(Debug, Clone)]
 pub struct DkgEngineConfig {
     pub node_id: NodeId,
-    pub node_idx: NodeIdx,
     pub node_type: NodeType,
     pub secret_key: SecretKey,
     pub threshold_config: vrrb_config::ThresholdConfig,

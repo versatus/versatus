@@ -21,7 +21,7 @@ mod tests {
 
     use bulldag::graph::BullDag;
     use dkg_engine::test_utils;
-    use events::{Event, EventMessage, JobResult, DEFAULT_BUFFER};
+    use events::{AssignedQuorumMembership, Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use hbbft::crypto::SecretKey;
     use primitives::{KademliaPeerId, NodeType, QuorumKind};
     use secp256k1::Message;
