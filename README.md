@@ -5,8 +5,12 @@
 
 ---
 
+<div style="text-align: center;">
+
 [![Discord](https://img.shields.io/discord/1034112774789414963.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2&style=for-the-badge)](https://discord.gg/versatus)
 ![Twitter Follow](https://img.shields.io/twitter/follow/VersatusLabs?style=for-the-badge&logo=twitter&logoColor=white&labelColor=1DA1F2&color=1DA1F2)
+
+</div>
 
 VRRB is a fast, scalable Layer 1 blockchain truly designed for mass adoption.
 VRRB is powered by a novel consensus mechanism called Proof-of-Claim, which
