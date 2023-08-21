@@ -1,9 +1,11 @@
-<div style="text-align: center;">
-
-[![Discord](https://img.shields.io/discord/1034112774789414963.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2&style=for-the-badge)](https://discord.gg/versatus)
-![Twitter Follow](https://img.shields.io/twitter/follow/VersatusLabs?style=for-the-badge&logo=twitter&logoColor=white&labelColor=1DA1F2&color=1DA1F2)
-
-</div>
+<p align="center">
+    <a href="https://discord.gg/versatus" alt="Discord">
+        <img src="https://img.shields.io/discord/1034112774789414963.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2&style=for-the-badge" />
+    </a>
+    <a href="https://twitter.com/VersatusLabs?s=20" alt="Twitter">
+        <img src="https://img.shields.io/twitter/follow/VersatusLabs?style=for-the-badge&logo=twitter&logoColor=white&labelColor=1DA1F2&color=1DA1F2" />
+    </a>
+</p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
