@@ -83,7 +83,7 @@ impl Signer for SignatureProvider {
     /// ```
     fn generate_partial_signature(&self, payload_hash: Hash) -> SignerResult<RawSignature> {
         let dkg_state = self.dkg_state.read()?;
-        let secret_key_share = dkg_state.secret_key_share.as_ref();
+        let secret_key_share = dkg_state.secret_key_share();
         let secret_key_share = match secret_key_share {
             Some(key) => key,
             None => return Err(SignerError::SecretKeyShareMissing),
@@ -180,7 +180,7 @@ impl Signer for SignatureProvider {
                 }
             })
             .collect();
-        let result = dkg_state.public_key_set.as_ref();
+        let result = dkg_state.public_key_set();
         //Construction of combining t+1 valid shares to form threshold
         let combine_signature_result = match result {
             Some(pub_key_set) => pub_key_set.combine_signatures(&sig_shares),
@@ -279,7 +279,7 @@ impl Signer for SignatureProvider {
         let dkg_state = self.dkg_state.read()?;
         match signature_type {
             SignatureType::PartialSignature => {
-                let public_key_share_opt = dkg_state.public_key_set.clone();
+                let public_key_share_opt = dkg_state.public_key_set();
                 let public_key_share = match public_key_share_opt {
                     Some(public_key_share) => public_key_share.public_key_share(node_idx as usize),
                     None => return Err(SignerError::GroupPublicKeyMissing),
@@ -299,7 +299,7 @@ impl Signer for SignatureProvider {
                 }
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-                let public_key_set_opt = dkg_state.public_key_set.clone();
+                let public_key_set_opt = dkg_state.public_key_set();
                 if public_key_set_opt.is_none() {
                     return Err(SignerError::GroupPublicKeyMissing);
                 }
@@ -362,7 +362,7 @@ mod tests {
         let mut dkg_engines = generate_dkg_engine_with_states().await;
         let mut dkg_engine_node = dkg_engines.pop().unwrap();
         let message = "This is test message";
-        dkg_engine_node.dkg_state.secret_key_share = None;
+        dkg_engine_node.dkg_state.set_secret_key_share(None);
         let sig_provider = SignatureProvider {
             dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
             quorum_config: ThresholdConfig {
