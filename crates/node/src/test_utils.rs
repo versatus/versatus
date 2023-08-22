@@ -11,10 +11,11 @@ use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock
 use bulldag::{graph::BullDag, vertex::Vertex};
 use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngineConfig};
 
+use hbbft::crypto::{PublicKey as ThresholdPublicKey, SecretKey as ThresholdSecretKey};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round,
+    Round, ValidatorSecretKey,
 };
 use secp256k1::{Message, PublicKey, SecretKey};
 use storage::vrrbdb::Claims;
@@ -519,6 +520,11 @@ pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateRe
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
+        let pk_bytes = [0; 32];
+
+        let threshold_sk = ValidatorSecretKey::random();
+        let validator_public_key = threshold_sk.public_key();
+
         let member = QuorumMember {
             node_id: format!("node-{}", i),
             kademlia_peer_id: KademliaPeerId::rand(),
@@ -529,6 +535,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateRe
                 IpAddr::V4(Ipv4Addr::LOCALHOST),
                 kademlia_port,
             ),
+            validator_public_key,
         };
 
         quorum_members.push(member)

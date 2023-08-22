@@ -38,6 +38,7 @@ async fn main() {
                 IpAddr::V4(Ipv4Addr::LOCALHOST),
                 kademlia_port,
             ),
+            threshold_signature_public_key: todo!(),
         };
 
         quorum_members.push(member)

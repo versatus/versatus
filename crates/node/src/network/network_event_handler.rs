@@ -29,6 +29,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 udp_gossip_addr,
                 raptorq_gossip_addr,
                 kademlia_liveness_addr,
+                validator_public_key,
             } => {
                 telemetry::info!("Node {} joined network", node_id);
 
@@ -39,6 +40,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     udp_gossip_addr,
                     raptorq_gossip_addr,
                     kademlia_liveness_addr,
+                    validator_public_key,
                 });
 
                 // TODO: once all known peers have been joined, send a `NetworkReady` event so a

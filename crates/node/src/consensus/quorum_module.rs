@@ -57,6 +57,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
                         udp_gossip_addr: member.udp_gossip_address,
                         raptorq_gossip_addr: member.raptorq_gossip_address,
                         kademlia_liveness_addr: member.kademlia_liveness_address,
+                        validator_public_key: member.validator_public_key,
                     };
 
                     (peer.node_id.clone(), (peer, false))

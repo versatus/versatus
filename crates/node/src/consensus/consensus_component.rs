@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
 use events::{EventPublisher, EventSubscriber};
+use hbbft::crypto::PublicKey as ThresholdSignaturePublicKey;
+use primitives::ValidatorPublicKey;
 use storage::vrrbdb::VrrbDbReadHandle;
 use theater::{Actor, ActorImpl};
 use vrrb_config::NodeConfig;
@@ -18,6 +20,7 @@ pub struct ConsensusModuleComponentConfig<K: DkgGenerator + std::fmt::Debug + Se
     pub consensus_events_rx: EventSubscriber,
     pub node_config: NodeConfig,
     pub dkg_generator: K,
+    pub validator_public_key: ValidatorPublicKey,
 }
 
 #[async_trait]
@@ -35,6 +38,7 @@ impl<
             keypair: args.node_config.keypair.clone(),
             node_config: args.node_config.clone(),
             dkg_generator: args.dkg_generator,
+            validator_public_key: args.validator_public_key,
         });
 
         let mut consensus_events_rx = args.consensus_events_rx;

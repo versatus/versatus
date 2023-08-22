@@ -10,13 +10,13 @@ use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData,
     Vote,
 };
-use hbbft::crypto::{PublicKeyShare, SecretKeyShare};
 use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
 use mempool::{TxnRecord, TxnStatus};
 use primitives::{
     BlockHash, Epoch, FarmerQuorumThreshold, GroupPublicKey, NodeIdx, NodeType, NodeTypeBytes,
-    PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, Round,
+    PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, Round, ValidatorPublicKey,
+    ValidatorPublicKeyShare, ValidatorSecretKey,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
@@ -51,6 +51,7 @@ pub struct ConsensusModuleConfig<
     pub vrrbdb_read_handle: S,
     pub node_config: NodeConfig,
     pub dkg_generator: K,
+    pub validator_public_key: ValidatorPublicKey,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -95,6 +96,7 @@ pub struct ConsensusModule<S: StateReader + Sync + Send + Clone, K: DkgGenerator
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule<S>,
     pub(crate) dkg_engine: K,
+    pub(crate) node_config: NodeConfig,
     //
     // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     // group_public_key: GroupPublicKey,
@@ -160,7 +162,12 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
             dkg_engine: cfg.dkg_generator,
+            node_config: cfg.node_config,
         }
+    }
+
+    pub fn threshold_signature_public_key(&self) -> ValidatorPublicKey {
+        self.keypair.validator_public_key_owned()
     }
 
     async fn certify_block(&self) {
@@ -304,7 +311,7 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
     fn generate_and_broadcast_certificate(
         &self,
         block_hash: BlockHash,
-        certificates_share: &HashSet<(NodeIdx, PublicKeyShare, RawSignature)>,
+        certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
         sig_provider: &SignatureProvider,
     ) -> Result<()> {
         todo!()
@@ -796,7 +803,10 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
     //     }
     // }
 
-    fn generate_random_payload(&self, secret_key_share: &SecretKeyShare) -> (Vec<u8>, Vec<u8>) {
+    fn generate_random_payload(
+        &self,
+        secret_key_share: &ValidatorPublicKeyShare,
+    ) -> (Vec<u8>, Vec<u8>) {
         // let message: String = rand::thread_rng()
         //         .sample_iter(&Alphanumeric)
         //         .take(15)
@@ -899,6 +909,13 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
                         udp_gossip_address: peer.udp_gossip_addr,
                         raptorq_gossip_address: peer.raptorq_gossip_addr,
                         kademlia_liveness_address: peer.kademlia_liveness_addr,
+
+                        // TODO: create threshold signature keys for all nodes aand then share as
+                        // part of membership config
+                        // Then create a threshold signature from a harvester module masternode and
+                        // use that to certify blocks
+                        //
+                        validator_public_key: self.node_config.keypair.validator_public_key_owned(),
                     }
                 })
                 .collect(),
@@ -915,6 +932,8 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             let quorum_kind = quorum_membership_config.quorum_kind();
 
             let threshold = threshold_config.threshold as usize;
+
+            dbg!("made it here");
 
             let dkg_result = self
                 .dkg_engine

@@ -299,8 +299,13 @@ impl KeyPair {
         &self.validator_kp.1
     }
 
+    pub fn validator_public_key_owned(&self) -> ValidatorPublicKey {
+        self.validator_kp.1
+    }
+
+    #[deprecated]
     pub fn get_validator_public_key_owned(&self) -> ValidatorPublicKey {
-        self.validator_kp.1.clone()
+        self.validator_public_key_owned()
     }
 }
 

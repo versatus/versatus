@@ -20,9 +20,9 @@ mod tests {
     };
 
     use bulldag::graph::BullDag;
-    use dkg_engine::test_utils;
+    use dkg_engine::{prelude::DkgEngineConfig, test_utils};
     use events::{AssignedQuorumMembership, Event, EventMessage, JobResult, DEFAULT_BUFFER};
-    use hbbft::crypto::SecretKey;
+    use hbbft::crypto::SecretKey as ThresholdSignatureSecretKey;
     use primitives::{KademliaPeerId, NodeType, QuorumKind};
     use secp256k1::Message;
     use signer::signer::SignatureProvider;
@@ -49,17 +49,23 @@ mod tests {
     async fn consensus_component_can_form_genesis_quorum() {
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
+        let threshold_sk = ThresholdSignatureSecretKey::random();
+
+        let node_config = NodeConfig::default();
+        let validator_public_key = node_config.keypair.validator_public_key_owned();
+
         let consensus_module_config = ConsensusModuleConfig {
             events_tx: events_tx.clone(),
             keypair: KeyPair::random(),
             vrrbdb_read_handle: MockStateReader::new(),
             node_config: NodeConfig::default(),
             dkg_generator: MockDkgEngine::new(DkgEngineConfig {
-                node_idx: 10,
+                node_id: "node 0".into(),
                 node_type: NodeType::MasterNode,
-                secret_key: SecretKey::random(),
+                secret_key: ThresholdSignatureSecretKey::random(),
                 threshold_config: vrrb_config::ThresholdConfig::default(),
             }),
+            validator_public_key,
         };
 
         let mut consensus_module = ConsensusModule::new(consensus_module_config);

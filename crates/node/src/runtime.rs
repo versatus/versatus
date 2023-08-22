@@ -4,6 +4,7 @@ use block::Block;
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig};
 use events::{Event, EventPublisher, EventRouter, DEFAULT_BUFFER};
+use hbbft::crypto::PublicKey as ThresholdPublicKey;
 use primitives::{Address, NodeType};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -40,7 +41,6 @@ pub async fn setup_runtime_components(
     let network_events_rx = router.subscribe(Some("network-events".into()))?;
     let miner_events_rx = router.subscribe(None)?;
     let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
-    let quorum_events_rx = router.subscribe(Some("consensus-events".into()))?;
     let consensus_events_rx = router.subscribe(Some("consensus-events".into()))?;
     let indexer_events_rx = router.subscribe(None)?;
 
@@ -79,7 +79,7 @@ pub async fn setup_runtime_components(
     })
     .await?;
 
-    let (state_read_handle, mempool_read_handle_factory) = state_component_handle.data().clone();
+    let (state_read_handle, mempool_read_handle_factory) = state_component_handle.data();
 
     let state_component_handle_label = state_component_handle.label();
 
@@ -96,6 +96,7 @@ pub async fn setup_runtime_components(
         vrrbdb_read_handle: state_read_handle.clone(),
         bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
         membership_config: config.quorum_config.clone(),
+        validator_public_key: config.keypair.validator_public_key_owned(),
     })
     .await?;
 
@@ -163,6 +164,7 @@ pub async fn setup_runtime_components(
             vrrbdb_read_handle: state_read_handle.clone(),
             consensus_events_rx,
             dkg_generator,
+            validator_public_key: config.keypair.validator_public_key_owned(),
         })
         .await?;
 
