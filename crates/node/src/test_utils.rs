@@ -34,7 +34,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 use crate::{
     data_store::DataStore, network::NetworkEvent, state_manager::DagModule,
-    state_reader::StateReader, Node, NodeError, Result, StartArgs,
+    state_reader::StateReader, Node, NodeError, Result,
 };
 
 pub fn create_mock_full_node_config() -> NodeConfig {
@@ -601,7 +601,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
-        let miner_node = Node::start(config).await.unwrap();
+        let miner_node = Node::start(miner_config).await.unwrap();
 
         nodes.push(miner_node);
     }
