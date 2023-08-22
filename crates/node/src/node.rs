@@ -22,11 +22,7 @@ use crate::{
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
-pub struct Node<S, R>
-where
-    S: DataStore<R> + std::fmt::Debug + Default + Send + 'static,
-    R: StateReader + Send + 'static,
-{
+pub struct Node {
     config: NodeConfig,
 
     // TODO: make this private
@@ -34,45 +30,14 @@ where
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
-    _marker: PhantomData<(S, R)>,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
-#[derive(Debug, Default, Clone)]
-pub struct StartArgs<S, R>
-where
-    S: DataStore<R> + std::fmt::Debug + Default + Send + 'static,
-    R: StateReader + Send + 'static,
-{
-    pub config: NodeConfig,
-    // NOTE: temporary placement, later on figure out a way to merge both config and storage kind
-    pub database: S,
-    _marker: PhantomData<R>,
-}
-
-impl<S, R> StartArgs<S, R>
-where
-    S: DataStore<R> + std::fmt::Debug + Default + Send + 'static,
-    R: StateReader + Send + 'static,
-{
-    pub fn new(config: NodeConfig, database: S) -> Self {
-        Self {
-            config,
-            database,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<S, R> Node<S, R>
-where
-    S: DataStore<R> + std::fmt::Debug + Default + Send,
-    R: StateReader + Send + 'static,
-{
-    pub async fn start(args: StartArgs<S, R>) -> Result<Node<S, R>> {
+impl Node {
+    pub async fn start(config: NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
-        let config = args.config.clone();
+        let config = config.clone();
 
         info!("Launching Node {}", &config.id);
 
@@ -106,7 +71,6 @@ where
             keypair,
             cancel_token,
             runtime_control_handle,
-            _marker: PhantomData,
         })
     }
 
