@@ -52,6 +52,9 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
                         .map(|member| member.node_id)
                         .collect::<Vec<NodeId>>();
 
+                    self.dkg_engine
+                        .add_peer_public_key(node_id.clone(), peer_data.validator_public_key);
+
                     if quorum_member_ids.contains(&node_id) {
                         self.quorum_driver
                             .bootstrap_quorum_available_nodes
@@ -60,6 +63,7 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
 
                     let available_nodes =
                         self.quorum_driver.bootstrap_quorum_available_nodes.clone();
+
                     let all_nodes_available =
                         available_nodes.iter().all(|(_, (_, is_online))| *is_online);
 

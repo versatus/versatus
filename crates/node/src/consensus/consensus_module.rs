@@ -31,7 +31,7 @@ use vrrb_core::{
     txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::{state_reader::StateReader, test_utils::MockDkgEngine, NodeError, Result};
+use crate::{state_reader::StateReader, NodeError, Result};
 
 use super::{QuorumModule, QuorumModuleConfig};
 
@@ -922,7 +922,7 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             quorum_kind,
         };
 
-        self.quorum_driver.membership_config = Some(quorum_membership_config.clone());
+        self.quorum_driver.membership_config = Some(quorum_membership_config);
     }
 
     pub fn dkg_init_dkg_protocol(&mut self) -> Result<()> {

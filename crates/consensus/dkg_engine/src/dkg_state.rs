@@ -130,4 +130,8 @@ impl DkgState {
     pub fn set_random_number_gen(&mut self, random_number_gen: Option<OsRng>) {
         self.random_number_gen = random_number_gen;
     }
+
+    pub fn add_peer_public_key(&mut self, node_id: NodeId, public_key: PublicKey) {
+        self.peer_public_keys.insert(node_id, public_key);
+    }
 }

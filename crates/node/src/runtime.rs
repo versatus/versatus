@@ -3,27 +3,23 @@ use std::sync::{Arc, RwLock};
 use block::Block;
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig};
-use events::{Event, EventPublisher, EventRouter, DEFAULT_BUFFER};
-use hbbft::crypto::PublicKey as ThresholdPublicKey;
-use primitives::{Address, NodeType};
+use events::{EventPublisher, EventRouter};
+use primitives::Address;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorImpl};
+use theater::Actor;
 use tokio::task::JoinHandle;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use crate::{
     api::setup_rpc_api_server,
-    consensus::{
-        self, ConsensusModule, ConsensusModuleComponentConfig, QuorumModuleComponentConfig,
-    },
-    indexer_module::{self, setup_indexer_module, IndexerModuleConfig},
+    consensus::{ConsensusModule, ConsensusModuleComponentConfig},
+    indexer_module::setup_indexer_module,
     mining_module::{MiningModule, MiningModuleComponentConfig},
     network::{NetworkModule, NetworkModuleComponentConfig},
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerComponentConfig},
-    test_utils::MockDkgEngine,
     ui::setup_node_gui,
     RuntimeComponent, RuntimeComponentManager,
 };
@@ -169,8 +165,6 @@ pub async fn setup_runtime_components(
         .await?;
 
     runtime_manager.register_component(consensus_component.label(), consensus_component.handle());
-
-    // let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
     if config.enable_block_indexing {
         let handle = setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;

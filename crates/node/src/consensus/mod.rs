@@ -11,45 +11,22 @@ pub use quorum_module::*;
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{HashMap, HashSet},
-        net::{IpAddr, Ipv4Addr},
-        sync::{Arc, RwLock},
-        thread,
-        time::{SystemTime, UNIX_EPOCH},
-    };
 
-    use bulldag::graph::BullDag;
-    use dkg_engine::{prelude::DkgEngineConfig, test_utils};
+    use dkg_engine::prelude::{DkgEngine, DkgEngineConfig};
     use events::{AssignedQuorumMembership, Event, EventMessage, JobResult, DEFAULT_BUFFER};
     use hbbft::crypto::SecretKey as ThresholdSignatureSecretKey;
     use primitives::{KademliaPeerId, NodeType, QuorumKind};
-    use secp256k1::Message;
-    use signer::signer::SignatureProvider;
-    use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
-    use theater::{Actor, ActorImpl, ActorState, Handler};
-    use validator::validator_core_manager::ValidatorCoreManager;
+    use theater::Handler;
     use vrrb_config::NodeConfig;
-    use vrrb_config::ThresholdConfig;
-    use vrrb_core::{
-        account::Account,
-        bloom::Bloom,
-        keypair::KeyPair,
-        txn::{NewTxnArgs, Txn},
-    };
+    use vrrb_core::keypair::KeyPair;
 
+    use crate::consensus::{ConsensusModule, ConsensusModuleConfig};
     use crate::test_utils::MockStateReader;
-    use crate::{
-        consensus::{ConsensusModule, ConsensusModuleConfig},
-        test_utils::MockDkgEngine,
-    };
 
     #[tokio::test]
     #[ignore = "depends on other instances of consensus module to work"]
     async fn consensus_component_can_form_genesis_quorum() {
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-        let threshold_sk = ThresholdSignatureSecretKey::random();
 
         let node_config = NodeConfig::default();
         let validator_public_key = node_config.keypair.validator_public_key_owned();
@@ -59,7 +36,7 @@ mod tests {
             keypair: KeyPair::random(),
             vrrbdb_read_handle: MockStateReader::new(),
             node_config: NodeConfig::default(),
-            dkg_generator: MockDkgEngine::new(DkgEngineConfig {
+            dkg_generator: DkgEngine::new(DkgEngineConfig {
                 node_id: "node 0".into(),
                 node_type: NodeType::MasterNode,
                 secret_key: ThresholdSignatureSecretKey::random(),

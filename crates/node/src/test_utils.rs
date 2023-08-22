@@ -508,7 +508,7 @@ impl DataStore<MockStateReader> for MockStateStore {
 }
 
 /// Creates `n` Node instances that make up a network.
-pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateReader>> {
+pub async fn create_test_network(n: u16) -> Vec<Node> {
     let validator_count = (n as f64 * 0.8).ceil() as usize;
     let miner_count = n as usize - validator_count;
 
@@ -554,9 +554,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateRe
 
     config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
 
-    let node_0_args = StartArgs::new(config, MockStateStore::new());
-
-    let node_0 = Node::start(node_0_args).await.unwrap();
+    let node_0 = Node::start(config).await.unwrap();
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
@@ -586,9 +584,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateRe
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
-        let node_args = StartArgs::new(config, MockStateStore::new());
-
-        let node = Node::start(node_args).await.unwrap();
+        let node = Node::start(config).await.unwrap();
         nodes.push(node);
     }
 
@@ -605,50 +601,10 @@ pub async fn create_test_network(n: u16) -> Vec<Node<MockStateStore, MockStateRe
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
-        let node_args = StartArgs::new(miner_config, MockStateStore::new());
-
-        let miner_node = Node::start(node_args).await.unwrap();
+        let miner_node = Node::start(config).await.unwrap();
 
         nodes.push(miner_node);
     }
 
     nodes
-}
-
-#[derive(Debug, Clone)]
-pub struct MockDkgEngine {
-    threshold_config: ThresholdConfig,
-}
-
-impl MockDkgEngine {
-    pub fn new(dkg_engine_config: DkgEngineConfig) -> Self {
-        Self {
-            threshold_config: dkg_engine_config.threshold_config,
-        }
-    }
-}
-
-impl DkgGenerator for MockDkgEngine {
-    fn generate_partial_commitment(
-        &mut self,
-        threshold: usize,
-    ) -> dkg_engine::Result<(hbbft::sync_key_gen::Part, NodeId)> {
-        todo!()
-    }
-
-    fn ack_partial_commitment(&mut self, node_id: NodeId) -> dkg_engine::Result<()> {
-        todo!()
-    }
-
-    fn handle_ack_messages(&mut self) -> dkg_engine::Result<()> {
-        todo!()
-    }
-
-    fn generate_key_sets(&mut self) -> dkg_engine::Result<()> {
-        todo!()
-    }
-
-    fn threshold_config(&self) -> ThresholdConfig {
-        self.threshold_config.clone()
-    }
 }

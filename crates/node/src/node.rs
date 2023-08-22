@@ -12,7 +12,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use vrrb_config::NodeConfig;
-use vrrb_core::keypair::KeyPair;
+use vrrb_core::keypair::{KeyPair, Keypair};
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
@@ -117,11 +117,6 @@ impl Node {
     /// Returns a string representation of the Node id
     pub fn id(&self) -> String {
         self.config.id.clone()
-    }
-
-    /// Returns the idx of the Node
-    pub fn node_idx(&self) -> u16 {
-        self.config.idx
     }
 
     /// Returns the idx of the Node

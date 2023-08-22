@@ -4,7 +4,7 @@ use hbbft::{
     crypto::{PublicKey, SecretKey},
     sync_key_gen::{Part, PartOutcome, SyncKeyGen},
 };
-use primitives::{NodeId, NodeIdx, NodeType};
+use primitives::{NodeId, NodeIdx, NodeType, ValidatorPublicKey};
 use rand::rngs::OsRng;
 use vrrb_config::ThresholdConfig;
 
@@ -113,6 +113,8 @@ impl DkgGenerator for DkgEngine {
         let secret_key = self.secret_key.clone();
         let peer_public_keys = Arc::new(self.dkg_state.peer_public_keys().clone());
         let mut rng = OsRng::new().map_err(|err| DkgError::Unknown(err.to_string()))?;
+
+        dbg!(&self.dkg_state);
 
         let (sync_key_gen, opt_part) = SyncKeyGen::new(
             node_id.clone(),
@@ -277,5 +279,9 @@ impl DkgGenerator for DkgEngine {
 
     fn threshold_config(&self) -> ThresholdConfig {
         self.threshold_config.clone()
+    }
+
+    fn add_peer_public_key(&mut self, node_id: NodeId, public_key: PublicKey) {
+        self.dkg_state.add_peer_public_key(node_id, public_key);
     }
 }
