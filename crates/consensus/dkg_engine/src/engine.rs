@@ -109,16 +109,10 @@ impl DkgGenerator for DkgEngine {
             return Err(DkgError::NotEnoughPeerPublicKeys);
         }
 
-        // if self.node_type != NodeType::MasterNode {
-        //     return Err(DkgError::InvalidNode);
-        // }
-
         let node_id = self.node_id();
         let secret_key = self.secret_key.clone();
         let peer_public_keys = Arc::new(self.dkg_state.peer_public_keys().clone());
         let mut rng = OsRng::new().map_err(|err| DkgError::Unknown(err.to_string()))?;
-
-        dbg!(&self.dkg_state);
 
         let (sync_key_gen, opt_part) = SyncKeyGen::new(
             node_id.clone(),
