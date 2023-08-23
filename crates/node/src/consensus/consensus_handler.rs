@@ -107,417 +107,80 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            //
-            // The above code is handling an event of type `Vote` in a Rust
-            // program. It checks the integrity of the vote by
-            // verifying that it comes from the actual voter and prevents
-            // double voting. It then adds the vote to a pool of votes for the
-            // corresponding transaction and farmer quorum key. If
-            // the number of votes in the pool reaches the farmer
-            // quorum threshold, it sends a job to certify the transaction
-            // using the provided signature provider.
-            // Event::Vote(vote, farmer_quorum_threshold) => {
-            //     // TODO Harvest should check for integrity of the vote by Voter( Does it vote
-            //     // truly comes from Voter Prevent Double Voting
-            //
-            //     if let Some(sig_provider) = self.sig_provider.clone() {
-            //         let farmer_quorum_key = hex::encode(vote.quorum_public_key.clone());
-            //         if let Some(mut votes) = self
-            //             .votes_pool
-            //             .get_mut(&(vote.txn.id(), farmer_quorum_key.clone()))
-            //         {
-            //             let txn_id = vote.txn.id();
-            //             if !self
-            //                 .certified_txns_filter
-            //                 .contains(&(txn_id.clone(), farmer_quorum_key.clone()))
-            //             {
-            //                 votes.push(vote.clone());
-            //                 if votes.len() >= farmer_quorum_threshold {
-            //                     let _ = self.sync_jobs_sender.send(Job::CertifyTxn((
-            //                         sig_provider,
-            //                         votes.clone(),
-            //                         txn_id,
-            //                         farmer_quorum_key,
-            //                         vote.farmer_id.clone(),
-            //                         vote.txn,
-            //                         farmer_quorum_threshold,
-            //                     )));
-            //                 }
-            //             }
-            //         } else {
-            //             self.votes_pool
-            //                 .insert((vote.txn.id(), farmer_quorum_key), vec![vote]);
-            //         }
-            //     }
-            // },
-            //
             // This certifies txns once vote threshold is reached.
             Event::TransactionCertificateCreated { .. } => {
+                // TODO: forward arguments
                 self.handle_transaction_certificate_created();
             },
-            //
-            // // Mines proposal block after every X seconds.
-            // Event::MineProposalBlock(ref_hash, round, epoch, claim) => {
-            //     let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
-            //
-            //     //Read updated claims
-            //     let claim_map = self.vrrbdb_read_handle.claim_store_values();
-            //     let claim_list = claim_map
-            //         .values()
-            //         .map(|claim| (claim.hash, claim.clone()))
-            //         .collect();
-            //
-            //     let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
-            //         .into_iter()
-            //         .map(|txn| {
-            //             if let Err(err) =
-            // self.certified_txns_filter.push(&txn.txn().id.to_string())             {
-            //                 telemetry::error!(
-            //                     "Error pushing txn to certified txns filter: {}",
-            //                     err
-            //                 );
-            //             }
-            //             (txn.txn().id(), txn.clone())
-            //         })
-            //         .collect();
-            //
-            //     let proposal_block = ProposalBlock::build(
-            //         ref_hash,
-            //         round,
-            //         epoch,
-            //         txns_list,
-            //         claim_list,
-            //         claim,
-            //         self.keypair.get_miner_secret_key(),
-            //     );
-            //     let _ = self
-            //         .broadcast_events_tx
-            //         .send(EventMessage::new(
-            //             None,
-            //             Event::MinedBlock(Block::Proposal {
-            //                 block: proposal_block,
-            //             }),
-            //         ))
-            //         .await;
-            // },
-            // // it sends a job to sign the convergence block using the signature
-            // // provider
-            // Event::SignConvergenceBlock(block) => {
-            //     if let Some(sig_provider) = self.sig_provider.clone() {
-            //         let _ = self
-            //             .sync_jobs_sender
-            //             .send(Job::SignConvergenceBlock(sig_provider, block));
-            //     }
-            // },
-            //
-            // // Process the job result of signing convergence block and adds the
-            // // partial signature to the cache for certificate generation
-            // Event::ConvergenceBlockPartialSign(job_result) => {
-            //     if let JobResult::ConvergenceBlockPartialSign(
-            //         block_hash,
-            //         public_key_share,
-            //         partial_signature,
-            //     ) = job_result
-            //     {
-            //         if let Some(certificates_share) =
-            //             self.convergence_block_certificates.get(&block_hash)
-            //         {
-            //             let mut new_certificate_share = certificates_share.clone();
-            //             if let Ok(block_hash_bytes) = hex::decode(block_hash.clone()) {
-            //                 if let Ok(signature) =
-            //                     TryInto::<[u8; 96]>::try_into(partial_signature.clone())
-            //                 {
-            //                     if let Ok(signature_share) =
-            // SignatureShare::from_bytes(signature) {                         if
-            // public_key_share.verify(&signature_share, block_hash_bytes) {
-            // new_certificate_share.insert((
-            // self.harvester_id,                                 public_key_share,
-            //                                 partial_signature.clone(),
-            //                             ));
-            //                             self.convergence_block_certificates.push(
-            //                                 block_hash.clone(),
-            //                                 new_certificate_share.clone(),
-            //                             );
-            //                             if let Some(sig_provider) = self.sig_provider.as_ref() {
-            //                                 if new_certificate_share.len()
-            //                                     <= sig_provider.quorum_config.upper_bound as
-            // usize                                 {
-            //                                     self
-            //                                         .broadcast_events_tx
-            //                                         .send(EventMessage::new(
-            //                                             None,
-            //                                             Event::SendPeerConvergenceBlockSign(
-            //                                                 self.harvester_id,
-            //                                                 block_hash.clone(),
-            //                                                 public_key_share.to_bytes().to_vec(),
-            //                                                 partial_signature,
-            //                                             ),
-            //                                         ))
-            //                                         .await.map_err(|err|
-            // theater::TheaterError::Other(
-            // format!("failed to send peer convergence block sign: {err}")
-            // ))?;
-            //
-            //                                     self.generate_and_broadcast_certificate(
-            //                                         block_hash,
-            //                                         &new_certificate_share,
-            //                                         sig_provider,
-            //                                     )
-            //                                     .await?;
-            //                                 }
-            //                             }
-            //                         }
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // },
-            // Event::PeerConvergenceBlockSign(
-            //     node_idx,
-            //     block_hash,
-            //     public_key_share_bytes,
-            //     partial_signature,
-            // ) => {
-            //     let mut pb_key_share = None;
-            //     let preliminary_check = TryInto::<[u8; 48]>::try_into(public_key_share_bytes)
-            //         .and_then(|public_key_share_bytes| {
-            //             PublicKeyShare::from_bytes(public_key_share_bytes).map_err(|e| {
-            //                 format!("Invalid Public Key, Expected 48byte array:
-            // {e}").into_bytes()             })
-            //         })
-            //         .and_then(|public_key_share| {
-            //             pb_key_share = Some(public_key_share);
-            //             TryInto::<[u8; 96]>::try_into(partial_signature.clone())
-            //                 .and_then(|signature_share_bytes| {
-            //                     SignatureShare::from_bytes(signature_share_bytes).map_err(|e| {
-            //                         format!("Invalid Signature, Expected 96byte array: {e}")
-            //                             .into_bytes()
-            //                     })
-            //                 })
-            //                 .and_then(|signature_share| {
-            //                     hex::decode(block_hash.clone())
-            //                         .map_err(|e| {
-            //                             format!(
-            //                                 "Invalid Hex Representation of Signature Share: {e}",
-            //                             )
-            //                             .into_bytes()
-            //                         })
-            //                         .and_then(|block_hash_bytes| {
-            //                             if public_key_share
-            //                                 .verify(&signature_share, block_hash_bytes)
-            //                             {
-            //                                 Ok(())
-            //                             } else {
-            //                                 Err("signature verification failed"
-            //                                     .to_string()
-            //                                     .into_bytes())
-            //                             }
-            //                         })
-            //                 })
-            //         });
-            //
-            //     if preliminary_check.is_ok() {
-            //         if let Some(certificates_share) =
-            //             self.convergence_block_certificates.get(&block_hash)
-            //         {
-            //             let mut new_certificate_share = certificates_share.clone();
-            //             if let Some(pb_key_share) = pb_key_share {
-            //                 new_certificate_share.insert((
-            //                     node_idx,
-            //                     pb_key_share,
-            //                     partial_signature,
-            //                 ));
-            //                 self.convergence_block_certificates
-            //                     .push(block_hash.clone(), new_certificate_share.clone());
-            //                 if let Some(sig_provider) = self.sig_provider.as_ref() {
-            //                     self.generate_and_broadcast_certificate(
-            //                         block_hash,
-            //                         &new_certificate_share,
-            //                         sig_provider,
-            //                     )
-            //                     .await?;
-            //                 }
-            //             }
-            //         }
-            //     }
-            // },
-            // Event::PrecheckConvergenceBlock(block, last_confirmed_block_header) => {
-            //     let claims = block.claims.clone();
-            //     let txns = block.txns.clone();
-            //     let proposal_block_hashes = block.header.ref_hashes.clone();
-            //     let mut pre_check = true;
-            //     let mut tmp_proposal_blocks = Vec::new();
-            //     if let Ok(dag) = self.dag.read() {
-            //         for proposal_block_hash in proposal_block_hashes.iter() {
-            //             if let Some(block) = dag.get_vertex(proposal_block_hash.clone()) {
-            //                 if let Block::Proposal { block } = block.get_data() {
-            //                     tmp_proposal_blocks.push(block.clone());
-            //                 }
-            //             }
-            //         }
-            //         for (ref_hash, claim_hashset) in claims.iter() {
-            //             match dag.get_vertex(ref_hash.clone()) {
-            //                 Some(block) => {
-            //                     if let Block::Proposal { block } = block.get_data() {
-            //                         for claim_hash in claim_hashset.iter() {
-            //                             if !block.claims.contains_key(claim_hash) {
-            //                                 pre_check = false;
-            //                                 break;
-            //                             }
-            //                         }
-            //                     }
-            //                 },
-            //                 None => {
-            //                     pre_check = false;
-            //                     break;
-            //                 },
-            //             }
-            //         }
-            //         if pre_check {
-            //             for (ref_hash, txn_digest_set) in txns.iter() {
-            //                 match dag.get_vertex(ref_hash.clone()) {
-            //                     Some(block) => {
-            //                         if let Block::Proposal { block } = block.get_data() {
-            //                             for txn_digest in txn_digest_set.iter() {
-            //                                 if !block.txns.contains_key(txn_digest) {
-            //                                     pre_check = false;
-            //                                     break;
-            //                                 }
-            //                             }
-            //                         }
-            //                     },
-            //                     None => {
-            //                         pre_check = false;
-            //                         break;
-            //                     },
-            //                 }
-            //             }
-            //         }
-            //     }
-            //     if pre_check {
-            //         self.broadcast_events_tx
-            //             .send(EventMessage::new(
-            //                 None,
-            //                 Event::CheckConflictResolution((
-            //                     tmp_proposal_blocks,
-            //                     last_confirmed_block_header.round,
-            //                     last_confirmed_block_header.next_block_seed,
-            //                     block,
-            //                 )),
-            //             ))
-            //             .await
-            //             .map_err(|err| {
-            //                 theater::TheaterError::Other(format!(
-            //                     "failed to send conflict resolution check: {err}"
-            //                 ))
-            //             })?
-            //     }
-            // },
-            //
-            // Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
-            // them to scheduler to get it validated and voted
-            // Event::Farm => {
-            //     let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
-            //     let keys: Vec<GroupPublicKey> = self
-            //         .neighbouring_farmer_quorum_peers
-            //         .keys()
-            //         .cloned()
-            //         .collect();
-            //
-            //     let maglev_hash_ring = Maglev::new(keys);
-            //
-            //     let mut new_txns = vec![];
-            //
-            //     for txn in txns.into_iter() {
-            //         if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned()
-            // {             if group_public_key == self.group_public_key {
-            //                 new_txns.push(txn);
-            //             } else if let Some(broadcast_addresses) =
-            //                 self.neighbouring_farmer_quorum_peers.get(&group_public_key)
-            //             {
-            //                 let addresses: Vec<SocketAddr> =
-            //                     broadcast_addresses.iter().cloned().collect();
-            //
-            //                 self.broadcast_events_tx
-            //                     .send(EventMessage::new(
-            //                         None,
-            //                         Event::ForwardTxn((txn.1.clone(), addresses.clone())),
-            //                     ))
-            //                     .await
-            //                     .map_err(|err| {
-            //                         theater::TheaterError::Other(format!(
-            //                             "failed to forward txn {:?} to peers {addresses:?}:
-            // {err}",                             txn.1
-            //                         ))
-            //                     })?
-            //             }
-            //         } else {
-            //             new_txns.push(txn);
-            //         }
-            //     }
-            //
-            //     if let Some(sig_provider) = self.sig_provider.clone() {
-            //         if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
-            //             new_txns,
-            //             self.farmer_id.clone(),
-            //             self.farmer_node_idx,
-            //             self.group_public_key.clone(),
-            //             sig_provider,
-            //             self.quorum_threshold,
-            //         ))) {
-            //             telemetry::error!("error sending job to scheduler: {}", err);
-            //         }
-            //     }
-            // },
-            // // Receive the Vote from scheduler
-            // Event::ProcessedVotes(JobResult::Votes((votes, farmer_quorum_threshold))) => {
-            //     for vote in votes.iter().flatten() {
-            //         self.broadcast_events_tx
-            //             .send(Event::Vote(vote.clone(), farmer_quorum_threshold).into())
-            //             .await
-            //             .map_err(|err| {
-            //                 theater::TheaterError::Other(format!("failed to send vote: {err}"))
-            //             })?
-            //     }
-            // },
-            //
-            // Event::DkgInitiate => {
-            //     let threshold_config = self.dkg_engine.threshold_config.clone();
-            //     if self.quorum_type.clone().is_some() {
-            //         match self
-            //             .dkg_engine
-            //             .generate_sync_keygen_instance(threshold_config.threshold as usize)
-            //         {
-            //             Ok(part_commitment) => {
-            //                 if let DkgResult::PartMessageGenerated(node_idx, part) =
-            // part_commitment                 {
-            //                     if let Ok(part_committment_bytes) = bincode::serialize(&part) {
-            //                         let _ = self
-            //                             .broadcast_events_tx
-            //                             .send(
-            //                                 Event::PartMessage(node_idx, part_committment_bytes)
-            //                                     .into(),
-            //                             )
-            //                             .await.map_err(|e| {
-            //                                 error!("Error occured while sending part message to
-            // broadcast event channel {:?}", e);
-            // TheaterError::Other(format!("{e:?}"))                             });
-            //                     }
-            //                 }
-            //             },
-            //             Err(_e) => {
-            //                 error!("Error occured while generating synchronized keygen instance
-            // for node {:?}", self.dkg_engine.node_idx);             },
-            //         }
-            //     } else {
-            //         error!(
-            //             "Cannot participate into DKG ,since current node {:?} dint win any Quorum
-            // Election",             self.dkg_engine.node_idx
-            //         );
-            //     }
-            //     return Ok(ActorState::Running);
-            // },
+
+            // Mines proposal block after every X seconds.
+            Event::ProposalBlockMineRequestCreated {
+                ref_hash,
+                round,
+                epoch,
+                claim,
+            } => {
+                self.handle_proposal_block_mine_request_created(ref_hash, round, epoch, claim);
+            },
+            // it sends a job to sign the convergence block using the signature
+            // provider
+            Event::ConvergenceBlockSignatureRequested(block) => {
+                //     TODO: merge with ConvergenceBlockPartialSignatureCreated so it all happens
+                //     within one function call
+                //     if let Some(sig_provider) = self.sig_provider.clone() {
+                //         let _ = self
+                //             .sync_jobs_sender
+                //             .send(Job::SignConvergenceBlock(sig_provider, block));
+                //     }
+            },
+
+            // Process the job result of signing convergence block and adds the
+            // partial signature to the cache for certificate generation
+            Event::ConvergenceBlockPartialSignatureCreated {
+                block_hash,
+                public_key_share,
+                partial_signature,
+            } => {
+                self.handle_convergence_block_partial_signature_created(
+                    block_hash,
+                    public_key_share,
+                    partial_signature,
+                );
+            },
+            Event::ConvergenceBlockPeerSignatureRequested {
+                node_id,
+                block_hash,
+                public_key_share,
+                partial_signature,
+            } => {
+                self.handle_convergence_block_peer_signature_request(
+                    node_id,
+                    block_hash,
+                    public_key_share,
+                    partial_signature,
+                );
+            },
+            Event::ConvergenceBlockPrecheckRequested {
+                convergence_block,
+                block_header,
+            } => {
+                self.handle_convergence_block_precheck_requested(convergence_block, block_header);
+            },
+            Event::TxnsReadyForProcessing(txns) => {
+                // Receives a batch of transactions from mempool and sends
+                // them to scheduler to get it validated and voted
+                self.handle_txns_ready_for_processing(txns);
+            },
+
+            // Receive votes from scheduler
+            Event::TxnsValidated {
+                votes,
+                quorum_threshold,
+            } => {
+                for vote in votes.iter().flatten() {
+                    self.validate_vote(vote.clone(), quorum_threshold);
+                }
+            },
             _ => {},
         }
 
