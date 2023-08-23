@@ -34,6 +34,15 @@ pub type FarmerId = ByteVec;
 pub type IsTxnValid = bool;
 pub type PublicKeyShareVec = ByteVec;
 
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub enum TxnValidationStatus {
+    Valid,
+    Invalid,
+}
+
+// NOTE: change to the appropriate type when we have a consensus
+pub type ProgramExecutionOutput = String;
+
 #[deprecated(note = "Use TransactionDigest instead")]
 pub type TxHash = ByteVec;
 

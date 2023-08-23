@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType};
+use primitives::{NodeId, NodeType, ValidatorPublicKey};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::{QuorumMember, QuorumMembershipConfig};
@@ -11,9 +11,7 @@ use vrrb_config::{QuorumMember, QuorumMembershipConfig};
 use crate::{consensus::ConsensusModule, state_reader::StateReader};
 
 #[async_trait]
-impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + Send + Sync>
-    Handler<EventMessage> for ConsensusModule<S, K>
-{
+impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusModule<S> {
     fn id(&self) -> ActorId {
         self.id.clone()
     }
@@ -85,11 +83,12 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 self.handle_quorum_membership_assigment_created(assigned_membership);
 
-                self.dkg_init_dkg_protocol()
+                let (part, node_id) = self
+                    .generate_partial_commitment_message()
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
-                    .send(Event::DkgProtocolInitiated.into())
+                    .send(Event::PartCommitmentCreated(node_id, part).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
@@ -126,17 +125,16 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
-            _ => {},
-            // // The above code is handling an event of type `Vote` in a Rust
-            // // program. It checks the integrity of the vote by
-            // // verifying that it comes from the actual voter and prevents
-            // // double voting. It then adds the vote to a pool of votes for the
-            // // corresponding transaction and farmer quorum key. If
-            // // the number of votes in the pool reaches the farmer
-            // // quorum threshold, it sends a job to certify the transaction
-            // // using the provided signature provider.
+            // The above code is handling an event of type `Vote` in a Rust
+            // program. It checks the integrity of the vote by
+            // verifying that it comes from the actual voter and prevents
+            // double voting. It then adds the vote to a pool of votes for the
+            // corresponding transaction and farmer quorum key. If
+            // the number of votes in the pool reaches the farmer
+            // quorum threshold, it sends a job to certify the transaction
+            // using the provided signature provider.
             // Event::Vote(vote, farmer_quorum_threshold) => {
-            //     //TODO Harvest should check for integrity of the vote by Voter( Does it vote
+            //     // TODO Harvest should check for integrity of the vote by Voter( Does it vote
             //     // truly comes from Voter Prevent Double Voting
             //
             //     if let Some(sig_provider) = self.sig_provider.clone() {
@@ -169,38 +167,11 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             //         }
             //     }
             // },
-            // // This certifies txns once vote threshold is reached.
-            // Event::CertifiedTxn(job_result) => {
-            //     if let JobResult::CertifiedTxn(
-            //         votes,
-            //         certificate,
-            //         txn_id,
-            //         farmer_quorum_key,
-            //         farmer_id,
-            //         txn,
-            //         is_txn_valid,
-            //     ) = job_result
-            //     {
-            //         let vote_receipts = votes
-            //             .iter()
-            //             .map(|v| VoteReceipt {
-            //                 farmer_id: v.farmer_id.clone(),
-            //                 farmer_node_id: v.farmer_node_id,
-            //                 signature: v.signature.clone(),
-            //             })
-            //             .collect::<Vec<VoteReceipt>>();
-            //         self.quorum_certified_txns.push(QuorumCertifiedTxn::new(
-            //             farmer_id,
-            //             vote_receipts,
-            //             *txn,
-            //             certificate,
-            //             is_txn_valid,
-            //         ));
-            //         let _ = self
-            //             .certified_txns_filter
-            //             .push(&(txn_id, farmer_quorum_key));
-            //     }
-            // },
+            //
+            // This certifies txns once vote threshold is reached.
+            Event::TransactionCertificateCreated { .. } => {
+                self.handle_transaction_certificate_created();
+            },
             //
             // // Mines proposal block after every X seconds.
             // Event::MineProposalBlock(ref_hash, round, epoch, claim) => {
@@ -661,12 +632,7 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
             //         },
             //     }
             // },
-            // Event::HarvesterPublicKey(key_bytes) => {
-            //     let result: bincode::Result<PublicKey> = bincode::deserialize(&key_bytes);
-            //     if let Ok(harvester_public_key) = result {
-            //         self.dkg_engine.harvester_public_key = Some(harvester_public_key);
-            //     }
-            // },
+            _ => {},
         }
 
         Ok(ActorState::Running)

@@ -3,12 +3,12 @@ use std::net::SocketAddr;
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
-use hbbft::crypto::PublicKeySet;
+use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
-    Address, Epoch, NodeId, NodeIdx, PublicKey, PublicKeyShareVec, RawSignature, Round, Seed,
+    Address, Epoch, FarmerId, IsTxnValid, NodeId, NodeIdx, ProgramExecutionOutput, PublicKey,
+    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKey,
 };
 use serde::{Deserialize, Serialize};
-use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::{
     claim::Claim,
     txn::{TransactionDigest, Txn},
@@ -116,7 +116,7 @@ pub enum Event {
     /// to a particular quorum
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
-    DkgProtocolInitiated,
+    PartCommitmentCreated(NodeId, Part),
 
     // TODO: refactor all the events below
     // ==========================================================================
@@ -142,7 +142,7 @@ pub enum Event {
     /// it with their own partial signatures to create a complete signature for
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
-    ConvergenceBlockPartialSign(JobResult),
+    ConvergenceBlockPartialSign(JobStatus),
 
     /// `CheckConflictResolution` is an event that triggers the checking of a
     /// proposed conflict resolution.The event is used to initiate the
@@ -193,6 +193,17 @@ pub enum Event {
     /// to communicate the public key of a harvester node to other nodes in
     /// the network.
     HarvesterPublicKeyReceived(PublicKeySet),
+
+    TransactionCertificateCreated {
+        votes: Vec<Vote>,
+        signature: RawSignature,
+        digest: TransactionDigest,
+        /// OUtput of the program executed
+        execution_result: ProgramExecutionOutput,
+        farmer_id: NodeId,
+        txn: Box<Txn>,
+        is_valid: TxnValidationStatus,
+    },
 
     Ping(NodeId),
 }

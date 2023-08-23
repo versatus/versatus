@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use dkg_engine::dkg::DkgGenerator;
+use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{EventPublisher, EventSubscriber};
 use hbbft::crypto::PublicKey as ThresholdSignaturePublicKey;
 use primitives::ValidatorPublicKey;
@@ -14,25 +14,23 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct ConsensusModuleComponentConfig<K: DkgGenerator + std::fmt::Debug + Send + Sync> {
+pub struct ConsensusModuleComponentConfig {
     pub events_tx: EventPublisher,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub consensus_events_rx: EventSubscriber,
     pub node_config: NodeConfig,
-    pub dkg_generator: K,
+    pub dkg_generator: DkgEngine,
     pub validator_public_key: ValidatorPublicKey,
 }
 
 #[async_trait]
-impl<
-        S: StateReader + Send + Sync + Clone,
-        K: DkgGenerator + std::fmt::Debug + Send + Sync + 'static,
-    > RuntimeComponent<ConsensusModuleComponentConfig<K>, ()> for ConsensusModule<S, K>
+impl<S: StateReader + Send + Sync + Clone> RuntimeComponent<ConsensusModuleComponentConfig, ()>
+    for ConsensusModule<S>
 {
     async fn setup(
-        args: ConsensusModuleComponentConfig<K>,
+        args: ConsensusModuleComponentConfig,
     ) -> crate::Result<RuntimeComponentHandle<()>> {
-        let module = ConsensusModule::<VrrbDbReadHandle, K>::new(ConsensusModuleConfig {
+        let module = ConsensusModule::<VrrbDbReadHandle>::new(ConsensusModuleConfig {
             events_tx: args.events_tx,
             vrrbdb_read_handle: args.vrrbdb_read_handle,
             keypair: args.node_config.keypair.clone(),

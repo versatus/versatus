@@ -29,7 +29,6 @@ mod tests {
 
         NodeConfigBuilder::default()
             .id(String::from("abcdefg"))
-            .idx(10)
             .data_dir("mock_path".into())
             .db_path("mock_path".into())
             .raptorq_gossip_address(addr)

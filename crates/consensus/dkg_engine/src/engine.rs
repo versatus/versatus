@@ -73,6 +73,10 @@ impl DkgEngine {
             .insert(node_id, public_key);
     }
 
+    pub fn set_harvester_public_key(&mut self, harvester_public_key: ValidatorPublicKey) {
+        self.harvester_public_key = Some(harvester_public_key);
+    }
+
     pub fn get_public_key(&self) -> PublicKey {
         self.secret_key.public_key()
     }

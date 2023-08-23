@@ -154,7 +154,7 @@ pub async fn setup_runtime_components(
     let dkg_generator = DkgEngine::new(dkg_engine_config);
 
     let consensus_component =
-        ConsensusModule::<VrrbDbReadHandle, DkgEngine>::setup(ConsensusModuleComponentConfig {
+        ConsensusModule::<VrrbDbReadHandle>::setup(ConsensusModuleComponentConfig {
             events_tx: events_tx.clone(),
             node_config: config.clone(),
             vrrbdb_read_handle: state_read_handle.clone(),

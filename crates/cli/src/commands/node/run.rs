@@ -111,7 +111,6 @@ impl From<RunOpts> for NodeConfig {
 
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
-            idx: opts.idx.unwrap_or(default_node_config.idx),
             data_dir: opts.data_dir,
             db_path: opts.db_path,
             node_type,

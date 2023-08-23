@@ -19,11 +19,6 @@ pub struct NodeConfig {
     /// UUID that identifies each node
     pub id: NodeId,
 
-    /// Peer ID used to identify Nodes within the context of the p2p network
-    // TODO: figure out how to eliminate the need for this and the kademlia_peer_id fields
-    #[deprecated(note = "Use `id` instead")]
-    pub idx: NodeIdx,
-
     /// Directory used to persist all VRRB node information to disk
     pub data_dir: PathBuf,
 
@@ -134,7 +129,6 @@ impl NodeConfig {
 
         Self {
             id,
-            idx: self.idx,
             data_dir: self.data_dir.clone(),
             db_path: self.db_path.clone(),
             raptorq_gossip_address: self.raptorq_gossip_address,
@@ -160,7 +154,6 @@ impl Default for NodeConfig {
 
         Self {
             id: Uuid::new_v4().to_string(),
-            idx: NodeIdx::default(),
             data_dir: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH),
             db_path: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH)
                 .join("node")

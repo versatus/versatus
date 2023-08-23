@@ -10,13 +10,14 @@ use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData,
     Vote,
 };
+use hbbft::sync_key_gen::Part;
 use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
 use mempool::{TxnRecord, TxnStatus};
 use primitives::{
-    BlockHash, Epoch, FarmerQuorumThreshold, GroupPublicKey, NodeIdx, NodeType, NodeTypeBytes,
-    PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, Round, ValidatorPublicKey,
-    ValidatorPublicKeyShare, ValidatorSecretKey,
+    BlockHash, Epoch, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeIdx, NodeType,
+    NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, Round,
+    ValidatorPublicKey, ValidatorPublicKeyShare, ValidatorSecretKey,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
@@ -41,16 +42,13 @@ pub const PULL_TXN_BATCH_SIZE: usize = 100;
 pub type QuorumId = String;
 pub type QuorumPubkey = String;
 
-#[derive(Debug, Clone)]
-pub struct ConsensusModuleConfig<
-    S: StateReader + Send + Sync,
-    K: DkgGenerator + std::fmt::Debug + Send + Sync,
-> {
+#[derive(Debug)]
+pub struct ConsensusModuleConfig<S: StateReader + Send + Sync> {
     pub events_tx: EventPublisher,
     pub keypair: Keypair,
     pub vrrbdb_read_handle: S,
     pub node_config: NodeConfig,
-    pub dkg_generator: K,
+    pub dkg_generator: DkgEngine,
     pub validator_public_key: ValidatorPublicKey,
 }
 
@@ -85,8 +83,7 @@ pub enum RendezvousResponse {
 }
 
 #[derive(Debug)]
-pub struct ConsensusModule<S: StateReader + Sync + Send + Clone, K: DkgGenerator + std::fmt::Debug>
-{
+pub struct ConsensusModule<S: StateReader + Sync + Send + Clone> {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) events_tx: EventPublisher,
@@ -95,7 +92,7 @@ pub struct ConsensusModule<S: StateReader + Sync + Send + Clone, K: DkgGenerator
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule<S>,
-    pub(crate) dkg_engine: K,
+    pub(crate) dkg_engine: DkgEngine,
     pub(crate) node_config: NodeConfig,
     //
     // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
@@ -141,10 +138,8 @@ pub struct ConsensusModule<S: StateReader + Sync + Send + Clone, K: DkgGenerator
     // pub keypair: KeyPair,
 }
 
-impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + Send + Sync>
-    ConsensusModule<S, K>
-{
-    pub fn new(cfg: ConsensusModuleConfig<S, K>) -> Self {
+impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
+    pub fn new(cfg: ConsensusModuleConfig<S>) -> Self {
         let quorum_module_config = QuorumModuleConfig {
             events_tx: cfg.events_tx.clone(),
             vrrbdb_read_handle: cfg.vrrbdb_read_handle.clone(),
@@ -166,7 +161,7 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
         }
     }
 
-    pub fn threshold_signature_public_key(&self) -> ValidatorPublicKey {
+    pub fn validator_public_key_owned(&self) -> ValidatorPublicKey {
         self.keypair.validator_public_key_owned()
     }
 
@@ -925,32 +920,56 @@ impl<S: StateReader + Send + Sync + Clone, K: DkgGenerator + std::fmt::Debug + S
         self.quorum_driver.membership_config = Some(quorum_membership_config);
     }
 
-    pub fn dkg_init_dkg_protocol(&mut self) -> Result<()> {
+    pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
         let threshold_config = self.dkg_engine.threshold_config();
 
-        if let Some(quorum_membership_config) = self.quorum_driver.membership_config.clone() {
-            let quorum_kind = quorum_membership_config.quorum_kind();
-
-            let threshold = threshold_config.threshold as usize;
-
-            dbg!("made it here");
-
-            let dkg_result = self
-                .dkg_engine
-                .generate_partial_commitment(threshold)
-                .map_err(|err| NodeError::Other(err.to_string()))?;
-
-            dbg!(dkg_result);
-
-            // return part
-            // if let DkgResult::PartMessageGenerated(node_idx, part) = dkg_result {
-            //                         .send(Event::PartMessage(node_idx, part_committment_bytes).into())
-            //     // return part
-            // }
-        } else {
+        // if let Some(quorum_membership_config)
+        let quorum_membership_config = self.quorum_driver.membership_config.clone().ok_or({
             error!("Cannot participate in DKG");
-        }
+            NodeError::Other("Cannot participate in DKG".to_string())
+        })?;
 
-        return Ok(());
+        let quorum_kind = quorum_membership_config.quorum_kind();
+
+        let threshold = threshold_config.threshold as usize;
+
+        self.dkg_engine
+            .generate_partial_commitment(threshold)
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn handle_transaction_certificate_created(&mut self) {
+        todo!()
+        // if let JobResult::CertifiedTxn(
+        //     votes,
+        //     certificate,
+        //     txn_id,
+        //     farmer_quorum_key,
+        //     farmer_id,
+        //     txn,
+        //     is_txn_valid,
+        // ) = job_result
+        // {
+        //     let vote_receipts = votes
+        //         .iter()
+        //         .map(|v| VoteReceipt {
+        //             farmer_id: v.farmer_id.clone(),
+        //             farmer_node_id: v.farmer_node_id,
+        //             signature: v.signature.clone(),
+        //         })
+        //         .collect::<Vec<VoteReceipt>>();
+        //
+        //     self.quorum_certified_txns.push(QuorumCertifiedTxn::new(
+        //         farmer_id,
+        //         vote_receipts,
+        //         *txn,
+        //         certificate,
+        //         is_txn_valid,
+        //     ));
+        //
+        //     let _ = self
+        //         .certified_txns_filter
+        //         .push(&(txn_id, farmer_quorum_key));
+        // }
     }
 }

@@ -9,9 +9,8 @@ use std::{
 use async_trait::async_trait;
 use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
-use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngineConfig};
+use dkg_engine::dkg::DkgGenerator;
 
-use hbbft::crypto::{PublicKey as ThresholdPublicKey, SecretKey as ThresholdSecretKey};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
@@ -44,8 +43,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let temp_dir_path = std::env::temp_dir();
     let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
 
-    let idx = 100;
-
     let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let rendezvous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
@@ -60,7 +57,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
     NodeConfigBuilder::default()
         .id(id)
-        .idx(idx)
         .data_dir(data_dir)
         .db_path(db_path)
         .node_type(NodeType::Bootstrap)

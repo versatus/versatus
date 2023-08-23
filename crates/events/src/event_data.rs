@@ -64,7 +64,7 @@ pub struct BlockVote {
 // `JobResult` is an enum that represents the possible results of a job that is
 /// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
-pub enum JobResult {
+pub enum JobStatus {
     /// `Votes((Vec<Option<Vote>>, FarmerQuorumThreshold))` is type of
     /// `JobResult` which denotes votes from farmers for a particular txn.
     /// while the `FarmerQuorumThreshold` specifies the minimum number of votes

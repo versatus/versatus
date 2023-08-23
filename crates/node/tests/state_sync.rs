@@ -1,6 +1,6 @@
 use node::{
     test_utils::{create_mock_full_node_config, MockStateStore},
-    Node, NodeState, RuntimeModuleState, StartArgs,
+    Node, NodeState, RuntimeModuleState,
 };
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
@@ -15,11 +15,8 @@ async fn nodes_can_synchronize_state() {
     let node_config_1 = create_mock_full_node_config();
     let node_config_2 = create_mock_full_node_config();
 
-    let node_args_1 = StartArgs::new(node_config_1, MockStateStore::new());
-    let node_args_2 = StartArgs::new(node_config_2, MockStateStore::new());
-
-    let vrrb_node_1 = Node::start(node_args_1).await.unwrap();
-    let vrrb_node_2 = Node::start(node_args_2).await.unwrap();
+    let vrrb_node_1 = Node::start(node_config_1).await.unwrap();
+    let vrrb_node_2 = Node::start(node_config_2).await.unwrap();
 
     let client_1 = create_client(vrrb_node_1.jsonrpc_server_address())
         .await
