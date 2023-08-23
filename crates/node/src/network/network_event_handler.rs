@@ -78,6 +78,9 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
 
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
+            NetworkEvent::PartCommitmentCreated(node_id, part) => {
+                dbg!(node_id, part);
+            },
 
             _ => {},
         }

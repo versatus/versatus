@@ -15,5 +15,4 @@ async fn network_can_form_genesis_quorum() {
 
         node.stop().await.unwrap();
     }
-    panic!();
 }

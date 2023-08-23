@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use events::AssignedQuorumMembership;
-use hbbft::crypto::PublicKey;
+use hbbft::{crypto::PublicKey, sync_key_gen::Part};
 use mempool::TxnRecord;
 use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
@@ -48,6 +48,8 @@ pub enum NetworkEvent {
     },
 
     ForwardedTxn(TxnRecord),
+
+    PartCommitmentCreated(NodeId, Part),
 
     Ping(NodeId),
 

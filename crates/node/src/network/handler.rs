@@ -74,6 +74,10 @@ impl Handler<EventMessage> for NetworkModule {
                 self.broadcast_claim(claim).await?;
             },
 
+            Event::PartCommitmentCreated(node_id, part) => {
+                self.broadcast_part_commitment(node_id, part).await?;
+            },
+
             Event::Stop => {
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();

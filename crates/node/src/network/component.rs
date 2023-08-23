@@ -10,7 +10,7 @@ use dyswarm::{
     server::ServerConfig,
 };
 use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber};
-use hbbft::crypto::PublicKey as ThresholdSignaturePublicKey;
+use hbbft::{crypto::PublicKey as ThresholdSignaturePublicKey, sync_key_gen::Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{KademliaPeerId, NodeId, NodeType, ValidatorPublicKey};
 use storage::vrrbdb::VrrbDbReadHandle;
@@ -302,6 +302,33 @@ impl NetworkModule {
         let node_id = self.node_id.clone();
 
         let message = dyswarm::types::Message::new(NetworkEvent::ClaimCreated { node_id, claim });
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_part_commitment(&mut self, node_id: NodeId, part: Part) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_addresses = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_addresses).await?;
+
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::PartCommitmentCreated(node_id, part));
 
         self.dyswarm_client
             .broadcast(BroadcastArgs {
