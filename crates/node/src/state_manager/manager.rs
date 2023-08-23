@@ -295,7 +295,10 @@ impl StateManager {
                             .events_tx
                             .send(EventMessage::new(
                                 None,
-                                Event::PrecheckConvergenceBlock(block, header),
+                                Event::ConvergenceBlockPrecheckRequested {
+                                    convergence_block: block,
+                                    block_header: header,
+                                },
                             ))
                             .await
                         {
