@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
@@ -92,39 +92,22 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
-            // TODO: refactor these event handlers to properly match architecture
-            // Event::QuorumElection(header) => {
-            //     let claims = self.vrrbdb_read_handle.claim_store_values();
-            //
-            //     if let Ok(quorum) = self.elect_quorum(claims, header) {
-            //         if let Err(err) = self
-            //             .events_tx
-            //             .send(Event::ElectedQuorum(quorum).into())
-            //             .await
-            //         {
-            //             telemetry::error!("{}", err);
-            //         }
-            //     }
-            // },
-            // Event::MinerElection(header) => {
-            //     let claims = self.vrrbdb_read_handle.claim_store_values();
-            //     let mut election_results: BTreeMap<U256, Claim> =
-            //         self.elect_miner(claims, header.block_seed);
-            //
-            //     let winner = Self::get_winner(&mut election_results);
-            //
-            //     if let Err(err) = self
-            //         .events_tx
-            //         .send(Event::ElectedMiner(winner).into())
-            //         .await
-            //     {
-            //         telemetry::error!("{}", err);
-            //     }
-            // },
+            Event::PartCommitmentCreated(node_id, part) => {
+                self.handle_part_commitment_created(node_id, part);
+            },
+            Event::PartCommitmentAcknowledged(node_id) => {
+                self.handle_part_commitment_acknowledged(node_id)?;
+            },
+            Event::QuorumElectionStarted(header) => {
+                self.handle_quorum_election_started(header);
+            },
+            Event::MinerElectionStarted(header) => {
+                self.handle_miner_election_started(header);
+            },
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
+            //
             // The above code is handling an event of type `Vote` in a Rust
             // program. It checks the integrity of the vote by
             // verifying that it comes from the actual voter and prevents
@@ -431,29 +414,9 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
             //             })?
             //     }
             // },
-            // Event::NoOp => {},
-            // _ => {},
             //
-            // Event::AddHarvesterPeer(peer) => {
-            //     self.harvester_peers.insert(peer);
-            // },
-            // Event::RemoveHarvesterPeer(peer) => {
-            //     self.harvester_peers.remove(&peer);
-            // },
-            // /*
-            //  *
-            //  *
-            // Event::SyncNeighbouringFarmerQuorum(peers_details) => {
-            //     for (group_public_key, addressess) in peers_details {
-            //         self.neighbouring_farmer_quorum_peers
-            //             .insert(group_public_key, addressess);
-            //     }
-            // }
-            // *
-            // *
-            // */
-            // // Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
-            // // them to scheduler to get it validated and voted
+            // Event  "Farm" fetches a batch of transactions from a transaction mempool and sends
+            // them to scheduler to get it validated and voted
             // Event::Farm => {
             //     let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
             //     let keys: Vec<GroupPublicKey> = self
@@ -554,83 +517,6 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
             //         );
             //     }
             //     return Ok(ActorState::Running);
-            // },
-            // Event::PartMessage(node_idx, part_committment_bytes) => {
-            //     let part: bincode::Result<hbbft::sync_key_gen::Part> =
-            //         bincode::deserialize(&part_committment_bytes);
-            //     if let Ok(part_committment) = part {
-            //         self.dkg_engine
-            //             .dkg_state
-            //             .part_message_store
-            //             .entry(node_idx)
-            //             .or_insert_with(|| part_committment);
-            //     };
-            // },
-            // Event::AckPartCommitment(sender_id) => {
-            //     if self
-            //         .dkg_engine
-            //         .dkg_state
-            //         .part_message_store
-            //         .contains_key(&sender_id)
-            //     {
-            //         let dkg_result = self.dkg_engine.ack_partial_commitment(sender_id);
-            //         match dkg_result {
-            //             Ok(status) => match status {
-            //                 DkgResult::PartMessageAcknowledged => {
-            //                     if let Some(ack) = self
-            //                         .dkg_engine
-            //                         .dkg_state
-            //                         .ack_message_store
-            //                         .get(&(sender_id, self.dkg_engine.node_idx))
-            //                     {
-            //                         if let Ok(ack_bytes) = bincode::serialize(&ack) {
-            //                             let event = Event::SendAck(
-            //                                 self.dkg_engine.node_idx,
-            //                                 sender_id,
-            //                                 ack_bytes,
-            //                             );
-            //
-            //                             let _ =
-            // self.broadcast_events_tx.send(event.into()).await.map_err(|e| {
-            //                                 error!("Error occured while sending ack message to
-            // broadcast event channel {:?}", e);
-            // TheaterError::Other(format!("{e:?}"))                             });
-            //                         };
-            //                     }
-            //                 },
-            //                 _ => {
-            //                     error!("Error occured while acknowledging partial commitment for
-            // node {:?}", sender_id);                 },
-            //             },
-            //             Err(err) => {
-            //                 error!("Error occured while acknowledging partial commitment for node
-            // {:?}: Err {:?}", sender_id, err);             },
-            //         }
-            //     } else {
-            //         error!("Part Committment for Node idx {:?} missing", sender_id);
-            //     }
-            // },
-            // Event::HandleAllAcks => {
-            //     let result = self.dkg_engine.handle_ack_messages();
-            //     match result {
-            //         Ok(status) => {
-            //             info!("DKG Handle All Acks status {:?}", status);
-            //         },
-            //         Err(e) => {
-            //             error!("Error occured while handling all the acks {:?}", e);
-            //         },
-            //     }
-            // },
-            // Event::GenerateKeySet => {
-            //     let result = self.dkg_engine.generate_key_sets();
-            //     match result {
-            //         Ok(status) => {
-            //             info!("DKG Completion status {:?}", status);
-            //         },
-            //         Err(e) => {
-            //             error!("Error occured while generating Quorum Public Key {:?}", e);
-            //         },
-            //     }
             // },
             _ => {},
         }

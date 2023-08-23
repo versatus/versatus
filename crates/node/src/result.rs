@@ -1,5 +1,6 @@
 use std::net::AddrParseError;
 
+use dkg_engine::DkgError;
 use dyswarm::types::DyswarmError;
 use events::EventMessage;
 use miner::result::MinerError;
@@ -51,6 +52,9 @@ pub enum NodeError {
 
     #[error("Error while creating claim for node: {0}")]
     Claim(#[from] ClaimError),
+
+    #[error("DKG error: {0}")]
+    Dkg(#[from] DkgError),
 
     #[error("{0}")]
     Core(#[from] vrrb_core::Error),

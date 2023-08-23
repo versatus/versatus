@@ -36,6 +36,7 @@ pub struct Node {
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
 impl Node {
+    #[telemetry::instrument(skip(config))]
     pub async fn start(config: NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let config = config.clone();

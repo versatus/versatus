@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use block::{Block, ProposalBlock, RefHash};
+use block::{header::BlockHeader, Block, ProposalBlock, RefHash};
 use chrono::Duration;
 use dkg_engine::{
     dkg::DkgGenerator,
@@ -826,5 +826,79 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //         .certified_txns_filter
         //         .push(&(txn_id, farmer_quorum_key));
         // }
+    }
+
+    pub fn handle_part_commitment_created(&mut self, node_id: NodeId, part: Part) {
+        self.dkg_engine
+            .dkg_state
+            .part_message_store_mut()
+            .entry(node_id)
+            .or_insert_with(|| part);
+    }
+
+    pub fn handle_part_commitment_acknowledged(&mut self, node_id: NodeId) -> Result<()> {
+        if self
+            .dkg_engine
+            .dkg_state
+            .part_message_store_mut()
+            .contains_key(&node_id)
+        {
+            self.dkg_engine.ack_partial_commitment(node_id)?;
+
+            // PartMessageAcknowledged => {
+            //                     if let Some(ack) = self
+            //                         .dkg_engine
+            //                         .dkg_state
+            //                         .ack_message_store
+            //                         .get(&(sender_id, self.dkg_engine.node_idx))
+            //                     {
+            //                         if let Ok(ack_bytes) = bincode::serialize(&ack) {
+            //                             let event = Event::SendAck(
+            //                                 self.dkg_engine.node_idx,
+            //                                 sender_id,
+            //                                 ack_bytes,
+            //                             );
+            //
+            //                             let _ =
+            // self.broadcast_events_tx.send(event.into()).await.map_err(|e| {
+            //                                 error!("Error occured while sending ack message to
+            // broadcast event channel {:?}", e);
+            // TheaterError::Other(format!("{e:?}"))                             });
+            //                         };
+            //                     }
+            // },
+        }
+        Ok(())
+    }
+
+    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) {
+
+        //     let claims = self.vrrbdb_read_handle.claim_store_values();
+        //
+        //     if let Ok(quorum) = self.elect_quorum(claims, header) {
+        //         if let Err(err) = self
+        //             .events_tx
+        //             .send(Event::ElectedQuorum(quorum).into())
+        //             .await
+        //         {
+        //             telemetry::error!("{}", err);
+        //         }
+        //     }
+    }
+
+    pub fn handle_miner_election_started(&mut self, header: BlockHeader) {
+        // let claims = self.vrrbdb_read_handle.claim_store_values();
+        // let mut election_results: BTreeMap<U256, Claim> =
+        //     self.elect_miner(claims, header.block_seed);
+        //
+        //     let winner = Self::get_winner(&mut election_results);
+        //
+        //     if let Err(err) = self
+        //         .events_tx
+        //         .send(Event::ElectedMiner(winner).into())
+        //         .await
+        //     {
+        //         telemetry::error!("{}", err);
+        //     }
     }
 }

@@ -117,6 +117,7 @@ pub enum Event {
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
     PartCommitmentCreated(NodeId, Part),
+    PartCommitmentAcknowledged(NodeId),
 
     // TODO: refactor all the events below
     // ==========================================================================
@@ -204,6 +205,9 @@ pub enum Event {
         txn: Box<Txn>,
         is_valid: TxnValidationStatus,
     },
+
+    MinerElectionStarted(BlockHeader),
+    QuorumElectionStarted(BlockHeader),
 
     Ping(NodeId),
 }
