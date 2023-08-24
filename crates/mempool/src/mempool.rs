@@ -8,16 +8,17 @@ use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
-use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
+use vrrb_core::transactions::{TransactionDigest, TxTimestamp, Transaction};
+
 
 use super::error::MempoolError;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
-pub struct TxnRecord {
+pub struct TxnRecord<T: Transaction> {
     pub txn_id: TransactionDigest,
-    pub txn: Txn,
+    pub txn: T,
     pub status: TxnStatus,
     pub timestamp: TxTimestamp,
     pub added_timestamp: TxTimestamp,
@@ -26,8 +27,8 @@ pub struct TxnRecord {
     pub deleted_timestamp: TxTimestamp,
 }
 
-impl TxnRecord {
-    pub fn new(txn: Txn) -> TxnRecord {
+impl<T: Transaction> TxnRecord<T> {
+    pub fn new(txn: T) -> TxnRecord<T> {
         let added_timestamp = chrono::offset::Utc::now().timestamp();
         let timestamp = txn.timestamp();
 
@@ -40,7 +41,7 @@ impl TxnRecord {
         }
     }
 
-    pub fn new_by_id(txn_id: &TransactionDigest) -> TxnRecord {
+    pub fn new_by_id(txn_id: &TransactionDigest) -> TxnRecord<T> {
         TxnRecord {
             txn_id: txn_id.to_owned(),
             ..Default::default()
@@ -48,7 +49,7 @@ impl TxnRecord {
     }
 }
 
-pub type PoolType = IndexMap<TransactionDigest, TxnRecord, FxBuildHasher>;
+pub type PoolType = IndexMap<TransactionDigest, Box<TxnRecord<dyn Transaction>>, FxBuildHasher>;
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TxnStatus {
@@ -89,13 +90,13 @@ impl Mempool {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MempoolOp {
-    Add(Box<TxnRecord>),
+pub enum MempoolOp<T: Transaction> {
+    Add(Box<TxnRecord<T>>),
     Remove(TransactionDigest),
 }
 
-impl Absorb<MempoolOp> for Mempool {
-    fn absorb_first(&mut self, op: &mut MempoolOp, _: &Self) {
+impl<T: Transaction> Absorb<MempoolOp<T>> for Mempool {
+    fn absorb_first(&mut self, op: &mut MempoolOp<T>, _: &Self) {
         match op {
             MempoolOp::Add(record) => {
                 self.pool.insert(record.txn_id.clone(), *record.clone());
@@ -112,45 +113,45 @@ impl Absorb<MempoolOp> for Mempool {
 }
 
 pub trait FetchFiltered {
-    fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
+    fn fetch_filtered<F, T: Transaction>(&self, amount: u32, f: F) -> Vec<TxnRecord<T>>
     where
-        F: FnMut(&TransactionDigest, &mut TxnRecord) -> bool;
+        F: FnMut(&TransactionDigest, &mut TxnRecord<T>) -> bool;
 }
 
 impl FetchFiltered for ReadHandle<Mempool> {
-    fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord>
+    fn fetch_filtered<F, T: Transaction>(&self, amount: u32, f: F) -> Vec<TxnRecord<T>>
     where
-        F: FnMut(&TransactionDigest, &mut TxnRecord) -> bool,
+        F: FnMut(&TransactionDigest, &mut TxnRecord<T>) -> bool,
     {
         if let Some(map) = self.enter().map(|guard| guard.clone()) {
             let mut result = map.pool;
             result.retain(f);
-            let mut returned = Vec::<TxnRecord>::new();
+            let mut returned = Vec::<TxnRecord<T>>::new();
             for (_, v) in &result {
                 returned.push(v.clone());
             }
             // TODO:  Error - length
             return returned[0..amount as usize].to_vec();
         };
-        Vec::<TxnRecord>::new()
+        Vec::<TxnRecord<T>>::new()
     }
 }
 
 #[derive(Debug)]
-pub struct LeftRightMempool {
+pub struct LeftRightMempool<T: Transaction> {
     pub read: ReadHandle<Mempool>,
-    pub write: WriteHandle<Mempool, MempoolOp>,
+    pub write: WriteHandle<Mempool, MempoolOp<T>>,
 }
 
-impl Default for LeftRightMempool {
+impl<T: Transaction> Default for LeftRightMempool<T> {
     fn default() -> Self {
-        let (write, read) = left_right::new::<Mempool, MempoolOp>();
+        let (write, read) = left_right::new::<Mempool, MempoolOp<T>>();
 
         LeftRightMempool { read, write }
     }
 }
 
-impl LeftRightMempool {
+impl<T: Transaction> LeftRightMempool<T> {
     /// Creates new Mempool DB
     pub fn new() -> Self {
         Self::default()
@@ -181,12 +182,12 @@ impl LeftRightMempool {
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
-    pub fn add_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
+    pub fn add_txn(&mut self, txn: &T, _status: TxnStatus) -> Result<()> {
         self.insert(txn.to_owned())?;
         Ok(())
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<usize> {
+    pub fn insert(&mut self, txn: T) -> Result<usize> {
         let txn_record = TxnRecord::new(txn);
         self.write
             .append(MempoolOp::Add(Box::new(txn_record)))
@@ -197,7 +198,7 @@ impl LeftRightMempool {
 
     /// Retrieves a single transaction identified by id, makes sure it exists in
     /// db
-    pub fn get_txn(&mut self, txn_hash: &TransactionDigest) -> Option<Txn> {
+    pub fn get_txn(&mut self, txn_hash: &TransactionDigest) -> Option<T> {
         if let Some(record) = self.get(txn_hash) {
             return Some(record.txn);
         }
@@ -205,7 +206,7 @@ impl LeftRightMempool {
     }
 
     /// Getter for an entire pending Txn record
-    pub fn get(&mut self, txn_id: &TransactionDigest) -> Option<TxnRecord> {
+    pub fn get(&mut self, txn_id: &TransactionDigest) -> Option<TxnRecord<T>> {
         if txn_id.to_string().is_empty() {
             return None;
         }
@@ -222,7 +223,7 @@ impl LeftRightMempool {
     /// Returns:
     ///
     /// A vector of tuples of type (TxHashString, TxnRecord)
-    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TransactionDigest, TxnRecord)> {
+    pub fn fetch_txns(&mut self, num_of_txns: usize) -> Vec<(TransactionDigest, TxnRecord<T>)> {
         let mut txns_records = vec![];
         for i in 0..num_of_txns {
             if i == self.pool().len() {
@@ -240,13 +241,13 @@ impl LeftRightMempool {
     #[deprecated(note = "use extend instead")]
     pub fn add_txn_batch(
         &mut self,
-        txn_batch: &HashSet<Txn>,
+        txn_batch: &HashSet<T>,
         _txns_status: TxnStatus,
     ) -> Result<()> {
         self.extend(txn_batch.clone())
     }
 
-    pub fn extend(&mut self, txn_batch: HashSet<Txn>) -> Result<()> {
+    pub fn extend(&mut self, txn_batch: HashSet<T>) -> Result<()> {
         txn_batch.into_iter().for_each(|t| {
             self.write
                 .append(MempoolOp::Add(Box::new(TxnRecord::new(t))));
@@ -256,7 +257,7 @@ impl LeftRightMempool {
         Ok(())
     }
 
-    pub fn extend_with_records(&mut self, record_batch: HashSet<TxnRecord>) -> Result<()> {
+    pub fn extend_with_records(&mut self, record_batch: HashSet<TxnRecord<T>>) -> Result<()> {
         record_batch.into_iter().for_each(|t| {
             self.write.append(MempoolOp::Add(Box::new(t)));
         });
@@ -275,7 +276,7 @@ impl LeftRightMempool {
     /// Removes a single transaction identified by itself, makes sure it exists
     /// in db. Pushes to the ReadHandle.
     #[deprecated]
-    pub fn remove_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
+    pub fn remove_txn(&mut self, txn: &T, _status: TxnStatus) -> Result<()> {
         self.remove(&txn.id())
     }
 
@@ -291,7 +292,7 @@ impl LeftRightMempool {
     #[deprecated]
     pub fn remove_txn_batch(
         &mut self,
-        txn_batch: &HashSet<Txn>,
+        txn_batch: &HashSet<T>,
         _txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
@@ -315,7 +316,7 @@ impl LeftRightMempool {
 
     /// Was the Txn validated ? And when ?
     // TODO: rethink validated txn storage
-    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
+    pub fn is_txn_validated(&mut self, txn: &T) -> Result<TxTimestamp> {
         match self.get(&txn.id()) {
             Some(found) if matches!(found.status, TxnStatus::Validated) => {
                 Ok(found.validated_timestamp)
@@ -331,7 +332,7 @@ impl LeftRightMempool {
 
     /// Retrieves actual size of the mempooldb in Kilobytes.
     pub fn size_in_kilobytes(&self) -> usize {
-        let txn_size_factor = std::mem::size_of::<Txn>();
+        let txn_size_factor = std::mem::size_of::<T>();
         let mempool_items = self.size();
 
         (mempool_items * txn_size_factor) / 1024
@@ -343,12 +344,12 @@ impl LeftRightMempool {
     }
 }
 
-impl From<PoolType> for LeftRightMempool {
+impl<T: Transaction> From<PoolType> for LeftRightMempool<T> {
     fn from(pool: PoolType) -> Self {
-        let (write, read) = left_right::new::<Mempool, MempoolOp>();
+        let (write, read) = left_right::new::<Mempool, MempoolOp<T>>();
         let mut mempool_db = Self { read, write };
 
-        let records = pool.values().cloned().collect::<HashSet<TxnRecord>>();
+        let records = pool.values().cloned().collect::<HashSet<TxnRecord<T>>>();
 
         mempool_db.extend_with_records(records).unwrap_or_default();
 
@@ -356,7 +357,7 @@ impl From<PoolType> for LeftRightMempool {
     }
 }
 
-impl Clone for LeftRightMempool {
+impl<T: Transaction> Clone for LeftRightMempool<T> {
     fn clone(&self) -> Self {
         Self::from(self.pool())
     }
@@ -378,7 +379,7 @@ impl MempoolReadHandleFactory {
     }
 
     /// Returns a hash map of all the key value pairs within the mempool
-    pub fn entries(&self) -> HashMap<TransactionDigest, TxnRecord> {
+    pub fn entries<T: Transaction>(&self) -> HashMap<TransactionDigest, TxnRecord<T>> {
         self.handle()
             .values()
             .cloned()
@@ -387,7 +388,7 @@ impl MempoolReadHandleFactory {
     }
 
     /// Returns a vector of all transactions within the mempool
-    pub fn values(&self) -> Vec<Txn> {
+    pub fn values<T: Transaction>(&self) -> Vec<T> {
         self.handle()
             .values()
             .cloned()
@@ -395,7 +396,7 @@ impl MempoolReadHandleFactory {
             .collect()
     }
 
-    pub fn get(&self, digest: &TransactionDigest) -> Option<TxnRecord> {
+    pub fn get<T: Transaction>(&self, digest: &TransactionDigest) -> Option<TxnRecord<T>> {
         if let Some(record) = self.handle().get(digest) {
             return Some(record.clone());
         }

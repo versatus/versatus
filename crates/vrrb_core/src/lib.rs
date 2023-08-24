@@ -13,7 +13,7 @@ pub mod result;
 pub mod serde_helpers;
 pub mod staking;
 pub mod storage_utils;
-pub mod txn;
+pub mod transactions;
 pub mod updateable;
 pub mod verifiable;
 pub mod node_health_report;

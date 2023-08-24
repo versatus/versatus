@@ -16,8 +16,8 @@ use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 use vrrb_core::{
     claim::Claim,
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -30,8 +30,8 @@ pub type CurrentUtility = i128;
 pub type NextEpochAdjustment = i128;
 pub type ClaimHash = ethereum_types::U256;
 pub type RefHash = String;
-pub type TxnList = LinkedHashMap<TransactionDigest, Txn>;
-pub type QuorumCertifiedTxnList = LinkedHashMap<TransactionDigest, QuorumCertifiedTxn>;
+pub type TxnList = LinkedHashMap<TransactionDigest, dyn Transaction>;
+pub type QuorumCertifiedTxnList = LinkedHashMap<TransactionDigest, QuorumCertifiedTxn<dyn Transaction>>;
 pub type ClaimList = LinkedHashMap<ClaimHash, Claim>;
 pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TransactionDigest>>;
 pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
