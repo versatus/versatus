@@ -75,6 +75,7 @@ impl Handler<EventMessage> for NetworkModule {
             },
 
             Event::PartCommitmentCreated(node_id, part) => {
+                info!("Broadcasting part commitment to peers in quorum");
                 self.broadcast_part_commitment(node_id, part).await?;
             },
 

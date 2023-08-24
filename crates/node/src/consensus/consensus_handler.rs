@@ -39,46 +39,14 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
             Event::NodeAddedToPeerList(peer_data) => {
-                if let Some(quorum_config) = self.quorum_driver.bootstrap_quorum_config.clone() {
-                    let node_id = peer_data.node_id.clone();
+                self.handle_node_added_to_peer_list(peer_data.clone())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                    let quorum_member_ids = quorum_config
-                        .membership_config
-                        .quorum_members
-                        .iter()
-                        .cloned()
-                        .map(|member| member.node_id)
-                        .collect::<Vec<NodeId>>();
-
-                    self.dkg_engine
-                        .add_peer_public_key(node_id.clone(), peer_data.validator_public_key);
-
-                    if quorum_member_ids.contains(&node_id) {
-                        self.quorum_driver
-                            .bootstrap_quorum_available_nodes
-                            .insert(node_id, (peer_data, true));
-                    }
-
-                    let available_nodes =
-                        self.quorum_driver.bootstrap_quorum_available_nodes.clone();
-
-                    let all_nodes_available =
-                        available_nodes.iter().all(|(_, (_, is_online))| *is_online);
-
-                    if all_nodes_available {
-                        info!("All quorum members are online. Triggering genesis quorum elections");
-
-                        if matches!(
-                            self.quorum_driver.node_config.node_type,
-                            primitives::NodeType::Bootstrap
-                        ) {
-                            self.quorum_driver
-                                .assign_peer_list_to_quorums(available_nodes)
-                                .await
-                                .map_err(|err| TheaterError::Other(err.to_string()))?;
-                        }
-                    }
-                }
+                self.add_peer_public_key_to_dkg_state(
+                    peer_data.node_id.clone(),
+                    peer_data.validator_public_key,
+                );
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 self.handle_quorum_membership_assigment_created(assigned_membership);
@@ -87,8 +55,12 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
                     .generate_partial_commitment_message()
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
+                let event = Event::PartCommitmentCreated(node_id, part);
+
+                let em = EventMessage::new(Some("network-events".into()), event);
+
                 self.events_tx
-                    .send(Event::PartCommitmentCreated(node_id, part).into())
+                    .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
@@ -107,10 +79,46 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
             Event::Stop => {
                 return Ok(ActorState::Stopped);
             },
+
+            Event::TransactionCertificateRequested {
+                votes,
+                txn_id,
+                quorum_key,
+                farmer_id,
+                txn,
+                quorum_threshold,
+            } => {
+                self.handle_transaction_certificate_requested(
+                    votes,
+                    txn_id,
+                    quorum_key,
+                    farmer_id,
+                    txn,
+                    quorum_threshold,
+                );
+            },
+
             // This certifies txns once vote threshold is reached.
-            Event::TransactionCertificateCreated { .. } => {
+            Event::TransactionCertificateCreated {
+                votes,
+                signature,
+                digest,
+                /// OUtput of the program executed
+                execution_result,
+                farmer_id,
+                txn,
+                is_valid,
+            } => {
                 // TODO: forward arguments
-                self.handle_transaction_certificate_created();
+                self.handle_transaction_certificate_created(
+                    votes,
+                    signature,
+                    digest,
+                    execution_result,
+                    farmer_id,
+                    txn,
+                    is_valid,
+                );
             },
 
             // Mines proposal block after every X seconds.

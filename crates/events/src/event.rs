@@ -127,6 +127,17 @@ pub enum Event {
     /// the network.
     HarvesterPublicKeyReceived(PublicKeySet),
 
+    /// This events triggers the generation of a certificate for a given transaction
+    TransactionCertificateRequested {
+        votes: Vec<Vote>,
+        txn_id: TransactionDigest,
+        quorum_key: PublicKeyShareVec,
+        farmer_id: NodeId,
+        txn: Txn,
+        quorum_threshold: FarmerQuorumThreshold,
+    },
+
+    /// This event is emitted whenever a transaction is certified by a Farmer Quorum
     TransactionCertificateCreated {
         votes: Vec<Vote>,
         signature: RawSignature,

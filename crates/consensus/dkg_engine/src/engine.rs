@@ -105,9 +105,9 @@ impl DkgGenerator for DkgEngine {
     ///
     /// The part_commitment is being returned.
     fn generate_partial_commitment(&mut self, threshold: usize) -> Result<(Part, NodeId)> {
-        if self.dkg_state.peer_public_keys().len() as u16 != self.threshold_config.upper_bound {
-            return Err(DkgError::NotEnoughPeerPublicKeys);
-        }
+        // if (self.dkg_state.peer_public_keys().len() as u16) != self.threshold_config.upper_bound {
+        //     return Err(DkgError::NotEnoughPeerPublicKeys);
+        // }
 
         let node_id = self.node_id();
         let secret_key = self.secret_key.clone();

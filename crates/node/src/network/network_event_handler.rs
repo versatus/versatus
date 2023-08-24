@@ -79,7 +79,10 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
             NetworkEvent::PartCommitmentCreated(node_id, part) => {
-                dbg!(node_id, part);
+                let evt = Event::PartCommitmentCreated(node_id, part);
+                let em = EventMessage::new(Some("consensus-events".into()), evt);
+
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
             _ => {},

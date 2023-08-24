@@ -13,7 +13,7 @@ pub use quorum_module::*;
 mod tests {
 
     use dkg_engine::prelude::{DkgEngine, DkgEngineConfig};
-    use events::{AssignedQuorumMembership, Event, EventMessage, DEFAULT_BUFFER};
+    use events::{AssignedQuorumMembership, Event, DEFAULT_BUFFER};
     use hbbft::crypto::SecretKey as ThresholdSignatureSecretKey;
     use primitives::{KademliaPeerId, NodeType, QuorumKind};
     use theater::Handler;

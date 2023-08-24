@@ -7,8 +7,8 @@ use dkg_engine::{
     prelude::{DkgEngine, DkgEngineConfig},
 };
 use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, SyncPeerData,
-    Vote,
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
+    SyncPeerData, Vote,
 };
 use hbbft::sync_key_gen::Part;
 use laminar::{Packet, SocketEvent};
@@ -16,8 +16,9 @@ use maglev::Maglev;
 use mempool::{TxnRecord, TxnStatus};
 use primitives::{
     Epoch, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeIdx, NodeType, NodeTypeBytes,
-    PKShareBytes, PayloadBytes, PublicKeyShareVec, QuorumPublicKey, RawSignature, Round,
-    ValidatorPublicKey, ValidatorPublicKeyShare, ValidatorSecretKey,
+    PKShareBytes, PayloadBytes, ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey,
+    RawSignature, Round, TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare,
+    ValidatorSecretKey,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
@@ -218,41 +219,6 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         if let Err(err) = self.events_tx.send(event.into()).await {
             error!("{}", err);
         }
-    }
-
-    async fn ceritfy_transaction(&self) {
-        // // This certifies txns once vote threshold is reached.
-        // // Event::CertifiedTxn(job_result) => {
-        //     if let JobResult::CertifiedTxn(
-        //         votes,
-        //         certificate,
-        //         txn_id,
-        //         farmer_quorum_key,
-        //         farmer_id,
-        //         txn,
-        //         is_txn_valid,
-        //     ) = job_result
-        //     {
-        //         let vote_receipts = votes
-        //             .iter()
-        //             .map(|v| VoteReceipt {
-        //                 farmer_id: v.farmer_id.clone(),
-        //                 farmer_node_id: v.farmer_node_id,
-        //                 signature: v.signature.clone(),
-        //             })
-        //             .collect::<Vec<VoteReceipt>>();
-        //         self.quorum_certified_txns.push(QuorumCertifiedTxn::new(
-        //             farmer_id,
-        //             vote_receipts,
-        //             *txn,
-        //             certificate,
-        //             is_txn_valid,
-        //         ));
-        //         let _ = self
-        //             .certified_txns_filter
-        //             .push(&(txn_id, farmer_quorum_key));
-        //     }
-        // // },
     }
 
     // The above code is handling an event of type `Vote` in a Rust
@@ -594,94 +560,6 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         // }
     }
 
-    //
-    pub async fn process_rendezvous_response(&self) {
-        // let receiver = self.socket.get_event_receiver();
-        // let sender = self.socket.get_packet_sender();
-        // loop {
-        //     if let Ok(event) = receiver.recv() {
-        //         self.process_rendezvous_event(&event, &sender).await
-        //     }
-        // }
-    }
-
-    pub fn send_register_retrieve_peers_request(&self) {
-        // let sender = self.socket.get_packet_sender();
-        //
-        // let (tx1, rx1) = unbounded();
-        // let (tx2, rx2) = unbounded();
-        //
-        // // Spawning threads for retrieve peers request and register request
-        // DkgModule::spawn_interval_thread(Duration::from_secs(RETRIEVE_PEERS_REQUEST), tx1);
-        //
-        // DkgModule::spawn_interval_thread(Duration::from_secs(REGISTER_REQUEST), tx2);
-        //
-        // loop {
-        //     select! {
-        //         recv(rx1) -> _ => {
-        //             self.send_retrieve_peers_request(
-        //                 &sender
-        //             );
-        //         },
-        //         recv(rx2) -> _ => {
-        //             self.send_register_request(
-        //                 &sender,
-        //             );
-        //         },
-        //     }
-        // }
-    }
-
-    async fn process_rendezvous_event(
-        &self,
-        event: &SocketEvent,
-        // sender: &Sender<Packet>
-    ) {
-        // if let SocketEvent::Packet(packet) = event {
-        //     self.process_packet(packet, sender).await;
-        // }
-    }
-
-    async fn process_packet(
-        &self,
-        packet: &Packet,
-        // sender: &Sender<Packet>
-    ) {
-        // if packet.addr() == self.rendezvous_server_addr {
-        //     if let Ok(payload_response) =
-        // bincode::deserialize::<Data>(packet.payload()) {
-        //         self.process_payload_response(&payload_response, sender,
-        // packet)             .await;
-        //     }
-        // }
-    }
-
-    async fn process_payload_response(
-        &self,
-        payload_response: &Data,
-        // sender: &Sender<Packet>,
-        // packet: &Packet,
-    ) {
-        // match payload_response {
-        //     Data::Request(req) => self.process_request(req, sender, packet),
-        //     Data::Response(resp) => self.process_response(resp).await,
-        // }
-    }
-
-    fn process_request(
-        &self,
-        request: &RendezvousRequest,
-        // sender: &Sender<Packet>,
-        packet: &Packet,
-    ) {
-        // if let RendezvousRequest::Ping = request {
-        //     let response = &Data::Response(RendezvousResponse::Pong);
-        //     if let Ok(data) = bincode::serialize(&response) {
-        //         let _ = sender.send(Packet::reliable_unordered(packet.addr(),
-        // data));     }
-        // };
-    }
-
     // Event  "Farm" fetches a batch of transactions from a transaction mempool and
     // sends them to scheduler to get it validated and voted
     pub fn farm_transactions(&mut self, transactions: Vec<(TransactionDigest, TxnRecord)>) {
@@ -740,6 +618,81 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     }
     }
 
+    pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
+        let threshold_config = self.dkg_engine.threshold_config();
+
+        let quorum_membership_config = self.quorum_driver.membership_config.clone().ok_or({
+            error!("Cannot participate in DKG");
+            NodeError::Other("Cannot participate in DKG".to_string())
+        })?;
+
+        let quorum_kind = quorum_membership_config.quorum_kind();
+
+        let threshold = threshold_config.threshold as usize;
+
+        // NOTE: add this node's own validator key to participate in DKG, otherwise they're considered
+        // an observer and no part message is generated
+        self.dkg_engine.add_peer_public_key(
+            self.node_config.id.clone(),
+            self.validator_public_key_owned(),
+        );
+
+        self.dkg_engine
+            .generate_partial_commitment(threshold)
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn add_peer_public_key_to_dkg_state(
+        &mut self,
+        node_id: NodeId,
+        public_key: ValidatorPublicKey,
+    ) {
+        self.dkg_engine.add_peer_public_key(node_id, public_key);
+    }
+}
+
+impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
+    pub async fn handle_node_added_to_peer_list(&mut self, peer_data: PeerData) -> Result<()> {
+        if let Some(quorum_config) = self.quorum_driver.bootstrap_quorum_config.clone() {
+            let node_id = peer_data.node_id.clone();
+
+            let quorum_member_ids = quorum_config
+                .membership_config
+                .quorum_members
+                .iter()
+                .cloned()
+                .map(|member| member.node_id)
+                .collect::<Vec<NodeId>>();
+
+            if quorum_member_ids.contains(&node_id) {
+                self.quorum_driver
+                    .bootstrap_quorum_available_nodes
+                    .insert(node_id, (peer_data, true));
+            }
+
+            let available_nodes = self.quorum_driver.bootstrap_quorum_available_nodes.clone();
+
+            let all_nodes_available = available_nodes.iter().all(|(_, (_, is_online))| *is_online);
+
+            if all_nodes_available {
+                telemetry::info!(
+                    "All quorum members are online. Triggering genesis quorum elections"
+                );
+
+                if matches!(
+                    self.quorum_driver.node_config.node_type,
+                    primitives::NodeType::Bootstrap
+                ) {
+                    self.quorum_driver
+                        .assign_peer_list_to_quorums(available_nodes)
+                        .await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn handle_quorum_membership_assigment_created(
         &mut self,
         assigned_membership: AssignedQuorumMembership,
@@ -774,26 +727,88 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         self.quorum_driver.membership_config = Some(quorum_membership_config);
     }
 
-    pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
-        let threshold_config = self.dkg_engine.threshold_config();
-
-        // if let Some(quorum_membership_config)
-        let quorum_membership_config = self.quorum_driver.membership_config.clone().ok_or({
-            error!("Cannot participate in DKG");
-            NodeError::Other("Cannot participate in DKG".to_string())
-        })?;
-
-        let quorum_kind = quorum_membership_config.quorum_kind();
-
-        let threshold = threshold_config.threshold as usize;
-
-        self.dkg_engine
-            .generate_partial_commitment(threshold)
-            .map_err(|err| NodeError::Other(err.to_string()))
+    pub fn handle_transaction_certificate_requested(
+        &mut self,
+        votes: Vec<Vote>,
+        txn_id: TransactionDigest,
+        quorum_key: PublicKeyShareVec,
+        farmer_id: NodeId,
+        txn: Txn,
+        quorum_threshold: FarmerQuorumThreshold,
+    ) {
+        todo!()
+        // let mut vote_shares: HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>> =
+        //     HashMap::new();
+        // for v in votes.iter() {
+        //     if let Some(votes) = vote_shares.get_mut(&v.is_txn_valid) {
+        //         votes.insert(v.farmer_node_id, v.signature.clone());
+        //     } else {
+        //         let sig_shares_map: BTreeMap<NodeIdx, Vec<u8>> =
+        //             vec![(v.farmer_node_id, v.signature.clone())]
+        //                 .into_iter()
+        //                 .collect();
+        //         vote_shares.insert(v.is_txn_valid, sig_shares_map);
+        //     }
+        // }
+        //
+        // let validated_txns: Vec<_> = self
+        //     .validator_core_manager
+        //     .validate(
+        //         &self.vrrbdb_read_handle.state_store_values(),
+        //         vec![txn.clone()],
+        //     )
+        //     .into_iter()
+        //     .collect();
+        // let validated = validated_txns.par_iter().any(|x| x.0.id() == txn.id());
+        // let most_votes_share = vote_shares
+        //     .iter()
+        //     .max_by_key(|(_, votes_map)| votes_map.len())
+        //     .map(|(key, votes_map)| (*key, votes_map.clone()));
+        // if validated {
+        //     if let Some((is_txn_valid, votes_map)) = most_votes_share {
+        //         let result = sig_provider.generate_quorum_signature(
+        //             farmer_quorum_threshold as u16,
+        //             votes_map.clone(),
+        //         );
+        //         if let Ok(threshold_signature) = result {
+        //             self.events_tx
+        //                 .send(
+        //                     Event::CertifiedTxn(JobResult::CertifiedTxn(
+        //                         votes.clone(),
+        //                         threshold_signature,
+        //                         txn_id.clone(),
+        //                         farmer_quorum_key.clone(),
+        //                         farmer_id.clone(),
+        //                         Box::new(txn.clone()),
+        //                         is_txn_valid,
+        //                     ))
+        //                     .into(),
+        //                 )
+        //                 .await
+        //                 .map_err(|err| {
+        //                     NodeError::Other(format!(
+        //                         "failed to send certified txn: {err}"
+        //                     ))
+        //                 })?
+        //         } else {
+        //             error!("Quorum signature generation failed");
+        //         }
+        //     }
+        // } else {
+        //     error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
+        // }
     }
 
-    pub fn handle_transaction_certificate_created(&mut self) {
-        todo!()
+    pub fn handle_transaction_certificate_created(
+        &mut self,
+        votes: Vec<Vote>,
+        signature: RawSignature,
+        digest: TransactionDigest,
+        execution_result: ProgramExecutionOutput,
+        farmer_id: NodeId,
+        txn: Box<Txn>,
+        is_valid: TxnValidationStatus,
+    ) {
         // if let JobResult::CertifiedTxn(
         //     votes,
         //     certificate,
@@ -828,6 +843,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     }
 
     pub fn handle_part_commitment_created(&mut self, node_id: NodeId, part: Part) {
+        dbg!("handle_part_commitment_created");
         self.dkg_engine
             .dkg_state
             .part_message_store_mut()
