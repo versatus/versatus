@@ -86,11 +86,9 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
             },
 
             NetworkEvent::PartCommitmentAcknowledged { node_id, sender_id } => {
-                dbg!(node_id, sender_id);
-                // let evt = Event::PartCommitmentCreated(node_id, part);
-                // let em = EventMessage::new(Some("consensus-events".into()), evt);
-                //
-                // self.events_tx.send(em).await.map_err(NodeError::from)?;
+                let evt = Event::PartCommitmentAcknowledged { node_id, sender_id };
+                let em = EventMessage::new(Some("consensus-events".into()), evt);
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
             _ => {},
