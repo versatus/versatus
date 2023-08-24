@@ -842,47 +842,38 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         // }
     }
 
-    pub fn handle_part_commitment_created(&mut self, node_id: NodeId, part: Part) {
-        dbg!("handle_part_commitment_created");
+    pub fn handle_part_commitment_created(&mut self, node_id: NodeId, part: Part) -> Result<()> {
         self.dkg_engine
             .dkg_state
             .part_message_store_mut()
-            .entry(node_id)
+            .entry(node_id.clone())
             .or_insert_with(|| part);
+
+        self.dkg_engine.ack_partial_commitment(node_id)?;
+
+        Ok(())
     }
 
-    pub fn handle_part_commitment_acknowledged(&mut self, node_id: NodeId) -> Result<()> {
-        if self
+    pub fn handle_part_commitment_acknowledged(&mut self, sender_id: NodeId) -> Result<()> {
+        let node_id = self.node_config.id.clone();
+
+        let has_ack = self
             .dkg_engine
             .dkg_state
             .part_message_store_mut()
-            .contains_key(&node_id)
-        {
-            self.dkg_engine.ack_partial_commitment(node_id)?;
+            .contains_key(&node_id);
 
-            // PartMessageAcknowledged => {
-            //                     if let Some(ack) = self
-            //                         .dkg_engine
-            //                         .dkg_state
-            //                         .ack_message_store
-            //                         .get(&(sender_id, self.dkg_engine.node_idx))
-            //                     {
-            //                         if let Ok(ack_bytes) = bincode::serialize(&ack) {
-            //                             let event = Event::SendAck(
-            //                                 self.dkg_engine.node_idx,
-            //                                 sender_id,
-            //                                 ack_bytes,
-            //                             );
-            //
-            //                             let _ =
-            // self.broadcast_events_tx.send(event.into()).await.map_err(|e| {
-            //                                 error!("Error occured while sending ack message to
-            // broadcast event channel {:?}", e);
-            // TheaterError::Other(format!("{e:?}"))                             });
-            //                         };
-            //                     }
-            // },
-        }
+        let ack = self
+            .dkg_engine
+            .dkg_state
+            .ack_message_store()
+            .get(&(sender_id.clone(), node_id.clone()))
+            .ok_or(NodeError::Other(format!(
+                "No ack found for sender_id: {:?} and receiver_id: {:?}",
+                sender_id,
+                self.node_config.id.clone()
+            )))?;
+
         Ok(())
     }
 

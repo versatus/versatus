@@ -65,10 +65,23 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::PartCommitmentCreated(node_id, part) => {
-                self.handle_part_commitment_created(node_id, part);
+                self.handle_part_commitment_created(node_id.clone(), part)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                let event = Event::PartCommitmentAcknowledged {
+                    node_id,
+                    sender_id: self.node_config.id.clone(),
+                };
+
+                let em = EventMessage::new(Some("network-events".into()), event);
+
+                self.events_tx
+                    .send(em)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::PartCommitmentAcknowledged(node_id) => {
-                self.handle_part_commitment_acknowledged(node_id)?;
+            Event::PartCommitmentAcknowledged { node_id, sender_id } => {
+                self.handle_part_commitment_acknowledged(sender_id)?;
             },
             Event::QuorumElectionStarted(header) => {
                 self.handle_quorum_election_started(header);

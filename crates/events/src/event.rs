@@ -3,7 +3,10 @@ use std::net::SocketAddr;
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
-use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
 use primitives::{
     Address, Epoch, FarmerId, FarmerQuorumThreshold, IsTxnValid, NodeId, NodeIdx,
     ProgramExecutionOutput, PublicKey, PublicKeyShareVec, RawSignature, Round, Seed,
@@ -119,7 +122,11 @@ pub enum Event {
 
     PartCommitmentCreated(NodeId, Part),
 
-    PartCommitmentAcknowledged(NodeId),
+    PartCommitmentAcknowledged {
+        node_id: NodeId,
+        sender_id: NodeId,
+        // ack: Ack,
+    },
 
     /// `HarvesterPublicKeyReceived(Vec<u8>)` is an event that carries a vector of bytes
     /// representing the public key of a harvester node. This event is used
