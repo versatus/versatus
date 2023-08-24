@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
 use patriecia::inner::InnerTrie;
 use storage_utils::{Result, StorageError};
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::transactions::{Transaction, TransactionDigest};
 
 use crate::RocksDbAdapter;
 
@@ -17,16 +17,16 @@ impl TransactionStoreReadHandle {
         Self { inner }
     }
 
-    pub fn get(&self, key: &TransactionDigest) -> Result<Txn> {
+    pub fn get<T: Transaction>(&self, key: &TransactionDigest) -> Result<T> {
         self.inner
             .get(key)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
-    pub fn batch_get(
+    pub fn batch_get<T: Transaction>(
         &self,
         keys: Vec<TransactionDigest>,
-    ) -> HashMap<TransactionDigest, Option<Txn>> {
+    ) -> HashMap<TransactionDigest, Option<T>> {
         let mut transactions = HashMap::new();
 
         keys.iter().for_each(|key| {
@@ -37,7 +37,7 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
+    pub fn entries<T: Transaction>(&self) -> HashMap<TransactionDigest, T> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
             .iter()

@@ -7,8 +7,8 @@ use utils::hash_data;
 use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
-    txn::{QuorumCertifiedTxn, TransactionDigest},
 };
+use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest};
 
 use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
 
@@ -55,7 +55,7 @@ impl ProposalBlock {
     /// Returns:
     ///
     /// a `ProposalBlock` object.
-    pub fn build(
+    pub fn build<T: Transaction>(
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
@@ -64,7 +64,7 @@ impl ProposalBlock {
         from: Claim,
         secret_key: &MinerSk,
     ) -> ProposalBlock {
-        let hashable_txns: Vec<(String, QuorumCertifiedTxn)> = {
+        let hashable_txns: Vec<(String, QuorumCertifiedTxn<T>)> = {
             txns.iter()
                 .map(|(k, v)| (k.digest_string(), v.clone()))
                 .collect()
@@ -127,7 +127,7 @@ impl ProposalBlock {
     /// A vector of tuples, where each tuple contains a string representing the
     /// digest of a transaction and a clone of the corresponding
     /// QuorumCertifiedTxn object from the original vector of transactions.
-    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, QuorumCertifiedTxn)> {
+    pub(crate) fn get_hashable_txns<T: Transaction>(&self) -> Vec<(String, QuorumCertifiedTxn<T>)> {
         self.txns
             .clone()
             .iter()

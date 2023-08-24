@@ -2,19 +2,19 @@ use std::{path::Path, sync::Arc};
 
 use lr_trie::{LeftRightTrie, Proof, H256};
 use storage_utils::Result;
-use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
+use vrrb_core::transactions::{Transaction, TransactionDigest};
 
 #[derive(Debug, Clone)]
-pub struct TransactionStore {
-    trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter>,
+pub struct TransactionStore<T: Transaction> {
+    trie: LeftRightTrie<'static, TransactionDigest, T, RocksDbAdapter>,
 }
 
-impl Default for TransactionStore {
+impl<T: Transaction> Default for TransactionStore<T> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -29,7 +29,7 @@ impl Default for TransactionStore {
     }
 }
 
-impl TransactionStore {
+impl<T: Transaction> TransactionStore<T> {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");
@@ -54,12 +54,12 @@ impl TransactionStore {
         TransactionStoreReadHandle::new(inner)
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<()> {
+    pub fn insert(&mut self, txn: T) -> Result<()> {
         self.trie.insert(txn.digest(), txn);
         Ok(())
     }
 
-    pub fn extend(&mut self, transactions: Vec<Txn>) {
+    pub fn extend(&mut self, transactions: Vec<T>) {
         let transactions = transactions
             .into_iter()
             .map(|txn| (txn.digest(), txn))

@@ -3,10 +3,11 @@ pub mod mempool;
 
 use anyhow::{Context, Result};
 use reqwest::StatusCode;
+use vrrb_core::transactions::Transaction;
 
 pub use crate::mempool::*;
 
-pub async fn create_tx_indexer(txn_record: &TxnRecord) -> Result<StatusCode> {
+pub async fn create_tx_indexer<T: Transaction>(txn_record: &TxnRecord<T>) -> Result<StatusCode> {
     let url = "http://localhost:3444/transactions"; // TODO: Move to config
     let req_json =
         serde_json::to_string(txn_record).context("Failed to serialize txn_record to json")?;
@@ -41,8 +42,8 @@ mod tests {
     use tokio;
     use vrrb_core::{
         keypair::KeyPair,
-        txn::{NewTxnArgs, Txn},
     };
+    use vrrb_core::transactions::transfer::Transfer;
 
     use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
 
@@ -69,7 +70,7 @@ mod tests {
         let recv_keypair = KeyPair::random();
         let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-        let txn = Txn::new(NewTxnArgs {
+        let txn = Transfer::new(NewTxnArgs {
             timestamp: 0,
             sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),

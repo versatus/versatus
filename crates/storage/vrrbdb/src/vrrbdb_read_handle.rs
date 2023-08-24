@@ -4,8 +4,8 @@ use primitives::{Address, NodeId};
 use vrrb_core::{
     account::Account,
     claim::Claim,
-    txn::{TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{Transaction, TransactionDigest};
 
 use crate::{
     ClaimStoreReadHandleFactory, StateStoreReadHandleFactory, TransactionStoreReadHandleFactory,
@@ -37,7 +37,7 @@ impl VrrbDbReadHandle {
     }
 
     /// Returns a copy of all values stored within the state trie
-    pub fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn> {
+    pub fn transaction_store_values<T: Transaction>(&self) -> HashMap<TransactionDigest, T> {
         self.transaction_store_handle_factory.handle().entries()
     }
 
