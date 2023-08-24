@@ -50,6 +50,10 @@ pub enum NetworkEvent {
     ForwardedTxn(TxnRecord),
 
     PartCommitmentCreated(NodeId, Part),
+    PartCommitmentAcknowledged {
+        node_id: NodeId,
+        sender_id: NodeId,
+    },
 
     Ping(NodeId),
 

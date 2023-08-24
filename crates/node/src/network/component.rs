@@ -143,12 +143,14 @@ impl NetworkModule {
             // that kademlia_dht understands
             let bootstrap_node_data = NodeData::new(
                 kademlia_key,
+                config.node_id.clone(),
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
             );
 
             KademliaNode::new(
                 config.kademlia_peer_id,
+                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
@@ -159,6 +161,7 @@ impl NetworkModule {
 
             KademliaNode::new(
                 config.kademlia_peer_id,
+                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 None,
@@ -336,6 +339,37 @@ impl NetworkModule {
                 message,
                 erasure_count: 0,
             })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_part_commitment_acknowledgement(
+        &mut self,
+        node_id: NodeId,
+        sender_id: NodeId,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let found_peer = closest_nodes
+            .iter()
+            .find(|node| node.node_id == node_id.clone())
+            .ok_or(NodeError::Other(
+                "Could not find peer in routing table".to_string(),
+            ))?;
+
+        let addr = found_peer.udp_gossip_addr;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::PartCommitmentAcknowledged {
+            node_id,
+            sender_id,
+        });
+
+        self.dyswarm_client
+            .send_data_via_quic(message, addr)
             .await?;
 
         Ok(())

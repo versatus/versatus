@@ -79,6 +79,12 @@ impl Handler<EventMessage> for NetworkModule {
                 self.broadcast_part_commitment(node_id, part).await?;
             },
 
+            Event::PartCommitmentAcknowledged { node_id, sender_id } => {
+                info!("Broadcasting part commitment acknowledgement to peers in quorum");
+                self.broadcast_part_commitment_acknowledgement(node_id, sender_id)
+                    .await?;
+            },
+
             Event::Stop => {
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();
