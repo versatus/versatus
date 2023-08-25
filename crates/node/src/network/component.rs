@@ -5,6 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use block::ConvergenceBlock;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -370,6 +371,23 @@ impl NetworkModule {
 
         self.dyswarm_client
             .send_data_via_quic(message, addr)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_certified_convergence_block(
+        &mut self,
+        block: ConvergenceBlock,
+    ) -> Result<()> {
+        let message = dyswarm::types::Message::new(NetworkEvent::ConvergenceBlockCertified(block));
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
             .await?;
 
         Ok(())

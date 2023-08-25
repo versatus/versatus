@@ -85,6 +85,11 @@ impl Handler<EventMessage> for NetworkModule {
                     .await?;
             },
 
+            Event::ConvergenceBlockCertified(block) => {
+                info!("Broadcasting certified convergence block to network");
+                self.broadcast_certified_convergence_block(block).await?;
+            },
+
             Event::Stop => {
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();

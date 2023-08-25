@@ -158,6 +158,14 @@ pub enum Event {
 
     MinerElectionStarted(BlockHeader),
 
+    MinerElected(NodeId),
+
+    ProposalBlockCreated(ProposalBlock),
+
+    ConvergenceBlockCreated(ConvergenceBlock),
+
+    ConvergenceBlockCertified(ConvergenceBlock),
+
     QuorumElectionStarted(BlockHeader),
 
     // NOTE: replaces Event::Farm and pushes txns to the scheduler instead of having it pull them

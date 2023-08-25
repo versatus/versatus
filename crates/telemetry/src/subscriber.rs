@@ -1,5 +1,6 @@
 use primitives::{get_pretty_print_logs, Environment};
 use thiserror::Error;
+use tracing::metadata::LevelFilter;
 use tracing_subscriber::{
     fmt::MakeWriter,
     util::{SubscriberInitExt, TryInitError},
@@ -39,6 +40,8 @@ impl TelemetrySubscriber {
                 .with_file(is_local_env)
                 .with_line_number(is_local_env)
                 .with_target(is_local_env)
+                .compact()
+                .pretty()
                 .finish();
 
             sub.try_init()?;

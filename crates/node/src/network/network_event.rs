@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use block::ConvergenceBlock;
 use events::AssignedQuorumMembership;
 use hbbft::{crypto::PublicKey, sync_key_gen::Part};
 use mempool::TxnRecord;
@@ -54,6 +55,8 @@ pub enum NetworkEvent {
         node_id: NodeId,
         sender_id: NodeId,
     },
+
+    ConvergenceBlockCertified(ConvergenceBlock),
 
     Ping(NodeId),
 
