@@ -32,6 +32,7 @@ wasm_runtime = { workspace = true }
 vrrb_rpc = { workspace = true }
 primitives = { workspace = true }
 sha2 = { workspace = true }
+integral-db = { workspace = true }
 
 [workspace]
 members = [
@@ -54,7 +55,6 @@ members = [
     "crates/mempool",
     "crates/node",
     "crates/storage",
-    "crates/storage/lr_trie",
     "crates/storage/vrrbdb",
     "crates/storage/utils",
     "crates/telemetry",
@@ -85,7 +85,6 @@ events = { path = "crates/events" }
 
 storage = { path = "crates/storage" }
 vrrbdb = { path = "crates/storage/vrrbdb" }
-lr_trie = { path = "crates/storage/lr_trie" }
 storage_utils = { path = "crates/storage/utils" }
 
 consensus = { path = "crates/consensus" }

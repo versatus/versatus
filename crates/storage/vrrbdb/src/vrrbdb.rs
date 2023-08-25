@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use ethereum_types::U256;
-use lr_trie::H256;
+use integral_db::H256;
 use primitives::Address;
 use serde_json::json;
 use storage_utils::{Result, StorageError};

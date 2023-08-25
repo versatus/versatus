@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
+use integral_db::{InnerTrieWrapper, ReadHandleFactory};
 use patriecia::inner::InnerTrie;
 use primitives::Address;
 use storage_utils::{Result, StorageError};

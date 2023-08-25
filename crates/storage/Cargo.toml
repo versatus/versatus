@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 vrrbdb = { workspace = true }
-lr_trie = { workspace = true }
 storage_utils = { workspace = true }
 serial_test = { workspace = true }
 ethereum-types = { workspace = true }
+integral-db = { workspace = true }

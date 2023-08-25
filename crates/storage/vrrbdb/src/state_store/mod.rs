@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
-use lr_trie::{LeftRightTrie, H256};
+use integral_db::{LeftRightTrie, H256};
 use primitives::Address;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};

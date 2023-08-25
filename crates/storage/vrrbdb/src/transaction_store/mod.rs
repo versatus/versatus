@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use lr_trie::{LeftRightTrie, Proof, H256};
+use integral_db::{LeftRightTrie, Proof, H256};
 use storage_utils::Result;
 use vrrb_core::txn::{TransactionDigest, Txn};
 

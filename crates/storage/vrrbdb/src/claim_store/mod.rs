@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use ethereum_types::U256;
-use lr_trie::{LeftRightTrie, H256};
+use integral_db::{LeftRightTrie, H256};
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
