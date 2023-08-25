@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use integral_db::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::inner::InnerTrie;
+use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
+use patriecia::{JellyfishMerkleTree, SimpleHasher};
 use primitives::NodeId;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
@@ -9,12 +9,12 @@ use vrrb_core::claim::Claim;
 use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
-pub struct ClaimStoreReadHandle {
-    inner: InnerTrieWrapper<RocksDbAdapter>,
+pub struct ClaimStoreReadHandle<H: SimpleHasher> {
+    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>,
 }
 
-impl ClaimStoreReadHandle {
-    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+impl<H: SimpleHasher> ClaimStoreReadHandle<H> {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>) -> Self {
         Self { inner }
     }
 
@@ -68,24 +68,30 @@ impl ClaimStoreReadHandle {
 }
 
 #[derive(Debug, Clone)]
-pub struct ClaimStoreReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
+pub struct ClaimStoreReadHandleFactory<H: SimpleHasher> {
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>,
 }
 
-impl ClaimStoreReadHandleFactory {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+impl<H: SimpleHasher> ClaimStoreReadHandleFactory<H> {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> ClaimStoreReadHandle {
+    pub fn handle(&self) -> ClaimStoreReadHandle<H> {
         let handle = self
             .inner
             .handle()
             .enter()
             .map(|guard| guard.clone())
-            .unwrap_or_default();
+            .unwrap_or({
+                let path = storage_utils::get_node_data_dir()
+                    .unwrap_or_default()
+                    .join("db")
+                    .join("claims");
+                JellyfishMerkleTree::new(Arc::new(RocksDbAdapter::new(path, "claims").unwrap()))
+            });
 
-        let inner = InnerTrieWrapper::new(handle);
+        let inner = JellyfishMerkleTreeWrapper::new(handle);
 
         ClaimStoreReadHandle { inner }
     }

@@ -1,4 +1,4 @@
-use patriecia::db::Database;
+use patriecia::{db::Database, VersionedDatabase};
 use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
 use storage_utils::{get_node_data_dir, StorageError};
@@ -175,3 +175,5 @@ impl Database for RocksDbAdapter {
         Ok(values)
     }
 }
+
+impl VersionedDatabase for RocksDbAdapter {}

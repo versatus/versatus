@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use integral_db::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::inner::InnerTrie;
+use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
+use patriecia::{JellyfishMerkleTree, SimpleHasher};
 use primitives::Address;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::Account;
@@ -9,12 +9,12 @@ use vrrb_core::account::Account;
 use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
-pub struct StateStoreReadHandle {
-    inner: InnerTrieWrapper<RocksDbAdapter>,
+pub struct StateStoreReadHandle<H: SimpleHasher> {
+    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>,
 }
 
-impl StateStoreReadHandle {
-    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+impl<H: SimpleHasher> StateStoreReadHandle<H> {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>) -> Self {
         Self { inner }
     }
 
@@ -68,16 +68,16 @@ impl StateStoreReadHandle {
 }
 
 #[derive(Debug, Clone)]
-pub struct StateStoreReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
+pub struct StateStoreReadHandleFactory<H: SimpleHasher> {
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>,
 }
 
-impl StateStoreReadHandleFactory {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+impl<H: SimpleHasher> StateStoreReadHandleFactory<H> {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> StateStoreReadHandle {
+    pub fn handle(&self) -> StateStoreReadHandle<H> {
         let handle = self
             .inner
             .handle()
@@ -85,7 +85,7 @@ impl StateStoreReadHandleFactory {
             .map(|guard| guard.clone())
             .unwrap_or_default();
 
-        let inner = InnerTrieWrapper::new(handle);
+        let inner = JellyfishMerkleTreeWrapper::new(handle);
 
         StateStoreReadHandle { inner }
     }
