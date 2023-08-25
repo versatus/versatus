@@ -3,6 +3,7 @@ use std::{path::Path, sync::Arc};
 use ethereum_types::U256;
 use integral_db::{LeftRightTrie, H256};
 use patriecia::SimpleHasher;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
@@ -15,11 +16,11 @@ pub type Claims = Vec<Claim>;
 pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct ClaimStore<H: SimpleHasher> {
-    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter, H>,
+pub struct ClaimStore {
+    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter, Sha256>,
 }
 
-impl<H: SimpleHasher> Default for ClaimStore<H> {
+impl Default for ClaimStore {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -34,7 +35,7 @@ impl<H: SimpleHasher> Default for ClaimStore<H> {
     }
 }
 
-impl<H: SimpleHasher> ClaimStore<H> {
+impl ClaimStore {
     /// Returns new, empty instance of ClaimDb
     pub fn new(path: &Path) -> Self {
         let path = path.join("claims");
@@ -46,7 +47,7 @@ impl<H: SimpleHasher> ClaimStore<H> {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> ClaimStoreReadHandle<H> {
+    pub fn read_handle(&self) -> ClaimStoreReadHandle {
         let inner = self.trie.handle();
         ClaimStoreReadHandle::new(inner)
     }
@@ -123,7 +124,7 @@ impl<H: SimpleHasher> ClaimStore<H> {
 
     /// Retain returns new ClaimDb with which all Claims that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> ClaimStore<H>
+    pub fn retain<F>(&self, _filter: F) -> ClaimStore
     where
         F: FnMut(&Claim) -> bool,
     {
@@ -278,7 +279,7 @@ impl<H: SimpleHasher> ClaimStore<H> {
         self.trie.extend(claims)
     }
 
-    pub fn factory(&self) -> ClaimStoreReadHandleFactory<H> {
+    pub fn factory(&self) -> ClaimStoreReadHandleFactory {
         let inner = self.trie.factory();
 
         ClaimStoreReadHandleFactory::new(inner)

@@ -3,18 +3,19 @@ use std::collections::HashMap;
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
 use patriecia::{JellyfishMerkleTree, SimpleHasher};
 use primitives::Address;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::Account;
 
 use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
-pub struct StateStoreReadHandle<H: SimpleHasher> {
-    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>,
+pub struct StateStoreReadHandle {
+    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>,
 }
 
-impl<H: SimpleHasher> StateStoreReadHandle<H> {
-    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>) -> Self {
+impl StateStoreReadHandle {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>) -> Self {
         Self { inner }
     }
 
@@ -68,16 +69,16 @@ impl<H: SimpleHasher> StateStoreReadHandle<H> {
 }
 
 #[derive(Debug, Clone)]
-pub struct StateStoreReadHandleFactory<H: SimpleHasher> {
-    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>,
+pub struct StateStoreReadHandleFactory {
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>,
 }
 
-impl<H: SimpleHasher> StateStoreReadHandleFactory<H> {
-    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>) -> Self {
+impl StateStoreReadHandleFactory {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> StateStoreReadHandle<H> {
+    pub fn handle(&self) -> StateStoreReadHandle {
         let handle = self
             .inner
             .handle()

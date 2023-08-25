@@ -3,6 +3,7 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 use integral_db::{LeftRightTrie, H256};
 use patriecia::SimpleHasher;
 use primitives::Address;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
@@ -15,11 +16,11 @@ pub type Accounts = Vec<Account>;
 pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
-pub struct StateStore<H: SimpleHasher> {
-    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter, H>,
+pub struct StateStore {
+    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter, Sha256>,
 }
 
-impl<H: SimpleHasher> Default for StateStore<H> {
+impl Default for StateStore {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -34,7 +35,7 @@ impl<H: SimpleHasher> Default for StateStore<H> {
     }
 }
 
-impl<H: SimpleHasher> StateStore<H> {
+impl StateStore {
     /// Returns new, empty instance of StateDb
 
     pub fn new(path: &Path) -> Self {
@@ -47,7 +48,7 @@ impl<H: SimpleHasher> StateStore<H> {
 
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
-    pub fn read_handle(&self) -> StateStoreReadHandle<H> {
+    pub fn read_handle(&self) -> StateStoreReadHandle {
         let inner = self.trie.handle();
         StateStoreReadHandle::new(inner)
     }
@@ -133,7 +134,7 @@ impl<H: SimpleHasher> StateStore<H> {
 
     /// Retain returns new StateDb with which all Accounts that fulfill `filter`
     /// cloned to it.
-    pub fn retain<F>(&self, _filter: F) -> StateStore<H>
+    pub fn retain<F>(&self, _filter: F) -> StateStore
     where
         F: FnMut(&Account) -> bool,
     {
@@ -285,7 +286,7 @@ impl<H: SimpleHasher> StateStore<H> {
         self.trie.extend(accounts)
     }
 
-    pub fn factory(&self) -> StateStoreReadHandleFactory<H> {
+    pub fn factory(&self) -> StateStoreReadHandleFactory {
         let inner = self.trie.factory();
 
         StateStoreReadHandleFactory::new(inner)

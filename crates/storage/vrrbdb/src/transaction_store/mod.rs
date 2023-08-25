@@ -2,6 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use integral_db::{LeftRightTrie, Proof, H256};
 use patriecia::SimpleHasher;
+use sha2::Sha256;
 use storage_utils::Result;
 use vrrb_core::txn::{TransactionDigest, Txn};
 
@@ -11,11 +12,11 @@ mod transaction_store_rh;
 pub use transaction_store_rh::*;
 
 #[derive(Debug, Clone)]
-pub struct TransactionStore<H: SimpleHasher> {
-    trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter, H>,
+pub struct TransactionStore {
+    trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter, Sha256>,
 }
 
-impl<H: SimpleHasher> Default for TransactionStore<H> {
+impl Default for TransactionStore {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -30,7 +31,7 @@ impl<H: SimpleHasher> Default for TransactionStore<H> {
     }
 }
 
-impl<H: SimpleHasher> TransactionStore<H> {
+impl TransactionStore {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");
@@ -40,7 +41,7 @@ impl<H: SimpleHasher> TransactionStore<H> {
         Self { trie }
     }
 
-    pub fn factory(&self) -> TransactionStoreReadHandleFactory<H> {
+    pub fn factory(&self) -> TransactionStoreReadHandleFactory {
         let inner = self.trie.factory();
 
         TransactionStoreReadHandleFactory::new(inner)
@@ -50,7 +51,7 @@ impl<H: SimpleHasher> TransactionStore<H> {
         self.trie.publish();
     }
 
-    pub fn read_handle(&self) -> TransactionStoreReadHandle<H> {
+    pub fn read_handle(&self) -> TransactionStoreReadHandle {
         let inner = self.trie.handle().unwrap();
         TransactionStoreReadHandle::new(inner)
     }

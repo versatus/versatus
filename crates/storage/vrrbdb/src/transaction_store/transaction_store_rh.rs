@@ -2,18 +2,19 @@ use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
 use patriecia::{JellyfishMerkleTree, KeyHash, SimpleHasher, Version};
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
-pub struct TransactionStoreReadHandle<H: SimpleHasher> {
-    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>,
+pub struct TransactionStoreReadHandle {
+    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>,
 }
 
-impl<H: SimpleHasher> TransactionStoreReadHandle<H> {
-    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, H>) -> Self {
+impl TransactionStoreReadHandle {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>) -> Self {
         Self { inner }
     }
 
@@ -69,16 +70,16 @@ impl<H: SimpleHasher> TransactionStoreReadHandle<H> {
 }
 
 #[derive(Debug, Clone)]
-pub struct TransactionStoreReadHandleFactory<H: SimpleHasher> {
-    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>,
+pub struct TransactionStoreReadHandleFactory {
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>,
 }
 
-impl<H: SimpleHasher> TransactionStoreReadHandleFactory<H> {
-    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, H>>) -> Self {
+impl TransactionStoreReadHandleFactory {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>) -> Self {
         Self { inner }
     }
 
-    pub fn handle(&self) -> TransactionStoreReadHandle<H> {
+    pub fn handle(&self) -> TransactionStoreReadHandle {
         let handle = self
             .inner
             .handle()

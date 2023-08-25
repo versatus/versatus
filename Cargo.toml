@@ -101,7 +101,7 @@ wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 
 # NOTE: Github crates
-patriecia = { git = "https://github.com/versatus/patriecia" }
+patriecia = { path = "../patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
