@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use block::{header::BlockHeader, Block, BlockHash, ConvergenceBlock, ProposalBlock, RefHash};
 use chrono::Duration;
@@ -6,6 +6,7 @@ use dkg_engine::{
     dkg::DkgGenerator,
     prelude::{DkgEngine, DkgEngineConfig},
 };
+use ethereum_types::U256;
 use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
     SyncPeerData, Vote,
@@ -15,10 +16,10 @@ use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
 use mempool::{TxnRecord, TxnStatus};
 use primitives::{
-    Epoch, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeIdx, NodeType, NodeTypeBytes,
-    PKShareBytes, PayloadBytes, ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey,
-    RawSignature, Round, TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare,
-    ValidatorSecretKey,
+    ByteSlice, ByteSlice32Bit, ByteSlice48Bit, ByteVec, Epoch, FarmerQuorumThreshold,
+    GroupPublicKey, NodeId, NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes,
+    ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey, RawSignature, Round,
+    TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare, ValidatorSecretKey,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
@@ -97,7 +98,7 @@ pub struct ConsensusModule<S: StateReader + Sync + Send + Clone> {
     pub(crate) node_config: NodeConfig,
     //
     // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
-    // group_public_key: GroupPublicKey,
+    // pub(crate) group_public_key: GroupPublicKey,
     // sig_provider: Option<SignatureProvider>,
     // vrrbdb_read_handle: VrrbDbReadHandle,
     // convergence_block_certificates:
@@ -560,64 +561,6 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         // }
     }
 
-    // Event  "Farm" fetches a batch of transactions from a transaction mempool and
-    // sends them to scheduler to get it validated and voted
-    pub fn farm_transactions(&mut self, transactions: Vec<(TransactionDigest, TxnRecord)>) {
-        //
-        // let keys: Vec<GroupPublicKey> = self
-        //     .neighbouring_farmer_quorum_peers
-        //     .keys()
-        //     .cloned()
-        //     .collect();
-
-        // let maglev_hash_ring = Maglev::new(keys);
-        //
-        //     let mut new_txns = vec![];
-        //
-        //     for txn in txns.into_iter() {
-        //         if let Some(group_public_key) =
-        // maglev_hash_ring.get(&txn.0.clone()).cloned() {
-        // if group_public_key == self.group_public_key {
-        // new_txns.push(txn);             } else if let
-        // Some(broadcast_addresses) =
-        // self.neighbouring_farmer_quorum_peers.get(&group_public_key)
-        //             {
-        //                 let addresses: Vec<SocketAddr> =
-        // broadcast_addresses.iter().cloned().collect();
-        //
-        //                 self.broadcast_events_tx
-        //                     .send(EventMessage::new(
-        //                         None,
-        //                         Event::ForwardTxn((txn.1.clone(),
-        // addresses.clone())),                     ))
-        //                     .await
-        //                     .map_err(|err| {
-        //                         theater::TheaterError::Other(format!(
-        //                             "failed to forward txn {:?} to peers
-        // {addresses:?}:     {err}",
-        //                             txn.1
-        //                         ))
-        //                     })?
-        //             }
-        //         } else {
-        //             new_txns.push(txn);
-        //         }
-        //     }
-        //
-        //     if let Some(sig_provider) = self.sig_provider.clone() {
-        //         if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
-        //             new_txns,
-        //             self.farmer_id.clone(),
-        //             self.farmer_node_idx,
-        //             self.group_public_key.clone(),
-        //             sig_provider,
-        //             self.quorum_threshold,
-        //         ))) {
-        //             telemetry::error!("error sending job to scheduler: {}",
-        // err);         }
-        //     }
-    }
-
     pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
         let threshold_config = self.dkg_engine.threshold_config();
 
@@ -809,6 +752,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         txn: Box<Txn>,
         is_valid: TxnValidationStatus,
     ) {
+        //
         // if let JobResult::CertifiedTxn(
         //     votes,
         //     certificate,
@@ -854,7 +798,11 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         Ok(())
     }
 
-    pub fn handle_part_commitment_acknowledged(&mut self, sender_id: NodeId) -> Result<()> {
+    pub fn handle_part_commitment_acknowledged(
+        &mut self,
+        node_id: NodeId,
+        sender_id: NodeId,
+    ) -> Result<()> {
         let node_id = self.node_config.id.clone();
 
         let has_ack = self
@@ -892,61 +840,56 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     }
     }
 
-    pub fn handle_miner_election_started(&mut self, header: BlockHeader) {
-        // let claims = self.vrrbdb_read_handle.claim_store_values();
-        // let mut election_results: BTreeMap<U256, Claim> =
-        //     self.elect_miner(claims, header.block_seed);
-        //
-        //     let winner = Self::get_winner(&mut election_results);
-        //
-        //     if let Err(err) = self
-        //         .events_tx
-        //         .send(Event::ElectedMiner(winner).into())
-        //         .await
-        //     {
-        //         telemetry::error!("{}", err);
-        //     }
+    pub fn handle_miner_election_started(&mut self, header: BlockHeader) -> Result<(U256, Claim)> {
+        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let mut election_results: BTreeMap<U256, Claim> =
+            self.quorum_driver.elect_miner(claims, header.block_seed);
+
+        let winner = self.quorum_driver.get_winner(&mut election_results);
+
+        Ok(winner)
     }
 
     pub fn handle_txns_ready_for_processing(&mut self, txns: Vec<Txn>) {
-        //     let txns = self.tx_mempool.fetch_txns(PULL_TXN_BATCH_SIZE);
-        //     let keys: Vec<GroupPublicKey> = self
-        //         .neighbouring_farmer_quorum_peers
-        //         .keys()
-        //         .cloned()
-        //         .collect();
-        //
-        //     let maglev_hash_ring = Maglev::new(keys);
-        //
-        //     let mut new_txns = vec![];
-        //
-        //     for txn in txns.into_iter() {
-        //         if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned()
-        // {             if group_public_key == self.group_public_key {
-        //                 new_txns.push(txn);
-        //             } else if let Some(broadcast_addresses) =
-        //                 self.neighbouring_farmer_quorum_peers.get(&group_public_key)
-        //             {
-        //                 let addresses: Vec<SocketAddr> =
-        //                     broadcast_addresses.iter().cloned().collect();
-        //
-        //                 self.broadcast_events_tx
-        //                     .send(EventMessage::new(
-        //                         None,
-        //                         Event::ForwardTxn((txn.1.clone(), addresses.clone())),
-        //                     ))
-        //                     .await
-        //                     .map_err(|err| {
-        //                         theater::TheaterError::Other(format!(
-        //                             "failed to forward txn {:?} to peers {addresses:?}:
-        // {err}",                             txn.1
-        //                         ))
-        //                     })?
-        //             }
-        //         } else {
-        //             new_txns.push(txn);
-        //         }
-        //     }
+        let keys: Vec<ByteSlice48Bit> = self
+            .dkg_engine
+            .dkg_state
+            .peer_public_keys()
+            .values()
+            .map(|pk| pk.to_bytes())
+            .collect();
+
+        let maglev_hash_ring = Maglev::new(keys);
+
+        // let mut new_txns = vec![];
+
+        for txn in txns.into_iter() {
+            //         if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned()
+            // {             if group_public_key == self.group_public_key {
+            //                 new_txns.push(txn);
+            //             } else if let Some(broadcast_addresses) =
+            //                 self.neighbouring_farmer_quorum_peers.get(&group_public_key)
+            //             {
+            //                 let addresses: Vec<SocketAddr> =
+            //                     broadcast_addresses.iter().cloned().collect();
+            //
+            //                 self.broadcast_events_tx
+            //                     .send(EventMessage::new(
+            //                         None,
+            //                         Event::ForwardTxn((txn.1.clone(), addresses.clone())),
+            //                     ))
+            //                     .await
+            //                     .map_err(|err| {
+            //                         theater::TheaterError::Other(format!(
+            //                             "failed to forward txn {:?} to peers {addresses:?}:
+            // {err}",                             txn.1
+            //                         ))
+            //                     })?
+            //             }
+            //         } else {
+            //             new_txns.push(txn);
+            //         }
+        }
         //
         //     if let Some(sig_provider) = self.sig_provider.clone() {
         //         if let Err(err) = self.sync_jobs_sender.send(Job::Farm((

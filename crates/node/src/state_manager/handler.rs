@@ -124,6 +124,29 @@ impl Handler<EventMessage> for StateManager {
             Event::HarvesterPublicKeyReceived(public_key_set) => {
                 self.dag.set_harvester_pubkeys(public_key_set)
             },
+
+            Event::TransactionCertificateCreated {
+                votes,
+                signature,
+                digest,
+                /// OUtput of the program executed
+                execution_result,
+                farmer_id,
+                txn,
+                is_valid,
+            } => {
+                // TODO: forward arguments
+                self.handle_transaction_certificate_created(
+                    votes,
+                    signature,
+                    digest,
+                    execution_result,
+                    farmer_id,
+                    txn,
+                    is_valid,
+                );
+            },
+
             Event::NoOp => {},
             _ => {},
         }

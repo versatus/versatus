@@ -26,6 +26,8 @@ pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;
 
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
+pub type ByteSlice32Bit = [u8; 32];
+pub type ByteSlice48Bit = [u8; 48];
 pub type PayloadHash = ByteVec;
 pub type RawSignature = ByteVec;
 pub type PeerId = ByteVec;

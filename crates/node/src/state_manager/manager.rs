@@ -6,9 +6,11 @@ use std::{
 use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher};
+use events::{Event, EventMessage, EventPublisher, Vote};
 use mempool::LeftRightMempool;
-use primitives::{Address, NodeId, Round};
+use primitives::{
+    Address, NodeId, ProgramExecutionOutput, RawSignature, Round, TxnValidationStatus,
+};
 use storage::{
     storage_utils::StorageError,
     vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},
@@ -351,6 +353,21 @@ impl StateManager {
         //         }
         //
         todo!()
+    }
+
+    pub fn handle_transaction_certificate_created(
+        &mut self,
+        votes: Vec<Vote>,
+        signature: RawSignature,
+        digest: TransactionDigest,
+        execution_result: ProgramExecutionOutput,
+        farmer_id: NodeId,
+        txn: Box<Txn>,
+        is_valid: TxnValidationStatus,
+    ) -> Result<()> {
+        self.database
+            .insert_transaction(*txn)
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
 }
 

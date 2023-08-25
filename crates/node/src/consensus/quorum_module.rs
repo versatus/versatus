@@ -167,7 +167,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         Err(QuorumError::InvalidSeedError)
     }
 
-    fn elect_miner(
+    pub(crate) fn elect_miner(
         &self,
         claims: HashMap<NodeId, Claim>,
         block_seed: u64,
@@ -183,7 +183,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         (claim.get_election_result(block_seed), claim.clone())
     }
 
-    fn get_winner(election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
+    pub(crate) fn get_winner(&self, election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
         let mut iter = election_results.iter();
         let first: (U256, Claim);
         loop {

@@ -10,7 +10,6 @@ async fn main() {
 
     TelemetrySubscriber::init(std::io::stdout).unwrap();
 
-    tokio::time::sleep(Duration::from_secs(3)).await;
     let nodes = create_test_network(8).await;
 
     // let rpc_client = create_node_rpc_client(node_0_rpc_addr).await;
@@ -22,6 +21,8 @@ async fn main() {
     // }
 
     // dbg!(rpc_client.get_full_mempool().await.unwrap().len());
+
+    tokio::time::sleep(Duration::from_secs(3)).await;
 
     for node in nodes {
         println!();

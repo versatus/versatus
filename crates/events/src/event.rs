@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
+use ethereum_types::U256;
 use hbbft::{
     crypto::PublicKeySet,
     sync_key_gen::{Ack, Part},
@@ -123,9 +124,10 @@ pub enum Event {
     PartCommitmentCreated(NodeId, Part),
 
     PartCommitmentAcknowledged {
+        /// The node whose commitment was acknowledged
         node_id: NodeId,
+        /// The node who acknowledged the partial commitment
         sender_id: NodeId,
-        // ack: Ack,
     },
 
     /// `HarvesterPublicKeyReceived(Vec<u8>)` is an event that carries a vector of bytes
@@ -158,7 +160,7 @@ pub enum Event {
 
     MinerElectionStarted(BlockHeader),
 
-    MinerElected(NodeId),
+    MinerElected((U256, Claim)),
 
     ProposalBlockCreated(ProposalBlock),
 

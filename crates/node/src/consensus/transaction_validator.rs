@@ -51,7 +51,7 @@ use crate::NodeError;
 /// JobSchedulerController to retrieve data from the database as needed for its
 /// job scheduling tasks. The specific implementation and functionality of
 /// VrrbDbReadHandle would depend on
-pub struct JobSchedulerController {
+pub struct TransactionValidatorEngine {
     pub job_scheduler: JobScheduler,
     events_tx: EventPublisher,
     sync_jobs_receiver: Receiver<Job>,
@@ -85,7 +85,7 @@ pub enum Job {
     SignConvergenceBlock(SignatureProvider, ConvergenceBlock),
 }
 
-impl JobSchedulerController {
+impl TransactionValidatorEngine {
     pub fn new(
         peer_id: PeerID,
         events_tx: EventPublisher,
@@ -101,6 +101,73 @@ impl JobSchedulerController {
             _async_jobs_receiver: async_jobs_receiver,
             validator_core_manager,
             vrrbdb_read_handle,
+        }
+    }
+
+    pub async fn validate_transactions(
+        &mut self,
+        txns: Vec<(TransactionDigest, TxnRecord)>,
+        receiver_farmer_id: ByteVec,
+        farmer_node_id: NodeId,
+        quorum_public_key: ByteVec,
+        sig_provider: SignatureProvider,
+        quorum_threshold: FarmerQuorumThreshold,
+    ) {
+        let transactions: Vec<Txn> = txns.iter().map(|x| x.1.txn.clone()).collect();
+        let validated_txns: Vec<_> = self
+            .validator_core_manager
+            .validate(&self.vrrbdb_read_handle.state_store_values(), transactions)
+            .into_iter()
+            .collect();
+
+        //TODO  Add Delegation logic + Handling Double Spend by checking whether
+        // MagLev Hashing over( Quorum Keys) to identify whether current farmer
+        // quorum is supposed to vote on txn Txn is intended
+        // to be validated by current validator
+        let _backpressure = self.job_scheduler.calculate_back_pressure();
+        //Delegation Principle need to be done
+        let votes_result = self
+            .job_scheduler
+            .get_local_pool()
+            .run_sync_job(move || {
+                let votes = validated_txns
+                    .par_iter()
+                    .map_with(
+                        receiver_farmer_id,
+                        |receiver_farmer_id: &mut Vec<u8>, txn| {
+                            let mut vote = None;
+                            let new_txn = txn.0.clone();
+                            if let Ok(txn_bytes) = bincode::serialize(&new_txn) {
+                                if let Ok(signature) =
+                                    sig_provider.generate_partial_signature(txn_bytes)
+                                {
+                                    vote = Some(Vote {
+                                        farmer_id: receiver_farmer_id.clone(),
+                                        farmer_node_id,
+                                        signature,
+                                        txn: new_txn,
+                                        quorum_public_key: quorum_public_key.clone(),
+                                        quorum_threshold: farmer_quorum_threshold,
+                                        execution_result: None,
+                                        is_txn_valid: txn.1.is_err(),
+                                    });
+                                }
+                            }
+                            vote
+                        },
+                    )
+                    .collect::<Vec<Option<Vote>>>();
+                votes
+            })
+            .join();
+        if let Ok(votes) = votes_result {
+            self.events_tx
+                .send(
+                    Event::ProcessedVotes(JobResult::Votes((votes, farmer_quorum_threshold)))
+                        .into(),
+                )
+                .await
+                .map_err(|err| NodeError::Other(format!("failed to send processed votes: {err}")))?
         }
     }
 
