@@ -802,7 +802,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             .entry(node_id.clone())
             .or_insert_with(|| part);
 
-        self.dkg_engine.ack_partial_commitment(node_id).unwrap();
+        self.dkg_engine.ack_partial_commitment(node_id)?;
 
         Ok(())
     }
