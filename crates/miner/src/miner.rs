@@ -7,18 +7,8 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 
 use block::{
-    block::Block,
-    header::BlockHeader,
-    ClaimHash,
-    ClaimList,
-    ConsolidatedClaims,
-    ConsolidatedTxns,
-    ConvergenceBlock,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    QuorumCertifiedTxnList,
-    RefHash,
+    block::Block, header::BlockHeader, ClaimHash, ClaimList, ConsolidatedClaims, ConsolidatedTxns,
+    ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;

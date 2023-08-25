@@ -12,9 +12,9 @@ pub type Result<T> = std::result::Result<T, DkgError>;
 /// List of all possible errors related to synchronous dkg generation .
 #[derive(Error, Debug)]
 pub enum DkgError {
-    #[error("Not enough peer public messages keys to start DKG process")]
+    #[error("Not enough peer public keys to create partial commitment")]
     NotEnoughPeerPublicKeys,
-    #[error("Sync key Generation instance not created .")]
+    #[error("Sync key Generation instance not created.")]
     SyncKeyGenInstanceNotCreated,
     #[error("Not enough part messages received")]
     NotEnoughPartMsgsReceived,

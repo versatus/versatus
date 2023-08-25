@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 
+use block::ConvergenceBlock;
 use events::AssignedQuorumMembership;
+use hbbft::{crypto::PublicKey, sync_key_gen::Part};
 use mempool::TxnRecord;
 use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
@@ -28,6 +30,7 @@ pub enum NetworkEvent {
         udp_gossip_addr: SocketAddr,
         raptorq_gossip_addr: SocketAddr,
         kademlia_liveness_addr: SocketAddr,
+        validator_public_key: PublicKey,
     },
 
     /// Peer was assigned to a specific quorum by a bootstrap node
@@ -46,6 +49,14 @@ pub enum NetworkEvent {
     },
 
     ForwardedTxn(TxnRecord),
+
+    PartCommitmentCreated(NodeId, Part),
+    PartCommitmentAcknowledged {
+        node_id: NodeId,
+        sender_id: NodeId,
+    },
+
+    ConvergenceBlockCertified(ConvergenceBlock),
 
     Ping(NodeId),
 

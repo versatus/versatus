@@ -65,6 +65,7 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
             harvester_public_key: None,
         });
     }
+
     dkg_instances
 }
 

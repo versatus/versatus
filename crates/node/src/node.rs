@@ -12,7 +12,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use vrrb_config::NodeConfig;
-use vrrb_core::keypair::KeyPair;
+use vrrb_core::keypair::{KeyPair, Keypair};
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
@@ -22,11 +22,12 @@ use crate::{
 
 /// Node represents a member of the VRRB network and it is responsible for
 /// carrying out the different operations permitted within the chain.
+#[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
 
     // TODO: make this private
-    pub keypair: KeyPair,
+    pub keypair: Keypair,
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
@@ -35,6 +36,7 @@ pub struct Node {
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
 
 impl Node {
+    #[telemetry::instrument(skip(config))]
     pub async fn start(config: NodeConfig) -> Result<Self> {
         // Copy the original config to avoid overwriting the original
         let config = config.clone();
@@ -116,11 +118,6 @@ impl Node {
     /// Returns a string representation of the Node id
     pub fn id(&self) -> String {
         self.config.id.clone()
-    }
-
-    /// Returns the idx of the Node
-    pub fn node_idx(&self) -> u16 {
-        self.config.idx
     }
 
     /// Returns the idx of the Node

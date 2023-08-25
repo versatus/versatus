@@ -10,7 +10,7 @@ use serde::{de, Deserialize};
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use telemetry::{info, warn};
 use uuid::Uuid;
-use vrrb_config::NodeConfig;
+use vrrb_config::{NodeConfig, ThresholdConfig};
 use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 use crate::result::{CliError, Result};
@@ -111,7 +111,6 @@ impl From<RunOpts> for NodeConfig {
 
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
-            idx: opts.idx.unwrap_or(default_node_config.idx),
             data_dir: opts.data_dir,
             db_path: opts.db_path,
             node_type,

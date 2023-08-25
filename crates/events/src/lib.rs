@@ -23,6 +23,9 @@ mod tests {
         let event = Event::NoOp;
         let message: messr::Message<Event> = event.into();
 
-        assert_eq!(message, messr::Message::new_with_id(message.id,Event::NoOp, None));
+        assert_eq!(
+            message,
+            messr::Message::new_with_id(message.id, Event::NoOp, None)
+        );
     }
 }

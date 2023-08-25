@@ -29,6 +29,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 udp_gossip_addr,
                 raptorq_gossip_addr,
                 kademlia_liveness_addr,
+                validator_public_key,
             } => {
                 telemetry::info!("Node {} joined network", node_id);
 
@@ -39,6 +40,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     udp_gossip_addr,
                     raptorq_gossip_addr,
                     kademlia_liveness_addr,
+                    validator_public_key,
                 });
 
                 // TODO: once all known peers have been joined, send a `NetworkReady` event so a
@@ -74,6 +76,21 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 let evt = Event::QuorumMembershipAssigmentCreated(assigned_membership);
                 let em = EventMessage::new(Some("consensus-events".into()), evt);
 
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+            NetworkEvent::PartCommitmentCreated(node_id, part) => {
+                let evt = Event::PartCommitmentCreated(node_id, part);
+                let em = EventMessage::new(Some("consensus-events".into()), evt);
+
+                if let Err(err) = self.events_tx.send(em).await {
+                    dbg!(&err);
+                    telemetry::error!("{}", err);
+                }
+            },
+
+            NetworkEvent::PartCommitmentAcknowledged { node_id, sender_id } => {
+                let evt = Event::PartCommitmentAcknowledged { node_id, sender_id };
+                let em = EventMessage::new(Some("consensus-events".into()), evt);
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
