@@ -75,8 +75,10 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
 
                 let em = EventMessage::new(Some("network-events".into()), event);
 
-                self.events_tx.send(em).await.unwrap();
-                // .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.events_tx
+                    .send(em)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::PartCommitmentAcknowledged { node_id, sender_id } => {
                 self.handle_part_commitment_acknowledged(sender_id)?;
