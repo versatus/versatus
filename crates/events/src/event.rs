@@ -121,6 +121,9 @@ pub enum Event {
     /// to a particular quorum
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
+    /// Signals thaa a node acknowledges belonging to a quorum
+    QuorumMembershipSet(NodeId),
+
     PartCommitmentCreated(NodeId, Part),
 
     PartCommitmentAcknowledged {

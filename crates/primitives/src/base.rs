@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 /// The unit of time within VRRB.
@@ -78,4 +80,13 @@ pub enum QuorumKind {
     #[default]
     Harvester,
     Farmer,
+}
+
+impl Display for QuorumKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuorumKind::Harvester => write!(f, "Harvester"),
+            QuorumKind::Farmer => write!(f, "Farmer"),
+        }
+    }
 }

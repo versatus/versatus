@@ -98,7 +98,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
                 .filter(|peer| peer.node_id != node_id)
                 .collect::<Vec<PeerData>>(),
         };
-        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership).into();
+        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
 
         let em = EventMessage::new(Some("network-events".into()), event);
 
@@ -111,7 +111,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         &self,
         peer_list: HashMap<NodeId, (PeerData, bool)>,
     ) -> crate::Result<()> {
-        let unassigned_peers = peer_list
+        let mut unassigned_peers = peer_list
             .into_iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
@@ -122,7 +122,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         let harvester_count = (unassigned_peers_count as f64 * 0.3).ceil() as usize;
 
         // TODO: pick nodes at random
-        let mut harvester_peers = unassigned_peers
+        let harvester_peers = unassigned_peers
             .clone()
             .into_iter()
             .take(harvester_count)
@@ -137,7 +137,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
             .await?;
         }
 
-        for intended_farmer in unassigned_peers.iter() {
+        for intended_farmer in unassigned_peers.iter().skip(harvester_count) {
             self.assign_membership_to_quorum(
                 QuorumKind::Farmer,
                 intended_farmer.clone(),

@@ -41,7 +41,8 @@ impl TelemetrySubscriber {
                 .with_line_number(is_local_env)
                 .with_target(is_local_env)
                 .compact()
-                .pretty()
+                // .pretty()
+                .with_max_level(tracing::Level::ERROR)
                 .finish();
 
             sub.try_init()?;
@@ -58,6 +59,7 @@ impl TelemetrySubscriber {
 
             sub.try_init()?;
         }
+
         set_panic_hook();
 
         Ok(())

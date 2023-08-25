@@ -565,7 +565,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         let threshold_config = self.dkg_engine.threshold_config();
 
         let quorum_membership_config = self.quorum_driver.membership_config.clone().ok_or({
-            error!("Cannot participate in DKG");
+            error!("Node {} cannot participate in DKG", self.node_config.id);
             NodeError::Other("Cannot participate in DKG".to_string())
         })?;
 
@@ -640,6 +640,15 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         &mut self,
         assigned_membership: AssignedQuorumMembership,
     ) {
+        if let Some(membership_config) = &self.quorum_driver.membership_config {
+            telemetry::info!(
+                "{} already belongs to a {} quorum",
+                &self.node_config.id,
+                membership_config.quorum_kind
+            );
+            return;
+        }
+
         let quorum_kind = assigned_membership.quorum_kind.clone();
         let quorum_membership_config = QuorumMembershipConfig {
             quorum_members: assigned_membership
@@ -793,7 +802,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             .entry(node_id.clone())
             .or_insert_with(|| part);
 
-        self.dkg_engine.ack_partial_commitment(node_id)?;
+        self.dkg_engine.ack_partial_commitment(node_id).unwrap();
 
         Ok(())
     }
@@ -804,6 +813,18 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         sender_id: NodeId,
     ) -> Result<()> {
         let node_id = self.node_config.id.clone();
+
+        let quorum_members_count = self
+            .quorum_driver
+            .membership_config
+            .clone()
+            .unwrap_or_default()
+            .quorum_members
+            .len();
+
+        if self.dkg_engine.dkg_state.ack_message_store().values().len() == quorum_members_count {
+            return Ok(());
+        }
 
         let has_ack = self
             .dkg_engine

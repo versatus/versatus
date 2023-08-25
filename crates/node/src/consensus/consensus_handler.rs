@@ -49,11 +49,13 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
                 );
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
-                self.handle_quorum_membership_assigment_created(assigned_membership);
+                self.handle_quorum_membership_assigment_created(assigned_membership.clone());
 
-                let (part, node_id) = self
-                    .generate_partial_commitment_message()
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let (part, node_id) =
+                    self.generate_partial_commitment_message().map_err(|err| {
+                        telemetry::error!("{}", err);
+                        TheaterError::Other(err.to_string())
+                    })?;
 
                 let event = Event::PartCommitmentCreated(node_id, part);
 

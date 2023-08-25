@@ -12,16 +12,6 @@ async fn main() {
 
     let nodes = create_test_network(8).await;
 
-    // let rpc_client = create_node_rpc_client(node_0_rpc_addr).await;
-    //
-    // for i in 0..10 {
-    //     let args = create_mock_transaction_args(i * 3);
-    //
-    //     rpc_client.create_txn(args).await.unwrap();
-    // }
-
-    // dbg!(rpc_client.get_full_mempool().await.unwrap().len());
-
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     for node in nodes {
