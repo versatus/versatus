@@ -176,9 +176,14 @@ impl TreeWriter for RocksDbAdapter {
     }
 }
 
+pub(crate) fn serialize_version(version: Version) -> Vec<u8> {
+    version.to_be_bytes().into()
+}
+
 pub(crate) fn deserialize_version(version: Vec<u8>) -> Version {
     u64::from_be_bytes(
-        v.try_into()
+        version
+            .try_into()
             .expect("failed to convert `Vec<u8>` into `[u8; 8]`"),
     )
 }
