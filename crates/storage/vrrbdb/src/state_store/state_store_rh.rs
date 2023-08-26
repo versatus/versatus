@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, SimpleHasher};
+use patriecia::{JellyfishMerkleTree, KeyHash, Version};
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
@@ -21,9 +21,9 @@ impl StateStoreReadHandle {
 
     /// Returns `Some(Account)` if an account exist under given PublicKey.
     /// Otherwise returns `None`.
-    pub fn get(&self, key: &Address) -> Result<Account> {
+    pub fn get(&self, key: &Address, version: Version) -> Result<Account> {
         self.inner
-            .get(key)
+            .get(key, version)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
@@ -31,23 +31,27 @@ impl StateStoreReadHandle {
     ///
     /// Returns HashMap indexed by PublicKeys and containing either
     /// Some(account) or None if account was not found.
-    pub fn batch_get(&self, keys: Vec<Address>) -> HashMap<Address, Option<Account>> {
+    pub fn batch_get(
+        &self,
+        keys: Vec<Address>,
+        version: Version,
+    ) -> HashMap<Address, Option<Account>> {
         let mut accounts = HashMap::new();
 
         keys.iter().for_each(|key| {
-            let value = self.get(key).ok();
+            let value = self.get(key, version).ok();
             accounts.insert(key.to_owned(), value);
         });
 
         accounts
     }
 
-    pub fn entries(&self) -> HashMap<Address, Account> {
+    pub fn entries(&self, version: Version, starting_key: KeyHash) -> HashMap<Address, Account> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
-            .iter()
-            .filter_map(|(key, value)| {
-                if let Ok(key) = bincode::deserialize(&key) {
+            .iter(version, starting_key).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}")
+            .filter_map(|Ok((key, value))| {
+                if let Ok(key) = bincode::deserialize(&key.0) {
                     let value = bincode::deserialize(&value).unwrap_or_default();
 
                     return Some((key, value));

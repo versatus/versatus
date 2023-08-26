@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use integral_db::{LeftRightTrie, H256};
-use patriecia::SimpleHasher;
+use patriecia::{RootHash, SimpleHasher, Version};
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
@@ -49,7 +49,7 @@ impl StateStore {
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
     pub fn read_handle(&self) -> StateStoreReadHandle {
-        let inner = self.trie.handle();
+        let inner = self.trie.handle().unwrap();
         StateStoreReadHandle::new(inner)
     }
 
@@ -57,9 +57,9 @@ impl StateStore {
         self.trie.publish();
     }
 
-    pub fn get_account(&self, key: &Address) -> Result<Account> {
+    pub fn get_account(&self, key: &Address, version: Version) -> Result<Account> {
         let read_handle = self.read_handle();
-        read_handle.get(key)
+        read_handle.get(key, version)
     }
 
     /// Commits uncommitted changes to the underlying trie by calling
@@ -69,7 +69,12 @@ impl StateStore {
     }
 
     // Maybe initialize is better name for that?
-    fn insert_uncommited(&mut self, key: Address, account: Account) -> Result<()> {
+    fn insert_uncommited(
+        &mut self,
+        key: Address,
+        account: Account,
+        version: Version,
+    ) -> Result<()> {
         if account.debits() != 0 {
             return Err(StorageError::Other(
                 "cannot insert account with debit".to_string(),
@@ -82,14 +87,14 @@ impl StateStore {
             ));
         }
 
-        self.trie.insert(key, account);
+        self.trie.insert(key, account, version);
 
         Ok(())
     }
 
     /// Inserts new account into StateDb.
-    pub fn insert(&mut self, key: Address, account: Account) -> Result<()> {
-        self.insert_uncommited(key, account)?;
+    pub fn insert(&mut self, key: Address, account: Account, version: Version) -> Result<()> {
+        self.insert_uncommited(key, account, version)?;
         self.commit_changes();
         Ok(())
     }
@@ -101,12 +106,13 @@ impl StateStore {
     fn batch_insert_uncommited(
         &mut self,
         inserts: Vec<(Address, Account)>,
+        version: Version,
     ) -> Option<Vec<(Address, Account, StorageError)>> {
         let mut failed_inserts: Vec<(Address, Account, StorageError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
-            if let Err(e) = self.insert_uncommited(k.to_owned(), v.clone()) {
+            if let Err(e) = self.insert_uncommited(k.to_owned(), v.clone(), version) {
                 failed_inserts.push((k.to_owned(), v.clone(), e));
             }
         });
@@ -126,8 +132,9 @@ impl StateStore {
     pub fn batch_insert(
         &mut self,
         inserts: Vec<(Address, Account)>,
+        version: Version,
     ) -> Option<Vec<(Address, Account, StorageError)>> {
-        let failed_inserts = self.batch_insert_uncommited(inserts);
+        let failed_inserts = self.batch_insert_uncommited(inserts, version);
         self.commit_changes();
         failed_inserts
     }
@@ -153,28 +160,37 @@ impl StateStore {
     }
 
     /// Returns a number of initialized accounts in the database
-    pub fn len(&self) -> usize {
-        self.trie.len()
+    pub fn len(&self) -> Result<usize> {
+        self.trie
+            .len()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     /// Returns true if the number of initialized accounts in the database is
     /// zero.
-    pub fn is_empty(&self) -> bool {
-        self.trie.is_empty()
+    pub fn is_empty(&self) -> Result<bool> {
+        self.trie
+            .is_empty()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     /// Updates a given account if it exists within the store
-    fn update_uncommited(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
+    fn update_uncommited(
+        &mut self,
+        key: Address,
+        update: UpdateArgs,
+        version: Version,
+    ) -> Result<()> {
         let mut account = self
             .read_handle()
-            .get(&key)
+            .get(&key, version)
             .map_err(|err| StorageError::Other(err.to_string()))?;
 
         account
             .update(update)
             .map_err(|err| StorageError::Other(err.to_string()))?;
 
-        self.trie.update(key, account.clone());
+        self.trie.update(key, account.clone(), version);
 
         Ok(())
     }
@@ -182,9 +198,9 @@ impl StateStore {
     /// Updates an Account in the database under given PublicKey
     ///
     /// If succesful commits the change. Otherwise returns an error.
-    pub fn update(&mut self, update: UpdateArgs) -> Result<()> {
+    pub fn update(&mut self, update: UpdateArgs, version: Version) -> Result<()> {
         let key = update.address.clone();
-        self.update_uncommited(key, update)?;
+        self.update_uncommited(key, update, version)?;
         self.commit_changes();
         Ok(())
     }
@@ -205,6 +221,7 @@ impl StateStore {
     pub fn batch_update(
         &mut self,
         mut updates: Vec<(Address, UpdateArgs)>,
+        version: Version,
     ) -> Option<FailedAccountUpdates> {
         // Store and return all failures as (PublicKey, AllPushedUpdates, Error)
         // This way caller is provided with all info -> They know which accounts were
@@ -240,7 +257,7 @@ impl StateStore {
             let mut fail: (bool, Result<()>) = (false, Ok(()));
             let mut final_account = Account::default();
 
-            let account_result = self.read_handle().get(k);
+            let account_result = self.read_handle().get(k, version);
 
             match account_result {
                 Ok(mut account) => {
@@ -263,7 +280,7 @@ impl StateStore {
                 failed.push((k.to_owned(), v, fail.1));
             } else {
                 // TODO: implement an update method on underlying lr trie
-                self.trie.insert(k.to_owned(), final_account);
+                self.trie.insert(k.to_owned(), final_account, version);
             };
         });
 
@@ -278,12 +295,14 @@ impl StateStore {
         Some(failed)
     }
 
-    pub fn root_hash(&self) -> Option<H256> {
-        self.trie.root()
+    pub fn root_hash(&self, version: Version) -> Result<RootHash> {
+        self.trie
+            .root(version)
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
-    pub fn extend(&mut self, accounts: Vec<(Address, Account)>) {
-        self.trie.extend(accounts)
+    pub fn extend(&mut self, accounts: Vec<(Address, Option<Account>)>, version: Version) {
+        self.trie.extend(accounts, version)
     }
 
     pub fn factory(&self) -> StateStoreReadHandleFactory {
