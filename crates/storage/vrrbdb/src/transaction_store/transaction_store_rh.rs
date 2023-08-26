@@ -48,11 +48,14 @@ impl TransactionStoreReadHandle {
         self.inner
             .iter(version, starting_key)
             .unwrap()
-            .map(|Ok((key, value))| {
-                let key = bincode::deserialize(&key.0).unwrap_or_default();
-                let value = bincode::deserialize(&value).unwrap_or_default();
+            .filter_map(|item| {
+                if let Ok((key, value)) = item {
+                    let key = bincode::deserialize(&key.0).unwrap_or_default();
+                    let value = bincode::deserialize(&value).unwrap_or_default();
 
-                (key, value)
+                    return Some((key, value));
+                }
+                None
             })
             .collect()
     }

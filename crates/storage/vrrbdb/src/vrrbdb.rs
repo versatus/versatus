@@ -223,37 +223,37 @@ impl Clone for VrrbDb {
         }
     }
 }
+// TODO: uncomment this once `entries` is fixed
+// impl Display for VrrbDb {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let state_entries = self.state_store_factory().handle().entries();
+//         let transaction_entries = self
+//             .transaction_store_factory()
+//             .handle()
+//             .entries()
+//             .into_iter()
+//             .map(|(digest, txn)| (digest.to_string(), txn))
+//             .collect::<HashMap<String, Txn>>();
+//         let claim_entries = self.claim_store_factory().handle().entries();
 
-impl Display for VrrbDb {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let state_entries = self.state_store_factory().handle().entries();
-        let transaction_entries = self
-            .transaction_store_factory()
-            .handle()
-            .entries()
-            .into_iter()
-            .map(|(digest, txn)| (digest.to_string(), txn))
-            .collect::<HashMap<String, Txn>>();
-        let claim_entries = self.claim_store_factory().handle().entries();
+//         let out = json!({
+//             "state": {
+//                 "count": state_entries.len(),
+//                 "entries": state_entries,
+//             },
+//             "transactions": {
+//                 "count": transaction_entries.len(),
+//                 "entries": transaction_entries,
+//             },
+//             "claims": {
+//                 "count": claim_entries.len(),
+//                 "entries": claim_entries,
+//             },
+//         });
 
-        let out = json!({
-            "state": {
-                "count": state_entries.len(),
-                "entries": state_entries,
-            },
-            "transactions": {
-                "count": transaction_entries.len(),
-                "entries": transaction_entries,
-            },
-            "claims": {
-                "count": claim_entries.len(),
-                "entries": claim_entries,
-            },
-        });
+//         //TODO: report errors better
+//         let out_str = serde_json::to_string_pretty(&out).map_err(|_| std::fmt::Error)?;
 
-        //TODO: report errors better
-        let out_str = serde_json::to_string_pretty(&out).map_err(|_| std::fmt::Error)?;
-
-        f.write_str(&out_str)
-    }
-}
+//         f.write_str(&out_str)
+//     }
+// }

@@ -47,10 +47,12 @@ impl ClaimStoreReadHandle {
         self.inner
             .iter(version, starting_key)
             .unwrap()
-            .filter_map(|Ok((key, value))| {
-                if let Ok(key) = bincode::deserialize(&key.0) {
-                    if let Ok(value) = bincode::deserialize(&value) {
-                        return Some((key, value));
+            .filter_map(|item| {
+                if let Ok((key, value)) = item {
+                    if let Ok(key) = bincode::deserialize(&key.0) {
+                        if let Ok(value) = bincode::deserialize(&value) {
+                            return Some((key, value));
+                        }
                     }
                 }
                 None

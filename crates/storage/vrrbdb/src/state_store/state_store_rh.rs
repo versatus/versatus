@@ -50,11 +50,13 @@ impl StateStoreReadHandle {
         // TODO: revisit and refactor into inner wrapper
         self.inner
             .iter(version, starting_key).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}")
-            .filter_map(|Ok((key, value))| {
-                if let Ok(key) = bincode::deserialize(&key.0) {
-                    let value = bincode::deserialize(&value).unwrap_or_default();
-
-                    return Some((key, value));
+            .filter_map(|item| {
+                if let Ok((key, value)) = item {
+                    if let Ok(key) = bincode::deserialize(&key.0) {
+                        let value = bincode::deserialize(&value).unwrap_or_default();
+    
+                        return Some((key, value));
+                    }
                 }
                 None
             })
