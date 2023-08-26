@@ -1,9 +1,9 @@
 use std::{path::Path, sync::Arc};
 
 use integral_db::{LeftRightTrie, Proof, H256};
-use patriecia::SimpleHasher;
+use patriecia::{RootHash, Version};
 use sha2::Sha256;
-use storage_utils::Result;
+use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
@@ -52,26 +52,28 @@ impl TransactionStore {
     }
 
     pub fn read_handle(&self) -> TransactionStoreReadHandle {
-        let inner = self.trie.handle().unwrap();
+        let inner = self.trie.handle();
         TransactionStoreReadHandle::new(inner)
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<()> {
-        self.trie.insert(txn.digest(), txn);
+    pub fn insert(&mut self, txn: Txn, version: Version) -> Result<()> {
+        self.trie.insert(txn.digest(), txn, version);
         Ok(())
     }
 
-    pub fn extend(&mut self, transactions: Vec<Txn>) {
+    pub fn extend(&mut self, transactions: Vec<Txn>, version: Version) {
         let transactions = transactions
             .into_iter()
-            .map(|txn| (txn.digest(), txn))
+            .map(|txn| (txn.digest(), Some(txn)))
             .collect();
 
-        self.trie.extend(transactions)
+        self.trie.extend(transactions, version)
     }
 
-    pub fn root_hash(&self) -> Option<H256> {
-        self.trie.root()
+    pub fn root_hash(&self, version: Version) -> Result<RootHash> {
+        self.trie
+            .root(version)
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     pub fn get_proof(&self) -> Result<Vec<Proof>> {

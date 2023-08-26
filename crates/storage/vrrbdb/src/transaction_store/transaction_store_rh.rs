@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, KeyHash, SimpleHasher, Version};
+use patriecia::{JellyfishMerkleTree, KeyHash, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};
@@ -43,19 +43,18 @@ impl TransactionStoreReadHandle {
         &self,
         version: Version,
         starting_key: KeyHash,
-    ) -> Result<HashMap<TransactionDigest, Txn>> {
+    ) -> HashMap<TransactionDigest, Txn> {
         // TODO: revisit and refactor into inner wrapper
-        Ok(self
-            .inner
+        self.inner
             .iter(version, starting_key)
-            .map_err(|e| StorageError::Other(e.to_string()))?
+            .unwrap()
             .map(|Ok((key, value))| {
                 let key = bincode::deserialize(&key.0).unwrap_or_default();
                 let value = bincode::deserialize(&value).unwrap_or_default();
 
                 (key, value)
             })
-            .collect())
+            .collect()
     }
 
     /// Returns a number of transactions in the ledger

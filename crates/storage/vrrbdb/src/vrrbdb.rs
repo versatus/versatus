@@ -1,8 +1,7 @@
 use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use ethereum_types::U256;
-use integral_db::H256;
-use patriecia::SimpleHasher;
+use patriecia::{RootHash, Version};
 use primitives::Address;
 use serde_json::json;
 use storage_utils::{Result, StorageError};
@@ -107,18 +106,18 @@ impl VrrbDb {
     }
 
     /// Returns the current state store trie's root hash.
-    pub fn state_root_hash(&self) -> Option<H256> {
-        self.state_store.root_hash()
+    pub fn state_root_hash(&self, version: Version) -> Result<RootHash> {
+        self.state_store.root_hash(version)
     }
 
     /// Returns the transaction store trie's root hash.
-    pub fn transactions_root_hash(&self) -> Option<H256> {
-        self.transaction_store.root_hash()
+    pub fn transactions_root_hash(&self, version: Version) -> Result<RootHash> {
+        self.transaction_store.root_hash(version)
     }
 
     /// Returns the claim store trie's root hash.
-    pub fn claims_root_hash(&self) -> Option<H256> {
-        self.claim_store.root_hash()
+    pub fn claims_root_hash(&self, version: Version) -> Result<RootHash> {
+        self.claim_store.root_hash(version)
     }
 
     /// Produces a reader factory that can be used to generate read handles into
@@ -140,64 +139,73 @@ impl VrrbDb {
     }
 
     /// Inserts an account to current state tree.
-    pub fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
-        self.state_store.insert(key, account)
+    pub fn insert_account(
+        &mut self,
+        key: Address,
+        account: Account,
+        version: Version,
+    ) -> Result<()> {
+        self.state_store.insert(key, account, version)
     }
 
     /// Adds multiplpe accounts to current state tree.
-    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Account)>) {
-        self.state_store.extend(accounts);
+    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Option<Account>)>, version: Version) {
+        self.state_store.extend(accounts, version);
     }
 
     /// Updates an account on the current state tree.
-    pub fn update_account(&mut self, args: UpdateArgs) -> Result<()> {
+    pub fn update_account(&mut self, args: UpdateArgs, version: Version) -> Result<()> {
         self.state_store
-            .update(args)
+            .update(args, version)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
     /// Inserts a confirmed transaction to the ledger. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn insert_transaction_unchecked(&mut self, txn: Txn) -> Result<()> {
-        self.transaction_store.insert(txn)
+    pub fn insert_transaction_unchecked(&mut self, txn: Txn, version: Version) -> Result<()> {
+        self.transaction_store.insert(txn, version)
     }
 
     /// Adds multiplpe transactions to current state tree. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<Txn>) {
-        self.transaction_store.extend(transactions);
+    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<Txn>, version: Version) {
+        self.transaction_store.extend(transactions, version);
     }
 
     /// Inserts a confirmed transaction to the ledger. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn insert_transaction(&mut self, txn: Txn) -> Result<()> {
-        self.transaction_store.insert(txn)
+    pub fn insert_transaction(&mut self, txn: Txn, version: Version) -> Result<()> {
+        self.transaction_store.insert(txn, version)
     }
 
     /// Adds multiplpe transactions to current transaction tree. Does not check
     /// if accounts involved in the transaction actually exist.
-    pub fn extend_transactions(&mut self, transactions: Vec<Txn>) {
-        self.transaction_store.extend(transactions);
+    pub fn extend_transactions(&mut self, transactions: Vec<Txn>, version: Version) {
+        self.transaction_store.extend(transactions, version);
     }
 
     /// Inserts a confirmed claim to the current claim tree.
-    pub fn insert_claim_unchecked(&mut self, claim: Claim) -> Result<()> {
-        self.claim_store.insert(claim)
+    pub fn insert_claim_unchecked(&mut self, claim: Claim, version: Version) -> Result<()> {
+        self.claim_store.insert(claim, version)
     }
 
     /// Adds multiple claims to the current claim tree.  
-    pub fn extend_claims_unchecked(&mut self, claims: Vec<(U256, Claim)>) {
-        self.claim_store.extend(claims)
+    pub fn extend_claims_unchecked(
+        &mut self,
+        claims: Vec<(U256, Option<Claim>)>,
+        version: Version,
+    ) {
+        self.claim_store.extend(claims, version)
     }
 
     /// Inserts a confirmed claim into the claim tree.
-    pub fn insert_claim(&mut self, claim: Claim) -> Result<()> {
-        self.claim_store.insert(claim)
+    pub fn insert_claim(&mut self, claim: Claim, version: Version) -> Result<()> {
+        self.claim_store.insert(claim, version)
     }
 
     /// Inserts multiple claims into the current claim trie
-    pub fn extend_claims(&mut self, claims: Vec<(U256, Claim)>) {
-        self.claim_store.extend(claims)
+    pub fn extend_claims(&mut self, claims: Vec<(U256, Option<Claim>)>, version: Version) {
+        self.claim_store.extend(claims, version)
     }
 
     /// Updates a calim in the current claim trie.

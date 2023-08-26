@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
-use integral_db::{LeftRightTrie, H256};
-use patriecia::{RootHash, SimpleHasher, Version};
+use integral_db::LeftRightTrie;
+use patriecia::{RootHash, Version};
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
@@ -49,7 +49,7 @@ impl StateStore {
     /// Returns new ReadHandle to the VrrDb data. As long as the returned value
     /// lives, no write to the database will be committed.
     pub fn read_handle(&self) -> StateStoreReadHandle {
-        let inner = self.trie.handle().unwrap();
+        let inner = self.trie.handle();
         StateStoreReadHandle::new(inner)
     }
 
