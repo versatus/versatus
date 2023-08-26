@@ -1,6 +1,7 @@
 use anyhow::Result;
 use patriecia::{
-    LeafNode, Node, NodeBatch, NodeKey, TreeReader, TreeUpdateBatch, TreeWriter, VersionedDatabase,
+    LeafNode, Node, NodeBatch, NodeKey, TreeReader, TreeUpdateBatch, TreeWriter, Version,
+    VersionedDatabase,
 };
 use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME};
@@ -173,4 +174,11 @@ impl TreeWriter for RocksDbAdapter {
     fn write_node_batch(&self, node_batch: &NodeBatch) -> Result<()> {
         todo!()
     }
+}
+
+pub(crate) fn deserialize_version(version: Vec<u8>) -> Version {
+    u64::from_be_bytes(
+        v.try_into()
+            .expect("failed to convert `Vec<u8>` into `[u8; 8]`"),
+    )
 }
