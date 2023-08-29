@@ -6,7 +6,7 @@ use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::RocksDbAdapter;
+use crate::{RocksDbAdapter, STARTING_KEY};
 
 #[derive(Debug, Clone)]
 pub struct TransactionStoreReadHandle {
@@ -39,14 +39,10 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries(
-        &self,
-        version: Version,
-        starting_key: KeyHash,
-    ) -> HashMap<TransactionDigest, Txn> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
-            .iter(version, starting_key)
+            .iter(self.inner.version(), STARTING_KEY)
             .unwrap()
             .filter_map(|item| {
                 if let Ok((key, value)) = item {

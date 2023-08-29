@@ -13,6 +13,8 @@ use std::sync::Arc;
 use storage_utils::{get_node_data_dir, StorageError};
 use telemetry::error;
 
+pub const STARTING_KEY: KeyHash = KeyHash([0u8; 32]);
+
 #[derive(Debug)]
 pub struct RocksDbAdapter {
     data: Arc<RwLock<RocksDbInner>>,

@@ -7,7 +7,7 @@ use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::Account;
 
-use crate::RocksDbAdapter;
+use crate::{RocksDbAdapter, STARTING_KEY};
 
 #[derive(Debug, Clone)]
 pub struct StateStoreReadHandle {
@@ -46,10 +46,10 @@ impl StateStoreReadHandle {
         accounts
     }
 
-    pub fn entries(&self, version: Version, starting_key: KeyHash) -> HashMap<Address, Account> {
+    pub fn entries(&self) -> HashMap<Address, Account> { 
         // TODO: revisit and refactor into inner wrapper
         self.inner
-            .iter(version, starting_key).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}")
+            .iter(self.inner.version(), STARTING_KEY).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}")
             .filter_map(|item| {
                 if let Ok((key, value)) = item {
                     if let Ok(key) = bincode::deserialize(&key.0) {

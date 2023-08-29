@@ -7,7 +7,7 @@ use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
-use crate::RocksDbAdapter;
+use crate::{RocksDbAdapter, STARTING_KEY};
 
 #[derive(Debug, Clone)]
 pub struct ClaimStoreReadHandle {
@@ -42,10 +42,10 @@ impl ClaimStoreReadHandle {
         claims
     }
 
-    pub fn entries(&self, version: Version, starting_key: KeyHash) -> HashMap<NodeId, Claim> {
+    pub fn entries(&self) -> HashMap<NodeId, Claim> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
-            .iter(version, starting_key)
+            .iter(self.inner.version(), STARTING_KEY)
             .unwrap()
             .filter_map(|item| {
                 if let Ok((key, value)) = item {
