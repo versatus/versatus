@@ -10,10 +10,11 @@ use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
 use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME, IteratorMode};
 use storage_utils::{get_node_data_dir, StorageError};
 use telemetry::error;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug)]
 pub struct RocksDbAdapter {
-    db: DB,
+    db: Arc<RwLock<DB>>,
     column: String,
     stale_nodes: BTreeSet<StaleNodeIndex>, 
     value_history: HashMap<KeyHash, Vec<(Vers, Option<OwnedValue>)>>,
@@ -170,12 +171,12 @@ impl VersionedDatabase for RocksDbAdapter {
         self.get_value_option(max_version, node_key)
     }
 
-    fn update_batch(&mut self, tree_update_batch: TreeUpdateBatch) -> Result<()> {
+    fn update_batch(&self, tree_update_batch: TreeUpdateBatch) -> Result<()> {
         self.write_tree_update_batch(tree_update_batch)
     }
 
     fn nodes(&self) -> IntoIter<NodeKey, Node> {
-        let iter = self.db.iterator(IteratorMode::Start);
+        let iter = self.db.read().iterator(IteratorMode::Start);
         let mut map = HashMap::new();
         for res in iter {
             match res {
@@ -241,7 +242,7 @@ impl TreeReader for RocksDbAdapter {
     fn get_rightmost_leaf(&self) -> Result<Option<(NodeKey, LeafNode)>> {
         let mut key_and_node: Option<(NodeKey, LeafNode)> = None; 
 
-        let iter = self.db.iterator(IteratorMode::Start);
+        let iter = self.db.read().iterator(IteratorMode::Start);
         for res in iter {
             if let Ok((boxed_key, boxed_value)) = res {
                 let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
@@ -260,7 +261,8 @@ impl TreeReader for RocksDbAdapter {
 }
 
 impl TreeWriter for RocksDbAdapter {
-    fn write_node_batch(&mut self, node_batch: &NodeBatch) -> Result<()> { 
+    fn write_node_batch(&self, node_batch: &NodeBatch) -> Result<()> { 
+        let mut locked = self.db.write();
         for (node_key, node) in nodes_batch.nodes() {
             let node_key_bytes = bincode::serialize(&node_key)?;
             let node_bytes = bincode::serialize(&node)?;
