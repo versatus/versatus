@@ -12,3 +12,4 @@ serial_test = { workspace = true }
 ethereum-types = { workspace = true }
 integral-db = { workspace = true }
 anyhow = { workspace = true }
+parking_lot = { workspace = true }

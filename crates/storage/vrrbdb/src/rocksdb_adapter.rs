@@ -1,24 +1,39 @@
 use std::collections::hash_map::IntoIter;
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{hash_map::Entry, BTreeSet, HashMap};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
+use parking_lot::RwLock;
 use patriecia::{
-    LeafNode, Node, NodeBatch, NodeKey, TreeReader, TreeUpdateBatch, TreeWriter,
-    VersionedDatabase, OwnedValue, KeyHash, Preimage, StaleNodeIndex, Vers,
+    KeyHash, LeafNode, Node, NodeBatch, NodeKey, OwnedValue, Preimage, StaleNodeIndex, TreeReader,
+    TreeUpdateBatch, TreeWriter, Vers, VersionedDatabase,
 };
 use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
-use rocksdb::{DB, DEFAULT_COLUMN_FAMILY_NAME, IteratorMode};
+use rocksdb::{IteratorMode, DB, DEFAULT_COLUMN_FAMILY_NAME};
+use std::sync::Arc;
 use storage_utils::{get_node_data_dir, StorageError};
 use telemetry::error;
-use std::sync::{Arc, RwLock};
 
 #[derive(Debug)]
 pub struct RocksDbAdapter {
-    db: Arc<RwLock<DB>>,
+    data: Arc<RwLock<RocksDbInner>>,
     column: String,
-    stale_nodes: BTreeSet<StaleNodeIndex>, 
+}
+#[derive(Debug)]
+pub struct RocksDbInner {
+    db: DB,
+    stale_nodes: BTreeSet<StaleNodeIndex>,
     value_history: HashMap<KeyHash, Vec<(Vers, Option<OwnedValue>)>>,
     preimages: HashMap<KeyHash, Preimage>,
+}
+impl RocksDbInner {
+    fn new(instance: DB) -> Self {
+        Self {
+            db: instance,
+            stale_nodes: BTreeSet::new(),
+            value_history: HashMap::new(),
+            preimages: HashMap::new(),
+        }
+    }
 }
 
 fn base_db_options() -> rocksdb::Options {
@@ -90,25 +105,23 @@ impl RocksDbAdapter {
             .map_err(|err| StorageError::Other(err.to_string()))?;
 
         Ok(Self {
-            db: instance,
+            data: Arc::new(RwLock::new(RocksDbInner::new(instance))),
             column: column_family.to_string(),
-            stale_nodes: BTreeSet::new(),
-            value_history: HashMap::new(),
-            preimages: HashMap::new(),
         })
     }
-    
-    pub fn write_tree_update_batch(&mut self, batch: TreeUpdateBatch) -> Result<()> {
+
+    pub fn write_tree_update_batch(&self, batch: TreeUpdateBatch) -> Result<()> {
         self.write_node_batch(&batch.node_batch)?;
-        batch.stale_node_index_batch
+        batch
+            .stale_node_index_batch
             .into_iter()
             .map(|i| self.put_stale_node_index(i))
             .collect::<Result<Vec<_>>>()?;
         Ok(())
     }
 
-    pub fn put_stale_node_index(&mut self, index: StaleNodeIndex) -> Result<()> {
-        let is_new_entry = self.stale_nodes.insert(index);
+    pub fn put_stale_node_index(&self, index: StaleNodeIndex) -> Result<()> {
+        let is_new_entry = self.data.write().stale_nodes.insert(index);
         anyhow::ensure!(is_new_entry, "Duplicated retire log");
         Ok(())
     }
@@ -117,17 +130,20 @@ impl RocksDbAdapter {
 // TODO: handle these unwrap
 impl Clone for RocksDbAdapter {
     fn clone(&self) -> Self {
+        let locked = self.data.read();
         let mut options = base_db_options();
         options.set_error_if_exists(false);
 
-        let db = new_db_instance(options, self.db.path().into(), self.column.as_str()).unwrap();
+        let db = new_db_instance(options, locked.db.path().into(), self.column.as_str()).unwrap();
 
         Self {
-            db,
+            data: Arc::new(RwLock::new(RocksDbInner {
+                db,
+                stale_nodes: locked.stale_nodes.clone(),
+                value_history: locked.value_history.clone(),
+                preimages: locked.preimages.clone(),
+            })),
             column: self.column.clone(),
-            stale_nodes: self.stale_nodes.clone(),
-            value_history: self.value_history.clone(),
-            preimages: self.preimages.clone()
         }
     }
 }
@@ -149,11 +165,13 @@ impl Default for RocksDbAdapter {
         .unwrap();
 
         Self {
-            db,
+            data: Arc::new(RwLock::new(RocksDbInner {
+                db,
+                stale_nodes: BTreeSet::new(),
+                value_history: HashMap::new(),
+                preimages: HashMap::new(),
+            })),
             column: DEFAULT_COLUMN_FAMILY_NAME.to_string(),
-            stale_nodes: BTreeSet::new(),
-            value_history: HashMap::new(),
-            preimages: HashMap::new(),
         }
     }
 }
@@ -163,11 +181,7 @@ impl VersionedDatabase for RocksDbAdapter {
     type NodeIter = IntoIter<NodeKey, Node>;
     type HistoryIter = IntoIter<patriecia::KeyHash, Vec<(Vers, Option<OwnedValue>)>>;
 
-    fn get(
-        &self,
-        max_version: Self::Version,
-        node_key: KeyHash,
-    ) -> Result<Option<OwnedValue>> {
+    fn get(&self, max_version: Self::Version, node_key: KeyHash) -> Result<Option<OwnedValue>> {
         self.get_value_option(max_version, node_key)
     }
 
@@ -176,7 +190,8 @@ impl VersionedDatabase for RocksDbAdapter {
     }
 
     fn nodes(&self) -> IntoIter<NodeKey, Node> {
-        let iter = self.db.read().iterator(IteratorMode::Start);
+        let locked = self.data.read();
+        let iter = locked.db.iterator(IteratorMode::Start);
         let mut map = HashMap::new();
         for res in iter {
             match res {
@@ -188,8 +203,8 @@ impl VersionedDatabase for RocksDbAdapter {
                             map.insert(node_key, node);
                         }
                     };
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -200,9 +215,9 @@ impl VersionedDatabase for RocksDbAdapter {
         &self,
     ) -> std::collections::hash_map::IntoIter<
         patriecia::KeyHash,
-        Vec<(Self::Version, Option<patriecia::OwnedValue>)>
+        Vec<(Self::Version, Option<patriecia::OwnedValue>)>,
     > {
-        self.value_history.clone().into_iter()
+        self.data.read().value_history.clone().into_iter()
     }
 }
 impl TreeReader for RocksDbAdapter {
@@ -210,7 +225,7 @@ impl TreeReader for RocksDbAdapter {
 
     fn get_node_option(&self, node_key: &NodeKey) -> Result<Option<Node>> {
         let key_bytes = bincode::serialize(node_key)?;
-        if let Ok(Some(bytes)) = self.db.get(&key_bytes) {
+        if let Ok(Some(bytes)) = self.data.read().db.get(&key_bytes) {
             if let Ok(node) = bincode::deserialize(&bytes) {
                 Ok(Some(node))
             } else {
@@ -226,23 +241,24 @@ impl TreeReader for RocksDbAdapter {
         max_version: Vers,
         key_hash: patriecia::KeyHash,
     ) -> Result<Option<patriecia::OwnedValue>> {
-        match self.value_history.get(&key_hash) {
+        match self.data.read().value_history.get(&key_hash) {
             Some(version_history) => {
-               for (version, value) in version_history.iter().rev() {
-                   if *version <= max_version {
-                       return Ok(value.clone())
-                   }
-               }
-               Ok(None)
+                for (version, value) in version_history.iter().rev() {
+                    if *version <= max_version {
+                        return Ok(value.clone());
+                    }
+                }
+                Ok(None)
             },
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 
     fn get_rightmost_leaf(&self) -> Result<Option<(NodeKey, LeafNode)>> {
-        let mut key_and_node: Option<(NodeKey, LeafNode)> = None; 
+        let locked = self.data.read();
+        let mut key_and_node: Option<(NodeKey, LeafNode)> = None;
 
-        let iter = self.db.read().iterator(IteratorMode::Start);
+        let iter = locked.db.iterator(IteratorMode::Start);
         for res in iter {
             if let Ok((boxed_key, boxed_value)) = res {
                 let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
@@ -261,35 +277,24 @@ impl TreeReader for RocksDbAdapter {
 }
 
 impl TreeWriter for RocksDbAdapter {
-    fn write_node_batch(&self, node_batch: &NodeBatch) -> Result<()> { 
-        let mut locked = self.db.write();
-        for (node_key, node) in nodes_batch.nodes() {
+    fn write_node_batch(&self, node_batch: &NodeBatch) -> Result<()> {
+        let mut locked = self.data.write();
+        for (node_key, node) in node_batch.nodes() {
             let node_key_bytes = bincode::serialize(&node_key)?;
             let node_bytes = bincode::serialize(&node)?;
-            self.db.put(node_key_bytes, node_bytes)?;
+            locked.db.put(node_key_bytes, node_bytes)?;
         }
 
         for ((version, key_hash), value) in node_batch.values() {
             put_value(
-                &mut self.value_history,
+                &mut locked.value_history,
                 version.into(),
-                key_hash,
-                value.clone()
-            );
+                *key_hash,
+                value.clone(),
+            )?
         }
         Ok(())
     }
-}
-
-pub(crate) fn serialize_version(version: Vers) -> Vec<u8> {
-    version.0.to_be_bytes().into()
-}
-
-pub(crate) fn deserialize_version(version: Vec<u8>) -> Vers {
-    Vers(u64::from_be_bytes(
-        version
-            .try_into().unwrap_or_default(),
-    ))
 }
 
 pub fn put_value(
@@ -306,17 +311,16 @@ pub fn put_value(
                     core::cmp::Ordering::Equal => {
                         *last_value = value;
                         return Ok(());
-                    }
+                    },
                     // If the new value has a higher version than the previous one, fall through and push it to the array
-                    core::cmp::Ordering::Greater => {}
+                    core::cmp::Ordering::Greater => {},
                 }
             }
             occupied.get_mut().push((version, value));
-        }
+        },
         Entry::Vacant(vacant) => {
             vacant.insert(vec![(version, value)]);
-        }
+        },
     }
     Ok(())
 }
-
