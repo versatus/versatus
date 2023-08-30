@@ -1,18 +1,20 @@
 use std::path::PathBuf;
 
+use block::Block;
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
 };
-use vrrb_core::transactions::TransactionKind;
 
 use crate::{
-    ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
-    TransactionStore, TransactionStoreReadHandleFactory, VrrbDbReadHandle,
+    ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, StateStore,
+    StateStoreReadHandleFactory, TransactionStore, TransactionStoreReadHandleFactory,
+    VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
@@ -202,6 +204,88 @@ impl VrrbDb {
     pub fn update_claim(&mut self, _key: Address, _args: UpdateArgs) {
         todo!()
     }
+
+    fn apply_txn(
+        &mut self,
+        read_handle: VrrbDbReadHandle,
+        txn_kind: TransactionKind,
+    ) -> Result<()> {
+        match &txn_kind {
+            TransactionKind::Transfer(txn) => {
+                // TODO: check if sender has enough balance
+                // TODO: check if timestamps are correct
+
+                let updates = IntoUpdates::from_txn(txn_kind.clone());
+
+                let sender_address = txn.sender_address();
+                let receiver_address = txn.receiver_address();
+
+                let sender = read_handle.get_account_by_address(&sender_address)?;
+                let receiver = read_handle.get_account_by_address(&receiver_address)?;
+
+                println!("{}", sender);
+                println!("{}", receiver);
+
+                // let update = UpdateArgs {
+                //     address: sender.address().to_owned(),
+                //     nonce: Some(sender.nonce() + 1),
+                //     credits: (),
+                //     debits: (),
+                //     storage: None,
+                //     code: None,
+                //     digests: (),
+                // };
+
+                // self.state_store.update(update);
+
+                // TODO: update transaction's state
+                self.transaction_store.insert(txn_kind)?;
+
+                Ok(())
+            },
+            _ => {
+                telemetry::info!("unsupported transaction type: {:?}", txn_kind);
+                Err(StorageError::Other(
+                    "unsupported transaction type".to_string(),
+                ))
+            },
+        }
+    }
+
+    /// Applies a block of transactions updating the account states accordingly.
+    pub fn apply_block(&mut self, block: Block) -> Result<String> {
+        let read_handle = self.read_handle();
+
+        match block {
+            Block::Genesis { block } => {
+                for (_, txn_kind) in block.txns {
+                    self.apply_txn(read_handle.clone(), txn_kind)?;
+                }
+            },
+            Block::Convergence { .. } => {
+                todo!()
+            },
+            _ => {
+                telemetry::info!("unsupported block type: {:?}", block);
+                return Err(StorageError::Other("unsupported block type".to_string()));
+            },
+        }
+
+        self.transaction_store.commit();
+        self.state_store.commit();
+
+        let state_root_hash = self.state_store.root_hash()?;
+        let txn_root_hash = self.transaction_store.root_hash()?;
+        // let claim_root_hash = self.claim_store.root_hash()?;
+
+        let txn_root_hash_hex = hex::encode(txn_root_hash.0);
+        let state_root_hash_hex = hex::encode(state_root_hash.0);
+        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
+
+        dbg!(&txn_root_hash_hex, &state_root_hash_hex);
+
+        Ok(txn_root_hash_hex)
+    }
 }
 
 impl Clone for VrrbDb {
@@ -213,6 +297,7 @@ impl Clone for VrrbDb {
         }
     }
 }
+
 // TODO: uncomment this once `entries` is fixed
 // impl Display for VrrbDb {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

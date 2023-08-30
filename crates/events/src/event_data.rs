@@ -6,6 +6,7 @@ use primitives::{
     NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
+use vrrb_config::QuorumMember;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -17,6 +18,20 @@ pub struct PeerData {
     pub raptorq_gossip_addr: SocketAddr,
     pub kademlia_liveness_addr: SocketAddr,
     pub validator_public_key: ValidatorPublicKey,
+}
+
+impl From<QuorumMember> for PeerData {
+    fn from(value: QuorumMember) -> Self {
+        PeerData {
+            node_id: value.node_id.clone(),
+            node_type: value.node_type,
+            kademlia_peer_id: value.kademlia_peer_id,
+            udp_gossip_addr: value.udp_gossip_address,
+            raptorq_gossip_addr: value.raptorq_gossip_address,
+            kademlia_liveness_addr: value.kademlia_liveness_address,
+            validator_public_key: value.validator_public_key,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]

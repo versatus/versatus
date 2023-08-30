@@ -295,7 +295,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
     let vrrb_node = Node::start(node_config)
         .await
-        .map_err(|_| CliError::Other(String::from("failed to listen for ctrl+c")))?;
+        .map_err(|err| CliError::Other(err.to_string()))?;
 
     let node_type = vrrb_node.node_type();
 

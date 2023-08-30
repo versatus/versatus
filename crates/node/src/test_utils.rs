@@ -1,613 +1,187 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::collections::{BTreeMap, HashMap};
 
-use async_trait::async_trait;
-use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
-use bulldag::{graph::BullDag, vertex::Vertex};
-
-pub use miner::test_helpers::{create_address, create_claim, create_miner};
-use primitives::{
-    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round, ValidatorSecretKey,
+use hbbft::{
+    crypto::{serde_impl::SerdeSecret, PublicKey, SecretKey},
+    sync_key_gen::Ack,
 };
-use secp256k1::{Message, PublicKey, SecretKey};
-use storage::vrrbdb::Claims;
-use uuid::Uuid;
-use vrrb_config::{
-    BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
-    ThresholdConfig,
-};
-use vrrb_core::{
-    account::Account,
-    claim::Claim,
-    keypair::Keypair,
-};
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
+use primitives::{NodeId, NodeType};
+use vrrb_config::valid_threshold_config;
 
 use crate::{
-    data_store::DataStore, network::NetworkEvent, state_manager::DagModule,
-    state_reader::StateReader, Node, NodeError, Result,
+    dkg::DkgGenerator,
+    dkg_state::DkgState,
+    engine::DkgEngine,
+    prelude::{ReceiverId, SenderId},
 };
 
-pub fn create_mock_full_node_config() -> NodeConfig {
-    let data_dir = env::temp_dir();
-    let id = Uuid::new_v4().simple().to_string();
+/// It generates a vector of secret keys and a map of public keys
+///
+/// Arguments:
+///
+/// * `no_of_nodes`: The number of nodes in the network.
+pub fn generate_key_sets(number_of_nodes: u16) -> (Vec<SecretKey>, BTreeMap<NodeId, PublicKey>) {
+    let sec_keys: Vec<SecretKey> = (0..number_of_nodes).map(|_| rand::random()).collect();
 
-    let temp_dir_path = std::env::temp_dir();
-    let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
-
-    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let rendezvous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let rendezvous_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let public_ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-
-    let default_node_config = NodeConfig::default();
-
-    NodeConfigBuilder::default()
-        .id(id)
-        .data_dir(data_dir)
-        .db_path(db_path)
-        .node_type(NodeType::Bootstrap)
-        .bootstrap_config(None)
-        .http_api_address(http_api_address)
-        .http_api_title(String::from("HTTP Node API"))
-        .http_api_version(String::from("1.0"))
-        .http_api_shutdown_timeout(Some(Duration::from_secs(5)))
-        .jsonrpc_server_address(jsonrpc_server_address)
-        .keypair(Keypair::random())
-        .rendezvous_local_address(rendezvous_local_address)
-        .rendezvous_server_address(rendezvous_server_address)
-        .udp_gossip_address(udp_gossip_address)
-        .raptorq_gossip_address(raptorq_gossip_address)
-        .kademlia_peer_id(None)
-        .kademlia_liveness_address(default_node_config.kademlia_liveness_address)
-        .public_ip_address(public_ip_address)
-        .disable_networking(false)
-        .quorum_config(None)
-        .bootstrap_quorum_config(None)
-        .threshold_config(ThresholdConfig::default())
-        .build()
-        .unwrap()
-}
-
-#[deprecated]
-pub fn create_mock_full_node_config_with_bootstrap(
-    _bootstrap_node_addresses: Vec<SocketAddr>,
-) -> NodeConfig {
-    create_mock_full_node_config()
-}
-
-#[deprecated]
-pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    create_mock_full_node_config()
-}
-
-pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
-    (0..n)
-        .map(|_| {
-            let kp = generate_account_keypair();
-            let mut account = Some(Account::new(kp.1));
-            account
-                .as_mut()
-                .unwrap()
-                .set_credits(1_000_000_000_000_000_000_000_000_000u128);
-            (Address::new(kp.1), account)
-        })
-        .collect()
-}
-
-fn produce_random_claims(n: usize) -> HashSet<Claim> {
-    (0..n)
-        .map(|_| {
-            let kp = Keypair::random();
-            let address = Address::new(kp.miner_kp.1);
-            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-            let signature = Claim::signature_for_valid_claim(
-                kp.miner_kp.1,
-                ip_address,
-                kp.get_miner_secret_key().secret_bytes().to_vec(),
-            )
-            .unwrap();
-
-            Claim::new(
-                kp.miner_kp.1,
-                address,
-                ip_address,
-                signature,
-                NodeId::default(),
-            )
-            .unwrap()
-        })
-        .collect()
-}
-
-fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<TransactionKind> {
-    accounts
-        .clone()
+    let pub_keys = sec_keys
         .iter()
+        .map(SecretKey::public_key)
         .enumerate()
-        .map(|(idx, (address, account))| {
-            let receiver = if (idx + 1) == accounts.len() {
-                accounts[0].clone()
-            } else {
-                accounts[idx + 1].clone()
-            };
-
-            let mut validators: Vec<(String, bool)> = vec![];
-
-            accounts.clone().iter().for_each(|validator| {
-                if (validator.clone() != receiver)
-                    && (validator.clone() != (address.clone(), account.clone()))
-                {
-                    let pk = validator.clone().0.public_key().to_string();
-                    validators.push((pk, true));
-                }
-            });
-            create_txn_from_accounts((address.clone(), account.clone()), receiver.0, validators)
-        })
-        .collect()
-}
-
-pub fn produce_genesis_block() -> GenesisBlock {
-    let genesis = miner::test_helpers::mine_genesis();
-    genesis.unwrap()
-}
-
-pub fn produce_proposal_blocks(
-    last_block_hash: BlockHash,
-    accounts: Vec<(Address, Option<Account>)>,
-    n: usize,
-    ntx: usize,
-) -> Vec<ProposalBlock> {
-    (0..n)
-        .map(|_| {
-            let kp = Keypair::random();
-            let address = Address::new(kp.miner_kp.1);
-            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-            let signature = Claim::signature_for_valid_claim(
-                kp.miner_kp.1,
-                ip_address,
-                kp.get_miner_secret_key().secret_bytes().to_vec(),
-            )
-            .unwrap();
-
-            let from = Claim::new(
-                kp.miner_kp.1,
-                address,
-                ip_address,
-                signature,
-                NodeId::default(),
-            )
-            .unwrap();
-            let txs = produce_random_txs(&accounts);
-            let claims = produce_random_claims(ntx);
-
-            let txn_list = txs
-                .into_iter()
-                .map(|txn| {
-                    let digest = txn.id();
-
-                    let certified_txn = QuorumCertifiedTxn::new(
-                        Vec::new(),
-                        Vec::new(),
-                        txn,
-                        RawSignature::new(),
-                        true,
-                    );
-
-                    (digest, certified_txn)
-                })
-                .collect();
-
-            let claim_list = claims
-                .into_iter()
-                .map(|claim| (claim.hash, claim))
-                .collect();
-
-            let keypair = Keypair::random();
-
-            ProposalBlock::build(
-                last_block_hash.clone(),
-                0,
-                0,
-                txn_list,
-                claim_list,
-                from,
-                keypair.get_miner_secret_key(),
-            )
-        })
-        .collect()
-}
-
-pub fn produce_convergence_block(dag: Arc<RwLock<BullDag<Block, BlockHash>>>) -> Option<BlockHash> {
-    let keypair = Keypair::random();
-    let mut miner = miner::test_helpers::create_miner_from_keypair(&keypair);
-    miner.dag = dag.clone();
-    let last_block = miner::test_helpers::get_genesis_block_from_dag(dag.clone());
-
-    if let Some(block) = last_block {
-        miner.last_block = Some(Arc::new(block));
-    }
-
-    if let Ok(cblock) = miner.try_mine() {
-        if let Block::Convergence { ref block } = cblock.clone() {
-            let cvtx: Vertex<Block, String> = cblock.into();
-            let mut edges: Vec<(Vertex<Block, String>, Vertex<Block, String>)> = vec![];
-            if let Ok(guard) = dag.read() {
-                block.clone().get_ref_hashes().iter().for_each(|t| {
-                    if let Some(pvtx) = guard.get_vertex(t.clone()) {
-                        edges.push((pvtx.clone(), cvtx.clone()));
-                    }
-                });
-            }
-
-            if let Ok(mut guard) = dag.write() {
-                let edges = edges
-                    .iter()
-                    .map(|(source, reference)| (source, reference))
-                    .collect();
-
-                guard.extend_from_edges(edges);
-                return Some(block.get_hash());
-            }
-        }
-    }
-
-    None
-}
-
-pub fn create_keypair() -> (SecretKey, PublicKey) {
-    let kp = Keypair::random();
-    kp.miner_kp
-}
-
-pub fn create_txn_from_accounts(
-    sender: (Address, Option<Account>),
-    receiver: Address,
-    validators: Vec<(String, bool)>,
-) -> TransactionKind {
-    let (sk, pk) = create_keypair();
-    let saddr = sender.0.clone();
-    let raddr = receiver;
-    let amount = 100u128.pow(2);
-    let token = None;
-
-    let validators = validators
-        .iter()
-        .map(|(k, v)| (k.to_string(), *v))
+        .map(|(x, y)| (format!("node-{x}"), y))
         .collect();
 
-    let txn_args = NewTransferArgs {
-        timestamp: 0,
-        sender_address: saddr,
-        sender_public_key: pk,
-        receiver_address: raddr,
-        token,
-        amount,
-        signature: sk
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
-        validators: Some(validators),
-        nonce: sender.1.unwrap().nonce() + 1,
-    };
-
-    let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
-
-    txn.sign(&sk);
-
-    let txn_digest_vec = generate_txn_digest_vec(
-        txn.timestamp(),
-        txn.sender_address().to_string(),
-        txn.sender_public_key(),
-        txn.receiver_address().to_string(),
-        txn.token(),
-        txn.amount(),
-        txn.nonce(),
-    );
-
-    let _digest = TransactionDigest::from(txn_digest_vec);
-
-    txn
+    (sec_keys, pub_keys)
 }
 
-/// Creates a `DagModule` for testing the event handler.
-pub(crate) fn _create_dag_module() -> DagModule {
-    let miner = create_miner();
-    let (sk, pk) = create_keypair();
-    let addr = create_address(&pk);
-    let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-    let signature =
-        Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+/// It generates a DKG engine with a random secret key, a set of public keys,
+/// and a command handler
+///
+/// Arguments:
+///
+/// * `node_idx`: The index of the node in the network.
+/// * `total_nodes`: The total number of nodes in the network.
+/// * `node_type`: NodeType - This is the type of node that we want to generate.
+///   We can choose from the
+/// following:
+///
+/// Returns:
+///
+/// A DkgEngine struct with a node_info field that is an Arc<RwLock<Node>>.
+pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<DkgEngine> {
+    let (sec_keys, pub_keys) = generate_key_sets(total_nodes);
+    let mut dkg_instances = vec![];
 
-    let claim = create_claim(&pk, &addr, ip_address, signature);
-    let (events_tx, _) = tokio::sync::mpsc::channel(events::DEFAULT_BUFFER);
+    for i in 0..total_nodes {
+        let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
+        let _secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
 
-    DagModule::new(miner.dag, events_tx, claim)
-}
+        let mut dkg_state = DkgState::default();
+        dkg_state.set_peer_public_keys(pub_keys.clone());
 
-/// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(claim_signature: String) -> block::Certificate {
-    block::Certificate {
-        signature: claim_signature,
-        inauguration: None,
-        root_hash: "".to_string(),
-        next_root_hash: "".to_string(),
-        block_hash: "".to_string(),
-    }
-}
-
-pub async fn create_dyswarm_client(addr: SocketAddr) -> Result<dyswarm::client::Client> {
-    let client_config = dyswarm::client::Config { addr };
-    let client = dyswarm::client::Client::new(client_config).await?;
-
-    Ok(client)
-}
-
-pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
-    let client = create_dyswarm_client(addr).await?;
-
-    let msg = dyswarm::types::Message {
-        id: dyswarm::types::MessageId::new_v4(),
-        timestamp: 0i64,
-        data: NetworkEvent::Ping(data),
-    };
-
-    client.send_data_via_quic(msg, addr).await?;
-
-    Ok(())
-}
-
-use rand::{seq::SliceRandom, thread_rng};
-use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
-
-pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
-    let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
-    let harvester_count = n * 2 / total_elements;
-    let miner_count = n * 4 / total_elements;
-
-    let mut array = Vec::with_capacity(n);
-    for _ in 0..harvester_count {
-        array.push(NodeType::Validator);
-    }
-    for _ in 0..miner_count {
-        array.push(NodeType::Miner);
-    }
-
-    array.shuffle(&mut thread_rng());
-
-    array
-}
-
-/// Creates an instance of a RpcApiClient for testing.
-pub async fn create_node_rpc_client(rpc_addr: SocketAddr) -> impl RpcApiClient {
-    create_client(rpc_addr).await.unwrap()
-}
-
-/// Creates a mock `NewTxnArgs` struct meant to be used for testing.
-pub fn create_mock_transaction_args(n: usize) -> NewTransferArgs {
-    let (sk, pk) = create_keypair();
-    let (_, rpk) = create_keypair();
-    let saddr = create_address(&pk);
-    let raddr = create_address(&rpk);
-    let amount = (n.pow(2)) as u128;
-    let token = None;
-
-    NewTransferArgs {
-        timestamp: 0,
-        sender_address: saddr,
-        sender_public_key: pk,
-        receiver_address: raddr,
-        token,
-        amount,
-        signature: sk
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
-        validators: None,
-        nonce: n as u128,
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct MockStateStore {}
-
-impl MockStateStore {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct MockStateReader {}
-
-impl MockStateReader {
-    pub fn new() -> Self {
-        MockStateReader {}
-    }
-}
-
-#[async_trait]
-impl StateReader for MockStateReader {
-    /// Returns a full list of all accounts within state
-    async fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
-        todo!()
-    }
-
-    /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
-        todo!()
-    }
-
-    /// Get a transaction from state
-    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<TransactionKind> {
-        todo!()
-    }
-
-    /// List a group of transactions
-    async fn list_transactions(
-        &self,
-        _digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
-        todo!()
-    }
-
-    async fn get_account(&self, _address: Address) -> Result<Account> {
-        todo!()
-    }
-
-    async fn get_round(&self) -> Result<Round> {
-        todo!()
-    }
-
-    async fn get_blocks(&self) -> Result<Vec<Block>> {
-        todo!()
-    }
-
-    async fn get_transaction_count(&self) -> Result<usize> {
-        todo!()
-    }
-
-    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>> {
-        todo!()
-    }
-
-    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>> {
-        todo!()
-    }
-
-    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
-        todo!()
-    }
-
-    async fn get_last_block(&self) -> Result<Block> {
-        todo!()
-    }
-
-    fn state_store_values(&self) -> HashMap<Address, Account> {
-        todo!()
-    }
-
-    /// Returns a copy of all values stored within the state trie
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
-        todo!()
-    }
-
-    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        todo!()
-    }
-}
-
-#[async_trait]
-impl DataStore<MockStateReader> for MockStateStore {
-    type Error = NodeError;
-
-    fn state_reader(&self) -> MockStateReader {
-        todo!()
-    }
-}
-
-/// Creates `n` Node instances that make up a network.
-pub async fn create_test_network(n: u16) -> Vec<Node> {
-    let validator_count = (n as f64 * 0.8).ceil() as usize;
-    let miner_count = n as usize - validator_count;
-
-    let mut nodes = vec![];
-
-    let mut quorum_members = vec![];
-
-    for i in 1..= n {
-        let udp_port: u16 = 11000 + i;
-        let raptor_port: u16 = 12000 + i;
-        let kademlia_port: u16 = 13000 + i;
-
-        let threshold_sk = ValidatorSecretKey::random();
-        let validator_public_key = threshold_sk.public_key();
-
-        let member = QuorumMember {
+        dkg_instances.push(DkgEngine {
             node_id: format!("node-{}", i),
-            kademlia_peer_id: KademliaPeerId::rand(),
-            node_type: NodeType::Validator,
-            udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
-            raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
-            kademlia_liveness_address: SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::LOCALHOST),
-                kademlia_port,
-            ),
-            validator_public_key,
-        };
-
-        quorum_members.push(member)
+            node_type,
+            threshold_config: valid_threshold_config(),
+            secret_key: sec_keys.get(i as usize).unwrap().clone(),
+            dkg_state,
+            harvester_public_key: None,
+        });
     }
 
-    let bootstrap_quorum_config = BootstrapQuorumConfig {
-        membership_config: QuorumMembershipConfig {
-            quorum_members: quorum_members.clone(),
-            quorum_kind: QuorumKind::Farmer,
-        },
-        genesis_transaction_threshold: 3,
-    };
+    dkg_instances
+}
 
-    let mut config = create_mock_full_node_config();
-    config.id = String::from("node-0");
+pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
+    let mut dkg_engines = generate_dkg_engines(4, NodeType::Full).await;
+    let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
+    let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
+    let mut dkg_engine_node2 = dkg_engines.pop().unwrap();
+    let mut dkg_engine_node1 = dkg_engines.pop().unwrap();
 
-    config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
+    let (part_commitment_node1, node_id_1) =
+        dkg_engine_node1.generate_partial_commitment(1).unwrap();
 
-    let node_0 = Node::start(config).await.unwrap();
+    let (part_commitment_node2, node_id_2) =
+        dkg_engine_node2.generate_partial_commitment(1).unwrap();
 
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+    let (part_commitment_node3, node_id_3) =
+        dkg_engine_node3.generate_partial_commitment(1).unwrap();
 
-    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
-        id: node_0.kademlia_peer_id(),
-        udp_gossip_addr: addr,
-        raptorq_gossip_addr: addr,
-        kademlia_liveness_addr: addr,
-    };
+    let (part_commitment_node4, node_id_4) =
+        dkg_engine_node4.generate_partial_commitment(1).unwrap();
 
-    bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
-    bootstrap_node_config.raptorq_gossip_addr = node_0.raprtorq_gossip_address();
-    bootstrap_node_config.kademlia_liveness_addr = node_0.kademlia_liveness_address();
+    let part_commitment_tuples = vec![
+        (part_commitment_node1, node_id_1),
+        (part_commitment_node2, node_id_2),
+        (part_commitment_node3, node_id_3),
+        (part_commitment_node4, node_id_4),
+    ];
 
-    nodes.push(node_0);
-
-    for i in 1..=validator_count - 1 {
-        let mut config = create_mock_full_node_config();
-
-        let quorum_config = quorum_members.get(i - 1).unwrap();
-
-        config.id = format!("node-{}", i);
-        config.bootstrap_config = Some(bootstrap_node_config.clone());
-        config.node_type = NodeType::Validator;
-        config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
-        config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
-        config.udp_gossip_address = quorum_config.udp_gossip_address;
-        config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
-
-        let node = Node::start(config).await.unwrap();
-        nodes.push(node);
+    for (part_commitment, node_id) in part_commitment_tuples.iter() {
+        // if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
+        //     if *node_idx != dkg_engine_node1.node_idx {
+        //         dkg_engine_node1
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        //     if *node_idx != dkg_engine_node2.node_idx {
+        //         dkg_engine_node2
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        //     if *node_idx != dkg_engine_node3.node_idx {
+        //         dkg_engine_node3
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        //     if *node_idx != dkg_engine_node4.node_idx {
+        //         dkg_engine_node4
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        // }
     }
 
-    for i in validator_count..=validator_count + miner_count {
-        let mut miner_config = create_mock_full_node_config();
-
-        let quorum_config = quorum_members.get(i - 1).unwrap();
-
-        miner_config.id = format!("node-{}", i);
-        miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
-        miner_config.node_type = NodeType::Miner;
-        miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
-        miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
-        miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
-        miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
-
-        let miner_node = Node::start(miner_config).await.unwrap();
-
-        nodes.push(miner_node);
+    // let dkg_engine_node1_acks=vec![];
+    for i in 0..4 {
+        let _ = dkg_engine_node1.ack_partial_commitment(format!("node_{}", i));
+        let _ = dkg_engine_node2.ack_partial_commitment(format!("node_{}", i));
+        let _ = dkg_engine_node3.ack_partial_commitment(format!("node_{}", i));
+        let _ = dkg_engine_node4.ack_partial_commitment(format!("node_{}", i));
     }
 
-    nodes
+    let mut new_store: HashMap<(ReceiverId, SenderId), Ack>;
+
+    new_store = dkg_engine_node1
+        .dkg_state
+        .ack_message_store()
+        .to_owned()
+        .into_iter()
+        .chain(dkg_engine_node2.dkg_state.ack_message_store().clone())
+        .collect();
+
+    new_store = new_store
+        .into_iter()
+        .chain(dkg_engine_node3.dkg_state.ack_message_store().clone())
+        .collect();
+
+    new_store = new_store
+        .into_iter()
+        .chain(dkg_engine_node4.dkg_state.ack_message_store().clone())
+        .collect();
+
+    dkg_engine_node1
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+    dkg_engine_node2
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+    dkg_engine_node3
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+    dkg_engine_node4
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+
+    for _ in 0..4 {
+        let _ = dkg_engine_node1.handle_ack_messages();
+        let _ = dkg_engine_node2.handle_ack_messages();
+        let _ = dkg_engine_node3.handle_ack_messages();
+        let _ = dkg_engine_node4.handle_ack_messages();
+    }
+    let _ = dkg_engine_node1.generate_key_sets();
+    let _ = dkg_engine_node2.generate_key_sets();
+    let _ = dkg_engine_node3.generate_key_sets();
+    let _ = dkg_engine_node4.generate_key_sets();
+
+    // Returning the dkg engines
+    vec![
+        dkg_engine_node1,
+        dkg_engine_node2,
+        dkg_engine_node3,
+        dkg_engine_node4,
+    ]
 }

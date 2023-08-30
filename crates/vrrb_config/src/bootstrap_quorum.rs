@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{collections::BTreeMap, net::SocketAddr};
 
 use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind, ValidatorPublicKey};
 use serde::{Deserialize, Serialize};
@@ -14,10 +14,12 @@ pub struct QuorumMember {
     pub validator_public_key: ValidatorPublicKey,
 }
 
+pub type QuorumMembers = BTreeMap<NodeId, QuorumMember>;
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct QuorumMembershipConfig {
     pub quorum_kind: QuorumKind,
-    pub quorum_members: Vec<QuorumMember>,
+    pub quorum_members: BTreeMap<NodeId, QuorumMember>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -39,5 +41,9 @@ impl BootstrapQuorumConfig {
 impl QuorumMembershipConfig {
     pub fn quorum_kind(&self) -> QuorumKind {
         self.quorum_kind.clone()
+    }
+
+    pub fn quorum_members(&self) -> QuorumMembers {
+        self.quorum_members.clone()
     }
 }

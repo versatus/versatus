@@ -6,22 +6,25 @@ use std::{
 use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher};
-use mempool::LeftRightMempool;
-use primitives::{Address, NodeId, Round};
+use events::{Event, EventMessage, EventPublisher, Vote};
+use hbbft::crypto::PublicKeySet;
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use patriecia::RootHash;
+use primitives::{
+    Address, ByteSlice, ByteVec, NodeId, ProgramExecutionOutput, RawSignature, Round,
+    TxnValidationStatus,
+};
+use storage::vrrbdb::types::*;
 use storage::{
     storage_utils::StorageError,
     vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};
-use vrrb_core::{
-    account::Account,
-    claim::Claim,
-};
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::{account::Account, claim::Claim, serde_helpers::decode_from_binary_byte_slice};
 
-use crate::{data_store::DataStore, state_manager::types::*, state_reader::StateReader};
+use crate::{data_store::DataStore, state_reader::StateReader};
 use crate::{NodeError, Result};
 
 use super::{
@@ -34,17 +37,15 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct StateManagerConfig {
     pub database: VrrbDb,
-    pub events_tx: EventPublisher,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
     pub mempool: LeftRightMempool,
     pub claim: Claim,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StateManager {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
-    pub(crate) events_tx: EventPublisher,
     pub(crate) dag: DagModule,
     pub(crate) database: VrrbDb,
     pub(crate) mempool: LeftRightMempool,
@@ -52,38 +53,55 @@ pub struct StateManager {
 
 impl StateManager {
     pub fn new(config: StateManagerConfig) -> Self {
-        let dag_module = DagModule::new(
-            config.dag.clone(),
-            config.events_tx.clone(),
-            config.claim.clone(),
-        );
+        let dag_module = DagModule::new(config.dag.clone(), config.claim.clone());
 
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             database: config.database,
-            events_tx: config.events_tx,
             status: ActorState::Stopped,
             dag: dag_module,
             mempool: config.mempool,
         }
     }
 
-    pub fn _export_state(&self) {
+    pub fn export_state(&self) {
         self.database.export_state();
     }
 
     /// Produces the read handle for the VrrbDb instance in this
     /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
     /// each of the StateStore, TransactionStore and ClaimStore.
-    pub fn _read_handle(&self) -> VrrbDbReadHandle {
+    pub fn read_handle(&self) -> VrrbDbReadHandle {
         self.database.read_handle()
+    }
+
+    pub fn mempool_read_handle_factory(&self) -> MempoolReadHandleFactory {
+        self.mempool.factory()
+    }
+
+    pub fn transactions_root_hash(&self) -> Result<String> {
+        let root_hash = self.database.transactions_root_hash()?;
+        let root_hash_hex = hex::encode(root_hash.0);
+        Ok(root_hash_hex)
+    }
+
+    pub fn state_root_hash(&self) -> Result<String> {
+        let root_hash = self.database.state_root_hash()?;
+        let root_hash_hex = hex::encode(root_hash.0);
+        Ok(root_hash_hex)
+    }
+
+    pub fn claims_root_hash(&self) -> Result<String> {
+        let root_hash = self.database.claims_root_hash()?;
+        let root_hash_hex = hex::encode(root_hash.0);
+        Ok(root_hash_hex)
     }
 
     /// Inserts a Transaction into the TransactionStore and
     /// emits an event to inform other modules that a Transaction
     /// has been added to the TransactionStore.
     // This is unneccessary under the system architecture, btw.
-    pub(crate) async fn confirm_txn(&mut self, txn: TransactionKind) -> Result<()> {
+    pub(crate) async fn confirm_txn(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
         let txn_hash = txn.id();
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
@@ -91,14 +109,10 @@ impl StateManager {
         //TODO: call checked methods instead
         self.database.insert_transaction(txn)?;
 
-        let event = Event::TxnAddedToMempool(txn_hash);
-
-        self.events_tx.send(event.into()).await?;
-
-        Ok(())
+        Ok(txn_hash)
     }
 
-    pub fn _commit(&mut self) {
+    pub fn commit(&mut self) {
         self.database.commit_state();
     }
 
@@ -210,12 +224,6 @@ impl StateManager {
         Ok(())
     }
 
-    /// Returns a read handle for the StateStore to be able to read
-    /// values from it.
-    fn _get_state_store_handle(&self) -> StateStoreReadHandle {
-        self.database.state_store_factory().handle()
-    }
-
     /// Enters into the DAG and collects and returns the current round
     /// `ConvergenceBlock` and all its source `ProposalBlock`s
     fn get_proposal_blocks(&self, index: BlockHash) -> Option<RoundBlocks> {
@@ -276,7 +284,7 @@ impl StateManager {
         proposals
     }
 
-    pub(crate) async fn handle_block_received(&mut self, block: Block) -> Result<()> {
+    pub(crate) fn handle_block_received(&mut self, block: Block) -> Result<()> {
         match block {
             Block::Genesis { block } => {
                 if let Err(e) = self.dag.append_genesis(&block) {
@@ -295,77 +303,72 @@ impl StateManager {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
+
                 if block.certificate.is_none() {
                     if let Some(header) = self.dag.last_confirmed_block_header() {
-                        if let Err(err) = self
-                            .events_tx
-                            .send(EventMessage::new(
-                                None,
-                                Event::ConvergenceBlockPrecheckRequested {
-                                    convergence_block: block,
-                                    block_header: header,
-                                },
-                            ))
-                            .await
-                        {
-                            let err_note = format!(
-                                "Failed to send EventMessage for PrecheckConvergenceBlock: {err}"
-                            );
-                            return Err(NodeError::Other(err_note));
-                        }
+                        // let event = Event::ConvergenceBlockPrecheckRequested {
+                        //     convergence_block: block,
+                        //     block_header: header,
+                        // };
+
+                        return Ok(());
                     }
                 }
             },
         }
+
         Ok(())
     }
 
-    pub(crate) fn block_certificate_created(&mut self, _certificate: Certificate) -> Result<()> {
-        //
-        //         let mut mine_block: Option<ConvergenceBlock> = None;
-        //         let block_hash = certificate.block_hash.clone();
-        //         if let Ok(Some(Block::Convergence { mut block })) =
-        //             self.dag.write().map(|mut bull_dag| {
-        //                 bull_dag
-        //                     .get_vertex_mut(block_hash)
-        //                     .map(|vertex| vertex.get_data())
-        //             })
-        //         {
-        //             block.append_certificate(certificate.clone());
-        //             self.last_confirmed_block_header = Some(block.get_header());
-        //             mine_block = Some(block.clone());
-        //         }
-        //         if let Some(block) = mine_block {
-        //             let proposal_block = Event::MineProposalBlock(
-        //                 block.hash.clone(),
-        //                 block.get_header().round,
-        //                 block.get_header().epoch,
-        //                 self.claim.clone(),
-        //             );
-        //             if let Err(err) = self
-        //                 .events_tx
-        //                 .send(EventMessage::new(None, proposal_block.clone()))
-        //                 .await
-        //             {
-        //                 let err_msg = format!(
-        //                     "Error occurred while broadcasting event {proposal_block:?}: {err:?}"
-        //                 );
-        //                 return Err(TheaterError::Other(err_msg));
-        //             }
-        //         } else {
-        //             telemetry::debug!("Missing ConvergenceBlock for certificate: {certificate:?}");
-        //         }
-        //
-        todo!()
+    pub fn apply_block(&mut self, block: Block) -> Result<String> {
+        let root_hash = self
+            .database
+            .apply_block(block)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        Ok(root_hash)
     }
 
-    pub fn handle_transaction_certificate_created(
-        &mut self,
-        txn: Box<TransactionKind>,
-    ) -> Result<()> {
-        self.database
-            .insert_transaction(*txn)
-            .map_err(|err| NodeError::Other(err.to_string()))
+    pub fn handle_new_txn_created(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
+        info!("Storing transaction in mempool for validation");
+
+        let txn_hash = txn.id();
+
+        let _mempool_size = self
+            .mempool
+            .insert(txn)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        info!("Transaction {} sent to mempool", txn_hash);
+
+        Ok(txn_hash)
+    }
+
+    pub async fn handle_transaction_validated(&mut self, txn: TransactionKind) -> Result<()> {
+        self.mempool
+            .remove(&txn.id())
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        self.confirm_txn(txn).await?;
+
+        Ok(())
+    }
+
+    pub fn handle_harvester_public_key_received(&mut self, public_key_set: PublicKeySet) {
+        self.dag.set_harvester_pubkeys(public_key_set)
+    }
+
+    pub fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+        Ok(self
+            .database
+            .claim_store_factory()
+            .handle()
+            .entries()
+            .clone()
+            .into_iter()
+            .filter(|(_, claim)| claim_hashes.contains(&claim.hash))
+            .map(|(_, claim)| claim)
+            .collect())
     }
 }
 
@@ -391,19 +394,22 @@ impl StateReader for VrrbDbReadHandle {
     }
 
     /// Get a transaction from state
-    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<TransactionKind> {
+    async fn get_transaction(
+        &self,
+        transaction_digest: TransactionDigest,
+    ) -> Result<TransactionKind> {
         todo!()
     }
 
     /// List a group of transactions
     async fn list_transactions(
         &self,
-        _digests: Vec<TransactionDigest>,
+        digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
-    async fn get_account(&self, _address: Address) -> Result<Account> {
+    async fn get_account(&self, address: Address) -> Result<Account> {
         todo!()
     }
 
@@ -427,7 +433,7 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
         todo!()
     }
 

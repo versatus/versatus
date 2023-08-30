@@ -1,5 +1,6 @@
+use primitives::Address;
 use ritelinked::LinkedHashMap;
-use vrrb_core::transactions::TransactionKind;
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 // 50% after one year, then monthly for 12 months
 const EMPLOYEE_VESTING: VestingConfig = VestingConfig {
@@ -27,6 +28,7 @@ const INVESTORS: [&str; 2] = [
     "5TAgthC5PLYBP3JSvjjfnd1jkY1VLrC78p4T4MucHFE",
 ];
 
+#[derive(Debug, Clone)]
 pub struct VestingConfig {
     pub cliff_fraction: f64,
     pub cliff_years: f64,
@@ -34,22 +36,58 @@ pub struct VestingConfig {
     pub unlock_years: f64,
 }
 
+#[derive(Debug, Clone)]
+pub enum GenesisReceiverKind {
+    Investor,
+    Contributor, // formerly EMPLOYEE
+}
+
+#[derive(Debug, Clone)]
+pub struct GenesisReceiver {
+    pub address: Address,
+    pub genesis_receiver_kind: GenesisReceiverKind,
+    pub vesting_config: Option<VestingConfig>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GenesisConfig {
+    pub sender: Address,
+    pub receivers: Vec<GenesisReceiver>,
+}
+
 #[allow(clippy::diverging_sub_expression)]
-pub fn create_vesting(_target: &str, _config: VestingConfig) -> (String, TransactionKind) {
+pub fn create_vesting(
+    _target: &str,
+    _config: VestingConfig,
+) -> (TransactionDigest, TransactionKind) {
     todo!()
 }
 
-pub fn generate_genesis_txns() -> LinkedHashMap<String, TransactionKind> {
-    let mut genesis_txns: LinkedHashMap<String, TransactionKind> = LinkedHashMap::new();
+// TODO: Genesis block on local/testnet should generate either a
+// faucet for tokens, or fill some initial accounts so that testing
+// can be executed
+pub fn generate_genesis_txns(
+    sender: Address,
+    genesis_config: GenesisConfig,
+) -> LinkedHashMap<TransactionDigest, TransactionKind> {
+    // #[cfg(not(mainnet))]
+    let genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> = LinkedHashMap::new();
+
+    #[cfg(mainnet)]
+    let mut genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> = LinkedHashMap::new();
+
+    #[cfg(mainnet)]
     for employee in EMPLOYEESS {
         let vesting_txn = create_vesting(employee, EMPLOYEE_VESTING);
         genesis_txns.insert(vesting_txn.0, vesting_txn.1);
     }
 
+    #[cfg(mainnet)]
     for investor in INVESTORS {
         let vesting_txn = create_vesting(investor, INVESTOR_VESTING);
         genesis_txns.insert(vesting_txn.0, vesting_txn.1);
     }
 
+    // #[cfg(not(mainnet))]
     genesis_txns
 }

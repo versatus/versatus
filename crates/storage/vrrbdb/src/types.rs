@@ -1,13 +1,8 @@
-use std::{
-    collections::HashSet,
-    str::FromStr,
-};
+use std::{collections::HashSet, str::FromStr};
 
 use block::{ConvergenceBlock, ProposalBlock};
 use primitives::Address;
-use vrrb_core::{
-    account::{AccountDigests, UpdateArgs},
-};
+use vrrb_core::account::{AccountDigests, UpdateArgs};
 use vrrb_core::transactions::{Token, Transaction, TransactionDigest, TransactionKind};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and

@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     collections::HashSet,
+    fmt::Formatter,
     hash::{Hash, Hasher},
 };
 
@@ -9,8 +10,8 @@ use primitives::{Address, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{Error, Result};
 use crate::transactions::transaction::TransactionDigest;
+use crate::{Error, Result};
 
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.
@@ -32,8 +33,8 @@ pub struct AccountDigests {
     sent: HashSet<TransactionDigest>,
     recv: HashSet<TransactionDigest>,
     stake: HashSet<TransactionDigest>,
-    //TODO: Add withdrawaltransaction digests for
-    //withdrawing stake.
+    // TODO: Add withdrawaltransaction digests for
+    // withdrawing stake.
 }
 
 impl AccountDigests {
@@ -410,6 +411,13 @@ impl Account {
     }
     pub fn updated_at(&self) -> Option<i64> {
         self.updated_at
+    }
+}
+
+impl std::fmt::Display for Account {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let serialized_account = serde_json::to_string_pretty(self).map_err(|_| std::fmt::Error)?;
+        write!(f, "{}", serialized_account)
     }
 }
 

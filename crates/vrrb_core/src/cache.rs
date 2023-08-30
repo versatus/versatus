@@ -2,10 +2,21 @@ use std::time::Duration;
 
 use lru_time_cache::LruCache;
 
+#[derive(Clone)]
 pub struct Cache<K, V> {
     pub limit: usize,
     pub ttl: u64,
     pub cache: LruCache<K, V>,
+}
+
+impl<K, V> std::fmt::Debug for Cache<K, V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Cache")
+            .field("limit", &self.limit)
+            .field("ttl", &self.ttl)
+            // .field("cache", &self.cache)
+            .finish()
+    }
 }
 
 impl<K, V> Cache<K, V>

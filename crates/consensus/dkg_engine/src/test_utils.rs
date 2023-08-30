@@ -10,7 +10,8 @@ use vrrb_config::valid_threshold_config;
 use crate::{
     dkg::DkgGenerator,
     dkg_state::DkgState,
-    engine::{DkgEngine, SenderId},
+    engine::DkgEngine,
+    prelude::{ReceiverId, SenderId},
 };
 
 /// It generates a vector of secret keys and a map of public keys
@@ -132,7 +133,7 @@ pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
         let _ = dkg_engine_node4.ack_partial_commitment(format!("node_{}", i));
     }
 
-    let mut new_store: HashMap<(NodeId, SenderId), Ack>;
+    let mut new_store: HashMap<(ReceiverId, SenderId), Ack>;
 
     new_store = dkg_engine_node1
         .dkg_state

@@ -14,9 +14,7 @@ use primitives::{
     TxnValidationStatus, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
-use vrrb_core::{
-    claim::Claim,
-};
+use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 use crate::event_data::*;
@@ -131,6 +129,8 @@ pub enum Event {
         node_id: NodeId,
         /// The node who acknowledged the partial commitment
         sender_id: NodeId,
+
+        ack: Ack,
     },
 
     /// `HarvesterPublicKeyReceived(Vec<u8>)` is an event that carries a vector of bytes
