@@ -24,9 +24,9 @@ fn claims_can_be_added() {
     assert_eq!(entries.len(), 2);
 
     db.extend_claims(vec![
-        (claim3.hash, claim3),
-        (claim4.hash, claim4),
-        (claim5.hash, claim5),
+        (claim3.hash, Some(claim3)),
+        (claim4.hash, Some(claim4)),
+        (claim5.hash, Some(claim5)),
     ]);
 
     let entries = db.claim_store_factory().handle().entries();

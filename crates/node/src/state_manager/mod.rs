@@ -188,7 +188,7 @@ mod tests {
         let db_config = VrrbDbConfig::default().with_path(path);
         let db = VrrbDb::new(db_config);
         let mempool = LeftRightMempool::default();
-        let accounts: Vec<(Address, Account)> = produce_accounts(5);
+        let accounts: Vec<(Address, Option<Account>)> = produce_accounts(5);
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
         let (events_tx, _) = channel(100);
 

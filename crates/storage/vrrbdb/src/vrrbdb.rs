@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use ethereum_types::U256;
-use patriecia::{RootHash, Version};
+use patriecia::RootHash;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
