@@ -27,6 +27,7 @@ fn transactions_can_be_added() {
     db.insert_transaction_unchecked(txn2).unwrap();
 
     let entries = db.transaction_store_factory().handle().entries();
+    dbg!(&entries);
 
     assert_eq!(entries.len(), 2);
 
