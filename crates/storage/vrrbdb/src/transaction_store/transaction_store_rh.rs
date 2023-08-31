@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, KeyHash, Version};
+use patriecia::{JellyfishMerkleTree, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};

@@ -56,23 +56,23 @@ impl TransactionStore {
         TransactionStoreReadHandle::new(inner)
     }
 
-    pub fn insert(&mut self, txn: Txn, version: Version) -> Result<()> {
-        self.trie.insert(txn.digest(), txn, version);
+    pub fn insert(&mut self, txn: Txn) -> Result<()> {
+        self.trie.insert(txn.digest(), txn);
         Ok(())
     }
 
-    pub fn extend(&mut self, transactions: Vec<Txn>, version: Version) {
+    pub fn extend(&mut self, transactions: Vec<Txn>) {
         let transactions = transactions
             .into_iter()
             .map(|txn| (txn.digest(), Some(txn)))
             .collect();
 
-        self.trie.extend(transactions, version)
+        self.trie.extend(transactions)
     }
 
-    pub fn root_hash(&self, version: Version) -> Result<RootHash> {
+    pub fn root_hash(&self) -> Result<RootHash> {
         self.trie
-            .root(version)
+            .root_latest()
             .map_err(|e| StorageError::Other(e.to_string()))
     }
 

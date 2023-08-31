@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, KeyHash, Version};
+use patriecia::{JellyfishMerkleTree,  Version};
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
@@ -21,9 +21,9 @@ impl StateStoreReadHandle {
 
     /// Returns `Some(Account)` if an account exist under given PublicKey.
     /// Otherwise returns `None`.
-    pub fn get(&self, key: &Address, version: Version) -> Result<Account> {
+    pub fn get(&self, key: &Address) -> Result<Account> {
         self.inner
-            .get(key, version)
+            .get(key, self.inner.version())
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
@@ -39,7 +39,7 @@ impl StateStoreReadHandle {
         let mut accounts = HashMap::new();
 
         keys.iter().for_each(|key| {
-            let value = self.get(key, version).ok();
+            let value = self.get(key).ok();
             accounts.insert(key.to_owned(), value);
         });
 

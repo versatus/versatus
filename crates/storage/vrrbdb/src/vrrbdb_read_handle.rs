@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use patriecia::{KeyHash, Version};
 use primitives::{Address, NodeId};
 use vrrb_core::{
     account::Account,

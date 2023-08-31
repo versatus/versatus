@@ -2,7 +2,7 @@ use std::{path::Path, sync::Arc};
 
 use ethereum_types::U256;
 use integral_db::LeftRightTrie;
-use patriecia::{RootHash, Version};
+use patriecia::RootHash;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
@@ -59,7 +59,7 @@ impl ClaimStore {
     }
 
     // Maybe initialize is better name for that?
-    fn insert_uncommited(&mut self, claim: Claim, version: Version) -> Result<()> {
+    fn insert_uncommited(&mut self, claim: Claim) -> Result<()> {
         //        if claim.debits != 0 {
         //            return Err(StorageError::Other(
         //                "cannot insert claim with debit".to_string(),
@@ -72,14 +72,14 @@ impl ClaimStore {
         //            ));
         //        }
 
-        self.trie.insert(claim.hash, claim, version);
+        self.trie.insert(claim.hash, claim);
 
         Ok(())
     }
 
     /// Inserts new claim into ClaimDb.
-    pub fn insert(&mut self, claim: Claim, version: Version) -> Result<()> {
-        self.insert_uncommited(claim, version)?;
+    pub fn insert(&mut self, claim: Claim) -> Result<()> {
+        self.insert_uncommited(claim)?;
         self.commit();
         Ok(())
     }
@@ -91,13 +91,12 @@ impl ClaimStore {
     fn batch_insert_uncommited(
         &mut self,
         inserts: Vec<(U256, Claim)>,
-        version: Version,
     ) -> Option<Vec<(U256, Claim, StorageError)>> {
         let mut failed_inserts: Vec<(U256, Claim, StorageError)> = vec![];
 
         inserts.iter().for_each(|item| {
             let (k, v) = item;
-            if let Err(e) = self.insert_uncommited(v.clone(), version) {
+            if let Err(e) = self.insert_uncommited(v.clone()) {
                 failed_inserts.push((k.to_owned(), v.clone(), e));
             }
         });
@@ -117,9 +116,8 @@ impl ClaimStore {
     pub fn batch_insert(
         &mut self,
         inserts: Vec<(U256, Claim)>,
-        version: Version,
     ) -> Option<Vec<(U256, Claim, StorageError)>> {
-        let failed_inserts = self.batch_insert_uncommited(inserts, version);
+        let failed_inserts = self.batch_insert_uncommited(inserts);
         self.commit();
         failed_inserts
     }
@@ -277,14 +275,14 @@ impl ClaimStore {
     //
     //        Some(failed)
     //    }
-    pub fn root_hash(&self, version: Version) -> Result<RootHash> {
+    pub fn root_hash(&self) -> Result<RootHash> {
         self.trie
-            .root(version)
+            .root_latest()
             .map_err(|e| StorageError::Other(e.to_string()))
     }
 
-    pub fn extend(&mut self, claims: Vec<(U256, Option<Claim>)>, version: Version) {
-        self.trie.extend(claims, version)
+    pub fn extend(&mut self, claims: Vec<(U256, Option<Claim>)>) {
+        self.trie.extend(claims)
     }
 
     pub fn factory(&self) -> ClaimStoreReadHandleFactory {
