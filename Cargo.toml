@@ -19,6 +19,10 @@ path = "crates/cli/src/main.rs"
 name = "versa-wasm"
 path = "crates/wasm_cli/src/main.rs"
 
+[[bin]]
+name = "versa-compute"
+path = "crates/compute_agent/src/main.rs"
+
 [dependencies]
 tokio = { workspace = true }
 telemetry = { workspace = true }
@@ -32,6 +36,7 @@ wasm_runtime = { workspace = true }
 vrrb_rpc = { workspace = true }
 primitives = { workspace = true }
 sha2 = { workspace = true }
+service_config = { workspace = true }
 
 [workspace]
 members = [
@@ -63,6 +68,8 @@ members = [
     "crates/wasm_loader",
     "crates/wasm_cli",
     "crates/wasm_runtime",
+    "crates/compute_agent",
+    "crates/service_config",
 ]
 
 [workspace.dependencies]
@@ -100,6 +107,7 @@ vrrb_http = { path = "crates/vrrb_http" }
 vrrb_grpc = { path = "crates/vrrb_grpc" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
+service_config = { path = "crates/service_config" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/vrrb-io/patriecia" }
