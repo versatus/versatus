@@ -57,7 +57,7 @@ impl StateStore {
         self.trie.publish();
     }
 
-    pub fn get_account(&self, key: &Address, version: Version) -> Result<Account> {
+    pub fn get_account(&self, key: &Address) -> Result<Account> {
         let read_handle = self.read_handle();
         read_handle.get(key)
     }

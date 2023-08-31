@@ -1,3 +1,4 @@
+use patriecia::KeyHash;
 use vrrb_core::account::Account;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
@@ -10,7 +11,7 @@ use serial_test::serial;
 fn accounts_can_be_added() {
     let mut db = VrrbDb::new(VrrbDbConfig::default());
 
-    let (_, addr1) = _generate_random_address();
+    let (secret_key, addr1) = _generate_random_address();
     let (_, addr2) = _generate_random_address();
     let (_, addr3) = _generate_random_address();
     let (_, addr4) = _generate_random_address();
@@ -21,8 +22,10 @@ fn accounts_can_be_added() {
 
     db.insert_account(addr2.clone(), Account::new(addr2.public_key()))
         .unwrap();
-
-    let entries = db.state_store_factory().handle().entries();
+    let read_handle = db.state_store_factory().handle();
+    dbg!(&read_handle.inner);
+    let entries = read_handle.entries(Some(/* how to get a KeyHash from Address? */));
+    dbg!(&entries);
 
     assert_eq!(entries.len(), 2);
 
@@ -32,7 +35,10 @@ fn accounts_can_be_added() {
         (addr5.clone(), Some(Account::new(addr5.public_key()))),
     ]);
 
-    let entries = db.state_store_factory().handle().entries();
+    let entries = db
+        .state_store_factory()
+        .handle()
+        .entries(Some(/* how to get a KeyHash from Address? */));
 
     assert_eq!(entries.len(), 5);
 }
