@@ -1,26 +1,19 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use async_trait::async_trait;
 use block::{
     header::BlockHeader,
     valid::{BlockValidationData, Valid},
-    Block,
-    ConvergenceBlock,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
+    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use events::{Event, EventMessage, EventPublisher, EventSubscriber};
+use events::EventPublisher;
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
-use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use tokio::task::JoinHandle;
+use theater::{Actor, ActorId, ActorState, Handler};
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
@@ -28,6 +21,7 @@ use crate::{NodeError, Result};
 pub type Edge = (Vertex<Block, String>, Vertex<Block, String>);
 pub type Edges = Vec<Edge>;
 pub type GraphResult<T> = std::result::Result<T, GraphError>;
+
 ///
 /// The runtime module that manages the DAG, both exposing
 /// data within and appending blocks to it.
@@ -51,6 +45,7 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 ///     last_confirmed_block_header: Option<BlockHeader>,
 /// }
 /// ```
+#[derive(Clone, Debug)]
 pub struct DagModule {
     status: ActorState,
     id: ActorId,
@@ -76,6 +71,16 @@ impl DagModule {
             last_confirmed_block_header: None,
             claim,
         }
+    }
+
+    pub fn read(&self) -> Result<RwLockReadGuard<BullDag<Block, String>>> {
+        self.dag
+            .read()
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn last_confirmed_block_header(&self) -> Option<BlockHeader> {
+        self.last_confirmed_block_header.clone()
     }
 
     pub fn set_harvester_pubkeys(&mut self, public_key_set: PublicKeySet) {
@@ -183,7 +188,7 @@ impl DagModule {
             return Ok(());
         }
 
-        Err(GraphError::Other("Error getting write gurard".to_string()))
+        Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
     fn check_valid_genesis(&self, block: &GenesisBlock) -> bool {
@@ -281,161 +286,5 @@ impl DagModule {
                 "Error parsing signature into array".to_string(),
             ))
         }
-    }
-}
-
-#[async_trait]
-impl Handler<EventMessage> for DagModule {
-    fn id(&self) -> ActorId {
-        self.id.clone()
-    }
-
-    fn label(&self) -> ActorLabel {
-        format!("DAG::{}", self.id())
-    }
-
-    fn status(&self) -> ActorState {
-        self.status.clone()
-    }
-
-    fn set_status(&mut self, actor_status: ActorState) {
-        self.status = actor_status;
-    }
-
-    fn on_start(&self) {
-        info!("{} starting", self.label());
-    }
-
-    fn on_stop(&self) {
-        info!("{} received stop signal. Stopping", self.label());
-    }
-
-    async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
-        match event.into() {
-            Event::Stop => {
-                return Ok(ActorState::Stopped);
-            },
-            Event::BlockReceived(block) => match block {
-                Block::Genesis { block } => {
-                    if let Err(e) = self.append_genesis(&block) {
-                        let err_note = format!("Encountered GraphError: {e:?}");
-                        return Err(TheaterError::Other(err_note));
-                    };
-                },
-                Block::Proposal { block } => {
-                    if let Err(e) = self.append_proposal(&block) {
-                        let err_note = format!("Encountered GraphError: {e:?}");
-                        return Err(TheaterError::Other(err_note));
-                    }
-                },
-                Block::Convergence { block } => {
-                    if let Err(e) = self.append_convergence(&block) {
-                        let err_note = format!("Encountered GraphError: {e:?}");
-                        return Err(TheaterError::Other(err_note));
-                    }
-                    if block.certificate.is_none() {
-                        if let Some(header) = self.last_confirmed_block_header.clone() {
-                            if let Err(err) = self
-                                .events_tx
-                                .send(EventMessage::new(
-                                    None,
-                                    Event::PrecheckConvergenceBlock(block, header),
-                                ))
-                                .await
-                            {
-                                let err_note = format!(
-                                    "Failed to send EventMessage for PrecheckConvergenceBlock: {err}"
-                                );
-                                return Err(TheaterError::Other(err_note));
-                            }
-                        }
-                    }
-                },
-            },
-            Event::BlockCertificate(certificate) => {
-                let mut mine_block: Option<ConvergenceBlock> = None;
-                let block_hash = certificate.block_hash.clone();
-                if let Ok(Some(Block::Convergence { mut block })) =
-                    self.dag.write().map(|mut bull_dag| {
-                        bull_dag
-                            .get_vertex_mut(block_hash)
-                            .map(|vertex| vertex.get_data())
-                    })
-                {
-                    block.append_certificate(certificate.clone());
-                    self.last_confirmed_block_header = Some(block.get_header());
-                    mine_block = Some(block.clone());
-                }
-                if let Some(block) = mine_block {
-                    let proposal_block = Event::MineProposalBlock(
-                        block.hash.clone(),
-                        block.get_header().round,
-                        block.get_header().epoch,
-                        self.claim.clone(),
-                    );
-                    if let Err(err) = self
-                        .events_tx
-                        .send(EventMessage::new(None, proposal_block.clone()))
-                        .await
-                    {
-                        let err_msg = format!(
-                            "Error occurred while broadcasting event {proposal_block:?}: {err:?}"
-                        );
-                        return Err(TheaterError::Other(err_msg));
-                    }
-                } else {
-                    telemetry::debug!("Missing ConvergenceBlock for certificate: {certificate:?}");
-                }
-            },
-            Event::HarvesterPublicKey(pubkey_bytes) => {
-                if let Ok(public_key_set) =
-                    serde_json::from_slice::<PublicKeySet>(pubkey_bytes.as_slice())
-                {
-                    self.set_harvester_pubkeys(public_key_set)
-                }
-            },
-            Event::NoOp => {},
-            _ => {},
-        }
-        Ok(ActorState::Running)
-    }
-}
-
-pub fn setup_dag_module(
-    dag: Arc<RwLock<BullDag<Block, String>>>,
-    events_tx: EventPublisher,
-    mut dag_module_events_rx: EventSubscriber,
-    claim: Claim,
-) -> Result<Option<JoinHandle<crate::Result<()>>>> {
-    let module = DagModule::new(dag, events_tx, claim);
-
-    let mut dag_module_actor = ActorImpl::new(module);
-    let dag_module_handle = tokio::spawn(async move {
-        dag_module_actor
-            .start(&mut dag_module_events_rx)
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))
-    });
-
-    Ok(Some(dag_module_handle))
-}
-
-#[cfg(test)]
-mod tests {
-    use events::Event;
-    use theater::{ActorState, Handler};
-
-    use crate::test_utils::{create_blank_certificate, create_dag_module};
-
-    #[tokio::test]
-    async fn handle_event_block_certificate() {
-        let mut dag_module = create_dag_module();
-        let certificate = create_blank_certificate(dag_module.claim.signature.clone());
-        let message: messr::Message<Event> = Event::BlockCertificate(certificate).into();
-
-        assert_eq!(
-            ActorState::Running,
-            dag_module.handle(message).await.unwrap()
-        );
     }
 }

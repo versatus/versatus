@@ -2,31 +2,26 @@ use std::sync::{Arc, RwLock};
 
 use block::Block;
 use bulldag::graph::BullDag;
-use events::{Event, EventPublisher, EventRouter, DEFAULT_BUFFER};
-use primitives::{Address, NodeType};
+use dkg_engine::prelude::{DkgEngine, DkgEngineConfig};
+use events::{EventPublisher, EventRouter};
+use primitives::Address;
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorImpl};
+use theater::Actor;
 use tokio::task::JoinHandle;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use crate::{
     api::setup_rpc_api_server,
-    consensus::{
-        self,
-        ConsensusModule,
-        ConsensusModuleComponentConfig,
-        QuorumModuleComponentConfig,
-    },
-    dag_module::setup_dag_module,
-    indexer_module::{self, setup_indexer_module, IndexerModuleConfig},
+    consensus::{ConsensusModule, ConsensusModuleComponentConfig},
+    indexer_module::setup_indexer_module,
     mining_module::{MiningModule, MiningModuleComponentConfig},
     network::{NetworkModule, NetworkModuleComponentConfig},
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerComponentConfig},
     ui::setup_node_gui,
-    RuntimeComponent,
-    RuntimeComponentManager,
+    RuntimeComponent, RuntimeComponentManager,
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -42,26 +37,45 @@ pub async fn setup_runtime_components(
     let network_events_rx = router.subscribe(Some("network-events".into()))?;
     let miner_events_rx = router.subscribe(None)?;
     let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
-    let quorum_events_rx = router.subscribe(Some("consensus-events".into()))?;
     let consensus_events_rx = router.subscribe(Some("consensus-events".into()))?;
     let indexer_events_rx = router.subscribe(None)?;
-    let dag_events_rx = router.subscribe(None)?;
 
     let mut runtime_manager = RuntimeComponentManager::new();
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
-    let mut membership_config = QuorumMembershipConfig::default();
+    let membership_config = QuorumMembershipConfig::default();
+
+    let public_key = config.keypair.get_miner_public_key().to_owned();
+
+    let signature = Claim::signature_for_valid_claim(
+        public_key,
+        config.public_ip_address,
+        config
+            .keypair
+            .get_miner_secret_key()
+            .secret_bytes()
+            .to_vec(),
+    )?;
+
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        config.public_ip_address,
+        signature,
+    )
+    .map_err(NodeError::from)?;
 
     let state_component_handle = StateManager::setup(StateManagerComponentConfig {
         events_tx: events_tx.clone(),
         state_events_rx: vrrbdb_events_rx,
         node_config: config.clone(),
         dag: dag.clone(),
+        claim,
     })
     .await?;
 
-    let (state_read_handle, mempool_read_handle_factory) = state_component_handle.data().clone();
+    let (state_read_handle, mempool_read_handle_factory) = state_component_handle.data();
 
     let state_component_handle_label = state_component_handle.label();
 
@@ -78,6 +92,7 @@ pub async fn setup_runtime_components(
         vrrbdb_read_handle: state_read_handle.clone(),
         bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
         membership_config: config.quorum_config.clone(),
+        validator_public_key: config.keypair.validator_public_key_owned(),
     })
     .await?;
 
@@ -109,7 +124,7 @@ pub async fn setup_runtime_components(
 
     runtime_manager.register_component("API".to_string(), jsonrpc_server_handle);
 
-    let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+    // let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
     let miner_component = MiningModule::setup(MiningModuleComponentConfig {
         config: config.clone(),
@@ -123,58 +138,33 @@ pub async fn setup_runtime_components(
 
     runtime_manager.register_component(miner_component.label(), miner_component.handle());
 
-    // let dkg_handle = setup_dkg_module(&config, events_tx.clone(),
-    // dkg_events_rx)?;
-
-    let public_key = config.keypair.get_miner_public_key().to_owned();
-
-    let signature = Claim::signature_for_valid_claim(
-        public_key,
-        config.public_ip_address,
-        config
-            .keypair
-            .get_miner_secret_key()
-            .secret_bytes()
-            .to_vec(),
-    )?;
-
-    let claim = Claim::new(
-        public_key,
-        Address::new(public_key),
-        config.public_ip_address,
-        signature,
-    )
-    .map_err(NodeError::from)?;
-
-    //
     // TODO: revisit this
     //
     // events_tx
     //     .send(Event::ClaimCreated(claim.clone()).into())
     //     .await?;
 
-    let quorum_component = consensus::QuorumModule::setup(QuorumModuleComponentConfig {
-        events_tx: events_tx.clone(),
-        quorum_events_rx,
-        vrrbdb_read_handle: state_read_handle.clone(),
-        membership_config,
-        node_config: config.clone(),
-    })
-    .await?;
+    let dkg_engine_config = DkgEngineConfig {
+        node_id: config.id.clone(),
+        node_type: config.node_type.clone(),
+        secret_key: config.keypair.get_validator_secret_key_owned(),
+        threshold_config: config.threshold_config.clone(),
+    };
 
-    runtime_manager.register_component(quorum_component.label(), quorum_component.handle());
+    let dkg_generator = DkgEngine::new(dkg_engine_config);
 
-    let consensus_component = ConsensusModule::setup(ConsensusModuleComponentConfig {
-        events_tx: events_tx.clone(),
-        node_config: config.clone(),
-        vrrbdb_read_handle: state_read_handle.clone(),
-        consensus_events_rx,
-    })
-    .await?;
+    let consensus_component =
+        ConsensusModule::<VrrbDbReadHandle>::setup(ConsensusModuleComponentConfig {
+            events_tx: events_tx.clone(),
+            node_config: config.clone(),
+            vrrbdb_read_handle: state_read_handle.clone(),
+            consensus_events_rx,
+            dkg_generator,
+            validator_public_key: config.keypair.validator_public_key_owned(),
+        })
+        .await?;
 
     runtime_manager.register_component(consensus_component.label(), consensus_component.handle());
-
-    // let (events_tx, events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
     if config.enable_block_indexing {
         let handle = setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
@@ -182,8 +172,6 @@ pub async fn setup_runtime_components(
         // indexer_handle = Some(handle);
         // TODO: register indexer module handle
     }
-
-    let dag_handle = setup_dag_module(dag, events_tx, dag_events_rx, claim)?;
 
     let mut node_gui_handle = None;
     if config.gui {

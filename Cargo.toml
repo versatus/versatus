@@ -5,18 +5,18 @@ version = "0.1.0"
 authors = ["Versatus Labs <info@versatus.io>"]
 edition = "2021"
 readme = "README.md"
-default-run = "versatus"
+default-run = "versa"
 
 [profile.release]
 opt-level = 3
 lto = "thin"
 
 [[bin]]
-name = "versatus"
+name = "versa"
 path = "crates/cli/src/main.rs"
 
 [[bin]]
-name = "vrrb-wasm"
+name = "versa-wasm"
 path = "crates/wasm_cli/src/main.rs"
 
 [dependencies]
@@ -169,7 +169,7 @@ left-right = "0.11.5"
 keccak-hash = "0.9"
 parking_lot = "0.12"
 rlp = "0.5.1"
-criterion = { version = "0.5.1", features = [ "stable", "async_futures" ] }
+criterion = { version = "0.5.1", features = ["stable", "async_futures"] }
 ethereum-types = "0.13.1"
 concurrent-queue = "2.0.0"
 crossbeam-channel = "0.5.6"
@@ -232,4 +232,3 @@ uuid.workspace = true
 [[bench]]
 name = "poc"
 harness = false
-

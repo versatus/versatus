@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind};
+use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind, ValidatorPublicKey};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -11,6 +11,7 @@ pub struct QuorumMember {
     pub udp_gossip_address: SocketAddr,
     pub raptorq_gossip_address: SocketAddr,
     pub kademlia_liveness_address: SocketAddr,
+    pub validator_public_key: ValidatorPublicKey,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]

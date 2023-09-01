@@ -9,7 +9,8 @@ use vrrb_config::valid_threshold_config;
 
 use crate::{
     dkg::DkgGenerator,
-    engine::{DkgEngine, DkgState, SenderId},
+    dkg_state::DkgState,
+    engine::{DkgEngine, SenderId},
 };
 
 /// It generates a vector of secret keys and a map of public keys
@@ -52,23 +53,19 @@ pub async fn generate_dkg_engines(total_nodes: u16, node_type: NodeType) -> Vec<
         let secret_key: SecretKey = sec_keys.get(i as usize).unwrap().clone();
         let _secret_key_encoded = bincode::serialize(&SerdeSecret(secret_key.clone())).unwrap();
 
+        let mut dkg_state = DkgState::default();
+        dkg_state.set_peer_public_keys(pub_keys.clone());
+
         dkg_instances.push(DkgEngine {
             node_id: format!("node-{}", i),
             node_type,
             threshold_config: valid_threshold_config(),
             secret_key: sec_keys.get(i as usize).unwrap().clone(),
-            dkg_state: DkgState {
-                part_message_store: HashMap::new(),
-                ack_message_store: HashMap::new(),
-                peer_public_keys: pub_keys.clone(),
-                public_key_set: None,
-                secret_key_share: None,
-                sync_key_gen: None,
-                random_number_gen: None,
-            },
+            dkg_state,
             harvester_public_key: None,
         });
     }
+
     dkg_instances
 }
 
@@ -98,31 +95,33 @@ pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
         (part_commitment_node4, node_id_4),
     ];
 
-    for (part, node_id) in part_commitment_tuples {
-        if node_id != dkg_engine_node1.node_id() {
-            dkg_engine_node1
-                .dkg_state
-                .part_message_store
-                .insert(node_id.clone(), part.clone());
-        }
-        if node_id != dkg_engine_node2.node_id() {
-            dkg_engine_node2
-                .dkg_state
-                .part_message_store
-                .insert(node_id.clone(), part.clone());
-        }
-        if node_id != dkg_engine_node3.node_id() {
-            dkg_engine_node3
-                .dkg_state
-                .part_message_store
-                .insert(node_id.clone(), part.clone());
-        }
-        if node_id != dkg_engine_node4.node_id() {
-            dkg_engine_node4
-                .dkg_state
-                .part_message_store
-                .insert(node_id, part.clone());
-        }
+    for (part_commitment, node_id) in part_commitment_tuples.iter() {
+        // if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
+        //     if *node_idx != dkg_engine_node1.node_idx {
+        //         dkg_engine_node1
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        //     if *node_idx != dkg_engine_node2.node_idx {
+        //         dkg_engine_node2
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        //     if *node_idx != dkg_engine_node3.node_idx {
+        //         dkg_engine_node3
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        //     if *node_idx != dkg_engine_node4.node_idx {
+        //         dkg_engine_node4
+        //             .dkg_state
+        //             .part_message_store
+        //             .insert(*node_idx, part.clone());
+        //     }
+        // }
     }
 
     // let dkg_engine_node1_acks=vec![];
@@ -137,26 +136,34 @@ pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
 
     new_store = dkg_engine_node1
         .dkg_state
-        .ack_message_store
-        .clone()
+        .ack_message_store()
+        .to_owned()
         .into_iter()
-        .chain(dkg_engine_node2.dkg_state.ack_message_store.clone())
+        .chain(dkg_engine_node2.dkg_state.ack_message_store().clone())
         .collect();
 
     new_store = new_store
         .into_iter()
-        .chain(dkg_engine_node3.dkg_state.ack_message_store.clone())
+        .chain(dkg_engine_node3.dkg_state.ack_message_store().clone())
         .collect();
 
     new_store = new_store
         .into_iter()
-        .chain(dkg_engine_node4.dkg_state.ack_message_store.clone())
+        .chain(dkg_engine_node4.dkg_state.ack_message_store().clone())
         .collect();
 
-    dkg_engine_node1.dkg_state.ack_message_store = new_store.clone();
-    dkg_engine_node2.dkg_state.ack_message_store = new_store.clone();
-    dkg_engine_node3.dkg_state.ack_message_store = new_store.clone();
-    dkg_engine_node4.dkg_state.ack_message_store = new_store;
+    dkg_engine_node1
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+    dkg_engine_node2
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+    dkg_engine_node3
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
+    dkg_engine_node4
+        .dkg_state
+        .set_ack_message_store(new_store.clone());
 
     for _ in 0..4 {
         let _ = dkg_engine_node1.handle_ack_messages();

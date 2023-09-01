@@ -22,11 +22,7 @@ use vrrb_core::claim::Claim;
 
 use super::{NetworkEvent, NetworkModule};
 use crate::{
-    network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
+    network::DyswarmHandler, result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle,
     DEFAULT_ERASURE_COUNT,
 };
 
@@ -76,6 +72,22 @@ impl Handler<EventMessage> for NetworkModule {
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
+            },
+
+            Event::PartCommitmentCreated(node_id, part) => {
+                info!("Broadcasting part commitment to peers in quorum");
+                self.broadcast_part_commitment(node_id, part).await?;
+            },
+
+            Event::PartCommitmentAcknowledged { node_id, sender_id } => {
+                info!("Broadcasting part commitment acknowledgement to peers in quorum");
+                self.broadcast_part_commitment_acknowledgement(node_id, sender_id)
+                    .await?;
+            },
+
+            Event::ConvergenceBlockCertified(block) => {
+                info!("Broadcasting certified convergence block to network");
+                self.broadcast_certified_convergence_block(block).await?;
             },
 
             Event::Stop => {

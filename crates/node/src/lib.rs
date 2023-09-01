@@ -6,7 +6,6 @@ mod runtime_module;
 
 pub(crate) mod api;
 pub(crate) mod consensus;
-pub(crate) mod dag_module;
 pub(crate) mod data_store;
 pub(crate) mod indexer_module;
 pub(crate) mod mining_module;

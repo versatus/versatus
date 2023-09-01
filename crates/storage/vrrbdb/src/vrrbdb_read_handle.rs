@@ -8,9 +8,7 @@ use vrrb_core::{
 use vrrb_core::transactions::{Transaction, TransactionDigest};
 
 use crate::{
-    ClaimStoreReadHandleFactory,
-    StateStoreReadHandleFactory,
-    TransactionStoreReadHandleFactory,
+    ClaimStoreReadHandleFactory, StateStoreReadHandleFactory, TransactionStoreReadHandleFactory,
 };
 
 #[derive(Debug, Clone)]

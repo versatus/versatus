@@ -19,3 +19,11 @@ pub enum SignatureType {
     ThresholdSignature,
     ChainLockSignature,
 }
+
+pub type ValidatorPublicKey = hbbft::crypto::PublicKey;
+
+pub type ValidatorSecretKey = hbbft::crypto::SecretKey;
+
+pub type ValidatorSecretKeyShare = hbbft::crypto::SecretKeyShare;
+
+pub type ValidatorPublicKeyShare = hbbft::crypto::PublicKeyShare;

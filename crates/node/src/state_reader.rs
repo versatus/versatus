@@ -12,7 +12,7 @@ use vrrb_core::{
 use crate::Result;
 
 #[async_trait::async_trait]
-pub trait StateReader {
+pub trait StateReader: std::fmt::Debug {
     /// Returns a full list of all accounts within state
     async fn state_snapshot(&self) -> Result<HashMap<Address, Account>>;
 

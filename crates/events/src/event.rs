@@ -1,17 +1,19 @@
 use std::net::SocketAddr;
 
 use block::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    ConvergenceBlock,
-    ProposalBlock,
-    RefHash,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
-use primitives::{Address, Epoch, NodeId, NodeIdx, PublicKeyShareVec, RawSignature, Round, Seed};
+use ethereum_types::U256;
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
+use primitives::{
+    Address, Epoch, FarmerId, FarmerQuorumThreshold, IsTxnValid, NodeId, NodeIdx,
+    ProgramExecutionOutput, PublicKey, PublicKeyShareVec, RawSignature, Round, Seed,
+    TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare,
+};
 use serde::{Deserialize, Serialize};
-use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::{
     claim::Claim,
     txn::{TransactionDigest, Txn},
@@ -119,7 +121,116 @@ pub enum Event {
     /// to a particular quorum
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
-    DkgProtocolInitiated,
+    /// Signals thaa a node acknowledges belonging to a quorum
+    QuorumMembershipSet(NodeId),
+
+    PartCommitmentCreated(NodeId, Part),
+
+    PartCommitmentAcknowledged {
+        /// The node whose commitment was acknowledged
+        node_id: NodeId,
+        /// The node who acknowledged the partial commitment
+        sender_id: NodeId,
+    },
+
+    /// `HarvesterPublicKeyReceived(Vec<u8>)` is an event that carries a vector of bytes
+    /// representing the public key of a harvester node. This event is used
+    /// to communicate the public key of a harvester node to other nodes in
+    /// the network.
+    HarvesterPublicKeyReceived(PublicKeySet),
+
+    /// This events triggers the generation of a certificate for a given transaction
+    TransactionCertificateRequested {
+        votes: Vec<Vote>,
+        txn_id: TransactionDigest,
+        quorum_key: PublicKeyShareVec,
+        farmer_id: NodeId,
+        txn: Txn,
+        quorum_threshold: FarmerQuorumThreshold,
+    },
+
+    /// This event is emitted whenever a transaction is certified by a Farmer Quorum
+    TransactionCertificateCreated {
+        votes: Vec<Vote>,
+        signature: RawSignature,
+        digest: TransactionDigest,
+        /// OUtput of the program executed
+        execution_result: ProgramExecutionOutput,
+        farmer_id: NodeId,
+        txn: Box<Txn>,
+        is_valid: TxnValidationStatus,
+    },
+
+    MinerElectionStarted(BlockHeader),
+
+    MinerElected((U256, Claim)),
+
+    ProposalBlockCreated(ProposalBlock),
+
+    ConvergenceBlockCreated(ConvergenceBlock),
+
+    ConvergenceBlockCertified(ConvergenceBlock),
+
+    QuorumElectionStarted(BlockHeader),
+
+    // NOTE: replaces Event::Farm and pushes txns to the scheduler instead of having it pull them
+    TxnsReadyForProcessing(Vec<Txn>),
+
+    TxnsValidated {
+        votes: Vec<Option<Vote>>,
+        quorum_threshold: FarmerQuorumThreshold,
+    },
+
+    /// `ProposalBlockMineRequestCreated` triggers the mining of a proposal
+    /// block by a farmer node after every `X` seconds. The proposal block
+    /// contains a list of transactions that have been validated and certified
+    /// by the farmer node
+    ProposalBlockMineRequestCreated {
+        ref_hash: RefHash,
+        round: Round,
+        epoch: Epoch,
+        claim: Claim,
+    },
+
+    ConvergenceBlockSignatureRequested(ConvergenceBlock),
+
+    /// `ConvergenceBlockPartialSignatureCreated` is an event that is triggered
+    /// when a node has partially signed a convergence block. The
+    /// `JobResult` parameter contains the result of the partial signing
+    /// process, which includes the partial signature and the public key share
+    /// used to verify it. This event is used to communicate the partial
+    /// signature to other nodes in the network, so that they can aggregate
+    /// it with their own partial signatures to create a complete signature for
+    /// the convergence block,also it adds the partial signature to
+    /// certificate cache
+    ConvergenceBlockPartialSignatureCreated {
+        block_hash: BlockHash,
+        public_key_share: ValidatorPublicKeyShare,
+        partial_signature: RawSignature,
+    },
+
+    /// `ConvergenceBlockPrecheckRequested` is a function
+    /// used to precheck a convergence block before it is signed and added
+    /// to the blockchain. This precheck process involves verifying the validity
+    /// of the convergence block. The verification includes checking that
+    /// the block hashes correctly reference proposal block hashes,
+    /// as well as verifying the claim hashes and transaction hashes associated
+    /// with the convergence block.
+    ConvergenceBlockPrecheckRequested {
+        convergence_block: ConvergenceBlock,
+        block_header: BlockHeader,
+    },
+
+    /// `ConvergenceBlockPeerSignatureRequested` is an event that is used to create an
+    /// aggregated signatures out of  a partial signature shares from peers
+    ConvergenceBlockPeerSignatureRequested {
+        node_id: NodeId,
+        block_hash: BlockHash,
+        public_key_share: PublicKeyShareVec,
+        partial_signature: RawSignature,
+    },
+
+    Ping(NodeId),
 
     // TODO: refactor all the events below
     // ==========================================================================
@@ -130,12 +241,6 @@ pub enum Event {
     /// after a last new convergence block has been certified .
     UpdateState(BlockHash),
 
-    /// `MineProposalBlock` is an event that triggers the mining of a proposal
-    /// block by a farmer node after every `X` seconds. The proposal block
-    /// contains a list of transactions that have been validated and certified
-    /// by the farmer node
-    MineProposalBlock(RefHash, Round, Epoch, Claim),
-
     /// `ConvergenceBlockPartialSign(JobResult)` is an event that is triggered
     /// when a node has partially signed a convergence block. The
     /// `JobResult` parameter contains the result of the partial signing
@@ -145,7 +250,7 @@ pub enum Event {
     /// it with their own partial signatures to create a complete signature for
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
-    ConvergenceBlockPartialSign(JobResult),
+    ConvergenceBlockPartialSign(JobStatus),
 
     /// `CheckConflictResolution` is an event that triggers the checking of a
     /// proposed conflict resolution.The event is used to initiate the
@@ -162,10 +267,6 @@ pub enum Event {
     /// a Job to the scheduler
     SignConvergenceBlock(ConvergenceBlock),
 
-    /// `PeerConvergenceBlockSign` is an event that is used to create an
-    /// aggregated signatures out of  a partial signature shares from peers
-    PeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
-
     /// `SendPeerConvergenceBlockSign` is an event that triggers the sharing of
     /// a convergence block partial signature with other peers.
     SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
@@ -180,24 +281,7 @@ pub enum Event {
     /// `BlockCertificate(Certificate)` is an event that carries a `Certificate`
     /// object representing a proof that a block has been certified by a
     /// quorum. This certificate is then added to convergence block .
-    BlockCertificate(Certificate),
-
-    /// `PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader)` is a function
-    /// used to precheck a convergence block before it is signed and added
-    /// to the blockchain. This precheck process involves verifying the validity
-    /// of the convergence block. The verification includes checking that
-    /// the block hashes correctly reference proposal block hashes,
-    /// as well as verifying the claim hashes and transaction hashes associated
-    /// with the convergence block.
-    PrecheckConvergenceBlock(ConvergenceBlock, BlockHeader),
-
-    /// `HarvesterPublicKey(Vec<u8>)` is an event that carries a vector of bytes
-    /// representing the public key of a harvester node. This event is used
-    /// to communicate the public key of a harvester node to other nodes in
-    /// the network.
-    HarvesterPublicKey(Vec<u8>),
-
-    Ping(NodeId),
+    BlockCertificateCreated(Certificate),
 }
 
 impl From<&theater::Message> for Event {

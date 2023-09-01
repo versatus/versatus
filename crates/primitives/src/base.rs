@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 /// The unit of time within VRRB.
@@ -26,6 +28,8 @@ pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;
 
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
+pub type ByteSlice32Bit = [u8; 32];
+pub type ByteSlice48Bit = [u8; 48];
 pub type PayloadHash = ByteVec;
 pub type RawSignature = ByteVec;
 pub type PeerId = ByteVec;
@@ -33,6 +37,15 @@ pub type KademliaPeerId = kademlia_dht::Key;
 pub type FarmerId = ByteVec;
 pub type IsTxnValid = bool;
 pub type PublicKeyShareVec = ByteVec;
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub enum TxnValidationStatus {
+    Valid,
+    Invalid,
+}
+
+// NOTE: change to the appropriate type when we have a consensus
+pub type ProgramExecutionOutput = String;
 
 #[deprecated(note = "Use TransactionDigest instead")]
 pub type TxHash = ByteVec;
@@ -67,4 +80,13 @@ pub enum QuorumKind {
     #[default]
     Harvester,
     Farmer,
+}
+
+impl Display for QuorumKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuorumKind::Harvester => write!(f, "Harvester"),
+            QuorumKind::Farmer => write!(f, "Farmer"),
+        }
+    }
 }

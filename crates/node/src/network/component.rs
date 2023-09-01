@@ -5,13 +5,15 @@ use std::{
 };
 
 use async_trait::async_trait;
+use block::ConvergenceBlock;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
 use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber};
+use hbbft::{crypto::PublicKey as ThresholdSignaturePublicKey, sync_key_gen::Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use primitives::{KademliaPeerId, NodeId, NodeType};
+use primitives::{KademliaPeerId, NodeId, NodeType, ValidatorPublicKey};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
@@ -22,11 +24,7 @@ use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{
-    network::DyswarmHandler,
-    result::Result,
-    NodeError,
-    RuntimeComponent,
-    RuntimeComponentHandle,
+    network::DyswarmHandler, result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle,
     DEFAULT_ERASURE_COUNT,
 };
 
@@ -45,6 +43,7 @@ pub struct NetworkModule {
     pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
     pub(crate) dyswarm_client: dyswarm::client::Client,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
+    pub(crate) validator_public_key: ValidatorPublicKey,
 }
 
 #[derive(Debug, Clone)]
@@ -70,6 +69,8 @@ pub struct NetworkModuleConfig {
     pub membership_config: Option<QuorumMembershipConfig>,
 
     pub events_tx: EventPublisher,
+
+    pub validator_public_key: ValidatorPublicKey,
 }
 
 impl NetworkModule {
@@ -116,6 +117,7 @@ impl NetworkModule {
             dyswarm_server_handle,
             dyswarm_client,
             membership_config: config.membership_config.clone(),
+            validator_public_key: config.validator_public_key,
         };
 
         Ok(network_component)
@@ -142,12 +144,14 @@ impl NetworkModule {
             // that kademlia_dht understands
             let bootstrap_node_data = NodeData::new(
                 kademlia_key,
+                config.node_id.clone(),
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
             );
 
             KademliaNode::new(
                 config.kademlia_peer_id,
+                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
@@ -158,6 +162,7 @@ impl NetworkModule {
 
             KademliaNode::new(
                 config.kademlia_peer_id,
+                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 None,
@@ -210,6 +215,14 @@ impl NetworkModule {
         &mut self.kademlia_node
     }
 
+    pub fn validator_public_key(&self) -> ValidatorPublicKey {
+        self.validator_public_key
+    }
+
+    pub fn set_validator_public_key(&mut self, public_key: ValidatorPublicKey) {
+        self.validator_public_key = public_key;
+    }
+
     async fn broadcast_join_intent(&mut self) -> Result<()> {
         let msg = dyswarm::types::Message::new(NetworkEvent::PeerJoined {
             node_id: self.node_id.clone(),
@@ -218,6 +231,7 @@ impl NetworkModule {
             udp_gossip_addr: self.udp_gossip_addr(),
             raptorq_gossip_addr: self.raptorq_gossip_addr(),
             kademlia_liveness_addr: self.kademlia_liveness_addr(),
+            validator_public_key: self.validator_public_key(),
         });
 
         let nid = self.kademlia_node.node_data().id;
@@ -303,6 +317,81 @@ impl NetworkModule {
 
         Ok(())
     }
+
+    pub async fn broadcast_part_commitment(&mut self, node_id: NodeId, part: Part) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_addresses = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_addresses).await?;
+
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::PartCommitmentCreated(node_id, part));
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_part_commitment_acknowledgement(
+        &mut self,
+        node_id: NodeId,
+        sender_id: NodeId,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let found_peer = closest_nodes
+            .iter()
+            .find(|node| node.node_id == node_id.clone())
+            .ok_or(NodeError::Other(
+                "Could not find peer in routing table".to_string(),
+            ))?;
+
+        let addr = found_peer.udp_gossip_addr;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::PartCommitmentAcknowledged {
+            node_id,
+            sender_id,
+        });
+
+        self.dyswarm_client
+            .send_data_via_quic(message, addr)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_certified_convergence_block(
+        &mut self,
+        block: ConvergenceBlock,
+    ) -> Result<()> {
+        let message = dyswarm::types::Message::new(NetworkEvent::ConvergenceBlockCertified(block));
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -316,6 +405,7 @@ pub struct NetworkModuleComponentConfig {
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub membership_config: Option<QuorumMembershipConfig>,
     pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
+    pub validator_public_key: ValidatorPublicKey,
 }
 
 #[derive(Debug, Clone)]
@@ -345,6 +435,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             bootstrap_node_config: args.config.bootstrap_config,
             events_tx: args.events_tx,
             membership_config: args.membership_config,
+            validator_public_key: args.validator_public_key,
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;

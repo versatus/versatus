@@ -2,10 +2,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::ConfigError;
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Eq)]
 pub struct ThresholdConfig {
     pub upper_bound: u16,
     pub threshold: u16,
+}
+
+impl Default for ThresholdConfig {
+    fn default() -> Self {
+        ThresholdConfig {
+            upper_bound: 4,
+            threshold: 2,
+        }
+    }
 }
 
 impl ThresholdConfig {

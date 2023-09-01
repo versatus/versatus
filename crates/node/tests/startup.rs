@@ -1,4 +1,11 @@
-use node::{test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap}, Node, NodeState, RuntimeModuleState, test_utils};
+use node::test_utils;
+use node::{
+    test_utils::{
+        create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap,
+        MockStateStore,
+    },
+    Node,
+};
 use primitives::node::NodeType;
 use serial_test::serial;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
@@ -8,12 +15,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 async fn node_can_start_as_a_bootstrap_node() {
     let node_config = create_mock_bootstrap_node_config();
 
-    let start_args = node::StartArgs::new(
-        node_config,
-        test_utils::MockStateStore::new()
-    );
-
-    let mut vrrb_node = Node::start(start_args).await.unwrap();
+    let mut vrrb_node = Node::start(node_config).await.unwrap();
 
     let client = create_client(vrrb_node.jsonrpc_server_address())
         .await
@@ -33,24 +35,14 @@ async fn node_can_start_as_a_bootstrap_node() {
 async fn node_can_join_network() {
     let node_config = create_mock_bootstrap_node_config();
 
-    let start_args = node::StartArgs::new(
-        node_config,
-        test_utils::MockStateStore::new()
-    );
-
-    let mut bootstrap_node = Node::start(start_args).await.unwrap();
+    let mut bootstrap_node = Node::start(node_config).await.unwrap();
 
     // NOTE: use quic for peer discovery
     let bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
 
     let node_config_1 = create_mock_full_node_config_with_bootstrap(vec![bootstrap_gossip_address]);
 
-    let start_args1 = node::StartArgs::new(
-        node_config_1,
-        test_utils::MockStateStore::new()
-    );
-
-    let mut node_1 = Node::start(start_args1).await.unwrap();
+    let mut node_1 = Node::start(node_config_1).await.unwrap();
     let addr = node_1.jsonrpc_server_address();
 
     let client = create_client(addr).await.unwrap();
@@ -73,12 +65,7 @@ async fn node_can_join_network() {
 async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
     let node_config = create_mock_bootstrap_node_config();
 
-    let start_args = node::StartArgs::new(
-        node_config,
-        test_utils::MockStateStore::new()
-    );
-
-    let mut vrrb_node = Node::start(start_args).await.unwrap();
+    let mut vrrb_node = Node::start(node_config).await.unwrap();
 
     let client = create_client(vrrb_node.jsonrpc_server_address())
         .await
