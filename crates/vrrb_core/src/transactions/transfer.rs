@@ -5,6 +5,7 @@ use std::{
     hash::{Hash, Hasher},
     str::FromStr,
 };
+use std::marker::PhantomData;
 
 use primitives::{
     Address,
@@ -122,7 +123,8 @@ pub struct VoteReceipt {
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct QuorumCertifiedTxn<T: Transaction> {
+pub struct QuorumCertifiedTxn<'a, T: Transaction<'a> + 'a>
+{
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
@@ -130,22 +132,26 @@ pub struct QuorumCertifiedTxn<T: Transaction> {
     /// Threshold Signature
     signature: RawSignature,
     pub is_txn_valid: bool,
+    _marker: PhantomData<(&'a (), T)>,
 }
 
-impl<T: Transaction> QuorumCertifiedTxn<T> {
+impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<'a, T>
+    where &'a T: Default
+{
     pub fn new(
         sender_farmer_id: Vec<u8>,
         votes: Vec<VoteReceipt>,
         txn: T,
         signature: RawSignature,
         is_txn_valid: bool,
-    ) -> QuorumCertifiedTxn<T> {
+    ) -> QuorumCertifiedTxn<'a, T> {
         QuorumCertifiedTxn {
             sender_farmer_id,
             votes,
             txn,
             signature,
             is_txn_valid,
+            _marker: Default::default(),
         }
     }
 
@@ -373,22 +379,14 @@ impl Transfer {
     }
 }
 
-impl Transaction for Transfer {
+impl<'a> Transaction<'a> for Transfer {
+    fn kind(&self) -> TransactionKind {
+        self.kind.clone()
+    }
     /// Produces a SHA 256 hash slice of bytes from the transaction
     fn id(&self) -> TransactionDigest {
         self.id.clone()
     }
-    fn kind(&self) -> TransactionKind {
-        self.kind.clone()
-    }
-    fn amount(&self) -> TxAmount {
-        self.amount
-    }
-
-    fn token(&self) -> Token {
-        self.token.clone()
-    }
-
     fn timestamp(&self) -> TxTimestamp {
         self.timestamp
     }
@@ -405,16 +403,24 @@ impl Transaction for Transfer {
         self.receiver_address.clone()
     }
 
+    fn token(&self) -> Token {
+        self.token.clone()
+    }
+
+    fn amount(&self) -> TxAmount {
+        self.amount
+    }
+
     fn signature(&self) -> Signature {
         self.signature
     }
 
-    fn nonce(&self) -> TxNonce {
-        self.nonce
-    }
-
     fn validators(&self) -> Option<HashMap<String, bool>> {
         self.validators.clone()
+    }
+
+    fn nonce(&self) -> TxNonce {
+        self.nonce
     }
 
     fn fee(&self) -> u128 {
