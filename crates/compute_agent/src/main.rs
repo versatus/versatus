@@ -7,7 +7,7 @@ use tokio;
 use service_config::Config;
 use telemetry::info;
 
-const THIS_SERVICE_TYPE: &str = "compute";
+static THIS_SERVICE_TYPE: &str = "compute";
 
 #[tokio::main]
 async fn main() -> Result<()> {
