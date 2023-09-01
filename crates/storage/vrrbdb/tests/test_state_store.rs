@@ -12,6 +12,7 @@ fn accounts_can_be_added() {
     let mut db = VrrbDb::new(VrrbDbConfig::default());
 
     let (secret_key, addr1) = _generate_random_address();
+    let key_hash = KeyHash(addr1.public_key_bytes().as_slice());
     let (_, addr2) = _generate_random_address();
     let (_, addr3) = _generate_random_address();
     let (_, addr4) = _generate_random_address();
@@ -24,7 +25,7 @@ fn accounts_can_be_added() {
         .unwrap();
     let read_handle = db.state_store_factory().handle();
     dbg!(&read_handle.inner);
-    let entries = read_handle.entries(Some(/* how to get a KeyHash from Address? */));
+    let entries = read_handle.entries(Some());
     dbg!(&entries);
 
     assert_eq!(entries.len(), 2);

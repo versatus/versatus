@@ -22,6 +22,10 @@ impl Address {
         // TODO: revisit later
         self.0.to_string().into_bytes()
     }
+
+    pub fn as_keyhash(&self) -> KeyHash {
+        // fix this
+    }
 }
 
 impl Default for Address {
