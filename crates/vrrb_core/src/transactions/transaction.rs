@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use primitives::{Address, PublicKey, Signature};
 use crate::transactions::{Token, TransactionDigest, TransactionKind, TxAmount, TxNonce, TxTimestamp};
 
-pub trait Transaction: Clone + Sized + Serialize {
+
+pub trait Transaction<'a>: Clone + Sized + Serialize + Default + Deserialize<'a> {
     fn kind(&self) -> TransactionKind;
     fn id(&self) -> TransactionDigest;
     fn timestamp(&self) -> TxTimestamp;

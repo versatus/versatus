@@ -1,4 +1,5 @@
 use std::{path::Path, sync::Arc};
+use serde::Deserialize;
 
 use lr_trie::{LeftRightTrie, Proof, H256};
 use storage_utils::Result;
