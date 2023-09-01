@@ -23,6 +23,10 @@ path = "crates/wasm_cli/src/main.rs"
 name = "versa-compute"
 path = "crates/compute_agent/src/main.rs"
 
+[[bin]]
+name = "versa-storage"
+path = "crates/storage_agent/src/main.rs"
+
 [dependencies]
 tokio = { workspace = true }
 telemetry = { workspace = true }
@@ -69,6 +73,7 @@ members = [
     "crates/wasm_cli",
     "crates/wasm_runtime",
     "crates/compute_agent",
+    "crates/storage_agent",
     "crates/service_config",
 ]
 
