@@ -101,7 +101,7 @@ wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 
 # NOTE: Github crates
-patriecia = { git = "https://github.com/versatus/patriecia" }
+patriecia = { path = "../patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
@@ -112,7 +112,7 @@ rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
 decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
 dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
-integral-db = { git = "https://github.com/vrrb-io/integral-db" }
+integral-db = { path = "../integral-db" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
