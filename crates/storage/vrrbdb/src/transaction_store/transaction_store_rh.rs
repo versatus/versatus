@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, Version};
+use patriecia::{JellyfishMerkleTree, KeyHash, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};
 
-use crate::{RocksDbAdapter, STARTING_KEY};
+use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
 pub struct TransactionStoreReadHandle {
@@ -39,17 +39,21 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
+    pub fn entries(&self, starting_key_opt: Option<KeyHash>) -> HashMap<TransactionDigest, Txn> {
         // TODO: revisit and refactor into inner wrapper
+        let starting_key = if let Some(key_hash) = starting_key_opt {
+            key_hash
+        } else {
+            KeyHash::sha256::<TransactionDigest>()
+        };
         self.inner
-            .iter(self.inner.version(), STARTING_KEY)
+            .iter(self.inner.version(), starting_key)
             .unwrap()
             .filter_map(|item| {
-                if let Ok((key, value)) = item {
-                    let key = bincode::deserialize(&key.0).unwrap_or_default();
-                    let value = bincode::deserialize(&value).unwrap_or_default();
+                if let Ok((_, txn)) = item {
+                    let txn = bincode::deserialize::<Txn>(&txn).unwrap_or_default();
 
-                    return Some((key, value));
+                    return Some((txn.digest().clone(), txn));
                 }
                 None
             })

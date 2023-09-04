@@ -1,5 +1,6 @@
 use std::env;
 
+use patriecia::{KeyHash, Sha256};
 use serial_test::serial;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 mod common;
@@ -22,11 +23,15 @@ fn transactions_can_be_added() {
 
     let txn1 = _generate_random_valid_transaction();
     let txn2 = _generate_random_valid_transaction();
+    let key_hash = KeyHash::with::<Sha256>(bincode::serialize(&txn1.digest()).unwrap());
 
     db.insert_transaction_unchecked(txn1).unwrap();
     db.insert_transaction_unchecked(txn2).unwrap();
 
-    let entries = db.transaction_store_factory().handle().entries();
+    let entries = db
+        .transaction_store_factory()
+        .handle()
+        .entries(Some(key_hash.clone()));
     dbg!(&entries);
 
     assert_eq!(entries.len(), 2);
@@ -37,7 +42,10 @@ fn transactions_can_be_added() {
         _generate_random_valid_transaction(),
     ]);
 
-    let entries = db.transaction_store_factory().handle().entries();
+    let entries = db
+        .transaction_store_factory()
+        .handle()
+        .entries(Some(key_hash));
 
     assert_eq!(entries.len(), 5);
 }

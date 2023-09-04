@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, KeyHash, VersionedTrie};
+use patriecia::{JellyfishMerkleTree, KeyHash};
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::Account;
 
-use crate::{RocksDbAdapter, STARTING_KEY};
+use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
 pub struct StateStoreReadHandle {
@@ -47,24 +47,17 @@ impl StateStoreReadHandle {
 
     pub fn entries(&self, starting_key_opt: Option<KeyHash>) -> HashMap<Address, Account> { 
         // TODO: revisit and refactor into inner wrapper
-        let version = self.inner.version(); 
         let starting_key = if let Some(key_hash) = starting_key_opt {
             key_hash
         } else {
-            STARTING_KEY
+            KeyHash::sha256::<Address>()
         };
-        let iter = 
         self.inner
-            .iter(version, starting_key).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}");
-            iter
+            .iter(self.inner.version(), starting_key).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}") 
             .filter_map(|item| { 
-                if let Ok((key, _)) = item {
-                    // unable to get Address directly due to hashing of keys in the trie
-                    // work around to get address from Account instead
-                    if let Ok(Some(account)) = self.inner.inner().get(key, version) {
-                        let account = bincode::deserialize::<Account>(&account).unwrap_or_default();
-                        return Some((account.address().clone(), account));
-                    }
+                if let Ok((_, account)) = item {
+                    let account = bincode::deserialize::<Account>(&account).unwrap_or_default();
+                    return Some((account.address().clone(), account)); 
                 }
                 None
             })

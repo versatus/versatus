@@ -1,13 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, Version};
+use patriecia::{JellyfishMerkleTree, KeyHash, Version};
 use primitives::NodeId;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
-use crate::{RocksDbAdapter, STARTING_KEY};
+use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
 pub struct ClaimStoreReadHandle {
@@ -42,17 +42,20 @@ impl ClaimStoreReadHandle {
         claims
     }
 
-    pub fn entries(&self) -> HashMap<NodeId, Claim> {
+    pub fn entries(&self, starting_key_opt: Option<KeyHash>) -> HashMap<NodeId, Claim> {
         // TODO: revisit and refactor into inner wrapper
+        let starting_key = if let Some(key) = starting_key_opt {
+            key
+        } else {
+            KeyHash::sha256::<NodeId>()
+        };
         self.inner
-            .iter(self.inner.version(), STARTING_KEY)
+            .iter(self.inner.version(), starting_key)
             .unwrap()
             .filter_map(|item| {
-                if let Ok((key, value)) = item {
-                    if let Ok(key) = bincode::deserialize(&key.0) {
-                        if let Ok(value) = bincode::deserialize(&value) {
-                            return Some((key, value));
-                        }
+                if let Ok((_, claim)) = item {
+                    if let Ok(claim) = bincode::deserialize::<Claim>(&claim) {
+                        return Some((NodeId::default(), claim));
                     }
                 }
                 None
