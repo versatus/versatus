@@ -12,7 +12,6 @@ fn accounts_can_be_added() {
     let mut db = VrrbDb::new(VrrbDbConfig::default());
 
     let (_secret_key, addr1) = _generate_random_address();
-    let key_hash = KeyHash::with::<Sha256>(bincode::serialize(&addr1).unwrap());
     let (_, addr2) = _generate_random_address();
     let (_, addr3) = _generate_random_address();
     let (_, addr4) = _generate_random_address();
@@ -20,12 +19,11 @@ fn accounts_can_be_added() {
 
     db.insert_account(addr1.clone(), Account::new(addr1.public_key()))
         .unwrap();
-
     db.insert_account(addr2.clone(), Account::new(addr2.public_key()))
         .unwrap();
     let read_handle = db.state_store_factory().handle();
 
-    let entries = read_handle.entries(Some(key_hash.clone()));
+    let entries = read_handle.entries();
 
     assert_eq!(entries.len(), 2);
 
@@ -35,7 +33,7 @@ fn accounts_can_be_added() {
         (addr5.clone(), Some(Account::new(addr5.public_key()))),
     ]);
 
-    let entries = db.state_store_factory().handle().entries(Some(key_hash));
+    let entries = db.state_store_factory().handle().entries();
 
     assert_eq!(entries.len(), 5);
 }

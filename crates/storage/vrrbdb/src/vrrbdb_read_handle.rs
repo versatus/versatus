@@ -33,18 +33,18 @@ impl VrrbDbReadHandle {
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
     pub fn state_store_values(&self) -> HashMap<Address, Account> {
-        self.state_store_handle_factory.handle().entries(None)
+        self.state_store_handle_factory.handle().entries()
     }
 
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
     pub fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn> {
-        self.transaction_store_handle_factory.handle().entries(None)
+        self.transaction_store_handle_factory.handle().entries()
     }
 
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
     pub fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        self.claim_store_handle_factory.handle().entries(None)
+        self.claim_store_handle_factory.handle().entries()
     }
 }

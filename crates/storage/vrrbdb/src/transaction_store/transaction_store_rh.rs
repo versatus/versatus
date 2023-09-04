@@ -39,15 +39,10 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries(&self, starting_key_opt: Option<KeyHash>) -> HashMap<TransactionDigest, Txn> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
         // TODO: revisit and refactor into inner wrapper
-        let starting_key = if let Some(key_hash) = starting_key_opt {
-            key_hash
-        } else {
-            KeyHash::sha256::<TransactionDigest>()
-        };
         self.inner
-            .iter(self.inner.version(), starting_key)
+            .iter(self.inner.version())
             .unwrap()
             .filter_map(|item| {
                 if let Ok((_, txn)) = item {

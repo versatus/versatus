@@ -45,15 +45,10 @@ impl StateStoreReadHandle {
         accounts
     }
 
-    pub fn entries(&self, starting_key_opt: Option<KeyHash>) -> HashMap<Address, Account> { 
-        // TODO: revisit and refactor into inner wrapper
-        let starting_key = if let Some(key_hash) = starting_key_opt {
-            key_hash
-        } else {
-            KeyHash::sha256::<Address>()
-        };
+    pub fn entries(&self) -> HashMap<Address, Account> { 
+        // TODO: revisit and refactor into inner wrapper 
         self.inner
-            .iter(self.inner.version(), starting_key).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}") 
+            .iter(self.inner.version()).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}") 
             .filter_map(|item| { 
                 if let Ok((_, account)) = item {
                     let account = bincode::deserialize::<Account>(&account).unwrap_or_default();

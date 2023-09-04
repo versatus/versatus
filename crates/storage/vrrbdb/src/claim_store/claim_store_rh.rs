@@ -42,15 +42,10 @@ impl ClaimStoreReadHandle {
         claims
     }
 
-    pub fn entries(&self, starting_key_opt: Option<KeyHash>) -> HashMap<NodeId, Claim> {
+    pub fn entries(&self) -> HashMap<NodeId, Claim> {
         // TODO: revisit and refactor into inner wrapper
-        let starting_key = if let Some(key) = starting_key_opt {
-            key
-        } else {
-            KeyHash::sha256::<NodeId>()
-        };
         self.inner
-            .iter(self.inner.version(), starting_key)
+            .iter(self.inner.version())
             .unwrap()
             .filter_map(|item| {
                 if let Ok((_, claim)) = item {
