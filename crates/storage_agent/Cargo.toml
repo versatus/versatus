@@ -1,6 +1,6 @@
 [package]
 name = "storage_cli"
-description = "Verstatus Storage Agent CLI"
+description = "Versatus Storage Agent CLI"
 version = "0.1.0"
 edition = "2021"
 
