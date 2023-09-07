@@ -7,11 +7,11 @@ use tokio;
 use service_config::Config;
 use telemetry::info;
 
-static THIS_SERVICE_TYPE: &str = "compute";
+static THIS_SERVICE_TYPE: &str = "storage";
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let cli = cli::ComputeCli::parse();
+    let cli = cli::StorageCli::parse();
 
     let service: String;
     match cli.service_type {
@@ -27,14 +27,11 @@ async fn main() -> Result<()> {
 
     // Process subcommand
     match &cli.cmd {
-        Some(cli::ComputeCommands::Daemon(opts)) => {
+        Some(cli::StorageCommands::Daemon(opts)) => {
             commands::daemon::run(opts, &config).await?;
         },
-        Some(cli::ComputeCommands::Status(opts)) => {
+        Some(cli::StorageCommands::Status(opts)) => {
             commands::status::run(opts, &config).await?;
-        },
-        Some(cli::ComputeCommands::Run(opts)) => {
-            commands::run::run(opts, &config).await?;
         },
         None => {},
     }
