@@ -50,7 +50,8 @@ impl ClaimStoreReadHandle {
             .filter_map(|item| {
                 if let Ok((_, claim)) = item {
                     if let Ok(claim) = bincode::deserialize::<Claim>(&claim) {
-                        return Some((NodeId::default(), claim));
+                        return Some((NodeId::default(), claim)); // The default is a place holder, this is broken atm
+                                                                 // since we cannot get the NodeId from the Claim nor the KeyHash
                     }
                 }
                 None
