@@ -3,7 +3,6 @@ mod commands;
 
 use anyhow::Result;
 use clap::Parser;
-use tokio;
 use service_config::Config;
 use telemetry::info;
 
@@ -32,9 +31,6 @@ async fn main() -> Result<()> {
         },
         Some(cli::ComputeCommands::Status(opts)) => {
             commands::status::run(opts, &config).await?;
-        },
-        Some(cli::ComputeCommands::Run(opts)) => {
-            commands::run::run(opts, &config).await?;
         },
         None => {},
     }
