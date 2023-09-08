@@ -14,18 +14,18 @@ use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefH
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
-pub struct ProposalBlock {
+pub struct ProposalBlock<T> {
     pub ref_block: RefHash,
     pub round: u128,
     pub epoch: Epoch,
-    pub txns: QuorumCertifiedTxnList,
+    pub txns: QuorumCertifiedTxnList<T>,
     pub claims: ClaimList,
     pub from: Claim,
     pub hash: BlockHash,
     pub signature: String,
 }
 
-impl<'a, T: Transaction<'a>> ProposalBlock {
+impl<'a, T: Transaction<'a>> ProposalBlock<T> {
     /// The `build` function takes in various inputs, and builds
     /// `ProposalBlock`that consist of confirmed transactions validated by
     /// harvester
@@ -59,11 +59,11 @@ impl<'a, T: Transaction<'a>> ProposalBlock {
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
-        txns: QuorumCertifiedTxnList,
+        txns: QuorumCertifiedTxnList<T>,
         claims: ClaimList,
         from: Claim,
         secret_key: &MinerSk,
-    ) -> ProposalBlock {
+    ) -> ProposalBlock<T> {
         let hashable_txns: Vec<(String, QuorumCertifiedTxn<T>)> = {
             txns.iter()
                 .map(|(k, v)| (k.digest_string(), v.clone()))

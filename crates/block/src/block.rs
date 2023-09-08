@@ -1,19 +1,20 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Formatter};
 
 use bulldag::vertex::Vertex;
 use reward::reward::Reward;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use serde::{Deserialize, Serialize};
+use vrrb_core::transactions::Transaction;
 
 #[cfg(mainnet)]
 use crate::genesis;
 use crate::{header::BlockHeader, ConvergenceBlock, GenesisBlock, ProposalBlock};
 
-pub trait InnerBlock: std::fmt::Debug + Send {
+pub trait InnerBlock<T>: std::fmt::Debug + Send {
     type Header;
     type RewardType;
 
@@ -24,18 +25,18 @@ pub trait InnerBlock: std::fmt::Debug + Send {
     fn get_hash(&self) -> String;
     fn get_ref_hashes(&self) -> Vec<String>;
     fn as_static_convergence(&self) -> Option<ConvergenceBlock>;
-    fn as_static_genesis(&self) -> Option<GenesisBlock>;
+    fn as_static_genesis(&self) -> Option<GenesisBlock<T>>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
-pub enum Block {
+pub enum Block<T> {
     Convergence { block: ConvergenceBlock },
-    Proposal { block: ProposalBlock },
-    Genesis { block: GenesisBlock },
+    Proposal { block: ProposalBlock<T> },
+    Genesis { block: GenesisBlock<T> },
 }
 
-impl Block {
+impl<'a, T: Transaction<'a>> Block<T> {
     pub fn is_convergence(&self) -> bool {
         matches!(self, Block::Convergence { .. })
     }
@@ -86,25 +87,25 @@ impl fmt::Display for ConvergenceBlock {
 }
 
 //TODO: impl fmt::Display for ProposalBlock & GenesisBlock
-impl From<ConvergenceBlock> for Block {
-    fn from(block: ConvergenceBlock) -> Block {
+impl<'a, T: Transaction<'a>> From<ConvergenceBlock> for Block<T> {
+    fn from(block: ConvergenceBlock) -> Block<T> {
         Block::Convergence { block }
     }
 }
 
-impl From<ProposalBlock> for Block {
-    fn from(block: ProposalBlock) -> Block {
+impl<'a, T: Transaction<'a>> From<ProposalBlock<T>> for Block<T> {
+    fn from(block: ProposalBlock<T>) -> Block<T> {
         Block::Proposal { block }
     }
 }
 
-impl From<GenesisBlock> for Block {
-    fn from(block: GenesisBlock) -> Block {
+impl<'a, T: Transaction<'a>> From<GenesisBlock<T>> for Block<T> {
+    fn from(block: GenesisBlock<T>) -> Block<T> {
         Block::Genesis { block }
     }
 }
 
-impl InnerBlock for ConvergenceBlock {
+impl<'a, T: Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
     type Header = BlockHeader;
     type RewardType = Reward;
 
@@ -132,7 +133,7 @@ impl InnerBlock for ConvergenceBlock {
         Some(self.clone())
     }
 
-    fn as_static_genesis(&self) -> Option<GenesisBlock> {
+    fn as_static_genesis(&self) -> Option<GenesisBlock<T>> {
         None
     }
 
@@ -141,7 +142,13 @@ impl InnerBlock for ConvergenceBlock {
     }
 }
 
-impl InnerBlock for GenesisBlock {
+impl<'a, T: Transaction<'a>> Debug for GenesisBlock<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
+impl<'a, T: Transaction<'a>> InnerBlock<T> for GenesisBlock<T> {
     type Header = BlockHeader;
     type RewardType = Reward;
 
@@ -165,21 +172,21 @@ impl InnerBlock for GenesisBlock {
         self.hash.clone()
     }
 
+    fn get_ref_hashes(&self) -> Vec<String> {
+        self.header.ref_hashes.clone()
+    }
+
     fn as_static_convergence(&self) -> Option<ConvergenceBlock> {
         None
     }
 
-    fn as_static_genesis(&self) -> Option<GenesisBlock> {
+    fn as_static_genesis(&self) -> Option<GenesisBlock<T>> {
         Some(self.clone())
-    }
-
-    fn get_ref_hashes(&self) -> Vec<String> {
-        self.header.ref_hashes.clone()
     }
 }
 
-impl From<Block> for Vertex<Block, String> {
-    fn from(item: Block) -> Vertex<Block, String> {
+impl<'a, T: Transaction<'a> + Clone + Debug> From<Block<T>> for Vertex<Block<T>, String> {
+    fn from(item: Block<T>) -> Vertex<Block<T>, String> {
         match item {
             Block::Convergence { ref block } => Vertex::new(item.clone(), block.hash.clone()),
             Block::Proposal { ref block } => Vertex::new(item.clone(), block.hash.clone()),

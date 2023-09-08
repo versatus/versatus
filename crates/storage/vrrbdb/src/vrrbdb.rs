@@ -50,13 +50,13 @@ impl Default for VrrbDbConfig {
 }
 
 #[derive(Debug, Default)]
-pub struct VrrbDb<T> {
+pub struct VrrbDb<T: Transaction<'static>> {
     state_store: StateStore,
     transaction_store: TransactionStore<T>,
     claim_store: ClaimStore,
 }
 
-impl<T: Transaction> VrrbDb<T> {
+impl<T: Transaction<'static>> VrrbDb<T> {
     pub fn new(config: VrrbDbConfig) -> Self {
         let state_store = StateStore::new(&config.path);
         let transaction_store = TransactionStore::new(&config.path);
@@ -205,7 +205,7 @@ impl<T: Transaction> VrrbDb<T> {
     }
 }
 
-impl<T: Transaction> Clone for VrrbDb<T> {
+impl<T: Transaction<'static>> Clone for VrrbDb<T> {
     fn clone(&self) -> VrrbDb<T> {
         Self {
             state_store: self.state_store.clone(),
@@ -215,7 +215,7 @@ impl<T: Transaction> Clone for VrrbDb<T> {
     }
 }
 
-impl<T: Transaction> Display for VrrbDb<T> {
+impl<T: Transaction<'static>> Display for VrrbDb<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let state_entries = self.state_store_factory().handle().entries();
         let transaction_entries = self

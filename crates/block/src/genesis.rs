@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::genesis;
 use crate::{header::BlockHeader, BlockHash, Certificate, ClaimList, TxnList};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
-pub struct GenesisBlock {
+pub struct GenesisBlock<T> {
     pub header: BlockHeader,
-    pub txns: TxnList,
+    pub txns: TxnList<T>,
     pub claims: ClaimList,
     pub hash: BlockHash,
     pub certificate: Option<Certificate>,
