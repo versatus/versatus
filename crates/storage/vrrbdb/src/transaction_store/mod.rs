@@ -18,7 +18,7 @@ where
     trie: LeftRightTrie<'static, TransactionDigest, T, RocksDbAdapter>,
 }
 
-impl<'a, T: Transaction<'static> + Serialize + Deserialize<'static>> Default for TransactionStore<T> {
+impl<T: Transaction<'static> + Serialize + Deserialize<'static>> Default for TransactionStore<T> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -33,7 +33,7 @@ impl<'a, T: Transaction<'static> + Serialize + Deserialize<'static>> Default for
     }
 }
 
-impl<'a, T: Transaction<'static> + Serialize + Deserialize<'static>> TransactionStore<T> {
+impl<T: Transaction<'static> + Serialize + Deserialize<'static>> TransactionStore<T> {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");

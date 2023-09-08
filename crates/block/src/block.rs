@@ -36,7 +36,7 @@ pub enum Block<T> {
     Genesis { block: GenesisBlock<T> },
 }
 
-impl<'a, T: Transaction<'a>> Block<T> {
+impl<T: for<'a> Transaction<'a>> Block<T> {
     pub fn is_convergence(&self) -> bool {
         matches!(self, Block::Convergence { .. })
     }
@@ -87,25 +87,25 @@ impl fmt::Display for ConvergenceBlock {
 }
 
 //TODO: impl fmt::Display for ProposalBlock & GenesisBlock
-impl<'a, T: Transaction<'a>> From<ConvergenceBlock> for Block<T> {
+impl<T: for<'a> Transaction<'a>> From<ConvergenceBlock> for Block<T> {
     fn from(block: ConvergenceBlock) -> Block<T> {
         Block::Convergence { block }
     }
 }
 
-impl<'a, T: Transaction<'a>> From<ProposalBlock<T>> for Block<T> {
+impl<T: for<'a> Transaction<'a>> From<ProposalBlock<T>> for Block<T> {
     fn from(block: ProposalBlock<T>) -> Block<T> {
         Block::Proposal { block }
     }
 }
 
-impl<'a, T: Transaction<'a>> From<GenesisBlock<T>> for Block<T> {
+impl<T: for<'a> Transaction<'a>> From<GenesisBlock<T>> for Block<T> {
     fn from(block: GenesisBlock<T>) -> Block<T> {
         Block::Genesis { block }
     }
 }
 
-impl<'a, T: Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
+impl<T: for<'a> Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
     type Header = BlockHeader;
     type RewardType = Reward;
 
@@ -142,7 +142,7 @@ impl<'a, T: Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
     }
 }
 
-impl<'a, T: Transaction<'a> + Debug + Send> InnerBlock<T> for GenesisBlock<T> {
+impl<T: for<'a> Transaction<'a> + Debug + Send> InnerBlock<T> for GenesisBlock<T> {
     type Header = BlockHeader;
     type RewardType = Reward;
 
@@ -179,7 +179,7 @@ impl<'a, T: Transaction<'a> + Debug + Send> InnerBlock<T> for GenesisBlock<T> {
     }
 }
 
-impl<'a, T: Transaction<'a> + Clone + Debug> From<Block<T>> for Vertex<Block<T>, String> {
+impl<T: for<'a> Transaction<'a> + Clone + Debug> From<Block<T>> for Vertex<Block<T>, String> {
     fn from(item: Block<T>) -> Vertex<Block<T>, String> {
         match item {
             Block::Convergence { ref block } => Vertex::new(item.clone(), block.hash.clone()),

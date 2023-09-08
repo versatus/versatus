@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 // FEATURE TAG(S): Block Structure, Rewards
 use chrono;
 use primitives::{Epoch, SecretKey};
@@ -99,7 +100,7 @@ impl BlockHeader {
         }
     }
 
-    pub fn new<'a, T: Transaction<'a>>(
+    pub fn new<T: Debug + Send + for<'a> Transaction<'a>>(
         last_block: Block<T>,
         ref_hashes: Vec<String>,
         miner_claim: Claim,
