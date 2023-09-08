@@ -22,7 +22,7 @@ use crate::{
 
 pub struct MineArgs<'a, T> {
     pub claim: Claim,
-    pub last_block: Block,
+    pub last_block: Block<T>,
     pub txns: LinkedHashMap<String, T>,
     pub claims: LinkedHashMap<String, Claim>,
     pub claim_list_hash: Option<String>,

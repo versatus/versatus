@@ -123,29 +123,27 @@ pub struct VoteReceipt {
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize)]
-pub struct QuorumCertifiedTxn<'a, T>
-where
- T: Transaction<'a> + Deserialize<'a>, &'a T: Default
+pub struct QuorumCertifiedTxn<T>
 {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
-    txn: &'a T,
+    txn: T,
     /// Threshold Signature
     signature: RawSignature,
     pub is_txn_valid: bool,
 }
 
-impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<'a, T>
+impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<T>
     where &'a T: Default
 {
     pub fn new(
         sender_farmer_id: Vec<u8>,
         votes: Vec<VoteReceipt>,
-        txn: &'a T,
+        txn: T,
         signature: RawSignature,
         is_txn_valid: bool,
-    ) -> QuorumCertifiedTxn<'a, T> {
+    ) -> QuorumCertifiedTxn<T> {
         QuorumCertifiedTxn {
             sender_farmer_id,
             votes,

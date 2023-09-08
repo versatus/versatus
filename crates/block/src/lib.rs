@@ -16,6 +16,7 @@ pub mod valid {
     use primitives::{ByteVec, RawSignature, SignatureType};
     use serde::{Deserialize, Serialize};
     use utils::hash_data;
+    use vrrb_core::transactions::Transaction;
 
     use crate::{ConvergenceBlock, GenesisBlock, ProposalBlock};
 
@@ -44,7 +45,7 @@ pub mod valid {
         pub signature_type: SignatureType,
     }
 
-    impl Valid for GenesisBlock {
+    impl<'a, T: Transaction<'a>> Valid for GenesisBlock<T> {
         type DecodeError = hex::FromHexError;
         type ValidationData = BlockValidationData;
 
@@ -80,7 +81,7 @@ pub mod valid {
         }
     }
 
-    impl Valid for ProposalBlock {
+    impl<'a, T: Transaction<'a>> Valid for ProposalBlock<T> {
         type DecodeError = hex::FromHexError;
         type ValidationData = BlockValidationData;
 

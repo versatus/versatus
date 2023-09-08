@@ -138,12 +138,12 @@ impl<'a, T: Transaction<'a>> FetchFiltered<'a, T> for ReadHandle<Mempool<T>> {
 }
 
 #[derive(Debug)]
-pub struct LeftRightMempool<'a, T: Transaction<'a>> {
+pub struct LeftRightMempool<T> {
     pub read: ReadHandle<Mempool<T>>,
     pub write: WriteHandle<Mempool<T>, MempoolOp<T>>,
 }
 
-impl<'a, T: Transaction<'a>> Default for LeftRightMempool<'a, T> {
+impl<'a, T: Transaction<'a>> Default for LeftRightMempool<T> {
     fn default() -> Self {
         let (write, read) = left_right::new::<Mempool<T>, MempoolOp<T>>();
 
@@ -151,7 +151,7 @@ impl<'a, T: Transaction<'a>> Default for LeftRightMempool<'a, T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> LeftRightMempool<'a, T> {
+impl<'a, T: Transaction<'a>> LeftRightMempool<T> {
     /// Creates new Mempool DB
     pub fn new() -> Self {
         Self::default()
@@ -344,7 +344,7 @@ impl<'a, T: Transaction<'a>> LeftRightMempool<'a, T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> From<PoolType<T>> for LeftRightMempool<'a, T> {
+impl<'a, T: Transaction<'a>> From<PoolType<T>> for LeftRightMempool<T> {
     fn from(pool: PoolType<T>) -> Self {
         let (write, read) = left_right::new::<Mempool<T>, MempoolOp<T>>();
         let mut mempool_db = Self { read, write };
@@ -357,7 +357,7 @@ impl<'a, T: Transaction<'a>> From<PoolType<T>> for LeftRightMempool<'a, T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> Clone for LeftRightMempool<'a, T> {
+impl<'a, T: Transaction<'a>> Clone for LeftRightMempool<T> {
     fn clone(&self) -> Self {
         Self::from(self.pool())
     }
