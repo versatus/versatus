@@ -129,6 +129,10 @@ impl<'a, T: Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
         self.hash.clone()
     }
 
+    fn get_ref_hashes(&self) -> Vec<String> {
+        self.header.ref_hashes.clone()
+    }
+
     fn as_static_convergence(&self) -> Option<ConvergenceBlock> {
         Some(self.clone())
     }
@@ -136,19 +140,9 @@ impl<'a, T: Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
     fn as_static_genesis(&self) -> Option<GenesisBlock<T>> {
         None
     }
-
-    fn get_ref_hashes(&self) -> Vec<String> {
-        self.header.ref_hashes.clone()
-    }
 }
 
-impl<'a, T: Transaction<'a>> Debug for GenesisBlock<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        todo!()
-    }
-}
-
-impl<'a, T: Transaction<'a>> InnerBlock<T> for GenesisBlock<T> {
+impl<'a, T: Transaction<'a> + Debug + Send> InnerBlock<T> for GenesisBlock<T> {
     type Header = BlockHeader;
     type RewardType = Reward;
 
