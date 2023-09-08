@@ -5,7 +5,8 @@ KM_URL = https://github.com/kontainapp/km.git
 KM_TAG = v0.9.8
 
 CRUN_URL = https://github.com/kontainapp/crun.git
-CRUN_TAG = 1.3
+#CRUN_TAG = 1.3
+CRUN_BRANCH = krun
 CRUN_PREFIX = ${PREFIX}
 
 default: ${BUILD_DIR}/runtime.tgz
@@ -38,7 +39,7 @@ ${BUILD_DIR}/crun-src:	${BUILD_DIR}
 
 ${BUILD_DIR}/crun-src/crun: ${BUILD_DIR}/crun-src
 	cd $< ; \
-		git checkout ${CRUN_TAG} && \
+		git checkout ${CRUN_BRANCH} && \
 		./autogen.sh && \
 		./configure --prefix=${CRUN_PREFIX}
 	make -C $<
