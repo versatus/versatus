@@ -27,7 +27,7 @@ pub struct TxnRecord<T> {
     pub deleted_timestamp: TxTimestamp,
 }
 
-impl<'a, T: Transaction<'a>> TxnRecord<T> {
+impl<T: for<'a> Transaction<'a>> TxnRecord<T> {
     pub fn new(txn: T) -> TxnRecord<T> {
         let added_timestamp = chrono::offset::Utc::now().timestamp();
         let timestamp = txn.timestamp();
@@ -68,7 +68,7 @@ pub struct Mempool<T> {
 
 pub const DEFAULT_INITIAL_MEMPOOL_CAPACITY: usize = 10000;
 
-impl<'a, T: Transaction<'a>> Default for Mempool<T> {
+impl<T: for<'a> Transaction<'a>> Default for Mempool<T> {
     fn default() -> Self {
         Mempool {
             pool: PoolType::with_capacity_and_hasher(
@@ -79,7 +79,7 @@ impl<'a, T: Transaction<'a>> Default for Mempool<T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> Mempool<T> {
+impl<T: for<'a> Transaction<'a>> Mempool<T> {
     pub fn len(&self) -> usize {
         self.pool.len()
     }
@@ -95,7 +95,7 @@ pub enum MempoolOp<T> {
     Remove(TransactionDigest),
 }
 
-impl<'a, T: Transaction<'a>> Absorb<MempoolOp<T>> for Mempool<T> {
+impl<T: for<'a> Transaction<'a>> Absorb<MempoolOp<T>> for Mempool<T> {
     fn absorb_first(&mut self, op: &mut MempoolOp<T>, _: &Self) {
         match op {
             MempoolOp::Add(record) => {
@@ -112,13 +112,13 @@ impl<'a, T: Transaction<'a>> Absorb<MempoolOp<T>> for Mempool<T> {
     }
 }
 
-pub trait FetchFiltered<'a, T: Transaction<'a>> {
+pub trait FetchFiltered<T: for<'a> Transaction<'a>> {
     fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord<T>>
     where
         F: FnMut(&TransactionDigest, &mut TxnRecord<T>) -> bool;
 }
 
-impl<'a, T: Transaction<'a>> FetchFiltered<'a, T> for ReadHandle<Mempool<T>> {
+impl<T: for<'a> Transaction<'a>> FetchFiltered<T> for ReadHandle<Mempool<T>> {
     fn fetch_filtered<F>(&self, amount: u32, f: F) -> Vec<TxnRecord<T>>
     where
         F: FnMut(&TransactionDigest, &mut TxnRecord<T>) -> bool,
@@ -138,12 +138,12 @@ impl<'a, T: Transaction<'a>> FetchFiltered<'a, T> for ReadHandle<Mempool<T>> {
 }
 
 #[derive(Debug)]
-pub struct LeftRightMempool<T> {
+pub struct LeftRightMempool<T: for<'a> Transaction<'a>> {
     pub read: ReadHandle<Mempool<T>>,
     pub write: WriteHandle<Mempool<T>, MempoolOp<T>>,
 }
 
-impl<'a, T: Transaction<'a>> Default for LeftRightMempool<T> {
+impl<T: for<'a> Transaction<'a>> Default for LeftRightMempool<T> {
     fn default() -> Self {
         let (write, read) = left_right::new::<Mempool<T>, MempoolOp<T>>();
 
@@ -151,7 +151,7 @@ impl<'a, T: Transaction<'a>> Default for LeftRightMempool<T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> LeftRightMempool<T> {
+impl<T: for<'a> Transaction<'a>> LeftRightMempool<T> {
     /// Creates new Mempool DB
     pub fn new() -> Self {
         Self::default()
@@ -344,7 +344,7 @@ impl<'a, T: Transaction<'a>> LeftRightMempool<T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> From<PoolType<T>> for LeftRightMempool<T> {
+impl<T: Hash + Eq + for<'a> Transaction<'a>> From<PoolType<T>> for LeftRightMempool<T> {
     fn from(pool: PoolType<T>) -> Self {
         let (write, read) = left_right::new::<Mempool<T>, MempoolOp<T>>();
         let mut mempool_db = Self { read, write };
@@ -357,7 +357,7 @@ impl<'a, T: Transaction<'a>> From<PoolType<T>> for LeftRightMempool<T> {
     }
 }
 
-impl<'a, T: Transaction<'a>> Clone for LeftRightMempool<T> {
+impl<T: for<'a> Transaction<'a>> Clone for LeftRightMempool<T> {
     fn clone(&self) -> Self {
         Self::from(self.pool())
     }
@@ -368,7 +368,7 @@ pub struct MempoolReadHandleFactory<T> {
     factory: ReadHandleFactory<Mempool<T>>,
 }
 
-impl<'a, T: Transaction<'a> > MempoolReadHandleFactory<T> {
+impl<T: for<'a> Transaction<'a> > MempoolReadHandleFactory<T> {
     pub fn handle(&self) -> PoolType<T> {
         self.factory
             .handle()

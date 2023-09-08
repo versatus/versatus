@@ -134,8 +134,7 @@ pub struct QuorumCertifiedTxn<T>
     pub is_txn_valid: bool,
 }
 
-impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<T>
-    where &'a T: Default
+impl<T: for<'a> Transaction<'a>> QuorumCertifiedTxn<T>
 {
     pub fn new(
         sender_farmer_id: Vec<u8>,

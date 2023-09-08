@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Display, path::PathBuf};
 
 use ethereum_types::U256;
+use serde::Deserialize;
 use lr_trie::H256;
 use primitives::Address;
 use serde_json::json;
@@ -215,7 +216,7 @@ impl<T: Transaction<'static>> Clone for VrrbDb<T> {
     }
 }
 
-impl<T: Transaction<'static>> Display for VrrbDb<T> {
+impl<T: for<'a> Transaction<'a>> Display for VrrbDb<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let state_entries = self.state_store_factory().handle().entries();
         let transaction_entries = self

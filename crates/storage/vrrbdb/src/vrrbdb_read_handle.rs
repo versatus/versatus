@@ -37,7 +37,7 @@ impl VrrbDbReadHandle {
     }
 
     /// Returns a copy of all values stored within the state trie
-    pub fn transaction_store_values<'a, T: Transaction<'a>>(&self) -> HashMap<TransactionDigest, T> {
+    pub fn transaction_store_values<T: for<'a> Transaction<'a>>(&self) -> HashMap<TransactionDigest, T> {
         self.transaction_store_handle_factory.handle().entries()
     }
 
