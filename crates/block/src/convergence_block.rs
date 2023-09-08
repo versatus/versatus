@@ -20,7 +20,7 @@ use crate::{
     ConsolidatedTxns,
 };
 
-pub struct MineArgs<'a, T: Transaction> {
+pub struct MineArgs<'a, T> {
     pub claim: Claim,
     pub last_block: Block,
     pub txns: LinkedHashMap<String, T>,

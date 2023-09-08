@@ -25,7 +25,7 @@ pub struct ProposalBlock {
     pub signature: String,
 }
 
-impl ProposalBlock {
+impl<'a, T: Transaction<'a>> ProposalBlock {
     /// The `build` function takes in various inputs, and builds
     /// `ProposalBlock`that consist of confirmed transactions validated by
     /// harvester
@@ -55,7 +55,7 @@ impl ProposalBlock {
     /// Returns:
     ///
     /// a `ProposalBlock` object.
-    pub fn build<T: Transaction>(
+    pub fn build(
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
@@ -127,7 +127,7 @@ impl ProposalBlock {
     /// A vector of tuples, where each tuple contains a string representing the
     /// digest of a transaction and a clone of the corresponding
     /// QuorumCertifiedTxn object from the original vector of transactions.
-    pub(crate) fn get_hashable_txns<T: Transaction>(&self) -> Vec<(String, QuorumCertifiedTxn<T>)> {
+    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, QuorumCertifiedTxn<T>)> {
         self.txns
             .clone()
             .iter()

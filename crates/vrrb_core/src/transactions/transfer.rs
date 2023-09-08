@@ -122,17 +122,18 @@ pub struct VoteReceipt {
     pub signature: RawSignature,
 }
 
-#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct QuorumCertifiedTxn<'a, T: Transaction<'a> + 'a>
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize)]
+pub struct QuorumCertifiedTxn<'a, T>
+where
+ T: Transaction<'a> + Deserialize<'a>, &'a T: Default
 {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
-    txn: T,
+    txn: &'a T,
     /// Threshold Signature
     signature: RawSignature,
     pub is_txn_valid: bool,
-    _marker: PhantomData<(&'a (), T)>,
 }
 
 impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<'a, T>
@@ -141,7 +142,7 @@ impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<'a, T>
     pub fn new(
         sender_farmer_id: Vec<u8>,
         votes: Vec<VoteReceipt>,
-        txn: T,
+        txn: &'a T,
         signature: RawSignature,
         is_txn_valid: bool,
     ) -> QuorumCertifiedTxn<'a, T> {
@@ -151,7 +152,6 @@ impl<'a, T: Transaction<'a> + 'a> QuorumCertifiedTxn<'a, T>
             txn,
             signature,
             is_txn_valid,
-            _marker: Default::default(),
         }
     }
 
