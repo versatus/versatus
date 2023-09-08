@@ -357,7 +357,7 @@ impl<T: Hash + Eq + for<'a> Transaction<'a>> From<PoolType<T>> for LeftRightMemp
     }
 }
 
-impl<T: for<'a> Transaction<'a>> Clone for LeftRightMempool<T> {
+impl<T: Hash + Eq + for<'a> Transaction<'a>> Clone for LeftRightMempool<T> {
     fn clone(&self) -> Self {
         Self::from(self.pool())
     }

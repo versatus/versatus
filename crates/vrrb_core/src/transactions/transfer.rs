@@ -122,7 +122,7 @@ pub struct VoteReceipt {
     pub signature: RawSignature,
 }
 
-#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize)]
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct QuorumCertifiedTxn<T>
 {
     sender_farmer_id: Vec<u8>,
@@ -330,20 +330,6 @@ impl Transfer {
         )
     }
 
-    pub fn build_payload(&self) -> String {
-        format!(
-            "{:x}",
-            hash_data!(
-                self.sender_address.clone(),
-                self.sender_public_key.clone(),
-                self.receiver_address.clone(),
-                self.token.clone(),
-                self.amount.clone(),
-                self.nonce.clone()
-            )
-        )
-    }
-
     fn from_byte_slice(data: ByteSlice) -> Self {
         if let Ok(txn) = decode_from_json_byte_slice::<Self>(data) {
             return txn;
@@ -430,6 +416,20 @@ impl<'a> Transaction<'a> for Transfer {
 
     fn proposer_fee_share(&self) -> u128 {
         BASE_FEE / 2u128
+    }
+
+    fn build_payload(&self) -> String {
+        format!(
+            "{:x}",
+            hash_data!(
+                self.sender_address.clone(),
+                self.sender_public_key.clone(),
+                self.receiver_address.clone(),
+                self.token.clone(),
+                self.amount.clone(),
+                self.nonce.clone()
+            )
+        )
     }
 
 

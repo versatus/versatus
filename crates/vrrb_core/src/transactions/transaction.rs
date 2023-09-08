@@ -21,6 +21,8 @@ pub trait Transaction<'a>: Clone + Sized + Serialize + Default + Deserialize<'a>
     fn validator_fee_share(&self) -> u128;
     fn proposer_fee_share(&self) -> u128;
 
+    fn build_payload(&self) -> String;
+
     #[deprecated]
     fn digest(&self) -> TransactionDigest;
 }

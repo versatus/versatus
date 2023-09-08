@@ -25,6 +25,7 @@ pub struct ProposalBlock<T> {
     pub signature: String,
 }
 
+
 impl<T: for<'a> Transaction<'a>> ProposalBlock<T> {
     /// The `build` function takes in various inputs, and builds
     /// `ProposalBlock`that consist of confirmed transactions validated by
