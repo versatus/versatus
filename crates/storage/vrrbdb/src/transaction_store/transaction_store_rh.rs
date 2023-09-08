@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
 use patriecia::inner::InnerTrie;
+use serde::Deserialize;
 use storage_utils::{Result, StorageError};
 use vrrb_core::transactions::{Transaction, TransactionDigest};
 
@@ -17,7 +18,7 @@ impl TransactionStoreReadHandle {
         Self { inner }
     }
 
-    pub fn get<'a, T: Transaction<'a>>(&self, key: &TransactionDigest) -> Result<T> {
+    pub fn get<'a, T: Transaction<'a> + for<'b> Deserialize<'a>>(&self, key: &TransactionDigest) -> Result<T> {
         self.inner
             .get(key)
             .map_err(|err| StorageError::Other(err.to_string()))
