@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::daemon::DaemonOpts;
-use crate::commands::run::RunOpts;
 use crate::commands::status::StatusOpts;
 
 #[derive(Parser)]
@@ -26,7 +25,7 @@ pub struct ComputeCli {
     )]
     pub service: String,
     /// The type of service definition to look up.
-    #[clap(short, long, value_parser, value_name = "TYPE")]
+    #[clap(short='t', long, value_parser, value_name = "TYPE")]
     pub service_type: Option<String>,
     /// CLI subcommand
     #[clap(subcommand)]
@@ -39,6 +38,4 @@ pub enum ComputeCommands {
     Daemon(DaemonOpts),
     /// Shows status of a running agent
     Status(StatusOpts),
-    /// Submit a compute job for execution
-    Run(RunOpts),
 }
