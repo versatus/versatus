@@ -11,3 +11,4 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 telemetry = { workspace = true }
 service_config = { workspace = true }
+tokio = { workspace = true }
