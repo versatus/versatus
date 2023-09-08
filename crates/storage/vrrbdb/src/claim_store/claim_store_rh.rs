@@ -85,13 +85,7 @@ impl ClaimStoreReadHandleFactory {
             .handle()
             .enter()
             .map(|guard| guard.clone())
-            .unwrap_or({
-                let path = storage_utils::get_node_data_dir()
-                    .unwrap_or_default()
-                    .join("db")
-                    .join("claims");
-                JellyfishMerkleTree::new(Arc::new(RocksDbAdapter::new(path, "claims").unwrap()))
-            });
+            .unwrap_or_default();
 
         let inner = JellyfishMerkleTreeWrapper::new(handle);
 
