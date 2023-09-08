@@ -6,7 +6,7 @@ use std::{
 use block::{Block, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use primitives::{Address, PublicKey, SecretKey, Signature};
+use primitives::{Address, NodeId, PublicKey, SecretKey, Signature};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
@@ -32,7 +32,7 @@ pub fn create_miner() -> Miner {
         ip_address,
         dag,
     };
-    Miner::new(config).unwrap()
+    Miner::new(config, NodeId::default()).unwrap()
 }
 
 /// Helper function to create a miner from a `Keypair`
@@ -46,7 +46,7 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
         public_key,
         dag,
     };
-    Miner::new(config).unwrap()
+    Miner::new(config, NodeId::default()).unwrap()
 }
 
 pub fn create_miner_from_keypair_return_dag(kp: &Keypair) -> (Miner, MinerDag) {
@@ -80,7 +80,7 @@ pub fn create_claim(
     ip_address: SocketAddr,
     signature: String,
 ) -> Claim {
-    Claim::new(*pk, addr.clone(), ip_address, signature).unwrap()
+    Claim::new(*pk, addr.clone(), ip_address, signature, NodeId::default()).unwrap()
 }
 
 /// Helper function to create a random message and signature
@@ -251,7 +251,14 @@ pub fn build_multiple_proposal_blocks_single_round(
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+            let claim = Claim::new(
+                public_key,
+                address,
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             let prop = build_single_proposal_block(
                 last_block_hash.clone(),
                 n_txns,
