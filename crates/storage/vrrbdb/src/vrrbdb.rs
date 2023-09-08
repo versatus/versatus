@@ -50,7 +50,7 @@ impl Default for VrrbDbConfig {
 }
 
 #[derive(Debug, Default)]
-pub struct VrrbDb<T: Transaction> {
+pub struct VrrbDb<T> {
     state_store: StateStore,
     transaction_store: TransactionStore<T>,
     claim_store: ClaimStore,

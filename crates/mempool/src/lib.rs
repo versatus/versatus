@@ -7,7 +7,7 @@ use vrrb_core::transactions::Transaction;
 
 pub use crate::mempool::*;
 
-pub async fn create_tx_indexer<T: Transaction>(txn_record: &TxnRecord<T>) -> Result<StatusCode> {
+pub async fn create_tx_indexer<'a, T: Transaction<'a>>(txn_record: &TxnRecord<T>) -> Result<StatusCode> {
     let url = "http://localhost:3444/transactions"; // TODO: Move to config
     let req_json =
         serde_json::to_string(txn_record).context("Failed to serialize txn_record to json")?;

@@ -1,5 +1,5 @@
 use std::{path::Path, sync::Arc};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use lr_trie::{LeftRightTrie, Proof, H256};
 use storage_utils::Result;
@@ -11,11 +11,14 @@ pub use transaction_store_rh::*;
 use vrrb_core::transactions::{Transaction, TransactionDigest};
 
 #[derive(Debug, Clone)]
-pub struct TransactionStore<T: Transaction> {
+pub struct TransactionStore<T>
+where
+    T: Transaction<'static> + Serialize + Deserialize<'static>,
+{
     trie: LeftRightTrie<'static, TransactionDigest, T, RocksDbAdapter>,
 }
 
-impl<T: Transaction> Default for TransactionStore<T> {
+impl<'a, T: Transaction<'static> + Serialize + Deserialize<'static>> Default for TransactionStore<T> {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -30,7 +33,7 @@ impl<T: Transaction> Default for TransactionStore<T> {
     }
 }
 
-impl<T: Transaction> TransactionStore<T> {
+impl<'a, T: Transaction<'static> + Serialize + Deserialize<'static>> TransactionStore<T> {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");
