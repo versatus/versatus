@@ -219,8 +219,8 @@ impl Miner {
             self.public_key(),
             self.address(),
             self.ip_address(),
-            self.claim.node_id.clone(),
             signature,
+            self.claim.node_id.clone(),
         )
         .map_err(MinerError::from)?;
         Ok(claim)
