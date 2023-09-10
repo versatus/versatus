@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use primitives::{Address, SecretKey};
+use primitives::{Address, NodeId, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
 use vrrb_core::{
@@ -86,6 +86,7 @@ pub fn _generate_random_claim() -> Claim {
         Address::new(public_key),
         ip_address.clone(),
         signature,
+        NodeId::default(),
     )
     .unwrap()
 }
