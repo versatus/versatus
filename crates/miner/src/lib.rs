@@ -16,7 +16,7 @@ mod tests {
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
-    use primitives::Address;
+    use primitives::{Address, NodeId};
     use ritelinked::LinkedHashMap;
     use vrrb_core::{
         claim::Claim,
@@ -25,16 +25,10 @@ mod tests {
     };
 
     use crate::test_helpers::{
-        build_single_proposal_block,
-        build_single_proposal_block_from_txns,
-        create_and_sign_message,
-        create_miner,
-        create_miner_from_keypair,
-        create_miner_from_keypair_and_dag,
-        create_miner_from_keypair_return_dag,
-        create_miner_return_dag,
-        create_txns,
-        mine_genesis,
+        build_single_proposal_block, build_single_proposal_block_from_txns,
+        create_and_sign_message, create_miner, create_miner_from_keypair,
+        create_miner_from_keypair_and_dag, create_miner_from_keypair_return_dag,
+        create_miner_return_dag, create_txns, mine_genesis,
     };
 
     #[test]
@@ -53,6 +47,7 @@ mod tests {
             address.clone(),
             ip_address,
             signature,
+            NodeId::default(),
         )
         .unwrap();
         let miner = create_miner_from_keypair(&kp);

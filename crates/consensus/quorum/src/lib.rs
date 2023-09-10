@@ -9,7 +9,7 @@ mod tests {
         net::SocketAddr,
     };
 
-    use primitives::Address;
+    use primitives::{Address, NodeId};
     use sha256::digest;
     use vrrb_core::{claim::Claim, keypair::KeyPair};
 
@@ -34,8 +34,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
 
             //let claim_box = Box::new(claim);
             dummy_claims.push(claim);
@@ -75,8 +81,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
 
             dummy_claims.push(claim);
         });
@@ -111,8 +123,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -144,8 +162,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -181,8 +205,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
 
@@ -218,8 +248,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             dummy_claims.push(claim);
         });
         let keypair = KeyPair::random();
@@ -259,8 +295,14 @@ mod tests {
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
             .unwrap();
-            let claim: Claim =
-                Claim::new(public_key, Address::new(public_key), ip_address, signature).unwrap();
+            let claim: Claim = Claim::new(
+                public_key,
+                Address::new(public_key),
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             //let boxed_claim = Box::new(claim);
             dummy_claims1.push(claim.clone());
             dummy_claims2.push(claim.clone());

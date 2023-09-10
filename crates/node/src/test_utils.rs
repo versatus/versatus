@@ -126,7 +126,14 @@ fn produce_random_claims(n: usize) -> HashSet<Claim> {
             )
             .unwrap();
 
-            Claim::new(kp.miner_kp.1, address, ip_address, signature).unwrap()
+            Claim::new(
+                kp.miner_kp.1,
+                address,
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap()
         })
         .collect()
 }
@@ -181,7 +188,14 @@ pub fn produce_proposal_blocks(
             )
             .unwrap();
 
-            let from = Claim::new(kp.miner_kp.1, address, ip_address, signature).unwrap();
+            let from = Claim::new(
+                kp.miner_kp.1,
+                address,
+                ip_address,
+                signature,
+                NodeId::default(),
+            )
+            .unwrap();
             let txs = produce_random_txs(&accounts);
             let claims = produce_random_claims(ntx);
 

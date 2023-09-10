@@ -12,7 +12,7 @@ use block::{
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
-use primitives::{Address, Epoch, PublicKey, Signature};
+use primitives::{Address, Epoch, NodeId, PublicKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -163,7 +163,7 @@ impl Miner {
     ///
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
-    pub fn new(config: MinerConfig) -> Result<Self> {
+    pub fn new(config: MinerConfig, node_id: NodeId) -> Result<Self> {
         let address = Address::new(config.public_key);
         let signature = Claim::signature_for_valid_claim(
             config.public_key,
@@ -176,6 +176,7 @@ impl Miner {
             address.clone(),
             config.ip_address,
             signature,
+            node_id,
         )
         .map_err(MinerError::from)?;
         Ok(Miner {
@@ -218,6 +219,7 @@ impl Miner {
             self.public_key(),
             self.address(),
             self.ip_address(),
+            self.claim.node_id.clone(),
             signature,
         )
         .map_err(MinerError::from)?;
