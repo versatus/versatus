@@ -10,7 +10,7 @@ use serial_test::serial;
 
 #[test]
 #[serial]
-#[ignore = "the entries method for claims is expecting to return a NodeId which we cannot get since it is the key which is hashed in the tree"]
+// #[ignore = "the entries method for claims is expecting to return a NodeId which we cannot get since it is the key which is hashed in the tree"]
 fn claims_can_be_added() {
     let mut db = VrrbDb::new(VrrbDbConfig::default());
 
