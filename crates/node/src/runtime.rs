@@ -147,7 +147,7 @@ pub async fn setup_runtime_components(
 
     let dkg_engine_config = DkgEngineConfig {
         node_id: config.id.clone(),
-        node_type: config.node_type.clone(),
+        node_type: config.node_type,
         secret_key: config.keypair.get_validator_secret_key_owned(),
         threshold_config: config.threshold_config.clone(),
     };

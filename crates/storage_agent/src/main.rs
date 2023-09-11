@@ -3,7 +3,6 @@ mod commands;
 
 use anyhow::Result;
 use clap::Parser;
-use tokio;
 use service_config::Config;
 use telemetry::info;
 
@@ -13,11 +12,10 @@ static THIS_SERVICE_TYPE: &str = "storage";
 async fn main() -> Result<()> {
     let cli = cli::StorageCli::parse();
 
-    let service: String;
-    match cli.service_type {
-        Some(svc) => service = svc.clone(),
-        None => service = THIS_SERVICE_TYPE.to_string(),
-    }
+    let service: String = match cli.service_type {
+        Some(svc) => svc,
+        None => THIS_SERVICE_TYPE.to_string(),
+    };
 
     // Parse common services configuration
     let config = Config::from_file(&cli.config)?

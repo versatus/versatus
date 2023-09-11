@@ -836,7 +836,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             .dkg_engine
             .dkg_state
             .ack_message_store()
-            .get(&(sender_id.clone(), node_id.clone()))
+            .get(&(sender_id.clone(), node_id))
             .ok_or(NodeError::Other(format!(
                 "No ack found for sender_id: {:?} and receiver_id: {:?}",
                 sender_id,

@@ -87,16 +87,12 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 pub fn create_mock_full_node_config_with_bootstrap(
     bootstrap_node_addresses: Vec<SocketAddr>,
 ) -> NodeConfig {
-    let mut node_config = create_mock_full_node_config();
-
-    node_config
+    create_mock_full_node_config()
 }
 
 #[deprecated]
 pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    let mut node_config = create_mock_full_node_config();
-
-    node_config
+    create_mock_full_node_config()
 }
 
 pub fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
@@ -526,7 +522,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 
     let mut quorum_members = vec![];
 
-    for i in 1..=n as u16 {
+    for i in 1..= n {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;

@@ -48,7 +48,7 @@ pub enum NetworkEvent {
         socket_addr: SocketAddr,
     },
 
-    ForwardedTxn(TxnRecord),
+    ForwardedTxn(Box<TxnRecord>),
 
     PartCommitmentCreated(NodeId, Part),
     PartCommitmentAcknowledged {

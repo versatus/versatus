@@ -72,7 +72,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
             events_tx: cfg.events_tx,
             membership_config: None,
             node_config: cfg.node_config.clone(),
-            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config.clone(),
+            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config,
             bootstrap_quorum_available_nodes,
         }
     }
@@ -111,7 +111,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         &self,
         peer_list: HashMap<NodeId, (PeerData, bool)>,
     ) -> crate::Result<()> {
-        let mut unassigned_peers = peer_list
+        let unassigned_peers = peer_list
             .into_iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
