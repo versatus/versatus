@@ -5,7 +5,6 @@ use std::{
     hash::{Hash, Hasher},
     str::FromStr,
 };
-use std::marker::PhantomData;
 
 use primitives::{
     Address,
@@ -123,26 +122,26 @@ pub struct VoteReceipt {
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct QuorumCertifiedTxn<T>
+pub struct QuorumCertifiedTxn
 {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
-    txn: T,
+    txn: TransactionKind,
     /// Threshold Signature
     signature: RawSignature,
     pub is_txn_valid: bool,
 }
 
-impl<T: for<'a> Transaction<'a>> QuorumCertifiedTxn<T>
+impl QuorumCertifiedTxn
 {
     pub fn new(
         sender_farmer_id: Vec<u8>,
         votes: Vec<VoteReceipt>,
-        txn: T,
+        txn: TransactionKind,
         signature: RawSignature,
         is_txn_valid: bool,
-    ) -> QuorumCertifiedTxn<T> {
+    ) -> QuorumCertifiedTxn {
         QuorumCertifiedTxn {
             sender_farmer_id,
             votes,
@@ -152,7 +151,7 @@ impl<T: for<'a> Transaction<'a>> QuorumCertifiedTxn<T>
         }
     }
 
-    pub fn txn(&self) -> T {
+    pub fn txn(&self) -> TransactionKind {
         self.txn.clone()
     }
 
@@ -171,7 +170,6 @@ impl<T: for<'a> Transaction<'a>> QuorumCertifiedTxn<T>
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Transfer {
-    pub kind: TransactionKind,
     pub id: TransactionDigest,
     pub timestamp: TxTimestamp,
     pub sender_address: Address,
@@ -220,7 +218,6 @@ impl Transfer {
         let digest = TransactionDigest::from(digest_vec);
 
         Self {
-            kind: TransactionKind::Transfer,
             id: digest,
             // TODO: change time unit from seconds to millis
             timestamp: args.timestamp,
@@ -268,7 +265,6 @@ impl Transfer {
         let signature = kp.miner_kp.0.sign_ecdsa(msg);
 
         Self {
-            kind: TransactionKind::Transfer,
             id: digest,
             // TODO: change time unit from seconds to millis
             timestamp,
@@ -349,23 +345,9 @@ impl Transfer {
 
         Transfer::null_txn()
     }
-
-    #[deprecated(note = "will be removed from Txn struct soon")]
-    pub fn sign(&mut self, sk: &SecretKey) {
-        // TODO: refactor signing out the txn structure definition
-        // TODO: return Result<(), SignatureError>
-        let message = Message::from_slice(self.build_payload().as_bytes());
-        if let Ok(msg) = message {
-            let sig = sk.sign_ecdsa(msg);
-            self.signature = sig;
-        }
-    }
 }
 
-impl<'a> Transaction<'a> for Transfer {
-    fn kind(&self) -> TransactionKind {
-        self.kind.clone()
-    }
+impl Transaction for Transfer {
     /// Produces a SHA 256 hash slice of bytes from the transaction
     fn id(&self) -> TransactionDigest {
         self.id.clone()
@@ -432,9 +414,18 @@ impl<'a> Transaction<'a> for Transfer {
         )
     }
 
-
     fn digest(&self) -> TransactionDigest {
         self.id()
+    }
+
+    fn sign(&mut self, sk: &SecretKey) {
+        // TODO: refactor signing out the txn structure definition
+        // TODO: return Result<(), SignatureError>
+        let message = Message::from_slice(self.build_payload().as_bytes());
+        if let Ok(msg) = message {
+            let sig = sk.sign_ecdsa(msg);
+            self.signature = sig;
+        }
     }
 }
 

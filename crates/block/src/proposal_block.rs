@@ -14,11 +14,11 @@ use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefH
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
-pub struct ProposalBlock<T> {
+pub struct ProposalBlock {
     pub ref_block: RefHash,
     pub round: u128,
     pub epoch: Epoch,
-    pub txns: QuorumCertifiedTxnList<T>,
+    pub txns: QuorumCertifiedTxnList,
     pub claims: ClaimList,
     pub from: Claim,
     pub hash: BlockHash,
@@ -26,7 +26,7 @@ pub struct ProposalBlock<T> {
 }
 
 
-impl<T: for<'a> Transaction<'a>> ProposalBlock<T> {
+impl ProposalBlock {
     /// The `build` function takes in various inputs, and builds
     /// `ProposalBlock`that consist of confirmed transactions validated by
     /// harvester
@@ -60,12 +60,12 @@ impl<T: for<'a> Transaction<'a>> ProposalBlock<T> {
         ref_block: RefHash,
         round: u128,
         epoch: Epoch,
-        txns: QuorumCertifiedTxnList<T>,
+        txns: QuorumCertifiedTxnList,
         claims: ClaimList,
         from: Claim,
         secret_key: &MinerSk,
-    ) -> ProposalBlock<T> {
-        let hashable_txns: Vec<(String, QuorumCertifiedTxn<T>)> = {
+    ) -> ProposalBlock {
+        let hashable_txns: Vec<(String, QuorumCertifiedTxn)> = {
             txns.iter()
                 .map(|(k, v)| (k.digest_string(), v.clone()))
                 .collect()
@@ -128,7 +128,7 @@ impl<T: for<'a> Transaction<'a>> ProposalBlock<T> {
     /// A vector of tuples, where each tuple contains a string representing the
     /// digest of a transaction and a clone of the corresponding
     /// QuorumCertifiedTxn object from the original vector of transactions.
-    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, QuorumCertifiedTxn<T>)> {
+    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, QuorumCertifiedTxn)> {
         self.txns
             .clone()
             .iter()

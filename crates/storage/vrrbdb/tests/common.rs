@@ -6,8 +6,8 @@ use secp256k1::{Message, Secp256k1};
 use vrrb_core::{
     claim::Claim,
     keypair::Keypair,
-    txn::{NewTxnArgs, Txn},
 };
+use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
 
 // NOTE: this is used to generate random filenames so files created by tests
 // don't get overwritten
@@ -28,14 +28,14 @@ pub fn _generate_random_transaction(
     secret_key: primitives::SecretKey,
     from: Address,
     to: Address,
-) -> Txn {
+) -> TransactionKind {
     type H = secp256k1::hashes::sha256::Hash;
 
     let secp = Secp256k1::new();
     let message = Message::from_hashed_data::<H>(b"vrrb");
     let signature = secp.sign_ecdsa(&message, &secret_key);
 
-    Txn::new(NewTxnArgs {
+    TransactionKind::Transfer(Transfer::new(NewTransferArgs {
         timestamp: 0,
         sender_address: from.clone(),
         sender_public_key: from.public_key(),
@@ -45,10 +45,10 @@ pub fn _generate_random_transaction(
         signature,
         validators: None,
         nonce: 10,
-    })
+    }))
 }
 
-pub fn _generate_random_valid_transaction() -> Txn {
+pub fn _generate_random_valid_transaction() -> TransactionKind {
     let (sender_secret_key, from) = _generate_random_address();
     let (_, to) = _generate_random_address();
 
@@ -58,7 +58,7 @@ pub fn _generate_random_valid_transaction() -> Txn {
     let message = Message::from_hashed_data::<H>(b"vrrb");
     let signature = secp.sign_ecdsa(&message, &sender_secret_key);
 
-    Txn::new(NewTxnArgs {
+    TransactionKind::Transfer(Transfer::new(NewTransferArgs {
         timestamp: 0,
         sender_address: from.clone(),
         sender_public_key: from.public_key(),
@@ -68,7 +68,7 @@ pub fn _generate_random_valid_transaction() -> Txn {
         signature,
         validators: None,
         nonce: 10,
-    })
+    }))
 }
 
 pub fn _generate_random_claim() -> Claim {

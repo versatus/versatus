@@ -100,8 +100,8 @@ impl BlockHeader {
         }
     }
 
-    pub fn new<T: Debug + Send + for<'a> Transaction<'a>>(
-        last_block: Block<T>,
+    pub fn new(
+        last_block: Block,
         ref_hashes: Vec<String>,
         miner_claim: Claim,
         secret_key: SecretKey,
@@ -110,7 +110,7 @@ impl BlockHeader {
         adjustment_next_epoch: NextEpochAdjustment,
     ) -> Option<BlockHeader> {
         // Get the last block
-        let last_block: &dyn InnerBlock<T, Header = BlockHeader, RewardType = Reward> = {
+        let last_block: &dyn InnerBlock<Header = BlockHeader, RewardType = Reward> = {
             match last_block {
                 Block::Convergence { ref block } => block,
                 Block::Genesis { ref block } => block,

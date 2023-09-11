@@ -20,8 +20,8 @@ use theater::{ActorId, ActorState};
 use vrrb_core::{
     account::Account,
     claim::Claim,
-    txn::{TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 use crate::{data_store::DataStore, state_manager::types::*, state_reader::StateReader};
 use crate::{NodeError, Result};
@@ -85,7 +85,7 @@ impl StateManager {
     /// emits an event to inform other modules that a Transaction
     /// has been added to the TransactionStore.
     // This is unneccessary under the system architecture, btw.
-    pub(crate) async fn confirm_txn(&mut self, txn: Txn) -> Result<()> {
+    pub(crate) async fn confirm_txn(&mut self, txn: TransactionKind) -> Result<()> {
         let txn_hash = txn.id();
 
         info!("Storing transaction {txn_hash} in confirmed transaction store");
@@ -136,8 +136,8 @@ impl StateManager {
     /// making up the current round's `ConvergenceBlock`, writes all
     /// the conflict resolved transactions into the `TransactionTrie`
     fn update_txn_trie(&mut self, proposals: &[ProposalBlock]) {
-        let consolidated: HashSet<Txn> = {
-            let nested: Vec<HashSet<Txn>> = proposals
+        let consolidated: HashSet<TransactionKind> = {
+            let nested: Vec<HashSet<TransactionKind>> = proposals
                 .iter()
                 .map(|block| block.txns.iter().map(|(_, v)| v.clone().txn()).collect())
                 .collect();
@@ -362,7 +362,7 @@ impl StateManager {
         digest: TransactionDigest,
         execution_result: ProgramExecutionOutput,
         farmer_id: NodeId,
-        txn: Box<Txn>,
+        txn: Box<TransactionKind>,
         is_valid: TxnValidationStatus,
     ) -> Result<()> {
         self.database
@@ -388,12 +388,12 @@ impl StateReader for VrrbDbReadHandle {
     }
 
     /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, Txn>> {
+    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         self.mempool_snapshot().await
     }
 
     /// Get a transaction from state
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn> {
+    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<TransactionKind> {
         todo!()
     }
 
@@ -401,7 +401,7 @@ impl StateReader for VrrbDbReadHandle {
     async fn list_transactions(
         &self,
         digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, Txn>> {
+    ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
@@ -441,7 +441,7 @@ impl StateReader for VrrbDbReadHandle {
         self.state_store_values()
     }
 
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn> {
+    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
         self.transaction_store_values()
     }
 

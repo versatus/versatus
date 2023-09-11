@@ -45,7 +45,7 @@ pub mod valid {
         pub signature_type: SignatureType,
     }
 
-    impl<T: for<'a> Transaction<'a>> Valid for GenesisBlock<T> {
+    impl Valid for GenesisBlock {
         type DecodeError = hex::FromHexError;
         type ValidationData = BlockValidationData;
 
@@ -81,7 +81,7 @@ pub mod valid {
         }
     }
 
-    impl<T: for<'a> Transaction<'a>> Valid for ProposalBlock<T> {
+    impl Valid for ProposalBlock {
         type DecodeError = hex::FromHexError;
         type ValidationData = BlockValidationData;
 

@@ -16,7 +16,6 @@ use theater::{ActorId, ActorState};
 use vrrb_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
-    txn::{Token, TransactionDigest, Txn},
 };
 
 use crate::state_manager::types::*;

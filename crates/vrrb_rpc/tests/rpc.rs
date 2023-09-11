@@ -4,7 +4,7 @@ use events::{EventMessage, DEFAULT_BUFFER};
 use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use tokio::sync::mpsc::channel;
-use vrrb_core::txn::{generate_txn_digest_vec, NewTxnArgs, Token};
+use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, Token};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
@@ -56,7 +56,7 @@ async fn server_can_publish_transactions_to_be_created() {
     let msg = Message::from_hashed_data::<H>(&digest);
     let signature = secret_key.sign_ecdsa(msg);
 
-    let args = NewTxnArgs {
+    let args = NewTransferArgs {
         timestamp: 0,
         sender_address: address.clone(),
         sender_public_key: public_key.clone(),

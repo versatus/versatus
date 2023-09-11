@@ -144,14 +144,12 @@ impl NetworkModule {
             // that kademlia_dht understands
             let bootstrap_node_data = NodeData::new(
                 kademlia_key,
-                config.node_id.clone(),
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
             );
 
             KademliaNode::new(
                 config.kademlia_peer_id,
-                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
@@ -162,7 +160,6 @@ impl NetworkModule {
 
             KademliaNode::new(
                 config.kademlia_peer_id,
-                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 None,
@@ -357,7 +354,7 @@ impl NetworkModule {
 
         let found_peer = closest_nodes
             .iter()
-            .find(|node| node.node_id == node_id.clone())
+            .find(|node| node.id == Key::try_from(node_id.clone().into_bytes()).unwrap_or_default())
             .ok_or(NodeError::Other(
                 "Could not find peer in routing table".to_string(),
             ))?;

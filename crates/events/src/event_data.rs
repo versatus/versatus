@@ -6,7 +6,7 @@ use primitives::{
     NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {
@@ -39,7 +39,7 @@ pub struct Vote {
     pub farmer_node_id: NodeIdx,
     /// Partial Signature
     pub signature: RawSignature,
-    pub txn: Txn,
+    pub txn: TransactionKind,
     pub quorum_public_key: Vec<u8>,
     pub quorum_threshold: usize,
     pub is_txn_valid: bool,
@@ -87,7 +87,7 @@ pub enum JobStatus {
         TransactionDigest,
         String,
         FarmerId,
-        Box<Txn>,
+        Box<TransactionKind>,
         IsTxnValid,
     ),
     /// `ConvergenceBlockPartialSign(BlockHash,RawSignature)` is a variant of

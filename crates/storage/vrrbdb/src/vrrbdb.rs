@@ -10,7 +10,7 @@ use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
 };
-use vrrb_core::transactions::Transaction;
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 use crate::{
     ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
@@ -51,13 +51,13 @@ impl Default for VrrbDbConfig {
 }
 
 #[derive(Debug, Default)]
-pub struct VrrbDb<T: Transaction<'static>> {
+pub struct VrrbDb {
     state_store: StateStore,
-    transaction_store: TransactionStore<T>,
+    transaction_store: TransactionStore,
     claim_store: ClaimStore,
 }
 
-impl<T: Transaction<'static>> VrrbDb<T> {
+impl VrrbDb {
     pub fn new(config: VrrbDbConfig) -> Self {
         let state_store = StateStore::new(&config.path);
         let transaction_store = TransactionStore::new(&config.path);
@@ -96,7 +96,7 @@ impl<T: Transaction<'static>> VrrbDb<T> {
 
     pub fn new_with_stores(
         state_store: StateStore,
-        transaction_store: TransactionStore<T>,
+        transaction_store: TransactionStore,
         claim_store: ClaimStore,
     ) -> Self {
         Self {
@@ -158,25 +158,25 @@ impl<T: Transaction<'static>> VrrbDb<T> {
 
     /// Inserts a confirmed transaction to the ledger. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn insert_transaction_unchecked(&mut self, txn: T) -> Result<()> {
+    pub fn insert_transaction_unchecked(&mut self, txn: TransactionKind) -> Result<()> {
         self.transaction_store.insert(txn)
     }
 
     /// Adds multiplpe transactions to current state tree. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<T>) {
+    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<TransactionKind>) {
         self.transaction_store.extend(transactions);
     }
 
     /// Inserts a confirmed transaction to the ledger. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn insert_transaction(&mut self, txn: T) -> Result<()> {
+    pub fn insert_transaction(&mut self, txn: TransactionKind) -> Result<()> {
         self.transaction_store.insert(txn)
     }
 
     /// Adds multiplpe transactions to current transaction tree. Does not check
     /// if accounts involved in the transaction actually exist.
-    pub fn extend_transactions(&mut self, transactions: Vec<T>) {
+    pub fn extend_transactions(&mut self, transactions: Vec<TransactionKind>) {
         self.transaction_store.extend(transactions);
     }
 
@@ -206,8 +206,8 @@ impl<T: Transaction<'static>> VrrbDb<T> {
     }
 }
 
-impl<T: Transaction<'static>> Clone for VrrbDb<T> {
-    fn clone(&self) -> VrrbDb<T> {
+impl Clone for VrrbDb {
+    fn clone(&self) -> VrrbDb {
         Self {
             state_store: self.state_store.clone(),
             transaction_store: self.transaction_store.clone(),
@@ -216,7 +216,7 @@ impl<T: Transaction<'static>> Clone for VrrbDb<T> {
     }
 }
 
-impl<T: for<'a> Transaction<'a>> Display for VrrbDb<T> {
+impl Display for VrrbDb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let state_entries = self.state_store_factory().handle().entries();
         let transaction_entries = self
@@ -225,7 +225,7 @@ impl<T: for<'a> Transaction<'a>> Display for VrrbDb<T> {
             .entries()
             .into_iter()
             .map(|(digest, txn)| (digest.to_string(), txn))
-            .collect::<HashMap<String, T>>();
+            .collect::<HashMap<String, TransactionKind>>();
         let claim_entries = self.claim_store_factory().handle().entries();
 
         let out = json!({
