@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use ethereum_types::U256;
-use primitives::{Address, PublicKey, SerializedSecretKey};
+use primitives::{Address, NodeId, PublicKey, SerializedSecretKey};
 use serde::{Deserialize, Serialize};
 /// a Module for creating, maintaining, and using a claim in the fair,
 /// computationally inexpensive, collission proof, fully decentralized, fully
@@ -50,6 +50,7 @@ pub struct Claim {
     pub eligibility: Eligibility,
     pub ip_address: SocketAddr,
     pub signature: String,
+    pub node_id: NodeId,
     stake: u128,
     stake_txns: Vec<Stake>,
 }
@@ -81,6 +82,7 @@ impl Claim {
         address: Address,
         ip_address: SocketAddr,
         signature: String,
+        node_id: NodeId,
     ) -> Result<Claim> {
         let mut hasher = Sha256::new();
         hasher.update(public_key.to_string());
@@ -103,6 +105,7 @@ impl Claim {
                 eligibility: Eligibility::None,
                 ip_address,
                 signature,
+                node_id,
                 stake: 0,
                 stake_txns: vec![],
             }),
@@ -393,10 +396,18 @@ mod tests {
             eligibility: Eligibility::None,
             ip_address: "127.0.0.1:8080".parse().unwrap(),
             signature: signature.clone(),
+            node_id: NodeId::default(),
             stake: 0,
             stake_txns: vec![],
         };
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(
+            public_key,
+            address,
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
         assert_eq!(test_claim, claim);
     }
 
@@ -415,7 +426,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key.clone(), address, ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key.clone(),
+            address,
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let ip_address_new = "127.0.0.1:8081".parse::<SocketAddr>().unwrap();
         let mut hasher_new = Sha256::new();
@@ -447,7 +465,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(
+            public_key,
+            address,
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
         assert_eq!(0, claim.get_stake());
     }
 
@@ -466,7 +491,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(
+            public_key,
+            address,
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
         assert_eq!(0, claim.get_stake_txns().len());
     }
 
@@ -496,7 +528,14 @@ mod tests {
 
         let test_election_result = U256(xor_val);
 
-        let claim = Claim::new(public_key, address, ip_address, signature).unwrap();
+        let claim = Claim::new(
+            public_key,
+            address,
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let election_result = claim.get_election_result(seed);
 
@@ -518,7 +557,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -550,7 +596,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -584,8 +637,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim =
-            Claim::new(public_key, address.clone(), ip_address.clone(), signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address.clone(),
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -619,7 +678,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
         let amount = StakeUpdate::Add(10_000u128);
         let mut stake = Stake::new(
             amount,
@@ -668,7 +734,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Withdrawal(5_000u128);
         let mut stake = Stake::new(
@@ -702,7 +775,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 
@@ -753,7 +833,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Slash(25u8);
         let mut stake = Stake::new(
@@ -787,7 +874,14 @@ mod tests {
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
-        let mut claim = Claim::new(public_key, address.clone(), ip_address, signature).unwrap();
+        let mut claim = Claim::new(
+            public_key,
+            address.clone(),
+            ip_address,
+            signature,
+            NodeId::default(),
+        )
+        .unwrap();
 
         let amount = StakeUpdate::Add(10_000u128);
 

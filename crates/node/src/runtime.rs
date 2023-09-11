@@ -63,6 +63,7 @@ pub async fn setup_runtime_components(
         Address::new(public_key),
         config.public_ip_address,
         signature,
+        config.id.clone(),
     )
     .map_err(NodeError::from)?;
 
