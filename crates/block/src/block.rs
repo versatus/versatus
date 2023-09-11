@@ -14,7 +14,7 @@ use vrrb_core::transactions::Transaction;
 use crate::genesis;
 use crate::{header::BlockHeader, ConvergenceBlock, GenesisBlock, ProposalBlock};
 
-pub trait InnerBlock<T>: std::fmt::Debug + Send {
+pub trait InnerBlock: std::fmt::Debug + Send {
     type Header;
     type RewardType;
 
@@ -25,18 +25,18 @@ pub trait InnerBlock<T>: std::fmt::Debug + Send {
     fn get_hash(&self) -> String;
     fn get_ref_hashes(&self) -> Vec<String>;
     fn as_static_convergence(&self) -> Option<ConvergenceBlock>;
-    fn as_static_genesis(&self) -> Option<GenesisBlock<T>>;
+    fn as_static_genesis(&self) -> Option<GenesisBlock>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
-pub enum Block<T> {
+pub enum Block {
     Convergence { block: ConvergenceBlock },
-    Proposal { block: ProposalBlock<T> },
-    Genesis { block: GenesisBlock<T> },
+    Proposal { block: ProposalBlock },
+    Genesis { block: GenesisBlock },
 }
 
-impl<T: for<'a> Transaction<'a>> Block<T> {
+impl Block {
     pub fn is_convergence(&self) -> bool {
         matches!(self, Block::Convergence { .. })
     }
@@ -87,25 +87,25 @@ impl fmt::Display for ConvergenceBlock {
 }
 
 //TODO: impl fmt::Display for ProposalBlock & GenesisBlock
-impl<T: for<'a> Transaction<'a>> From<ConvergenceBlock> for Block<T> {
-    fn from(block: ConvergenceBlock) -> Block<T> {
+impl From<ConvergenceBlock> for Block {
+    fn from(block: ConvergenceBlock) -> Block {
         Block::Convergence { block }
     }
 }
 
-impl<T: for<'a> Transaction<'a>> From<ProposalBlock<T>> for Block<T> {
-    fn from(block: ProposalBlock<T>) -> Block<T> {
+impl From<ProposalBlock> for Block {
+    fn from(block: ProposalBlock) -> Block {
         Block::Proposal { block }
     }
 }
 
-impl<T: for<'a> Transaction<'a>> From<GenesisBlock<T>> for Block<T> {
-    fn from(block: GenesisBlock<T>) -> Block<T> {
+impl From<GenesisBlock> for Block {
+    fn from(block: GenesisBlock) -> Block {
         Block::Genesis { block }
     }
 }
 
-impl<T: for<'a> Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
+impl InnerBlock for ConvergenceBlock {
     type Header = BlockHeader;
     type RewardType = Reward;
 
@@ -137,12 +137,12 @@ impl<T: for<'a> Transaction<'a>> InnerBlock<T> for ConvergenceBlock {
         Some(self.clone())
     }
 
-    fn as_static_genesis(&self) -> Option<GenesisBlock<T>> {
+    fn as_static_genesis(&self) -> Option<GenesisBlock> {
         None
     }
 }
 
-impl<T: for<'a> Transaction<'a> + Debug + Send> InnerBlock<T> for GenesisBlock<T> {
+impl InnerBlock for GenesisBlock {
     type Header = BlockHeader;
     type RewardType = Reward;
 
@@ -174,13 +174,13 @@ impl<T: for<'a> Transaction<'a> + Debug + Send> InnerBlock<T> for GenesisBlock<T
         None
     }
 
-    fn as_static_genesis(&self) -> Option<GenesisBlock<T>> {
+    fn as_static_genesis(&self) -> Option<GenesisBlock> {
         Some(self.clone())
     }
 }
 
-impl<T: for<'a> Transaction<'a> + Clone + Debug> From<Block<T>> for Vertex<Block<T>, String> {
-    fn from(item: Block<T>) -> Vertex<Block<T>, String> {
+impl From<Block> for Vertex<Block, String> {
+    fn from(item: Block) -> Vertex<Block, String> {
         match item {
             Block::Convergence { ref block } => Vertex::new(item.clone(), block.hash.clone()),
             Block::Proposal { ref block } => Vertex::new(item.clone(), block.hash.clone()),

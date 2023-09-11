@@ -1,5 +1,5 @@
 use ritelinked::LinkedHashMap;
-use vrrb_core::transactions::Transaction;
+use vrrb_core::transactions::{Transaction, TransactionKind};
 
 // 50% after one year, then monthly for 12 months
 const EMPLOYEE_VESTING: VestingConfig = VestingConfig {
@@ -35,12 +35,12 @@ pub struct VestingConfig {
 }
 
 #[allow(clippy::diverging_sub_expression)]
-pub fn create_vesting<T: for<'a> Transaction<'a>>(_target: &str, _config: VestingConfig) -> (String, T) {
+pub fn create_vesting(_target: &str, _config: VestingConfig) -> (String, TransactionKind) {
     todo!()
 }
 
-pub fn generate_genesis_txns<T: for<'a> Transaction<'a>>() -> LinkedHashMap<String, T> {
-    let mut genesis_txns: LinkedHashMap<String, T> = LinkedHashMap::new();
+pub fn generate_genesis_txns() -> LinkedHashMap<String, TransactionKind> {
+    let mut genesis_txns: LinkedHashMap<String, TransactionKind> = LinkedHashMap::new();
     for employee in EMPLOYEESS {
         let vesting_txn = create_vesting(employee, EMPLOYEE_VESTING);
         genesis_txns.insert(vesting_txn.0, vesting_txn.1);

@@ -5,7 +5,7 @@ mod server_impl;
 use serde::{Deserialize, Serialize};
 pub use server::*;
 pub use server_impl::*;
-use vrrb_core::txn::Token;
+use vrrb_core::transactions::Token;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq, Hash)]
 pub struct SignOpts {

@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use vrrb_core::{
     claim::Claim,
 };
-use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest};
+use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -30,8 +30,8 @@ pub type CurrentUtility = i128;
 pub type NextEpochAdjustment = i128;
 pub type ClaimHash = ethereum_types::U256;
 pub type RefHash = String;
-pub type TxnList<T> = LinkedHashMap<TransactionDigest,T>;
-pub type QuorumCertifiedTxnList<T> = LinkedHashMap<TransactionDigest, QuorumCertifiedTxn<T>>;
+pub type TxnList = LinkedHashMap<TransactionDigest,TransactionKind>;
+pub type QuorumCertifiedTxnList = LinkedHashMap<TransactionDigest, QuorumCertifiedTxn>;
 pub type ClaimList = LinkedHashMap<ClaimHash, Claim>;
 pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TransactionDigest>>;
 pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;

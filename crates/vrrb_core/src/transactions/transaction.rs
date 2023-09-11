@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use serde::{Deserialize, Serialize};
-use primitives::{Address, PublicKey, Signature};
-use crate::transactions::{Token, TransactionDigest, TransactionKind, TxAmount, TxNonce, TxTimestamp};
+use primitives::{Address, PublicKey, SecretKey, Signature};
+use crate::transactions::{Token, TransactionDigest, TransactionKind, Transfer, TxAmount, TxNonce, TxTimestamp};
 
 
-pub trait Transaction<'a>: Clone + Sized + Serialize + Default + Deserialize<'a> {
-    fn kind(&self) -> TransactionKind;
+pub trait Transaction {
     fn id(&self) -> TransactionDigest;
     fn timestamp(&self) -> TxTimestamp;
     fn sender_address(&self) -> Address;
@@ -25,4 +24,6 @@ pub trait Transaction<'a>: Clone + Sized + Serialize + Default + Deserialize<'a>
 
     #[deprecated]
     fn digest(&self) -> TransactionDigest;
+
+    fn sign(&mut self, sk: &SecretKey);
 }

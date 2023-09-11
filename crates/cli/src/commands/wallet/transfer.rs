@@ -1,5 +1,5 @@
 use primitives::Address;
-use vrrb_core::txn::Token;
+use vrrb_core::transactions::Token;
 use vrrb_rpc::rpc::api::RpcTransactionDigest;
 use wallet::v2::Wallet;
 

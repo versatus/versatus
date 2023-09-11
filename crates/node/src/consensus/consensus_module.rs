@@ -31,8 +31,8 @@ use vrrb_core::{
     bloom::Bloom,
     claim::Claim,
     keypair::Keypair,
-    txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind};
 
 use crate::{state_reader::StateReader, NodeError, Result};
 
@@ -194,7 +194,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
             .into_iter()
             .map(|txn| {
-                if let Err(err) = self.certified_txns_filter.push(&txn.txn().id.to_string()) {
+                if let Err(err) = self.certified_txns_filter.push(&txn.txn().id().to_string()) {
                     error!("Error pushing txn to certified txns filter: {}", err);
                 }
                 (txn.txn().id(), txn.clone())
@@ -685,7 +685,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         txn_id: TransactionDigest,
         quorum_key: PublicKeyShareVec,
         farmer_id: NodeId,
-        txn: Txn,
+        txn: TransactionKind,
         quorum_threshold: FarmerQuorumThreshold,
     ) {
         todo!()
@@ -758,7 +758,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         digest: TransactionDigest,
         execution_result: ProgramExecutionOutput,
         farmer_id: NodeId,
-        txn: Box<Txn>,
+        txn: Box<TransactionKind>,
         is_valid: TxnValidationStatus,
     ) {
         //
@@ -871,7 +871,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         Ok(winner)
     }
 
-    pub fn handle_txns_ready_for_processing(&mut self, txns: Vec<Txn>) {
+    pub fn handle_txns_ready_for_processing(&mut self, txns: Vec<TransactionKind>) {
         let keys: Vec<ByteSlice48Bit> = self
             .dkg_engine
             .dkg_state

@@ -4,7 +4,7 @@ use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
 use patriecia::inner::InnerTrie;
 use serde::{Deserialize, Serialize};
 use storage_utils::{Result, StorageError};
-use vrrb_core::transactions::{Transaction, TransactionDigest};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
 
 use crate::RocksDbAdapter;
 
@@ -18,16 +18,16 @@ impl TransactionStoreReadHandle {
         Self { inner }
     }
 
-    pub fn get<T: Clone + Serialize + for<'a> Deserialize<'a>>(&self, key: &TransactionDigest) -> Result<T> {
+    pub fn get(&self, key: &TransactionDigest) -> Result<TransactionKind> {
         self.inner
             .get(key)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
-    pub fn batch_get<T: Clone + Serialize + for<'a> Deserialize<'a>>(
+    pub fn batch_get(
         &self,
         keys: Vec<TransactionDigest>,
-    ) -> HashMap<TransactionDigest, Option<T>> {
+    ) -> HashMap<TransactionDigest, Option<TransactionKind>> {
         let mut transactions = HashMap::new();
 
         keys.iter().for_each(|key| {
@@ -38,7 +38,7 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries<T: Default + for<'a> Deserialize<'a>>(&self) -> HashMap<TransactionDigest, T> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, TransactionKind> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
             .iter()

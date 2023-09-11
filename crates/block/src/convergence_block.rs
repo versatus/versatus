@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
 };
-use vrrb_core::transactions::{Transaction, TransactionDigest};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -20,10 +20,10 @@ use crate::{
     ConsolidatedTxns,
 };
 
-pub struct MineArgs<'a, T> {
+pub struct MineArgs<'a> {
     pub claim: Claim,
-    pub last_block: Block<T>,
-    pub txns: LinkedHashMap<String, T>,
+    pub last_block: Block,
+    pub txns: LinkedHashMap<String, TransactionKind>,
     pub claims: LinkedHashMap<String, Claim>,
     pub claim_list_hash: Option<String>,
     #[deprecated(

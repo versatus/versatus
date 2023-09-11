@@ -8,8 +8,8 @@ use block::{ConvergenceBlock, ProposalBlock};
 use primitives::Address;
 use vrrb_core::{
     account::{AccountDigests, UpdateArgs},
-    txn::{Token, TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{Token, Transaction, TransactionDigest, TransactionKind};
 
 /// Provides a wrapper around the current rounds `ConvergenceBlock` and
 /// the `ProposalBlock`s that it is made up of. Provides a convenient
@@ -72,7 +72,7 @@ pub trait FromBlock {
 /// Provides an interface to convert a `Txn`
 /// into the type that implements it
 pub trait FromTxn {
-    fn from_txn(txn: Txn) -> Self;
+    fn from_txn(txn: TransactionKind) -> Self;
 }
 
 /// Converts a `StateUpdate` into `UpdateArgs`
@@ -180,7 +180,7 @@ impl FromBlock for HashSet<StateUpdate> {
 /// which is a simple wrapper around 2 `StateUpdate`s
 /// one for the sender and one for the receiver
 impl FromTxn for IntoUpdates {
-    fn from_txn(txn: Txn) -> IntoUpdates {
+    fn from_txn(txn: TransactionKind) -> IntoUpdates {
         let sender_update = StateUpdate {
             address: txn.sender_address(),
             token: Some(txn.token()),
@@ -213,27 +213,28 @@ impl FromTxn for IntoUpdates {
 /// Converts a Transaction into a HashSet of `StateUpdate`s
 /// for fee distribution among the validators of a given tx
 impl FromTxn for HashSet<StateUpdate> {
-    fn from_txn(txn: Txn) -> HashSet<StateUpdate> {
+    fn from_txn(txn: TransactionKind) -> HashSet<StateUpdate> {
         let mut set = HashSet::new();
         let fees = txn.validator_fee_share();
-        let mut validator_set = txn.validators();
-        validator_set.retain(|_, vote| *vote);
-        let validator_share = fees / (validator_set.len() as u128);
-        validator_set.iter().for_each(|(k, _v)| {
-            let address = Address::from_str(k);
-            if let Ok(addr) = address {
-                set.insert(StateUpdate {
-                    address: addr,
-                    token: None,
-                    amount: validator_share,
-                    nonce: None,
-                    storage: None,
-                    code: None,
-                    digest: TransactionDigest::default(),
-                    update_account: UpdateAccount::Fee,
-                });
-            }
-        });
+        if let Some(mut validator_set) = txn.validators() {
+            validator_set.retain(|_, vote| *vote);
+            let validator_share = fees / (validator_set.len() as u128);
+            validator_set.iter().for_each(|(k, _v)| {
+                let address = Address::from_str(k);
+                if let Ok(addr) = address {
+                    set.insert(StateUpdate {
+                        address: addr,
+                        token: None,
+                        amount: validator_share,
+                        nonce: None,
+                        storage: None,
+                        code: None,
+                        digest: TransactionDigest::default(),
+                        update_account: UpdateAccount::Fee,
+                    });
+                }
+            });
+        }
 
         set
     }

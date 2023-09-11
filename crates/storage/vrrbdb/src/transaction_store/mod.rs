@@ -8,17 +8,15 @@ use crate::RocksDbAdapter;
 
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
-use vrrb_core::transactions::{Transaction, TransactionDigest};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone)]
-pub struct TransactionStore<T>
-where
-    T: Transaction<'static> + Serialize + Deserialize<'static>,
+pub struct TransactionStore
 {
-    trie: LeftRightTrie<'static, TransactionDigest, T, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, TransactionDigest, TransactionKind, RocksDbAdapter>,
 }
 
-impl<T: Transaction<'static> + Serialize + Deserialize<'static>> Default for TransactionStore<T> {
+impl Default for TransactionStore {
     fn default() -> Self {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -33,7 +31,7 @@ impl<T: Transaction<'static> + Serialize + Deserialize<'static>> Default for Tra
     }
 }
 
-impl<T: Transaction<'static> + Serialize + Deserialize<'static>> TransactionStore<T> {
+impl TransactionStore {
     /// Returns new, empty instance of TransactionStore
     pub fn new(path: &Path) -> Self {
         let path = path.join("transactions");
@@ -58,12 +56,12 @@ impl<T: Transaction<'static> + Serialize + Deserialize<'static>> TransactionStor
         TransactionStoreReadHandle::new(inner)
     }
 
-    pub fn insert(&mut self, txn: T) -> Result<()> {
+    pub fn insert(&mut self, txn: TransactionKind) -> Result<()> {
         self.trie.insert(txn.digest(), txn);
         Ok(())
     }
 
-    pub fn extend(&mut self, transactions: Vec<T>) {
+    pub fn extend(&mut self, transactions: Vec<TransactionKind>) {
         let transactions = transactions
             .into_iter()
             .map(|txn| (txn.digest(), txn))

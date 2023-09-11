@@ -4,7 +4,7 @@ use primitives::Address;
 use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
 use tokio::sync::mpsc::channel;
-use vrrb_core::txn::Token;
+use vrrb_core::transactions::Token;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
