@@ -153,11 +153,17 @@ impl StateManager {
     /// making up the current round's `ConvergenceBlock`, writes
     /// all the new, conflict resolved, claims into the `ClaimStore`
     fn update_claim_store(&mut self, proposals: &[ProposalBlock]) {
-        let consolidated: HashSet<(U256, Claim)> = {
-            let nested: Vec<HashSet<(U256, Claim)>> = {
+        let consolidated: HashSet<(U256, Option<Claim>)> = {
+            let nested: Vec<HashSet<(U256, Option<Claim>)>> = {
                 proposals
                     .iter()
-                    .map(|block| block.claims.iter().map(|(k, v)| (*k, v.clone())).collect())
+                    .map(|block| {
+                        block
+                            .claims
+                            .iter()
+                            .map(|(k, v)| (*k, Some(v.clone())))
+                            .collect()
+                    })
                     .collect()
             };
 
@@ -201,7 +207,7 @@ impl StateManager {
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
-    pub fn _extend_accounts(&mut self, accounts: Vec<(Address, Account)>) -> Result<()> {
+    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Option<Account>)>) -> Result<()> {
         self.database.extend_accounts(accounts);
         Ok(())
     }

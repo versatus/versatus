@@ -1,7 +1,9 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
-use lr_trie::{LeftRightTrie, H256};
+use integral_db::LeftRightTrie;
+use patriecia::{RootHash, Version};
 use primitives::Address;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
@@ -15,7 +17,7 @@ pub type FailedAccountUpdates = Vec<(Address, Vec<UpdateArgs>, Result<()>)>;
 
 #[derive(Debug, Clone)]
 pub struct StateStore {
-    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, Address, Account, RocksDbAdapter, Sha256>,
 }
 
 impl Default for StateStore {
@@ -151,14 +153,18 @@ impl StateStore {
     }
 
     /// Returns a number of initialized accounts in the database
-    pub fn len(&self) -> usize {
-        self.trie.len()
+    pub fn len(&self) -> Result<usize> {
+        self.trie
+            .len()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     /// Returns true if the number of initialized accounts in the database is
     /// zero.
-    pub fn is_empty(&self) -> bool {
-        self.trie.is_empty()
+    pub fn is_empty(&self) -> Result<bool> {
+        self.trie
+            .is_empty()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     /// Updates a given account if it exists within the store
@@ -276,11 +282,13 @@ impl StateStore {
         Some(failed)
     }
 
-    pub fn root_hash(&self) -> Option<H256> {
-        self.trie.root()
+    pub fn root_hash(&self) -> Result<RootHash> {
+        self.trie
+            .root_latest()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
-    pub fn extend(&mut self, accounts: Vec<(Address, Account)>) {
+    pub fn extend(&mut self, accounts: Vec<(Address, Option<Account>)>) {
         self.trie.extend(accounts)
     }
 

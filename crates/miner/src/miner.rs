@@ -144,7 +144,7 @@ impl Miner {
     ///
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
-    /// use primitives::Address;
+    /// use primitives::{Address, NodeId};
     /// use vrrb_core::keypair::Keypair;
     ///
     /// let keypair = Keypair::random();
@@ -159,7 +159,7 @@ impl Miner {
     ///     dag,
     /// };
     ///
-    /// let miner = Miner::new(config);
+    /// let miner = Miner::new(config, NodeId::default());
     ///
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
@@ -219,8 +219,8 @@ impl Miner {
             self.public_key(),
             self.address(),
             self.ip_address(),
-            self.claim.node_id.clone(),
             signature,
+            self.claim.node_id.clone(),
         )
         .map_err(MinerError::from)?;
         Ok(claim)

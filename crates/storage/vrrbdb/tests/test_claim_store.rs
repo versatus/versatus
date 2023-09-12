@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use primitives::NodeId;
+use vrrb_core::claim::Claim;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;
@@ -19,14 +23,14 @@ fn claims_can_be_added() {
 
     db.insert_claim(claim2).unwrap();
 
-    let entries = db.claim_store_factory().handle().entries();
+    let entries: HashMap<NodeId, Claim> = db.claim_store_factory().handle().entries();
 
     assert_eq!(entries.len(), 2);
 
     db.extend_claims(vec![
-        (claim3.hash, claim3),
-        (claim4.hash, claim4),
-        (claim5.hash, claim5),
+        (claim3.hash, Some(claim3)),
+        (claim4.hash, Some(claim4)),
+        (claim5.hash, Some(claim5)),
     ]);
 
     let entries = db.claim_store_factory().handle().entries();
