@@ -316,7 +316,7 @@ impl StateManager {
         Ok(())
     }
 
-    pub(crate) fn block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
+    pub(crate) fn block_certificate_created(&mut self, _certificate: Certificate) -> Result<()> {
         //
         //         let mut mine_block: Option<ConvergenceBlock> = None;
         //         let block_hash = certificate.block_hash.clone();
@@ -357,13 +357,7 @@ impl StateManager {
 
     pub fn handle_transaction_certificate_created(
         &mut self,
-        votes: Vec<Vote>,
-        signature: RawSignature,
-        digest: TransactionDigest,
-        execution_result: ProgramExecutionOutput,
-        farmer_id: NodeId,
         txn: Box<Txn>,
-        is_valid: TxnValidationStatus,
     ) -> Result<()> {
         self.database
             .insert_transaction(*txn)

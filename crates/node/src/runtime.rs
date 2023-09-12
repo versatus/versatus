@@ -168,15 +168,15 @@ pub async fn setup_runtime_components(
     runtime_manager.register_component(consensus_component.label(), consensus_component.handle());
 
     if config.enable_block_indexing {
-        let handle = setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
+        let _handle = setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
         // TODO: udpate this to return the proper component handle type
         // indexer_handle = Some(handle);
         // TODO: register indexer module handle
     }
 
-    let mut node_gui_handle = None;
+    let mut _node_gui_handle = None;
     if config.gui {
-        node_gui_handle = setup_node_gui(&config).await?;
+        _node_gui_handle = setup_node_gui(&config).await?;
         info!("Node UI started");
     }
 
