@@ -1,7 +1,9 @@
 use std::{path::Path, sync::Arc};
 
 use ethereum_types::U256;
-use lr_trie::{LeftRightTrie, H256};
+use integral_db::LeftRightTrie;
+use patriecia::RootHash;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
@@ -15,7 +17,7 @@ pub type FailedClaimUpdates = Vec<(U256, Claims, Result<()>)>;
 
 #[derive(Debug, Clone)]
 pub struct ClaimStore {
-    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter>,
+    trie: LeftRightTrie<'static, U256, Claim, RocksDbAdapter, Sha256>,
 }
 
 impl Default for ClaimStore {
@@ -23,9 +25,9 @@ impl Default for ClaimStore {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
             .join("db")
-            .join("claims");
+            .join("claim");
 
-        let db_adapter = RocksDbAdapter::new(db_path, "claims").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
 
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
@@ -141,14 +143,18 @@ impl ClaimStore {
     }
 
     /// Returns a number of initialized claims in the database
-    pub fn len(&self) -> usize {
-        self.trie.len()
+    pub fn len(&self) -> Result<usize> {
+        self.trie
+            .len()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     /// Returns true if the number of initialized claims in the database is
     /// zero.
-    pub fn is_empty(&self) -> bool {
-        self.trie.is_empty()
+    pub fn is_empty(&self) -> Result<bool> {
+        self.trie
+            .is_empty()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     // TODO: We need to figure out what "updating" a claim means, if anything
@@ -269,11 +275,13 @@ impl ClaimStore {
     //
     //        Some(failed)
     //    }
-    pub fn root_hash(&self) -> Option<H256> {
-        self.trie.root()
+    pub fn root_hash(&self) -> Result<RootHash> {
+        self.trie
+            .root_latest()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
-    pub fn extend(&mut self, claims: Vec<(U256, Claim)>) {
+    pub fn extend(&mut self, claims: Vec<(U256, Option<Claim>)>) {
         self.trie.extend(claims)
     }
 

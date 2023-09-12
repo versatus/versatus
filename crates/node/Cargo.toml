@@ -12,7 +12,6 @@ vrrb_core = { workspace = true }
 events = { workspace = true }
 telemetry = { workspace = true }
 vrrb_config = { workspace = true }
-lr_trie = { workspace = true }
 storage = { workspace = true }
 wallet = { workspace = true }
 validator = { workspace = true }
@@ -69,6 +68,7 @@ utils = { workspace = true }
 maglev = { workspace = true }
 dyswarm = { workspace = true }
 chrono = { workspace = true }
+integral-db = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }

@@ -1,9 +1,8 @@
-use std::{collections::HashMap, fmt::Display, path::PathBuf};
+use std::path::PathBuf;
 
 use ethereum_types::U256;
-use lr_trie::H256;
+use patriecia::RootHash;
 use primitives::Address;
-use serde_json::json;
 use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
@@ -106,17 +105,17 @@ impl VrrbDb {
     }
 
     /// Returns the current state store trie's root hash.
-    pub fn state_root_hash(&self) -> Option<H256> {
+    pub fn state_root_hash(&self) -> Result<RootHash> {
         self.state_store.root_hash()
     }
 
     /// Returns the transaction store trie's root hash.
-    pub fn transactions_root_hash(&self) -> Option<H256> {
+    pub fn transactions_root_hash(&self) -> Result<RootHash> {
         self.transaction_store.root_hash()
     }
 
     /// Returns the claim store trie's root hash.
-    pub fn claims_root_hash(&self) -> Option<H256> {
+    pub fn claims_root_hash(&self) -> Result<RootHash> {
         self.claim_store.root_hash()
     }
 
@@ -144,7 +143,7 @@ impl VrrbDb {
     }
 
     /// Adds multiplpe accounts to current state tree.
-    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Account)>) {
+    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Option<Account>)>) {
         self.state_store.extend(accounts);
     }
 
@@ -185,7 +184,7 @@ impl VrrbDb {
     }
 
     /// Adds multiple claims to the current claim tree.  
-    pub fn extend_claims_unchecked(&mut self, claims: Vec<(U256, Claim)>) {
+    pub fn extend_claims_unchecked(&mut self, claims: Vec<(U256, Option<Claim>)>) {
         self.claim_store.extend(claims)
     }
 
@@ -195,7 +194,7 @@ impl VrrbDb {
     }
 
     /// Inserts multiple claims into the current claim trie
-    pub fn extend_claims(&mut self, claims: Vec<(U256, Claim)>) {
+    pub fn extend_claims(&mut self, claims: Vec<(U256, Option<Claim>)>) {
         self.claim_store.extend(claims)
     }
 
@@ -214,37 +213,37 @@ impl Clone for VrrbDb {
         }
     }
 }
+// TODO: uncomment this once `entries` is fixed
+// impl Display for VrrbDb {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let state_entries = self.state_store_factory().handle().entries();
+//         let transaction_entries = self
+//             .transaction_store_factory()
+//             .handle()
+//             .entries()
+//             .into_iter()
+//             .map(|(digest, txn)| (digest.to_string(), txn))
+//             .collect::<HashMap<String, Txn>>();
+//         let claim_entries = self.claim_store_factory().handle().entries();
 
-impl Display for VrrbDb {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let state_entries = self.state_store_factory().handle().entries();
-        let transaction_entries = self
-            .transaction_store_factory()
-            .handle()
-            .entries()
-            .into_iter()
-            .map(|(digest, txn)| (digest.to_string(), txn))
-            .collect::<HashMap<String, Txn>>();
-        let claim_entries = self.claim_store_factory().handle().entries();
+//         let out = json!({
+//             "state": {
+//                 "count": state_entries.len(),
+//                 "entries": state_entries,
+//             },
+//             "transactions": {
+//                 "count": transaction_entries.len(),
+//                 "entries": transaction_entries,
+//             },
+//             "claims": {
+//                 "count": claim_entries.len(),
+//                 "entries": claim_entries,
+//             },
+//         });
 
-        let out = json!({
-            "state": {
-                "count": state_entries.len(),
-                "entries": state_entries,
-            },
-            "transactions": {
-                "count": transaction_entries.len(),
-                "entries": transaction_entries,
-            },
-            "claims": {
-                "count": claim_entries.len(),
-                "entries": claim_entries,
-            },
-        });
+//         //TODO: report errors better
+//         let out_str = serde_json::to_string_pretty(&out).map_err(|_| std::fmt::Error)?;
 
-        //TODO: report errors better
-        let out_str = serde_json::to_string_pretty(&out).map_err(|_| std::fmt::Error)?;
-
-        f.write_str(&out_str)
-    }
-}
+//         f.write_str(&out_str)
+//     }
+// }

@@ -85,8 +85,8 @@ pub fn _generate_random_claim() -> Claim {
         public_key,
         Address::new(public_key),
         ip_address.clone(),
+        signature.clone(),
         signature,
-        NodeId::default(),
     )
     .unwrap()
 }
