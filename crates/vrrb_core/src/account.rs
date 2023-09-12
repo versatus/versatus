@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{Error, Result};
-use crate::transactions::transfer::TransactionDigest;
+use crate::transactions::transaction::TransactionDigest;
 
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.

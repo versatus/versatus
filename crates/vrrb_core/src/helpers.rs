@@ -6,7 +6,8 @@ use ritelinked::LinkedHashMap;
 use secp256k1::generate_keypair;
 
 use crate::{
-    transactions::transfer::{TransactionDigest, Transfer},
+    transactions::transfer::Transfer,
+    transactions::transaction::TransactionDigest,
     Error,
 };
 
