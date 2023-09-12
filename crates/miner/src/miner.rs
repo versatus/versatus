@@ -144,7 +144,7 @@ impl Miner {
     ///
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
-    /// use primitives::Address;
+    /// use primitives::{Address, NodeId};
     /// use vrrb_core::keypair::Keypair;
     ///
     /// let keypair = Keypair::random();
@@ -159,7 +159,7 @@ impl Miner {
     ///     dag,
     /// };
     ///
-    /// let miner = Miner::new(config);
+    /// let miner = Miner::new(config, NodeId::default());
     ///
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
