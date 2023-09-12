@@ -69,6 +69,10 @@ impl VrrbDb {
         }
     }
 
+    pub fn export_state(&self) {
+        todo!("implement once integral-db is ready to be consumed");
+    }
+
     pub fn commit_transactions(&mut self) {
         self.transaction_store.commit();
     }

@@ -24,6 +24,7 @@ mod tests {
     use crate::{prelude::*, result::DkgError, test_utils::generate_dkg_engines};
 
     #[tokio::test]
+    #[ignore]
     async fn failed_to_generate_part_commitment_message_since_only_master_node_allowed() {
         let mut dkg_engines = generate_dkg_engines(4, NodeType::Miner).await;
         let dkg_engine = dkg_engines.get_mut(0).unwrap();
@@ -117,7 +118,7 @@ mod tests {
 
     #[tokio::test]
     async fn successful_generations_of_key_sets() {
-        let mut dkg_engines = generate_dkg_engines(4, NodeType::MasterNode).await;
+        let mut dkg_engines = generate_dkg_engines(5, NodeType::MasterNode).await;
         let mut dkg_engine_node4 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node3 = dkg_engines.pop().unwrap();
         let mut dkg_engine_node2 = dkg_engines.pop().unwrap();

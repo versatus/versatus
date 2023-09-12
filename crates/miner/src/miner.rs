@@ -7,22 +7,12 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 
 use block::{
-    block::Block,
-    header::BlockHeader,
-    ClaimHash,
-    ClaimList,
-    ConsolidatedClaims,
-    ConsolidatedTxns,
-    ConvergenceBlock,
-    GenesisBlock,
-    InnerBlock,
-    ProposalBlock,
-    QuorumCertifiedTxnList,
-    RefHash,
+    block::Block, header::BlockHeader, ClaimHash, ClaimList, ConsolidatedClaims, ConsolidatedTxns,
+    ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
-use primitives::{Address, Epoch, PublicKey, Signature};
+use primitives::{Address, Epoch, NodeId, PublicKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use secp256k1::{
@@ -154,7 +144,7 @@ impl Miner {
     ///
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
-    /// use primitives::Address;
+    /// use primitives::{Address, NodeId};
     /// use vrrb_core::keypair::Keypair;
     ///
     /// let keypair = Keypair::random();
@@ -169,11 +159,11 @@ impl Miner {
     ///     dag,
     /// };
     ///
-    /// let miner = Miner::new(config);
+    /// let miner = Miner::new(config, NodeId::default());
     ///
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
-    pub fn new(config: MinerConfig) -> Result<Self> {
+    pub fn new(config: MinerConfig, node_id: NodeId) -> Result<Self> {
         let address = Address::new(config.public_key);
         let signature = Claim::signature_for_valid_claim(
             config.public_key,
@@ -186,6 +176,7 @@ impl Miner {
             address.clone(),
             config.ip_address,
             signature,
+            node_id,
         )
         .map_err(MinerError::from)?;
         Ok(Miner {
@@ -229,6 +220,7 @@ impl Miner {
             self.address(),
             self.ip_address(),
             signature,
+            self.claim.node_id.clone(),
         )
         .map_err(MinerError::from)?;
         Ok(claim)

@@ -173,6 +173,7 @@ impl RuntimeComponent<MiningModuleComponentConfig, ()> for MiningModule {
         let mut miner_events_rx = args.miner_events_rx;
         let mempool_read_handle_factory = args.mempool_read_handle_factory;
         let dag = args.dag;
+        let node_id = config.id.clone();
 
         let (_, miner_secret_key) = config.keypair.get_secret_keys();
         let (_, miner_public_key) = config.keypair.get_public_keys();
@@ -185,7 +186,7 @@ impl RuntimeComponent<MiningModuleComponentConfig, ()> for MiningModule {
             dag,
         };
 
-        let miner = miner::Miner::new(miner_config).map_err(NodeError::from)?;
+        let miner = miner::Miner::new(miner_config, node_id).map_err(NodeError::from)?;
         let module_config = MiningModuleConfig {
             miner,
             events_tx,

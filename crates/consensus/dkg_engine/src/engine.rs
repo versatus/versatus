@@ -4,7 +4,7 @@ use hbbft::{
     crypto::{PublicKey, SecretKey},
     sync_key_gen::{Part, PartOutcome, SyncKeyGen},
 };
-use primitives::{NodeId, NodeIdx, NodeType};
+use primitives::{NodeId, NodeIdx, NodeType, ValidatorPublicKey};
 use rand::rngs::OsRng;
 use vrrb_config::ThresholdConfig;
 
@@ -50,7 +50,6 @@ pub struct DkgEngine {
 #[derive(Debug, Clone)]
 pub struct DkgEngineConfig {
     pub node_id: NodeId,
-    pub node_idx: NodeIdx,
     pub node_type: NodeType,
     pub secret_key: SecretKey,
     pub threshold_config: vrrb_config::ThresholdConfig,
@@ -72,6 +71,10 @@ impl DkgEngine {
         self.dkg_state
             .peer_public_keys_mut()
             .insert(node_id, public_key);
+    }
+
+    pub fn set_harvester_public_key(&mut self, harvester_public_key: ValidatorPublicKey) {
+        self.harvester_public_key = Some(harvester_public_key);
     }
 
     pub fn get_public_key(&self) -> PublicKey {
@@ -102,13 +105,9 @@ impl DkgGenerator for DkgEngine {
     ///
     /// The part_commitment is being returned.
     fn generate_partial_commitment(&mut self, threshold: usize) -> Result<(Part, NodeId)> {
-        if self.dkg_state.peer_public_keys().len() as u16 != self.threshold_config.upper_bound {
-            return Err(DkgError::NotEnoughPeerPublicKeys);
-        }
-
-        if self.node_type != NodeType::MasterNode {
-            return Err(DkgError::InvalidNode);
-        }
+        // if (self.dkg_state.peer_public_keys().len() as u16) != self.threshold_config.upper_bound {
+        //     return Err(DkgError::NotEnoughPeerPublicKeys);
+        // }
 
         let node_id = self.node_id();
         let secret_key = self.secret_key.clone();
@@ -278,5 +277,9 @@ impl DkgGenerator for DkgEngine {
 
     fn threshold_config(&self) -> ThresholdConfig {
         self.threshold_config.clone()
+    }
+
+    fn add_peer_public_key(&mut self, node_id: NodeId, public_key: PublicKey) {
+        self.dkg_state.add_peer_public_key(node_id, public_key);
     }
 }

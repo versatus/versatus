@@ -1,10 +1,9 @@
 use std::net::SocketAddr;
 
 use block::BlockHash;
-use hbbft::crypto::PublicKeyShare;
 use primitives::{
     ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeIdx,
-    NodeType, QuorumKind, RawSignature,
+    NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
 use vrrb_core::txn::{TransactionDigest, Txn};
@@ -17,6 +16,7 @@ pub struct PeerData {
     pub udp_gossip_addr: SocketAddr,
     pub raptorq_gossip_addr: SocketAddr,
     pub kademlia_liveness_addr: SocketAddr,
+    pub validator_public_key: ValidatorPublicKey,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -64,7 +64,7 @@ pub struct BlockVote {
 // `JobResult` is an enum that represents the possible results of a job that is
 /// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
-pub enum JobResult {
+pub enum JobStatus {
     /// `Votes((Vec<Option<Vote>>, FarmerQuorumThreshold))` is type of
     /// `JobResult` which denotes votes from farmers for a particular txn.
     /// while the `FarmerQuorumThreshold` specifies the minimum number of votes
@@ -98,7 +98,7 @@ pub enum JobResult {
     /// - `RawSignature`: the partial signature of the harvester who partially
     ///   signed the convergence
     /// block.
-    ConvergenceBlockPartialSign(BlockHash, PublicKeyShare, RawSignature),
+    ConvergenceBlockPartialSign(BlockHash, ValidatorPublicKeyShare, RawSignature),
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]

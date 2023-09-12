@@ -1,15 +1,21 @@
 mod component;
-mod state_handler;
-mod state_manager;
+mod dag;
+mod handler;
+mod manager;
+mod types;
+mod utils;
 
 pub use component::*;
-pub use state_handler::*;
-pub use state_manager::*;
+pub use dag::*;
+pub use handler::*;
+pub use manager::*;
+pub use types::*;
 
 #[cfg(test)]
 mod tests {
     use std::{
         env,
+        net::{IpAddr, Ipv4Addr, SocketAddr},
         sync::{Arc, RwLock},
     };
 
@@ -17,18 +23,19 @@ mod tests {
     use bulldag::{graph::BullDag, vertex::Vertex};
     use events::{Event, DEFAULT_BUFFER};
     use mempool::LeftRightMempool;
+    use miner::test_helpers::{create_address, create_claim};
     use primitives::Address;
     use serial_test::serial;
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
-    use theater::{Actor, ActorImpl, ActorState};
+    use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
     use vrrb_core::{account::Account, txn::Txn};
 
+    use crate::test_utils::{create_blank_certificate, create_dag_module};
+
     use super::*;
     use crate::test_utils::{
-        produce_accounts,
-        produce_convergence_block,
-        produce_genesis_block,
+        create_keypair, produce_accounts, produce_convergence_block, produce_genesis_block,
         produce_proposal_blocks,
     };
 
@@ -46,10 +53,16 @@ mod tests {
         let db = VrrbDb::new(db_config);
         let mempool = LeftRightMempool::new();
 
+        let (sk, pk) = create_keypair();
+        let addr = create_address(&pk);
+        let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+
         let state_module = StateManager::new(StateManagerConfig {
             events_tx,
             mempool,
             database: db,
+            claim: todo!(),
             dag: dag.clone(),
         });
 
@@ -82,11 +95,17 @@ mod tests {
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
+        let (sk, pk) = create_keypair();
+        let addr = create_address(&pk);
+        let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+
         let state_module = StateManager::new(StateManagerConfig {
             events_tx,
             mempool,
             database: db,
             dag: dag.clone(),
+            claim,
         });
 
         let mut state_module = ActorImpl::new(state_module);
@@ -121,12 +140,17 @@ mod tests {
         let mempool = LeftRightMempool::default();
 
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
+        let (sk, pk) = create_keypair();
+        let addr = create_address(&pk);
+        let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
 
         let state_module = StateManager::new(StateManagerConfig {
             mempool,
             events_tx,
             database: db,
             dag: dag.clone(),
+            claim,
         });
 
         let mut state_module = ActorImpl::new(state_module);
@@ -167,10 +191,17 @@ mod tests {
         let accounts: Vec<(Address, Account)> = produce_accounts(5);
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
         let (events_tx, _) = channel(100);
+
+        let (sk, pk) = create_keypair();
+        let addr = create_address(&pk);
+        let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+
         let config = StateManagerConfig {
             mempool,
             database: db,
             events_tx,
+            claim,
             dag: dag.clone(),
         };
 
@@ -221,5 +252,17 @@ mod tests {
             assert!(digests.get_recv().len() > 0);
             assert!(digests.get_stake().len() == 0);
         }
+    }
+    #[tokio::test]
+    async fn handle_event_block_certificate() {
+        let mut dag_module = create_dag_module();
+        let certificate = create_blank_certificate(dag_module.claim.signature.clone());
+
+        let message: messr::Message<Event> = Event::BlockCertificateCreated(certificate).into();
+
+        // assert_eq!(
+        // ActorState::Running,
+        // dag_module.handle(message).await.unwrap()
+        // );
     }
 }

@@ -43,7 +43,11 @@ fn new_db_instance(
     let cfs = match rocksdb::DB::list_cf(&options, &path) {
         Ok(cfs) => cfs,
         Err(err) => {
-            error!("could not create new db instance: {}", err.into_string());
+            error!(
+                "could not find column families at {}: {}",
+                path.display(),
+                err.into_string()
+            );
             vec![]
         },
     };
@@ -103,6 +107,7 @@ impl Default for RocksDbAdapter {
         options.create_if_missing(true);
         options.create_missing_column_families(true);
 
+        //
         // TODO: fix this unwrap
         let db = new_db_instance(
             options,

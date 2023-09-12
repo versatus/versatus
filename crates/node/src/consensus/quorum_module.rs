@@ -16,15 +16,15 @@ use theater::{Actor, ActorId, ActorImpl, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
-use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
+use crate::{state_reader::StateReader, NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 #[derive(Debug)]
-pub struct QuorumModule {
+pub struct QuorumModule<S: StateReader + Send> {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) events_tx: EventPublisher,
     pub(crate) node_config: NodeConfig,
-    pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
+    pub(crate) vrrbdb_read_handle: S,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
     pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
@@ -33,15 +33,15 @@ pub struct QuorumModule {
 }
 
 #[derive(Debug, Clone)]
-pub struct QuorumModuleConfig {
+pub struct QuorumModuleConfig<S: StateReader + Send> {
     pub events_tx: EventPublisher,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub vrrbdb_read_handle: S,
     pub membership_config: Option<QuorumMembershipConfig>,
     pub node_config: NodeConfig,
 }
 
-impl QuorumModule {
-    pub fn new(cfg: QuorumModuleConfig) -> Self {
+impl<S: StateReader + Send + Sync> QuorumModule<S> {
+    pub fn new(cfg: QuorumModuleConfig<S>) -> Self {
         let mut bootstrap_quorum_available_nodes = HashMap::new();
 
         if let Some(quorum_config) = cfg.node_config.bootstrap_quorum_config.clone() {
@@ -57,6 +57,7 @@ impl QuorumModule {
                         udp_gossip_addr: member.udp_gossip_address,
                         raptorq_gossip_addr: member.raptorq_gossip_address,
                         kademlia_liveness_addr: member.kademlia_liveness_address,
+                        validator_public_key: member.validator_public_key,
                     };
 
                     (peer.node_id.clone(), (peer, false))
@@ -97,7 +98,7 @@ impl QuorumModule {
                 .filter(|peer| peer.node_id != node_id)
                 .collect::<Vec<PeerData>>(),
         };
-        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership).into();
+        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
 
         let em = EventMessage::new(Some("network-events".into()), event);
 
@@ -110,7 +111,7 @@ impl QuorumModule {
         &self,
         peer_list: HashMap<NodeId, (PeerData, bool)>,
     ) -> crate::Result<()> {
-        let unassigned_peers = peer_list
+        let mut unassigned_peers = peer_list
             .into_iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
@@ -121,7 +122,7 @@ impl QuorumModule {
         let harvester_count = (unassigned_peers_count as f64 * 0.3).ceil() as usize;
 
         // TODO: pick nodes at random
-        let mut harvester_peers = unassigned_peers
+        let harvester_peers = unassigned_peers
             .clone()
             .into_iter()
             .take(harvester_count)
@@ -136,7 +137,7 @@ impl QuorumModule {
             .await?;
         }
 
-        for intended_farmer in unassigned_peers.iter() {
+        for intended_farmer in unassigned_peers.iter().skip(harvester_count) {
             self.assign_membership_to_quorum(
                 QuorumKind::Farmer,
                 intended_farmer.clone(),
@@ -166,7 +167,7 @@ impl QuorumModule {
         Err(QuorumError::InvalidSeedError)
     }
 
-    fn elect_miner(
+    pub(crate) fn elect_miner(
         &self,
         claims: HashMap<NodeId, Claim>,
         block_seed: u64,
@@ -182,7 +183,7 @@ impl QuorumModule {
         (claim.get_election_result(block_seed), claim.clone())
     }
 
-    fn get_winner(election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
+    pub(crate) fn get_winner(&self, election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
         let mut iter = election_results.iter();
         let first: (U256, Claim);
         loop {
@@ -193,45 +194,5 @@ impl QuorumModule {
         }
 
         first
-    }
-}
-
-#[derive(Debug)]
-pub struct QuorumModuleComponentConfig {
-    pub events_tx: EventPublisher,
-    pub quorum_events_rx: EventSubscriber,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
-    pub membership_config: QuorumMembershipConfig,
-    pub node_config: NodeConfig,
-}
-
-#[async_trait]
-impl RuntimeComponent<QuorumModuleComponentConfig, ()> for QuorumModule {
-    async fn setup(args: QuorumModuleComponentConfig) -> crate::Result<RuntimeComponentHandle<()>> {
-        let module = QuorumModule::new(QuorumModuleConfig {
-            events_tx: args.events_tx,
-            vrrbdb_read_handle: args.vrrbdb_read_handle,
-            membership_config: Some(args.membership_config),
-            node_config: args.node_config,
-        });
-
-        let mut quorum_events_rx = args.quorum_events_rx;
-
-        let mut quorum_module_actor = ActorImpl::new(module);
-        let label = quorum_module_actor.label();
-        let quorum_handle = tokio::spawn(async move {
-            quorum_module_actor
-                .start(&mut quorum_events_rx)
-                .await
-                .map_err(|err| NodeError::Other(err.to_string()))
-        });
-
-        let component_handle = RuntimeComponentHandle::new(quorum_handle, (), label);
-
-        Ok(component_handle)
-    }
-
-    async fn stop(&mut self) -> crate::Result<()> {
-        todo!()
     }
 }

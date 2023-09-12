@@ -23,9 +23,9 @@ impl Default for ClaimStore {
         let db_path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
             .join("db")
-            .join("claim");
+            .join("claims");
 
-        let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(db_path, "claims").unwrap_or_default();
 
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 

@@ -3,6 +3,7 @@ mod event_store;
 pub mod result;
 mod rocksdb_adapter;
 mod state_store;
+pub mod test_utils;
 mod transaction_store;
 mod vrrbdb;
 mod vrrbdb_read_handle;
