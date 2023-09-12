@@ -78,7 +78,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
     }
 
     /// Replaces the current quorum membership configuration to the given one.
-    pub fn reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
+    pub fn _reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
         self.membership_config = Some(membership_config);
     }
 
@@ -149,7 +149,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         Ok(())
     }
 
-    fn elect_quorum(
+    fn _elect_quorum(
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,

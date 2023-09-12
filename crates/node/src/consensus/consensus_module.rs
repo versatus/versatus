@@ -34,15 +34,9 @@ use vrrb_core::{
     txn::{QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 
-use crate::{state_reader::StateReader, NodeError, Result};
+use crate::{state_reader::StateReader, NodeError, Result, PULL_TXN_BATCH_SIZE};
 
 use super::{QuorumModule, QuorumModuleConfig};
-
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
-
-// TODO: Move this to primitives
-pub type QuorumId = String;
-pub type QuorumPubkey = String;
 
 #[derive(Debug)]
 pub struct ConsensusModuleConfig<S: StateReader + Send + Sync> {
@@ -167,15 +161,15 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         self.keypair.validator_public_key_owned()
     }
 
-    async fn certify_block(&self) {
+    async fn _certify_block(&self) {
         //
     }
 
-    async fn mine_genesis_block(&self) {
+    async fn _mine_genesis_block(&self) {
         //
     }
 
-    async fn mine_proposal_block(
+    async fn _mine_proposal_block(
         &mut self,
         ref_hash: RefHash,
         round: Round,
@@ -212,7 +206,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         )
     }
 
-    async fn broadcast_proposal_block(&self, proposal_block: ProposalBlock) {
+    async fn _broadcast_proposal_block(&self, proposal_block: ProposalBlock) {
         let event = Event::BlockCreated(Block::Proposal {
             block: proposal_block,
         });
@@ -265,11 +259,11 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     }
     }
 
-    async fn broadcast_block_certificate(&self) {
+    async fn _broadcast_block_certificate(&self) {
         //
     }
 
-    fn generate_and_broadcast_certificate(
+    fn _generate_and_broadcast_certificate(
         &self,
         block_hash: BlockHash,
         certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
@@ -311,7 +305,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         // Ok(())
     }
 
-    async fn sign_convergence_block(&self) {
+    async fn _sign_convergence_block(&self) {
         //     Event::SignConvergenceBlock(block) => {
         //         if let Some(sig_provider) = self.sig_provider.clone() {
         //             let _ = self
@@ -321,7 +315,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     },
     }
 
-    async fn process_convergence_block_partial_signature(&self) {
+    async fn _process_convergence_block_partial_signature(&self) {
         //     // Process the job result of signing convergence block and adds
         // the     // partial signature to the cache for certificate
         // generation     Event::ConvergenceBlockPartialSign(job_result)
@@ -549,7 +543,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     /// * `status`: The `status` parameter is of type `TxnStatus`, which is an
     ///   enum representing the
     /// status of a transaction.
-    pub fn update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
+    pub fn _update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
 
         // TODO: publish a status update to mempool
 

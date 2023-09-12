@@ -1,3 +1,4 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use events::{Event, EventMessage};
 use telemetry::info;
@@ -136,7 +137,7 @@ impl Handler<EventMessage> for StateManager {
                 is_valid,
             } => {
                 // TODO: forward arguments
-                self.handle_transaction_certificate_created(
+                let _ = self.handle_transaction_certificate_created(
                     votes,
                     signature,
                     digest,

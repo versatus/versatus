@@ -70,14 +70,14 @@ impl StateManager {
         }
     }
 
-    pub fn export_state(&self) {
+    pub fn _export_state(&self) {
         self.database.export_state();
     }
 
     /// Produces the read handle for the VrrbDb instance in this
     /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
     /// each of the StateStore, TransactionStore and ClaimStore.
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn _read_handle(&self) -> VrrbDbReadHandle {
         self.database.read_handle()
     }
 
@@ -100,7 +100,7 @@ impl StateManager {
         Ok(())
     }
 
-    pub fn commit(&mut self) {
+    pub fn _commit(&mut self) {
         self.database.commit_state();
     }
 
@@ -201,7 +201,7 @@ impl StateManager {
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
-    pub fn extend_accounts(&mut self, accounts: Vec<(Address, Account)>) -> Result<()> {
+    pub fn _extend_accounts(&mut self, accounts: Vec<(Address, Account)>) -> Result<()> {
         self.database.extend_accounts(accounts);
         Ok(())
     }
@@ -393,19 +393,19 @@ impl StateReader for VrrbDbReadHandle {
     }
 
     /// Get a transaction from state
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn> {
+    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<Txn> {
         todo!()
     }
 
     /// List a group of transactions
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
+        _digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, Txn>> {
         todo!()
     }
 
-    async fn get_account(&self, address: Address) -> Result<Account> {
+    async fn get_account(&self, _address: Address) -> Result<Account> {
         todo!()
     }
 
@@ -429,7 +429,7 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
         todo!()
     }
 

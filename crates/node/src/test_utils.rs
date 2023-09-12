@@ -51,7 +51,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let public_ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let kademlia_liveness_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
     let default_node_config = NodeConfig::default();
 
@@ -85,7 +84,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
 #[deprecated]
 pub fn create_mock_full_node_config_with_bootstrap(
-    bootstrap_node_addresses: Vec<SocketAddr>,
+    _bootstrap_node_addresses: Vec<SocketAddr>,
 ) -> NodeConfig {
     create_mock_full_node_config()
 }
@@ -320,7 +319,7 @@ pub fn create_txn_from_accounts(
 }
 
 /// Creates a `DagModule` for testing the event handler.
-pub(crate) fn create_dag_module() -> DagModule {
+pub(crate) fn _create_dag_module() -> DagModule {
     let miner = create_miner();
     let (sk, pk) = create_keypair();
     let addr = create_address(&pk);
@@ -335,7 +334,7 @@ pub(crate) fn create_dag_module() -> DagModule {
 }
 
 /// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(claim_signature: String) -> block::Certificate {
+pub(crate) fn _create_blank_certificate(claim_signature: String) -> block::Certificate {
     block::Certificate {
         signature: claim_signature,
         inauguration: None,
@@ -370,7 +369,6 @@ use rand::{seq::SliceRandom, thread_rng};
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
-    let farmer_count = n * 2 / total_elements;
     let harvester_count = n * 2 / total_elements;
     let miner_count = n * 4 / total_elements;
 
@@ -446,19 +444,19 @@ impl StateReader for MockStateReader {
     }
 
     /// Get a transaction from state
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn> {
+    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<Txn> {
         todo!()
     }
 
     /// List a group of transactions
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
+        _digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, Txn>> {
         todo!()
     }
 
-    async fn get_account(&self, address: Address) -> Result<Account> {
+    async fn get_account(&self, _address: Address) -> Result<Account> {
         todo!()
     }
 
@@ -482,7 +480,7 @@ impl StateReader for MockStateReader {
         todo!()
     }
 
-    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
         todo!()
     }
 
@@ -526,7 +524,6 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
-        let pk_bytes = [0; 32];
 
         let threshold_sk = ValidatorSecretKey::random();
         let validator_public_key = threshold_sk.public_key();
