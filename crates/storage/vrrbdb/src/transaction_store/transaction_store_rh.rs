@@ -46,7 +46,7 @@ impl TransactionStoreReadHandle {
             .unwrap()
             .filter_map(|item| {
                 if let Ok((_, txn)) = item {
-                    let txn = bincode::deserialize::<Txn>(&txn).unwrap_or_default();
+                    let txn = bincode::deserialize::<TransactionKind>(&txn).unwrap_or_default();
 
                     return Some((txn.digest().clone(), txn));
                 }

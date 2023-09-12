@@ -5,7 +5,6 @@ use integral_db::{LeftRightTrie, Proof, H256};
 use patriecia::{RootHash, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
-use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
