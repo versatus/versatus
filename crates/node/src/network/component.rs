@@ -144,12 +144,14 @@ impl NetworkModule {
             // that kademlia_dht understands
             let bootstrap_node_data = NodeData::new(
                 kademlia_key,
+                config.node_id.clone(),
                 bootstrap_node_config.kademlia_liveness_addr,
                 bootstrap_node_config.udp_gossip_addr,
             );
 
             KademliaNode::new(
                 config.kademlia_peer_id,
+                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 Some(bootstrap_node_data),
@@ -160,6 +162,7 @@ impl NetworkModule {
 
             KademliaNode::new(
                 config.kademlia_peer_id,
+                config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
                 None,
