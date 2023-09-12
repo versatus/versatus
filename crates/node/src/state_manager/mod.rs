@@ -29,8 +29,8 @@ mod tests {
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
-    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair, txn::Txn};
-    use vrrb_core::transactions::{TransactionKind, Transfer};
+    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair};
+    use vrrb_core::transactions::{TransactionKind};
 
     use crate::test_utils::{create_blank_certificate, create_dag_module};
 
