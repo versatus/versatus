@@ -57,6 +57,7 @@ impl RpcApiServer for RpcServerImpl {
         Ok(self.node_type)
     }
 
+    //TODO: this should either exist for every transaction type or allow creating multiple types
     async fn create_txn(&self, args: NewTransferArgs) -> Result<RpcTransactionRecord, Error> {
         let txn = TransactionKind::Transfer(Transfer::new(args));
         let event = Event::NewTxnCreated(txn.clone());
