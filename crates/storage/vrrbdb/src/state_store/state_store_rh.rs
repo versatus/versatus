@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::inner::InnerTrie;
+use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
+use patriecia::{JellyfishMerkleTree, KeyHash};
 use primitives::Address;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::Account;
 
@@ -10,11 +11,11 @@ use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
 pub struct StateStoreReadHandle {
-    inner: InnerTrieWrapper<RocksDbAdapter>,
+    pub inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>,
 }
 
 impl StateStoreReadHandle {
-    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>) -> Self {
         Self { inner }
     }
 
@@ -22,7 +23,7 @@ impl StateStoreReadHandle {
     /// Otherwise returns `None`.
     pub fn get(&self, key: &Address) -> Result<Account> {
         self.inner
-            .get(key)
+            .get(key, self.inner.version())
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
@@ -30,7 +31,10 @@ impl StateStoreReadHandle {
     ///
     /// Returns HashMap indexed by PublicKeys and containing either
     /// Some(account) or None if account was not found.
-    pub fn batch_get(&self, keys: Vec<Address>) -> HashMap<Address, Option<Account>> {
+    pub fn batch_get(
+        &self,
+        keys: Vec<Address>,
+    ) -> HashMap<Address, Option<Account>> {
         let mut accounts = HashMap::new();
 
         keys.iter().for_each(|key| {
@@ -41,15 +45,14 @@ impl StateStoreReadHandle {
         accounts
     }
 
-    pub fn entries(&self) -> HashMap<Address, Account> {
-        // TODO: revisit and refactor into inner wrapper
+    pub fn entries(&self) -> HashMap<Address, Account> { 
+        // TODO: revisit and refactor into inner wrapper 
         self.inner
-            .iter()
-            .filter_map(|(key, value)| {
-                if let Ok(key) = bincode::deserialize(&key) {
-                    let value = bincode::deserialize(&value).unwrap_or_default();
-
-                    return Some((key, value));
+            .iter(self.inner.version()).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}") 
+            .filter_map(|item| { 
+                if let Ok((_, account)) = item {
+                    let account = bincode::deserialize::<Account>(&account).unwrap_or_default();
+                    return Some((account.address().clone(), account)); 
                 }
                 None
             })
@@ -69,11 +72,11 @@ impl StateStoreReadHandle {
 
 #[derive(Debug, Clone)]
 pub struct StateStoreReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>,
 }
 
 impl StateStoreReadHandleFactory {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>) -> Self {
         Self { inner }
     }
 
@@ -85,7 +88,7 @@ impl StateStoreReadHandleFactory {
             .map(|guard| guard.clone())
             .unwrap_or_default();
 
-        let inner = InnerTrieWrapper::new(handle);
+        let inner = JellyfishMerkleTreeWrapper::new(handle);
 
         StateStoreReadHandle { inner }
     }

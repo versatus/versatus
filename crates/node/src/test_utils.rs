@@ -98,12 +98,15 @@ pub fn create_mock_bootstrap_node_config() -> NodeConfig {
     node_config
 }
 
-pub fn produce_accounts(n: usize) -> Vec<(Address, Account)> {
+pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
     (0..n)
         .map(|_| {
             let kp = generate_account_keypair();
-            let mut account = Account::new(kp.1);
-            account.set_credits(1_000_000_000_000_000_000_000_000_000u128);
+            let mut account = Some(Account::new(kp.1));
+            account
+                .as_mut()
+                .unwrap()
+                .set_credits(1_000_000_000_000_000_000_000_000_000u128);
             (Address::new(kp.1), account)
         })
         .collect()
@@ -134,7 +137,7 @@ fn produce_random_claims(n: usize) -> HashSet<Claim> {
         .collect()
 }
 
-fn produce_random_txs(accounts: &Vec<(Address, Account)>) -> HashSet<TransactionKind> {
+fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<TransactionKind> {
     accounts
         .clone()
         .iter()
@@ -168,7 +171,7 @@ pub fn produce_genesis_block() -> GenesisBlock {
 
 pub fn produce_proposal_blocks(
     last_block_hash: BlockHash,
-    accounts: Vec<(Address, Account)>,
+    accounts: Vec<(Address, Option<Account>)>,
     n: usize,
     ntx: usize,
 ) -> Vec<ProposalBlock> {
@@ -275,7 +278,7 @@ pub fn create_keypair() -> (SecretKey, PublicKey) {
 }
 
 pub fn create_txn_from_accounts(
-    sender: (Address, Account),
+    sender: (Address, Option<Account>),
     receiver: Address,
     validators: Vec<(String, bool)>,
 ) -> TransactionKind {
@@ -300,7 +303,7 @@ pub fn create_txn_from_accounts(
         signature: sk
             .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
         validators: Some(validators),
-        nonce: sender.1.nonce() + 1,
+        nonce: sender.1.unwrap().nonce() + 1,
     };
 
     let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));

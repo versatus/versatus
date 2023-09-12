@@ -1,8 +1,11 @@
 use std::{path::Path, sync::Arc};
 use serde::{Deserialize, Serialize};
 
-use lr_trie::{LeftRightTrie, Proof, H256};
-use storage_utils::Result;
+use integral_db::{LeftRightTrie, Proof, H256};
+use patriecia::{RootHash, Version};
+use sha2::Sha256;
+use storage_utils::{Result, StorageError};
+use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
@@ -11,9 +14,8 @@ pub use transaction_store_rh::*;
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone)]
-pub struct TransactionStore
-{
-    trie: LeftRightTrie<'static, TransactionDigest, TransactionKind, RocksDbAdapter>,
+pub struct TransactionStore {
+    trie: LeftRightTrie<'static, TransactionDigest, TransactionKind, RocksDbAdapter, Sha256>,
 }
 
 impl Default for TransactionStore {
@@ -64,14 +66,16 @@ impl TransactionStore {
     pub fn extend(&mut self, transactions: Vec<TransactionKind>) {
         let transactions = transactions
             .into_iter()
-            .map(|txn| (txn.digest(), txn))
+            .map(|txn| (txn.digest(), Some(txn)))
             .collect();
 
         self.trie.extend(transactions)
     }
 
-    pub fn root_hash(&self) -> Option<H256> {
-        self.trie.root()
+    pub fn root_hash(&self) -> Result<RootHash> {
+        self.trie
+            .root_latest()
+            .map_err(|e| StorageError::Other(e.to_string()))
     }
 
     pub fn get_proof(&self) -> Result<Vec<Proof>> {

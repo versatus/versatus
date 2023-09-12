@@ -40,6 +40,7 @@ wasm_runtime = { workspace = true }
 vrrb_rpc = { workspace = true }
 primitives = { workspace = true }
 sha2 = { workspace = true }
+integral-db = { workspace = true }
 service_config = { workspace = true }
 
 [workspace]
@@ -63,7 +64,6 @@ members = [
     "crates/mempool",
     "crates/node",
     "crates/storage",
-    "crates/storage/lr_trie",
     "crates/storage/vrrbdb",
     "crates/storage/utils",
     "crates/telemetry",
@@ -97,7 +97,6 @@ events = { path = "crates/events" }
 
 storage = { path = "crates/storage" }
 vrrbdb = { path = "crates/storage/vrrbdb" }
-lr_trie = { path = "crates/storage/lr_trie" }
 storage_utils = { path = "crates/storage/utils" }
 
 consensus = { path = "crates/consensus" }
@@ -115,7 +114,7 @@ wasm_runtime = { path = "crates/wasm_runtime" }
 service_config = { path = "crates/service_config" }
 
 # NOTE: Github crates
-patriecia = { git = "https://github.com/vrrb-io/patriecia" }
+patriecia = { git = "https://github.com/versatus/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
@@ -126,7 +125,7 @@ rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
 messr = { git = "https://github.com/vrrb-io/messr" }
 decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
 dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
-integral-db = { git = "https://github.com/vrrb-io/integral-db" }
+integral-db = { git = "https://github.com/versatus/integral-db" }
 
 secp256k1 = { version = "0.25.0", features = [
     "rand",
