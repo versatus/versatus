@@ -224,7 +224,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     // the number of votes in the pool reaches the farmer
     // quorum threshold, it sends a job to certify the transaction
     // using the provided signature provider.
-    pub fn validate_vote(&self, vote: Vote, farmer_quorum_threshold: FarmerQuorumThreshold) {
+    pub fn validate_vote(&self, _vote: Vote, _farmer_quorum_threshold: FarmerQuorumThreshold) {
         // TODO: Harvester quorum nodes should check the integrity of the vote by verifying the vote does
         // come from the alleged voter Node.
         //
@@ -265,9 +265,9 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     fn _generate_and_broadcast_certificate(
         &self,
-        block_hash: BlockHash,
-        certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
-        sig_provider: &SignatureProvider,
+        _block_hash: BlockHash,
+        _certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
+        _sig_provider: &SignatureProvider,
     ) -> Result<()> {
         todo!()
         // if certificates_share.len() >= self.quorum_threshold {
@@ -543,7 +543,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     /// * `status`: The `status` parameter is of type `TxnStatus`, which is an
     ///   enum representing the
     /// status of a transaction.
-    pub fn _update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
+    pub fn _update_txn_status(&mut self, _txn_id: TransactionDigest, _status: TxnStatus) {
 
         // TODO: publish a status update to mempool
 
@@ -675,12 +675,12 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     pub fn handle_transaction_certificate_requested(
         &mut self,
-        votes: Vec<Vote>,
-        txn_id: TransactionDigest,
-        quorum_key: PublicKeyShareVec,
-        farmer_id: NodeId,
-        txn: Txn,
-        quorum_threshold: FarmerQuorumThreshold,
+        _votes: Vec<Vote>,
+        _txn_id: TransactionDigest,
+        _quorum_key: PublicKeyShareVec,
+        _farmer_id: NodeId,
+        _txn: Txn,
+        _quorum_threshold: FarmerQuorumThreshold,
     ) {
         todo!()
         // let mut vote_shares: HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>> =
@@ -747,13 +747,13 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     pub fn handle_transaction_certificate_created(
         &mut self,
-        votes: Vec<Vote>,
-        signature: RawSignature,
-        digest: TransactionDigest,
-        execution_result: ProgramExecutionOutput,
-        farmer_id: NodeId,
-        txn: Box<Txn>,
-        is_valid: TxnValidationStatus,
+        _votes: Vec<Vote>,
+        _signature: RawSignature,
+        _digest: TransactionDigest,
+        _execution_result: ProgramExecutionOutput,
+        _farmer_id: NodeId,
+        _txn: Box<Txn>,
+        _is_valid: TxnValidationStatus,
     ) {
         //
         // if let JobResult::CertifiedTxn(
@@ -803,7 +803,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     pub fn handle_part_commitment_acknowledged(
         &mut self,
-        node_id: NodeId,
+        _node_id: NodeId,
         sender_id: NodeId,
     ) -> Result<()> {
         let node_id = self.node_config.id.clone();
@@ -820,13 +820,13 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             return Ok(());
         }
 
-        let has_ack = self
+        let _has_ack = self
             .dkg_engine
             .dkg_state
             .part_message_store_mut()
             .contains_key(&node_id);
 
-        let ack = self
+        let _ack = self
             .dkg_engine
             .dkg_state
             .ack_message_store()
@@ -840,7 +840,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         Ok(())
     }
 
-    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) {
+    pub fn handle_quorum_election_started(&mut self, _header: BlockHeader) {
 
         //     let claims = self.vrrbdb_read_handle.claim_store_values();
         //
@@ -874,11 +874,11 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             .map(|pk| pk.to_bytes())
             .collect();
 
-        let maglev_hash_ring = Maglev::new(keys);
+        let _maglev_hash_ring = Maglev::new(keys);
 
         // let mut new_txns = vec![];
 
-        for txn in txns.into_iter() {
+        for _txn in txns.into_iter() {
             //         if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned()
             // {             if group_public_key == self.group_public_key {
             //                 new_txns.push(txn);
@@ -922,10 +922,10 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     pub fn handle_proposal_block_mine_request_created(
         &mut self,
-        ref_hash: RefHash,
-        round: Round,
-        epoch: Epoch,
-        claim: Claim,
+        _ref_hash: RefHash,
+        _round: Round,
+        _epoch: Epoch,
+        _claim: Claim,
     ) {
         //     let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
         //
@@ -971,9 +971,9 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     }
     pub fn handle_convergence_block_partial_signature_created(
         &mut self,
-        block_hash: BlockHash,
-        public_key_share: ValidatorPublicKeyShare,
-        partial_signature: RawSignature,
+        _block_hash: BlockHash,
+        _public_key_share: ValidatorPublicKeyShare,
+        _partial_signature: RawSignature,
     ) {
         //         if let Some(certificates_share) =
         //             self.convergence_block_certificates.get(&block_hash)
@@ -1030,8 +1030,8 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     }
     pub fn handle_convergence_block_precheck_requested(
         &mut self,
-        block: ConvergenceBlock,
-        last_confirmed_block_header: BlockHeader,
+        _block: ConvergenceBlock,
+        _last_confirmed_block_header: BlockHeader,
     ) {
         //     let claims = block.claims.clone();
         //     let txns = block.txns.clone();
@@ -1106,10 +1106,10 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     }
     pub fn handle_convergence_block_peer_signature_request(
         &mut self,
-        node_id: NodeId,
-        block_hash: BlockHash,
-        public_key_share: PublicKeyShareVec,
-        partial_signature: RawSignature,
+        _node_id: NodeId,
+        _block_hash: BlockHash,
+        _public_key_share: PublicKeyShareVec,
+        _partial_signature: RawSignature,
     ) {
         //     let mut pb_key_share = None;
         //     let preliminary_check = TryInto::<[u8; 48]>::try_into(public_key_share_bytes)

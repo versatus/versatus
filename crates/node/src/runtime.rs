@@ -44,7 +44,7 @@ pub async fn setup_runtime_components(
 
     let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
-    let membership_config = QuorumMembershipConfig::default();
+    let _membership_config = QuorumMembershipConfig::default();
 
     let public_key = config.keypair.get_miner_public_key().to_owned();
 

@@ -1,7 +1,7 @@
 use std::{path::Path, sync::Arc};
 
 use integral_db::{LeftRightTrie, Proof, H256};
-use patriecia::{RootHash, Version};
+use patriecia::RootHash;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::txn::{TransactionDigest, Txn};

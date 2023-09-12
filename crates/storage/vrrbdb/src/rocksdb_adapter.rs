@@ -264,9 +264,7 @@ impl TreeReader for RocksDbAdapter {
                 let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
                 let node_value: Node = bincode::deserialize(&boxed_value.into_vec())?;
                 if let Node::Leaf(leaf_node) = node_value {
-                    if key_and_node.is_none() {
-                        key_and_node.replace((node_key.clone(), leaf_node.clone()));
-                    } else if leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash() {
+                    if key_and_node.is_none() || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash() {
                         key_and_node.replace((node_key.clone(), leaf_node.clone()));
                     }
                 }
