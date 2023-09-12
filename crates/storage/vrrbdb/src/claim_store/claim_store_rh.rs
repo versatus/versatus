@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use lr_trie::{InnerTrieWrapper, ReadHandleFactory};
-use patriecia::inner::InnerTrie;
+use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
+use patriecia::{JellyfishMerkleTree, KeyHash, Version};
 use primitives::NodeId;
+use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
@@ -10,19 +11,19 @@ use crate::RocksDbAdapter;
 
 #[derive(Debug, Clone)]
 pub struct ClaimStoreReadHandle {
-    inner: InnerTrieWrapper<RocksDbAdapter>,
+    inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>,
 }
 
 impl ClaimStoreReadHandle {
-    pub fn new(inner: InnerTrieWrapper<RocksDbAdapter>) -> Self {
+    pub fn new(inner: JellyfishMerkleTreeWrapper<RocksDbAdapter, Sha256>) -> Self {
         Self { inner }
     }
 
     /// Returns `Some(Claim)` if an account exist under given PublicKey.
     /// Otherwise returns `None`.
-    pub fn get(&self, key: &NodeId) -> Result<Claim> {
+    pub fn get(&self, key: &NodeId, version: Version) -> Result<Claim> {
         self.inner
-            .get(key)
+            .get(key, version)
             .map_err(|err| StorageError::Other(err.to_string()))
     }
 
@@ -30,11 +31,11 @@ impl ClaimStoreReadHandle {
     ///
     /// Returns HashMap indexed by PublicKeys and containing either
     /// Some(account) or None if account was not found.
-    pub fn batch_get(&self, keys: Vec<NodeId>) -> HashMap<NodeId, Option<Claim>> {
+    pub fn batch_get(&self, keys: Vec<NodeId>, version: Version) -> HashMap<NodeId, Option<Claim>> {
         let mut claims = HashMap::new();
 
         keys.iter().for_each(|key| {
-            let value = self.get(key).ok();
+            let value = self.get(key, version).ok();
             claims.insert(key.to_owned(), value);
         });
 
@@ -44,11 +45,13 @@ impl ClaimStoreReadHandle {
     pub fn entries(&self) -> HashMap<NodeId, Claim> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
-            .iter()
-            .filter_map(|(key, value)| {
-                if let Ok(key) = bincode::deserialize(&key) {
-                    if let Ok(value) = bincode::deserialize(&value) {
-                        return Some((key, value));
+            .iter(self.inner.version())
+            .unwrap()
+            .filter_map(|item| {
+                if let Ok((_, claim)) = item {
+                    if let Ok(claim) = bincode::deserialize::<Claim>(&claim) {
+                        return Some((claim.node_id.clone(), claim)); // The default is a place holder, this is broken atm
+                                                                     // since we cannot get the NodeId from the Claim nor the KeyHash
                     }
                 }
                 None
@@ -69,11 +72,11 @@ impl ClaimStoreReadHandle {
 
 #[derive(Debug, Clone)]
 pub struct ClaimStoreReadHandleFactory {
-    inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>,
+    inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>,
 }
 
 impl ClaimStoreReadHandleFactory {
-    pub fn new(inner: ReadHandleFactory<InnerTrie<RocksDbAdapter>>) -> Self {
+    pub fn new(inner: ReadHandleFactory<JellyfishMerkleTree<RocksDbAdapter, Sha256>>) -> Self {
         Self { inner }
     }
 
@@ -85,7 +88,7 @@ impl ClaimStoreReadHandleFactory {
             .map(|guard| guard.clone())
             .unwrap_or_default();
 
-        let inner = InnerTrieWrapper::new(handle);
+        let inner = JellyfishMerkleTreeWrapper::new(handle);
 
         ClaimStoreReadHandle { inner }
     }

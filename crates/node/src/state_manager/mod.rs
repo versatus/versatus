@@ -29,7 +29,7 @@ mod tests {
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
-    use vrrb_core::{account::Account, txn::Txn};
+    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair, txn::Txn};
 
     use crate::test_utils::{create_blank_certificate, create_dag_module};
 
@@ -181,31 +181,36 @@ mod tests {
 
     pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
 
-    #[ignore = "state write is not yet persistent in the state module"]
     #[tokio::test]
     async fn vrrbdb_should_update_with_new_block() {
-        let path = std::env::temp_dir().join("db");
-        let db_config = VrrbDbConfig::default().with_path(path);
+        let db_config = VrrbDbConfig::default().with_path(std::env::temp_dir().join("db"));
         let db = VrrbDb::new(db_config);
         let mempool = LeftRightMempool::default();
-        let accounts: Vec<(Address, Account)> = produce_accounts(5);
+
+        let accounts: Vec<(Address, Option<Account>)> = produce_accounts(5);
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
         let (events_tx, _) = channel(100);
 
-        let (sk, pk) = create_keypair();
+        let keypair = KeyPair::random();
+        let pk = keypair.get_miner_public_key().clone();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+        let signature = Claim::signature_for_valid_claim(
+            pk.clone(),
+            ip_address,
+            keypair.get_miner_secret_key().secret_bytes().to_vec(),
+        )
+        .unwrap();
+        let claim = create_claim(&pk, &addr, ip_address, signature);
 
-        let config = StateManagerConfig {
+        let state_config = StateManagerConfig {
             mempool,
             database: db,
             events_tx,
             claim,
             dag: dag.clone(),
         };
-
-        let mut state_module = StateManager::new(config);
+        let mut state_module = StateManager::new(state_config);
         let state_res = state_module.extend_accounts(accounts.clone());
         let genesis = produce_genesis_block();
 
@@ -247,10 +252,10 @@ mod tests {
         for (address, _) in accounts.iter() {
             let account = store.get(address).unwrap();
             let digests = account.digests().clone();
-            dbg!(&digests);
-            assert!(digests.get_sent().len() > 0);
-            assert!(digests.get_recv().len() > 0);
-            assert!(digests.get_stake().len() == 0);
+
+            assert_eq!(digests.get_sent().len(), 5);
+            assert_eq!(digests.get_recv().len(), 5);
+            assert_eq!(digests.get_stake().len(), 0);
         }
     }
     #[tokio::test]
