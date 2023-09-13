@@ -6,11 +6,9 @@ use std::{
 use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher, Vote};
+use events::{Event, EventMessage, EventPublisher};
 use mempool::LeftRightMempool;
-use primitives::{
-    Address, NodeId, ProgramExecutionOutput, RawSignature, Round, TxnValidationStatus,
-};
+use primitives::{Address, NodeId, Round};
 use storage::{
     storage_utils::StorageError,
     vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},

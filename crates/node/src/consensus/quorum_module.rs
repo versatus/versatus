@@ -12,7 +12,7 @@ use quorum::{
     quorum::{Quorum, QuorumError},
 };
 use storage::vrrbdb::VrrbDbReadHandle;
-use theater::{Actor, ActorId, ActorImpl, ActorState};
+use theater::{ActorId, ActorImpl, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 

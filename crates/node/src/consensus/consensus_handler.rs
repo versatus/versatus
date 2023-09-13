@@ -5,7 +5,7 @@ use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
 use primitives::{NodeId, NodeType, ValidatorPublicKey};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::{QuorumMember, QuorumMembershipConfig};
 
 use crate::{consensus::ConsensusModule, state_reader::StateReader};
@@ -158,7 +158,7 @@ impl<S: StateReader + Send + Sync + Clone> Handler<EventMessage> for ConsensusMo
             },
             // it sends a job to sign the convergence block using the signature
             // provider
-            Event::ConvergenceBlockSignatureRequested(block) => {
+            Event::ConvergenceBlockSignatureRequested(_block) => {
                 //     TODO: merge with ConvergenceBlockPartialSignatureCreated so it all happens
                 //     within one function call
                 //     if let Some(sig_provider) = self.sig_provider.clone() {

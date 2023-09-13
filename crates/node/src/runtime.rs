@@ -7,7 +7,6 @@ use events::{EventPublisher, EventRouter};
 use primitives::Address;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::Actor;
 use tokio::task::JoinHandle;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;

@@ -25,7 +25,7 @@ use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use signer::signer::SignatureProvider;
 use telemetry::error;
-use theater::{Actor, ActorId, ActorState, TheaterError};
+use theater::{ActorId, ActorState, TheaterError};
 use vrrb_config::{NodeConfig, QuorumMember, QuorumMembershipConfig};
 use vrrb_core::{
     bloom::Bloom,
@@ -563,7 +563,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             NodeError::Other("Cannot participate in DKG".to_string())
         })?;
 
-        let quorum_kind = quorum_membership_config.quorum_kind();
+        let _quorum_kind = quorum_membership_config.quorum_kind();
 
         let threshold = threshold_config.threshold as usize;
 

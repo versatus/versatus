@@ -9,7 +9,6 @@ use std::{
 use async_trait::async_trait;
 use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
-use dkg_engine::dkg::DkgGenerator;
 
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
