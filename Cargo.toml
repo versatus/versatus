@@ -37,11 +37,15 @@ vrrb_config = { workspace = true }
 clap = { workspace = true }
 wasm_loader = { workspace = true }
 wasm_runtime = { workspace = true }
+web3_pkg = { workspace = true }
 vrrb_rpc = { workspace = true }
 primitives = { workspace = true }
 sha2 = { workspace = true }
 integral-db = { workspace = true }
 service_config = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
 
 [workspace]
 members = [
@@ -75,6 +79,7 @@ members = [
     "crates/compute_agent",
     "crates/storage_agent",
     "crates/service_config",
+    "crates/web3_pkg",
 ]
 
 [workspace.dependencies]
@@ -112,6 +117,7 @@ vrrb_grpc = { path = "crates/vrrb_grpc" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 service_config = { path = "crates/service_config" }
+web3_pkg = { path = "crates/web3_pkg" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
@@ -230,6 +236,7 @@ wasmer = "4.0.0"
 wasmer-wasix = "0.9.0"
 wasmer-wasix-types = "0.9.0"
 wasmparser = "0.107.0"
+ipfs-api = "0.17.0"
 
 [dev-dependencies]
 cuckoofilter.workspace = true
