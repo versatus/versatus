@@ -225,7 +225,7 @@ impl TreeReader for RocksDbAdapter {
 
     fn get_node_option(&self, node_key: &NodeKey) -> Result<Option<Node>> {
         let key_bytes = bincode::serialize(node_key)?;
-        if let Ok(Some(bytes)) = self.data.read().db.get(&key_bytes) {
+        if let Ok(Some(bytes)) = self.data.read().db.get(key_bytes) {
             if let Ok(node) = bincode::deserialize(&bytes) {
                 Ok(Some(node))
             } else {
