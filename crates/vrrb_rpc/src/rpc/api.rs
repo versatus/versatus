@@ -12,7 +12,6 @@ use vrrb_core::{
     account::Account,
     txn::{NewTxnArgs, Token, TxAmount, TxNonce, TxTimestamp, Txn},
 };
-use vrrb_core::claim::Claim;
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 
 
