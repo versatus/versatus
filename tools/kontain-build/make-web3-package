@@ -1,0 +1,40 @@
+#!/bin/bash
+
+die(){
+    echo "ERROR: $*" 1>&2
+    exit 1
+}
+
+# Try to find the web3-pkg binary if not explicitly provided
+[ -z "$WEB3_PKG" ] && WEB3_PKG="$( find ../../target -name web3-pkg | head -1 )"
+[ -z "$WEB3_PKG" ] && die "Can't find build web3-pkg binary. Set WEB3_PKG environment variable."
+
+# File to store the package definition in
+[ -z "$PKG_DEF" ] && PKG_DEF="./web3-pkg.json"
+[ -z "$AUTHOR" ] && AUTHOR="Versatus Labs"
+[ -z "$NAME" ] && NAME="Web3 Unikernel Runtime"
+
+binaries="crun km"
+
+# Initialise a new web3 package definition
+"$WEB3_PKG" init \
+    -c "$PKG_DEF" \
+    -a "$AUTHOR" \
+    -n "$NAME" \
+    -t smart-contract-runtime \
+    -v 1 || die "Failed to init package"
+
+# Add binary objects
+for bin in $binaries
+do
+    "$WEB3_PKG" add-object \
+	-c "$PKG_DEF" \
+	-a amd64-linux \
+	-p build/pkg/bin/"$bin" \
+	-t executable \
+	-o 'role=$bin' || die "Failed to add object to package"
+done
+
+"$WEB3_PKG" build \
+    -c "$PKG_DEF" | tee pkg-cid.txt || die "Failed to publish package"
+
