@@ -1,31 +1,29 @@
 use std::collections::{BTreeMap, HashSet};
 
 use block::{header::BlockHeader, Block, BlockHash, ConvergenceBlock, ProposalBlock, RefHash};
-use chrono::Duration;
 use dkg_engine::{
     dkg::DkgGenerator,
-    prelude::{DkgEngine, DkgEngineConfig},
+    prelude::DkgEngine,
 };
 use ethereum_types::U256;
 use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
+    AssignedQuorumMembership, Event, EventPublisher, PeerData,
     SyncPeerData, Vote,
 };
 use hbbft::sync_key_gen::Part;
-use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
-use mempool::{TxnRecord, TxnStatus};
+use mempool::TxnStatus;
 use primitives::{
-    ByteSlice, ByteSlice32Bit, ByteSlice48Bit, ByteVec, Epoch, FarmerQuorumThreshold,
-    GroupPublicKey, NodeId, NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes,
+    ByteSlice48Bit, Epoch, FarmerQuorumThreshold,
+    NodeId, NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes,
     ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey, RawSignature, Round,
-    TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare, ValidatorSecretKey,
+    TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use signer::signer::SignatureProvider;
 use telemetry::error;
-use theater::{ActorId, ActorState, TheaterError};
+use theater::{ActorId, ActorState};
 use vrrb_config::{NodeConfig, QuorumMember, QuorumMembershipConfig};
 use vrrb_core::{
     bloom::Bloom,

@@ -1,14 +1,11 @@
-use std::{
-    collections::HashSet,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
-use block::{Block, ProposalBlock};
+use block::Block;
 use bulldag::graph::BullDag;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber};
 use mempool::MempoolReadHandleFactory;
-use miner::{conflict_resolver::Resolver, Miner, MinerConfig};
+use miner::{Miner, MinerConfig};
 use primitives::Address;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;

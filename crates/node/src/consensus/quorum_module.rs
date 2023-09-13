@@ -1,22 +1,20 @@
 use std::collections::{BTreeMap, HashMap};
 
-use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, PeerData,
 };
 use primitives::{NodeId, NodeType, QuorumKind};
 use quorum::{
     election::Election,
     quorum::{Quorum, QuorumError},
 };
-use storage::vrrbdb::VrrbDbReadHandle;
-use theater::{ActorId, ActorImpl, ActorState};
+use theater::{ActorId, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
-use crate::{state_reader::StateReader, NodeError, RuntimeComponent, RuntimeComponentHandle};
+use crate::state_reader::StateReader;
 
 #[derive(Debug)]
 pub struct QuorumModule<S: StateReader + Send> {

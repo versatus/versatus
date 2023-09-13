@@ -1,12 +1,7 @@
-use std::collections::{BTreeMap, HashSet};
-
 use async_trait::async_trait;
-use dkg_engine::dkg::DkgGenerator;
-use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey};
+use events::{Event, EventMessage};
 use telemetry::info;
-use theater::{ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::{QuorumMember, QuorumMembershipConfig};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
 use crate::{consensus::ConsensusModule, state_reader::StateReader};
 
