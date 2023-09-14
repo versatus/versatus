@@ -70,10 +70,6 @@ pub struct NodeConfig {
     /// Address the node listens for JSON-RPC connections
     pub jsonrpc_server_address: SocketAddr,
 
-    /// Address the node listens for gRPC connections
-    #[deprecated(note = "deprecated in favor of the JSON-RPC API")]
-    pub grpc_server_address: SocketAddr,
-
     // TODO: refactor env-aware options
     #[builder(default = "false")]
     pub preload_mock_state: bool,
