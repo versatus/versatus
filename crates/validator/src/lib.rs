@@ -13,7 +13,8 @@ mod tests {
     use primitives::{Address, Signature};
     use rand::{rngs::StdRng, Rng};
     use secp256k1::ecdsa;
-    use vrrb_core::{account::Account, keypair::KeyPair, txn::*};
+    use vrrb_core::{account::Account, keypair::KeyPair};
+    use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
 
     use crate::validator_core_manager::ValidatorCoreManager;
 
@@ -34,14 +35,14 @@ mod tests {
         .unwrap()
     }
 
-    fn random_txn() -> Txn {
+    fn random_txn() -> TransactionKind {
         let sender_kp = KeyPair::random();
         let recv_kp = KeyPair::random();
 
         let sender_address = Address::new(sender_kp.get_miner_public_key().clone());
         let recv_address = Address::new(recv_kp.get_miner_public_key().clone());
 
-        Txn::new(NewTxnArgs {
+        TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: sender_address.clone(),
             sender_public_key: sender_kp.get_miner_public_key().clone(),
@@ -51,7 +52,7 @@ mod tests {
             signature: mock_txn_signature(),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
-        })
+        }))
     }
 
     #[test]

@@ -6,8 +6,8 @@ use storage::vrrbdb::Claims;
 use vrrb_core::{
     account::Account,
     claim::Claim,
-    txn::{TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 use crate::Result;
 
@@ -17,16 +17,16 @@ pub trait StateReader: std::fmt::Debug {
     async fn state_snapshot(&self) -> Result<HashMap<Address, Account>>;
 
     /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, Txn>>;
+    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>>;
 
     /// Get a transaction from state
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<Txn>;
+    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<TransactionKind>;
 
     /// List a group of transactions
     async fn list_transactions(
         &self,
         digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, Txn>>;
+    ) -> Result<HashMap<TransactionDigest, TransactionKind>>;
 
     async fn get_account(&self, address: Address) -> Result<Account>;
 
@@ -48,7 +48,7 @@ pub trait StateReader: std::fmt::Debug {
     fn state_store_values(&self) -> HashMap<Address, Account>;
 
     /// Returns a copy of all values stored within the state trie
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn>;
+    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind>;
 
     fn claim_store_values(&self) -> HashMap<NodeId, Claim>;
 }

@@ -26,7 +26,6 @@ use vrrb_core::{
     account::Account,
     claim::Claim,
     keypair::Keypair,
-    txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
@@ -132,7 +131,7 @@ fn produce_random_claims(n: usize) -> HashSet<Claim> {
         .collect()
 }
 
-fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<Txn> {
+fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<TransactionKind> {
     accounts
         .clone()
         .iter()
@@ -276,7 +275,7 @@ pub fn create_txn_from_accounts(
     sender: (Address, Option<Account>),
     receiver: Address,
     validators: Vec<(String, bool)>,
-) -> Txn {
+) -> TransactionKind {
     let (sk, pk) = create_keypair();
     let saddr = sender.0.clone();
     let raddr = receiver;
@@ -288,7 +287,7 @@ pub fn create_txn_from_accounts(
         .map(|(k, v)| (k.to_string(), *v))
         .collect();
 
-    let txn_args = NewTxnArgs {
+    let txn_args = NewTransferArgs {
         timestamp: 0,
         sender_address: saddr,
         sender_public_key: pk,
@@ -301,18 +300,18 @@ pub fn create_txn_from_accounts(
         nonce: sender.1.unwrap().nonce() + 1,
     };
 
-    let mut txn = Txn::new(txn_args);
+    let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
 
     txn.sign(&sk);
 
     let txn_digest_vec = generate_txn_digest_vec(
-        txn.timestamp,
-        txn.sender_address.to_string(),
-        txn.sender_public_key,
-        txn.receiver_address.to_string(),
-        txn.token.clone(),
-        txn.amount,
-        txn.nonce,
+        txn.timestamp(),
+        txn.sender_address().to_string(),
+        txn.sender_public_key(),
+        txn.receiver_address().to_string(),
+        txn.token(),
+        txn.amount(),
+        txn.nonce(),
     );
 
     let _digest = TransactionDigest::from(txn_digest_vec);
@@ -368,6 +367,7 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 }
 
 use rand::{seq::SliceRandom, thread_rng};
+use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
@@ -393,7 +393,7 @@ pub async fn create_node_rpc_client(rpc_addr: SocketAddr) -> impl RpcApiClient {
 }
 
 /// Creates a mock `NewTxnArgs` struct meant to be used for testing.
-pub fn create_mock_transaction_args(n: usize) -> NewTxnArgs {
+pub fn create_mock_transaction_args(n: usize) -> NewTransferArgs {
     let (sk, pk) = create_keypair();
     let (_, rpk) = create_keypair();
     let saddr = create_address(&pk);
@@ -401,7 +401,7 @@ pub fn create_mock_transaction_args(n: usize) -> NewTxnArgs {
     let amount = (n.pow(2)) as u128;
     let token = None;
 
-    NewTxnArgs {
+    NewTransferArgs {
         timestamp: 0,
         sender_address: saddr,
         sender_public_key: pk,
@@ -441,12 +441,12 @@ impl StateReader for MockStateReader {
     }
 
     /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, Txn>> {
+    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
     /// Get a transaction from state
-    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<Txn> {
+    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<TransactionKind> {
         todo!()
     }
 
@@ -454,7 +454,7 @@ impl StateReader for MockStateReader {
     async fn list_transactions(
         &self,
         _digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, Txn>> {
+    ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
@@ -495,7 +495,7 @@ impl StateReader for MockStateReader {
     }
 
     /// Returns a copy of all values stored within the state trie
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, Txn> {
+    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
         todo!()
     }
 

@@ -3,6 +3,7 @@ use events::{Event, EventMessage};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_core::serde_helpers::decode_from_binary_byte_slice;
+use vrrb_core::transactions::Transaction;
 
 use crate::state_manager::StateManager;
 

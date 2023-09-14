@@ -1,5 +1,4 @@
 use std::{
-    cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
@@ -10,12 +9,8 @@ use primitives::{
     Address,
     ByteSlice,
     ByteVec,
-    Digest as PrimitiveDigest,
-    NodeIdx,
     PublicKey,
-    RawSignature,
     SecretKey,
-    DIGEST_LENGTH,
 };
 use secp256k1::{ecdsa::Signature, Message};
 use serde::{Deserialize, Serialize};
@@ -23,7 +18,6 @@ use sha2::{Digest, Sha256};
 use utils::hash_data;
 
 use crate::{
-    helpers::gen_hex_encoded_string,
     keypair::Keypair,
     serde_helpers::{
         decode_from_binary_byte_slice,
@@ -32,8 +26,8 @@ use crate::{
         encode_to_json,
     },
 };
-
-pub const BASE_FEE: u128 = 0x2D79883D2000;
+use crate::transactions::transaction::Transaction;
+use crate::transactions::{BASE_FEE, Token, TransactionDigest};
 /// This module contains the basic structure of simple transaction
 
 /// A simple custom error type
@@ -69,103 +63,10 @@ pub type TxTimestamp = i64;
 pub type TxAmount = u128;
 pub type TxSignature = Vec<u8>;
 
-// TODO: Replace with `secp256k1::Message` struct or guarantee
-// that it is a stringified version of `secp256k1::Message`
-pub type TxPayload = String;
 
-// TODO: replace with a generic token struct
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct Token {
-    pub name: String,
-    pub symbol: String,
-    pub decimals: u8,
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Token(name: {}, symbol: {}, decimals: {})",
-            self.name, self.symbol, self.decimals
-        )
-    }
-}
-
-impl FromStr for Token {
-    type Err = crate::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let token: Token = serde_json::from_str(s)?;
-        Ok(token)
-    }
-}
-
-impl Default for Token {
-    fn default() -> Self {
-        Self {
-            name: "VRRB".to_string(),
-            symbol: "VRRB".to_string(),
-            decimals: 18,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
-pub struct VoteReceipt {
-    /// The identity of the voter.
-    pub farmer_id: Vec<u8>,
-    pub farmer_node_id: NodeIdx,
-    /// Partial Signature
-    pub signature: RawSignature,
-}
-
-#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct QuorumCertifiedTxn {
-    sender_farmer_id: Vec<u8>,
-    /// All valid vote receipts
-    votes: Vec<VoteReceipt>,
-    txn: Txn,
-    /// Threshold Signature
-    signature: RawSignature,
-    pub is_txn_valid: bool,
-}
-
-impl QuorumCertifiedTxn {
-    pub fn new(
-        sender_farmer_id: Vec<u8>,
-        votes: Vec<VoteReceipt>,
-        txn: Txn,
-        signature: RawSignature,
-        is_txn_valid: bool,
-    ) -> QuorumCertifiedTxn {
-        QuorumCertifiedTxn {
-            sender_farmer_id,
-            votes,
-            txn,
-            signature,
-            is_txn_valid,
-        }
-    }
-
-    pub fn txn(&self) -> Txn {
-        self.txn.clone()
-    }
-
-    pub fn get_fee(&self) -> u128 {
-        self.txn.get_fee()
-    }
-
-    pub fn validator_fee_share(&self) -> u128 {
-        self.txn.validator_fee_share()
-    }
-
-    pub fn proposer_fee_share(&self) -> u128 {
-        self.txn.proposer_fee_share()
-    }
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
-pub struct Txn {
+pub struct Transfer {
     pub id: TransactionDigest,
     pub timestamp: TxTimestamp,
     pub sender_address: Address,
@@ -179,7 +80,7 @@ pub struct Txn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NewTxnArgs {
+pub struct NewTransferArgs {
     pub timestamp: TxTimestamp,
     pub sender_address: Address,
     pub sender_public_key: PublicKey,
@@ -191,14 +92,14 @@ pub struct NewTxnArgs {
     pub nonce: TxNonce,
 }
 
-impl Default for Txn {
+impl Default for Transfer {
     fn default() -> Self {
-        Txn::null_txn()
+        Transfer::null_txn()
     }
 }
 
-impl Txn {
-    pub fn new(args: NewTxnArgs) -> Self {
+impl Transfer {
+    pub fn new(args: NewTransferArgs) -> Self {
         let token = args.token.clone().unwrap_or_default();
 
         let digest_vec = generate_txn_digest_vec(
@@ -228,7 +129,7 @@ impl Txn {
         }
     }
 
-    pub fn null_txn() -> Txn {
+    pub fn null_txn() -> Transfer {
         let timestamp = chrono::Utc::now().timestamp();
         let kp = Keypair::random();
         let public_key = kp.miner_kp.1;
@@ -275,11 +176,6 @@ impl Txn {
         }
     }
 
-    /// Produces a SHA 256 hash slice of bytes from the transaction
-    pub fn id(&self) -> TransactionDigest {
-        self.id.clone()
-    }
-
     pub fn build_payload_digest(&self) -> TransactionDigest {
         let digest = generate_txn_digest_vec(
             self.timestamp(),
@@ -292,11 +188,6 @@ impl Txn {
         );
 
         digest.into()
-    }
-
-    #[deprecated]
-    pub fn digest(&self) -> TransactionDigest {
-        self.id()
     }
 
     #[deprecated]
@@ -315,49 +206,10 @@ impl Txn {
     }
 
     pub fn is_null(&self) -> bool {
-        self == &Txn::null_txn()
+        self == &Transfer::null_txn()
     }
 
-    pub fn amount(&self) -> TxAmount {
-        self.amount
-    }
 
-    /// Alias for amount()
-    pub fn get_amount(&self) -> TxAmount {
-        self.amount()
-    }
-
-    pub fn token(&self) -> Token {
-        self.token.clone()
-    }
-
-    pub fn timestamp(&self) -> TxTimestamp {
-        self.timestamp
-    }
-
-    pub fn sender_address(&self) -> Address {
-        self.sender_address.clone()
-    }
-
-    pub fn sender_public_key(&self) -> PublicKey {
-        self.sender_public_key
-    }
-
-    pub fn receiver_address(&self) -> Address {
-        self.receiver_address.clone()
-    }
-
-    pub fn signature(&self) -> Signature {
-        self.signature
-    }
-
-    pub fn nonce(&self) -> TxNonce {
-        self.nonce
-    }
-
-    pub fn validators(&self) -> HashMap<String, bool> {
-        self.validators.clone().unwrap_or_default()
-    }
 
     pub fn generate_txn_digest_vec(&self) -> ByteVec {
         generate_txn_digest_vec(
@@ -371,7 +223,81 @@ impl Txn {
         )
     }
 
-    pub fn build_payload(&self) -> String {
+    fn from_byte_slice(data: ByteSlice) -> Self {
+        if let Ok(txn) = decode_from_json_byte_slice::<Self>(data) {
+            return txn;
+        }
+
+        if let Ok(txn) = decode_from_binary_byte_slice::<Self>(data) {
+            return txn;
+        }
+
+        Transfer::null_txn()
+    }
+
+    fn from_string(data: &str) -> Transfer {
+        if let Ok(txn) = Transfer::from_str(data) {
+            return txn;
+        }
+
+        Transfer::null_txn()
+    }
+}
+
+impl Transaction for Transfer {
+    /// Produces a SHA 256 hash slice of bytes from the transaction
+    fn id(&self) -> TransactionDigest {
+        self.id.clone()
+    }
+    fn timestamp(&self) -> TxTimestamp {
+        self.timestamp
+    }
+
+    fn sender_address(&self) -> Address {
+        self.sender_address.clone()
+    }
+
+    fn sender_public_key(&self) -> PublicKey {
+        self.sender_public_key
+    }
+
+    fn receiver_address(&self) -> Address {
+        self.receiver_address.clone()
+    }
+
+    fn token(&self) -> Token {
+        self.token.clone()
+    }
+
+    fn amount(&self) -> TxAmount {
+        self.amount
+    }
+
+    fn signature(&self) -> Signature {
+        self.signature
+    }
+
+    fn validators(&self) -> Option<HashMap<String, bool>> {
+        self.validators.clone()
+    }
+
+    fn nonce(&self) -> TxNonce {
+        self.nonce
+    }
+
+    fn fee(&self) -> u128 {
+        BASE_FEE
+    }
+
+    fn validator_fee_share(&self) -> u128 {
+        BASE_FEE / 2u128
+    }
+
+    fn proposer_fee_share(&self) -> u128 {
+        BASE_FEE / 2u128
+    }
+
+    fn build_payload(&self) -> String {
         format!(
             "{:x}",
             hash_data!(
@@ -385,40 +311,11 @@ impl Txn {
         )
     }
 
-    fn from_byte_slice(data: ByteSlice) -> Self {
-        if let Ok(txn) = decode_from_json_byte_slice::<Self>(data) {
-            return txn;
-        }
-
-        if let Ok(txn) = decode_from_binary_byte_slice::<Self>(data) {
-            return txn;
-        }
-
-        Txn::null_txn()
+    fn digest(&self) -> TransactionDigest {
+        self.id()
     }
 
-    fn from_string(data: &str) -> Txn {
-        if let Ok(txn) = Txn::from_str(data) {
-            return txn;
-        }
-
-        Txn::null_txn()
-    }
-
-    pub fn get_fee(&self) -> u128 {
-        BASE_FEE
-    }
-
-    pub fn validator_fee_share(&self) -> u128 {
-        BASE_FEE / 2u128
-    }
-
-    pub fn proposer_fee_share(&self) -> u128 {
-        BASE_FEE / 2u128
-    }
-
-    #[deprecated(note = "will be removed from Txn struct soon")]
-    pub fn sign(&mut self, sk: &SecretKey) {
+    fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
         // TODO: return Result<(), SignatureError>
         let message = Message::from_slice(self.build_payload().as_bytes());
@@ -429,16 +326,16 @@ impl Txn {
     }
 }
 
-impl FromStr for Txn {
+impl FromStr for Transfer {
     type Err = TxnError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str::<Txn>(s)
+        serde_json::from_str::<Transfer>(s)
             .map_err(|err| TxnError::InvalidTxn(format!("failed to parse &str into Txn: {err}")))
     }
 }
 
-impl fmt::Display for Txn {
+impl fmt::Display for Transfer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let txn_ser = serde_json::to_string_pretty(self).unwrap_or_default();
 
@@ -446,37 +343,37 @@ impl fmt::Display for Txn {
     }
 }
 
-impl From<String> for Txn {
+impl From<String> for Transfer {
     fn from(data: String) -> Self {
         Self::from(data.as_str())
     }
 }
 
-impl From<Vec<u8>> for Txn {
+impl From<Vec<u8>> for Transfer {
     fn from(data: Vec<u8>) -> Self {
-        Txn::from_byte_slice(&data)
+        Transfer::from_byte_slice(&data)
     }
 }
 
-impl From<&[u8]> for Txn {
+impl From<&[u8]> for Transfer {
     fn from(data: &[u8]) -> Self {
-        Txn::from_byte_slice(data)
+        Transfer::from_byte_slice(data)
     }
 }
 
-impl From<&str> for Txn {
+impl From<&str> for Transfer {
     fn from(data: &str) -> Self {
         Self::from_string(data)
     }
 }
 
-impl From<Txn> for TransactionDigest {
-    fn from(txn: Txn) -> Self {
+impl From<Transfer> for TransactionDigest {
+    fn from(txn: Transfer) -> Self {
         txn.id()
     }
 }
 
-impl Hash for Txn {
+impl Hash for Transfer {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.timestamp.hash(state);
         self.sender_address.hash(state);
@@ -498,7 +395,7 @@ impl Hash for Txn {
     }
 }
 
-impl PartialEq for Txn {
+impl PartialEq for Transfer {
     fn eq(&self, other: &Self) -> bool {
         self.generate_txn_digest_vec() == other.generate_txn_digest_vec()
     }
@@ -507,102 +404,10 @@ impl PartialEq for Txn {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseTxnArgsError(String);
 
-impl FromStr for NewTxnArgs {
+impl FromStr for NewTransferArgs {
     type Err = ParseTxnArgsError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s).map_err(|err| ParseTxnArgsError(err.to_string()))
-    }
-}
-
-pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
-
-#[derive(Debug, Default, Clone, Hash, Deserialize, Serialize, Eq, PartialEq)]
-pub struct TransactionDigest {
-    inner: PrimitiveDigest,
-    digest_string: String,
-}
-
-impl TransactionDigest {
-    /// Produces a SHA 256 hash string of the transaction
-    pub fn digest_string(&self) -> String {
-        self.digest_string.clone()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.inner.is_empty() && self.digest_string.is_empty()
-    }
-}
-
-impl Display for TransactionDigest {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.digest_string)
-    }
-}
-
-impl From<ByteVec> for TransactionDigest {
-    fn from(byte_vec: ByteVec) -> Self {
-        let digest_string = hex::encode(byte_vec.as_slice());
-        let inner = byte_vec.try_into().unwrap_or_default();
-
-        Self {
-            inner,
-            digest_string,
-        }
-    }
-}
-
-impl<'a> From<ByteSlice<'a>> for TransactionDigest {
-    fn from(byte_slice: ByteSlice) -> Self {
-        let inner = byte_slice.try_into().unwrap_or_default();
-
-        let digest_string = gen_hex_encoded_string(byte_slice);
-
-        Self {
-            inner,
-            digest_string,
-        }
-    }
-}
-
-impl FromStr for TransactionDigest {
-    type Err = crate::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let decoded = hex::decode(s)
-            .map_err(|err| Self::Err::Other(format!("failed to decode hex string: {}", err)))?;
-
-        let dec = Self::from(decoded);
-
-        Ok(dec)
-    }
-}
-
-impl PartialOrd for TransactionDigest {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for TransactionDigest {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.digest_string.cmp(&other.digest_string)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_txn_digest_serde() {
-        let txn = Txn::default();
-
-        let txn_digest = txn.id();
-        let txn_digest_str = txn_digest.to_string();
-
-        let txn_digest_recovered = txn_digest_str.parse::<TransactionDigest>().unwrap();
-
-        assert_eq!(txn_digest, txn_digest_recovered);
     }
 }

@@ -47,7 +47,7 @@ impl IndexerClient {
 #[cfg(test)]
 mod tests {
     use mempool::TxnRecord;
-    use vrrb_core::txn::Txn;
+    use vrrb_core::transactions::transfer::Transfer;
 
     use wiremock::{
         http::Method,
@@ -66,7 +66,7 @@ mod tests {
         let config = IndexerClientConfig { base_url: url };
         let client = IndexerClient::new(config).unwrap();
 
-        let txn = Txn::default();
+        let txn = TransactionKind::Transfer(Transfer::default());
         let txn_record = TxnRecord::new(txn);
 
         let response = ResponseTemplate::new(200).set_body_json(txn_record.to_owned());
@@ -97,7 +97,7 @@ mod tests {
         let indexer_config = IndexerClientConfig { base_url: url };
         let indexer_client = IndexerClient::new(indexer_config).unwrap();
 
-        let txn = Txn::default();
+        let txn = TransactionKind::Transfer(Transfer::default());
         let txn_record = TxnRecord::new(txn);
 
         let result = indexer_client.post_tx(&txn_record).await;

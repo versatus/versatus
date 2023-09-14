@@ -128,16 +128,16 @@ impl InnerBlock for ConvergenceBlock {
         self.hash.clone()
     }
 
+    fn get_ref_hashes(&self) -> Vec<String> {
+        self.header.ref_hashes.clone()
+    }
+
     fn as_static_convergence(&self) -> Option<ConvergenceBlock> {
         Some(self.clone())
     }
 
     fn as_static_genesis(&self) -> Option<GenesisBlock> {
         None
-    }
-
-    fn get_ref_hashes(&self) -> Vec<String> {
-        self.header.ref_hashes.clone()
     }
 }
 
@@ -165,16 +165,16 @@ impl InnerBlock for GenesisBlock {
         self.hash.clone()
     }
 
+    fn get_ref_hashes(&self) -> Vec<String> {
+        self.header.ref_hashes.clone()
+    }
+
     fn as_static_convergence(&self) -> Option<ConvergenceBlock> {
         None
     }
 
     fn as_static_genesis(&self) -> Option<GenesisBlock> {
         Some(self.clone())
-    }
-
-    fn get_ref_hashes(&self) -> Vec<String> {
-        self.header.ref_hashes.clone()
     }
 }
 

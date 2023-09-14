@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
-use vrrb_core::{account::Account, claim::Claim, txn::Txn};
+use vrrb_core::{account::Account, claim::Claim};
+use vrrb_core::transactions::TransactionKind;
 
 use crate::{
     claim_validator::ClaimValidator,
@@ -31,8 +32,8 @@ impl ValidatorCoreManager {
     pub fn validate(
         &mut self,
         account_state: &HashMap<Address, Account>,
-        batch: Vec<Txn>,
-    ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
+        batch: Vec<TransactionKind>,
+    ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         // ) -> HashSet<(Txn, bool)> {
         self.core_pool.install(|| {
             let valcore = Core::new(

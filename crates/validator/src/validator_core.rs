@@ -5,7 +5,8 @@ use std::{
 
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use vrrb_core::{account::Account, claim::Claim, txn::*};
+use vrrb_core::{account::Account, claim::Claim};
+use vrrb_core::transactions::TransactionKind;
 
 use crate::{claim_validator::ClaimValidator, txn_validator::TxnValidator};
 
@@ -74,8 +75,8 @@ impl Core {
     pub fn process_transactions(
         &self,
         account_state: &HashMap<Address, Account>,
-        batch: Vec<Txn>,
-    ) -> HashSet<(Txn, crate::txn_validator::Result<()>)> {
+        batch: Vec<TransactionKind>,
+    ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         batch
             .into_iter()
             .map(
@@ -87,7 +88,7 @@ impl Core {
                     },
                 },
             )
-            .collect::<HashSet<(Txn, crate::txn_validator::Result<()>)>>()
+            .collect::<HashSet<(TransactionKind, crate::txn_validator::Result<()>)>>()
     }
 
     /// The function processes a batch of claims parallely using a claims

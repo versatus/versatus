@@ -352,7 +352,7 @@ impl NetworkModule {
 
         let found_peer = closest_nodes
             .iter()
-            .find(|node| node.node_id == node_id.clone())
+            .find(|node| node.id == Key::try_from(node_id.clone().into_bytes()).unwrap_or_default())
             .ok_or(NodeError::Other(
                 "Could not find peer in routing table".to_string(),
             ))?;

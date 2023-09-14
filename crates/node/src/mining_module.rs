@@ -11,7 +11,7 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use vrrb_config::NodeConfig;
-use vrrb_core::txn::Txn;
+use vrrb_core::transactions::TransactionKind;
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 
@@ -48,7 +48,7 @@ impl MiningModule {
     }
 }
 impl MiningModule {
-    fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<Txn> {
+    fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<TransactionKind> {
         let mut handle = self._mempool_read_handle_factory.handle();
 
         // TODO: drain mempool instead then commit changes

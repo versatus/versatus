@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 // FEATURE TAG(S): Block Structure, Rewards
 use chrono;
 use primitives::{Epoch, SecretKey};

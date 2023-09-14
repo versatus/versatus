@@ -6,8 +6,8 @@ use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
-    txn::{TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -23,7 +23,7 @@ use crate::{
 pub struct MineArgs<'a> {
     pub claim: Claim,
     pub last_block: Block,
-    pub txns: LinkedHashMap<String, Txn>,
+    pub txns: LinkedHashMap<String, TransactionKind>,
     pub claims: LinkedHashMap<String, Claim>,
     pub claim_list_hash: Option<String>,
     #[deprecated(

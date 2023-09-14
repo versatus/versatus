@@ -1,7 +1,8 @@
 use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
 
 use primitives::Address;
-use vrrb_core::{account::Account, keypair::KeyPair, txn::Txn};
+use vrrb_core::{account::Account, keypair::KeyPair};
+use vrrb_core::transactions::{Transaction, TransactionKind};
 
 pub type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -67,7 +68,7 @@ impl TxnValidator {
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
-    pub fn validate(&self, account_state: &HashMap<Address, Account>, txn: &Txn) -> Result<()> {
+    pub fn validate(&self, account_state: &HashMap<Address, Account>, txn: &TransactionKind) -> Result<()> {
         self.validate_structure(account_state, txn)
     }
 
@@ -75,7 +76,7 @@ impl TxnValidator {
     pub fn validate_structure(
         &self,
         account_state: &HashMap<Address, Account>,
-        txn: &Txn,
+        txn: &TransactionKind,
     ) -> Result<()> {
         self.validate_amount(account_state, txn)
             .and_then(|_| self.validate_public_key(txn))
@@ -86,14 +87,14 @@ impl TxnValidator {
     }
 
     /// Txn signature validator.
-    pub fn validate_signature(&self, txn: &Txn) -> Result<()> {
-        let txn_signature = txn.signature;
+    pub fn validate_signature(&self, txn: &TransactionKind) -> Result<()> {
+        let txn_signature = txn.signature();
         if !txn_signature.to_string().is_empty() {
             KeyPair::verify_ecdsa_sign(
                 // TODO: revisit this verification
-                format!("{:?}", txn.signature),
+                format!("{:?}", txn.signature()),
                 txn.build_payload().as_bytes(),
-                txn.sender_public_key.to_string().as_bytes().to_vec(),
+                txn.sender_public_key().to_string().as_bytes().to_vec(),
             )
             .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
         } else {
@@ -102,8 +103,8 @@ impl TxnValidator {
     }
 
     /// Txn public key validator
-    pub fn validate_public_key(&self, txn: &Txn) -> Result<()> {
-        if !txn.sender_public_key.to_string().is_empty() {
+    pub fn validate_public_key(&self, txn: &TransactionKind) -> Result<()> {
+        if !txn.sender_public_key().to_string().is_empty() {
             Ok(())
         } else {
             Err(TxnValidatorError::SenderPublicKeyIncorrect)
@@ -112,10 +113,10 @@ impl TxnValidator {
 
     /// Txn sender validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_sender_address(&self, txn: &Txn) -> Result<()> {
-        if !txn.sender_address.to_string().is_empty()
-            && txn.sender_address.to_string().starts_with(ADDRESS_PREFIX)
-            && txn.sender_address.to_string().len() > 10
+    pub fn validate_sender_address(&self, txn: &TransactionKind) -> Result<()> {
+        if !txn.sender_address().to_string().is_empty()
+            && txn.sender_address().to_string().starts_with(ADDRESS_PREFIX)
+            && txn.sender_address().to_string().len() > 10
         {
             Ok(())
         } else {
@@ -125,10 +126,10 @@ impl TxnValidator {
 
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_receiver_address(&self, txn: &Txn) -> Result<()> {
-        if !txn.receiver_address.to_string().is_empty()
-            && txn.receiver_address.to_string().starts_with(ADDRESS_PREFIX)
-            && txn.receiver_address.to_string().len() > 10
+    pub fn validate_receiver_address(&self, txn: &TransactionKind) -> Result<()> {
+        if !txn.receiver_address().to_string().is_empty()
+            && txn.receiver_address().to_string().starts_with(ADDRESS_PREFIX)
+            && txn.receiver_address().to_string().len() > 10
         {
             Ok(())
         } else {
@@ -137,16 +138,16 @@ impl TxnValidator {
     }
 
     /// Txn timestamp validator
-    pub fn validate_timestamp(&self, txn: &Txn) -> Result<()> {
+    pub fn validate_timestamp(&self, txn: &TransactionKind) -> Result<()> {
         let timestamp = chrono::offset::Utc::now().timestamp();
 
         // TODO: revisit seconds vs nanoseconds for timestamp
         // let timestamp = duration.as_nanos();
-        if txn.timestamp > 0 && txn.timestamp < timestamp {
+        if txn.timestamp() > 0 && txn.timestamp() < timestamp {
             Ok(())
         } else {
             Err(TxnValidatorError::OutOfBoundsTimestamp(
-                txn.timestamp,
+                txn.timestamp(),
                 timestamp,
             ))
         }
@@ -157,9 +158,9 @@ impl TxnValidator {
     pub fn validate_amount(
         &self,
         account_state: &HashMap<Address, Account>,
-        txn: &Txn,
+        txn: &TransactionKind,
     ) -> Result<()> {
-        let address = txn.sender_address.clone();
+        let address = txn.sender_address();
         if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
             let account = account_state.get(&Address::new(address)).unwrap();
             if (account.credits() - account.debits())

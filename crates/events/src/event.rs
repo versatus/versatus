@@ -16,8 +16,8 @@ use primitives::{
 use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
-    txn::{TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 use crate::event_data::*;
 
@@ -46,14 +46,14 @@ pub enum Event {
     /// transaction is received from the rpc node and needs to be validated.
     /// The `Txn` parameter contains the details of the transaction
     /// that needs to be validated.
-    NewTxnCreated(Txn),
+    NewTxnCreated(TransactionKind),
 
     /// `TxnValidated(Txn)` is an event that is triggered when a transaction has
     /// been validated by the validator module. The `Txn` parameter contains
     /// the details of the validated transaction. This event can be used to
     /// perform further actions on the validated transaction, such as removing
     /// it from pending mempool and adding it into the TransactionStore
-    TxnValidated(Txn),
+    TxnValidated(TransactionKind),
 
     /// `TxnAddedToMempool(TransactionDigest)` is an event that is triggered
     /// when a transaction has been added to the mempool. The
@@ -145,7 +145,7 @@ pub enum Event {
         txn_id: TransactionDigest,
         quorum_key: PublicKeyShareVec,
         farmer_id: NodeId,
-        txn: Txn,
+        txn: TransactionKind,
         quorum_threshold: FarmerQuorumThreshold,
     },
 
@@ -157,7 +157,7 @@ pub enum Event {
         /// OUtput of the program executed
         execution_result: ProgramExecutionOutput,
         farmer_id: NodeId,
-        txn: Box<Txn>,
+        txn: Box<TransactionKind>,
         is_valid: TxnValidationStatus,
     },
 
@@ -174,7 +174,7 @@ pub enum Event {
     QuorumElectionStarted(BlockHeader),
 
     // NOTE: replaces Event::Farm and pushes txns to the scheduler instead of having it pull them
-    TxnsReadyForProcessing(Vec<Txn>),
+    TxnsReadyForProcessing(Vec<TransactionKind>),
 
     TxnsValidated {
         votes: Vec<Option<Vote>>,

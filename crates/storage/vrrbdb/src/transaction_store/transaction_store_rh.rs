@@ -4,7 +4,7 @@ use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
 use patriecia::{JellyfishMerkleTree, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
-use vrrb_core::txn::{TransactionDigest, Txn};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 use crate::RocksDbAdapter;
 
@@ -18,7 +18,7 @@ impl TransactionStoreReadHandle {
         Self { inner }
     }
 
-    pub fn get(&self, key: &TransactionDigest, version: Version) -> Result<Txn> {
+    pub fn get(&self, key: &TransactionDigest, version: Version) -> Result<TransactionKind> {
         self.inner
             .get(key, version)
             .map_err(|err| StorageError::Other(err.to_string()))
@@ -28,7 +28,7 @@ impl TransactionStoreReadHandle {
         &self,
         keys: Vec<TransactionDigest>,
         version: Version,
-    ) -> HashMap<TransactionDigest, Option<Txn>> {
+    ) -> HashMap<TransactionDigest, Option<TransactionKind>> {
         let mut transactions = HashMap::new();
 
         keys.iter().for_each(|key| {
@@ -39,14 +39,14 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries(&self) -> HashMap<TransactionDigest, Txn> {
+    pub fn entries(&self) -> HashMap<TransactionDigest, TransactionKind> {
         // TODO: revisit and refactor into inner wrapper
         self.inner
             .iter(self.inner.version())
             .unwrap()
             .filter_map(|item| {
                 if let Ok((_, txn)) = item {
-                    let txn = bincode::deserialize::<Txn>(&txn).unwrap_or_default();
+                    let txn = bincode::deserialize::<TransactionKind>(&txn).unwrap_or_default();
 
                     return Some((txn.digest(), txn));
                 }

@@ -15,9 +15,9 @@ use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::{
     account::Account,
     serde_helpers::encode_to_binary,
-    txn::{NewTxnArgs, TransactionDigest, Txn},
 };
 use vrrb_core::node_health_report::NodeHealthReport;
+use vrrb_core::transactions::{NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 use super::{
     api::{FullMempoolSnapshot, RpcApiServer},
@@ -56,8 +56,9 @@ impl RpcApiServer for RpcServerImpl {
         Ok(self.node_type)
     }
 
-    async fn create_txn(&self, args: NewTxnArgs) -> Result<RpcTransactionRecord, Error> {
-        let txn = Txn::new(args);
+    //TODO: this should either exist for every transaction type or allow creating multiple types
+    async fn create_txn(&self, args: NewTransferArgs) -> Result<RpcTransactionRecord, Error> {
+        let txn = TransactionKind::Transfer(Transfer::new(args));
         let event = Event::NewTxnCreated(txn.clone());
 
         debug!("{:?}", event);
