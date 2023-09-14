@@ -6,11 +6,10 @@ use std::{
 use config::{Config, ConfigError, File};
 use node::Node;
 use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
-use serde::{de, Deserialize};
-use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use serde::Deserialize;
 use telemetry::{info, warn};
 use uuid::Uuid;
-use vrrb_config::{NodeConfig, ThresholdConfig};
+use vrrb_config::NodeConfig;
 use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 use crate::result::{CliError, Result};

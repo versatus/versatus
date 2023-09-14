@@ -21,8 +21,8 @@ mod tests {
     use vrrb_core::{
         claim::Claim,
         keypair::Keypair,
-        txn::{QuorumCertifiedTxn, TransactionDigest},
     };
+    use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
 
     use crate::test_helpers::{
         build_single_proposal_block, build_single_proposal_block_from_txns,

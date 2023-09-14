@@ -6,7 +6,8 @@ use ritelinked::LinkedHashMap;
 use secp256k1::generate_keypair;
 
 use crate::{
-    txn::{TransactionDigest, Txn},
+    transactions::transfer::Transfer,
+    transactions::transaction::TransactionDigest,
     Error,
 };
 
@@ -35,7 +36,7 @@ macro_rules! is_enum_variant {
     };
 }
 
-pub fn size_of_txn_list(txns: &LinkedHashMap<TransactionDigest, Txn>) -> usize {
+pub fn size_of_txn_list(txns: &LinkedHashMap<TransactionDigest, Transfer>) -> usize {
     txns.iter()
         .map(|(_, set)| set)
         .map(std::mem::size_of_val)

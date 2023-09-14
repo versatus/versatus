@@ -7,8 +7,8 @@ use storage_utils::{Result, StorageError};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
-    txn::Txn,
 };
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 use crate::{
     ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
@@ -156,25 +156,25 @@ impl VrrbDb {
 
     /// Inserts a confirmed transaction to the ledger. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn insert_transaction_unchecked(&mut self, txn: Txn) -> Result<()> {
+    pub fn insert_transaction_unchecked(&mut self, txn: TransactionKind) -> Result<()> {
         self.transaction_store.insert(txn)
     }
 
     /// Adds multiplpe transactions to current state tree. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<Txn>) {
+    pub fn extend_transactions_unchecked(&mut self, transactions: Vec<TransactionKind>) {
         self.transaction_store.extend(transactions);
     }
 
     /// Inserts a confirmed transaction to the ledger. Does not check if
     /// accounts involved in the transaction actually exist.
-    pub fn insert_transaction(&mut self, txn: Txn) -> Result<()> {
+    pub fn insert_transaction(&mut self, txn: TransactionKind) -> Result<()> {
         self.transaction_store.insert(txn)
     }
 
     /// Adds multiplpe transactions to current transaction tree. Does not check
     /// if accounts involved in the transaction actually exist.
-    pub fn extend_transactions(&mut self, transactions: Vec<Txn>) {
+    pub fn extend_transactions(&mut self, transactions: Vec<TransactionKind>) {
         self.transaction_store.extend(transactions);
     }
 

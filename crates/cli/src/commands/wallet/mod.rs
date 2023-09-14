@@ -9,7 +9,8 @@ use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
 use clap::{Parser, Subcommand};
 use primitives::Address;
 use serde_json;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file, txn::Token};
+use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
+use vrrb_core::transactions::Token;
 use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};

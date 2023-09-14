@@ -29,7 +29,8 @@ mod tests {
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
-    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair, txn::Txn};
+    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair};
+    use vrrb_core::transactions::{TransactionKind};
 
     use crate::test_utils::{create_blank_certificate, create_dag_module};
 
@@ -119,7 +120,7 @@ mod tests {
         });
 
         ctrl_tx
-            .send(Event::NewTxnCreated(Txn::null_txn()).into())
+            .send(Event::NewTxnCreated(TransactionKind::default()).into())
             .unwrap();
 
         ctrl_tx.send(Event::Stop.into()).unwrap();
@@ -170,7 +171,7 @@ mod tests {
         // TODO: implement all state && validation ops
 
         ctrl_tx
-            .send(Event::NewTxnCreated(Txn::null_txn()).into())
+            .send(Event::NewTxnCreated(TransactionKind::default()).into())
             .unwrap();
 
         ctrl_tx.send(Event::Stop.into()).unwrap();

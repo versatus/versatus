@@ -1,19 +1,20 @@
 use std::{path::Path, sync::Arc};
+use serde::{Deserialize, Serialize};
 
 use integral_db::{LeftRightTrie, Proof, H256};
 use patriecia::{RootHash, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
-use vrrb_core::txn::{TransactionDigest, Txn};
 
 use crate::RocksDbAdapter;
 
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone)]
 pub struct TransactionStore {
-    trie: LeftRightTrie<'static, TransactionDigest, Txn, RocksDbAdapter, Sha256>,
+    trie: LeftRightTrie<'static, TransactionDigest, TransactionKind, RocksDbAdapter, Sha256>,
 }
 
 impl Default for TransactionStore {
@@ -56,12 +57,12 @@ impl TransactionStore {
         TransactionStoreReadHandle::new(inner)
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<()> {
+    pub fn insert(&mut self, txn: TransactionKind) -> Result<()> {
         self.trie.insert(txn.digest(), txn);
         Ok(())
     }
 
-    pub fn extend(&mut self, transactions: Vec<Txn>) {
+    pub fn extend(&mut self, transactions: Vec<TransactionKind>) {
         let transactions = transactions
             .into_iter()
             .map(|txn| (txn.digest(), Some(txn)))
