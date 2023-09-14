@@ -9,7 +9,8 @@ use primitives::{Address, SerializedPublicKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{txn::TransactionDigest, Error, Result};
+use crate::{Error, Result};
+use crate::transactions::transaction::TransactionDigest;
 
 /// Enum containing options for updates - used to update value of single field
 /// in account struct.

@@ -41,8 +41,9 @@ mod tests {
     use tokio;
     use vrrb_core::{
         keypair::KeyPair,
-        txn::{NewTxnArgs, Txn},
     };
+    use vrrb_core::transactions::{NewTransferArgs, Transaction, TransactionKind};
+    use vrrb_core::transactions::transfer::Transfer;
 
     use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
 
@@ -69,7 +70,7 @@ mod tests {
         let recv_keypair = KeyPair::random();
         let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-        let txn = Txn::new(NewTxnArgs {
+        let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -79,7 +80,7 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
         let mut mpooldb = LeftRightMempool::new();
         match mpooldb.insert(txn) {
@@ -100,7 +101,7 @@ mod tests {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
 
-        let txn = Txn::new(NewTxnArgs {
+        let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -110,7 +111,7 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -141,7 +142,7 @@ mod tests {
         let recv1_keypair = KeyPair::random();
         let recv2_keypair = KeyPair::random();
 
-        let txn1 = Txn::new(NewTxnArgs {
+        let txn1 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -151,9 +152,9 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
-        let txn2 = Txn::new(NewTxnArgs {
+        let txn2 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: Address::new(keypair.get_miner_public_key().clone()),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -163,7 +164,7 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -197,7 +198,7 @@ mod tests {
 
         let now = chrono::offset::Utc::now().timestamp();
 
-        let txn = Txn::new(NewTxnArgs {
+        let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: now,
             sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -207,7 +208,7 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
         let txn_id = txn.digest();
 
@@ -226,9 +227,9 @@ mod tests {
         // Test single Txn retrieval
         if let Some(txn_retrieved) = mpooldb.get_txn(&txn.digest().clone()) {
             assert_eq!(txn_retrieved.digest(), txn_id);
-            assert!((txn_retrieved.timestamp - now) <= delta);
-            assert_eq!(txn_retrieved.sender_address, sender_address);
-            assert_eq!(txn_retrieved.receiver_address, receiver_address);
+            assert!((txn_retrieved.timestamp() - now) <= delta);
+            assert_eq!(txn_retrieved.sender_address(), sender_address);
+            assert_eq!(txn_retrieved.receiver_address(), receiver_address);
             assert_eq!(txn_retrieved.amount(), txn_amount);
         } else {
             panic!("No transaction found!");
@@ -238,9 +239,9 @@ mod tests {
         if let Some(txn_rec_retrieved) = mpooldb.get(&txn.digest()) {
             let txn_retrieved = txn_rec_retrieved.txn;
             assert_eq!(txn_retrieved.digest(), txn_id);
-            assert!((txn_retrieved.timestamp - now) <= delta);
-            assert_eq!(txn_retrieved.sender_address, sender_address);
-            assert_eq!(txn_retrieved.receiver_address, receiver_address);
+            assert!((txn_retrieved.timestamp()- now) <= delta);
+            assert_eq!(txn_retrieved.sender_address(), sender_address);
+            assert_eq!(txn_retrieved.receiver_address(), receiver_address);
             assert_eq!(txn_retrieved.amount(), txn_amount);
         } else {
             panic!("No transaction found!");
@@ -252,14 +253,14 @@ mod tests {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
 
-        let mut txns = HashSet::<Txn>::new();
+        let mut txns = HashSet::<TransactionKind>::new();
 
         let sender_address = Address::new(keypair.get_miner_public_key().clone());
         let receiver_address = Address::new(recv_keypair.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
-            let txn = Txn::new(NewTxnArgs {
+            let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
                 timestamp: 0,
                 sender_address: sender_address.clone(),
                 sender_public_key: keypair.get_miner_public_key().clone(),
@@ -269,7 +270,7 @@ mod tests {
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
                 signature: mock_txn_signature(),
-            });
+            }));
 
             txns.insert(txn);
         }
@@ -298,8 +299,8 @@ mod tests {
         let test_txn_amount = record.txn.amount();
 
         if let Some(txn_retrieved) = mpooldb.get_txn(&record.txn.digest()) {
-            assert_eq!(txn_retrieved.sender_address, sender_address);
-            assert_eq!(txn_retrieved.receiver_address, receiver_address);
+            assert_eq!(txn_retrieved.sender_address(), sender_address);
+            assert_eq!(txn_retrieved.receiver_address(), receiver_address);
             assert_eq!(txn_retrieved.amount(), test_txn_amount);
         } else {
             panic!("No transaction found!");
@@ -316,7 +317,7 @@ mod tests {
         let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
         let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
 
-        let txn1 = Txn::new(NewTxnArgs {
+        let txn1 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -326,9 +327,9 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
-        let txn2 = Txn::new(NewTxnArgs {
+        let txn2 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -338,7 +339,7 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
         let txn2_id = txn2.digest();
 
@@ -382,7 +383,7 @@ mod tests {
         let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
         let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
 
-        let txn1 = Txn::new(NewTxnArgs {
+        let txn1 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -392,9 +393,9 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
-        let txn2 = Txn::new(NewTxnArgs {
+        let txn2 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: sender_address.clone(),
             sender_public_key: keypair.get_miner_public_key().clone(),
@@ -404,7 +405,7 @@ mod tests {
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
             signature: mock_txn_signature(),
-        });
+        }));
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -441,7 +442,7 @@ mod tests {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
 
-        let mut txns = HashSet::<Txn>::new();
+        let mut txns = HashSet::<TransactionKind>::new();
 
         // let txn_id = String::from("1");
         let sender_address = Address::new(keypair.get_miner_public_key().clone());
@@ -449,7 +450,7 @@ mod tests {
         let txn_amount: u128 = 1010101;
 
         for n in 1..101 {
-            let txn = Txn::new(NewTxnArgs {
+            let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
                 timestamp: 0,
                 sender_address: sender_address.clone(),
                 sender_public_key: keypair.get_miner_public_key().clone(),
@@ -459,7 +460,7 @@ mod tests {
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
                 signature: mock_txn_signature(),
-            });
+            }));
 
             txns.insert(txn);
         }
@@ -488,7 +489,7 @@ mod tests {
         let keypair = KeyPair::random();
         let txn_id_max = 11;
         let mut lrmpooldb = LeftRightMempool::new();
-        let mut txns = HashSet::<Txn>::new();
+        let mut txns = HashSet::<TransactionKind>::new();
 
         let txn_amount: u128 = 1010101;
 
@@ -496,7 +497,7 @@ mod tests {
             let recv_keypair = KeyPair::random();
             let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-            let txn = Txn::new(NewTxnArgs {
+            let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
                 timestamp: 0,
                 sender_address: Address::new(keypair.get_miner_public_key().clone()),
                 sender_public_key: keypair.get_miner_public_key().clone(),
@@ -506,7 +507,7 @@ mod tests {
                 validators: Some(HashMap::<String, bool>::new()),
                 nonce: 0,
                 signature: mock_txn_signature(),
-            });
+            }));
 
             txns.insert(txn);
         }

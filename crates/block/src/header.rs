@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 // FEATURE TAG(S): Block Structure, Rewards
 use chrono;
 use primitives::{Epoch, SecretKey};
@@ -9,6 +10,7 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use utils::{create_payload, hash_data};
 use vrrb_core::claim::Claim;
+use vrrb_core::transactions::Transaction;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::{block::Block, InnerBlock, NextEpochAdjustment};

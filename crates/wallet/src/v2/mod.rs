@@ -10,7 +10,8 @@ use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use telemetry::error;
 use thiserror::Error;
-use vrrb_core::{account::Account, txn::Token};
+use vrrb_core::account::Account;
+use vrrb_core::transactions::{NewTransferArgs, Token};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionDigest, RpcTransactionRecord},
     client::create_client,
@@ -160,7 +161,7 @@ impl Wallet {
 
         let signature = self.sign_transaction(&payload[..]);
 
-        let txn_args = vrrb_core::txn::NewTxnArgs {
+        let txn_args = NewTransferArgs {
             timestamp,
             sender_address,
             sender_public_key: self.public_key,

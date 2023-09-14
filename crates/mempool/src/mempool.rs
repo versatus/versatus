@@ -8,16 +8,17 @@ use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
-use vrrb_core::txn::{TransactionDigest, TxTimestamp, Txn};
+use vrrb_core::transactions::{TransactionDigest, TxTimestamp, Transaction, TransactionKind};
+
 
 use super::error::MempoolError;
 
 pub type Result<T> = StdResult<T, MempoolError>;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Default, Deserialize)]
 pub struct TxnRecord {
     pub txn_id: TransactionDigest,
-    pub txn: Txn,
+    pub txn: TransactionKind,
     pub status: TxnStatus,
     pub timestamp: TxTimestamp,
     pub added_timestamp: TxTimestamp,
@@ -27,7 +28,7 @@ pub struct TxnRecord {
 }
 
 impl TxnRecord {
-    pub fn new(txn: Txn) -> TxnRecord {
+    pub fn new(txn: TransactionKind) -> TxnRecord {
         let added_timestamp = chrono::offset::Utc::now().timestamp();
         let timestamp = txn.timestamp();
 
@@ -181,12 +182,12 @@ impl LeftRightMempool {
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
-    pub fn add_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
+    pub fn add_txn(&mut self, txn: &TransactionKind, _status: TxnStatus) -> Result<()> {
         self.insert(txn.to_owned())?;
         Ok(())
     }
 
-    pub fn insert(&mut self, txn: Txn) -> Result<usize> {
+    pub fn insert(&mut self, txn: TransactionKind) -> Result<usize> {
         let txn_record = TxnRecord::new(txn);
         self.write
             .append(MempoolOp::Add(Box::new(txn_record)))
@@ -197,7 +198,7 @@ impl LeftRightMempool {
 
     /// Retrieves a single transaction identified by id, makes sure it exists in
     /// db
-    pub fn get_txn(&mut self, txn_hash: &TransactionDigest) -> Option<Txn> {
+    pub fn get_txn(&mut self, txn_hash: &TransactionDigest) -> Option<TransactionKind> {
         if let Some(record) = self.get(txn_hash) {
             return Some(record.txn);
         }
@@ -240,13 +241,13 @@ impl LeftRightMempool {
     #[deprecated(note = "use extend instead")]
     pub fn add_txn_batch(
         &mut self,
-        txn_batch: &HashSet<Txn>,
+        txn_batch: &HashSet<TransactionKind>,
         _txns_status: TxnStatus,
     ) -> Result<()> {
         self.extend(txn_batch.clone())
     }
 
-    pub fn extend(&mut self, txn_batch: HashSet<Txn>) -> Result<()> {
+    pub fn extend(&mut self, txn_batch: HashSet<TransactionKind>) -> Result<()> {
         txn_batch.into_iter().for_each(|t| {
             self.write
                 .append(MempoolOp::Add(Box::new(TxnRecord::new(t))));
@@ -275,7 +276,7 @@ impl LeftRightMempool {
     /// Removes a single transaction identified by itself, makes sure it exists
     /// in db. Pushes to the ReadHandle.
     #[deprecated]
-    pub fn remove_txn(&mut self, txn: &Txn, _status: TxnStatus) -> Result<()> {
+    pub fn remove_txn(&mut self, txn: &TransactionKind, _status: TxnStatus) -> Result<()> {
         self.remove(&txn.id())
     }
 
@@ -291,7 +292,7 @@ impl LeftRightMempool {
     #[deprecated]
     pub fn remove_txn_batch(
         &mut self,
-        txn_batch: &HashSet<Txn>,
+        txn_batch: &HashSet<TransactionKind>,
         _txns_status: TxnStatus,
     ) -> Result<()> {
         txn_batch.iter().for_each(|t| {
@@ -315,7 +316,7 @@ impl LeftRightMempool {
 
     /// Was the Txn validated ? And when ?
     // TODO: rethink validated txn storage
-    pub fn is_txn_validated(&mut self, txn: &Txn) -> Result<TxTimestamp> {
+    pub fn is_txn_validated(&mut self, txn: &TransactionKind) -> Result<TxTimestamp> {
         match self.get(&txn.id()) {
             Some(found) if matches!(found.status, TxnStatus::Validated) => {
                 Ok(found.validated_timestamp)
@@ -331,7 +332,7 @@ impl LeftRightMempool {
 
     /// Retrieves actual size of the mempooldb in Kilobytes.
     pub fn size_in_kilobytes(&self) -> usize {
-        let txn_size_factor = std::mem::size_of::<Txn>();
+        let txn_size_factor = std::mem::size_of::<TransactionKind>();
         let mempool_items = self.size();
 
         (mempool_items * txn_size_factor) / 1024
@@ -387,7 +388,7 @@ impl MempoolReadHandleFactory {
     }
 
     /// Returns a vector of all transactions within the mempool
-    pub fn values(&self) -> Vec<Txn> {
+    pub fn values(&self) -> Vec<TransactionKind> {
         self.handle()
             .values()
             .cloned()

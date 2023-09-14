@@ -13,8 +13,8 @@ use sha2::Digest;
 use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
-    txn::{generate_txn_digest_vec, NewTxnArgs, QuorumCertifiedTxn, TransactionDigest, Txn},
 };
+use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 use crate::{result::MinerError, Miner, MinerConfig};
 
@@ -129,7 +129,7 @@ pub(crate) fn create_txns(
         let amount = (n.pow(2)) as u128;
         let token = None;
 
-        let txn_args = NewTxnArgs {
+        let txn_args = NewTransferArgs {
             timestamp: 0,
             sender_address: saddr,
             sender_public_key: pk,
@@ -142,18 +142,18 @@ pub(crate) fn create_txns(
             nonce: n as u128,
         };
 
-        let mut txn = Txn::new(txn_args);
+        let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
 
         txn.sign(&sk);
 
         let txn_digest_vec = generate_txn_digest_vec(
-            txn.timestamp,
-            txn.sender_address.to_string(),
-            txn.sender_public_key,
-            txn.receiver_address.to_string(),
-            txn.token.clone(),
-            txn.amount,
-            txn.nonce,
+            txn.timestamp(),
+            txn.sender_address().to_string(),
+            txn.sender_public_key(),
+            txn.receiver_address().to_string(),
+            txn.token().clone(),
+            txn.amount(),
+            txn.nonce(),
         );
 
         let digest = TransactionDigest::from(txn_digest_vec);
