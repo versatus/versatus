@@ -171,7 +171,6 @@ impl Default for NodeConfig {
             http_api_version: String::from("v.0.1.0"),
             http_api_shutdown_timeout: None,
             jsonrpc_server_address: ipv4_localhost_with_random_port,
-            grpc_server_address: ipv4_localhost_with_random_port,
             preload_mock_state: false,
             bootstrap_config: None,
             quorum_config: None,
