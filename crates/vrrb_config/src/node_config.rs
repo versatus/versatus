@@ -70,10 +70,6 @@ pub struct NodeConfig {
     /// Address the node listens for JSON-RPC connections
     pub jsonrpc_server_address: SocketAddr,
 
-    /// Address the node listens for gRPC connections
-    #[deprecated(note = "deprecated in favor of the JSON-RPC API")]
-    pub grpc_server_address: SocketAddr,
-
     // TODO: refactor env-aware options
     #[builder(default = "false")]
     pub preload_mock_state: bool,
@@ -171,7 +167,6 @@ impl Default for NodeConfig {
             http_api_version: String::from("v.0.1.0"),
             http_api_shutdown_timeout: None,
             jsonrpc_server_address: ipv4_localhost_with_random_port,
-            grpc_server_address: ipv4_localhost_with_random_port,
             preload_mock_state: false,
             bootstrap_config: None,
             quorum_config: None,
