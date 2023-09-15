@@ -44,7 +44,6 @@ mod tests {
             .rendezvous_local_address(addr)
             .rendezvous_server_address(addr)
             .public_ip_address(addr)
-            .grpc_server_address(addr)
             .keypair(keypair)
             .bootstrap_config(None)
             .threshold_config(ThresholdConfig::default())
