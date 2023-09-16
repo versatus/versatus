@@ -5,7 +5,7 @@ use vrrb_core::{
     account::Account,
     claim::Claim,
 };
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 use crate::{
     ClaimStoreReadHandleFactory, StateStoreReadHandleFactory, TransactionStoreReadHandleFactory,

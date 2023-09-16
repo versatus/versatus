@@ -95,7 +95,7 @@ pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
         (part_commitment_node4, node_id_4),
     ];
 
-    for (part_commitment, node_id) in part_commitment_tuples.iter() {
+    for (_part_commitment, _node_id) in part_commitment_tuples.iter() {
         // if let DkgResult::PartMessageGenerated(node_idx, part) = part_commitment {
         //     if *node_idx != dkg_engine_node1.node_idx {
         //         dkg_engine_node1
@@ -163,7 +163,7 @@ pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
         .set_ack_message_store(new_store.clone());
     dkg_engine_node4
         .dkg_state
-        .set_ack_message_store(new_store.clone());
+        .set_ack_message_store(new_store);
 
     for _ in 0..4 {
         let _ = dkg_engine_node1.handle_ack_messages();

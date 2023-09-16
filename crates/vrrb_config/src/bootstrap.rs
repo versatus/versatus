@@ -3,8 +3,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use primitives::KademliaPeerId;
 use serde::Deserialize;
 
-use crate::BootstrapQuorumConfig;
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct BootstrapConfig {
     pub id: KademliaPeerId,

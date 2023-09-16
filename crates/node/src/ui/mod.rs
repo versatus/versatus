@@ -23,7 +23,7 @@ pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHan
             Ok(_) => info!("Yarn is installed"),
             Err(e) => {
                 let install_yarn = Command::new("npm")
-                    .args(&["install", "-g", "yarn"])
+                    .args(["install", "-g", "yarn"])
                     .current_dir("infra/gui")
                     .output();
 
@@ -38,7 +38,7 @@ pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHan
 
         info!("Installing dependencies");
         match Command::new("yarn")
-            .args(&["install"])
+            .args(["install"])
             .current_dir("infra/gui")
             .status()
         {

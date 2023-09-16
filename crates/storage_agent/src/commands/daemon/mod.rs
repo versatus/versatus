@@ -8,7 +8,7 @@ pub struct DaemonOpts {
 }
 
 /// Start the Storage Agent Daemon
-pub async fn run(opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
+pub async fn run(_opts: &DaemonOpts, _config: &ServiceConfig) -> Result<()> {
     // XXX: This is where we should start the RPC server listener and process incoming requests
     // using the service name and service config provided in the global command line options.
     Ok(())

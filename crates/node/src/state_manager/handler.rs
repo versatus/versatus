@@ -109,7 +109,7 @@ impl Handler<EventMessage> for StateManager {
                     telemetry::error!("error updating state: {}", err);
                 }
             },
-            Event::ClaimCreated(claim) => {},
+            Event::ClaimCreated(_claim) => {},
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
             },
@@ -126,26 +126,9 @@ impl Handler<EventMessage> for StateManager {
                 self.dag.set_harvester_pubkeys(public_key_set)
             },
 
-            Event::TransactionCertificateCreated {
-                votes,
-                signature,
-                digest,
-                /// OUtput of the program executed
-                execution_result,
-                farmer_id,
-                txn,
-                is_valid,
-            } => {
+            Event::TransactionCertificateCreated { txn, .. } => {
                 // TODO: forward arguments
-                self.handle_transaction_certificate_created(
-                    votes,
-                    signature,
-                    digest,
-                    execution_result,
-                    farmer_id,
-                    txn,
-                    is_valid,
-                );
+                let _ = self.handle_transaction_certificate_created(txn);
             },
 
             Event::NoOp => {},

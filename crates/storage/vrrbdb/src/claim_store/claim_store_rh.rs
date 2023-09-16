@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
-use patriecia::{JellyfishMerkleTree, KeyHash, Version};
+use patriecia::{JellyfishMerkleTree, Version};
 use primitives::NodeId;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};

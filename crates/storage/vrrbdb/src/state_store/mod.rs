@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use integral_db::LeftRightTrie;
-use patriecia::{RootHash, Version};
+use patriecia::RootHash;
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};

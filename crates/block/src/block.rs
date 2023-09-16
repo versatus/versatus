@@ -1,14 +1,13 @@
 // This file contains code for creating blocks to be proposed, including the
 // genesis block and blocks being mined.
 
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::{self, Debug};
 
 use bulldag::vertex::Vertex;
 use reward::reward::Reward;
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use serde::{Deserialize, Serialize};
-use vrrb_core::transactions::Transaction;
 
 #[cfg(mainnet)]
 use crate::genesis;

@@ -8,7 +8,7 @@ use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
 };
-use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest};
+use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
 
 use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
 

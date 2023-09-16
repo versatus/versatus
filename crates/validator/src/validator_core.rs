@@ -2,12 +2,11 @@ use std::{
     collections::{HashMap, HashSet},
     sync::mpsc::RecvError,
 };
-use std::hash::Hash;
 
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use vrrb_core::{account::Account, claim::Claim};
-use vrrb_core::transactions::{Transaction, TransactionKind};
+use vrrb_core::transactions::TransactionKind;
 
 use crate::{claim_validator::ClaimValidator, txn_validator::TxnValidator};
 

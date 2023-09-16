@@ -6,7 +6,6 @@ use hbbft::{crypto::PublicKey, sync_key_gen::Part};
 use mempool::TxnRecord;
 use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
-use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -48,7 +47,7 @@ pub enum NetworkEvent {
         socket_addr: SocketAddr,
     },
 
-    ForwardedTxn(TxnRecord),
+    ForwardedTxn(Box<TxnRecord>),
 
     PartCommitmentCreated(NodeId, Part),
     PartCommitmentAcknowledged {

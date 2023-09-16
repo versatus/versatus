@@ -13,7 +13,7 @@ use events::EventPublisher;
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
-use theater::{Actor, ActorId, ActorState, Handler};
+use theater::{ActorId, ActorState};
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
