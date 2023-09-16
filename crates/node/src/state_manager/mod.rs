@@ -32,7 +32,7 @@ mod tests {
     use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair};
     use vrrb_core::transactions::{TransactionKind};
 
-    use crate::test_utils::{create_blank_certificate, create_dag_module};
+    use crate::test_utils::{_create_blank_certificate, _create_dag_module};
 
     use super::*;
     use crate::test_utils::{
@@ -245,9 +245,9 @@ mod tests {
         let block_hash = produce_convergence_block(dag).unwrap();
         state_module.update_state(block_hash).unwrap();
 
-        state_module.commit();
+        state_module._commit();
 
-        let handle = state_module.read_handle();
+        let handle = state_module._read_handle();
         let store = handle.state_store_values();
 
         for (address, _) in accounts.iter() {
@@ -261,8 +261,8 @@ mod tests {
     }
     #[tokio::test]
     async fn handle_event_block_certificate() {
-        let mut dag_module = create_dag_module();
-        let certificate = create_blank_certificate(dag_module.claim.signature.clone());
+        let mut dag_module = _create_dag_module();
+        let certificate = _create_blank_certificate(dag_module.claim.signature.clone());
 
         let message: messr::Message<Event> = Event::BlockCertificateCreated(certificate).into();
 
