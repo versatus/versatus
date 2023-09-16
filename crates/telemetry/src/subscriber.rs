@@ -1,6 +1,5 @@
 use primitives::{get_pretty_print_logs, Environment};
 use thiserror::Error;
-use tracing::metadata::LevelFilter;
 use tracing_subscriber::{
     fmt::MakeWriter,
     util::{SubscriberInitExt, TryInitError},

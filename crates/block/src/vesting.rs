@@ -1,5 +1,5 @@
 use ritelinked::LinkedHashMap;
-use vrrb_core::transactions::{Transaction, TransactionKind};
+use vrrb_core::transactions::TransactionKind;
 
 // 50% after one year, then monthly for 12 months
 const EMPLOYEE_VESTING: VestingConfig = VestingConfig {

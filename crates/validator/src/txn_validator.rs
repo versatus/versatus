@@ -2,7 +2,7 @@ use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
 
 use primitives::Address;
 use vrrb_core::{account::Account, keypair::KeyPair};
-use vrrb_core::transactions::{Transaction, TransactionKind, Transfer};
+use vrrb_core::transactions::{Transaction, TransactionKind};
 
 pub type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -160,7 +160,7 @@ impl TxnValidator {
         account_state: &HashMap<Address, Account>,
         txn: &TransactionKind,
     ) -> Result<()> {
-        let address = txn.sender_address().clone();
+        let address = txn.sender_address();
         if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
             let account = account_state.get(&Address::new(address)).unwrap();
             if (account.credits() - account.debits())

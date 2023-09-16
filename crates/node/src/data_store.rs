@@ -1,4 +1,4 @@
-use crate::{state_reader::StateReader};
+use crate::state_reader::StateReader;
 
 #[async_trait::async_trait]
 // NOTE: renamed to DataStore to avoid confusion with StateStore within storage crate

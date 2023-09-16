@@ -1,7 +1,6 @@
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use serde::{Deserialize, Serialize};
-use vrrb_core::transactions::TransactionKind;
 
 #[cfg(mainnet)]
 use crate::genesis;

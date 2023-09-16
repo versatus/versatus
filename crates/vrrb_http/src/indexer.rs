@@ -2,7 +2,6 @@ use http::{HttpClient, HttpClientBuilder};
 use mempool::TxnRecord;
 use reqwest::StatusCode;
 use serde_json;
-use vrrb_core::transactions::{Transaction, TransactionKind};
 
 use crate::{http, Error, Result};
 
@@ -48,7 +47,7 @@ impl IndexerClient {
 #[cfg(test)]
 mod tests {
     use mempool::TxnRecord;
-    use vrrb_core::transactions::transfer::Transfer;
+    use vrrb_core::transactions::{transfer::Transfer, TransactionKind};
 
     use wiremock::{
         http::Method,

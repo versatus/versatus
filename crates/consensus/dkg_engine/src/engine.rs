@@ -4,7 +4,7 @@ use hbbft::{
     crypto::{PublicKey, SecretKey},
     sync_key_gen::{Part, PartOutcome, SyncKeyGen},
 };
-use primitives::{NodeId, NodeIdx, NodeType, ValidatorPublicKey};
+use primitives::{NodeId, NodeType, ValidatorPublicKey};
 use rand::rngs::OsRng;
 use vrrb_config::ThresholdConfig;
 
@@ -133,7 +133,7 @@ impl DkgGenerator for DkgEngine {
         self.dkg_state.set_random_number_gen(Some(rng.clone()));
         self.dkg_state
             .part_message_store_mut()
-            .insert(node_id.clone(), part_commitment.clone());
+            .insert(node_id, part_commitment.clone());
 
         self.dkg_state.set_sync_key_gen(Some(sync_key_gen));
 
@@ -188,7 +188,7 @@ impl DkgGenerator for DkgEngine {
                 PartOutcome::Valid(Some(ack)) => {
                     self.dkg_state
                         .ack_message_store_mut()
-                        .insert((node_id.clone(), sender_node_id), ack);
+                        .insert((node_id, sender_node_id), ack);
 
                     Ok(())
                 },
@@ -219,7 +219,7 @@ impl DkgGenerator for DkgEngine {
         for (sender_id, ack) in ack_message_store {
             let result = keygen
                 .handle_ack(&sender_id.0, ack.clone())
-                .map_err(|err| {
+                .map_err(|_err| {
                     DkgError::InvalidAckMessage(format!(
                         "{} {}",
                         sender_id.0,
@@ -246,7 +246,7 @@ impl DkgGenerator for DkgEngine {
     ///  Generate the  distributed public key and secreykeyshare for the node in
     /// the Quorum
     fn generate_key_sets(&mut self) -> Result<()> {
-        let mut keygen = self
+        let keygen = self
             .dkg_state
             .sync_key_gen_mut()
             .as_mut()

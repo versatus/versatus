@@ -1,7 +1,4 @@
-use std::{
-    marker::{PhantomData, PhantomPinned},
-    net::SocketAddr,
-};
+use std::net::SocketAddr;
 
 use events::{Event, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
@@ -16,8 +13,8 @@ use vrrb_core::keypair::{KeyPair, Keypair};
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    data_store::DataStore, result::Result, runtime::setup_runtime_components,
-    state_reader::StateReader, NodeError, RuntimeComponentManager,
+    result::Result, runtime::setup_runtime_components,
+    NodeError, RuntimeComponentManager,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for

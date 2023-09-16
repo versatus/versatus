@@ -1,7 +1,6 @@
 use async_trait::async_trait;
-use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
+use dkg_engine::prelude::DkgEngine;
 use events::{EventPublisher, EventSubscriber};
-use hbbft::crypto::PublicKey as ThresholdSignaturePublicKey;
 use primitives::ValidatorPublicKey;
 use storage::vrrbdb::VrrbDbReadHandle;
 use theater::{Actor, ActorImpl};

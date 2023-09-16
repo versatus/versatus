@@ -56,19 +56,18 @@ impl Config {
 
     /// Find a service definition by type and label
     pub fn find_service(&self, service_name: &str, service_type: &str) -> Result<ServiceConfig> {
-        let collection: Vec<ServiceConfig>;
-        match service_type {
+        let collection: Vec<ServiceConfig> = match service_type {
             "compute" => {
-                collection = self.services.compute.clone();
+                self.services.compute.clone()
             },
             "storage" => {
-                collection = self.services.storage.clone();
+                self.services.storage.clone()
             },
             "blockchain" => {
-                collection = self.services.blockchain.clone();
+                self.services.blockchain.clone()
             },
             _ => return Err(anyhow!("Invalid service type: {}", service_type)),
-        }
+        };
 
         for svc in collection.iter() {
             if svc.name == service_name {
