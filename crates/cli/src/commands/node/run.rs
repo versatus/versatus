@@ -16,7 +16,6 @@ use crate::result::{CliError, Result};
 
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
-const DEFAULT_GRPC_ADDRESS: &str = "127.0.0.1:50051";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 
@@ -57,9 +56,6 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub jsonrpc_api_address: SocketAddr,
-
-    #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
-    pub grpc_server_address: SocketAddr,
 
     #[clap(long, default_value = "false")]
     pub bootstrap: bool,
@@ -121,7 +117,6 @@ impl From<RunOpts> for NodeConfig {
             http_api_version: opts.http_api_version,
             http_api_shutdown_timeout: default_node_config.http_api_shutdown_timeout,
             jsonrpc_server_address: opts.jsonrpc_api_address,
-            grpc_server_address: opts.grpc_server_address,
             preload_mock_state: default_node_config.preload_mock_state,
             bootstrap_config: default_node_config.bootstrap_config,
             kademlia_liveness_address: default_node_config.kademlia_liveness_address,
@@ -161,7 +156,6 @@ impl Default for RunOpts {
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             http_api_address: ipv4_localhost_with_random_port,
             jsonrpc_api_address: ipv4_localhost_with_random_port,
-            grpc_server_address: ipv4_localhost_with_random_port,
             bootstrap: Default::default(),
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
@@ -248,7 +242,6 @@ impl RunOpts {
             udp_gossip_address: other.udp_gossip_address,
             raptorq_gossip_address: other.raptorq_gossip_address,
             jsonrpc_api_address: other.jsonrpc_api_address,
-            grpc_server_address: other.grpc_server_address,
             bootstrap: other.bootstrap,
             bootstrap_node_addresses,
             http_api_address: other.http_api_address,
