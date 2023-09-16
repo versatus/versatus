@@ -333,7 +333,7 @@ pub(crate) fn _create_dag_module() -> DagModule {
 }
 
 /// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn _create_blank_certificate(claim_signature: String) -> block::Certificate {
+pub(crate) fn create_blank_certificate(claim_signature: String) -> block::Certificate {
     block::Certificate {
         signature: claim_signature,
         inauguration: None,
