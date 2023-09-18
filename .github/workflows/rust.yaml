@@ -90,11 +90,46 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: cargo test
+      - name: cargo test consensus
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p consensus
+      - name: cargo test dkg_engine
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p dkg_engine
+      - name: cargo test job_pool
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p job_pool
+      - name: cargo test job_scheduler
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p job_scheduler
+      - name: cargo test quorum
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p quorum
+      - name: cargo test reward
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p reward
+      - name: cargo test signer
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p signer
+      - name: cargo test vrrb_vrf
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p vrrb_vrf
 
   test-events:
     name: test events
@@ -222,11 +257,21 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: cargo test
+      - name: cargo test storage
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: -p storage
+      - name: cargo test vrrbdb
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p vrrbdb
+      - name: cargo test storage_utils
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path ./crates/storage/utils
 
   test-telemetry:
     name: test telemetry
