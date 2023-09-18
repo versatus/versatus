@@ -127,22 +127,16 @@ pub(crate) fn create_txns(
         let saddr = create_address(&pk);
         let raddr = create_address(&rpk);
         let amount = (n.pow(2)) as u128;
-        let token = None;
 
-        let txn_args = NewTransferArgs {
-            timestamp: 0,
-            sender_address: saddr,
-            sender_public_key: pk,
-            receiver_address: raddr,
-            token,
-            amount,
-            signature: sk
-                .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
-            validators: None,
-            nonce: n as u128,
-        };
-
-        let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
+        let mut txn = Transfer::builder()
+            .timestamp(0)
+            .sender_address(saddr)
+            .sender_public_key(pk)
+            .receiver_address(raddr)
+            .amount(amount)
+            .signature(sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")))
+            .nonce(n as u128)
+            .build().unwrap();
 
         txn.sign(&sk);
 

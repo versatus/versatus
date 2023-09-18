@@ -84,6 +84,89 @@ pub struct Transfer {
     pub nonce: TxNonce,
 }
 
+#[derive(Default)]
+pub struct TransferBuilder {
+    id: Option<TransactionDigest>,
+    timestamp: Option<TxTimestamp>,
+    sender_address: Option<Address>,
+    sender_public_key: Option<PublicKey>,
+    receiver_address: Option<Address>,
+    token: Option<Token>,
+    amount: Option<TxAmount>,
+    signature: Option<Signature>,
+    validators: Option<HashMap<String, bool>>,
+    nonce: Option<TxNonce>,
+}
+
+impl TransferBuilder {
+    pub fn id(mut self, id: TransactionDigest) -> Self {
+        self.id = Some(id);
+        self
+    }
+
+    pub fn timestamp(mut self, timestamp: TxTimestamp) -> Self {
+        self.timestamp = Some(timestamp);
+        self
+    }
+
+    pub fn sender_address(mut self, sender_address: Address) -> Self {
+        self.sender_address = Some(sender_address);
+        self
+    }
+
+    pub fn sender_public_key(mut self, sender_public_key: PublicKey) -> Self {
+        self.sender_public_key = Some(sender_public_key);
+        self
+    }
+
+    pub fn receiver_address(mut self, receiver_address: Address) -> Self {
+        self.receiver_address = Some(receiver_address);
+        self
+    }
+
+    pub fn token(mut self, token: Token) -> Self {
+        self.token = Some(token);
+        self
+    }
+
+    pub fn amount(mut self, amount: TxAmount) -> Self {
+        self.amount = Some(amount);
+        self
+    }
+
+    pub fn signature(mut self, signature: Signature) -> Self {
+        self.signature = Some(signature);
+        self
+    }
+
+    pub fn validators(mut self, validators: HashMap<String, bool>) -> Self {
+        self.validators = Some(validators);
+        self
+    }
+
+    pub fn nonce(mut self, nonce: TxNonce) -> Self {
+        self.nonce = Some(nonce);
+        self
+    }
+
+    pub fn build(self) -> Result<TransactionKind, &'static str> {
+        let transfer = Transfer {
+            id: self.id.ok_or("id is missing")?,
+            timestamp: self.timestamp.ok_or("timestamp is missing")?,
+            sender_address: self.sender_address.ok_or("sender_address is missing")?,
+            sender_public_key: self.sender_public_key.ok_or("sender_public_key is missing")?,
+            receiver_address: self.receiver_address.ok_or("receiver_address is missing")?,
+            token: self.token.unwrap_or_default(),
+            amount: self.amount.ok_or("amount is missing")?,
+            signature: self.signature.ok_or("signature is missing")?,
+            validators: self.validators,
+            nonce: self.nonce.ok_or("nonce is missing")?,
+        };
+
+        Ok(TransactionKind::Transfer(transfer))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewTransferArgs {
     pub timestamp: TxTimestamp,
@@ -104,6 +187,9 @@ impl Default for Transfer {
 }
 
 impl Transfer {
+    pub fn builder() -> TransferBuilder {
+        TransferBuilder::default()
+    }
     pub fn new(args: NewTransferArgs) -> Self {
         let token = args.token.clone().unwrap_or_default();
 
