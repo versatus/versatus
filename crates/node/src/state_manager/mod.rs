@@ -29,7 +29,7 @@ mod tests {
     use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState};
     use tokio::sync::mpsc::channel;
-    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair};
+    use vrrb_core::{account::Account, claim::{Claim, self}, keypair::KeyPair};
     use vrrb_core::transactions::{TransactionKind};
 
     use crate::test_utils::{create_blank_certificate, _create_dag_module};
@@ -49,22 +49,23 @@ mod tests {
 
         let db_config = VrrbDbConfig::default();
 
-        let _dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
+        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
         let db = VrrbDb::new(db_config);
         let mempool = LeftRightMempool::new();
 
-        let (_sk, pk) = create_keypair();
+        let (sk, pk) = create_keypair();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        let _claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+        let signature = Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+        let claim = create_claim(&pk, &addr, ip_address, signature);
 
         let _state_module = StateManager::new(StateManagerConfig {
             events_tx,
             mempool,
             database: db,
-            claim: todo!(),
-            dag: _dag.clone(),
+            claim: claim,
+            dag: dag.clone(),
         });
 
         let mut state_module = ActorImpl::new(_state_module);
@@ -96,10 +97,11 @@ mod tests {
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
-        let (_sk, pk) = create_keypair();
+        let (sk, pk) = create_keypair();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+        let signature = Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+        let claim = create_claim(&pk, &addr, ip_address, signature);
 
         let state_module = StateManager::new(StateManagerConfig {
             events_tx,
@@ -141,10 +143,11 @@ mod tests {
         let mempool = LeftRightMempool::default();
 
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
-        let (_sk, pk) = create_keypair();
+        let (sk, pk) = create_keypair();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        let claim = create_claim(&pk, &addr, ip_address, "signature".to_string());
+        let signature = Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
+        let claim = create_claim(&pk, &addr, ip_address, signature);
 
         let state_module = StateManager::new(StateManagerConfig {
             mempool,
