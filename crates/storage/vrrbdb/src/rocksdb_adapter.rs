@@ -160,7 +160,7 @@ impl Default for RocksDbAdapter {
         let db = new_db_instance(
             options,
             DEFAULT_VRRB_DB_PATH.into(),
-            "default",
+            DEFAULT_COLUMN_FAMILY_NAME,
         )
         .unwrap();
 
