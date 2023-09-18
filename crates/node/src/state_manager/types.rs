@@ -1,7 +1,6 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     str::FromStr,
-    sync::{Arc, RwLock},
 };
 
 use block::{ConvergenceBlock, ProposalBlock};

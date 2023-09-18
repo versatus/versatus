@@ -12,11 +12,10 @@ static THIS_SERVICE_TYPE: &str = "compute";
 async fn main() -> Result<()> {
     let cli = cli::ComputeCli::parse();
 
-    let service: String;
-    match cli.service_type {
-        Some(svc) => service = svc.clone(),
-        None => service = THIS_SERVICE_TYPE.to_string(),
-    }
+    let service: String = match cli.service_type {
+        Some(svc) => svc,
+        None => THIS_SERVICE_TYPE.to_string(),
+    };
 
     // Parse common services configuration
     let config = Config::from_file(&cli.config)?

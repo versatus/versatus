@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
 use events::{Event, EventMessage, EventPublisher, PeerData};
-use primitives::{NodeId, NodeType};
-use vrrb_config::{QuorumMember, QuorumMembershipConfig};
+use primitives::NodeId;
 
 use crate::{network::NetworkEvent, NodeError};
 

@@ -1,5 +1,4 @@
 use std::{
-    cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
@@ -10,10 +9,7 @@ use primitives::{
     Address,
     ByteSlice,
     ByteVec,
-    Digest as PrimitiveDigest,
-    NodeIdx,
     PublicKey,
-    RawSignature,
     SecretKey,
 };
 use secp256k1::{ecdsa::Signature, Message};
@@ -22,7 +18,6 @@ use sha2::{Digest, Sha256};
 use utils::hash_data;
 
 use crate::{
-    helpers::gen_hex_encoded_string,
     keypair::Keypair,
     serde_helpers::{
         decode_from_binary_byte_slice,
@@ -32,7 +27,7 @@ use crate::{
     },
 };
 use crate::transactions::transaction::Transaction;
-use crate::transactions::{BASE_FEE, Token, TransactionDigest, TransactionKind};
+use crate::transactions::{BASE_FEE, Token, TransactionDigest};
 /// This module contains the basic structure of simple transaction
 
 /// A simple custom error type

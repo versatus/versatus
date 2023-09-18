@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
 use vrrb_core::{account::Account, claim::Claim};
-use vrrb_core::transactions::{Transaction, TransactionKind, Transfer};
+use vrrb_core::transactions::TransactionKind;
 
 use crate::{
     claim_validator::ClaimValidator,

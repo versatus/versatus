@@ -1,22 +1,20 @@
 use std::collections::{BTreeMap, HashMap};
 
-use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, PeerData,
 };
 use primitives::{NodeId, NodeType, QuorumKind};
 use quorum::{
     election::Election,
     quorum::{Quorum, QuorumError},
 };
-use storage::vrrbdb::VrrbDbReadHandle;
-use theater::{Actor, ActorId, ActorImpl, ActorState};
+use theater::{ActorId, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
-use crate::{state_reader::StateReader, NodeError, RuntimeComponent, RuntimeComponentHandle};
+use crate::state_reader::StateReader;
 
 #[derive(Debug)]
 pub struct QuorumModule<S: StateReader + Send> {
@@ -72,13 +70,13 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
             events_tx: cfg.events_tx,
             membership_config: None,
             node_config: cfg.node_config.clone(),
-            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config.clone(),
+            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config,
             bootstrap_quorum_available_nodes,
         }
     }
 
     /// Replaces the current quorum membership configuration to the given one.
-    pub fn reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
+    pub fn _reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
         self.membership_config = Some(membership_config);
     }
 
@@ -111,7 +109,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         &self,
         peer_list: HashMap<NodeId, (PeerData, bool)>,
     ) -> crate::Result<()> {
-        let mut unassigned_peers = peer_list
+        let unassigned_peers = peer_list
             .into_iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
@@ -149,7 +147,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         Ok(())
     }
 
-    fn elect_quorum(
+    fn _elect_quorum(
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,

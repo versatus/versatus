@@ -6,11 +6,9 @@ use std::{
 use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher, Vote};
+use events::{Event, EventMessage, EventPublisher};
 use mempool::LeftRightMempool;
-use primitives::{
-    Address, NodeId, ProgramExecutionOutput, RawSignature, Round, TxnValidationStatus,
-};
+use primitives::{Address, NodeId, Round};
 use storage::{
     storage_utils::StorageError,
     vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},
@@ -70,14 +68,14 @@ impl StateManager {
         }
     }
 
-    pub fn export_state(&self) {
+    pub fn _export_state(&self) {
         self.database.export_state();
     }
 
     /// Produces the read handle for the VrrbDb instance in this
     /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
     /// each of the StateStore, TransactionStore and ClaimStore.
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn _read_handle(&self) -> VrrbDbReadHandle {
         self.database.read_handle()
     }
 
@@ -100,7 +98,7 @@ impl StateManager {
         Ok(())
     }
 
-    pub fn commit(&mut self) {
+    pub fn _commit(&mut self) {
         self.database.commit_state();
     }
 
@@ -322,7 +320,7 @@ impl StateManager {
         Ok(())
     }
 
-    pub(crate) fn block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
+    pub(crate) fn block_certificate_created(&mut self, _certificate: Certificate) -> Result<()> {
         //
         //         let mut mine_block: Option<ConvergenceBlock> = None;
         //         let block_hash = certificate.block_hash.clone();
@@ -363,13 +361,7 @@ impl StateManager {
 
     pub fn handle_transaction_certificate_created(
         &mut self,
-        votes: Vec<Vote>,
-        signature: RawSignature,
-        digest: TransactionDigest,
-        execution_result: ProgramExecutionOutput,
-        farmer_id: NodeId,
         txn: Box<TransactionKind>,
-        is_valid: TxnValidationStatus,
     ) -> Result<()> {
         self.database
             .insert_transaction(*txn)
@@ -399,19 +391,19 @@ impl StateReader for VrrbDbReadHandle {
     }
 
     /// Get a transaction from state
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<TransactionKind> {
+    async fn get_transaction(&self, _transaction_digest: TransactionDigest) -> Result<TransactionKind> {
         todo!()
     }
 
     /// List a group of transactions
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
+        _digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
-    async fn get_account(&self, address: Address) -> Result<Account> {
+    async fn get_account(&self, _address: Address) -> Result<Account> {
         todo!()
     }
 
@@ -435,7 +427,7 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
         todo!()
     }
 

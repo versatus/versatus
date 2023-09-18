@@ -16,7 +16,6 @@ pub mod valid {
     use primitives::{ByteVec, RawSignature, SignatureType};
     use serde::{Deserialize, Serialize};
     use utils::hash_data;
-    use vrrb_core::transactions::Transaction;
 
     use crate::{ConvergenceBlock, GenesisBlock, ProposalBlock};
 

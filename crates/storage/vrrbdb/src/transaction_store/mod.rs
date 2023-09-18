@@ -1,8 +1,7 @@
 use std::{path::Path, sync::Arc};
-use serde::{Deserialize, Serialize};
 
 use integral_db::{LeftRightTrie, Proof, H256};
-use patriecia::{RootHash, Version};
+use patriecia::RootHash;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 

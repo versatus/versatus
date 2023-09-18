@@ -8,7 +8,7 @@ use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
 };
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::TransactionKind;
 
 use crate::{
     ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,

@@ -145,7 +145,7 @@ pub(crate) fn create_txns(
             txn.sender_address().to_string(),
             txn.sender_public_key(),
             txn.receiver_address().to_string(),
-            txn.token().clone(),
+            txn.token(),
             txn.amount(),
             txn.nonce(),
         );

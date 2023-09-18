@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use vrrb_core::{
     claim::Claim,
 };
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;

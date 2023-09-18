@@ -11,7 +11,6 @@ use storage::vrrbdb::Claims;
 use vrrb_core::{
     account::Account,
 };
-use vrrb_core::claim::Claim;
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::transactions::{NewTransferArgs, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp};
 
