@@ -31,7 +31,7 @@ async fn node_can_start_as_a_bootstrap_node() {
 
 #[tokio::test]
 #[serial]
-#[ignore]
+#[ignore = "https://github.com/versatus/versatus/issues/468"]
 async fn node_can_join_network() {
     let node_config = create_mock_bootstrap_node_config();
 
