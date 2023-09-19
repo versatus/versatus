@@ -24,7 +24,7 @@ mod tests {
     use crate::test_utils::MockStateReader;
 
     #[tokio::test]
-    #[ignore = "depends on other instances of consensus module to work"]
+    #[ignore = "https://github.com/versatus/versatus/issues/470"]
     async fn consensus_component_can_form_genesis_quorum() {
         let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 

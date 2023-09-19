@@ -8,7 +8,7 @@ use vrrb_core::transactions::NewTransferArgs;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
-#[ignore = "state sync is not implemented yet"]
+ #[ignore = "https://github.com/versatus/versatus/issues/469"]
 async fn nodes_can_synchronize_state() {
     // NOTE: two instances of a config are required because the node will create a
     // data directory for the database which cannot be the same for both nodes
