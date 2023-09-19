@@ -8,7 +8,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 async fn process_full_node_event_flow() {
     let b_node_config = create_mock_bootstrap_node_config();
 
-    let mut bootstrap_node = Node::start(b_node_config).await.unwrap();
+    let bootstrap_node = Node::start(b_node_config).await.unwrap();
 
     let _bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
 

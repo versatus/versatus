@@ -271,7 +271,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/storage/utils
+          args: --manifest-path ./crates/storage/storage_utils
 
   test-telemetry:
     name: test telemetry
