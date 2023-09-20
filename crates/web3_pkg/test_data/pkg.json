@@ -1,0 +1,30 @@
+{
+  "apiVersion": 2,
+  "pkgAuthor": "Versatus Labs",
+  "pkgName": "Versatus Smart Contract",
+  "pkgObjects": [
+    {
+      "objectArch": "wasm32Wasi",
+      "objectCid": {
+        "/": "QmYSjeNygNwKP4E2vhZUs888UtdFXdpdZfkq7L4rH9nFgn"
+      },
+      "objectPath": "wasm_test-opt.wasm",
+      "objectType": "executable"
+    },
+    {
+      "objectArch": "none",
+      "objectCid": {
+        "/": "QmTfQN1BvGytvGvzXBMBYvTMMVaKcDbLcDxWJCfrKFUYZg"
+      },
+      "objectPath": "README.md",
+      "objectType": "document"
+    }
+  ],
+  "pkgReplaces": [
+    {
+      "/": "bafyreialcti7pn4eqgrdkr3aug45mhcqm65htuwkmtdw5pwth73a5o7piu"
+    }
+  ],
+  "pkgType": "smartContract",
+  "pkgVersion": 5
+}
