@@ -216,6 +216,7 @@ impl VrrbDb {
                 // TODO: check if timestamps are correct
 
                 let updates = IntoUpdates::from_txn(txn_kind.clone());
+                // TODO: applpy updates to state trie
 
                 let sender_address = txn.sender_address();
                 let receiver_address = txn.receiver_address();
