@@ -30,6 +30,7 @@ pub async fn create_wallet_with_rpc_client() {
 
 #[tokio::test]
 #[serial]
+#[ignore = "https://github.com/versatus/versatus/issues/482"]
 pub async fn wallet_sends_txn_to_rpc_server() {
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
