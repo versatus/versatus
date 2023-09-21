@@ -34,6 +34,32 @@ impl VrrbDbConfig {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ApplyBlockResult {
+    state_root_hash: RootHash,
+    transactions_root_hash: RootHash,
+    // claims_root_hash: RootHash,
+}
+
+impl ApplyBlockResult {
+    pub fn state_root_hash_str(&self) -> String {
+        let state_root_hash = self.state_root_hash.clone();
+        // let transaction_root_hash = self.transaction_store.root_hash()?;
+
+        // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
+        let state_root_hash_hex = hex::encode(state_root_hash.0);
+        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
+        state_root_hash_hex
+    }
+
+    pub fn transactions_root_hash_str(&self) -> String {
+        let txn_root_hash = self.transactions_root_hash.clone();
+
+        let txn_root_hash_hex = hex::encode(txn_root_hash.0);
+        txn_root_hash_hex
+    }
+}
+
 impl Default for VrrbDbConfig {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
@@ -254,7 +280,7 @@ impl VrrbDb {
     }
 
     /// Applies a block of transactions updating the account states accordingly.
-    pub fn apply_block(&mut self, block: Block) -> Result<String> {
+    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
 
         match block {
@@ -276,16 +302,17 @@ impl VrrbDb {
         self.state_store.commit();
 
         let state_root_hash = self.state_store.root_hash()?;
-        let txn_root_hash = self.transaction_store.root_hash()?;
-        // let claim_root_hash = self.claim_store.root_hash()?;
+        let transactions_root_hash = self.transaction_store.root_hash()?;
 
-        let txn_root_hash_hex = hex::encode(txn_root_hash.0);
-        let state_root_hash_hex = hex::encode(state_root_hash.0);
+        // let claim_root_hash = self.claim_store.root_hash()?;
+        // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
+        // let state_root_hash_hex = hex::encode(state_root_hash.0);
         // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
 
-        dbg!(&txn_root_hash_hex, &state_root_hash_hex);
-
-        Ok(txn_root_hash_hex)
+        Ok(ApplyBlockResult {
+            state_root_hash,
+            transactions_root_hash,
+        })
     }
 }
 

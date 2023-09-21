@@ -415,25 +415,26 @@ mod tests {
 
         let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
 
-        let mut hashes = Vec::new();
+        let mut apply_results = Vec::new();
 
         for (_, harvester) in harvesters.iter_mut() {
-            let hash = harvester
+            let apply_result = harvester
                 .handle_block_received(Block::Genesis {
                     block: genesis_block.clone(),
                 })
                 .unwrap();
 
-            hashes.push(hash);
+            apply_results.push(apply_result);
         }
 
         for (_, harvester) in harvesters.iter_mut() {
             let txn_trie_root_hash = harvester.transactions_root_hash().unwrap();
-            for hash in hashes.iter() {
-                assert_eq!(txn_trie_root_hash, hash.to_owned());
+            let state_trie_root_hash = harvester.state_root_hash().unwrap();
+            for res in apply_results.iter() {
+                assert_eq!(txn_trie_root_hash, res.transactions_root_hash_str());
+                assert_eq!(state_trie_root_hash, res.state_root_hash_str());
             }
         }
-        panic!();
     }
 
     #[tokio::test]
@@ -454,22 +455,24 @@ mod tests {
 
         let convergence_block = miner_node.mine_convergence_block().unwrap();
 
-        let mut hashes = Vec::new();
+        let mut apply_results = Vec::new();
 
         for (_, harvester) in harvesters.iter_mut() {
-            let hash = harvester
+            let apply_result = harvester
                 .handle_block_received(Block::Convergence {
                     block: convergence_block.clone(),
                 })
                 .unwrap();
 
-            hashes.push(hash);
+            apply_results.push(apply_result);
         }
 
         for (_, harvester) in harvesters.iter_mut() {
             let txn_trie_root_hash = harvester.transactions_root_hash().unwrap();
-            for hash in hashes.iter() {
-                assert_eq!(txn_trie_root_hash, hash.to_owned());
+            let state_trie_root_hash = harvester.state_root_hash().unwrap();
+            for res in apply_results.iter() {
+                assert_eq!(txn_trie_root_hash, res.transactions_root_hash_str());
+                assert_eq!(state_trie_root_hash, res.state_root_hash_str());
             }
         }
         panic!();

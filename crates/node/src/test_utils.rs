@@ -9,7 +9,6 @@ use std::{
 use async_trait::async_trait;
 use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
-use dkg_engine::dkg::DkgGenerator;
 
 use events::EventPublisher;
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
@@ -29,7 +28,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 use crate::{
     data_store::DataStore, network::NetworkEvent, node_runtime::NodeRuntime,
-    state_manager::DagModule, state_reader::StateReader, Node, NodeError, Result,
+    state_reader::StateReader, Node, NodeError, Result,
 };
 
 pub fn create_mock_full_node_config() -> NodeConfig {

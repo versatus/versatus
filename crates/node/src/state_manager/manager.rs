@@ -14,15 +14,18 @@ use primitives::{
     Address, ByteSlice, ByteVec, NodeId, ProgramExecutionOutput, RawSignature, Round,
     TxnValidationStatus,
 };
-use storage::vrrbdb::types::*;
+use storage::vrrbdb::{types::*, ApplyBlockResult};
 use storage::{
     storage_utils::StorageError,
     vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 use vrrb_core::{account::Account, claim::Claim, serde_helpers::decode_from_binary_byte_slice};
+use vrrb_core::{
+    account::UpdateArgs,
+    transactions::{Transaction, TransactionDigest, TransactionKind},
+};
 
 use crate::{data_store::DataStore, state_reader::StateReader};
 use crate::{NodeError, Result};
@@ -320,13 +323,13 @@ impl StateManager {
         Ok(())
     }
 
-    pub fn apply_block(&mut self, block: Block) -> Result<String> {
-        let root_hash = self
+    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
+        let apply_result = self
             .database
             .apply_block(block)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        Ok(root_hash)
+        Ok(apply_result)
     }
 
     pub fn handle_new_txn_created(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
@@ -369,6 +372,32 @@ impl StateManager {
             .filter(|(_, claim)| claim_hashes.contains(&claim.hash))
             .map(|(_, claim)| claim)
             .collect())
+    }
+
+    pub fn get_claims_by_account_address(&self, address: &Address) -> Result<Vec<Claim>> {
+        Ok(self
+            .database
+            .claim_store_factory()
+            .handle()
+            .entries()
+            .clone()
+            .into_iter()
+            .filter(|(_, claim)| &claim.address == address)
+            .map(|(_, claim)| claim)
+            .collect())
+    }
+
+    pub fn update_account(&mut self, update_args: UpdateArgs) -> Result<()> {
+        self.database
+            .update_account(update_args)
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn get_account(&self, address: &Address) -> Result<Account> {
+        let handle = self.database.state_store_factory().handle();
+        handle
+            .get(address)
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
 }
 

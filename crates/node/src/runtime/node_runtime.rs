@@ -21,13 +21,13 @@ use primitives::{
 };
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
-use storage::vrrbdb::{VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
-    account::Account,
+    account::{Account, UpdateArgs},
     claim::Claim,
     transactions::{
         generate_txn_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
@@ -374,6 +374,10 @@ impl NodeRuntime {
         self.state_driver.transactions_root_hash()
     }
 
+    pub fn state_root_hash(&self) -> Result<String> {
+        self.state_driver.state_root_hash()
+    }
+
     pub fn state_snapshot(&self) -> HashMap<Address, Account> {
         let handle = self.state_driver.read_handle();
         handle.state_store_values()
@@ -405,20 +409,28 @@ impl NodeRuntime {
         Ok(address)
     }
 
-    pub fn update_account(&self, account: Account) -> Result<()> {
-        todo!()
+    pub fn update_account(&mut self, args: UpdateArgs) -> Result<()> {
+        self.state_driver.update_account(args)
     }
 
-    pub fn get_account_by_address(&self, address: Address) -> Result<Account> {
-        todo!()
+    pub fn get_account_by_address(&self, address: &Address) -> Result<Account> {
+        self.state_driver.get_account(address)
     }
 
     pub fn get_round(&self) -> Result<Round> {
-        todo!()
+        let header =
+            self.state_driver
+                .dag
+                .last_confirmed_block_header()
+                .ok_or(NodeError::Other(format!(
+                    "failed to fetch latest block header from dag"
+                )))?;
+
+        Ok(header.round)
     }
 
-    pub fn get_claims_by_account_id(&self, address: Address) -> Result<Vec<Claim>> {
-        todo!()
+    pub fn get_claims_by_account_address(&self, address: &Address) -> Result<Vec<Claim>> {
+        self.state_driver.get_claims_by_account_address(address)
     }
 
     pub fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>> {
@@ -431,7 +443,7 @@ impl NodeRuntime {
 }
 
 impl NodeRuntime {
-    pub fn handle_block_received(&mut self, block: Block) -> Result<String> {
+    pub fn handle_block_received(&mut self, block: Block) -> Result<ApplyBlockResult> {
         match block {
             Block::Genesis { block } => self.handle_genesis_block_received(block),
             Block::Proposal { block } => self.handle_proposal_block_received(block),
@@ -439,7 +451,7 @@ impl NodeRuntime {
         }
     }
 
-    fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<String> {
+    fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         self.has_required_node_type(NodeType::Validator, "store genesis block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "store genesis block")?;
 
@@ -450,21 +462,24 @@ impl NodeRuntime {
                 NodeError::Other(format!("Could not append genesis block to DAG: {err:?}"))
             })?;
 
-        let root_hash = self.state_driver.apply_block(Block::Genesis { block })?;
+        let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 
-        Ok(root_hash)
+        Ok(apply_result)
     }
 
-    fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<String> {
+    fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<ApplyBlockResult> {
         if let Err(e) = self.state_driver.dag.append_proposal(&block) {
             let err_note = format!("Encountered GraphError: {e:?}");
             return Err(NodeError::Other(err_note));
         }
-        Ok("".to_string())
+        todo!()
     }
 
     /// Certifies and stores a convergence block within a node's state if certification succeeds
-    fn handle_convergence_block_received(&mut self, block: ConvergenceBlock) -> Result<String> {
+    fn handle_convergence_block_received(
+        &mut self,
+        block: ConvergenceBlock,
+    ) -> Result<ApplyBlockResult> {
         self.has_required_node_type(NodeType::Validator, "certify convergence block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
 
@@ -484,11 +499,11 @@ impl NodeRuntime {
             }
         }
 
-        let root_hash = self
+        let apply_result = self
             .state_driver
             .apply_block(Block::Convergence { block })?;
 
-        Ok(root_hash)
+        Ok(apply_result)
     }
 
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
