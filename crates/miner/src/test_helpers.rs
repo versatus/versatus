@@ -14,7 +14,7 @@ use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
 };
-use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 use crate::{result::MinerError, Miner, MinerConfig};
 
@@ -136,11 +136,11 @@ pub(crate) fn create_txns(
             .amount(amount)
             .signature(sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")))
             .nonce(n as u128)
-            .build().unwrap();
+            .build_kind().unwrap();
 
         txn.sign(&sk);
 
-        let txn_digest_vec = generate_txn_digest_vec(
+        let txn_digest_vec = generate_transfer_digest_vec(
             txn.timestamp(),
             txn.sender_address().to_string(),
             txn.sender_public_key(),

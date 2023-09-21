@@ -302,7 +302,7 @@ pub fn create_txn_from_accounts(
 
     txn.sign(&sk);
 
-    let txn_digest_vec = generate_txn_digest_vec(
+    let txn_digest_vec = generate_transfer_digest_vec(
         txn.timestamp(),
         txn.sender_address().to_string(),
         txn.sender_public_key(),
@@ -365,7 +365,7 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 }
 
 use rand::{seq::SliceRandom, thread_rng};
-use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
