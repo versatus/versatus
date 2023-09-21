@@ -168,7 +168,7 @@ impl StateStore {
     }
 
     /// Updates a given account if it exists within the store
-    fn update_uncommited(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
+    pub fn update_uncommited(&mut self, key: Address, update: UpdateArgs) -> Result<()> {
         let mut account = self
             .read_handle()
             .get(&key)

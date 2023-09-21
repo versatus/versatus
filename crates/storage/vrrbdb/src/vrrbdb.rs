@@ -5,7 +5,7 @@ use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
@@ -231,45 +231,39 @@ impl VrrbDb {
         todo!()
     }
 
+    fn apply_transfer(&mut self, read_handle: VrrbDbReadHandle, txn: Transfer) -> Result<()> {
+        let txn = TransactionKind::Transfer(txn);
+
+        let sender_address = txn.sender_address();
+        let receiver_address = txn.receiver_address();
+
+        // TODO: create methods to check if these exist
+        read_handle.get_account_by_address(&sender_address)?;
+        read_handle.get_account_by_address(&receiver_address)?;
+
+        let updates = IntoUpdates::from_txn(txn.clone());
+
+        self.state_store
+            .update_uncommited(sender_address, updates.sender_update.into())?;
+
+        self.state_store
+            .update_uncommited(receiver_address, updates.receiver_update.into())?;
+
+        self.state_store.commit();
+
+        // TODO: update transaction's state
+        self.transaction_store.insert(txn)?;
+
+        Ok(())
+    }
+
     fn apply_txn(
         &mut self,
         read_handle: VrrbDbReadHandle,
         txn_kind: TransactionKind,
     ) -> Result<()> {
-        match &txn_kind {
-            TransactionKind::Transfer(txn) => {
-                // TODO: check if sender has enough balance
-                // TODO: check if timestamps are correct
-
-                let updates = IntoUpdates::from_txn(txn_kind.clone());
-                // TODO: applpy updates to state trie
-
-                let sender_address = txn.sender_address();
-                let receiver_address = txn.receiver_address();
-
-                let sender = read_handle.get_account_by_address(&sender_address)?;
-                let receiver = read_handle.get_account_by_address(&receiver_address)?;
-
-                println!("{}", sender);
-                println!("{}", receiver);
-
-                // let update = UpdateArgs {
-                //     address: sender.address().to_owned(),
-                //     nonce: Some(sender.nonce() + 1),
-                //     credits: (),
-                //     debits: (),
-                //     storage: None,
-                //     code: None,
-                //     digests: (),
-                // };
-
-                // self.state_store.update(update);
-
-                // TODO: update transaction's state
-                self.transaction_store.insert(txn_kind)?;
-
-                Ok(())
-            },
+        match txn_kind {
+            TransactionKind::Transfer(txn) => self.apply_transfer(read_handle, txn),
             _ => {
                 telemetry::info!("unsupported transaction type: {:?}", txn_kind);
                 Err(StorageError::Other(
@@ -303,10 +297,7 @@ impl VrrbDb {
 
         let state_root_hash = self.state_store.root_hash()?;
         let transactions_root_hash = self.transaction_store.root_hash()?;
-
         // let claim_root_hash = self.claim_store.root_hash()?;
-        // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
-        // let state_root_hash_hex = hex::encode(state_root_hash.0);
         // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
 
         Ok(ApplyBlockResult {

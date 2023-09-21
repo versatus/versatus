@@ -325,7 +325,7 @@ impl Account {
     ///   update each field of the account struct.
     pub fn update(&mut self, args: UpdateArgs) -> Result<()> {
         if let Some(nonce) = args.nonce {
-            if nonce <= self.nonce {
+            if nonce < self.nonce {
                 return Err(Error::Other(format!(
                     "nonce from args {} is smaller than current nonce {}",
                     nonce, self.nonce
