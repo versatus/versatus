@@ -1,18 +1,16 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    sync::Arc,
 };
 
 use hbbft::{
-    crypto::{PublicKey, PublicKeySet, SecretKey, SecretKeyShare},
-    sync_key_gen::{self, Ack, Part, SyncKeyGen},
+    crypto::{PublicKey, PublicKeySet, SecretKeyShare},
+    sync_key_gen::{Ack, Part, SyncKeyGen},
 };
 use primitives::NodeId;
 use rand::rngs::OsRng;
 
 use crate::{
     prelude::{ReceiverId, SenderId},
-    DkgError,
 };
 
 #[derive(Debug, Default)]

@@ -288,7 +288,7 @@ impl DkgGenerator for DkgEngine {
     ///  Generate the  distributed public key and secreykeyshare for the node in
     /// the Quorum
     fn generate_key_sets(&mut self) -> Result<()> {
-        let mut keygen = self
+        let keygen = self
             .dkg_state
             .sync_key_gen_mut()
             .as_mut()

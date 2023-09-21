@@ -18,7 +18,6 @@ use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{
     QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind,
 };
-use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;
