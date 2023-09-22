@@ -21,11 +21,17 @@ use thiserror::Error;
 
 use crate::storage_utils;
 
+#[deprecated(note = "use MinerSecretKey instead")]
 pub type MinerSk = secp256k1::SecretKey;
+
+#[deprecated(note = "use MinerPublicKey instead")]
 pub type MinerPk = secp256k1::PublicKey;
 
-pub type SecretKeys = (MinerSk, ValidatorSecretKey);
-pub type PublicKeys = (MinerPk, ValidatorPublicKey);
+pub type MinerPublicKey = secp256k1::PublicKey;
+pub type MinerSecretKey = secp256k1::SecretKey;
+
+pub type SecretKeys = (MinerSecretKey, ValidatorSecretKey);
+pub type PublicKeys = (MinerPublicKey, ValidatorPublicKey);
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
 pub struct KeyPair {
@@ -40,21 +46,21 @@ pub type Keypair = KeyPair;
 pub enum KeyPairError {
     #[error("Failed to deserialize the secret key from bytes")]
     InvalidKeyPair,
-    #[error("Failed to serialize the  key to bytes, details :{0}")]
+    #[error("Failed to serialize the  key to bytes: {0}")]
     SerializeKeyError(String, String),
-    #[error("Failed to read key from file ,details :{0}")]
+    #[error("Failed to read key from file: {0}")]
     FailedToReadFromFile(String),
     #[error("Invalid Hex represenation of secret key")]
     InvalidHex,
-    #[error("Failed to create directory for storage of  secret key :{0}")]
+    #[error("Failed to create directory for storage of secret key: {0}")]
     IOError(String),
     #[error("Failed to deserialize the public key from bytes")]
     InvalidPublicKey,
-    #[error("Invalid signature ,details : {0}")]
+    #[error("Invalid signature: {0}")]
     InvalidSignature(String),
-    #[error("ECDSA Signature Verification failed ,details : {0}")]
+    #[error("ECDSA Signature Verification failed: {0}")]
     SignatureVerificationFailed(String),
-    #[error("Failed to de-serialize {0} key ")]
+    #[error("Failed to deserialize {0} key ")]
     InvalidKey(String),
 }
 
@@ -69,6 +75,7 @@ impl KeyPair {
         let mut rng = rand::thread_rng();
         let (miner_sk, miner_pk) = secp.generate_keypair(&mut rng);
         KeyPair {
+            // TODO: Consider renaming to simply sk and pk as this pair is not only used for mining
             miner_kp: (miner_sk, miner_pk),
             validator_kp: (validator_sk, validator_pk),
         }
@@ -303,9 +310,17 @@ impl KeyPair {
         self.validator_kp.1
     }
 
-    #[deprecated]
+    #[deprecated(note = "use validator_public_key_owned instead")]
     pub fn get_validator_public_key_owned(&self) -> ValidatorPublicKey {
         self.validator_public_key_owned()
+    }
+
+    pub fn miner_public_key_owned(&self) -> MinerPublicKey {
+        self.miner_kp.1
+    }
+
+    pub fn miner_secret_key_owned(&self) -> MinerSecretKey {
+        self.miner_kp.0
     }
 }
 

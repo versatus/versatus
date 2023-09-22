@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
 use block::block::Block;
+use block::ClaimHash;
 use jsonrpsee::{core::Error, proc_macros::rpc};
 use primitives::{Address, NodeType, Round};
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
-use block::ClaimHash;
-use vrrb_core::node_health_report::NodeHealthReport;
 use storage::vrrbdb::Claims;
-use vrrb_core::{
-    account::Account,
-};
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
-use vrrb_core::transactions::{NewTransferArgs, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp};
-
+use vrrb_core::account::Account;
+use vrrb_core::claim::Claim;
+use vrrb_core::node_health_report::NodeHealthReport;
+use vrrb_core::transactions::{
+    NewTransferArgs, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp,
+};
 
 use crate::rpc::SignOpts;
 

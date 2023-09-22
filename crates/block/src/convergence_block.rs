@@ -4,20 +4,11 @@ use reward::reward::Reward;
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
-use vrrb_core::{
-    claim::Claim,
-};
+use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
-#[cfg(mainnet)]
-use crate::genesis;
 use crate::{
-    header::BlockHeader,
-    Block,
-    BlockHash,
-    Certificate,
-    ConsolidatedClaims,
-    ConsolidatedTxns,
+    header::BlockHeader, Block, BlockHash, Certificate, ConsolidatedClaims, ConsolidatedTxns,
 };
 
 pub struct MineArgs<'a> {

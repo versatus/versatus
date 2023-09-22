@@ -6,6 +6,15 @@ pub struct Bloom {
     filter: CuckooFilter<DefaultHasher>,
 }
 
+impl Clone for Bloom {
+    fn clone(&self) -> Self {
+        let exported = self.filter.export();
+        let filter = CuckooFilter::from(exported);
+
+        Bloom { filter }
+    }
+}
+
 impl std::fmt::Debug for Bloom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: implement debug for filter

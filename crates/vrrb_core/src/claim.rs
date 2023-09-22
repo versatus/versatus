@@ -351,6 +351,58 @@ impl Claim {
             "eligible".to_string(),
         ]
     }
+
+    pub fn public_key(&self) -> &PublicKey {
+        &self.public_key
+    }
+
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    pub fn eligibility(&self) -> &Eligibility {
+        &self.eligibility
+    }
+
+    pub fn ip_address(&self) -> &SocketAddr {
+        &self.ip_address
+    }
+
+    pub fn signature(&self) -> &String {
+        &self.signature
+    }
+
+    pub fn node_id(&self) -> &NodeId {
+        &self.node_id
+    }
+
+    pub fn public_key_owned(&self) -> PublicKey {
+        self.public_key.clone()
+    }
+
+    pub fn address_owned(&self) -> Address {
+        self.address.clone()
+    }
+
+    pub fn hash_owned(&self) -> U256 {
+        self.hash
+    }
+
+    pub fn eligibility_owned(&self) -> Eligibility {
+        self.eligibility.clone()
+    }
+
+    pub fn ip_address_owned(&self) -> SocketAddr {
+        self.ip_address
+    }
+
+    pub fn signature_owned(&self) -> String {
+        self.signature.clone()
+    }
+
+    pub fn node_id_owned(&self) -> NodeId {
+        self.node_id.clone()
+    }
 }
 
 /// Implements the Ownable trait on a claim

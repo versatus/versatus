@@ -1,4 +1,7 @@
-use std::net::SocketAddr;
+use std::{
+    marker::{PhantomData, PhantomPinned},
+    net::SocketAddr,
+};
 
 use events::{Event, EventPublisher, EventRouter, Topic};
 use primitives::{KademliaPeerId, NodeType};
@@ -13,8 +16,8 @@ use vrrb_core::keypair::{KeyPair, Keypair};
 use vrrb_core::node_health_report::NodeHealthReport;
 
 use crate::{
-    result::Result, runtime::setup_runtime_components,
-    NodeError, RuntimeComponentManager,
+    data_store::DataStore, result::Result, runtime::setup_runtime_components,
+    state_reader::StateReader, NodeError, RuntimeComponentManager,
 };
 
 /// Node represents a member of the VRRB network and it is responsible for
@@ -47,7 +50,7 @@ impl Node {
         let mut router = EventRouter::new();
         router.add_topic(Topic::from("json-rpc-api-control"), Some(1));
         router.add_topic(Topic::from("network-events"), Some(1000));
-        router.add_topic(Topic::from("consensus-events"), Some(1000));
+        router.add_topic(Topic::from("runtime-events"), Some(1000));
 
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
@@ -143,7 +146,7 @@ impl Node {
         self.config.udp_gossip_address
     }
 
-    pub fn raprtorq_gossip_address(&self) -> SocketAddr {
+    pub fn raptorq_gossip_address(&self) -> SocketAddr {
         self.config.raptorq_gossip_address
     }
 

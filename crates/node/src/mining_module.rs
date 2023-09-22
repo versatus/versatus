@@ -3,9 +3,9 @@ use std::sync::{Arc, RwLock};
 use async_trait::async_trait;
 use block::Block;
 use bulldag::graph::BullDag;
-use events::{Event, EventMessage, EventPublisher, EventSubscriber};
+use events::{Event, EventMessage, EventPublisher};
 use mempool::MempoolReadHandleFactory;
-use miner::{Miner, MinerConfig};
+use miner::Miner;
 use primitives::Address;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -20,18 +20,12 @@ pub struct MiningModule {
     status: ActorState,
     label: ActorLabel,
     id: ActorId,
-    events_tx: EventPublisher,
     miner: Miner,
-    _vrrbdb_read_handle: VrrbDbReadHandle,
-    _mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 #[derive(Debug, Clone)]
 pub struct MiningModuleConfig {
-    pub events_tx: EventPublisher,
     pub miner: Miner,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
-    pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 
 impl MiningModule {
@@ -40,28 +34,25 @@ impl MiningModule {
             id: uuid::Uuid::new_v4().to_string(),
             label: String::from("Miner"),
             status: ActorState::Stopped,
-            events_tx: cfg.events_tx,
             miner: cfg.miner,
-            _vrrbdb_read_handle: cfg.vrrbdb_read_handle,
-            _mempool_read_handle_factory: cfg.mempool_read_handle_factory,
         }
     }
 }
 impl MiningModule {
-    fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<TransactionKind> {
-        let mut handle = self._mempool_read_handle_factory.handle();
-
-        // TODO: drain mempool instead then commit changes
-        handle
-            .drain(..cutoff_idx)
-            .map(|(_id, record)| record.txn)
-            .collect()
-    }
-
-    fn _mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
-        telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
-        // TODO: run a batch update to mark txns as being processed
-    }
+    // fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<TransactionKind> {
+    //     let mut handle = self._mempool_read_handle_factory.handle();
+    //
+    //     // TODO: drain mempool instead then commit changes
+    //     handle
+    //         .drain(..cutoff_idx)
+    //         .map(|(_id, record)| record.txn)
+    //         .collect()
+    // }
+    //
+    // fn _mark_snapshot_transactions(&mut self, cutoff_idx: usize) {
+    //     telemetry::info!("Marking transactions as mined until index: {}", cutoff_idx);
+    //     // TODO: run a batch update to mark txns as being processed
+    // }
 }
 
 #[async_trait]
@@ -150,65 +141,3 @@ impl Handler<EventMessage> for MiningModule {
 
 // TODO: figure out how to avoid this
 unsafe impl Send for MiningModule {}
-
-#[derive(Debug)]
-pub struct MiningModuleComponentConfig {
-    pub config: NodeConfig,
-    pub events_tx: EventPublisher,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
-    pub mempool_read_handle_factory: MempoolReadHandleFactory,
-    pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    pub miner_events_rx: EventSubscriber,
-}
-
-#[async_trait]
-impl RuntimeComponent<MiningModuleComponentConfig, ()> for MiningModule {
-    async fn setup(args: MiningModuleComponentConfig) -> crate::Result<RuntimeComponentHandle<()>> {
-        let config = args.config;
-        let events_tx = args.events_tx;
-        let vrrbdb_read_handle = args.vrrbdb_read_handle;
-        let mut miner_events_rx = args.miner_events_rx;
-        let mempool_read_handle_factory = args.mempool_read_handle_factory;
-        let dag = args.dag;
-        let node_id = config.id.clone();
-
-        let (_, miner_secret_key) = config.keypair.get_secret_keys();
-        let (_, miner_public_key) = config.keypair.get_public_keys();
-
-        let _address = Address::new(*miner_public_key).to_string();
-        let miner_config = MinerConfig {
-            secret_key: *miner_secret_key,
-            public_key: *miner_public_key,
-            ip_address: config.public_ip_address,
-            dag,
-        };
-
-        let miner = miner::Miner::new(miner_config, node_id).map_err(NodeError::from)?;
-        let module_config = MiningModuleConfig {
-            miner,
-            events_tx,
-            vrrbdb_read_handle,
-            mempool_read_handle_factory,
-        };
-
-        let module = MiningModule::new(module_config);
-
-        let mut miner_module_actor = ActorImpl::new(module);
-        let label = miner_module_actor.label();
-
-        let miner_handle = tokio::spawn(async move {
-            miner_module_actor
-                .start(&mut miner_events_rx)
-                .await
-                .map_err(|err| NodeError::Other(err.to_string()))
-        });
-
-        let component_handle = RuntimeComponentHandle::new(miner_handle, (), label);
-
-        Ok(component_handle)
-    }
-
-    async fn stop(&mut self) -> crate::Result<()> {
-        todo!()
-    }
-}

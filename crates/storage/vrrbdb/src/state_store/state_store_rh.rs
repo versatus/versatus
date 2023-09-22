@@ -19,6 +19,7 @@ impl StateStoreReadHandle {
         Self { inner }
     }
 
+    /// NOTE: outdated docs
     /// Returns `Some(Account)` if an account exist under given PublicKey.
     /// Otherwise returns `None`.
     pub fn get(&self, key: &Address) -> Result<Account> {

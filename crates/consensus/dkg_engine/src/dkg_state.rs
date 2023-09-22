@@ -1,4 +1,6 @@
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+};
 
 use hbbft::{
     crypto::{PublicKey, PublicKeySet, SecretKeyShare},
@@ -7,12 +9,14 @@ use hbbft::{
 use primitives::NodeId;
 use rand::rngs::OsRng;
 
-use crate::prelude::SenderId;
+use crate::{
+    prelude::{ReceiverId, SenderId},
+};
 
 #[derive(Debug, Default)]
 pub struct DkgState {
     part_message_store: HashMap<NodeId, Part>,
-    ack_message_store: HashMap<(NodeId, SenderId), Ack>,
+    ack_message_store: HashMap<(ReceiverId, SenderId), Ack>,
     peer_public_keys: BTreeMap<NodeId, PublicKey>,
     public_key_set: Option<PublicKeySet>,
     secret_key_share: Option<SecretKeyShare>,
@@ -51,19 +55,22 @@ impl DkgState {
         self.part_message_store = part_message_store;
     }
 
-    pub fn ack_message_store_owned(&self) -> HashMap<(NodeId, SenderId), Ack> {
+    pub fn ack_message_store_owned(&self) -> HashMap<(SenderId, ReceiverId), Ack> {
         self.ack_message_store.clone()
     }
 
-    pub fn ack_message_store(&self) -> &HashMap<(NodeId, SenderId), Ack> {
+    pub fn ack_message_store(&self) -> &HashMap<(SenderId, ReceiverId), Ack> {
         &self.ack_message_store
     }
 
-    pub fn ack_message_store_mut(&mut self) -> &mut HashMap<(NodeId, SenderId), Ack> {
+    pub fn ack_message_store_mut(&mut self) -> &mut HashMap<(SenderId, ReceiverId), Ack> {
         &mut self.ack_message_store
     }
 
-    pub fn set_ack_message_store(&mut self, ack_message_store: HashMap<(NodeId, SenderId), Ack>) {
+    pub fn set_ack_message_store(
+        &mut self,
+        ack_message_store: HashMap<(SenderId, ReceiverId), Ack>,
+    ) {
         self.ack_message_store = ack_message_store;
     }
 
@@ -73,6 +80,10 @@ impl DkgState {
 
     pub fn peer_public_keys_mut(&mut self) -> &mut BTreeMap<NodeId, PublicKey> {
         &mut self.peer_public_keys
+    }
+
+    pub fn peer_public_keys_owned(&self) -> BTreeMap<NodeId, PublicKey> {
+        self.peer_public_keys.clone()
     }
 
     pub fn set_peer_public_keys(&mut self, peer_public_keys: BTreeMap<NodeId, PublicKey>) {
@@ -87,6 +98,10 @@ impl DkgState {
         &mut self.public_key_set
     }
 
+    pub fn public_key_set_owned(&self) -> Option<PublicKeySet> {
+        self.public_key_set.clone()
+    }
+
     pub fn set_public_key_set(&mut self, public_key_set: Option<PublicKeySet>) {
         self.public_key_set = public_key_set;
     }
@@ -97,6 +112,10 @@ impl DkgState {
 
     pub fn secret_key_share_mut(&mut self) -> &mut Option<SecretKeyShare> {
         &mut self.secret_key_share
+    }
+
+    pub fn secret_key_share_owned(&self) -> Option<SecretKeyShare> {
+        self.secret_key_share.clone()
     }
 
     pub fn set_secret_key_share(&mut self, secret_key_share: Option<SecretKeyShare>) {
