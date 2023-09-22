@@ -567,10 +567,8 @@ impl ConsensusModule {
     /// * `status`: The `status` parameter is of type `TxnStatus`, which is an
     ///   enum representing the
     /// status of a transaction.
-    pub fn update_txn_status(&mut self, txn_id: TransactionDigest, status: TxnStatus) {
-
-        // TODO: publish a status update to mempool
-
+    // TODO: revisit
+    pub fn update_txn_status(&mut self, _txn_id: TransactionDigest, _status: TxnStatus) {
         // let txn_record_opt = self.tx_mempool.get(&txn_id);
         // if let Some(mut txn_record) = txn_record_opt {
         //     txn_record.status = status;

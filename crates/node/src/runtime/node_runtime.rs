@@ -6,8 +6,8 @@ use std::{
 };
 
 use block::{
-    header::BlockHeader, Block, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock,
-    ProposalBlock, RefHash,
+    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
+    GenesisBlock, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
@@ -247,43 +247,8 @@ impl NodeRuntime {
 
         let sender_public_key = self.config.keypair.miner_public_key_owned();
         let address = Address::new(sender_public_key);
-        let sender_secret_key = self.config.keypair.miner_secret_key_owned();
-        let timestamp = chrono::Utc::now().timestamp();
-        let token = Token::default();
-        let amount = 0;
-        let nonce = 0;
 
-        let digest = generate_txn_digest_vec(
-            timestamp,
-            address.to_string(),
-            sender_public_key,
-            address.to_string(),
-            token.clone(),
-            amount,
-            nonce,
-        );
-
-        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(&digest);
-        let signature = sender_secret_key.sign_ecdsa(msg);
-        let args = NewTransferArgs {
-            timestamp,
-            sender_address: address.clone(),
-            sender_public_key,
-            receiver_address: address.clone(),
-            token: Some(token),
-            amount,
-            signature,
-            validators: None,
-            nonce,
-        };
-
-        let txn = TransactionKind::Transfer(Transfer::new(args));
-
-        // let txns = block::vesting::generate_genesis_txns();
-
-        // #[cfg(not(mainnet))]
-        let mut txns = LinkedHashMap::new();
-        txns.insert(txn.id(), txn);
+        let txns = block::vesting::generate_genesis_txns(GenesisConfig::new(address.clone()));
 
         Ok(txns)
     }

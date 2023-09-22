@@ -55,6 +55,15 @@ pub struct GenesisConfig {
     pub receivers: Vec<GenesisReceiver>,
 }
 
+impl GenesisConfig {
+    pub fn new(sender: Address) -> Self {
+        Self {
+            sender,
+            receivers: Vec::new(),
+        }
+    }
+}
+
 #[allow(clippy::diverging_sub_expression)]
 pub fn create_vesting(
     _target: &str,
@@ -66,11 +75,12 @@ pub fn create_vesting(
 // TODO: Genesis block on local/testnet should generate either a
 // faucet for tokens, or fill some initial accounts so that testing
 // can be executed
+//
+// TODO: revisit after discussing mainnet genesis inauguration
 pub fn generate_genesis_txns(
-    sender: Address,
-    genesis_config: GenesisConfig,
+    #[allow(unused)] genesis_config: GenesisConfig,
 ) -> LinkedHashMap<TransactionDigest, TransactionKind> {
-    // #[cfg(not(mainnet))]
+    #[cfg(not(mainnet))]
     let genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> = LinkedHashMap::new();
 
     #[cfg(mainnet)]
@@ -88,6 +98,5 @@ pub fn generate_genesis_txns(
         genesis_txns.insert(vesting_txn.0, vesting_txn.1);
     }
 
-    // #[cfg(not(mainnet))]
     genesis_txns
 }
