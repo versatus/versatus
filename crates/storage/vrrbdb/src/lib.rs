@@ -2,6 +2,7 @@ mod claim_store;
 pub mod result;
 mod rocksdb_adapter;
 mod state_store;
+pub mod table;
 pub mod test_utils;
 mod transaction_store;
 pub mod types;

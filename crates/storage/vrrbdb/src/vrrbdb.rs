@@ -12,7 +12,7 @@ use vrrb_core::{
 };
 
 use crate::{
-    ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, StateStore,
+    ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, RocksDbAdapter, StateStore,
     StateStoreReadHandleFactory, TransactionStore, TransactionStoreReadHandleFactory,
     VrrbDbReadHandle,
 };
