@@ -128,7 +128,7 @@ pub(crate) fn create_txns(
         let raddr = create_address(&rpk);
         let amount = (n.pow(2)) as u128;
 
-        let mut txn = Transfer::builder()
+        let mut txn = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(saddr)
             .sender_public_key(pk)
@@ -136,7 +136,7 @@ pub(crate) fn create_txns(
             .amount(amount)
             .signature(sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")))
             .nonce(n as u128)
-            .build_kind().unwrap();
+            .build_kind().expect("Failed to build transaction");
 
         txn.sign(&sk);
 
