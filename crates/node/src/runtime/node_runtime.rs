@@ -459,7 +459,7 @@ impl NodeRuntime {
             .dag
             .append_genesis(&block)
             .map_err(|err| {
-                NodeError::Other(format!("Could not append genesis block to DAG: {err:?}"))
+                NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
             })?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
@@ -469,7 +469,7 @@ impl NodeRuntime {
 
     fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<ApplyBlockResult> {
         if let Err(e) = self.state_driver.dag.append_proposal(&block) {
-            let err_note = format!("Encountered GraphError: {e:?}");
+            let err_note = format!("Failed to append proposal block to DAG: {e:?}");
             return Err(NodeError::Other(err_note));
         }
         todo!()

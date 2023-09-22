@@ -204,14 +204,12 @@ impl ConsensusModule {
         let certificates_share = self
             .convergence_block_certificates
             .get(&block_hash)
-            .unwrap();
-        //
-        //
-        // .ok_or(Err(NodeError::Other(format!(
-        //     "No certificate shares found for block {}",
-        //     block_hash
-        // ))))?;
-        //
+            .ok_or_else(|| {
+                NodeError::Other(format!(
+                    "No certificate shares found for block {}",
+                    block_hash
+                ))
+            })?;
 
         if certificates_share.len() as u16 <= quorum_threshold {
             return Err(NodeError::Other(
