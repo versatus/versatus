@@ -1,5 +1,4 @@
 mod claim_store;
-mod microkv_adapter;
 pub mod result;
 mod rocksdb_adapter;
 mod state_store;

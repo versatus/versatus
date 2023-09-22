@@ -7,7 +7,7 @@ use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::claim::Claim;
 
-use crate::{microkv_adapter::MicroKvAdapter, RocksDbAdapter};
+use crate::RocksDbAdapter;
 
 mod claim_store_rh;
 pub use claim_store_rh::*;

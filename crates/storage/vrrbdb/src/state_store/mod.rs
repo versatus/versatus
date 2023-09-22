@@ -7,7 +7,7 @@ use sha2::Sha256;
 use storage_utils::{Result, StorageError};
 use vrrb_core::account::{Account, UpdateArgs};
 
-use crate::{microkv_adapter::MicroKvAdapter, RocksDbAdapter};
+use crate::RocksDbAdapter;
 
 mod state_store_rh;
 pub use state_store_rh::*;
