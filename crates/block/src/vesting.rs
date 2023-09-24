@@ -1,6 +1,8 @@
 use primitives::Address;
 use ritelinked::LinkedHashMap;
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{
+    NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer,
+};
 
 // 50% after one year, then monthly for 12 months
 const EMPLOYEE_VESTING: VestingConfig = VestingConfig {

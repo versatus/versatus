@@ -277,8 +277,15 @@ impl VrrbDb {
     pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
 
+        // TODO: check transactions length and return error if empty
+
         match block {
             Block::Genesis { block } => {
+                if block.txns.is_empty() {
+                    return Err(StorageError::Other(
+                        "genesis block must contain at least one transaction".to_string(),
+                    ));
+                }
                 for (_, txn_kind) in block.txns {
                     self.apply_txn(read_handle.clone(), txn_kind)?;
                 }
