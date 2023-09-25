@@ -22,6 +22,7 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utils::{create_payload, hash_data};
+use vrrb_core::keypair::{MinerPublicKey, MinerSecretKey};
 use vrrb_core::{
     claim::{Claim, ClaimError},
     keypair::{MinerPk, MinerSk},
@@ -108,8 +109,8 @@ pub struct MinerConfig {
 /// }
 #[derive(Debug, Clone)]
 pub struct Miner {
-    secret_key: MinerSk,
-    public_key: MinerPk,
+    secret_key: MinerSecretKey,
+    public_key: MinerPublicKey,
     address: Address,
     pub ip_address: SocketAddr,
     pub claim: Claim,
@@ -351,10 +352,6 @@ impl Miner {
         #[cfg(mainnet)]
         let txns = genesis::generate_genesis_txns();
 
-        // TODO: Genesis block on local/testnet should generate either a
-        // faucet for tokens, or fill some initial accounts so that testing
-        // can be executed
-
         #[cfg(not(mainnet))]
         let txns = LinkedHashMap::new();
         let header = header;
@@ -524,3 +521,6 @@ impl Miner {
         0u128
     }
 }
+
+// TODO: figure out how to avoid this
+unsafe impl Send for Miner {}

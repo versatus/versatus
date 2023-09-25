@@ -5,7 +5,8 @@ use std::{
 };
 
 use derive_builder::Builder;
-use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
+use hbbft::sync_key_gen::PublicKey;
+use primitives::{KademliaPeerId, NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
@@ -69,6 +70,10 @@ pub struct NodeConfig {
 
     /// Address the node listens for JSON-RPC connections
     pub jsonrpc_server_address: SocketAddr,
+
+    /// Address the node listens for gRPC connections
+    #[deprecated(note = "deprecated in favor of the JSON-RPC API")]
+    pub grpc_server_address: SocketAddr,
 
     // TODO: refactor env-aware options
     #[builder(default = "false")]
@@ -167,6 +172,7 @@ impl Default for NodeConfig {
             http_api_version: String::from("v.0.1.0"),
             http_api_shutdown_timeout: None,
             jsonrpc_server_address: ipv4_localhost_with_random_port,
+            grpc_server_address: ipv4_localhost_with_random_port,
             preload_mock_state: false,
             bootstrap_config: None,
             quorum_config: None,

@@ -27,7 +27,7 @@ impl Default for ClaimStore {
             .join("db")
             .join("claim");
 
-        let db_adapter = RocksDbAdapter::new(db_path, "claim").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(db_path, "claims").unwrap_or_default();
 
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
@@ -39,7 +39,7 @@ impl ClaimStore {
     /// Returns new, empty instance of ClaimDb
     pub fn new(path: &Path) -> Self {
         let path = path.join("claims");
-        let db_adapter = RocksDbAdapter::new(path, "claim").unwrap_or_default();
+        let db_adapter = RocksDbAdapter::new(path, "claims").unwrap_or_default();
         let trie = LeftRightTrie::new(Arc::new(db_adapter));
 
         Self { trie }

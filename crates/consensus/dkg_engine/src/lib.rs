@@ -173,40 +173,71 @@ mod tests {
             }
         }
 
-        /*
-                println!("Node 1{:?}", dkg_engine_node1.dkg_state.part_message_store);
-
-                println!("Node 2{:?}", dkg_engine_node2.dkg_state.part_message_store);
-
-                println!("Node 3{:?}", dkg_engine_node3.dkg_state.part_message_store);
-
-                println!("Node 4{:?}", dkg_engine_node4.dkg_state.part_message_store);
-        */
+        // println!(
+        //     "Node 1{:?}",
+        //     dkg_engine_node1.dkg_state.part_message_store()
+        // );
+        //
+        // println!(
+        //     "Node 2{:?}",
+        //     dkg_engine_node2.dkg_state.part_message_store()
+        // );
+        //
+        // println!(
+        //     "Node 3{:?}",
+        //     dkg_engine_node3.dkg_state.part_message_store()
+        // );
+        //
+        // println!(
+        //     "Node 4{:?}",
+        //     dkg_engine_node4.dkg_state.part_message_store()
+        // );
+        //
         // let dkg_engine_node1_acks=vec![];
-        for i in 0..4 {
-            let _ = dkg_engine_node1.ack_partial_commitment(format!("node-{}", i));
+        for i in 1..=4 {
+            let _ = dkg_engine_node1
+                .ack_partial_commitment(format!("node-{}", i))
+                .unwrap();
             //println!("Node 1 Ack Part Committment status {:?}", s);
 
-            let _ = dkg_engine_node2.ack_partial_commitment(format!("node-{}", i));
+            let _ = dkg_engine_node2
+                .ack_partial_commitment(format!("node-{}", i))
+                .unwrap();
             //  println!("Node 2 Ack Part Committment status {:?}", s);
 
-            let _ = dkg_engine_node3.ack_partial_commitment(format!("node-{}", i));
+            let _ = dkg_engine_node3
+                .ack_partial_commitment(format!("node-{}", i))
+                .unwrap();
             //println!("Node 3 Ack Part Committment status{:?}", s);
 
-            let _ = dkg_engine_node4.ack_partial_commitment(format!("node-{}", i));
+            let _ = dkg_engine_node4
+                .ack_partial_commitment(format!("node-{}", i))
+                .unwrap();
             // println!("Node 4 Ack Part Committment status {:?}", s);
         }
 
-        /*
-                println!("Node 1{:?}", dkg_engine_node1.dkg_state.ack_message_store);
+        // println!(
+        //     "Node 1 {:?}",
+        //     dkg_engine_node1.dkg_state.ack_message_store()
+        // );
+        //
+        // println!(
+        //     "Node 2 {:?}",
+        //     dkg_engine_node2.dkg_state.ack_message_store()
+        // );
+        //
+        // println!(
+        //     "Node 3 {:?}",
+        //     dkg_engine_node3.dkg_state.ack_message_store()
+        // );
+        //
+        // println!(
+        //     "Node 4 {:?}",
+        //     dkg_engine_node4.dkg_state.ack_message_store()
+        // );
 
-                println!("Node 2{:?}", dkg_engine_node2.dkg_state.ack_message_store);
-
-                println!("Node 3{:?}", dkg_engine_node3.dkg_state.ack_message_store);
-
-                println!("Node 4{:?}", dkg_engine_node4.dkg_state.ack_message_store);
-        */
         let mut new_store: HashMap<(NodeId, SenderId), Ack>;
+
         new_store = dkg_engine_node1
             .dkg_state
             .ack_message_store_mut()
@@ -228,12 +259,15 @@ mod tests {
         dkg_engine_node1
             .dkg_state
             .set_ack_message_store(new_store.clone());
+
         dkg_engine_node2
             .dkg_state
             .set_ack_message_store(new_store.clone());
+
         dkg_engine_node3
             .dkg_state
             .set_ack_message_store(new_store.clone());
+
         dkg_engine_node4
             .dkg_state
             .set_ack_message_store(new_store.clone());
