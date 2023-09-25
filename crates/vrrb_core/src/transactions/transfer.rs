@@ -74,7 +74,7 @@ pub struct Transfer {
     pub nonce: TxNonce,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct TransferBuilder {
     timestamp: Option<TxTimestamp>,
     sender_address: Option<Address>,
