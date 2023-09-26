@@ -117,7 +117,7 @@ pub struct ConsensusModule {
     // pub certified_txns_filter: Bloom,
     // pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub votes_pool: HashMap<(TransactionDigest, String), Vec<Vote>>,
-    // pub group_public_key: GroupPublicKey,
+    pub group_public_key: GroupPublicKey,
     // pub sig_provider: Option<SignatureProvider>,
     // pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
     //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
@@ -154,6 +154,7 @@ impl ConsensusModule {
             convergence_block_certificates: Cache::new(10, 300),
             validator_core_manager,
             votes_pool: Default::default(),
+            group_public_key: Default::default(),
         })
     }
 
@@ -161,43 +162,43 @@ impl ConsensusModule {
         self.keypair.validator_public_key_owned()
     }
 
-    pub async fn mine_proposal_block(
-        &mut self,
-        ref_hash: RefHash,
-        claim_map: HashMap<String, Claim>,
-        round: Round,
-        epoch: Epoch,
-        from: Claim,
-    ) -> ProposalBlock {
-        let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
-
-        // NOTE: Read updated claims
-        // let claim_map = self.vrrbdb_read_handle.claim_store_values();
-        let claim_list = claim_map
-            .values()
-            .map(|from| (from.hash, from.clone()))
-            .collect();
-
-        let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
-            .into_iter()
-            .map(|txn| {
-                if let Err(err) = self.certified_txns_filter.push(&txn.txn().id().to_string()) {
-                    error!("Error pushing txn to certified txns filter: {}", err);
-                }
-                (txn.txn().id(), txn.clone())
-            })
-            .collect();
-
-        ProposalBlock::build(
-            ref_hash,
-            round,
-            epoch,
-            txns_list,
-            claim_list,
-            from,
-            self.keypair.get_miner_secret_key(),
-        )
-    }
+    // pub async fn mine_proposal_block(
+    //     &mut self,
+    //     ref_hash: RefHash,
+    //     claim_map: HashMap<String, Claim>,
+    //     round: Round,
+    //     epoch: Epoch,
+    //     from: Claim,
+    // ) -> ProposalBlock {
+    //     let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
+    //
+    //     // NOTE: Read updated claims
+    //     // let claim_map = self.vrrbdb_read_handle.claim_store_values();
+    //     let claim_list = claim_map
+    //         .values()
+    //         .map(|from| (from.hash, from.clone()))
+    //         .collect();
+    //
+    //     let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
+    //         .into_iter()
+    //         .map(|txn| {
+    //             if let Err(err) = self.certified_txns_filter.push(&txn.txn().id().to_string()) {
+    //                 error!("Error pushing txn to certified txns filter: {}", err);
+    //             }
+    //             (txn.txn().id(), txn.clone())
+    //         })
+    //         .collect();
+    //
+    //     ProposalBlock::build(
+    //         ref_hash,
+    //         round,
+    //         epoch,
+    //         txns_list,
+    //         claim_list,
+    //         from,
+    //         self.keypair.get_miner_secret_key(),
+    //     )
+    // }
 
     pub fn certify_block(
         &mut self,
@@ -284,6 +285,17 @@ impl ConsensusModule {
         )
     }
 
+    pub fn validate_votes(
+        &mut self,
+        votes: Vec<Option<Vote>>,
+        quorum_threshold: FarmerQuorumThreshold,
+        accounts_state: &HashMap<Address, Account>,
+    ) {
+        for vote in votes.iter().flatten() {
+            self.validate_vote(vote.clone(), quorum_threshold, accounts_state);
+        }
+    }
+
     // The above code is handling an event of type `Vote` in a Rust
     // program. It checks the integrity of the vote by
     // verifying that it comes from the actual voter and prevents
@@ -296,7 +308,7 @@ impl ConsensusModule {
         &mut self,
         vote: Vote,
         farmer_quorum_threshold: FarmerQuorumThreshold,
-        accounts_state: HashMap<Address, Account>,
+        accounts_state: &HashMap<Address, Account>,
     ) {
         // TODO: Harvester quorum nodes should check the integrity of the vote by verifying the vote does
         // come from the alleged voter Node.
@@ -318,7 +330,7 @@ impl ConsensusModule {
             }
 
             let vote_shares = Self::group_votes_by_validity(&votes);
-            let validated = self.validate_transaction(&vote.txn, &accounts_state);
+            let validated = self.validate_transaction(&vote.txn, accounts_state);
 
             if validated {
                 self.handle_validated_vote(
@@ -1016,7 +1028,10 @@ impl ConsensusModule {
         Ok(winner)
     }
 
-    pub fn handle_txns_ready_for_processing(&mut self, txns: Vec<TransactionKind>) {
+    pub async fn handle_txns_ready_for_processing(
+        &mut self,
+        txns: Vec<TransactionKind>,
+    ) -> Result<()> {
         let keys: Vec<ByteSlice48Bit> = self
             .dkg_engine
             .dkg_state
@@ -1026,49 +1041,51 @@ impl ConsensusModule {
             .collect();
 
         let maglev_hash_ring = Maglev::new(keys);
-
         // let mut new_txns = vec![];
 
-        for txn in txns.into_iter() {
-            //         if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned()
-            // {             if group_public_key == self.group_public_key {
-            //                 new_txns.push(txn);
-            //             } else if let Some(broadcast_addresses) =
-            //                 self.neighbouring_farmer_quorum_peers.get(&group_public_key)
-            //             {
-            //                 let addresses: Vec<SocketAddr> =
-            //                     broadcast_addresses.iter().cloned().collect();
-            //
-            //                 self.broadcast_events_tx
-            //                     .send(EventMessage::new(
-            //                         None,
-            //                         Event::ForwardTxn((txn.1.clone(), addresses.clone())),
+        for txn in txns {
+            // match maglev_hash_ring.get(&txn.id()).cloned() {
+            //     Some(group_public_key) if group_public_key == self.group_public_key => {
+            //         new_txns.push(txn)
+            //     },
+            //     Some(group_public_key) => {
+            //         if let Some(broadcast_addresses) =
+            //             self.neighbouring_farmer_quorum_peers.get(&group_public_key)
+            //         {
+            //             let addresses: Vec<SocketAddr> =
+            //                 broadcast_addresses.iter().cloned().collect();
+            //             self.broadcast_events_tx
+            //                 .send(EventMessage::new(
+            //                     None,
+            //                     Event::ForwardTxn((txn.1.clone(), addresses.clone())),
+            //                 ))
+            //                 .await
+            //                 .map_err(|err| {
+            //                     theater::TheaterError::Other(format!(
+            //                         "failed to forward txn {:?} to peers {:?}: {}",
+            //                         txn.1, addresses, err
             //                     ))
-            //                     .await
-            //                     .map_err(|err| {
-            //                         theater::TheaterError::Other(format!(
-            //                             "failed to forward txn {:?} to peers {addresses:?}:
-            // {err}",                             txn.1
-            //                         ))
-            //                     })?
-            //             }
-            //         } else {
-            //             new_txns.push(txn);
+            //                 })?;
             //         }
+            //     },
+            //     _ => new_txns.push(txn),
+            // }
         }
-        //
-        //     if let Some(sig_provider) = self.sig_provider.clone() {
-        //         if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
-        //             new_txns,
-        //             self.farmer_id.clone(),
-        //             self.farmer_node_idx,
-        //             self.group_public_key.clone(),
-        //             sig_provider,
-        //             self.quorum_threshold,
-        //         ))) {
-        //             telemetry::error!("error sending job to scheduler: {}", err);
-        //         }
+
+        // if let Some(sig_provider) = self.sig_provider.clone() {
+        //     if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
+        //         new_txns,
+        //         self.farmer_id.clone(),
+        //         self.farmer_node_idx,
+        //         self.group_public_key.clone(),
+        //         sig_provider,
+        //         self.quorum_threshold,
+        //     ))) {
+        //         telemetry::error!("error sending job to scheduler: {}", err);
         //     }
+        // }
+
+        Ok(())
     }
 
     pub fn handle_convergence_block_partial_signature_created(
@@ -1130,6 +1147,7 @@ impl ConsensusModule {
         //             }
         //         }
     }
+
     pub fn precheck_convergence_block(
         &mut self,
         block: ConvergenceBlock,

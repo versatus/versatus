@@ -14,8 +14,11 @@ use crate::{
 };
 
 pub mod component;
+pub mod handler_helpers;
 pub mod node_runtime;
 pub mod node_runtime_handler;
+
+pub use handler_helpers::*;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -120,6 +123,7 @@ mod tests {
     use primitives::{NodeId, NodeType, QuorumKind};
     use validator::txn_validator;
 
+    use crate::runtime::handler_helpers::*;
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
@@ -370,7 +374,6 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    #[ignore = "broken atm"]
     async fn harvester_node_runtime_can_propose_blocks() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
 
@@ -384,15 +387,44 @@ mod tests {
 
         let miner_id = miner_ids.first().unwrap();
 
-        let miner_node = miners.get(miner_id).unwrap();
+        let mut miner_node = miners.get(miner_id).unwrap().to_owned();
         let claim = miner_node.state_driver.dag.claim();
 
         let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
 
+        // TODO: impl miner elections
+        // TODO: create genesis block, certify it then append it to miner's dag
+        // TODO: store DAG on disk, separate from ledger
+
+        let mut apply_results = Vec::new();
+        // let mut genesis_certs = Vec::new();
+
+        for (_, harvester) in harvesters.iter_mut() {
+            let apply_result = harvester
+                .handle_block_received(Block::Genesis {
+                    block: genesis_block.clone(),
+                })
+                .unwrap();
+
+            // let genesis_cert = harvester
+            //     .certify_genesis_block(genesis_block.clone())
+            //     .unwrap();
+
+            apply_results.push(apply_result);
+            // genesis_certs.push(genesis_cert);
+        }
+
+        miner_node
+            .handle_block_received(Block::Genesis {
+                block: genesis_block.clone(),
+            })
+            .unwrap();
+
         for (_, harvester) in harvesters.iter_mut() {
             let proposal_block = harvester
-                .handle_proposal_block_mine_request_created(
+                .mine_proposal_block(
                     genesis_block.hash.clone(),
+                    Default::default(), // TODO: change to an actual map of harvester claims
                     1,
                     1,
                     claim.clone(),
@@ -443,6 +475,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
+    #[ignore = "broken atm"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions().unwrap();

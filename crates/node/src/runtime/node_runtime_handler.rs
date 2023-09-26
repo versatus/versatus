@@ -213,21 +213,11 @@ impl Handler<EventMessage> for NodeRuntime {
             } => {
                 self.handle_convergence_block_precheck_requested(convergence_block, block_header);
             },
+
             Event::TxnsReadyForProcessing(txns) => {
                 // Receives a batch of transactions from mempool and sends
                 // them to scheduler to get it validated and voted
                 self.consensus_driver.handle_txns_ready_for_processing(txns);
-            },
-
-            // Receive votes from scheduler
-            Event::TxnsValidated {
-                votes,
-                quorum_threshold,
-            } => {
-                for vote in votes.iter().flatten() {
-                    // self.consensus_driver
-                    //     .validate_vote(vote.clone(), quorum_threshold);
-                }
             },
 
             Event::NewTxnCreated(txn) => {
