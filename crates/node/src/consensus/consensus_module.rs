@@ -4,10 +4,12 @@ use std::{
 };
 
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock,
+    ProposalBlock, RefHash,
 };
 use bulldag::node::Node;
 use chrono::Duration;
+use dashmap::DashMap;
 use dkg_engine::{
     dkg::DkgGenerator,
     prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId},
@@ -25,18 +27,22 @@ use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
 use mempool::{TxnRecord, TxnStatus};
 use primitives::{
-    ByteSlice, ByteSlice32Bit, ByteSlice48Bit, ByteVec, Epoch, FarmerQuorumThreshold,
+    Address, ByteSlice, ByteSlice32Bit, ByteSlice48Bit, ByteVec, Epoch, FarmerQuorumThreshold,
     GroupPublicKey, NodeId, NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes,
     ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey, QuorumThreshold, RawSignature,
     Round, TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare, ValidatorSecretKey,
 };
+use quorum::quorum::Quorum;
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use signer::signer::{SignatureProvider, Signer};
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::error;
 use theater::{Actor, ActorId, ActorState, TheaterError};
+use tracing::Instrument;
+use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMember, QuorumMembershipConfig};
-use vrrb_core::{bloom::Bloom, claim::Claim, keypair::Keypair};
+use vrrb_core::{account::Account, bloom::Bloom, claim::Claim, keypair::Keypair};
 use vrrb_core::{
     cache::Cache,
     transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind},
@@ -92,8 +98,6 @@ pub enum RendezvousResponse {
 
 #[derive(Debug, Clone)]
 pub struct ConsensusModule {
-    pub(crate) id: ActorId,
-    pub(crate) status: ActorState,
     pub(crate) quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
@@ -112,17 +116,19 @@ pub struct ConsensusModule {
     // NOTE: harvester types
     // pub certified_txns_filter: Bloom,
     // pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
+    pub votes_pool: HashMap<(TransactionDigest, String), Vec<Vote>>,
     // pub group_public_key: GroupPublicKey,
     // pub sig_provider: Option<SignatureProvider>,
-    // pub vrrbdb_read_handle: VrrbDbReadHandle,
+    // pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
     //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
     // pub harvester_id: NodeIdx,
     // pub dag: Arc<RwLock<BullDag<Block, String>>>,
     // sync_jobs_sender: Sender<Job>,
+    pub(crate) validator_core_manager: ValidatorCoreManager,
 }
 
 impl ConsensusModule {
-    pub fn new(cfg: ConsensusModuleConfig) -> Self {
+    pub fn new(cfg: ConsensusModuleConfig) -> Result<Self> {
         let quorum_module_config = QuorumModuleConfig {
             membership_config: None,
             node_config: cfg.node_config.clone(),
@@ -130,9 +136,11 @@ impl ConsensusModule {
 
         let validator_public_key = cfg.keypair.validator_public_key_owned();
 
-        Self {
-            id: uuid::Uuid::new_v4().to_string(),
-            status: ActorState::Stopped,
+        let validator_core_manager = ValidatorCoreManager::new(10).map_err(|err| {
+            NodeError::Other(format!("failed to generate validator core manager: {err}"))
+        })?;
+
+        Ok(Self {
             quorum_certified_txns: vec![],
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
@@ -143,21 +151,23 @@ impl ConsensusModule {
                 Arc::new(RwLock::new(cfg.dkg_generator.clone().dkg_state)),
                 cfg.node_config.threshold_config.clone(),
             ),
-            convergence_block_certificates: Cache::new(10, 300), // TODO: refactor into constants
-        }
+            convergence_block_certificates: Cache::new(10, 300),
+            validator_core_manager,
+            votes_pool: Default::default(),
+        })
     }
 
     pub fn validator_public_key_owned(&self) -> ValidatorPublicKey {
         self.keypair.validator_public_key_owned()
     }
 
-    async fn mine_proposal_block(
+    pub async fn mine_proposal_block(
         &mut self,
         ref_hash: RefHash,
         claim_map: HashMap<String, Claim>,
         round: Round,
         epoch: Epoch,
-        claim: Claim,
+        from: Claim,
     ) -> ProposalBlock {
         let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
 
@@ -165,7 +175,7 @@ impl ConsensusModule {
         // let claim_map = self.vrrbdb_read_handle.claim_store_values();
         let claim_list = claim_map
             .values()
-            .map(|claim| (claim.hash, claim.clone()))
+            .map(|from| (from.hash, from.clone()))
             .collect();
 
         let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
@@ -184,21 +194,21 @@ impl ConsensusModule {
             epoch,
             txns_list,
             claim_list,
-            claim,
+            from,
             self.keypair.get_miner_secret_key(),
         )
     }
 
-    pub fn certify_convergence_block(
+    pub fn certify_block(
         &mut self,
-        block: ConvergenceBlock,
+        block: Block,
         last_block_header: BlockHeader,
+        prev_txn_root_hash: String,
+        next_txn_root_hash: String,
         // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
     ) -> Result<Certificate> {
-        self.precheck_convergence_block(block.clone(), last_block_header);
-
         let block = block.clone();
-        let block_hash = block.hash.clone();
+        let block_hash = block.hash();
         let quorum_threshold = self.node_config.threshold_config.threshold;
 
         let certificates_share = self
@@ -236,12 +246,42 @@ impl ConsensusModule {
         let certificate = Certificate {
             signature: hex::encode(signature),
             inauguration: None,
-            root_hash: "".to_string(),
-            next_root_hash: "".to_string(),
+            root_hash: prev_txn_root_hash,
+            next_root_hash: next_txn_root_hash,
             block_hash,
         };
 
         Ok(certificate)
+    }
+
+    pub fn certify_genesis_block(&mut self, block: GenesisBlock) -> Result<Certificate> {
+        let txn_trie_hash = block.header.txn_hash.clone();
+        let last_block_header = block.header.clone();
+
+        self.certify_block(
+            block.into(),
+            last_block_header,
+            txn_trie_hash.clone(),
+            txn_trie_hash,
+        )
+    }
+
+    pub fn certify_convergence_block(
+        &mut self,
+        block: ConvergenceBlock,
+        last_block_header: BlockHeader,
+        next_txn_root_hash: String,
+        // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
+    ) -> Result<Certificate> {
+        let prev_txn_root_hash = last_block_header.txn_hash.clone();
+
+        self.precheck_convergence_block(block.clone(), last_block_header.clone());
+        self.certify_block(
+            block.into(),
+            last_block_header,
+            prev_txn_root_hash,
+            next_txn_root_hash,
+        )
     }
 
     // The above code is handling an event of type `Vote` in a Rust
@@ -252,91 +292,138 @@ impl ConsensusModule {
     // the number of votes in the pool reaches the farmer
     // quorum threshold, it sends a job to certify the transaction
     // using the provided signature provider.
-    pub fn validate_vote(&self, vote: Vote, farmer_quorum_threshold: FarmerQuorumThreshold) {
+    pub fn validate_vote(
+        &mut self,
+        vote: Vote,
+        farmer_quorum_threshold: FarmerQuorumThreshold,
+        accounts_state: HashMap<Address, Account>,
+    ) {
         // TODO: Harvester quorum nodes should check the integrity of the vote by verifying the vote does
         // come from the alleged voter Node.
-        //
-        //     if let Some(sig_provider) = self.sig_provider.clone() {
-        //         let farmer_quorum_key =
-        // hex::encode(vote.quorum_public_key.clone());         if let
-        // Some(mut votes) = self             .votes_pool
-        //             .get_mut(&(vote.txn.id(), farmer_quorum_key.clone()))
-        //         {
-        //             let txn_id = vote.txn.id();
-        //             if !self
-        //                 .certified_txns_filter
-        //                 .contains(&(txn_id.clone(),
-        // farmer_quorum_key.clone()))             {
-        //                 votes.push(vote.clone());
-        //                 if votes.len() >= farmer_quorum_threshold {
-        //                     let _ =
-        // self.sync_jobs_sender.send(Job::CertifyTxn((
-        // sig_provider,                         votes.clone(),
-        //                         txn_id,
-        //                         farmer_quorum_key,
-        //                         vote.farmer_id.clone(),
-        //                         vote.txn,
-        //                         farmer_quorum_threshold,
-        //                     )));
-        //                 }
-        //             }
-        //         } else {
-        //             self.votes_pool
-        //                 .insert((vote.txn.id(), farmer_quorum_key),
-        // vec![vote]);         }
-        //     }
+
+        let sig_provider = self.sig_provider.clone();
+
+        let farmer_quorum_key = hex::encode(vote.quorum_public_key.clone());
+        let key = (vote.txn.id(), farmer_quorum_key.clone());
+
+        if let Some(mut votes) = self.votes_pool.get_mut(&key) {
+            if self.certified_txns_filter.contains(&key) {
+                return;
+            }
+
+            votes.push(vote.clone());
+
+            if votes.len() < farmer_quorum_threshold {
+                return;
+            }
+
+            let vote_shares = Self::group_votes_by_validity(&votes);
+            let validated = self.validate_transaction(&vote.txn, &accounts_state);
+
+            if validated {
+                self.handle_validated_vote(
+                    &sig_provider,
+                    &vote_shares,
+                    &vote.txn,
+                    farmer_quorum_threshold,
+                    &farmer_quorum_key,
+                );
+            } else {
+                error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
+            }
+        } else {
+            self.votes_pool.insert(key, vec![vote]);
+        }
     }
 
-    fn generate_and_broadcast_certificate(
+    fn group_votes_by_validity(votes: &[Vote]) -> HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>> {
+        let mut vote_shares: HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>> = HashMap::new();
+
+        for v in votes.iter() {
+            vote_shares
+                .entry(v.is_txn_valid)
+                .or_insert_with(BTreeMap::new)
+                .insert(v.farmer_node_id, v.signature.clone());
+        }
+
+        vote_shares
+    }
+
+    // TODO: fix this fn to accept a txn list and to use the proper types
+    fn validate_transaction(
+        &mut self,
+        txn: &TransactionKind,
+        accounts_state: &HashMap<Address, Account>,
+    ) -> bool {
+        let validated_txns = self
+            .validator_core_manager
+            .validate(&accounts_state, vec![txn.clone()]);
+
+        validated_txns.iter().any(|x| x.0.id() == txn.id())
+    }
+
+    // TODO: fix this fn to accept a txn list and to use the proper types
+    async fn handle_validated_vote(
         &self,
-        block_hash: BlockHash,
-        certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
         sig_provider: &SignatureProvider,
+        vote_shares: &HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>>,
+        txn: &TransactionKind,
+        farmer_quorum_threshold: FarmerQuorumThreshold,
+        farmer_quorum_key: &str,
     ) -> Result<()> {
+        let (is_txn_valid, votes_map) = vote_shares
+            .iter()
+            .max_by_key(|(_, votes_map)| votes_map.len())
+            .map(|(key, votes_map)| (*key, votes_map.clone()))
+            .ok_or(NodeError::Other("failed to get peer votes".into()))?;
+
+        let threshold_signature = sig_provider
+            .generate_quorum_signature(farmer_quorum_threshold as u16, votes_map.clone())
+            .map_err(|err| {
+                NodeError::Other(format!(
+                    "failed to generate a quorum threshold signature: {err}"
+                ))
+            })?;
+
         todo!()
-        // if certificates_share.len() >= self.quorum_threshold {
-        //     //Generate a new certificate for the block
-        //     let mut sig_shares = BTreeMap::new();
-        //     certificates_share
-        //         .iter()
-        //         .for_each(|(node_idx, _, signature)| {
-        //             sig_shares.insert(*node_idx, signature.clone());
-        //         });
-        //     if let Ok(certificate) =
-        //         sig_provider.generate_quorum_signature(self.quorum_threshold
-        // as u16, sig_shares)     {
-        //         let certificate = Certificate {
-        //             signature: hex::encode(certificate),
-        //             inauguration: None,
-        //             root_hash: "".to_string(),
-        //             next_root_hash: "".to_string(),
-        //             block_hash,
-        //         };
-        //
-        //         self.broadcast_events_tx
-        //             .send(EventMessage::new(
-        //                 None,
-        //                 Event::SendBlockCertificate(certificate),
-        //             ))
-        //             .await
-        //             .map_err(|err| {
-        //                 theater::TheaterError::Other(format!(
-        //                     "failed to send block certificate: {err}"
-        //                 ))
-        //             })?
-        //     }
-        // }
-        // Ok(())
+        // Ok((
+        //     // votes.clone(),
+        //     threshold_signature,
+        //     txn.id(),
+        //     farmer_quorum_key.to_string(),
+        //     // txn.farmer_id.clone(),
+        //     Box::new(txn.clone()),
+        //     is_txn_valid,
+        // ))
     }
 
-    async fn sign_convergence_block(&self) {
-        //     Event::SignConvergenceBlock(block) => {
-        //         if let Some(sig_provider) = self.sig_provider.clone() {
-        //             let _ = self
-        //                 .sync_jobs_sender
-        //                 .send(Job::SignConvergenceBlock(sig_provider,
-        // block));         }
-        //     },
+    async fn sign_convergence_block(
+        &self,
+        block: ConvergenceBlock,
+    ) -> Result<((String, PublicKeyShare, ByteVec))> {
+        let sig_provider = self.sig_provider.clone();
+        let block_hash_bytes = hex::decode(block.hash.clone())
+            .map_err(|err| NodeError::Other(format!("missing a secret key share: {err}")))?;
+
+        let signature = sig_provider
+            .generate_partial_signature(block_hash_bytes)
+            .map_err(|err| {
+                NodeError::Other(format!("failed to generate partial signature: {err}"))
+            })?;
+
+        let secret_share = sig_provider
+            .dkg_state
+            .read()
+            .map_err(|err| NodeError::Other(format!("missing a secret key share: {err}")))?
+            .secret_key_share()
+            .to_owned()
+            .ok_or(NodeError::Other(format!("failed to read secret key share")))?;
+
+        Ok((
+            block.hash.clone(),
+            secret_share.public_key_share(),
+            signature.clone(),
+        ))
     }
 
     async fn process_convergence_block_partial_signature(&self) {
@@ -903,18 +990,17 @@ impl ConsensusModule {
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
-    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) {
-        //     let claims = self.vrrbdb_read_handle.claim_store_values();
-        //
-        //     if let Ok(quorum) = self.elect_quorum(claims, header) {
-        //         if let Err(err) = self
-        //             .events_tx
-        //             .send(Event::ElectedQuorum(quorum).into())
-        //             .await
-        //         {
-        //             telemetry::error!("{}", err);
-        //         }
-        //     }
+    pub fn handle_quorum_election_started(
+        &mut self,
+        header: BlockHeader,
+        claims: HashMap<NodeId, Claim>,
+    ) -> Result<Quorum> {
+        let quorum = self
+            .quorum_driver
+            .elect_quorum(claims, header)
+            .map_err(|err| NodeError::Other(format!("failed to elect quorum: {err}")))?;
+
+        Ok(quorum)
     }
 
     pub fn handle_miner_election_started(
@@ -983,17 +1069,6 @@ impl ConsensusModule {
         //             telemetry::error!("error sending job to scheduler: {}", err);
         //         }
         //     }
-    }
-
-    pub fn handle_proposal_block_mine_request_created(
-        &mut self,
-        ref_hash: RefHash,
-        round: Round,
-        epoch: Epoch,
-        claim: Claim,
-    ) -> Result<ProposalBlock> {
-        // noteself.mine_proposal_block(ref_hash, claim_map, round, epoch, claim);
-        todo!()
     }
 
     pub fn handle_convergence_block_partial_signature_created(

@@ -168,7 +168,7 @@ impl QuorumModule {
         Ok(quorum_assignments)
     }
 
-    fn elect_quorum(
+    pub fn elect_quorum(
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,

@@ -123,6 +123,7 @@ mod tests {
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn bootstrap_node_runtime_cannot_be_assigned_to_quorum() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -145,6 +146,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn validator_node_runtime_can_be_assigned_to_quorum() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -168,6 +170,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn validator_node_runtime_can_create_and_ack_partial_commitment() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -203,6 +206,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn validator_node_runtimes_can_generate_a_shared_key() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -452,6 +456,40 @@ mod tests {
         let miner_id = miner_ids.first().unwrap();
 
         let mut miner_node = miners.get_mut(miner_id).unwrap();
+
+        let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
+
+        // TODO: impl miner elections
+        // TODO: create genesis block, certify it then append it to miner's dag
+        // TODO: store DAG on disk, separate from ledger
+
+        let mut apply_results = Vec::new();
+        // let mut genesis_certs = Vec::new();
+
+        for (_, harvester) in harvesters.iter_mut() {
+            let apply_result = harvester
+                .handle_block_received(Block::Genesis {
+                    block: genesis_block.clone(),
+                })
+                .unwrap();
+
+            // let genesis_cert = harvester
+            //     .certify_genesis_block(genesis_block.clone())
+            //     .unwrap();
+
+            apply_results.push(apply_result);
+            // genesis_certs.push(genesis_cert);
+        }
+
+        miner_node
+            .handle_block_received(Block::Genesis {
+                block: genesis_block.clone(),
+            })
+            .unwrap();
+
+        // dbg!(&miner_node.state_driver.dag);
+        // dbg!(&miner_node.dag_driver);
+        // dbg!(&miner_node.mining_driver.dag);
 
         let convergence_block = miner_node.mine_convergence_block().unwrap();
 

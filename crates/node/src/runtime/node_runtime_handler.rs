@@ -104,7 +104,7 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::QuorumElectionStarted(header) => {
-                self.consensus_driver.handle_quorum_election_started(header);
+                self.handle_quorum_election_started(header);
             },
 
             Event::MinerElectionStarted(header) => {
@@ -165,8 +165,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 epoch,
                 claim,
             } => {
-                self.consensus_driver
-                    .handle_proposal_block_mine_request_created(ref_hash, round, epoch, claim);
+                self.handle_proposal_block_mine_request_created(ref_hash, round, epoch, claim);
             },
             // it sends a job to sign the convergence block using the signature
             // provider
@@ -226,8 +225,8 @@ impl Handler<EventMessage> for NodeRuntime {
                 quorum_threshold,
             } => {
                 for vote in votes.iter().flatten() {
-                    self.consensus_driver
-                        .validate_vote(vote.clone(), quorum_threshold);
+                    // self.consensus_driver
+                    //     .validate_vote(vote.clone(), quorum_threshold);
                 }
             },
 

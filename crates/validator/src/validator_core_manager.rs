@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
-use vrrb_core::{account::Account, claim::Claim};
 use vrrb_core::transactions::TransactionKind;
+use vrrb_core::{account::Account, claim::Claim};
 
 use crate::{
     claim_validator::ClaimValidator,
@@ -15,6 +15,17 @@ use crate::{
 #[derive(Debug)]
 pub struct ValidatorCoreManager {
     core_pool: rayon::ThreadPool,
+}
+
+impl Clone for ValidatorCoreManager {
+    fn clone(&self) -> Self {
+        let cores = self.core_pool.current_num_threads();
+
+        // NOTE: rm this unwrap somehow
+        let core_pool = ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
+
+        Self { core_pool }
+    }
 }
 
 impl ValidatorCoreManager {

@@ -50,6 +50,7 @@ pub mod valid {
 
         fn get_validation_data(&self) -> Result<Self::ValidationData, Self::DecodeError> {
             let signature = self.get_raw_signature()?;
+
             Ok(BlockValidationData {
                 node_idx: self.get_node_idx(),
                 payload_hash: self.get_payload_hash(),

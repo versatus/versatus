@@ -7,7 +7,7 @@ use std::{
 
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
+    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
 };
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
@@ -19,6 +19,7 @@ use miner::{Miner, MinerConfig};
 use primitives::{
     Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey,
 };
+use quorum::quorum::Quorum;
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle};
@@ -39,7 +40,7 @@ use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     result::{NodeError, Result},
-    state_manager::{StateManager, StateManagerConfig},
+    state_manager::{DagModule, StateManager, StateManagerConfig},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -52,9 +53,11 @@ pub struct NodeRuntime {
     // TODO: make private
     pub config: NodeConfig,
     pub events_tx: EventPublisher,
+    pub dag_driver: DagModule,
     pub state_driver: StateManager,
     pub consensus_driver: ConsensusModule,
     pub mining_driver: Miner,
+    pub claim: Claim,
 }
 
 impl NodeRuntime {
@@ -94,11 +97,9 @@ impl NodeRuntime {
         let state_driver = StateManager::new(StateManagerConfig {
             database,
             mempool,
-            dag,
-            claim,
+            dag: dag.clone(),
+            claim: claim.clone(),
         });
-
-        let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
         let (_, miner_secret_key) = config.keypair.get_secret_keys();
         let (_, miner_public_key) = config.keypair.get_public_keys();
@@ -107,7 +108,8 @@ impl NodeRuntime {
             secret_key: *miner_secret_key,
             public_key: *miner_public_key,
             ip_address: config.public_ip_address,
-            dag,
+            dag: dag.clone(),
+            claim: claim.clone(),
         };
 
         let miner = miner::Miner::new(miner_config, config.id.clone()).map_err(NodeError::from)?;
@@ -126,16 +128,20 @@ impl NodeRuntime {
             node_config: config.clone(),
             dkg_generator,
             validator_public_key: config.keypair.validator_public_key_owned(),
-        });
+        })?;
+
+        let dag_driver = DagModule::new(dag, claim.clone());
 
         Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
             config: config.to_owned(),
+            events_tx,
+            dag_driver,
             state_driver,
             consensus_driver,
-            events_tx,
             mining_driver: miner,
+            claim,
         })
     }
 
@@ -160,7 +166,7 @@ impl NodeRuntime {
     }
 
     pub fn has_required_node_type(&self, intended_node_type: NodeType, action: &str) -> Result<()> {
-        if !matches!(self.config.node_type, intended_node_type) {
+        if self.config.node_type != intended_node_type {
             return Err(NodeError::Other(format!(
                 "Only {intended_node_type} nodes are allowed to: {action}"
             )));
@@ -223,19 +229,9 @@ impl NodeRuntime {
             .consensus_driver
             .generate_partial_commitment_message()?;
 
-        // self.store_part_commitment(node_id.clone(), part.clone());
-
         Ok((part, node_id))
     }
 
-    pub fn store_part_commitment(&mut self, node_id: NodeId, part: Part) {
-        self.consensus_driver
-            .dkg_engine
-            .dkg_state
-            .part_message_store_mut()
-            .entry(node_id)
-            .or_insert_with(|| part);
-    }
     pub fn generate_keysets(&mut self) -> Result<()> {
         self.consensus_driver.generate_keysets()
     }
@@ -243,6 +239,7 @@ impl NodeRuntime {
     pub fn produce_genesis_transactions(
         &self,
     ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
+        // self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
         self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
 
         let sender_public_key = self.config.keypair.miner_public_key_owned();
@@ -340,8 +337,77 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
+    pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
+        self.has_required_node_type(NodeType::Validator, "certify blocks")?;
+        self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify blocks")?;
+
+        let certificate = self.consensus_driver.certify_genesis_block(genesis)?;
+
+        Ok(certificate)
+    }
+
+    pub fn mine_proposal_block(
+        &self,
+        ref_block: RefHash,
+        round: Round,
+        epoch: Epoch,
+        claims: Vec<Claim>,
+    ) -> Result<ProposalBlock> {
+        let from = self.claim.clone();
+
+        let last_block_header = self
+            .dag_driver
+            .last_confirmed_block_header()
+            .ok_or(NodeError::Other("could not fetch last block".into()))?;
+
+        let epoch = last_block_header.epoch.checked_add(1).unwrap_or_default();
+        let round = last_block_header.round.checked_add(1).unwrap_or_default();
+        // let txns_list = self.consensus_driver;
+        let txns_list = todo!();
+        let claim_list = todo!();
+        let ref_hash = todo!();
+        let txns_list = todo!();
+
+        // self.consensus_driver
+        //     .mine_proposal_block(ref_hash, claims, round, epoch, from);
+        //
+        // let last_block_header = self.dag_driver.last_confirmed_block_header().ok_or(NodeError::Other("could not fetch last block".into()))?;
+        // let last_block_ref_hash = last_block_header.txn_hash.clone();
+
+        let block = ProposalBlock::build(
+            ref_hash,
+            round,
+            epoch,
+            txns_list,
+            claim_list,
+            from,
+            self.config.keypair.get_miner_secret_key(),
+        );
+
+        Ok(block)
+
+        //
+        // let payload = create_payload!(round, epoch, txns, claims, from);
+        // let signature = self.secret_key.sign_ecdsa(payload).to_string();
+        // let hash = hash_data!(round, epoch, txns, claims, from, signature);
+        //
+        //
+
+        // ProposalBlock {
+        //     ref_block,
+        //     round,
+        //     epoch,
+        //     txns,
+        //     claims,
+        //     hash: format!("{hash:x}"),
+        //     from,
+        //     signature,
+        // }
+    }
+
     pub fn mine_convergence_block(&mut self) -> Result<ConvergenceBlock> {
         self.has_required_node_type(NodeType::Miner, "mine convergence block")?;
+
         self.mining_driver
             .mine_convergence_block()
             .ok_or(NodeError::Other(
@@ -354,16 +420,20 @@ impl NodeRuntime {
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
 
         let last_block_header =
-            self.state_driver
-                .dag
+            self.dag_driver
                 .last_confirmed_block_header()
                 .ok_or(NodeError::Other(format!(
                     "Node {} does not have a last confirmed block header",
                     self.config.id
                 )))?;
 
-        self.consensus_driver
-            .certify_convergence_block(block, last_block_header);
+        let next_txn_trie_hash = self.state_driver.transactions_root_hash()?;
+
+        self.consensus_driver.certify_convergence_block(
+            block,
+            last_block_header,
+            next_txn_trie_hash,
+        );
 
         Ok(())
     }
@@ -450,15 +520,13 @@ impl NodeRuntime {
     }
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
-        self.has_required_node_type(NodeType::Validator, "store genesis block")?;
-        self.belongs_to_correct_quorum(QuorumKind::Harvester, "store genesis block")?;
-
-        self.state_driver
-            .dag
-            .append_genesis(&block)
-            .map_err(|err| {
-                NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
-            })?;
+        //
+        //
+        // TODO: append blocks to only one instance of the DAG
+        //
+        self.dag_driver.append_genesis(&block).map_err(|err| {
+            NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
+        })?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 
@@ -491,9 +559,8 @@ impl NodeRuntime {
             })?;
 
         if block.certificate.is_none() {
-            if let Some(header) = self.state_driver.dag.last_confirmed_block_header() {
-                self.consensus_driver
-                    .certify_convergence_block(block.clone(), header);
+            if let Some(_) = self.dag_driver.last_confirmed_block_header() {
+                let certificate = self.certify_convergence_block(block.clone());
             }
         }
 
@@ -611,5 +678,14 @@ impl NodeRuntime {
     ) {
         self.consensus_driver
             .precheck_convergence_block(block, last_confirmed_block_header);
+    }
+
+    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Quorum> {
+        let claims = self.state_driver.read_handle().claim_store_values();
+        let quorum = self
+            .consensus_driver
+            .handle_quorum_election_started(header, claims)?;
+
+        Ok(quorum)
     }
 }
