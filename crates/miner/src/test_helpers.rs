@@ -10,11 +10,14 @@ use primitives::{Address, NodeId, PublicKey, SecretKey, Signature};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
+use vrrb_core::transactions::{
+    generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest,
+    TransactionKind, Transfer,
+};
 use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
 };
-use vrrb_core::transactions::{generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 use crate::{result::MinerError, Miner, MinerConfig};
 
@@ -26,11 +29,26 @@ pub fn create_miner() -> Miner {
     let (secret_key, public_key) = create_keypair();
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
     let ip_address = "127.0.0.1:8080".parse().unwrap();
+
+    let signature =
+        Claim::signature_for_valid_claim(public_key, ip_address, secret_key.secret_bytes().into())
+            .unwrap();
+
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        ip_address,
+        signature,
+        String::from("test-miner-node"),
+    )
+    .unwrap();
+
     let config = MinerConfig {
         secret_key,
         public_key,
         ip_address,
         dag,
+        claim,
     };
     Miner::new(config, NodeId::default()).unwrap()
 }
@@ -40,10 +58,24 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     let (secret_key, public_key) = kp.miner_kp;
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
     let ip_address = "127.0.0.1:8080".parse().unwrap();
+    let signature =
+        Claim::signature_for_valid_claim(public_key, ip_address, secret_key.secret_bytes().into())
+            .unwrap();
+
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        ip_address,
+        signature,
+        String::from("test-miner-node"),
+    )
+    .unwrap();
+
     let config = MinerConfig {
         secret_key,
         ip_address,
         public_key,
+        claim,
         dag,
     };
     Miner::new(config, NodeId::default()).unwrap()

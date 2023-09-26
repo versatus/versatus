@@ -74,10 +74,11 @@ pub enum MinerStatus {
 /// }
 #[derive(Debug)]
 pub struct MinerConfig {
-    pub secret_key: MinerSk,
-    pub public_key: MinerPk,
+    pub secret_key: MinerSecretKey,
+    pub public_key: MinerPublicKey,
     pub ip_address: SocketAddr,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
+    pub claim: Claim,
 }
 
 /// Miner struct which exposes methods to mine convergence blocks
@@ -166,20 +167,9 @@ impl Miner {
     /// ```
     pub fn new(config: MinerConfig, node_id: NodeId) -> Result<Self> {
         let address = Address::new(config.public_key);
-        let signature = Claim::signature_for_valid_claim(
-            config.public_key,
-            config.ip_address,
-            config.secret_key.secret_bytes().to_vec(),
-        )
-        .map_err(MinerError::from)?;
-        let claim = Claim::new(
-            config.public_key,
-            address.clone(),
-            config.ip_address,
-            signature,
-            node_id,
-        )
-        .map_err(MinerError::from)?;
+
+        let claim = config.claim.clone();
+
         Ok(Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
@@ -313,7 +303,6 @@ impl Miner {
         }
     }
 
-    #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
         let seed = 0;

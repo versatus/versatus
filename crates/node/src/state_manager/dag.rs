@@ -9,7 +9,6 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use events::EventPublisher;
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
 use primitives::SignatureType;
 use signer::types::{SignerError, SignerResult};
@@ -46,22 +45,20 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 /// ```
 #[derive(Clone, Debug)]
 pub struct DagModule {
-    status: ActorState,
-    id: ActorId,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
     last_confirmed_block_header: Option<BlockHeader>,
+    last_confirmed_block: Option<Block>,
     claim: Claim,
 }
 
 impl DagModule {
     pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, claim: Claim) -> Self {
         Self {
-            status: ActorState::Stopped,
-            id: uuid::Uuid::new_v4().to_string(),
             dag,
             public_key_set: None,
             last_confirmed_block_header: None,
+            last_confirmed_block: None,
             claim,
         }
     }
@@ -85,13 +82,24 @@ impl DagModule {
     }
 
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
-        let valid = self.check_valid_genesis(genesis);
+        // TODO: re-enable checking genesis block certificates
+        //
+        // let valid = self.check_valid_genesis(genesis);
+        // if !valid {
+        //     return Err(GraphError::Other(format!(
+        //         "invalid genesis block: {}",
+        //         genesis.hash,
+        //     )));
+        // }
 
-        if valid {
-            let block: Block = genesis.clone().into();
-            let vtx: Vertex<Block, String> = block.into();
-            self.write_genesis(&vtx)?;
-        }
+        // if valid {
+        let block: Block = genesis.clone().into();
+        let vtx: Vertex<Block, String> = block.clone().into();
+        self.write_genesis(&vtx)?;
+
+        self.last_confirmed_block_header = Some(genesis.header.clone());
+        self.last_confirmed_block = Some(block);
+        // }
 
         Ok(())
     }
@@ -115,6 +123,14 @@ impl DagModule {
 
     pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<()> {
         let valid = self.check_valid_convergence(convergence);
+
+        // if !valid {
+        //     return Err(GraphError::Other(format!(
+        //         "invalid convergence block: {}",
+        //         convergence.hash,
+        //     )));
+        // }
+
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
                 self.get_convergence_reference_blocks(convergence);
@@ -127,6 +143,11 @@ impl DagModule {
                 .collect();
 
             self.extend_edges(edges)?;
+
+            self.last_confirmed_block_header = Some(convergence.header.clone());
+            self.last_confirmed_block = Some(Block::Convergence {
+                block: convergence.to_owned(),
+            });
         }
 
         Ok(())
@@ -178,7 +199,7 @@ impl DagModule {
         Ok(())
     }
 
-    fn write_genesis(&self, vertex: &Vertex<Block, String>) -> GraphResult<()> {
+    fn write_genesis(&mut self, vertex: &Vertex<Block, String>) -> GraphResult<()> {
         if let Ok(mut guard) = self.dag.write() {
             guard.add_vertex(vertex);
 
@@ -215,7 +236,7 @@ impl DagModule {
     fn verify_signature(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         if validation_data.signature.len() != SIG_SIZE {
             return Err(SignerError::CorruptSignatureShare(
-                "Invalid Signature ,Size must be 96 bytes".to_string(),
+                "Invalid Signature, size must be 96 bytes".to_string(),
             ));
         }
         match validation_data.signature_type.clone() {
