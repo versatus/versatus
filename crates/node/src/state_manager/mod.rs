@@ -61,66 +61,6 @@ mod tests {
         state_module
             .handle_new_txn_created(TransactionKind::default())
             .unwrap();
-<<<<<<< HEAD
-
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-
-        handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn state_runtime_can_publish_events() {
-        let _temp_dir_path = env::temp_dir().join("state.json");
-
-        let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-        let db_config = VrrbDbConfig::default();
-
-        let db = VrrbDb::new(db_config);
-        let mempool = LeftRightMempool::default();
-
-        let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
-        let (sk, pk) = create_keypair();
-        let addr = create_address(&pk);
-        let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-        let signature = Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
-        let claim = create_claim(&pk, &addr, ip_address, signature);
-
-        let state_module = StateManager::new(StateManagerConfig {
-            mempool,
-            events_tx,
-            database: db,
-            dag: dag.clone(),
-            claim,
-        });
-
-        let mut state_module = ActorImpl::new(state_module);
-
-        let events_handle = tokio::spawn(async move {
-            let _res = events_rx.recv().await;
-        });
-
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::broadcast::channel(DEFAULT_BUFFER);
-
-        assert_eq!(state_module.status(), ActorState::Stopped);
-
-        let handle = tokio::spawn(async move {
-            state_module.start(&mut ctrl_rx).await.unwrap();
-        });
-
-        // TODO: implement all state && validation ops
-
-        ctrl_tx
-            .send(Event::NewTxnCreated(TransactionKind::default()).into())
-            .unwrap();
-
-        ctrl_tx.send(Event::Stop.into()).unwrap();
-
-        handle.await.unwrap();
-        events_handle.await.unwrap();
-=======
->>>>>>> main
     }
 
     pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
