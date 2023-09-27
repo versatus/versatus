@@ -146,6 +146,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/496"]
     async fn validator_node_runtime_can_be_assigned_to_quorum() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
