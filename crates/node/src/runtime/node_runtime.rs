@@ -31,7 +31,7 @@ use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
     transactions::{
-        generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Token, Transaction,
+        generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Token, Transaction,
         TransactionDigest, TransactionKind, Transfer,
     },
 };
@@ -251,7 +251,7 @@ impl NodeRuntime {
         let amount = 0;
         let nonce = 0;
 
-        let digest = generate_txn_digest_vec(
+        let digest = generate_transfer_digest_vec(
             timestamp,
             address.to_string(),
             sender_public_key,

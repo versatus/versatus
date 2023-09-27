@@ -23,7 +23,10 @@ use vrrb_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
     ThresholdConfig,
 };
-use vrrb_core::{account::Account, claim::Claim, keypair::Keypair};
+use vrrb_core::{
+    account::Account, claim::Claim, keypair::Keypair,
+    transactions::transfer::generate_transfer_digest_vec,
+};
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 use crate::{
@@ -306,7 +309,7 @@ pub fn create_txn_from_accounts(
 
     txn.sign(&sk);
 
-    let txn_digest_vec = generate_txn_digest_vec(
+    let txn_digest_vec = generate_transfer_digest_vec(
         txn.timestamp(),
         txn.sender_address().to_string(),
         txn.sender_public_key(),
@@ -370,8 +373,7 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 
 use rand::{seq::SliceRandom, thread_rng};
 use vrrb_core::transactions::{
-    generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest,
-    TransactionKind, Transfer,
+    NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer,
 };
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
