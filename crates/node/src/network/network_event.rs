@@ -2,7 +2,10 @@ use std::net::SocketAddr;
 
 use block::ConvergenceBlock;
 use events::AssignedQuorumMembership;
-use hbbft::{crypto::PublicKey, sync_key_gen::Part};
+use hbbft::{
+    crypto::PublicKey,
+    sync_key_gen::{Ack, Part},
+};
 use mempool::TxnRecord;
 use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
@@ -53,6 +56,7 @@ pub enum NetworkEvent {
     PartCommitmentAcknowledged {
         node_id: NodeId,
         sender_id: NodeId,
+        ack: Ack,
     },
 
     ConvergenceBlockCertified(ConvergenceBlock),

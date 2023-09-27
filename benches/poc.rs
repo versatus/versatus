@@ -1,8 +1,8 @@
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use ethereum_types::U256;
-use tokio::sync::mpsc::{Sender, Receiver, channel};
-use tokio::task::{JoinHandle, spawn};
+use tokio::sync::mpsc::{Sender, channel};
+use tokio::task::{spawn};
 use criterion::{
     black_box,
     criterion_main,
@@ -14,7 +14,7 @@ use criterion::{
 fn generate_sha256() -> U256  {
     let mut rng = rand::thread_rng();
     let data: Vec<u8> = (0..64).map(|_| rng.gen()).collect();
-    U256::from_big_endian(&Sha256::digest(&data))
+    U256::from_big_endian(&Sha256::digest(data))
 }
 
 fn xor_hash(seed: &u64, hash: &U256) -> U256 {
@@ -40,8 +40,8 @@ async fn concurrent_xor_claim_hashes(
     tx: Sender<U256>,
 ) {
     claim_hashes.iter().map(|h| {
-        let hash = h.clone();
-        let inner_seed = seed.clone();
+        let hash = *h;
+        let inner_seed = seed;
         let sender = tx.clone();
         spawn(async move {
             let res = xor_hash(&inner_seed, &hash);
@@ -53,14 +53,14 @@ async fn concurrent_xor_claim_hashes(
 fn iter_setup(n: usize) -> (u64, Vec<U256>) {
     let mut rng = rand::thread_rng();
     let seed: u64 = rng.gen();
-    let claim_hashes = (0..n).into_iter().map(|_| generate_sha256()).collect();
+    let claim_hashes = (0..n).map(|_| generate_sha256()).collect();
     (seed, claim_hashes)
 }
 
 fn concurrent_setup(n: usize) -> (Sender<U256>, u64, Vec<U256>) {
     let mut rng = rand::thread_rng();
     let seed: u64 = rng.gen();
-    let hashes = (0..n).into_iter().map(|_| generate_sha256()).collect();
+    let hashes = (0..n).map(|_| generate_sha256()).collect();
     let (tx, _) = channel(n);
     (tx, seed, hashes)
 }
@@ -132,7 +132,7 @@ pub fn ten_concurrent_benchmark(c: &mut Criterion) {
     c.bench_function("ten_concurrent_poc", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             concurrent_xor_claim_hashes(
-                black_box(seed.clone()), 
+                black_box(seed), 
                 black_box(claim_hashes.clone()), 
                 black_box(tx.clone())
             )
@@ -145,7 +145,7 @@ pub fn hundred_concurrent_benchmark(c: &mut Criterion) {
     c.bench_function("hundred_concurrent_poc", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             concurrent_xor_claim_hashes(
-                black_box(seed.clone()), 
+                black_box(seed), 
                 black_box(claim_hashes.clone()), 
                 black_box(tx.clone())
             )
@@ -158,7 +158,7 @@ pub fn thousand_concurrent_benchmark(c: &mut Criterion) {
     c.bench_function("thousand_concurrent_poc", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             concurrent_xor_claim_hashes(
-                black_box(seed.clone()), 
+                black_box(seed), 
                 black_box(claim_hashes.clone()), 
                 black_box(tx.clone())
             )
@@ -171,7 +171,7 @@ pub fn ten_thousand_concurrent_benchmark(c: &mut Criterion) {
     c.bench_function("ten_thousand_concurrent_poc", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             concurrent_xor_claim_hashes(
-                black_box(seed.clone()), 
+                black_box(seed), 
                 black_box(claim_hashes.clone()), 
                 black_box(tx.clone())
             )
@@ -184,7 +184,7 @@ pub fn hundred_thousand_concurrent_benchmark(c: &mut Criterion) {
     c.bench_function("hundred_thousand_concurrent_poc", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             concurrent_xor_claim_hashes(
-                black_box(seed.clone()), 
+                black_box(seed), 
                 black_box(claim_hashes.clone()), 
                 black_box(tx.clone())
             )
@@ -197,7 +197,7 @@ pub fn million_concurrent_benchmark(c: &mut Criterion) {
     c.bench_function("million_thousand_concurrent_poc", |b| {
         b.to_async(FuturesExecutor).iter(|| async {
             concurrent_xor_claim_hashes(
-                black_box(seed.clone()), 
+                black_box(seed), 
                 black_box(claim_hashes.clone()), 
                 black_box(tx.clone())
             )

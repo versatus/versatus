@@ -1,18 +1,20 @@
 use std::path::PathBuf;
 
+use block::Block;
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
 };
-use vrrb_core::transactions::TransactionKind;
 
 use crate::{
-    ClaimStore, ClaimStoreReadHandleFactory, StateStore, StateStoreReadHandleFactory,
-    TransactionStore, TransactionStoreReadHandleFactory, VrrbDbReadHandle,
+    ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, StateStore,
+    StateStoreReadHandleFactory, TransactionStore, TransactionStoreReadHandleFactory,
+    VrrbDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
@@ -29,6 +31,32 @@ impl VrrbDbConfig {
         self.path = path;
 
         self.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ApplyBlockResult {
+    state_root_hash: RootHash,
+    transactions_root_hash: RootHash,
+    // claims_root_hash: RootHash,
+}
+
+impl ApplyBlockResult {
+    pub fn state_root_hash_str(&self) -> String {
+        let state_root_hash = self.state_root_hash.clone();
+        // let transaction_root_hash = self.transaction_store.root_hash()?;
+
+        // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
+        let state_root_hash_hex = hex::encode(state_root_hash.0);
+        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
+        state_root_hash_hex
+    }
+
+    pub fn transactions_root_hash_str(&self) -> String {
+        let txn_root_hash = self.transactions_root_hash.clone();
+
+        let txn_root_hash_hex = hex::encode(txn_root_hash.0);
+        txn_root_hash_hex
     }
 }
 
@@ -202,6 +230,81 @@ impl VrrbDb {
     pub fn update_claim(&mut self, _key: Address, _args: UpdateArgs) {
         todo!()
     }
+
+    fn apply_transfer(&mut self, read_handle: VrrbDbReadHandle, txn: Transfer) -> Result<()> {
+        let txn = TransactionKind::Transfer(txn);
+
+        let sender_address = txn.sender_address();
+        let receiver_address = txn.receiver_address();
+
+        // TODO: create methods to check if these exist
+        read_handle.get_account_by_address(&sender_address)?;
+        read_handle.get_account_by_address(&receiver_address)?;
+
+        let updates = IntoUpdates::from_txn(txn.clone());
+
+        self.state_store
+            .update_uncommited(sender_address, updates.sender_update.into())?;
+
+        self.state_store
+            .update_uncommited(receiver_address, updates.receiver_update.into())?;
+
+        self.state_store.commit();
+
+        // TODO: update transaction's state
+        self.transaction_store.insert(txn)?;
+
+        Ok(())
+    }
+
+    fn apply_txn(
+        &mut self,
+        read_handle: VrrbDbReadHandle,
+        txn_kind: TransactionKind,
+    ) -> Result<()> {
+        match txn_kind {
+            TransactionKind::Transfer(txn) => self.apply_transfer(read_handle, txn),
+            _ => {
+                telemetry::info!("unsupported transaction type: {:?}", txn_kind);
+                Err(StorageError::Other(
+                    "unsupported transaction type".to_string(),
+                ))
+            },
+        }
+    }
+
+    /// Applies a block of transactions updating the account states accordingly.
+    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
+        let read_handle = self.read_handle();
+
+        match block {
+            Block::Genesis { block } => {
+                for (_, txn_kind) in block.txns {
+                    self.apply_txn(read_handle.clone(), txn_kind)?;
+                }
+            },
+            Block::Convergence { .. } => {
+                todo!()
+            },
+            _ => {
+                telemetry::info!("unsupported block type: {:?}", block);
+                return Err(StorageError::Other("unsupported block type".to_string()));
+            },
+        }
+
+        self.transaction_store.commit();
+        self.state_store.commit();
+
+        let state_root_hash = self.state_store.root_hash()?;
+        let transactions_root_hash = self.transaction_store.root_hash()?;
+        // let claim_root_hash = self.claim_store.root_hash()?;
+        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
+
+        Ok(ApplyBlockResult {
+            state_root_hash,
+            transactions_root_hash,
+        })
+    }
 }
 
 impl Clone for VrrbDb {
@@ -213,6 +316,7 @@ impl Clone for VrrbDb {
         }
     }
 }
+
 // TODO: uncomment this once `entries` is fixed
 // impl Display for VrrbDb {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

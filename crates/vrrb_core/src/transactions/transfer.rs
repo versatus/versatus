@@ -1,4 +1,5 @@
 use std::{
+    cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
@@ -6,10 +7,7 @@ use std::{
 };
 
 use primitives::{
-    Address,
-    ByteSlice,
-    ByteVec,
-    PublicKey,
+    Address, ByteSlice, ByteVec, Digest as PrimitiveDigest, NodeIdx, PublicKey, RawSignature,
     SecretKey,
 };
 use secp256k1::{ecdsa::Signature, Message};
@@ -17,17 +15,16 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utils::hash_data;
 
+use crate::transactions::transaction::Transaction;
+use crate::transactions::{Token, TransactionDigest, TransactionKind, BASE_FEE};
 use crate::{
+    helpers::gen_hex_encoded_string,
     keypair::Keypair,
     serde_helpers::{
-        decode_from_binary_byte_slice,
-        decode_from_json_byte_slice,
-        encode_to_binary,
+        decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary,
         encode_to_json,
     },
 };
-use crate::transactions::transaction::Transaction;
-use crate::transactions::{BASE_FEE, Token, TransactionDigest};
 /// This module contains the basic structure of simple transaction
 
 /// A simple custom error type
@@ -62,8 +59,6 @@ pub type TxNonce = u128;
 pub type TxTimestamp = i64;
 pub type TxAmount = u128;
 pub type TxSignature = Vec<u8>;
-
-
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq)]
 pub struct Transfer {
@@ -208,8 +203,6 @@ impl Transfer {
     pub fn is_null(&self) -> bool {
         self == &Transfer::null_txn()
     }
-
-
 
     pub fn generate_txn_digest_vec(&self) -> ByteVec {
         generate_txn_digest_vec(

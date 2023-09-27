@@ -35,7 +35,7 @@ pub trait Signer {
     ) -> SignerResult<bool>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SignatureProvider {
     pub dkg_state: Arc<RwLock<DkgState>>,
     pub quorum_config: ThresholdConfig,
@@ -44,6 +44,19 @@ pub struct SignatureProvider {
 impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
     fn from(_: PoisonError<RwLockReadGuard<'_, DkgState>>) -> SignerError {
         SignerError::DkgStateCannotBeRead
+    }
+}
+
+impl SignatureProvider {
+    pub fn new(dkg_state: Arc<RwLock<DkgState>>, quorum_config: ThresholdConfig) -> Self {
+        Self {
+            dkg_state,
+            quorum_config,
+        }
+    }
+
+    pub fn set_dkg_state(&mut self, dkg_state: DkgState) {
+        self.dkg_state = Arc::new(RwLock::new(dkg_state));
     }
 }
 

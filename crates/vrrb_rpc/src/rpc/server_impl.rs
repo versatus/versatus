@@ -2,22 +2,22 @@ use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use block::block::Block;
+use block::ClaimHash;
 use events::{Event, EventPublisher};
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType, Round};
 use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
-use block::ClaimHash;
 use storage::vrrbdb::{Claims, VrrbDbReadHandle};
 use telemetry::{debug, error};
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
-use vrrb_core::{
-    account::Account,
-    serde_helpers::encode_to_binary,
-};
+use vrrb_core::claim::Claim;
 use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{
+    NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer,
+};
+use vrrb_core::{account::Account, serde_helpers::encode_to_binary};
 
 use super::{
     api::{FullMempoolSnapshot, RpcApiServer},
@@ -149,7 +149,7 @@ impl RpcApiServer for RpcServerImpl {
             encode_to_binary(&account).map_err(|err| Error::Custom(err.to_string()))?;
 
         let addr =
-            Address::from_str(account.hash()).map_err(|err| Error::Custom(err.to_string()))?;
+            Address::from_str(&account.hash()).map_err(|err| Error::Custom(err.to_string()))?;
 
         let event = Event::AccountUpdateRequested((addr, account_bytes));
 
@@ -175,7 +175,7 @@ impl RpcApiServer for RpcServerImpl {
         }
     }
 
-    async fn faucet_drip(&self, _address: Address) -> Result<(), Error> {
+    async fn faucet_drip(&self, address: Address) -> Result<(), Error> {
         todo!()
     }
 
@@ -224,7 +224,7 @@ impl RpcApiServer for RpcServerImpl {
         todo!()
     }
 
-    async fn get_transaction_count(&self, _account: Address) -> Result<usize, Error> {
+    async fn get_transaction_count(&self, account: Address) -> Result<usize, Error> {
         todo!()
     }
 
@@ -234,9 +234,11 @@ impl RpcApiServer for RpcServerImpl {
 
     async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, Error> {
         let claims = self.vrrbdb_read_handle.claim_store_values();
-        let claims = claims.iter().map(|(_, claim)| claim.clone()).filter(
-            |claim| claim.address == address
-        ).collect();
+        let claims = claims
+            .iter()
+            .map(|(_, claim)| claim.clone())
+            .filter(|claim| claim.address == address)
+            .collect();
 
         Ok(claims)
     }
@@ -250,9 +252,11 @@ impl RpcApiServer for RpcServerImpl {
 
     async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error> {
         let claims = self.vrrbdb_read_handle.claim_store_values();
-        let claims = claims.iter().map(|(_, claim)| claim.clone()).filter(
-            |claim| claim_hashes.contains(&claim.hash)
-        ).collect();
+        let claims = claims
+            .iter()
+            .map(|(_, claim)| claim.clone())
+            .filter(|claim| claim_hashes.contains(&claim.hash))
+            .collect();
 
         Ok(claims)
     }

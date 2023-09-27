@@ -39,7 +39,6 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 ///     status: ActorState,
 ///     label: ActorLabel,
 ///     id: ActorId,
-///     events_tx: EventPublisher,
 ///     dag: Arc<RwLock<BullDag<Block, String>>>,
 ///     public_key_set: Option<PublicKeySet>,
 ///     last_confirmed_block_header: Option<BlockHeader>,
@@ -49,28 +48,26 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 pub struct DagModule {
     status: ActorState,
     id: ActorId,
-    events_tx: EventPublisher,
     dag: Arc<RwLock<BullDag<Block, String>>>,
     public_key_set: Option<PublicKeySet>,
     last_confirmed_block_header: Option<BlockHeader>,
-    pub claim: Claim,
+    claim: Claim,
 }
 
 impl DagModule {
-    pub fn new(
-        dag: Arc<RwLock<BullDag<Block, String>>>,
-        events_tx: EventPublisher,
-        claim: Claim,
-    ) -> Self {
+    pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, claim: Claim) -> Self {
         Self {
             status: ActorState::Stopped,
             id: uuid::Uuid::new_v4().to_string(),
-            events_tx,
             dag,
             public_key_set: None,
             last_confirmed_block_header: None,
             claim,
         }
+    }
+
+    pub fn claim(&self) -> Claim {
+        self.claim.clone()
     }
 
     pub fn read(&self) -> Result<RwLockReadGuard<BullDag<Block, String>>> {

@@ -80,6 +80,7 @@ pub enum QuorumKind {
     #[default]
     Harvester,
     Farmer,
+    Miner,
 }
 
 impl Display for QuorumKind {
@@ -87,6 +88,7 @@ impl Display for QuorumKind {
         match self {
             QuorumKind::Harvester => write!(f, "Harvester"),
             QuorumKind::Farmer => write!(f, "Farmer"),
+            QuorumKind::Miner => write!(f, "Miner"),
         }
     }
 }

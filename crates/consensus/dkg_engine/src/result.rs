@@ -12,7 +12,7 @@ pub enum DkgError {
     SyncKeyGenInstanceNotCreated,
     #[error("Not enough part messages received")]
     NotEnoughPartMsgsReceived,
-    #[error("Atleast t+1 parts needs to be completed for DKG generation to happen")]
+    #[error("At least t+1 parts need to be completed for DKG generation to happen")]
     NotEnoughPartsCompleted,
     #[error("Not enough ack messages received")]
     NotEnoughAckMsgsReceived,
@@ -22,9 +22,9 @@ pub enum DkgError {
     PartMsgMissingForNode(NodeId),
     #[error("Partial Message already acknowledge for node with index {0}")]
     PartMsgAlreadyAcknowledged(NodeId),
-    #[error("Invalid Part Message Error: {0}")]
+    #[error("Invalid part message: {0}")]
     InvalidPartMessage(String),
-    #[error("Invalid Ack Message Error: {0}")]
+    #[error("Invalid ack message: {0}")]
     InvalidAckMessage(String),
     #[error("Unknown error occurred while synckeygen process: {0}")]
     SyncKeyGenError(String),

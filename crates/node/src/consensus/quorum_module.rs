@@ -1,28 +1,25 @@
 use std::collections::{BTreeMap, HashMap};
 
+use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
 use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, PeerData,
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
 };
 use primitives::{NodeId, NodeType, QuorumKind};
 use quorum::{
     election::Election,
     quorum::{Quorum, QuorumError},
 };
-use theater::{ActorId, ActorState};
+use theater::{Actor, ActorId, ActorImpl, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
-use crate::state_reader::StateReader;
-
-#[derive(Debug)]
-pub struct QuorumModule<S: StateReader + Send> {
+#[derive(Debug, Clone)]
+pub struct QuorumModule {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
-    pub(crate) events_tx: EventPublisher,
     pub(crate) node_config: NodeConfig,
-    pub(crate) vrrbdb_read_handle: S,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
     pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
@@ -31,15 +28,13 @@ pub struct QuorumModule<S: StateReader + Send> {
 }
 
 #[derive(Debug, Clone)]
-pub struct QuorumModuleConfig<S: StateReader + Send> {
-    pub events_tx: EventPublisher,
-    pub vrrbdb_read_handle: S,
+pub struct QuorumModuleConfig {
     pub membership_config: Option<QuorumMembershipConfig>,
     pub node_config: NodeConfig,
 }
 
-impl<S: StateReader + Send + Sync> QuorumModule<S> {
-    pub fn new(cfg: QuorumModuleConfig<S>) -> Self {
+impl QuorumModule {
+    pub fn new(cfg: QuorumModuleConfig) -> Self {
         let mut bootstrap_quorum_available_nodes = HashMap::new();
 
         if let Some(quorum_config) = cfg.node_config.bootstrap_quorum_config.clone() {
@@ -47,7 +42,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
                 .membership_config
                 .quorum_members
                 .into_iter()
-                .map(|member| {
+                .map(|(_, member)| {
                     let peer = PeerData {
                         node_id: member.node_id,
                         node_type: member.node_type,
@@ -66,17 +61,15 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
-            vrrbdb_read_handle: cfg.vrrbdb_read_handle,
-            events_tx: cfg.events_tx,
             membership_config: None,
             node_config: cfg.node_config.clone(),
-            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config,
+            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config.clone(),
             bootstrap_quorum_available_nodes,
         }
     }
 
     /// Replaces the current quorum membership configuration to the given one.
-    pub fn _reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
+    pub fn reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
         self.membership_config = Some(membership_config);
     }
 
@@ -85,7 +78,7 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
         quorum_kind: QuorumKind,
         peer_data: PeerData,
         peers: Vec<PeerData>,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<AssignedQuorumMembership> {
         let node_id = peer_data.node_id.clone();
         let assigned_membership = AssignedQuorumMembership {
             quorum_kind,
@@ -96,23 +89,28 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
                 .filter(|peer| peer.node_id != node_id)
                 .collect::<Vec<PeerData>>(),
         };
-        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
 
-        let em = EventMessage::new(Some("network-events".into()), event);
-
-        self.events_tx.send(em).await?;
-
-        Ok(())
+        Ok(assigned_membership)
     }
 
+    // TODO: refactor to return a list of assigned quorum members instead so the handler can emit
+    // the event
     pub(super) async fn assign_peer_list_to_quorums(
         &self,
         peer_list: HashMap<NodeId, (PeerData, bool)>,
-    ) -> crate::Result<()> {
-        let unassigned_peers = peer_list
-            .into_iter()
+    ) -> crate::Result<HashMap<NodeId, AssignedQuorumMembership>> {
+        let unassigned_miner_peers = peer_list
+            .iter()
+            .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Miner)
+            .map(|(_, (peer_data, _))| peer_data)
+            .cloned()
+            .collect::<Vec<PeerData>>();
+
+        let mut unassigned_peers = peer_list
+            .iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
+            .cloned()
             .collect::<Vec<PeerData>>();
 
         // NOTE: select 30% of nodes to be harvester nodes and make the rest farmers
@@ -126,28 +124,51 @@ impl<S: StateReader + Send + Sync> QuorumModule<S> {
             .take(harvester_count)
             .collect::<Vec<PeerData>>();
 
+        let mut quorum_assignments = HashMap::new();
+
         for intended_harvester in harvester_peers.iter() {
-            self.assign_membership_to_quorum(
-                QuorumKind::Harvester,
-                intended_harvester.clone(),
-                harvester_peers.clone(),
-            )
-            .await?;
+            let id = intended_harvester.node_id.clone();
+            let assignment = self
+                .assign_membership_to_quorum(
+                    QuorumKind::Harvester,
+                    intended_harvester.clone(),
+                    harvester_peers.clone(),
+                )
+                .await?;
+
+            quorum_assignments.insert(id, assignment);
         }
 
         for intended_farmer in unassigned_peers.iter().skip(harvester_count) {
-            self.assign_membership_to_quorum(
-                QuorumKind::Farmer,
-                intended_farmer.clone(),
-                unassigned_peers.clone(),
-            )
-            .await?;
+            let id = intended_farmer.node_id.clone();
+            let assignment = self
+                .assign_membership_to_quorum(
+                    QuorumKind::Farmer,
+                    intended_farmer.clone(),
+                    unassigned_peers.clone(),
+                )
+                .await?;
+
+            quorum_assignments.insert(id, assignment);
         }
 
-        Ok(())
+        for intended_miner in unassigned_miner_peers.iter() {
+            let id = intended_miner.node_id.clone();
+            let assignment = self
+                .assign_membership_to_quorum(
+                    QuorumKind::Miner,
+                    intended_miner.clone(),
+                    unassigned_miner_peers.clone(),
+                )
+                .await?;
+
+            quorum_assignments.insert(id, assignment);
+        }
+
+        Ok(quorum_assignments)
     }
 
-    fn _elect_quorum(
+    fn elect_quorum(
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,

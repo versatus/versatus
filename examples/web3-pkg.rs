@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str;
-use tokio;
+
 use web3_pkg::web3_pkg::{
     Web3ContentId, Web3ObjectType, Web3Package, Web3PackageArchitecture, Web3PackageBuilder,
     Web3PackageObject, Web3PackageObjectBuilder, Web3PackageType,
@@ -115,9 +115,9 @@ struct PackageMetadata {
 
 impl PackageMetadata {
     pub fn from_file(filename: &str) -> Result<Self> {
-        let bytes = std::fs::read(&filename)?;
+        let bytes = std::fs::read(filename)?;
         let json = str::from_utf8(&bytes)?;
-        let pkg: PackageMetadata = serde_json::from_str(&json)?;
+        let pkg: PackageMetadata = serde_json::from_str(json)?;
         Ok(pkg)
     }
 }
@@ -142,14 +142,14 @@ async fn package_init(opts: &InitOpts) -> Result<()> {
         objects: vec![],
     };
     let json = serde_json::to_string(&pkg)?;
-    std::fs::write(&opts.config, &json)?;
+    std::fs::write(&opts.config, json)?;
     Ok(())
 }
 
 async fn parse_annotations(annotations: &Vec<String>) -> Result<Vec<(String, String)>> {
     let mut ret = vec![];
     for a_str in annotations.iter() {
-        let mut split = a_str.split("=");
+        let mut split = a_str.split('=');
         let (key, value) = (
             split
                 .next()
@@ -185,7 +185,7 @@ async fn package_addobject(opts: &AddObjectOpts) -> Result<()> {
 
     // serialise to JSON
     let json = serde_json::to_string(&pkg)?;
-    std::fs::write(&opts.config, &json)?;
+    std::fs::write(&opts.config, json)?;
 
     Ok(())
 }
@@ -248,9 +248,9 @@ async fn package_retrieve(opts: &RetrieveOpts) -> Result<()> {
     let obj = store.read_dag(&opts.cid).await?;
     let json = str::from_utf8(&obj)?;
     // store the DAG root as the package manifest
-    std::fs::write(format!("{}/package-manifest.json", opts.outdir), &json)?;
+    std::fs::write(format!("{}/package-manifest.json", opts.outdir), json)?;
 
-    let pkg: Web3Package = serde_json::from_str(&json)?;
+    let pkg: Web3Package = serde_json::from_str(json)?;
 
     // Retrive each of the child objects by CID
     for obj in &pkg.pkg_objects {

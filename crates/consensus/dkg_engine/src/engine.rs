@@ -2,18 +2,16 @@ use std::sync::Arc;
 
 use hbbft::{
     crypto::{PublicKey, SecretKey},
-    sync_key_gen::{Part, PartOutcome, SyncKeyGen},
+    sync_key_gen::{Ack, Part, PartOutcome, SyncKeyGen},
 };
 use primitives::{NodeId, NodeType, ValidatorPublicKey};
 use rand::rngs::OsRng;
 use vrrb_config::ThresholdConfig;
 
 use crate::{
-    prelude::{DkgGenerator, DkgState},
+    prelude::{DkgGenerator, DkgState, ReceiverId, SenderId},
     DkgError, Result,
 };
-
-pub type SenderId = NodeId;
 
 /// `DkgEngine` is a struct that holds entry point for initiating DKG
 ///
@@ -35,7 +33,7 @@ pub struct DkgEngine {
 
     pub node_type: NodeType,
 
-    /// For DKG (Can be extended for heirarchical DKG)
+    /// For DKG (Can be extended for hierarchical DKG)
     pub threshold_config: vrrb_config::ThresholdConfig,
 
     pub secret_key: SecretKey,
@@ -45,6 +43,45 @@ pub struct DkgEngine {
 
     /// Harvester Distributed  Group public key
     pub harvester_public_key: Option<PublicKey>,
+}
+
+impl Clone for DkgEngine {
+    fn clone(&self) -> Self {
+        let peer_public_keys = Arc::new(self.dkg_state.peer_public_keys().clone());
+
+        // TODO: fix unwraps
+        let mut rng = OsRng::new()
+            .map_err(|err| DkgError::Unknown(err.to_string()))
+            .unwrap();
+
+        let (sync_key_gen, _) = SyncKeyGen::new(
+            self.node_id(),
+            self.secret_key.clone(),
+            peer_public_keys,
+            self.threshold_config().threshold as usize,
+            &mut rng,
+        )
+        .unwrap();
+
+        let mut dkg_state = DkgState::new();
+
+        dkg_state.set_part_message_store(self.dkg_state.part_message_store_owned());
+        dkg_state.set_ack_message_store(self.dkg_state.ack_message_store_owned());
+        dkg_state.set_peer_public_keys(self.dkg_state.peer_public_keys_owned());
+        dkg_state.set_public_key_set(self.dkg_state.public_key_set_owned());
+        dkg_state.set_secret_key_share(self.dkg_state.secret_key_share_owned());
+        dkg_state.set_sync_key_gen(Some(sync_key_gen));
+        dkg_state.set_random_number_gen(self.dkg_state.random_number_gen_owned());
+
+        Self {
+            node_id: self.node_id.clone(),
+            node_type: self.node_type,
+            threshold_config: self.threshold_config(),
+            secret_key: self.secret_key.clone(),
+            dkg_state,
+            harvester_public_key: self.harvester_public_key,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -133,7 +170,7 @@ impl DkgGenerator for DkgEngine {
         self.dkg_state.set_random_number_gen(Some(rng.clone()));
         self.dkg_state
             .part_message_store_mut()
-            .insert(node_id, part_commitment.clone());
+            .insert(node_id.clone(), part_commitment.clone());
 
         self.dkg_state.set_sync_key_gen(Some(sync_key_gen));
 
@@ -153,7 +190,10 @@ impl DkgGenerator for DkgEngine {
     ///
     /// a `Result` type. The `Result` type is an enum with two variants:
     /// `DkgResult` and `Err`.
-    fn ack_partial_commitment(&mut self, sender_node_id: SenderId) -> Result<()> {
+    fn ack_partial_commitment(
+        &mut self,
+        sender_node_id: SenderId,
+    ) -> Result<(ReceiverId, SenderId, Ack)> {
         let node_id = self.node_id();
 
         let ack_message_store = self.dkg_state.ack_message_store_owned();
@@ -188,16 +228,15 @@ impl DkgGenerator for DkgEngine {
                 PartOutcome::Valid(Some(ack)) => {
                     self.dkg_state
                         .ack_message_store_mut()
-                        .insert((node_id, sender_node_id), ack);
+                        .insert((node_id.clone(), sender_node_id.clone()), ack.clone());
 
-                    Ok(())
+                    Ok((node_id, sender_node_id, ack))
                 },
                 PartOutcome::Invalid(fault) => Err(DkgError::InvalidPartMessage(fault.to_string())),
                 PartOutcome::Valid(None) => Err(DkgError::ObserverNotAllowed),
             },
-            Err(e) => Err(DkgError::Unknown(format!(
-                "Failed to generate handle part commitment , error details {:}",
-                e,
+            Err(err) => Err(DkgError::Unknown(format!(
+                "failed to generate handle part commitment: {err}",
             ))),
         }
     }
@@ -210,21 +249,24 @@ impl DkgGenerator for DkgEngine {
     fn handle_ack_messages(&mut self) -> Result<()> {
         let ack_message_store = self.dkg_state.ack_message_store_owned();
 
+        let mut ack_message_store = ack_message_store
+            .into_iter()
+            .map(|((receiver_id, sender_id), ack)| (receiver_id, sender_id, ack))
+            .collect::<Vec<(ReceiverId, SenderId, Ack)>>();
+
+        ack_message_store.sort_by_key(|entry| entry.0.to_owned());
+
         let keygen = self
             .dkg_state
             .sync_key_gen_mut()
             .as_mut()
             .ok_or(DkgError::SyncKeyGenInstanceNotCreated)?;
 
-        for (sender_id, ack) in ack_message_store {
+        for (receiver_id, sender_id, ack) in ack_message_store {
             let result = keygen
-                .handle_ack(&sender_id.0, ack.clone())
-                .map_err(|_err| {
-                    DkgError::InvalidAckMessage(format!(
-                        "{} {}",
-                        sender_id.0,
-                        &sender_id.1.to_string()
-                    ))
+                .handle_ack(&receiver_id, ack.clone())
+                .map_err(|err| {
+                    DkgError::InvalidAckMessage(format!("from {sender_id} to {receiver_id}: {err}"))
                 })?;
 
             match result {

@@ -35,7 +35,7 @@ impl Handler<EventMessage> for NetworkModule {
                 );
 
                 let evt = Event::NodeAddedToPeerList(peer_data.clone());
-                let em = EventMessage::new(Some("consensus-events".into()), evt);
+                let em = EventMessage::new(Some("runtime-events".into()), evt);
 
                 self.events_tx
                     .send(em)
@@ -58,9 +58,13 @@ impl Handler<EventMessage> for NetworkModule {
                 self.broadcast_part_commitment(node_id, part).await?;
             },
 
-            Event::PartCommitmentAcknowledged { node_id, sender_id } => {
+            Event::PartCommitmentAcknowledged {
+                node_id,
+                sender_id,
+                ack,
+            } => {
                 info!("Broadcasting part commitment acknowledgement to peers in quorum");
-                self.broadcast_part_commitment_acknowledgement(node_id, sender_id)
+                self.broadcast_part_commitment_acknowledgement(node_id, sender_id, ack)
                     .await?;
             },
 

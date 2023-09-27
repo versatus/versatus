@@ -4,6 +4,7 @@ mod rocksdb_adapter;
 mod state_store;
 pub mod test_utils;
 mod transaction_store;
+pub mod types;
 mod vrrbdb;
 mod vrrbdb_read_handle;
 mod vrrbdb_serialized_values;
@@ -12,6 +13,7 @@ pub use claim_store::*;
 pub use rocksdb_adapter::*;
 pub use state_store::*;
 pub use transaction_store::*;
+pub use types::*;
 pub use vrrbdb_read_handle::*;
 pub use vrrbdb_serialized_values::*;
 

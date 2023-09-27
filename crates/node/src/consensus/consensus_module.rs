@@ -1,46 +1,60 @@
-use std::collections::{BTreeMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    sync::{Arc, RwLock},
+};
 
-use block::{header::BlockHeader, Block, BlockHash, ConvergenceBlock, ProposalBlock, RefHash};
+use block::{
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
+};
+use bulldag::node::Node;
+use chrono::Duration;
 use dkg_engine::{
     dkg::DkgGenerator,
-    prelude::DkgEngine,
+    prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId},
 };
 use ethereum_types::U256;
 use events::{
-    AssignedQuorumMembership, Event, EventPublisher, PeerData,
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
     SyncPeerData, Vote,
 };
-use hbbft::sync_key_gen::Part;
+use hbbft::{
+    crypto::PublicKeyShare,
+    sync_key_gen::{Ack, Part},
+};
+use laminar::{Packet, SocketEvent};
 use maglev::Maglev;
-use mempool::TxnStatus;
+use mempool::{TxnRecord, TxnStatus};
 use primitives::{
-    ByteSlice48Bit, Epoch, FarmerQuorumThreshold,
-    NodeId, NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes,
-    ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey, RawSignature, Round,
-    TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare,
+    ByteSlice, ByteSlice32Bit, ByteSlice48Bit, ByteVec, Epoch, FarmerQuorumThreshold,
+    GroupPublicKey, NodeId, NodeIdx, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes,
+    ProgramExecutionOutput, PublicKeyShareVec, QuorumPublicKey, QuorumThreshold, RawSignature,
+    Round, TxnValidationStatus, ValidatorPublicKey, ValidatorPublicKeyShare, ValidatorSecretKey,
 };
 use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
-use signer::signer::SignatureProvider;
+use signer::signer::{SignatureProvider, Signer};
 use telemetry::error;
-use theater::{ActorId, ActorState};
+use theater::{Actor, ActorId, ActorState, TheaterError};
 use vrrb_config::{NodeConfig, QuorumMember, QuorumMembershipConfig};
+use vrrb_core::{bloom::Bloom, claim::Claim, keypair::Keypair};
 use vrrb_core::{
-    bloom::Bloom,
-    claim::Claim,
-    keypair::Keypair,
+    cache::Cache,
+    transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind},
 };
-use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind};
 
-use crate::{state_reader::StateReader, NodeError, Result, PULL_TXN_BATCH_SIZE};
+use crate::{state_reader::StateReader, NodeError, Result};
 
 use super::{QuorumModule, QuorumModuleConfig};
 
+pub const PULL_TXN_BATCH_SIZE: usize = 100;
+
+// TODO: Move this to primitives
+pub type QuorumId = String;
+pub type QuorumPubkey = String;
+
 #[derive(Debug)]
-pub struct ConsensusModuleConfig<S: StateReader + Send + Sync> {
-    pub events_tx: EventPublisher,
+pub struct ConsensusModuleConfig {
     pub keypair: Keypair,
-    pub vrrbdb_read_handle: S,
     pub node_config: NodeConfig,
     pub dkg_generator: DkgEngine,
     pub validator_public_key: ValidatorPublicKey,
@@ -76,82 +90,60 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
-#[derive(Debug)]
-pub struct ConsensusModule<S: StateReader + Sync + Send + Clone> {
+#[derive(Debug, Clone)]
+pub struct ConsensusModule {
     pub(crate) id: ActorId,
     pub(crate) status: ActorState,
-    pub(crate) events_tx: EventPublisher,
-    pub(crate) vrrbdb_read_handle: S,
     pub(crate) quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
-    pub(crate) quorum_driver: QuorumModule<S>,
+    pub(crate) quorum_driver: QuorumModule,
     pub(crate) dkg_engine: DkgEngine,
     pub(crate) node_config: NodeConfig,
-    //
+
     // votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     // pub(crate) group_public_key: GroupPublicKey,
-    // sig_provider: Option<SignatureProvider>,
-    // vrrbdb_read_handle: VrrbDbReadHandle,
-    // convergence_block_certificates:
-    //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
-    //
-    // harvester_id: NodeIdx,
+    pub(crate) sig_provider: SignatureProvider,
+    pub(crate) convergence_block_certificates:
+        Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
     // dag: Arc<RwLock<BullDag<Block, String>>>,
-    // quorum_threshold: QuorumThreshold,
-    //
     // sync_jobs_sender: Sender<Job>,
-    // status: ActorState,
-    // id: ActorId,
-    // broadcast_events_tx: EventPublisher,
-    // _label: ActorLabel,
-    // _events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
-    // _async_jobs_sender: Sender<Job>,
 
-    //
     // NOTE: harvester types
-    //
-    // pub quorum_certified_txns: Vec<QuorumCertifiedTxn>,
     // pub certified_txns_filter: Bloom,
     // pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     // pub group_public_key: GroupPublicKey,
     // pub sig_provider: Option<SignatureProvider>,
     // pub vrrbdb_read_handle: VrrbDbReadHandle,
-    // pub convergence_block_certificates:
     //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
     // pub harvester_id: NodeIdx,
     // pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    // status: ActorState,
-    // _label: ActorLabel,
-    // id: ActorId,
-    // broadcast_events_tx: EventPublisher,
-    // _events_rx: tokio::sync::mpsc::Receiver<EventMessage>,
-    // quorum_threshold: QuorumThreshold,
     // sync_jobs_sender: Sender<Job>,
-    // _async_jobs_sender: Sender<Job>,
-    // pub keypair: KeyPair,
 }
 
-impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
-    pub fn new(cfg: ConsensusModuleConfig<S>) -> Self {
+impl ConsensusModule {
+    pub fn new(cfg: ConsensusModuleConfig) -> Self {
         let quorum_module_config = QuorumModuleConfig {
-            events_tx: cfg.events_tx.clone(),
-            vrrbdb_read_handle: cfg.vrrbdb_read_handle.clone(),
             membership_config: None,
             node_config: cfg.node_config.clone(),
         };
 
+        let validator_public_key = cfg.keypair.validator_public_key_owned();
+
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
-            events_tx: cfg.events_tx,
-            vrrbdb_read_handle: cfg.vrrbdb_read_handle,
             quorum_certified_txns: vec![],
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
-            dkg_engine: cfg.dkg_generator,
-            node_config: cfg.node_config,
+            dkg_engine: cfg.dkg_generator.clone(),
+            node_config: cfg.node_config.clone(),
+            sig_provider: SignatureProvider::new(
+                Arc::new(RwLock::new(cfg.dkg_generator.clone().dkg_state)),
+                cfg.node_config.threshold_config.clone(),
+            ),
+            convergence_block_certificates: Cache::new(10, 300), // TODO: refactor into constants
         }
     }
 
@@ -159,17 +151,10 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         self.keypair.validator_public_key_owned()
     }
 
-    async fn _certify_block(&self) {
-        //
-    }
-
-    async fn _mine_genesis_block(&self) {
-        //
-    }
-
-    async fn _mine_proposal_block(
+    async fn mine_proposal_block(
         &mut self,
         ref_hash: RefHash,
+        claim_map: HashMap<String, Claim>,
         round: Round,
         epoch: Epoch,
         claim: Claim,
@@ -177,7 +162,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
 
         // NOTE: Read updated claims
-        let claim_map = self.vrrbdb_read_handle.claim_store_values();
+        // let claim_map = self.vrrbdb_read_handle.claim_store_values();
         let claim_list = claim_map
             .values()
             .map(|claim| (claim.hash, claim.clone()))
@@ -204,14 +189,59 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         )
     }
 
-    async fn _broadcast_proposal_block(&self, proposal_block: ProposalBlock) {
-        let event = Event::BlockCreated(Block::Proposal {
-            block: proposal_block,
-        });
+    pub fn certify_convergence_block(
+        &mut self,
+        block: ConvergenceBlock,
+        last_block_header: BlockHeader,
+        // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
+    ) -> Result<Certificate> {
+        self.precheck_convergence_block(block.clone(), last_block_header);
 
-        if let Err(err) = self.events_tx.send(event.into()).await {
-            error!("{}", err);
+        let block = block.clone();
+        let block_hash = block.hash.clone();
+        let quorum_threshold = self.node_config.threshold_config.threshold;
+
+        let certificates_share = self
+            .convergence_block_certificates
+            .get(&block_hash)
+            .ok_or_else(|| {
+                NodeError::Other(format!(
+                    "No certificate shares found for block {}",
+                    block_hash
+                ))
+            })?;
+
+        if certificates_share.len() as u16 <= quorum_threshold {
+            return Err(NodeError::Other(
+                "Not enough partial signatures to create a certificate".to_string(),
+            ));
         }
+
+        let mut sig_shares = BTreeMap::new();
+        certificates_share
+            .iter()
+            .for_each(|(node_idx, _, signature)| {
+                sig_shares.insert(*node_idx, signature.clone());
+            });
+
+        let signature = self
+            .sig_provider
+            .generate_quorum_signature(quorum_threshold as u16, sig_shares)
+            .map_err(|err| {
+                NodeError::Other(format!(
+                    "Failed to generate block certificate for block {block_hash}: {err}",
+                ))
+            })?;
+
+        let certificate = Certificate {
+            signature: hex::encode(signature),
+            inauguration: None,
+            root_hash: "".to_string(),
+            next_root_hash: "".to_string(),
+            block_hash,
+        };
+
+        Ok(certificate)
     }
 
     // The above code is handling an event of type `Vote` in a Rust
@@ -222,7 +252,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     // the number of votes in the pool reaches the farmer
     // quorum threshold, it sends a job to certify the transaction
     // using the provided signature provider.
-    pub fn validate_vote(&self, _vote: Vote, _farmer_quorum_threshold: FarmerQuorumThreshold) {
+    pub fn validate_vote(&self, vote: Vote, farmer_quorum_threshold: FarmerQuorumThreshold) {
         // TODO: Harvester quorum nodes should check the integrity of the vote by verifying the vote does
         // come from the alleged voter Node.
         //
@@ -257,15 +287,11 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     }
     }
 
-    async fn _broadcast_block_certificate(&self) {
-        //
-    }
-
-    fn _generate_and_broadcast_certificate(
+    fn generate_and_broadcast_certificate(
         &self,
-        _block_hash: BlockHash,
-        _certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
-        _sig_provider: &SignatureProvider,
+        block_hash: BlockHash,
+        certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
+        sig_provider: &SignatureProvider,
     ) -> Result<()> {
         todo!()
         // if certificates_share.len() >= self.quorum_threshold {
@@ -303,7 +329,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         // Ok(())
     }
 
-    async fn _sign_convergence_block(&self) {
+    async fn sign_convergence_block(&self) {
         //     Event::SignConvergenceBlock(block) => {
         //         if let Some(sig_provider) = self.sig_provider.clone() {
         //             let _ = self
@@ -313,7 +339,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     },
     }
 
-    async fn _process_convergence_block_partial_signature(&self) {
+    async fn process_convergence_block_partial_signature(&self) {
         //     // Process the job result of signing convergence block and adds
         // the     // partial signature to the cache for certificate
         // generation     Event::ConvergenceBlockPartialSign(job_result)
@@ -541,10 +567,8 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     /// * `status`: The `status` parameter is of type `TxnStatus`, which is an
     ///   enum representing the
     /// status of a transaction.
-    pub fn _update_txn_status(&mut self, _txn_id: TransactionDigest, _status: TxnStatus) {
-
-        // TODO: publish a status update to mempool
-
+    // TODO: revisit
+    pub fn update_txn_status(&mut self, _txn_id: TransactionDigest, _status: TxnStatus) {
         // let txn_record_opt = self.tx_mempool.get(&txn_id);
         // if let Some(mut txn_record) = txn_record_opt {
         //     txn_record.status = status;
@@ -554,16 +578,25 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     }
 
     pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
-        let threshold_config = self.dkg_engine.threshold_config();
+        if self.node_config.node_type == NodeType::Bootstrap {
+            return Err(NodeError::Other(
+                "Bootstrap nodes cannot participate in DKG".to_string(),
+            ));
+        }
+
+        if self.node_config.node_type == NodeType::Miner {
+            return Err(NodeError::Other(
+                "Miner nodes cannot participate in Validator DKG".to_string(),
+            ));
+        }
 
         let quorum_membership_config = self.quorum_driver.membership_config.clone().ok_or({
-            error!("Node {} cannot participate in DKG", self.node_config.id);
-            NodeError::Other("Cannot participate in DKG".to_string())
+            let err_msg = format!("Node {} cannot participate in DKG", self.node_config.id);
+            error!(err_msg);
+            NodeError::Other(err_msg)
         })?;
 
-        let _quorum_kind = quorum_membership_config.quorum_kind();
-
-        let threshold = threshold_config.threshold as usize;
+        let threshold = quorum_membership_config.quorum_members().len() / 2;
 
         // NOTE: add this node's own validator key to participate in DKG, otherwise they're considered
         // an observer and no part message is generated
@@ -584,10 +617,25 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
     ) {
         self.dkg_engine.add_peer_public_key(node_id, public_key);
     }
+
+    pub fn membership_config(&self) -> &Option<QuorumMembershipConfig> {
+        &self.quorum_driver.membership_config
+    }
+
+    pub fn membership_config_mut(&mut self) -> &mut Option<QuorumMembershipConfig> {
+        &mut self.quorum_driver.membership_config
+    }
+
+    pub fn membership_config_owned(&self) -> Option<QuorumMembershipConfig> {
+        self.quorum_driver.membership_config.clone()
+    }
 }
 
-impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
-    pub async fn handle_node_added_to_peer_list(&mut self, peer_data: PeerData) -> Result<()> {
+impl ConsensusModule {
+    pub async fn handle_node_added_to_peer_list(
+        &mut self,
+        peer_data: PeerData,
+    ) -> Result<Option<HashMap<NodeId, AssignedQuorumMembership>>> {
         if let Some(quorum_config) = self.quorum_driver.bootstrap_quorum_config.clone() {
             let node_id = peer_data.node_id.clone();
 
@@ -595,14 +643,13 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
                 .membership_config
                 .quorum_members
                 .iter()
-                .cloned()
-                .map(|member| member.node_id)
+                .map(|(_, member)| member.node_id.to_owned())
                 .collect::<Vec<NodeId>>();
 
             if quorum_member_ids.contains(&node_id) {
                 self.quorum_driver
                     .bootstrap_quorum_available_nodes
-                    .insert(node_id, (peer_data, true));
+                    .insert(node_id, (peer_data.clone(), true));
             }
 
             let available_nodes = self.quorum_driver.bootstrap_quorum_available_nodes.clone();
@@ -618,27 +665,45 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
                     self.quorum_driver.node_config.node_type,
                     primitives::NodeType::Bootstrap
                 ) {
-                    self.quorum_driver
+                    let assignments = self
+                        .quorum_driver
                         .assign_peer_list_to_quorums(available_nodes)
                         .await?;
+
+                    return Ok(Some(assignments));
                 }
             }
         }
 
-        Ok(())
+        self.add_peer_public_key_to_dkg_state(
+            peer_data.node_id.clone(),
+            peer_data.validator_public_key,
+        );
+
+        Ok(None)
     }
 
     pub fn handle_quorum_membership_assigment_created(
         &mut self,
         assigned_membership: AssignedQuorumMembership,
-    ) {
+    ) -> Result<()> {
+        if matches!(self.node_config.node_type, NodeType::Bootstrap) {
+            return Err(NodeError::Other(format!(
+                "bootstrap node {} cannot belong to a quorum",
+                &self.node_config.id
+            )));
+        }
+
         if let Some(membership_config) = &self.quorum_driver.membership_config {
             telemetry::info!(
                 "{} already belongs to a {} quorum",
                 &self.node_config.id,
                 membership_config.quorum_kind
             );
-            return;
+            return Err(NodeError::Other(format!(
+                "{} already belongs to a {} quorum",
+                &self.node_config.id, membership_config.quorum_kind
+            )));
         }
 
         let quorum_kind = assigned_membership.quorum_kind.clone();
@@ -647,39 +712,37 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
                 .peers
                 .into_iter()
                 .map(|peer| {
-                    QuorumMember {
-                        node_id: peer.node_id,
-                        kademlia_peer_id: peer.kademlia_peer_id,
-                        // TODO: get from kademlia metadata
-                        node_type: NodeType::Validator,
-                        udp_gossip_address: peer.udp_gossip_addr,
-                        raptorq_gossip_address: peer.raptorq_gossip_addr,
-                        kademlia_liveness_address: peer.kademlia_liveness_addr,
-
-                        // TODO: create threshold signature keys for all nodes aand then share as
-                        // part of membership config
-                        // Then create a threshold signature from a harvester module masternode and
-                        // use that to certify blocks
-                        //
-                        validator_public_key: self.node_config.keypair.validator_public_key_owned(),
-                    }
+                    (
+                        peer.node_id.clone(),
+                        QuorumMember {
+                            node_id: peer.node_id,
+                            kademlia_peer_id: peer.kademlia_peer_id,
+                            // TODO: get from kademlia metadata
+                            node_type: NodeType::Validator,
+                            udp_gossip_address: peer.udp_gossip_addr,
+                            raptorq_gossip_address: peer.raptorq_gossip_addr,
+                            kademlia_liveness_address: peer.kademlia_liveness_addr,
+                            validator_public_key: peer.validator_public_key,
+                        },
+                    )
                 })
                 .collect(),
             quorum_kind,
         };
 
         self.quorum_driver.membership_config = Some(quorum_membership_config);
+        Ok(())
     }
 
     pub fn handle_transaction_certificate_requested(
         &mut self,
-        _votes: Vec<Vote>,
-        _txn_id: TransactionDigest,
-        _quorum_key: PublicKeyShareVec,
-        _farmer_id: NodeId,
-        _txn: TransactionKind,
-        _quorum_threshold: FarmerQuorumThreshold,
-    ) {
+        votes: Vec<Vote>,
+        txn_id: TransactionDigest,
+        quorum_key: PublicKeyShareVec,
+        farmer_id: NodeId,
+        txn: TransactionKind,
+        quorum_threshold: FarmerQuorumThreshold,
+    ) -> Result<()> {
         todo!()
         // let mut vote_shares: HashMap<bool, BTreeMap<NodeIdx, Vec<u8>>> =
         //     HashMap::new();
@@ -708,6 +771,7 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     .iter()
         //     .max_by_key(|(_, votes_map)| votes_map.len())
         //     .map(|(key, votes_map)| (*key, votes_map.clone()));
+        //
         // if validated {
         //     if let Some((is_txn_valid, votes_map)) = most_votes_share {
         //         let result = sig_provider.generate_quorum_signature(
@@ -745,13 +809,13 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     pub fn handle_transaction_certificate_created(
         &mut self,
-        _votes: Vec<Vote>,
-        _signature: RawSignature,
-        _digest: TransactionDigest,
-        _execution_result: ProgramExecutionOutput,
-        _farmer_id: NodeId,
-        _txn: Box<TransactionKind>,
-        _is_valid: TxnValidationStatus,
+        votes: Vec<Vote>,
+        signature: RawSignature,
+        digest: TransactionDigest,
+        execution_result: ProgramExecutionOutput,
+        farmer_id: NodeId,
+        txn: Box<TransactionKind>,
+        is_valid: TxnValidationStatus,
     ) {
         //
         // if let JobResult::CertifiedTxn(
@@ -787,59 +851,59 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         // }
     }
 
-    pub fn handle_part_commitment_created(&mut self, node_id: NodeId, part: Part) -> Result<()> {
+    pub fn handle_part_commitment_created(
+        &mut self,
+        sender_id: SenderId,
+        part: Part,
+    ) -> Result<(ReceiverId, SenderId, Ack)> {
+        if let Some(membership_config) = self.membership_config_owned() {
+            if sender_id != self.node_config.id
+                && !membership_config.quorum_members.contains_key(&sender_id)
+            {
+                let msg = format!("Node {} is not a quorum member", self.node_config.id);
+
+                return Err(NodeError::Other(msg));
+            }
+        }
+
         self.dkg_engine
             .dkg_state
             .part_message_store_mut()
-            .entry(node_id.clone())
+            .entry(sender_id.clone())
             .or_insert_with(|| part);
 
-        self.dkg_engine.ack_partial_commitment(node_id)?;
-
-        Ok(())
+        self.dkg_engine
+            .ack_partial_commitment(sender_id)
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
 
     pub fn handle_part_commitment_acknowledged(
         &mut self,
-        _node_id: NodeId,
-        sender_id: NodeId,
+        receiver_id: ReceiverId,
+        sender_id: SenderId,
+        ack: Ack,
     ) -> Result<()> {
-        let node_id = self.node_config.id.clone();
-
-        let quorum_members_count = self
-            .quorum_driver
-            .membership_config
-            .clone()
-            .unwrap_or_default()
-            .quorum_members
-            .len();
-
-        if self.dkg_engine.dkg_state.ack_message_store().values().len() == quorum_members_count {
-            return Ok(());
-        }
-
-        let _has_ack = self
-            .dkg_engine
+        self.dkg_engine
             .dkg_state
-            .part_message_store_mut()
-            .contains_key(&node_id);
-
-        let _ack = self
-            .dkg_engine
-            .dkg_state
-            .ack_message_store()
-            .get(&(sender_id.clone(), node_id))
-            .ok_or(NodeError::Other(format!(
-                "No ack found for sender_id: {:?} and receiver_id: {:?}",
-                sender_id,
-                self.node_config.id.clone()
-            )))?;
+            .ack_message_store_mut()
+            .entry((receiver_id, sender_id))
+            .or_insert_with(|| ack);
 
         Ok(())
     }
 
-    pub fn handle_quorum_election_started(&mut self, _header: BlockHeader) {
+    pub fn handle_all_ack_messages(&mut self) -> Result<()> {
+        self.dkg_engine.handle_ack_messages()?;
+        Ok(())
+    }
 
+    pub fn generate_keysets(&mut self) -> Result<()> {
+        self.dkg_engine
+            .generate_key_sets()
+            .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) {
         //     let claims = self.vrrbdb_read_handle.claim_store_values();
         //
         //     if let Ok(quorum) = self.elect_quorum(claims, header) {
@@ -853,8 +917,11 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //     }
     }
 
-    pub fn handle_miner_election_started(&mut self, header: BlockHeader) -> Result<(U256, Claim)> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+    pub fn handle_miner_election_started(
+        &mut self,
+        header: BlockHeader,
+        claims: HashMap<String, Claim>,
+    ) -> Result<(U256, Claim)> {
         let mut election_results: BTreeMap<U256, Claim> =
             self.quorum_driver.elect_miner(claims, header.block_seed);
 
@@ -872,11 +939,11 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
             .map(|pk| pk.to_bytes())
             .collect();
 
-        let _maglev_hash_ring = Maglev::new(keys);
+        let maglev_hash_ring = Maglev::new(keys);
 
         // let mut new_txns = vec![];
 
-        for _txn in txns.into_iter() {
+        for txn in txns.into_iter() {
             //         if let Some(group_public_key) = maglev_hash_ring.get(&txn.0.clone()).cloned()
             // {             if group_public_key == self.group_public_key {
             //                 new_txns.push(txn);
@@ -920,58 +987,20 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
 
     pub fn handle_proposal_block_mine_request_created(
         &mut self,
-        _ref_hash: RefHash,
-        _round: Round,
-        _epoch: Epoch,
-        _claim: Claim,
-    ) {
-        //     let txns = self.quorum_certified_txns.iter().take(PULL_TXN_BATCH_SIZE);
-        //
-        //     //Read updated claims
-        //     let claim_map = self.vrrbdb_read_handle.claim_store_values();
-        //     let claim_list = claim_map
-        //         .values()
-        //         .map(|claim| (claim.hash, claim.clone()))
-        //         .collect();
-        //
-        //     let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
-        //         .into_iter()
-        //         .map(|txn| {
-        //             if let Err(err) =
-        // self.certified_txns_filter.push(&txn.txn().id.to_string())             {
-        //                 telemetry::error!(
-        //                     "Error pushing txn to certified txns filter: {}",
-        //                     err
-        //                 );
-        //             }
-        //             (txn.txn().id(), txn.clone())
-        //         })
-        //         .collect();
-        //
-        //     let proposal_block = ProposalBlock::build(
-        //         ref_hash,
-        //         round,
-        //         epoch,
-        //         txns_list,
-        //         claim_list,
-        //         claim,
-        //         self.keypair.get_miner_secret_key(),
-        //     );
-        //     let _ = self
-        //         .broadcast_events_tx
-        //         .send(EventMessage::new(
-        //             None,
-        //             Event::MinedBlock(Block::Proposal {
-        //                 block: proposal_block,
-        //             }),
-        //         ))
-        //         .await;
+        ref_hash: RefHash,
+        round: Round,
+        epoch: Epoch,
+        claim: Claim,
+    ) -> Result<ProposalBlock> {
+        // noteself.mine_proposal_block(ref_hash, claim_map, round, epoch, claim);
+        todo!()
     }
+
     pub fn handle_convergence_block_partial_signature_created(
         &mut self,
-        _block_hash: BlockHash,
-        _public_key_share: ValidatorPublicKeyShare,
-        _partial_signature: RawSignature,
+        block_hash: BlockHash,
+        public_key_share: ValidatorPublicKeyShare,
+        partial_signature: RawSignature,
     ) {
         //         if let Some(certificates_share) =
         //             self.convergence_block_certificates.get(&block_hash)
@@ -1026,16 +1055,16 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //             }
         //         }
     }
-    pub fn handle_convergence_block_precheck_requested(
+    pub fn precheck_convergence_block(
         &mut self,
-        _block: ConvergenceBlock,
-        _last_confirmed_block_header: BlockHeader,
+        block: ConvergenceBlock,
+        last_confirmed_block_header: BlockHeader,
     ) {
-        //     let claims = block.claims.clone();
-        //     let txns = block.txns.clone();
-        //     let proposal_block_hashes = block.header.ref_hashes.clone();
-        //     let mut pre_check = true;
-        //     let mut tmp_proposal_blocks = Vec::new();
+        let claims = block.claims.clone();
+        let txns = block.txns.clone();
+        let proposal_block_hashes = block.header.ref_hashes.clone();
+        let mut pre_check = true;
+        // let mut tmp_proposal_blocks = Vec::new();
         //     if let Ok(dag) = self.dag.read() {
         //         for proposal_block_hash in proposal_block_hashes.iter() {
         //             if let Some(block) = dag.get_vertex(proposal_block_hash.clone()) {
@@ -1102,12 +1131,13 @@ impl<S: StateReader + Send + Sync + Clone> ConsensusModule<S> {
         //             })?
         //     }
     }
+
     pub fn handle_convergence_block_peer_signature_request(
         &mut self,
-        _node_id: NodeId,
-        _block_hash: BlockHash,
-        _public_key_share: PublicKeyShareVec,
-        _partial_signature: RawSignature,
+        node_id: NodeId,
+        block_hash: BlockHash,
+        public_key_share: PublicKeyShareVec,
+        partial_signature: RawSignature,
     ) {
         //     let mut pb_key_share = None;
         //     let preliminary_check = TryInto::<[u8; 48]>::try_into(public_key_share_bytes)
