@@ -42,8 +42,7 @@ mod tests {
     use vrrb_core::{
         keypair::KeyPair,
     };
-    use vrrb_core::transactions::{NewTransferArgs, Transaction, TransactionKind};
-    use vrrb_core::transactions::transfer::Transfer;
+    use vrrb_core::transactions::{Transaction, TransactionKind};
 
     use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
 
@@ -70,17 +69,15 @@ mod tests {
         let recv_keypair = KeyPair::random();
         let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-        let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: Address::new(keypair.get_miner_public_key().clone()),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: recv_address,
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn = TransactionKind::transfer_builder().timestamp(0)
+            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(recv_address)
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
         match mpooldb.insert(txn) {
@@ -101,17 +98,16 @@ mod tests {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
 
-        let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: Address::new(keypair.get_miner_public_key().clone()),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: Address::new(recv_keypair.get_miner_public_key().clone()),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(Address::new(recv_keypair.get_miner_public_key().clone()))
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -142,29 +138,22 @@ mod tests {
         let recv1_keypair = KeyPair::random();
         let recv2_keypair = KeyPair::random();
 
-        let txn1 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: Address::new(keypair.get_miner_public_key().clone()),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: Address::new(recv1_keypair.get_miner_public_key().clone()),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let transfer_builder = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature());
 
-        let txn2 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: Address::new(keypair.get_miner_public_key().clone()),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: Address::new(recv2_keypair.get_miner_public_key().clone()),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn1 = transfer_builder.clone()
+            .receiver_address(Address::new(recv1_keypair.get_miner_public_key().clone()))
+            .build_kind().expect("Failed to build transaction");
+
+        let txn2 = transfer_builder.clone()
+            .receiver_address(Address::new(recv2_keypair.get_miner_public_key().clone()))
+            .build_kind().expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -198,17 +187,16 @@ mod tests {
 
         let now = chrono::offset::Utc::now().timestamp();
 
-        let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: now,
-            sender_address: sender_address.clone(),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: receiver_address.clone(),
-            token: None,
-            amount: txn_amount,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn = TransactionKind::transfer_builder()
+            .timestamp(now)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(receiver_address.clone())
+            .amount(txn_amount)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
         let txn_id = txn.digest();
 
@@ -259,18 +247,19 @@ mod tests {
         let receiver_address = Address::new(recv_keypair.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
+        let transfer_builder = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(receiver_address.clone())
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature());
+
         for n in 1..101 {
-            let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-                timestamp: 0,
-                sender_address: sender_address.clone(),
-                sender_public_key: keypair.get_miner_public_key().clone(),
-                receiver_address: receiver_address.clone(),
-                token: None,
-                amount: txn_amount + n,
-                validators: Some(HashMap::<String, bool>::new()),
-                nonce: 0,
-                signature: mock_txn_signature(),
-            }));
+            let txn = transfer_builder.clone()
+                .amount(txn_amount + n)
+                .build_kind().expect("Failed to build transaction");
 
             txns.insert(txn);
         }
@@ -317,29 +306,27 @@ mod tests {
         let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
         let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
 
-        let txn1 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: sender_address.clone(),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: recv1_address.clone(),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn1 = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(recv1_address.clone())
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
-        let txn2 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: sender_address.clone(),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: recv2_address.clone(),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn2 = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(recv2_address.clone())
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
         let txn2_id = txn2.digest();
 
@@ -383,29 +370,27 @@ mod tests {
         let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
         let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
 
-        let txn1 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: sender_address.clone(),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: recv1_address.clone(),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn1 = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(recv1_address.clone())
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
-        let txn2 = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-            timestamp: 0,
-            sender_address: sender_address.clone(),
-            sender_public_key: keypair.get_miner_public_key().clone(),
-            receiver_address: recv2_address.clone(),
-            token: None,
-            amount: 0,
-            validators: Some(HashMap::<String, bool>::new()),
-            nonce: 0,
-            signature: mock_txn_signature(),
-        }));
+        let txn2 = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(recv2_address.clone())
+            .amount(0)
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature())
+            .build_kind().expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -449,18 +434,19 @@ mod tests {
         let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
         let txn_amount: u128 = 1010101;
 
+        let transfer_builder = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(sender_address.clone())
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .receiver_address(recv_address.clone())
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature());
+
         for n in 1..101 {
-            let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-                timestamp: 0,
-                sender_address: sender_address.clone(),
-                sender_public_key: keypair.get_miner_public_key().clone(),
-                receiver_address: recv_address.clone(),
-                token: None,
-                amount: txn_amount + n,
-                validators: Some(HashMap::<String, bool>::new()),
-                nonce: 0,
-                signature: mock_txn_signature(),
-            }));
+            let txn = transfer_builder.clone()
+                .amount(txn_amount + n)
+                .build_kind().expect("Failed to build transaction");
 
             txns.insert(txn);
         }
@@ -493,21 +479,22 @@ mod tests {
 
         let txn_amount: u128 = 1010101;
 
+        let transfer_builder = TransactionKind::transfer_builder()
+            .timestamp(0)
+            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
+            .sender_public_key(keypair.get_miner_public_key().clone())
+            .validators(HashMap::<String, bool>::new())
+            .nonce(0)
+            .signature(mock_txn_signature());
+
         for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
             let recv_keypair = KeyPair::random();
             let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-            let txn = TransactionKind::Transfer(Transfer::new(NewTransferArgs {
-                timestamp: 0,
-                sender_address: Address::new(keypair.get_miner_public_key().clone()),
-                sender_public_key: keypair.get_miner_public_key().clone(),
-                receiver_address: recv_address.clone(),
-                token: None,
-                amount: txn_amount + n,
-                validators: Some(HashMap::<String, bool>::new()),
-                nonce: 0,
-                signature: mock_txn_signature(),
-            }));
+            let txn = transfer_builder.clone()
+                .receiver_address(recv_address.clone())
+                .amount(txn_amount + n)
+                .build_kind().expect("Failed to build transaction");
 
             txns.insert(txn);
         }

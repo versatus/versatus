@@ -306,7 +306,7 @@ pub fn create_txn_from_accounts(
 
     txn.sign(&sk);
 
-    let txn_digest_vec = generate_txn_digest_vec(
+    let txn_digest_vec = generate_transfer_digest_vec(
         txn.timestamp(),
         txn.sender_address().to_string(),
         txn.sender_public_key(),
