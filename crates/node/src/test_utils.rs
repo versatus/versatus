@@ -42,7 +42,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let rendezvous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let rendezvous_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let grpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 50051);
     let public_ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
@@ -69,7 +68,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .kademlia_peer_id(Some(KademliaPeerId::rand()))
         .kademlia_liveness_address(kademlia_liveness_address)
         .public_ip_address(public_ip_address)
-        .grpc_server_address(grpc_server_address)
         .disable_networking(false)
         .quorum_config(None)
         .bootstrap_quorum_config(None)
