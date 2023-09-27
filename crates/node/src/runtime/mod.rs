@@ -123,6 +123,7 @@ mod tests {
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/491"]
     async fn bootstrap_node_runtime_cannot_be_assigned_to_quorum() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
