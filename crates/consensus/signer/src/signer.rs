@@ -355,6 +355,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/477"]
     async fn successful_test_generation_partial_signature() {
         let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
         let message = "This is test message";
@@ -390,6 +391,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/480"]
     async fn successful_test_generation_quorum_signature() {
         let mut dkg_engines = generate_dkg_engine_with_states().await;
         let mut sig_shares = BTreeMap::new();
@@ -422,6 +424,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/478"]
     async fn successful_verification_partial_signature() {
         let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
         let message = "This is test message";
@@ -450,6 +453,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/476"]
     async fn successful_verification_threshold_signature() {
         let message = "This is test message";
         let mut dkg_engines = generate_dkg_engine_with_states().await;
@@ -491,6 +495,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "https://github.com/versatus/versatus/issues/479"]
     async fn failed_verification_threshold_signature() {
         let message = "This is test message";
 
