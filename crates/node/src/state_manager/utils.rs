@@ -57,6 +57,8 @@ pub(super) fn consolidate_update_args(
                 if let Some(digests) = update.digests.clone() {
                     if let Some(ref mut existing_digests) = existing_update.digests {
                         existing_digests.extend_all(digests);
+                    } else {
+                        existing_update.digests = Some(digests);
                     }
                 }
             })
