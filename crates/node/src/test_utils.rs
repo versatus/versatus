@@ -16,6 +16,7 @@ use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
     Round, ValidatorSecretKey,
 };
+use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
 use storage::vrrbdb::Claims;
 use uuid::Uuid;
@@ -24,8 +25,13 @@ use vrrb_config::{
     ThresholdConfig,
 };
 use vrrb_core::{
-    account::Account, claim::Claim, keypair::Keypair,
-    transactions::transfer::generate_transfer_digest_vec,
+    account::Account,
+    claim::Claim,
+    keypair::Keypair,
+    transactions::{
+        generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
+        TransactionDigest, TransactionKind, Transfer,
+    },
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
@@ -370,11 +376,6 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 
     Ok(())
 }
-
-use rand::{seq::SliceRandom, thread_rng};
-use vrrb_core::transactions::{
-    NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer,
-};
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
