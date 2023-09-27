@@ -67,9 +67,6 @@ mod tests {
     #[tokio::test]
     async fn vrrbdb_should_update_with_new_block() {
         let db_config = VrrbDbConfig::default().with_path(std::env::temp_dir().join("db"));
-
-        dbg!(&db_config);
-
         let db = VrrbDb::new(db_config);
         let mempool = LeftRightMempool::default();
 
