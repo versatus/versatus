@@ -1,12 +1,18 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use primitives::{Address, PublicKey, SecretKey, Signature};
-use crate::transactions::{Token, Transaction, TransactionDigest, Transfer, TxAmount, TxNonce, TxTimestamp};
+use crate::transactions::{Token, Transaction, TransactionDigest, Transfer, TransferBuilder, TxAmount, TxNonce, TxTimestamp};
 
 
 #[derive(Hash, Debug, Deserialize, Clone, Serialize, Eq, PartialEq)]
 pub enum TransactionKind {
     Transfer(Transfer),
+}
+
+impl TransactionKind {
+    pub fn transfer_builder() -> TransferBuilder {
+        Transfer::builder()
+    }
 }
 
 impl Default for TransactionKind {
