@@ -402,7 +402,8 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    async fn esis_block_created() {
+    #[ignore = "https://github.com/versatus/versatus/issues/489"]
+    async fn harvester_node_runtime_can_handle_genesis_block_created() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions().unwrap();
 
