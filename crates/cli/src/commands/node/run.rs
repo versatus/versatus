@@ -121,7 +121,6 @@ impl From<RunOpts> for NodeConfig {
             http_api_version: opts.http_api_version,
             http_api_shutdown_timeout: default_node_config.http_api_shutdown_timeout,
             jsonrpc_server_address: opts.jsonrpc_api_address,
-            grpc_server_address: opts.grpc_server_address,
             preload_mock_state: default_node_config.preload_mock_state,
             bootstrap_config: default_node_config.bootstrap_config,
             kademlia_liveness_address: default_node_config.kademlia_liveness_address,
