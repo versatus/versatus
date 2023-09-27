@@ -368,8 +368,8 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 
 use rand::{seq::SliceRandom, thread_rng};
 use vrrb_core::transactions::{
-    generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest,
-    TransactionKind, Transfer,
+    generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
+    TransactionDigest, TransactionKind, Transfer,
 };
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
