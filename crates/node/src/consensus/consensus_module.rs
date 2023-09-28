@@ -86,7 +86,7 @@ pub struct ConsensusModule {
     // pub(crate) group_public_key: GroupPublicKey,
     pub(crate) sig_provider: SignatureProvider,
     pub(crate) convergence_block_certificates:
-        Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
+        Cache<BlockHash, HashSet<(NodeId, PublicKeyShare, RawSignature)>>,
 
     // NOTE: harvester types
     // pub certified_txns_filter: Bloom,
@@ -168,8 +168,8 @@ impl ConsensusModule {
         let mut sig_shares = BTreeMap::new();
         certificates_share
             .iter()
-            .for_each(|(node_idx, _, signature)| {
-                sig_shares.insert(*node_idx, signature.clone());
+            .for_each(|(node_id, _, signature)| {
+                sig_shares.insert(*node_id, signature.clone());
             });
 
         let signature = self
