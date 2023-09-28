@@ -2,11 +2,16 @@
 //! and threshold signatures
 use std::{
     collections::BTreeMap,
+    default,
+    str::FromStr,
     sync::{Arc, PoisonError, RwLock, RwLockReadGuard},
 };
 
 use dkg_engine::prelude::*;
-use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
+use hbbft::{
+    crypto::{Fr, FrRepr, Signature, SignatureShare, SIG_SIZE},
+    pairing::PrimeField,
+};
 use primitives::{NodeId, NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
 use vrrb_config::ThresholdConfig;
 
@@ -34,6 +39,23 @@ pub trait Signer {
         signature_type: SignatureType,
     ) -> SignerResult<bool>;
 }
+
+// TODO: make this cleaner if possible
+/// Converts a string slice into the Fr type.
+pub trait NodeIdFrBuilder: AsRef<str> {
+    fn create_fr(&self) -> Fr {
+        let (m, l) = uuid::Uuid::from_str(&self.as_ref())
+            .expect("failed to create uuid from string slice")
+            .as_u64_pair();
+        let uuid_vec = vec![m, l, 0, 0];
+        let mut fr_repr = FrRepr::default();
+        for (mut fr_slot, uuid_slot) in fr_repr.0.iter().zip(uuid_vec.iter()) {
+            fr_slot = uuid_slot;
+        }
+        Fr::from_repr(fr_repr).expect("failed to create Fr from FrRepr")
+    }
+}
+impl NodeIdFrBuilder for NodeId {}
 
 #[derive(Clone, Debug)]
 pub struct SignatureProvider {
@@ -180,27 +202,26 @@ impl Signer for SignatureProvider {
         }
         // The below code is converting the signature shares from a map of bytes to a
         // map of signature shares.
-        let sig_shares: BTreeMap<NodeId, SignatureShare> = signature_shares
-            .iter()
-            .filter_map(|(x, sig_share_bytes)| {
-                match TryInto::<[u8; 96]>::try_into(sig_share_bytes.as_slice()) {
-                    Ok(signature_arr) => {
-                        if let Ok(sig_share_result) = SignatureShare::from_bytes(signature_arr) {
-                            Some((*x, sig_share_result))
-                        } else {
-                            None
-                        }
-                    },
-                    Err(_) => None,
-                }
-            })
-            .collect();
+        let mut sig_shares: Vec<(Fr, SignatureShare)> = Vec::new();
+        for (node_id, sig_share_bytes) in signature_shares.iter() {
+            match TryInto::<[u8; 96]>::try_into(sig_share_bytes.as_slice()) {
+                Ok(signature_arr) => {
+                    if let Ok(sig_share_result) = SignatureShare::from_bytes(signature_arr) {
+                        sig_shares.push((node_id.create_fr(), sig_share_result));
+                    }
+                },
+                Err(_) => continue,
+            }
+        }
 
         let result = dkg_state.public_key_set();
         //Construction of combining t+1 valid shares to form threshold
         let combine_signature_result = match result {
             // TODO figure out how to turn strings into IntoFr
-            Some(pub_key_set) => pub_key_set.combine_signatures(&sig_shares),
+            Some(pub_key_set) => {
+                let shares = sig_shares.iter().map(|(idx, sig)| (idx, sig));
+                pub_key_set.combine_signatures(shares)
+            },
             None => return Err(SignerError::GroupPublicKeyMissing),
         };
 

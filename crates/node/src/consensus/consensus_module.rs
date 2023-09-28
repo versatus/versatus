@@ -169,7 +169,7 @@ impl ConsensusModule {
         certificates_share
             .iter()
             .for_each(|(node_id, _, signature)| {
-                sig_shares.insert(*node_id, signature.clone());
+                sig_shares.insert(node_id.clone(), signature.clone());
             });
 
         let signature = self
@@ -374,6 +374,7 @@ impl ConsensusModule {
         let votes = validated_txns
             .par_iter()
             .filter_map(|(txn, validation_result)| {
+                let farmer_node_id = farmer_node_id.clone();
                 let new_txn = txn.clone();
 
                 let txn_bytes = bincode::serialize(&new_txn).ok()?;
@@ -381,7 +382,7 @@ impl ConsensusModule {
                 let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
 
                 Some(Vote {
-                    farmer_id: receiver_farmer_id.clone(),
+                    farmer_id: receiver_farmer_id.clone().into(),
                     farmer_node_id,
                     signature,
                     txn: new_txn,
