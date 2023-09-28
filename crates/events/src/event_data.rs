@@ -50,8 +50,8 @@ pub struct SyncPeerData {
 #[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
 pub struct Vote {
     /// The identity of the voter.
-    pub farmer_id: Vec<u8>,
-    pub farmer_node_id: NodeIdx,
+    pub farmer_id: NodeId,
+    pub farmer_node_id: NodeId,
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: TransactionKind,

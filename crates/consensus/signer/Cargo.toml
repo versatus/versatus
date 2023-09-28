@@ -16,3 +16,4 @@ dkg_engine = { workspace = true }
 tokio = { workspace = true }
 vrrb_core = { workspace = true }
 vrrb_config = { workspace = true }
+uuid = { workspace = true }

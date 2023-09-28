@@ -1,8 +1,8 @@
 use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
 
 use primitives::Address;
-use vrrb_core::{account::Account, keypair::KeyPair};
 use vrrb_core::transactions::{Transaction, TransactionKind};
+use vrrb_core::{account::Account, keypair::KeyPair};
 
 pub type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -68,7 +68,11 @@ impl TxnValidator {
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
-    pub fn validate(&self, account_state: &HashMap<Address, Account>, txn: &TransactionKind) -> Result<()> {
+    pub fn validate(
+        &self,
+        account_state: &HashMap<Address, Account>,
+        txn: &TransactionKind,
+    ) -> Result<()> {
         self.validate_structure(account_state, txn)
     }
 
@@ -128,7 +132,10 @@ impl TxnValidator {
     // TODO, to be synchronized with Wallet.
     pub fn validate_receiver_address(&self, txn: &TransactionKind) -> Result<()> {
         if !txn.receiver_address().to_string().is_empty()
-            && txn.receiver_address().to_string().starts_with(ADDRESS_PREFIX)
+            && txn
+                .receiver_address()
+                .to_string()
+                .starts_with(ADDRESS_PREFIX)
             && txn.receiver_address().to_string().len() > 10
         {
             Ok(())
@@ -162,7 +169,9 @@ impl TxnValidator {
     ) -> Result<()> {
         let address = txn.sender_address();
         if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
-            let account = account_state.get(&Address::new(address)).unwrap();
+            let account = account_state
+                .get(&Address::new(address))
+                .ok_or(TxnValidatorError::SenderAddressIncorrect)?;
             if (account.credits() - account.debits())
                 .checked_sub(txn.amount())
                 .is_none()

@@ -332,19 +332,37 @@ impl StateManager {
         Ok(apply_result)
     }
 
-    pub fn handle_new_txn_created(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
-        info!("Storing transaction in mempool for validation");
-
+    pub fn insert_txn_to_mempool(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
         let txn_hash = txn.id();
 
-        let _mempool_size = self
-            .mempool
+        self.mempool
             .insert(txn)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        info!("Transaction {} sent to mempool", txn_hash);
+        info!("Transaction {} stored in mempool", txn_hash);
 
         Ok(txn_hash)
+    }
+
+    pub fn extend_mempool(&mut self, txns: &[TransactionKind]) -> Result<()> {
+        let txn_batch = txns.iter().map(|txn| txn.to_owned()).collect();
+        self.mempool
+            .extend(txn_batch)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Return the number of key-value pairs in the map.
+    ///
+    pub fn mempool_len(&self) -> usize {
+        self.mempool.len()
+    }
+
+    #[deprecated = "use insert_txn_to_mempool instead"]
+    pub fn handle_new_txn_created(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
+        info!("Storing transaction in mempool for validation");
+        self.insert_txn_to_mempool(txn)
     }
 
     pub async fn handle_transaction_validated(&mut self, txn: TransactionKind) -> Result<()> {
