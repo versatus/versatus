@@ -12,7 +12,7 @@ use block::{
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
-use events::{AssignedQuorumMembership, EventPublisher, PeerData};
+use events::{AssignedQuorumMembership, EventPublisher, PeerData, Vote};
 use hbbft::sync_key_gen::{Ack, Part};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
@@ -239,7 +239,6 @@ impl NodeRuntime {
     pub fn produce_genesis_transactions(
         &self,
     ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
-        // self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
         self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
 
         let sender_public_key = self.config.keypair.miner_public_key_owned();
@@ -345,68 +344,6 @@ impl NodeRuntime {
 
         Ok(certificate)
     }
-    //
-    // pub fn mine_proposal_block(
-    //     &self,
-    //     ref_block: RefHash,
-    //     round: Round,
-    //     epoch: Epoch,
-    //     claims: Vec<Claim>,
-    // ) -> Result<ProposalBlock> {
-    //     self.has_required_node_type(NodeType::Validator, "create proposal block")?;
-    //     self.belongs_to_correct_quorum(QuorumKind::Harvester, "create proposal block")?;
-    //     let from = self.claim.clone();
-    //
-    //     let last_block_header = self
-    //         .dag_driver
-    //         .last_confirmed_block_header()
-    //         .ok_or(NodeError::Other("could not fetch last block".into()))?;
-    //
-    //     let epoch = last_block_header.epoch.checked_add(1).unwrap_or_default();
-    //     let round = last_block_header.round.checked_add(1).unwrap_or_default();
-    //
-    //     // let txns_list = self.consensus_driver;
-    //     let txns_list = todo!();
-    //     let claim_list = todo!();
-    //     let ref_hash = todo!();
-    //     let txns_list = todo!();
-    //
-    //     // self.consensus_driver
-    //     //     .mine_proposal_block(ref_hash, claims, round, epoch, from);
-    //     //
-    //     // let last_block_header = self.dag_driver.last_confirmed_block_header().ok_or(NodeError::Other("could not fetch last block".into()))?;
-    //     // let last_block_ref_hash = last_block_header.txn_hash.clone();
-    //
-    //     let block = ProposalBlock::build(
-    //         ref_hash,
-    //         round,
-    //         epoch,
-    //         txns_list,
-    //         claim_list,
-    //         from,
-    //         self.config.keypair.get_miner_secret_key(),
-    //     );
-    //
-    //     Ok(block)
-    //
-    //     //
-    //     // let payload = create_payload!(round, epoch, txns, claims, from);
-    //     // let signature = self.secret_key.sign_ecdsa(payload).to_string();
-    //     // let hash = hash_data!(round, epoch, txns, claims, from, signature);
-    //     //
-    //     //
-    //
-    //     // ProposalBlock {
-    //     //     ref_block,
-    //     //     round,
-    //     //     epoch,
-    //     //     txns,
-    //     //     claims,
-    //     //     hash: format!("{hash:x}"),
-    //     //     from,
-    //     //     signature,
-    //     // }
-    // }
 
     pub fn mine_proposal_block(
         &mut self,
@@ -559,5 +496,44 @@ impl NodeRuntime {
 
     pub fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Vec<Claim>> {
         self.state_driver.get_claims(claim_hashes)
+    }
+
+    pub fn insert_txn_to_mempool(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
+        self.state_driver.insert_txn_to_mempool(txn)
+    }
+
+    pub fn extend_mempool(&mut self, txns: &[TransactionKind]) -> Result<()> {
+        self.state_driver.extend_mempool(txns)
+    }
+
+    pub fn memmpol_len(&self) -> usize {
+        self.state_driver.mempool_len()
+    }
+
+    /// Validates a batch of up to n transactions within a Node's mempool.
+    /// This function is meant to be triggered at a configurable interval
+    pub fn validate_mempool(&mut self, n: usize) -> Result<Vec<Vote>> {
+        self.has_required_node_type(NodeType::Validator, "validate transactions")?;
+        self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
+
+        let entries = self
+            .mempool_read_handle_factory()
+            .handle()
+            .values()
+            .take(n)
+            .map(|txn_record| txn_record.txn.to_owned())
+            .collect();
+
+        let state_snapshot = self.state_driver.read_handle().state_store_values();
+
+        let validated_txns = self
+            .consensus_driver
+            .validate_transactions(&state_snapshot, entries);
+
+        let votes = self
+            .consensus_driver
+            .cast_vote_on_calidated_txns(validated_txns)?;
+
+        Ok(votes)
     }
 }

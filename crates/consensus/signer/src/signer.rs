@@ -7,7 +7,7 @@ use std::{
 
 use dkg_engine::prelude::*;
 use hbbft::crypto::{Signature, SignatureShare, SIG_SIZE};
-use primitives::{NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
+use primitives::{NodeId, NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
 use vrrb_config::ThresholdConfig;
 
 use crate::types::{SignerError, SignerResult};
@@ -22,7 +22,7 @@ pub trait Signer {
     fn generate_quorum_signature(
         &self,
         quorum_threshold: u16,
-        signature_shares: BTreeMap<NodeIdx, RawSignature>,
+        signature_shares: BTreeMap<NodeId, RawSignature>,
     ) -> SignerResult<RawSignature>;
 
     /// This function is used to verify the signature of the block.
@@ -163,7 +163,7 @@ impl Signer for SignatureProvider {
     fn generate_quorum_signature(
         &self,
         quorum_threshold: u16,
-        signature_shares: BTreeMap<NodeIdx, RawSignature>,
+        signature_shares: BTreeMap<NodeId, RawSignature>,
     ) -> SignerResult<RawSignature> {
         if (signature_shares.len() as u16) < quorum_threshold {
             return Err(SignerError::ThresholdSignatureError(
@@ -180,13 +180,13 @@ impl Signer for SignatureProvider {
         }
         // The below code is converting the signature shares from a map of bytes to a
         // map of signature shares.
-        let sig_shares: BTreeMap<usize, SignatureShare> = signature_shares
+        let sig_shares: BTreeMap<NodeId, SignatureShare> = signature_shares
             .iter()
             .filter_map(|(x, sig_share_bytes)| {
                 match TryInto::<[u8; 96]>::try_into(sig_share_bytes.as_slice()) {
                     Ok(signature_arr) => {
                         if let Ok(sig_share_result) = SignatureShare::from_bytes(signature_arr) {
-                            Some((*x as usize, sig_share_result))
+                            Some((*x, sig_share_result))
                         } else {
                             None
                         }
@@ -195,9 +195,11 @@ impl Signer for SignatureProvider {
                 }
             })
             .collect();
+
         let result = dkg_state.public_key_set();
         //Construction of combining t+1 valid shares to form threshold
         let combine_signature_result = match result {
+            // TODO figure out how to turn strings into IntoFr
             Some(pub_key_set) => pub_key_set.combine_signatures(&sig_shares),
             None => return Err(SignerError::GroupPublicKeyMissing),
         };

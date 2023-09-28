@@ -116,14 +116,17 @@ pub async fn setup_runtime_components(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::ops::AddAssign;
 
     use block::{Block, ConvergenceBlock};
     use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
     use hbbft::sync_key_gen::{AckOutcome, Part};
-    use primitives::{NodeId, NodeType, QuorumKind};
+    use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use validator::txn_validator;
+    use vrrb_core::account::{self, Account};
 
     use crate::runtime::handler_helpers::*;
+    use crate::test_utils::create_txn_from_accounts;
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
@@ -374,6 +377,30 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
+    async fn farmer_node_runtime_can_validate_transactions() {
+        let (mut node_0, mut farmers, mut harvesters, mut miners) = setup_network(8).await;
+
+        let (_, sender_public_key) = generate_account_keypair();
+        let sender_account = Account::new(sender_public_key);
+        let sender_address = node_0.create_account(sender_public_key).unwrap();
+
+        let (_, receiver_public_key) = generate_account_keypair();
+        let receiver_address = node_0.create_account(receiver_public_key).unwrap();
+
+        let txn = create_txn_from_accounts(
+            (sender_address, Some(sender_account)),
+            receiver_address,
+            vec![],
+        );
+
+        for (node_id, farmer) in farmers.iter_mut() {
+            farmer.insert_txn_to_mempool(txn.clone());
+            farmer.validate_mempool(1).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
     async fn harvester_node_runtime_can_propose_blocks() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
 
@@ -395,6 +422,19 @@ mod tests {
         // TODO: impl miner elections
         // TODO: create genesis block, certify it then append it to miner's dag
         // TODO: store DAG on disk, separate from ledger
+
+        let (_, public_key) = generate_account_keypair();
+        let sender_account = Account::new(public_key);
+        let sender_address = node_0.create_account(public_key).unwrap();
+
+        let (_, public_key) = generate_account_keypair();
+        let receiver_address = node_0.create_account(public_key).unwrap();
+
+        let txn = create_txn_from_accounts(
+            (sender_address, Some(sender_account)),
+            receiver_address,
+            vec![],
+        );
 
         let mut apply_results = Vec::new();
         // let mut genesis_certs = Vec::new();
@@ -430,6 +470,8 @@ mod tests {
                     claim.clone(),
                 )
                 .unwrap();
+
+            dbg!(proposal_block);
         }
     }
 
