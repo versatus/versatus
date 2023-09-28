@@ -315,6 +315,8 @@ mod tests {
         }
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().unwrap();
+
+            dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
         }
     }
 
@@ -752,6 +754,13 @@ mod tests {
             if let Some(assigned_membership) = quorum_assignments.get(&node.config.id) {
                 node.handle_quorum_membership_assigment_created(assigned_membership.clone())
                     .unwrap();
+            }
+        }
+        for (_, node) in validator_nodes.iter_mut() {
+            let quorum_kind = node.quorum_membership().unwrap().quorum_kind;
+            if quorum_kind == QuorumKind::Farmer || quorum_kind == QuorumKind::Harvester {
+                node.generate_keysets()
+                    .expect(&format!("failed to generate keyset for node {}", node.id));
             }
         }
 

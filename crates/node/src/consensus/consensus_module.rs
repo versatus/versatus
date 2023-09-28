@@ -313,6 +313,8 @@ impl ConsensusModule {
     }
 
     pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
+        let dkg_state = &self.dkg_engine.dkg_state;
+        dbg!(&dkg_state);
         let public_keyset = self
             .dkg_engine
             .dkg_state
@@ -344,7 +346,7 @@ impl ConsensusModule {
             .collect()
     }
 
-    pub fn cast_vote_on_calidated_txns(
+    pub fn cast_vote_on_validated_txns(
         &mut self,
         validated_txns: HashSet<(TransactionKind, validator::txn_validator::Result<()>)>,
     ) -> Result<Vec<Vote>> {
