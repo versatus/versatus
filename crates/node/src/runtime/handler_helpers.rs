@@ -31,8 +31,7 @@ use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
     transactions::{
-        generate_txn_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
+        NewTransferArgs, Token, Transaction, TransactionDigest, TransactionKind, Transfer,
     },
 };
 

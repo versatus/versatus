@@ -29,12 +29,12 @@ use crate::{
 
 /// A simple custom error type
 #[derive(thiserror::Error, Clone, Debug, Serialize, Deserialize)]
-pub enum TxnError {
+pub enum TransferTransactionError {
     #[error("invalid transaction: {0}")]
-    InvalidTxn(String),
+    InvalidTransferTransaction(String),
 }
 
-pub fn generate_txn_digest_vec(
+pub fn generate_transfer_digest_vec(
     timestamp: TxTimestamp,
     sender_address: String,
     sender_public_key: PublicKey,
@@ -74,6 +74,98 @@ pub struct Transfer {
     pub nonce: TxNonce,
 }
 
+#[derive(Clone, Default)]
+pub struct TransferBuilder {
+    timestamp: Option<TxTimestamp>,
+    sender_address: Option<Address>,
+    sender_public_key: Option<PublicKey>,
+    receiver_address: Option<Address>,
+    token: Option<Token>,
+    amount: Option<TxAmount>,
+    signature: Option<Signature>,
+    validators: Option<HashMap<String, bool>>,
+    nonce: Option<TxNonce>,
+}
+
+impl TransferBuilder {
+
+    pub fn timestamp(mut self, timestamp: TxTimestamp) -> Self {
+        self.timestamp = Some(timestamp);
+        self
+    }
+
+    pub fn sender_address(mut self, sender_address: Address) -> Self {
+        self.sender_address = Some(sender_address);
+        self
+    }
+
+    pub fn sender_public_key(mut self, sender_public_key: PublicKey) -> Self {
+        self.sender_public_key = Some(sender_public_key);
+        self
+    }
+
+    pub fn receiver_address(mut self, receiver_address: Address) -> Self {
+        self.receiver_address = Some(receiver_address);
+        self
+    }
+
+    pub fn token(mut self, token: Token) -> Self {
+        self.token = Some(token);
+        self
+    }
+
+    pub fn amount(mut self, amount: TxAmount) -> Self {
+        self.amount = Some(amount);
+        self
+    }
+
+    pub fn signature(mut self, signature: Signature) -> Self {
+        self.signature = Some(signature);
+        self
+    }
+
+    pub fn validators(mut self, validators: HashMap<String, bool>) -> Self {
+        self.validators = Some(validators);
+        self
+    }
+
+    pub fn nonce(mut self, nonce: TxNonce) -> Self {
+        self.nonce = Some(nonce);
+        self
+    }
+
+    pub fn build(self) -> Result<Transfer, &'static str> {
+        let id = generate_transfer_digest_vec(
+            self.timestamp.ok_or("timestamp is missing")?,
+            self.sender_address.clone().ok_or("sender_address is missing")?.to_string(),
+            self.sender_public_key.ok_or("sender_public_key is missing")?,
+            self.receiver_address.clone().ok_or("receiver_address is missing")?.to_string(),
+            self.token.clone().unwrap_or_default(),
+            self.amount.ok_or("amount is missing")?,
+            self.nonce.ok_or("nonce is missing")?,
+        );
+
+        Ok(Transfer {
+            id: TransactionDigest::from(id),
+            timestamp: self.timestamp.unwrap(),
+            sender_address: self.sender_address.unwrap(),
+            sender_public_key: self.sender_public_key.unwrap(),
+            receiver_address: self.receiver_address.unwrap(),
+            token: self.token.unwrap_or_default(),
+            amount: self.amount.unwrap(),
+            signature: self.signature.ok_or("signature is missing")?,
+            validators: self.validators,
+            nonce: self.nonce.unwrap(),
+        })
+    }
+
+    pub fn build_kind(self) -> Result<TransactionKind, &'static str> {
+        let transfer = self.build().expect("failed to build transfer");
+
+        Ok(TransactionKind::Transfer(transfer))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewTransferArgs {
     pub timestamp: TxTimestamp,
@@ -94,17 +186,20 @@ impl Default for Transfer {
 }
 
 impl Transfer {
+    pub fn builder() -> TransferBuilder {
+        TransferBuilder::default()
+    }
     pub fn new(args: NewTransferArgs) -> Self {
         let token = args.token.clone().unwrap_or_default();
 
-        let digest_vec = generate_txn_digest_vec(
-            args.timestamp,
+        let digest_vec = generate_transfer_digest_vec(
+            args.timestamp.clone(),
             args.sender_address.to_string(),
             args.sender_public_key,
             args.receiver_address.to_string(),
             token.clone(),
-            args.amount,
-            args.nonce,
+            args.amount.clone(),
+            args.nonce.clone(),
         );
 
         let digest = TransactionDigest::from(digest_vec);
@@ -130,7 +225,7 @@ impl Transfer {
         let public_key = kp.miner_kp.1;
         let address = Address::new(public_key);
 
-        let digest_vec = generate_txn_digest_vec(
+        let digest_vec = generate_transfer_digest_vec(
             timestamp,
             address.to_string(),
             public_key,
@@ -172,7 +267,7 @@ impl Transfer {
     }
 
     pub fn build_payload_digest(&self) -> TransactionDigest {
-        let digest = generate_txn_digest_vec(
+        let digest = generate_transfer_digest_vec(
             self.timestamp(),
             self.sender_address().to_string(),
             self.sender_public_key(),
@@ -205,7 +300,7 @@ impl Transfer {
     }
 
     pub fn generate_txn_digest_vec(&self) -> ByteVec {
-        generate_txn_digest_vec(
+        generate_transfer_digest_vec(
             self.timestamp(),
             self.sender_address().to_string(),
             self.sender_public_key(),
@@ -320,11 +415,11 @@ impl Transaction for Transfer {
 }
 
 impl FromStr for Transfer {
-    type Err = TxnError;
+    type Err = TransferTransactionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str::<Transfer>(s)
-            .map_err(|err| TxnError::InvalidTxn(format!("failed to parse &str into Txn: {err}")))
+            .map_err(|err| TransferTransactionError::InvalidTransferTransaction(format!("failed to parse &str into Txn: {err}")))
     }
 }
 

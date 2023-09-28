@@ -173,7 +173,7 @@ pub enum Event {
     // NOTE: replaces Event::Farm and pushes txns to the scheduler instead of having it pull them
     TxnsReadyForProcessing(Vec<TransactionKind>),
 
-    TransactioValidated(Vote),
+    TransactionValidated(Vote),
 
     TransactionsValidated {
         votes: Vec<Option<Vote>>,

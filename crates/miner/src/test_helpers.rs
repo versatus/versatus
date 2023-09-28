@@ -11,8 +11,8 @@ use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
 use vrrb_core::transactions::{
-    generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest,
-    TransactionKind, Transfer,
+    generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
+    TransactionDigest, TransactionKind, Transfer,
 };
 use vrrb_core::{
     claim::Claim,
@@ -159,26 +159,24 @@ pub(crate) fn create_txns(
         let saddr = create_address(&pk);
         let raddr = create_address(&rpk);
         let amount = (n.pow(2)) as u128;
-        let token = None;
 
-        let txn_args = NewTransferArgs {
-            timestamp: 0,
-            sender_address: saddr,
-            sender_public_key: pk,
-            receiver_address: raddr,
-            token,
-            amount,
-            signature: sk
-                .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
-            validators: None,
-            nonce: n as u128,
-        };
-
-        let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
+        let mut txn =
+            TransactionKind::transfer_builder()
+                .timestamp(0)
+                .sender_address(saddr)
+                .sender_public_key(pk)
+                .receiver_address(raddr)
+                .amount(amount)
+                .signature(sk.sign_ecdsa(Message::from_hashed_data::<
+                    secp256k1::hashes::sha256::Hash,
+                >(b"vrrb")))
+                .nonce(n as u128)
+                .build_kind()
+                .expect("Failed to build transaction");
 
         txn.sign(&sk);
 
-        let txn_digest_vec = generate_txn_digest_vec(
+        let txn_digest_vec = generate_transfer_digest_vec(
             txn.timestamp(),
             txn.sender_address().to_string(),
             txn.sender_public_key(),

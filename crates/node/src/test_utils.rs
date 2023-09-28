@@ -16,6 +16,7 @@ use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
     Round, ValidatorSecretKey,
 };
+use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
 use storage::vrrbdb::Claims;
 use uuid::Uuid;
@@ -23,7 +24,15 @@ use vrrb_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
     ThresholdConfig,
 };
-use vrrb_core::{account::Account, claim::Claim, keypair::Keypair};
+use vrrb_core::{
+    account::Account,
+    claim::Claim,
+    keypair::Keypair,
+    transactions::{
+        generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
+        TransactionDigest, TransactionKind, Transfer,
+    },
+};
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 use crate::{
@@ -42,7 +51,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let rendezvous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let rendezvous_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let grpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 50051);
     let public_ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
@@ -69,7 +77,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .kademlia_peer_id(Some(KademliaPeerId::rand()))
         .kademlia_liveness_address(kademlia_liveness_address)
         .public_ip_address(public_ip_address)
-        .grpc_server_address(grpc_server_address)
         .disable_networking(false)
         .quorum_config(None)
         .bootstrap_quorum_config(None)
@@ -306,7 +313,7 @@ pub fn create_txn_from_accounts(
 
     txn.sign(&sk);
 
-    let txn_digest_vec = generate_txn_digest_vec(
+    let txn_digest_vec = generate_transfer_digest_vec(
         txn.timestamp(),
         txn.sender_address().to_string(),
         txn.sender_public_key(),
@@ -367,12 +374,6 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 
     Ok(())
 }
-
-use rand::{seq::SliceRandom, thread_rng};
-use vrrb_core::transactions::{
-    generate_txn_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest,
-    TransactionKind, Transfer,
-};
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
