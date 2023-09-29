@@ -123,7 +123,6 @@ mod tests {
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
-    #[ignore = "https://github.com/versatus/versatus/issues/491"]
     async fn bootstrap_node_runtime_cannot_be_assigned_to_quorum() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -319,6 +318,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
+    #[ignore = "https://github.com/versatus/versatus/issues/487"]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
         node_0.produce_genesis_transactions().unwrap();
