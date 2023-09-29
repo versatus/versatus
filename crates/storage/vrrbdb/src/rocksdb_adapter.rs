@@ -36,7 +36,7 @@ impl RocksDbInner {
     }
 }
 
-fn base_db_options() -> rocksdb::Options {
+pub fn base_db_options() -> rocksdb::Options {
     let mut options = rocksdb::Options::default();
 
     let environ = get_vrrb_environment();
@@ -84,14 +84,11 @@ fn new_db_instance(
         .map_err(|err| StorageError::Other(err.to_string()))?;
 
     if !column_family_exists {
-        let mut options = base_db_options();
-        options.set_error_if_exists(false);
-        options.create_if_missing(true);
-        options.create_missing_column_families(true);
-
-        instance
-            .create_cf(column_family, &options)
-            .map_err(|err| StorageError::Other(err.to_string()))?;
+        if column_family != DEFAULT_COLUMN_FAMILY_NAME {
+            instance
+                .create_cf(column_family, &options)
+                .map_err(|err| StorageError::Other(err.to_string()))?;
+        }
     }
 
     Ok(instance)
