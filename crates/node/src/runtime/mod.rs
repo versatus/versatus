@@ -146,7 +146,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "https://github.com/versatus/versatus/issues/496"]
     async fn validator_node_runtime_can_be_assigned_to_quorum() {
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
@@ -311,7 +310,6 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    #[ignore = "https://github.com/versatus/versatus/issues/486"]
     async fn bootstrap_node_runtime_can_assign_quorum_memberships_to_available_nodes() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
 
@@ -321,7 +319,6 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    #[ignore = "https://github.com/versatus/versatus/issues/487"]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
         node_0.produce_genesis_transactions().unwrap();

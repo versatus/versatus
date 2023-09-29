@@ -14,7 +14,6 @@ use vrrb_rpc::rpc::{
 mod common;
 
 #[tokio::test]
-#[ignore = "https://github.com/versatus/versatus/issues/475"]
 async fn server_can_publish_transactions_to_be_created() {
     let _: SocketAddr = "127.0.0.1:0"
         .parse()
