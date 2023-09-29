@@ -84,11 +84,11 @@ fn new_db_instance(
         .map_err(|err| StorageError::Other(err.to_string()))?;
 
     if !column_family_exists {
-        let options = base_db_options();
-
-        instance
-            .create_cf(column_family, &options)
-            .map_err(|err| StorageError::Other(err.to_string()))?;
+        if column_family != DEFAULT_COLUMN_FAMILY_NAME {
+            instance
+                .create_cf(column_family, &options)
+                .map_err(|err| StorageError::Other(err.to_string()))?;
+        }
     }
 
     Ok(instance)
