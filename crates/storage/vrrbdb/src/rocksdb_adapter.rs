@@ -36,7 +36,7 @@ impl RocksDbInner {
     }
 }
 
-pub fn base_db_options() -> rocksdb::Options {
+fn base_db_options() -> rocksdb::Options {
     let mut options = rocksdb::Options::default();
 
     let environ = get_vrrb_environment();
