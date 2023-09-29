@@ -320,8 +320,8 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.events_tx
                         .send(Event::TransactionsValidated { 
                             votes, 
-                            quorum_threshold: self.config.threshold_config.threshold
-                        }).into()
+                            quorum_threshold: self.config.threshold_config.threshold as usize
+                        }.into())
                         .await
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }

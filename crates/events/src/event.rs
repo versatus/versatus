@@ -176,7 +176,7 @@ pub enum Event {
     TransactionValidated(Vote),
 
     TransactionsValidated {
-        votes: Vec<Option<Vote>>,
+        votes: Vec<Vote>,
         quorum_threshold: FarmerQuorumThreshold,
     },
 
