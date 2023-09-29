@@ -315,6 +315,20 @@ impl Handler<EventMessage> for NodeRuntime {
             //         };
             //     }
             // },
+            Event::TxnAddedToMempool(txn_hash) => {
+                if let Ok(votes) = self.validate_mempool(1) {
+                    self.events_tx
+                        .send(Event::TransactionsValidated { 
+                            votes, 
+                            quorum_threshold: self.config.threshold_config.threshold
+                        }).into()
+                        .await
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
+                }
+            },
+            Event::TransactionsValidated { votes, quorum_threshold } => {
+                // TODO: Send Votes to Harvester Nodes
+            },
             Event::NoOp => {},
             _ => {},
         }

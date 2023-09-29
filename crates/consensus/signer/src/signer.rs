@@ -431,7 +431,7 @@ mod tests {
             let signature_share_node = sig_provider_node
                 .generate_partial_signature(message.as_bytes().to_vec())
                 .unwrap();
-            sig_shares.insert(i, signature_share_node);
+            sig_shares.insert(format!("node-{i}"), signature_share_node);
             if i == 0 {
                 let quorum_signature_result =
                     sig_provider_node.generate_quorum_signature(1, sig_shares.clone());
@@ -491,7 +491,7 @@ mod tests {
             let signature_share_node = sig_provider_node
                 .generate_partial_signature(message.as_bytes().to_vec())
                 .unwrap();
-            sig_shares.insert(i, signature_share_node);
+            sig_shares.insert(format!("node-{i}"), signature_share_node);
             if i == 0 {
                 let threshold_sig_result =
                     sig_provider_node.generate_quorum_signature(1, sig_shares);

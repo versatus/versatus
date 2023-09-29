@@ -313,6 +313,8 @@ impl ConsensusModule {
     }
 
     pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
+        let dkg_state = &self.dkg_engine.dkg_state;
+        dbg!(&dkg_state);
         let public_keyset = self
             .dkg_engine
             .dkg_state
@@ -344,7 +346,7 @@ impl ConsensusModule {
             .collect()
     }
 
-    pub fn cast_vote_on_calidated_txns(
+    pub fn cast_vote_on_validated_txns(
         &mut self,
         validated_txns: HashSet<(TransactionKind, validator::txn_validator::Result<()>)>,
     ) -> Result<Vec<Vote>> {
@@ -364,12 +366,12 @@ impl ConsensusModule {
 
         let sig_provider = &self.sig_provider;
 
-        let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
-        let quorum_public_key = self
-            .quorum_public_keyset()?
-            .public_key()
-            .to_bytes()
-            .to_vec();
+        // let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
+        // let quorum_public_key = self
+        //     .quorum_public_keyset()?
+        //     .public_key()
+        //     .to_bytes()
+        //     .to_vec();
 
         let votes = validated_txns
             .par_iter()
@@ -386,8 +388,6 @@ impl ConsensusModule {
                     farmer_node_id,
                     signature,
                     txn: new_txn,
-                    quorum_public_key: quorum_public_key.clone(),
-                    quorum_threshold: farmer_quorum_threshold as usize,
                     execution_result: None,
                     is_txn_valid: validation_result.is_err(),
                 })
@@ -409,82 +409,83 @@ impl ConsensusModule {
         validated_txns.iter().any(|x| x.0.id() == txn.id())
     }
 
-    pub fn validate_votes(
-        &mut self,
-        votes: Vec<Vote>,
-        quorum_threshold: FarmerQuorumThreshold,
-        accounts_state: &HashMap<Address, Account>,
-    ) {
-        for vote in votes.iter() {
-            self.validate_vote(vote.clone(), quorum_threshold, accounts_state);
-        }
-    }
+    // TODO: Refactor without use of quorum public key
+    // pub fn validate_votes(
+    //     &mut self,
+    //     votes: Vec<Vote>,
+    //     quorum_threshold: FarmerQuorumThreshold,
+    //     accounts_state: &HashMap<Address, Account>,
+    // ) {
+    //     for vote in votes.iter() {
+    //         self.validate_vote(vote.clone(), quorum_threshold, accounts_state);
+    //     }
+    // }
 
-    // The above code is handling an event of type `Vote` in a Rust
-    // program. It checks the integrity of the vote by
-    // verifying that it comes from the actual voter and prevents
-    // double voting. It then adds the vote to a pool of votes for the
-    // corresponding transaction and farmer quorum key. If
-    // the number of votes in the pool reaches the farmer
-    // quorum threshold, it sends a job to certify the transaction
-    // using the provided signature provider.
-    pub fn validate_vote(
-        &mut self,
-        vote: Vote,
-        farmer_quorum_threshold: FarmerQuorumThreshold,
-        accounts_state: &HashMap<Address, Account>,
-    ) -> Result<()> {
-        // TODO: Harvester quorum nodes should check the integrity of the vote by verifying the vote does
-        // come from the alleged voter Node.
+    // // The above code is handling an event of type `Vote` in a Rust
+    // // program. It checks the integrity of the vote by
+    // // verifying that it comes from the actual voter and prevents
+    // // double voting. It then adds the vote to a pool of votes for the
+    // // corresponding transaction and farmer quorum key. If
+    // // the number of votes in the pool reaches the farmer
+    // // quorum threshold, it sends a job to certify the transaction
+    // // using the provided signature provider.
+    // pub fn validate_vote(
+    //     &mut self,
+    //     vote: Vote,
+    //     farmer_quorum_threshold: FarmerQuorumThreshold,
+    //     accounts_state: &HashMap<Address, Account>,
+    // ) -> Result<()> {
+    //     // TODO: Harvester quorum nodes should check the integrity of the vote by verifying the vote does
+    //     // come from the alleged voter Node.
 
-        let sig_provider = self.sig_provider.clone();
+    //     let sig_provider = self.sig_provider.clone();
 
-        let farmer_quorum_key = hex::encode(vote.quorum_public_key.clone());
-        let key = (vote.txn.id(), farmer_quorum_key.clone());
+    //     let farmer_quorum_key = hex::encode(vote.quorum_public_key.clone());
+    //     let key = (vote.txn.id(), farmer_quorum_key.clone());
 
-        let mut votes = self.votes_pool.get_mut(&key);
+    //     let mut votes = self.votes_pool.get_mut(&key);
 
-        if let Some(mut votes) = self.votes_pool.get_mut(&key) {
-            if self.certified_txns_filter.contains(&key) {
-                return Err(NodeError::Other(
-                    "Transaction was already certified by a Harvester Node".into(),
-                ));
-            }
+    //     if let Some(mut votes) = self.votes_pool.get_mut(&key) {
+    //         if self.certified_txns_filter.contains(&key) {
+    //             return Err(NodeError::Other(
+    //                 "Transaction was already certified by a Harvester Node".into(),
+    //             ));
+    //         }
 
-            votes.push(vote.clone());
+    //         votes.push(vote.clone());
 
-            if votes.len() < farmer_quorum_threshold {
-                return Err(NodeError::Other(format!(
-                    "Not enough votes to certify transaction {}",
-                    vote.txn.id()
-                )));
-            }
+    //         if votes.len() < farmer_quorum_threshold {
+    //             return Err(NodeError::Other(format!(
+    //                 "Not enough votes to certify transaction {}",
+    //                 vote.txn.id()
+    //             )));
+    //         }
 
-            let vote_shares = Self::group_votes_by_validity(&votes);
+    //         let vote_shares = Self::group_votes_by_validity(&votes);
 
-            // NOTE: revalidate the transaction because Harvesters cant trust Farmers
-            let validated = self
-                .validate_transactions(accounts_state, vec![vote.txn.clone()])
-                .iter()
-                .any(|(validated_txn, _)| validated_txn.id() == vote.txn.id());
+    //         // NOTE: revalidate the transaction because Harvesters cant trust Farmers
+    //         let validated = self
+    //             .validate_transactions(accounts_state, vec![vote.txn.clone()])
+    //             .iter()
+    //             .any(|(validated_txn, _)| validated_txn.id() == vote.txn.id());
 
-            if validated {
-                self.handle_validated_vote(
-                    &sig_provider,
-                    &vote_shares,
-                    &vote.txn,
-                    farmer_quorum_threshold,
-                    &farmer_quorum_key,
-                );
-            } else {
-                error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
-            }
-        } else {
-            self.votes_pool.insert(key, vec![vote]);
-        }
+    //         if validated {
+    //             self.handle_validated_vote(
+    //                 &sig_provider,
+    //                 &vote_shares,
+    //                 &vote.txn,
+    //                 farmer_quorum_threshold,
+    //                 &farmer_quorum_key,
+    //             );
+    //         } else {
+    //             error!("Penalize Farmer for wrong votes by sending Wrong Vote event to CR Quorum");
+    //         }
+    //     } else {
+    //         self.votes_pool.insert(key, vec![vote]);
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn group_votes_by_validity(votes: &[Vote]) -> HashMap<bool, BTreeMap<NodeId, Vec<u8>>> {
         let mut vote_shares: HashMap<bool, BTreeMap<NodeId, Vec<u8>>> = HashMap::new();

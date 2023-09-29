@@ -55,8 +55,6 @@ pub struct Vote {
     /// Partial Signature
     pub signature: RawSignature,
     pub txn: TransactionKind,
-    pub quorum_public_key: Vec<u8>,
-    pub quorum_threshold: usize,
     pub is_txn_valid: bool,
     // May want to serialize this as a vector of bytes
     pub execution_result: Option<String>,

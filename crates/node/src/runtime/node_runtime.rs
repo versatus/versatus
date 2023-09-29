@@ -532,7 +532,7 @@ impl NodeRuntime {
 
         let votes = self
             .consensus_driver
-            .cast_vote_on_calidated_txns(validated_txns)?;
+            .cast_vote_on_validated_txns(validated_txns)?;
 
         Ok(votes)
     }

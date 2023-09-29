@@ -18,11 +18,8 @@ mod tests {
     use bulldag::vertex::Vertex;
     use primitives::{Address, NodeId};
     use ritelinked::LinkedHashMap;
-    use vrrb_core::{
-        claim::Claim,
-        keypair::Keypair,
-    };
     use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
+    use vrrb_core::{claim::Claim, keypair::Keypair};
 
     use crate::test_helpers::{
         build_single_proposal_block, build_single_proposal_block_from_txns,
@@ -47,7 +44,7 @@ mod tests {
             address.clone(),
             ip_address,
             signature,
-            NodeId::default(),
+            "test-miner-node".into(),
         )
         .unwrap();
         let miner = create_miner_from_keypair(&kp);

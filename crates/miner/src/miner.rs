@@ -147,18 +147,32 @@ impl Miner {
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
     /// use primitives::{Address, NodeId};
-    /// use vrrb_core::keypair::Keypair;
+    /// use vrrb_core::{keypair::Keypair, claim::Claim};
     ///
     /// let keypair = Keypair::random();
     /// let (secret_key, public_key) = keypair.miner_kp;
     /// let address = Address::new(public_key.clone());
     /// let dag = Arc::new(RwLock::new(BullDag::new()));
     /// let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    /// let signature = Claim::signature_for_valid_claim(
+    ///     keypair.miner_kp.1.clone(),
+    ///     ip_address.clone(),
+    ///     keypair.get_miner_secret_key().secret_bytes().to_vec(),
+    /// )
+    /// .unwrap();
+    /// let claim = Claim::new(
+    ///     public_key,
+    ///     address.clone(),
+    ///     ip_address,
+    ///     signature,
+    ///     "node_id".to_string(),
+    /// ).unwrap();
     /// let config = MinerConfig {
     ///     secret_key,
     ///     public_key,
     ///     ip_address,
     ///     dag,
+    ///     claim,
     /// };
     ///
     /// let miner = Miner::new(config, NodeId::default());
