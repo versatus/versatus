@@ -83,7 +83,7 @@ fn new_db_instance(
     let mut instance = rocksdb::DB::open_cf(&options, &path, cfs)
         .map_err(|err| StorageError::Other(err.to_string()))?;
 
-    if !column_family_exists {
+    if column_family_exists {
         let options = base_db_options();
 
         instance
