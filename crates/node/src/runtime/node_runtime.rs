@@ -61,7 +61,7 @@ pub struct NodeRuntime {
 }
 
 impl NodeRuntime {
-    pub async fn new(config: &NodeConfig, events_tx: EventPublisher) -> Result<Self> {
+    pub async fn new(config: &NodeConfig, events_tx: EventPublisher) -> std::result::Result<Self, anyhow::Error> {
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
         let miner_public_key = config.keypair.get_miner_public_key().to_owned();
@@ -157,11 +157,11 @@ impl NodeRuntime {
         self.config.clone()
     }
 
-    fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    fn _setup_reputation_module() -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
         Ok(None)
     }
 
-    fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    fn _setup_credit_model_module() -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
         Ok(None)
     }
 
@@ -512,7 +512,7 @@ impl NodeRuntime {
 
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
-    pub fn validate_mempool(&mut self, n: usize) -> Result<Vec<Vote>> {
+    pub fn validate_mempool(&mut self, n: usize) -> std::result::Result<Vec<Vote>, anyhow::Error> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
 

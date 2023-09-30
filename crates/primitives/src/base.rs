@@ -68,6 +68,8 @@ pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;
+pub type QuorumId = String;
+pub type QuorumPubKey = String;
 
 pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
