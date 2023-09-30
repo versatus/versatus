@@ -1,6 +1,5 @@
 use primitives::Address;
-use vrrb_core::transactions::Token;
-use vrrb_rpc::rpc::api::RpcTransactionDigest;
+use vrrb_core::transactions::{RpcTransactionDigest, Token};
 use wallet::v2::Wallet;
 
 use crate::result::CliError;

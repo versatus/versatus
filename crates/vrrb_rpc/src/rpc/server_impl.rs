@@ -14,16 +14,14 @@ use telemetry::{debug, error};
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
 use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{
-    NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer,
-};
+use vrrb_core::transactions::{NewTransferArgs, RpcTransactionDigest, Transaction, TransactionDigest, TransactionKind, Transfer};
 use vrrb_core::{account::Account, serde_helpers::encode_to_binary};
 
 use super::{
     api::{FullMempoolSnapshot, RpcApiServer},
     SignOpts,
 };
-use crate::rpc::api::{FullStateSnapshot, RpcTransactionDigest, RpcTransactionRecord};
+use crate::rpc::api::{FullStateSnapshot, RpcTransactionRecord};
 
 #[derive(Debug, Clone)]
 pub struct RpcServerImpl {
@@ -57,8 +55,7 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     //TODO: this should either exist for every transaction type or allow creating multiple types
-    async fn create_txn(&self, args: NewTransferArgs) -> Result<RpcTransactionRecord, Error> {
-        let txn = TransactionKind::Transfer(Transfer::new(args));
+    async fn create_txn(&self, txn: TransactionKind) -> Result<RpcTransactionRecord, Error> {
         let event = Event::NewTxnCreated(txn.clone());
 
         debug!("{:?}", event);
