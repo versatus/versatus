@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock};
+use block::{header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData};
 use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
@@ -86,8 +86,7 @@ pub struct ConsensusModule {
     pub(crate) sig_provider: SignatureProvider,
     pub(crate) convergence_block_certificates:
         Cache<BlockHash, HashSet<(NodeId, PublicKeyShare, RawSignature)>>,
-    pub(crate) current_quorums: HashMap<QuorumId, (QuorumType, HashMap<NodeId, PublicKeySet>)>,
-    pub(crate) current_quorum_pubkeys: HashMap<QuorumId, QuorumPublicKey>,
+    pub(crate) current_quorums: HashMap<QuorumId, QuorumData>,
     pub(crate) quorum_membership: Option<QuorumId>,
     pub(crate) quorum_type: Option<QuorumType>,
     // NOTE: harvester types
@@ -130,7 +129,6 @@ impl ConsensusModule {
             ),
             convergence_block_certificates: Cache::new(10, 300),
             current_quorums: HashMap::new(),
-            current_quorum_pubkeys: HashMap::new(),
             quorum_membership: None,
             quorum_type: None,
             validator_core_manager,
@@ -437,9 +435,9 @@ impl ConsensusModule {
     }
 
     fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumType)> {
-        for (quorum_id, nested_map) in self.current_quorums.iter() {
-            if nested_map.1.contains_key(node_id) {
-                return Some((quorum_id.clone(), nested_map.0.clone()))
+        for (quorum_id, quorum_data) in self.current_quorums.iter() {
+            if quorum_data.members.contains(node_id) {
+                return Some((quorum_id.clone(), quorum_data.quorum_type.clone()))
             }
         }
         None

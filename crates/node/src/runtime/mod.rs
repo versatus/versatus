@@ -316,7 +316,7 @@ mod tests {
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().unwrap();
 
-            dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
+            //dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
         }
     }
 

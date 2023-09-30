@@ -173,7 +173,8 @@ impl DkgGenerator for DkgEngine {
             .insert(node_id.clone(), part_commitment.clone());
 
         self.dkg_state.set_sync_key_gen(Some(sync_key_gen));
-
+        
+        dbg!("generated part commitment, multicasted to all Farmer/Harverster Peers within quorum: {}", &part_commitment);
         // part_commitment has to be multicasted to all Farmers/Harvester Peers
         // within the Quorum
         Ok((part_commitment, self.node_id()))

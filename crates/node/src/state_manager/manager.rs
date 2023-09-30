@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
+use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock, QuorumMembers};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher, Vote};
@@ -375,8 +375,8 @@ impl StateManager {
         Ok(())
     }
 
-    pub fn handle_harvester_public_key_received(&mut self, public_key_set: PublicKeySet) {
-        self.dag.set_harvester_pubkeys(public_key_set)
+    pub fn handle_quorum_members_received(&mut self, quorum_members: QuorumMembers) {
+        self.dag.set_quorum_members(quorum_members)
     }
 
     pub fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
