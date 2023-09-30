@@ -238,7 +238,6 @@ impl NodeRuntime {
             //TODO: maybe give consensus_driver an EventsPublisher so that 
             //it can directly emit this event
             self.events_tx.send(Event::QuorumFormed(pks).into()).await?;
-            
         }
 
         Ok(())

@@ -7,7 +7,7 @@ use std::{
 
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
+    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash, QuorumData,
 };
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
@@ -146,13 +146,98 @@ impl NodeRuntime {
     }
 
     pub async fn handle_quorum_formed(&mut self, quorum_data: PublicKeySet) -> Result<()> {
-        self.events_tx.send(
-            events::Event::QuorumFormed(
-                quorum_data
-            ).into()
-        ).await?;
+        let members: std::collections::HashSet<NodeId> = self
+            .consensus_driver.dkg_engine.dkg_state.peer_public_keys()
+            .iter()
+            .map(|(id, _)| id.clone())
+            .collect();
+        let id = self.consensus_driver.quorum_membership.clone();
+        let quorum_type = self.consensus_driver.quorum_type.clone();
+        let quorum_pubkey = self.consensus_driver.dkg_engine.dkg_state
+            .public_key_set().clone(); 
+        
+        match (id.clone(), quorum_pubkey.clone(), quorum_type.clone()) {
+            //TODO: move into separate method.
+            (Some(id), Some(quorum_pubkey), Some(quorum_type)) => {
+                let _full_quorum_data = QuorumData {
+                   id,
+                   quorum_type,
+                   members,
+                   quorum_pubkey
+                };
+                self.events_tx.send(
+                    events::Event::QuorumFormed(
+                        quorum_data
+                    ).into()
+                ).await?;
 
-        Ok(())
+                return Ok(());
+            },
+            (None, Some(_), Some(_)) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+            },
+            (Some(_), None, Some(_)) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+            },
+            (Some(_), Some(_), None) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+                
+            },
+            (None, None, Some(_)) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+            },
+            (Some(_), None, None) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+            },
+            (None, Some(_), None) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+            },
+            (None, None, None) => {
+                return Err(
+                    NodeError::Other(
+                        format!(
+                            "consensus driver missing quorum id"
+                        )
+                    )
+                )
+            }
+        }
     }
 
     pub async fn handle_node_added_to_peer_list(

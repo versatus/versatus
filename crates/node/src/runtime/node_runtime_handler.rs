@@ -55,7 +55,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 }
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
-                self.handle_quorum_membership_assigment_created(assigned_membership.clone());
+                let assignments = self.handle_quorum_membership_assigment_created(assigned_membership.clone());
 
                 let (part, node_id) =
                     self.generate_partial_commitment_message().map_err(|err| {
