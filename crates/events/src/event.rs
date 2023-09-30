@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use block::QuorumMembers;
+use block::{QuorumMembers, QuorumData};
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
@@ -282,7 +282,8 @@ pub enum Event {
     /// object representing a proof that a block has been certified by a
     /// quorum. This certificate is then added to convergence block .
     BlockCertificateCreated(Certificate),
-    QuorumMembersReceived(QuorumMembers) 
+    QuorumMembersReceived(QuorumMembers),
+    QuorumFormed(PublicKeySet),
 }
 
 impl From<&theater::Message> for Event {

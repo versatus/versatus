@@ -397,4 +397,22 @@ impl NetworkModule {
 
         Ok(())
     }
+
+    pub async fn broadcast_quorum_membership(
+        &mut self,
+        quorum_data: hbbft::crypto::PublicKeySet, 
+    ) -> Result<()> {
+        let message = dyswarm::types::Message::new(NetworkEvent::QuorumFormed(quorum_data));
+
+        self.dyswarm_client
+            .broadcast(
+                BroadcastArgs {
+                    config: Default::default(),
+                    message,
+                    erasure_count: 0,
+                }
+            ).await?;
+
+        Ok(())
+    }
 }

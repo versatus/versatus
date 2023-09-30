@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, HashSet};
-
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
@@ -265,8 +263,16 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-//            Event::HarvesterPublicKeyReceived(public_key_set) => self
-//               .handle_harvester_public_key_received(public_key_set),
+            Event::QuorumFormed(quorum_data) => {
+                self.events_tx.send(
+                    Event::QuorumFormed(
+                        quorum_data
+                    ).into()
+                ).await.map_err(|err| {
+                    TheaterError::Other(err.to_string())
+                })?;
+                // TODO: Replace above with call to self.handle_quorum_formed().
+            },
             Event::QuorumMembersReceived(quorum_members) => self
                 .state_driver.handle_quorum_members_received(quorum_members),
             // Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {

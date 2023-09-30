@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use hbbft::{
-    crypto::{PublicKey, SecretKey},
+    crypto::{PublicKey, SecretKey, PublicKeySet},
     sync_key_gen::{Ack, Part, PartOutcome, SyncKeyGen},
 };
 use primitives::{NodeId, NodeType, ValidatorPublicKey};
@@ -174,7 +174,6 @@ impl DkgGenerator for DkgEngine {
 
         self.dkg_state.set_sync_key_gen(Some(sync_key_gen));
         
-        dbg!("generated part commitment, multicasted to all Farmer/Harverster Peers within quorum: {}", &part_commitment);
         // part_commitment has to be multicasted to all Farmers/Harvester Peers
         // within the Quorum
         Ok((part_commitment, self.node_id()))
@@ -288,7 +287,7 @@ impl DkgGenerator for DkgEngine {
 
     ///  Generate the  distributed public key and secreykeyshare for the node in
     /// the Quorum
-    fn generate_key_sets(&mut self) -> Result<()> {
+    fn generate_key_sets(&mut self) -> Result<Option<PublicKeySet>> {
         let keygen = self
             .dkg_state
             .sync_key_gen_mut()
@@ -304,10 +303,10 @@ impl DkgGenerator for DkgEngine {
         match keys {
             Ok(key) => {
                 let (pks, sks) = (key.0, key.1);
-                self.dkg_state.set_public_key_set(Some(pks));
+                self.dkg_state.set_public_key_set(Some(pks.clone()));
                 self.dkg_state.set_secret_key_share(sks);
 
-                Ok(())
+                Ok(Some(pks.clone()))
             },
             Err(e) => Err(DkgError::Unknown(format!(
                 "{}, Node ID {}, Error: {}",

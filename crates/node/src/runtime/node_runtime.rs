@@ -12,8 +12,8 @@ use block::{
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, Vote};
-use hbbft::sync_key_gen::{Ack, Part};
+use events::{AssignedQuorumMembership, Event, EventPublisher, PeerData, Vote};
+use hbbft::{sync_key_gen::{Ack, Part}, crypto::PublicKeySet};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{
@@ -40,7 +40,7 @@ use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
     result::{NodeError, Result},
-    state_manager::{DagModule, StateManager, StateManagerConfig},
+    state_manager::{DagModule, StateManager, StateManagerConfig}, network::NetworkEvent,
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -232,8 +232,16 @@ impl NodeRuntime {
         Ok((part, node_id))
     }
 
-    pub fn generate_keysets(&mut self) -> Result<()> {
-        self.consensus_driver.generate_keysets()
+    pub async fn generate_keysets(&mut self) -> Result<()> {
+        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
+            //TODO: share quorum members instead of pks
+            //TODO: maybe give consensus_driver an EventsPublisher so that 
+            //it can directly emit this event
+            self.events_tx.send(Event::QuorumFormed(pks).into()).await?;
+            
+        }
+
+        Ok(())
     }
 
     pub fn produce_genesis_transactions(
