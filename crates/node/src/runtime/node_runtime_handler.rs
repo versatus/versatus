@@ -264,11 +264,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::QuorumFormed(quorum_data) => {
-                self.events_tx.send(
-                    Event::QuorumFormed(
-                        quorum_data
-                    ).into()
-                ).await.map_err(|err| {
+                self.handle_quorum_formed(quorum_data).await.map_err(|err| {
                     TheaterError::Other(err.to_string())
                 })?;
                 // TODO: Replace above with call to self.handle_quorum_formed().

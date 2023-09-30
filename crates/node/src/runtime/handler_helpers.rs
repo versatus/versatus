@@ -13,7 +13,7 @@ use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, EventPublisher, PeerData};
-use hbbft::sync_key_gen::{Ack, Part};
+use hbbft::{sync_key_gen::{Ack, Part}, crypto::PublicKeySet};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{
@@ -143,6 +143,16 @@ impl NodeRuntime {
         //         }
         //
         todo!()
+    }
+
+    pub async fn handle_quorum_formed(&mut self, quorum_data: PublicKeySet) -> Result<()> {
+        self.events_tx.send(
+            events::Event::QuorumFormed(
+                quorum_data
+            ).into()
+        ).await?;
+
+        Ok(())
     }
 
     pub async fn handle_node_added_to_peer_list(
