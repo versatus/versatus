@@ -314,7 +314,7 @@ mod tests {
             node.handle_all_ack_messages().unwrap();
         }
         for node in farmer_nodes.iter_mut() {
-            node.generate_keysets().unwrap();
+            node.generate_keysets().await.unwrap();
 
             //dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
         }
@@ -604,7 +604,7 @@ mod tests {
         run_dkg_process(farmers);
     }
 
-    fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
+    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
         let mut parts = HashMap::new();
 
         for (node_id, node) in nodes.iter_mut() {
@@ -657,7 +657,7 @@ mod tests {
         }
 
         for (_, node) in nodes.iter_mut() {
-            node.generate_keysets().unwrap();
+            node.generate_keysets().await.unwrap();
         }
     }
 
