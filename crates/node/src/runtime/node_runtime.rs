@@ -13,7 +13,10 @@ use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, Event, EventPublisher, PeerData, Vote};
-use hbbft::{sync_key_gen::{Ack, Part}, crypto::PublicKeySet};
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{
@@ -39,8 +42,9 @@ use vrrb_core::{
 use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
+    network::NetworkEvent,
     result::{NodeError, Result},
-    state_manager::{DagModule, StateManager, StateManagerConfig}, network::NetworkEvent,
+    state_manager::{DagModule, StateManager, StateManagerConfig},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -61,7 +65,10 @@ pub struct NodeRuntime {
 }
 
 impl NodeRuntime {
-    pub async fn new(config: &NodeConfig, events_tx: EventPublisher) -> std::result::Result<Self, anyhow::Error> {
+    pub async fn new(
+        config: &NodeConfig,
+        events_tx: EventPublisher,
+    ) -> std::result::Result<Self, anyhow::Error> {
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
         let miner_public_key = config.keypair.get_miner_public_key().to_owned();
@@ -157,11 +164,13 @@ impl NodeRuntime {
         self.config.clone()
     }
 
-    fn _setup_reputation_module() -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
+    fn _setup_reputation_module(
+    ) -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
         Ok(None)
     }
 
-    fn _setup_credit_model_module() -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
+    fn _setup_credit_model_module(
+    ) -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
         Ok(None)
     }
 
@@ -235,8 +244,9 @@ impl NodeRuntime {
     pub async fn generate_keysets(&mut self) -> Result<()> {
         if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
             //TODO: share quorum members instead of pks
-            //TODO: maybe give consensus_driver an EventsPublisher so that 
+            //TODO: maybe give consensus_driver an EventsPublisher so that
             //it can directly emit this event
+            dbg!(self.events_tx.is_closed());
             self.events_tx.send(Event::QuorumFormed(pks).into()).await?;
         }
 

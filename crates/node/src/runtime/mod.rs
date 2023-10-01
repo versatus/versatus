@@ -314,9 +314,8 @@ mod tests {
             node.handle_all_ack_messages().unwrap();
         }
         for node in farmer_nodes.iter_mut() {
+            dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
             node.generate_keysets().await.unwrap();
-
-            //dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
         }
     }
 

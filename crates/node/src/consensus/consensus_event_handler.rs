@@ -7,7 +7,10 @@ use dkg_engine::{
 };
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, PeerData, Vote};
-use hbbft::{sync_key_gen::{Ack, Part}, crypto::PublicKeySet};
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
 use maglev::Maglev;
 use primitives::{
     ByteSlice48Bit, FarmerQuorumThreshold, NodeId, NodeType, ProgramExecutionOutput,
