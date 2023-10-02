@@ -159,26 +159,31 @@ impl NodeRuntime {
             .collect();
         let id = self.consensus_driver.quorum_membership.clone();
         let quorum_type = self.consensus_driver.quorum_type.clone();
-        let quorum_pubkey = self.consensus_driver.dkg_engine.dkg_state
-            .public_key_set().clone(); 
-        
+        let quorum_pubkey = self
+            .consensus_driver
+            .dkg_engine
+            .dkg_state
+            .public_key_set()
+            .clone();
+
         if let (Some(id), Some(quorum_pubkey), Some(quorum_type)) =
             (id.clone(), quorum_pubkey.clone(), quorum_type.clone())
         {
             let quorum_data = QuorumData {
-                id,
+                id: id.get_inner(),
                 quorum_type,
                 members,
                 quorum_pubkey,
             };
             self.events_tx
-                .send(events::Event::QuorumFormed.into())
+                .send(events::Event::BroadcastQuorumFormed(quorum_data).into())
                 .await?;
 
             Ok(())
         } else {
             Err(NodeError::Other(
-                "consensus driver missing one of quorum id, quorum public key, or quorum type".into(),
+                "consensus driver missing one of quorum id, quorum public key, or quorum type"
+                    .into(),
             ))
         }
     }

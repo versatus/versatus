@@ -118,7 +118,7 @@ mod tests {
     use std::collections::HashMap;
     use std::ops::AddAssign;
 
-    use block::{Block, ConvergenceBlock};
+    use block::{Block, ConvergenceBlock, QuorumId};
     use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
     use hbbft::sync_key_gen::{AckOutcome, Part};
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
@@ -316,6 +316,12 @@ mod tests {
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
         }
+        let ids: Vec<&primitives::QuorumId> = farmer_nodes
+            .iter()
+            .map(|node| node.consensus_driver.quorum_membership.as_ref().unwrap())
+            .collect();
+        dbg!(&ids);
+        assert_eq!(ids[0], ids[1]);
     }
 
     #[tokio::test]

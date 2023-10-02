@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData};
+use anyhow::anyhow;
+use block::{
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData,
+};
 use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
@@ -12,9 +15,9 @@ use hbbft::{
 };
 use mempool::TxnStatus;
 use primitives::{
-    Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType,
-    NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, ValidatorPublicKey,
-    QuorumId, QuorumType
+    Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes,
+    PKShareBytes, PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature,
+    ValidatorPublicKey,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -418,26 +421,25 @@ impl ConsensusModule {
         self.is_harvester()?;
 
         if let Some((quorum_id, QuorumType::Farmer)) = self.get_node_quorum_id(&vote.farmer_id) {
-            let nested_map = self.votes_pool.entry(quorum_id).or_insert_with(HashMap::new);
+            let nested_map = self
+                .votes_pool
+                .entry(quorum_id)
+                .or_insert_with(HashMap::new);
             let digest = vote.txn.id();
             let vote_set = nested_map.entry(digest).or_insert_with(HashSet::new);
             vote_set.insert(vote);
-            return Ok(())
+            return Ok(());
         }
 
-        return Err(
-            NodeError::Other(
-                format!(
-                    "node is not a member of currently active quorum"
-                )
-            )
-        )
+        return Err(NodeError::Other(format!(
+            "node is not a member of currently active quorum"
+        )));
     }
 
     fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumType)> {
         for (quorum_id, quorum_data) in self.current_quorums.iter() {
             if quorum_data.members.contains(node_id) {
-                return Some((quorum_id.clone(), quorum_data.quorum_type.clone()))
+                return Some((quorum_id.clone(), quorum_data.quorum_type.clone()));
             }
         }
         None
@@ -445,27 +447,23 @@ impl ConsensusModule {
 
     fn is_quorum_member(&self) -> Result<()> {
         if self.quorum_membership.is_none() {
-            return Err(
-                NodeError::Other(
-                    format!(
-                        "local node is not a quorum member"
-                    )
-                )
-            )
+            return Err(NodeError::Other(format!(
+                "local node is not a quorum member"
+            )));
         }
 
         Ok(())
     }
 
+    pub fn assign_quorum_id(&mut self, s: PublicKeySet) {
+        self.quorum_membership = Some(QuorumId::new(s));
+    }
+
     fn is_harvester(&self) -> Result<()> {
         if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Harvester) {
-            return Err(
-                NodeError::Other(
-                    format!(
-                        "local node is not a Harvester Node"
-                    )
-                )
-            )
+            return Err(NodeError::Other(format!(
+                "local node is not a Harvester Node"
+            )));
         }
 
         Ok(())
@@ -473,13 +471,9 @@ impl ConsensusModule {
 
     fn is_farmer(&self) -> Result<()> {
         if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Farmer) {
-            return Err(
-                NodeError::Other(
-                    format!(
-                        "local node is not a Harvester Node"
-                    )
-                )
-            )
+            return Err(NodeError::Other(format!(
+                "local node is not a Harvester Node"
+            )));
         }
 
         Ok(())
