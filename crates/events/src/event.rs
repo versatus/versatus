@@ -283,7 +283,8 @@ pub enum Event {
     /// quorum. This certificate is then added to convergence block .
     BlockCertificateCreated(Certificate),
     QuorumMembersReceived(QuorumMembers),
-    QuorumFormed(PublicKeySet),
+    QuorumFormed,
+    BroadcastQuorumFormed(QuorumData),
 }
 
 impl From<&theater::Message> for Event {

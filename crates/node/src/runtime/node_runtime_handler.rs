@@ -264,11 +264,10 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::QuorumFormed(quorum_data) => {
-                self.handle_quorum_formed(quorum_data)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-                // TODO: Replace above with call to self.handle_quorum_formed().
+            Event::QuorumFormed => {
+                self.handle_quorum_formed().await.map_err(|err| {
+                    TheaterError::Other(err.to_string())
+                })?;
             },
             Event::QuorumMembersReceived(quorum_members) => self
                 .state_driver

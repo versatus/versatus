@@ -242,11 +242,11 @@ impl NodeRuntime {
     }
 
     pub async fn generate_keysets(&mut self) -> Result<()> {
-        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
+        if let Ok(Some(_)) = self.consensus_driver.generate_keysets() {
             //TODO: share quorum members instead of pks
             //TODO: maybe give consensus_driver an EventsPublisher so that
             //it can directly emit this event
-            self.events_tx.send(Event::QuorumFormed(pks).into()).await?
+            self.events_tx.send(Event::QuorumFormed.into()).await?;
         }
 
         Ok(())

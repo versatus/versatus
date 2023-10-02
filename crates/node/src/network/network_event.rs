@@ -60,7 +60,7 @@ pub enum NetworkEvent {
     },
 
     ConvergenceBlockCertified(ConvergenceBlock),
-    QuorumFormed(PublicKeySet),
+    BroadcastQuorumFormed(QuorumData),
     Ping(NodeId),
 
     #[default]

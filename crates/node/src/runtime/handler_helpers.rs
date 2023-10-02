@@ -148,7 +148,7 @@ impl NodeRuntime {
         todo!()
     }
 
-    pub async fn handle_quorum_formed(&mut self, quorum_data: PublicKeySet) -> Result<()> {
+    pub async fn handle_quorum_formed(&mut self) -> Result<()> {
         let members: std::collections::HashSet<NodeId> = self
             .consensus_driver
             .dkg_engine
@@ -159,17 +159,13 @@ impl NodeRuntime {
             .collect();
         let id = self.consensus_driver.quorum_membership.clone();
         let quorum_type = self.consensus_driver.quorum_type.clone();
-        let quorum_pubkey = self
-            .consensus_driver
-            .dkg_engine
-            .dkg_state
-            .public_key_set()
-            .clone();
-
+        let quorum_pubkey = self.consensus_driver.dkg_engine.dkg_state
+            .public_key_set().clone(); 
+        
         if let (Some(id), Some(quorum_pubkey), Some(quorum_type)) =
             (id.clone(), quorum_pubkey.clone(), quorum_type.clone())
         {
-            let _full_quorum_data = QuorumData {
+            let quorum_data = QuorumData {
                 id,
                 quorum_type,
                 members,
@@ -182,7 +178,7 @@ impl NodeRuntime {
             Ok(())
         } else {
             Err(NodeError::Other(
-                "consensus driver missing quorum id".into(),
+                "consensus driver missing one of quorum id, quorum public key, or quorum type".into(),
             ))
         }
     }
