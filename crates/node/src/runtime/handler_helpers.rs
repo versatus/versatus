@@ -172,7 +172,7 @@ impl NodeRuntime {
                 quorum_pubkey,
             };
             self.events_tx
-                .send(events::Event::QuorumFormed(quorum_data).into())
+                .send(events::Event::QuorumFormed.into())
                 .await?;
 
             Ok(())
