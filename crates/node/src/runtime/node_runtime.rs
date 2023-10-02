@@ -246,8 +246,7 @@ impl NodeRuntime {
             //TODO: share quorum members instead of pks
             //TODO: maybe give consensus_driver an EventsPublisher so that
             //it can directly emit this event
-            dbg!(self.events_tx.is_closed());
-            self.events_tx.send(Event::QuorumFormed(pks).into()).await?;
+            self.events_tx.send(Event::QuorumFormed(pks).into()).await?
         }
 
         Ok(())

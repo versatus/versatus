@@ -215,7 +215,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn validator_node_runtimes_can_generate_a_shared_key() {
-        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+        let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
 
@@ -314,7 +314,6 @@ mod tests {
             node.handle_all_ack_messages().unwrap();
         }
         for node in farmer_nodes.iter_mut() {
-            dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
             node.generate_keysets().await.unwrap();
         }
     }
