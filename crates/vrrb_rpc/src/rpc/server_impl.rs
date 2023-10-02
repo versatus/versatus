@@ -14,7 +14,7 @@ use telemetry::{debug, error};
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
 use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{NewTransferArgs, RpcTransactionDigest, Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{RpcTransactionDigest, Transaction, TransactionDigest, TransactionKind};
 use vrrb_core::{account::Account, serde_helpers::encode_to_binary};
 
 use super::{

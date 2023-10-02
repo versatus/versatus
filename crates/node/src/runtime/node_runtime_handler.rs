@@ -38,13 +38,13 @@ impl Handler<EventMessage> for NodeRuntime {
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
             Event::NodeAddedToPeerList(peer_data) => {
-                let assigments = self
+                let assignments = self
                     .handle_node_added_to_peer_list(peer_data.clone())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                if let Some(assigments) = assigments {
-                    for (_, assigned_membership) in assigments {
+                if let Some(assignments) = assignments {
+                    for (_, assigned_membership) in assignments {
                         let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
                         let em = EventMessage::new(Some("network-events".into()), event);
                         self.events_tx
@@ -75,7 +75,8 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::PartCommitmentCreated(node_id, part) => {
-                let (receiver_id, sender_id, ack) = self
+                //TODO: handle receiver_id and sender_id
+                let (_receiver_id, _sender_id, ack) = self
                     .handle_part_commitment_created(node_id.clone(), part)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
@@ -237,8 +238,9 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.state_driver.handle_transaction_validated(txn);
             },
 
-            Event::CreateAccountRequested((address, account_bytes)) => {
-                self.handle_create_account_requested(address.clone(), account_bytes);
+            Event::CreateAccountRequested((address, _account_bytes)) => {
+                //TODO: handle account_bytes
+                self.create_account(address.public_key()).expect("TODO: panic message");
             },
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 //                if let Ok(account) =

@@ -314,8 +314,12 @@ impl From<Event> for Vec<u8> {
 
 impl From<Event> for messr::Message<Event> {
     fn from(evt: Event) -> Self {
-        match evt {
+        match &evt {
             Event::Stop => messr::Message::stop_signal(None),
+            Event::CreateAccountRequested(_)
+            | Event::NewTxnCreated(_)
+            | Event::TxnAddedToMempool(_) =>
+                messr::Message::new(Some("runtime-events".into()), evt),
             _ => messr::Message::new(None, evt),
         }
     }

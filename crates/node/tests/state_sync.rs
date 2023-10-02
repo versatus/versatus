@@ -4,7 +4,7 @@ use node::{
 };
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
-use vrrb_core::transactions::NewTransferArgs;
+use vrrb_core::transactions::TransactionKind;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
@@ -32,18 +32,19 @@ async fn nodes_can_synchronize_state() {
 
         let signature =
             sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+
         client_1
-            .create_txn(NewTransferArgs {
-                timestamp: 0,
-                sender_address: Address::new(pk),
-                sender_public_key: pk,
-                receiver_address: Address::new(recv_pk),
-                token: None,
-                amount: 0,
-                signature,
-                nonce: 0,
-                validators: None,
-            })
+            .create_txn(
+                TransactionKind::transfer_builder()
+                    .timestamp(0)
+                    .sender_address(Address::new(pk))
+                    .sender_public_key(pk)
+                    .receiver_address(Address::new(recv_pk))
+                    .amount(0)
+                    .signature(signature)
+                    .nonce(0)
+                    .build_kind().expect("Unable to build transfer transaction")
+            )
             .await
             .unwrap();
     }
