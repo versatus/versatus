@@ -359,9 +359,9 @@ impl ConsensusModule {
         self.validator_core_manager.validate_transaction_kind(digest)
     }
 
+    #[deprecated]
     pub fn validate_transactions(
         &mut self,
-        // TODO: revisit how much data to grab from state to run these validations
         txns: Vec<TransactionKind>,
     ) -> HashSet<(TransactionKind, validator::txn_validator::Result<()>)> {
         self.validator_core_manager
@@ -427,6 +427,7 @@ impl ConsensusModule {
         )
     }
 
+    #[deprecated]
     pub fn cast_vote_on_validated_txns(
         &mut self,
         validated_txns: HashSet<(TransactionKind, validator::txn_validator::Result<()>)>,
