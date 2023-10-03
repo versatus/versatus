@@ -4,7 +4,7 @@ use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
 use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
-use vrrb_core::transactions::TransactionKind;
+use vrrb_core::transactions::{TransactionKind, TransactionDigest};
 use vrrb_core::{account::Account, claim::Claim};
 
 use crate::{
@@ -13,6 +13,11 @@ use crate::{
     txn_validator::TxnValidator,
     validator_core::{Core, CoreId},
 };
+
+pub struct CoreAllocator {
+    pub cache: HashSet<(usize, TransactionDigest)>,
+
+}
 
 #[derive(Debug)]
 pub struct ValidatorCoreManager {
@@ -51,6 +56,23 @@ impl ValidatorCoreManager {
             })?;
 
         Ok(Self { core_pool, mempool_reader, state_reader, claim_reader })
+    }
+
+    pub fn validate_transaction_kind(
+        &mut self,
+        transaction: &TransactionDigest 
+    ) -> crate::txn_validator::Result<TransactionKind> {
+        self.core_pool.install(|| {
+            let valcore = Core::new(
+                self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
+                TxnValidator::new(),
+                ClaimValidator,
+                self.mempool_reader.clone(),
+                self.state_reader.clone(),
+                self.claim_reader.clone()
+            );
+            valcore.process_transaction_kind(transaction)
+        })
     }
 
     pub fn validate(

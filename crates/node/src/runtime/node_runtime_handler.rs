@@ -319,6 +319,7 @@ impl Handler<EventMessage> for NodeRuntime {
             //     }
             // },
             Event::TxnAddedToMempool(txn_hash) => {
+                //TODO: Refactor to use self.validate_transaction_kind
                 if let Ok(votes) = self.validate_mempool(1) {
                     self.events_tx
                         .send(

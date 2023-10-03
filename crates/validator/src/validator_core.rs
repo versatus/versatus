@@ -7,7 +7,7 @@ use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
-use vrrb_core::{account::Account, claim::Claim};
+use vrrb_core::{account::Account, claim::Claim, transactions::TransactionDigest};
 use vrrb_core::transactions::TransactionKind;
 
 use crate::{claim_validator::ClaimValidator, txn_validator::TxnValidator};
@@ -85,6 +85,18 @@ impl Core {
 
     pub fn id(&self) -> CoreId {
         self.id
+    }
+
+    pub fn process_transaction_kind(
+        &self,
+        transaction: &TransactionDigest 
+    ) -> crate::txn_validator::Result<TransactionKind> {
+        if let Some(txn) = self.mempool_reader.handle().get(transaction) {
+            self.txn_validator.validate(self.state_reader.handle(), &txn.txn)?;
+            return Ok(txn.txn.clone())
+        }
+
+        return Err(crate::txn_validator::TxnValidatorError::NotFound)
     }
 
     pub fn process_transactions(

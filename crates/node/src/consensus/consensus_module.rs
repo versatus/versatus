@@ -352,6 +352,13 @@ impl ConsensusModule {
         Ok(secret_key_share)
     }
 
+    pub fn validate_transaction_kind(
+        &mut self,
+        digest: &TransactionDigest
+    ) -> validator::txn_validator::Result<TransactionKind> {
+        self.validator_core_manager.validate_transaction_kind(digest)
+    }
+
     pub fn validate_transactions(
         &mut self,
         // TODO: revisit how much data to grab from state to run these validations
@@ -361,6 +368,63 @@ impl ConsensusModule {
             .validate(txns)
             .into_iter()
             .collect()
+    }
+
+    pub fn cast_vote_on_transaction_kind(
+        &mut self,
+        transaction: TransactionKind,
+        valid: bool
+    ) -> Result<Vote> {
+        // NOTE: comments originally by vsawant, check with them to figure out what they meant
+        //
+        // TODO  Add Delegation logic + Handling Double Spend by checking whether
+        // MagLev Hashing over( Quorum Keys) to identify whether current farmer
+        // quorum is supposed to vote on txn Txn is intended
+        // to be validated by current validator
+        //
+        // let _backpressure = self.job_scheduler.calculate_back_pressure();
+        // Delegation Principle need to be done
+
+        // let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
+        // let quorum_public_key = self
+        //     .quorum_public_keyset()?
+        //     .public_key()
+        //     .to_bytes()
+        //     .to_vec();
+        
+        if let Some(vote) = self.form_vote(transaction, valid) {
+            return Ok(vote)
+        }
+
+        // TODO: Return the transaction id in the error for better 
+        // error handling
+        Err(
+            NodeError::Other(
+                format!(
+                    "could not produce vote on transaction"
+                )
+            )
+        )
+    }
+
+    fn form_vote(&self, transaction: TransactionKind, valid: bool) -> Option<Vote> {
+        let receiver_farmer_id = self.node_config.id.clone();
+        let farmer_node_id = self.node_config.id.clone();
+
+        let sig_provider = &self.sig_provider;
+        let txn_bytes = bincode::serialize(&transaction.clone()).ok()?;
+        let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
+
+        Some(
+            Vote {
+                farmer_id: receiver_farmer_id.clone().into(),
+                farmer_node_id: farmer_node_id.clone(),
+                signature,
+                txn: transaction.clone(),
+                execution_result: None,
+                is_txn_valid: valid
+            }
+        )
     }
 
     pub fn cast_vote_on_validated_txns(

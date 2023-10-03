@@ -532,7 +532,41 @@ impl NodeRuntime {
         self.state_driver.mempool_len()
     }
 
-    #[deprecated]
+    pub fn validate_transaction_kind(&mut self, digest: TransactionDigest) -> Result<Vote> {
+        self.has_required_node_type(NodeType::Validator, "validate transactions")?;
+        self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
+        let validated_transaction_kind = self.consensus_driver.validate_transaction_kind(&digest);
+        let vote = match validated_transaction_kind {
+            Ok(transaction_kind) => {
+                self.consensus_driver.cast_vote_on_transaction_kind(
+                    transaction_kind, 
+                    true
+                )
+            },
+            Err(_) => {
+                let handle = self.mempool_read_handle_factory().handle();
+                let transaction_record = handle.get(&digest).clone();
+                match transaction_record {
+                    Some(record) => {
+                        self.consensus_driver.cast_vote_on_transaction_kind(
+                            record.txn.clone(),
+                            false
+                        )
+                    },
+                    None => {
+                        Err(
+                            NodeError::Other(
+                                format!("transaction record not found")
+                            )
+                        )
+                    }
+                }
+            }
+        };
+
+        return vote
+    }
+
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
     pub fn validate_mempool(&mut self, n: usize) -> std::result::Result<Vec<Vote>, anyhow::Error> {
@@ -546,8 +580,6 @@ impl NodeRuntime {
             .take(n)
             .map(|txn_record| txn_record.txn.to_owned())
             .collect();
-
-        let state_snapshot = self.state_driver.read_handle().state_store_values();
 
         let validated_txns = self
             .consensus_driver
