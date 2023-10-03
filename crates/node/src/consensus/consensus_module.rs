@@ -13,7 +13,7 @@ use hbbft::{
     crypto::{PublicKeySet, PublicKeyShare, SecretKeyShare},
     sync_key_gen::Part,
 };
-use mempool::TxnStatus;
+use mempool::{TxnStatus, MempoolReadHandleFactory};
 use primitives::{
     Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes,
     PKShareBytes, PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature,
@@ -22,6 +22,7 @@ use primitives::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use signer::signer::{SignatureProvider, Signer};
+use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStore, ClaimStoreReadHandleFactory};
 use telemetry::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
@@ -107,7 +108,12 @@ pub struct ConsensusModule {
 }
 
 impl ConsensusModule {
-    pub fn new(cfg: ConsensusModuleConfig) -> Result<Self> {
+    pub fn new(
+        cfg: ConsensusModuleConfig,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
+        claim_reader: ClaimStoreReadHandleFactory,
+    ) -> Result<Self> {
         let quorum_module_config = QuorumModuleConfig {
             membership_config: None,
             node_config: cfg.node_config.clone(),
@@ -115,7 +121,12 @@ impl ConsensusModule {
 
         let validator_public_key = cfg.keypair.validator_public_key_owned();
 
-        let validator_core_manager = ValidatorCoreManager::new(10).map_err(|err| {
+        let validator_core_manager = ValidatorCoreManager::new(
+            10,
+            mempool_reader,
+            state_reader,
+            claim_reader
+        ).map_err(|err| {
             NodeError::Other(format!("failed to generate validator core manager: {err}"))
         })?;
 

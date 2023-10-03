@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
+use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
 use vrrb_core::transactions::TransactionKind;
 use vrrb_core::{account::Account, claim::Claim};
 
@@ -15,6 +17,9 @@ use crate::{
 #[derive(Debug)]
 pub struct ValidatorCoreManager {
     core_pool: rayon::ThreadPool,
+    mempool_reader: MempoolReadHandleFactory,
+    state_reader: StateStoreReadHandleFactory,
+    claim_reader: ClaimStoreReadHandleFactory,
 }
 
 impl Clone for ValidatorCoreManager {
@@ -23,13 +28,21 @@ impl Clone for ValidatorCoreManager {
 
         // NOTE: rm this unwrap somehow
         let core_pool = ThreadPoolBuilder::new().num_threads(cores).build().unwrap();
+        let mempool_reader = self.mempool_reader.clone();
+        let state_reader = self.state_reader.clone();
+        let claim_reader = self.claim_reader.clone();
 
-        Self { core_pool }
+        Self { core_pool, mempool_reader, state_reader, claim_reader }
     }
 }
 
 impl ValidatorCoreManager {
-    pub fn new(cores: usize) -> Result<Self> {
+    pub fn new(
+        cores: usize, 
+        mempool_reader: MempoolReadHandleFactory, 
+        state_reader: StateStoreReadHandleFactory,
+        claim_reader: ClaimStoreReadHandleFactory,
+    ) -> Result<Self> {
         let core_pool = ThreadPoolBuilder::new()
             .num_threads(cores)
             .build()
@@ -37,7 +50,7 @@ impl ValidatorCoreManager {
                 ValidatorError::Other(format!("Failed to create validator core pool: {err}"))
             })?;
 
-        Ok(Self { core_pool })
+        Ok(Self { core_pool, mempool_reader, state_reader, claim_reader })
     }
 
     pub fn validate(

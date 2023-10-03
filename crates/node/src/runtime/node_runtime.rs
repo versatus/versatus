@@ -102,8 +102,8 @@ impl NodeRuntime {
         let mempool = LeftRightMempool::new();
 
         let state_driver = StateManager::new(StateManagerConfig {
-            database,
-            mempool,
+            database: database.clone(),
+            mempool: mempool.clone(),
             dag: dag.clone(),
             claim: claim.clone(),
         });
@@ -130,12 +130,17 @@ impl NodeRuntime {
 
         let dkg_generator = DkgEngine::new(dkg_engine_config);
 
-        let consensus_driver = ConsensusModule::new(ConsensusModuleConfig {
-            keypair: config.keypair.clone(),
-            node_config: config.clone(),
-            dkg_generator,
-            validator_public_key: config.keypair.validator_public_key_owned(),
-        })?;
+        let consensus_driver = ConsensusModule::new(
+            ConsensusModuleConfig {
+                keypair: config.keypair.clone(),
+                node_config: config.clone(),
+                dkg_generator,
+                validator_public_key: config.keypair.validator_public_key_owned()
+            },
+            mempool.factory(),
+            database.state_store_factory(),
+            database.claim_store_factory()
+        )?;
 
         let dag_driver = DagModule::new(dag, claim.clone());
 
