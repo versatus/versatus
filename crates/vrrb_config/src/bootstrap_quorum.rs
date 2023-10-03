@@ -20,8 +20,6 @@ pub type QuorumMembers = BTreeMap<NodeId, QuorumMember>;
 pub struct QuorumMembershipConfig {
     pub quorum_kind: QuorumKind,
     pub quorum_members: BTreeMap<NodeId, QuorumMember>,
-    // TODO: This might be the place to put quorum info:q
-    //
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

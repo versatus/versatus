@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, HashSet};
-
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
@@ -57,7 +55,8 @@ impl Handler<EventMessage> for NodeRuntime {
                 }
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
-                self.handle_quorum_membership_assigment_created(assigned_membership.clone());
+                let assignments =
+                    self.handle_quorum_membership_assigment_created(assigned_membership.clone());
 
                 let (part, node_id) =
                     self.generate_partial_commitment_message().map_err(|err| {
@@ -265,10 +264,14 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::HarvesterPublicKeyReceived(public_key_set) => self
+            Event::QuorumFormed => {
+                self.handle_quorum_formed().await.map_err(|err| {
+                    TheaterError::Other(err.to_string())
+                })?;
+            },
+            Event::QuorumMembersReceived(quorum_members) => self
                 .state_driver
-                .handle_harvester_public_key_received(public_key_set),
-
+                .handle_quorum_members_received(quorum_members),
             // Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {
             //     if self.miner.check_claim(winner_claim.hash) {
             //         let mining_result = self.miner.try_mine();
@@ -318,15 +321,21 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::TxnAddedToMempool(txn_hash) => {
                 if let Ok(votes) = self.validate_mempool(1) {
                     self.events_tx
-                        .send(Event::TransactionsValidated { 
-                            votes, 
-                            quorum_threshold: self.config.threshold_config.threshold as usize
-                        }.into())
+                        .send(
+                            Event::TransactionsValidated {
+                                votes,
+                                quorum_threshold: self.config.threshold_config.threshold as usize,
+                            }
+                            .into(),
+                        )
                         .await
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
-            Event::TransactionsValidated { votes, quorum_threshold } => {
+            Event::TransactionsValidated {
+                votes,
+                quorum_threshold,
+            } => {
                 // TODO: Send Votes to Harvester Nodes
             },
             Event::NoOp => {},

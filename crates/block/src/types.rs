@@ -7,8 +7,9 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use hbbft::crypto::PublicKeySet;
 use hex::FromHexError;
-use primitives::RawSignature;
+use primitives::{NodeId, QuorumType, RawSignature};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -38,15 +39,34 @@ pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
 pub type BlockHash = String;
 pub type QuorumId = String;
 pub type QuorumPubkey = String;
-pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
+pub type QuorumMembers = LinkedHashMap<QuorumId, QuorumData>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
 pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[repr(C)]
+pub struct QuorumData {
+    pub id: QuorumId,
+    pub quorum_type: QuorumType,
+    pub members: HashSet<NodeId>,
+    pub quorum_pubkey: PublicKeySet,
+}
+
+impl std::hash::Hash for QuorumData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.quorum_type.hash(state);
+        let members: Vec<NodeId> = self.members.clone().into_iter().collect();
+        members.hash(state);
+        self.quorum_pubkey.hash(state);
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct Certificate {
     pub signature: String,
-    pub inauguration: Option<QuorumPubkeys>,
+    pub inauguration: Option<QuorumMembers>,
     pub root_hash: String,
     pub next_root_hash: String,
     pub block_hash: String,

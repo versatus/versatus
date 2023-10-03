@@ -12,8 +12,11 @@ use block::{
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, Vote};
-use hbbft::sync_key_gen::{Ack, Part};
+use events::{AssignedQuorumMembership, Event, EventPublisher, PeerData, Vote};
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{
@@ -39,6 +42,7 @@ use vrrb_core::{
 use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
     mining_module::{MiningModule, MiningModuleConfig},
+    network::NetworkEvent,
     result::{NodeError, Result},
     state_manager::{DagModule, StateManager, StateManagerConfig},
 };
@@ -61,7 +65,10 @@ pub struct NodeRuntime {
 }
 
 impl NodeRuntime {
-    pub async fn new(config: &NodeConfig, events_tx: EventPublisher) -> Result<Self> {
+    pub async fn new(
+        config: &NodeConfig,
+        events_tx: EventPublisher,
+    ) -> std::result::Result<Self, anyhow::Error> {
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
         let miner_public_key = config.keypair.get_miner_public_key().to_owned();
@@ -157,11 +164,13 @@ impl NodeRuntime {
         self.config.clone()
     }
 
-    fn _setup_reputation_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    fn _setup_reputation_module(
+    ) -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
         Ok(None)
     }
 
-    fn _setup_credit_model_module() -> Result<Option<JoinHandle<Result<()>>>> {
+    fn _setup_credit_model_module(
+    ) -> std::result::Result<Option<JoinHandle<Result<()>>>, anyhow::Error> {
         Ok(None)
     }
 
@@ -232,8 +241,16 @@ impl NodeRuntime {
         Ok((part, node_id))
     }
 
-    pub fn generate_keysets(&mut self) -> Result<()> {
-        self.consensus_driver.generate_keysets()
+    pub async fn generate_keysets(&mut self) -> Result<()> {
+        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
+            self.consensus_driver.assign_quorum_id(pks);
+            //TODO: share quorum members instead of pks
+            //TODO: maybe give consensus_driver an EventsPublisher so that
+            //it can directly emit this event
+            self.events_tx.send(Event::QuorumFormed.into()).await?;
+        }
+
+        Ok(())
     }
 
     pub fn produce_genesis_transactions(
@@ -512,7 +529,7 @@ impl NodeRuntime {
 
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
-    pub fn validate_mempool(&mut self, n: usize) -> Result<Vec<Vote>> {
+    pub fn validate_mempool(&mut self, n: usize) -> std::result::Result<Vec<Vote>, anyhow::Error> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
 

@@ -5,7 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::ConvergenceBlock;
+use block::{ConvergenceBlock, QuorumData};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -394,6 +394,24 @@ impl NetworkModule {
                 erasure_count: 0,
             })
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_quorum_membership(
+        &mut self,
+        quorum_data: QuorumData, 
+    ) -> Result<()> {
+        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastQuorumFormed(quorum_data));
+
+        self.dyswarm_client
+            .broadcast(
+                BroadcastArgs {
+                    config: Default::default(),
+                    message,
+                    erasure_count: 0,
+                }
+            ).await?;
 
         Ok(())
     }

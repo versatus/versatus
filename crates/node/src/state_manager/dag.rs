@@ -3,14 +3,14 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use block::{
     header::BlockHeader,
     valid::{BlockValidationData, Valid},
-    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
+    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumMembers,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
 use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
-use primitives::SignatureType;
+use primitives::{SignatureType, QuorumType};
 use signer::types::{SignerError, SignerResult};
 use theater::{ActorId, ActorState};
 use vrrb_core::claim::Claim;
@@ -46,7 +46,7 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 #[derive(Clone, Debug)]
 pub struct DagModule {
     dag: Arc<RwLock<BullDag<Block, String>>>,
-    public_key_set: Option<PublicKeySet>,
+    quorum_members: Option<QuorumMembers>,
     last_confirmed_block_header: Option<BlockHeader>,
     last_confirmed_block: Option<Block>,
     claim: Claim,
@@ -56,7 +56,7 @@ impl DagModule {
     pub fn new(dag: Arc<RwLock<BullDag<Block, String>>>, claim: Claim) -> Self {
         Self {
             dag,
-            public_key_set: None,
+            quorum_members: None,
             last_confirmed_block_header: None,
             last_confirmed_block: None,
             claim,
@@ -77,8 +77,8 @@ impl DagModule {
         self.last_confirmed_block_header.clone()
     }
 
-    pub fn set_harvester_pubkeys(&mut self, public_key_set: PublicKeySet) {
-        self.public_key_set = Some(public_key_set);
+    pub fn set_quorum_members(&mut self, quorum_members: QuorumMembers) {
+        self.quorum_members = Some(quorum_members);
     }
 
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
@@ -249,9 +249,15 @@ impl DagModule {
 
     fn verify_partial_sig(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         let public_key_share = {
-            if let Some(public_key_share) = self.public_key_set.clone() {
-                if let Some(idx) = validation_data.node_idx {
-                    public_key_share.public_key_share(idx as usize)
+            if let Some(quorum_members) = self.quorum_members.clone() {
+                if let Some(public_key_set) = quorum_members.values().find(|quorum_data| {
+                    quorum_data.quorum_type == QuorumType::Harvester
+                }).map(|quorum_data| quorum_data.quorum_pubkey.clone()) {
+                    if let Some(idx) = validation_data.node_idx {
+                        public_key_set.public_key_share(idx as usize)
+                    } else {
+                        return Err(SignerError::GroupPublicKeyMissing);
+                    }
                 } else {
                     return Err(SignerError::GroupPublicKeyMissing);
                 }
@@ -281,8 +287,14 @@ impl DagModule {
 
     fn verify_threshold_sig(&self, validation_data: BlockValidationData) -> SignerResult<bool> {
         let public_key_set = {
-            if let Some(public_key_set) = self.public_key_set.clone() {
-                public_key_set
+            if let Some(quorum_members) = self.quorum_members.clone() {
+                if let Some(public_key_set) = quorum_members.values().find(|quorum_data| {
+                    quorum_data.quorum_type == QuorumType::Harvester
+                }).map(|quorum_data| quorum_data.quorum_pubkey.clone()) {
+                    public_key_set
+                } else {
+                    return Err(SignerError::GroupPublicKeyMissing);
+                }
             } else {
                 return Err(SignerError::GroupPublicKeyMissing);
             }

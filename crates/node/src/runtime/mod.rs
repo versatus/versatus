@@ -118,7 +118,7 @@ mod tests {
     use std::collections::HashMap;
     use std::ops::AddAssign;
 
-    use block::{Block, ConvergenceBlock};
+    use block::{Block, ConvergenceBlock, QuorumId};
     use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
     use hbbft::sync_key_gen::{AckOutcome, Part};
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
@@ -215,7 +215,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn validator_node_runtimes_can_generate_a_shared_key() {
-        let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+        let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
 
@@ -314,10 +314,14 @@ mod tests {
             node.handle_all_ack_messages().unwrap();
         }
         for node in farmer_nodes.iter_mut() {
-            node.generate_keysets().unwrap();
-
-            dbg!(&node.consensus_driver.dkg_engine.dkg_state.public_key_set());
+            node.generate_keysets().await.unwrap();
         }
+        let ids: Vec<&primitives::QuorumId> = farmer_nodes
+            .iter()
+            .map(|node| node.consensus_driver.quorum_membership.as_ref().unwrap())
+            .collect();
+        dbg!(&ids);
+        assert_eq!(ids[0], ids[1]);
     }
 
     #[tokio::test]
@@ -604,7 +608,7 @@ mod tests {
         run_dkg_process(farmers);
     }
 
-    fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
+    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
         let mut parts = HashMap::new();
 
         for (node_id, node) in nodes.iter_mut() {
@@ -657,7 +661,7 @@ mod tests {
         }
 
         for (_, node) in nodes.iter_mut() {
-            node.generate_keysets().unwrap();
+            node.generate_keysets().await.unwrap();
         }
     }
 

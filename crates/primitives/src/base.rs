@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
+use hbbft::crypto::PublicKeySet;
+use hex;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// The unit of time within VRRB.
 /// It lasts for some number
@@ -68,6 +71,7 @@ pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;
+pub type QuorumPubKey = String;
 
 pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
@@ -90,5 +94,21 @@ impl Display for QuorumKind {
             QuorumKind::Farmer => write!(f, "Farmer"),
             QuorumKind::Miner => write!(f, "Miner"),
         }
+    }
+}
+
+/// A hashed [PublicKeySet].
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub struct QuorumId(String);
+impl QuorumId {
+    pub fn new(s: PublicKeySet) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(s.public_key().to_bytes());
+        let result = hasher.finalize();
+
+        Self(hex::encode(result))
+    }
+    pub fn get_inner(&self) -> String {
+        self.0.clone()
     }
 }

@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock};
+use anyhow::anyhow;
+use block::{
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData,
+};
 use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
@@ -12,8 +15,9 @@ use hbbft::{
 };
 use mempool::TxnStatus;
 use primitives::{
-    Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeIdx, NodeType,
-    NodeTypeBytes, PKShareBytes, PayloadBytes, QuorumPublicKey, RawSignature, ValidatorPublicKey,
+    Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes,
+    PKShareBytes, PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature,
+    ValidatorPublicKey,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -33,8 +37,6 @@ use crate::{NodeError, Result};
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 // TODO: Move this to primitives
-pub type QuorumId = String;
-pub type QuorumPubkey = String;
 
 #[derive(Debug)]
 pub struct ConsensusModuleConfig {
@@ -87,11 +89,13 @@ pub struct ConsensusModule {
     pub(crate) sig_provider: SignatureProvider,
     pub(crate) convergence_block_certificates:
         Cache<BlockHash, HashSet<(NodeId, PublicKeyShare, RawSignature)>>,
-
+    pub(crate) current_quorums: HashMap<QuorumId, QuorumData>,
+    pub(crate) quorum_membership: Option<QuorumId>,
+    pub(crate) quorum_type: Option<QuorumType>,
     // NOTE: harvester types
     // pub certified_txns_filter: Bloom,
     // pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
-    pub votes_pool: HashMap<(TransactionDigest, String), Vec<Vote>>,
+    pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub group_public_key: GroupPublicKey,
     // pub sig_provider: Option<SignatureProvider>,
     // pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
@@ -127,6 +131,9 @@ impl ConsensusModule {
                 cfg.node_config.threshold_config.clone(),
             ),
             convergence_block_certificates: Cache::new(10, 300),
+            current_quorums: HashMap::new(),
+            quorum_membership: None,
+            quorum_type: None,
             validator_core_manager,
             votes_pool: Default::default(),
             group_public_key: Default::default(),
@@ -407,6 +414,69 @@ impl ConsensusModule {
             .validate(&accounts_state, vec![txn.clone()]);
 
         validated_txns.iter().any(|x| x.0.id() == txn.id())
+    }
+
+    pub fn insert_vote_into_vote_pool(&mut self, vote: Vote) -> Result<()> {
+        self.is_quorum_member()?;
+        self.is_harvester()?;
+
+        if let Some((quorum_id, QuorumType::Farmer)) = self.get_node_quorum_id(&vote.farmer_id) {
+            let nested_map = self
+                .votes_pool
+                .entry(quorum_id)
+                .or_insert_with(HashMap::new);
+            let digest = vote.txn.id();
+            let vote_set = nested_map.entry(digest).or_insert_with(HashSet::new);
+            vote_set.insert(vote);
+            return Ok(());
+        }
+
+        return Err(NodeError::Other(format!(
+            "node is not a member of currently active quorum"
+        )));
+    }
+
+    fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumType)> {
+        for (quorum_id, quorum_data) in self.current_quorums.iter() {
+            if quorum_data.members.contains(node_id) {
+                return Some((quorum_id.clone(), quorum_data.quorum_type.clone()));
+            }
+        }
+        None
+    }
+
+    fn is_quorum_member(&self) -> Result<()> {
+        if self.quorum_membership.is_none() {
+            return Err(NodeError::Other(format!(
+                "local node is not a quorum member"
+            )));
+        }
+
+        Ok(())
+    }
+
+    pub fn assign_quorum_id(&mut self, s: PublicKeySet) {
+        self.quorum_membership = Some(QuorumId::new(s));
+    }
+
+    fn is_harvester(&self) -> Result<()> {
+        if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Harvester) {
+            return Err(NodeError::Other(format!(
+                "local node is not a Harvester Node"
+            )));
+        }
+
+        Ok(())
+    }
+
+    fn is_farmer(&self) -> Result<()> {
+        if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Farmer) {
+            return Err(NodeError::Other(format!(
+                "local node is not a Harvester Node"
+            )));
+        }
+
+        Ok(())
     }
 
     // TODO: Refactor without use of quorum public key

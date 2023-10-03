@@ -78,6 +78,10 @@ impl Handler<EventMessage> for NetworkModule {
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
             },
+            Event::BroadcastQuorumFormed(quorum_data) => {
+                info!("Broadcasting quorum information to network");
+                self.broadcast_quorum_membership(quorum_data).await?;
+            }
             _ => {},
         }
 
