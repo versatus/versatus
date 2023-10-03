@@ -180,8 +180,7 @@ impl Wallet {
             .await
             .map_err(|err| {
                 error!("{:?}", err.to_string());
-
-                WalletError::Custom(format!("API Error: {err}"))
+                WalletError::Custom(format!("API Error: {}", err))
             })?;
 
         Ok(transfer.id().digest_string())
