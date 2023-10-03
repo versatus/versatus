@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey};
+use primitives::{NETWORK_TOPIC_STR, NodeId, NodeType, ValidatorPublicKey};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::{QuorumMember, QuorumMembershipConfig};
@@ -46,7 +46,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 if let Some(assignments) = assignments {
                     for (_, assigned_membership) in assignments {
                         let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
-                        let em = EventMessage::new(Some("network-events".into()), event);
+                        let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
                         self.events_tx
                             .send(em)
                             .await
@@ -66,7 +66,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let event = Event::PartCommitmentCreated(node_id, part);
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)
@@ -86,7 +86,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     ack,
                 };
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)
@@ -119,7 +119,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let event = Event::MinerElected(winner);
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)

@@ -319,7 +319,7 @@ impl From<Event> for messr::Message<Event> {
             Event::CreateAccountRequested(_)
             | Event::NewTxnCreated(_)
             | Event::TxnAddedToMempool(_) =>
-                messr::Message::new(Some("runtime-events".into()), evt),
+                messr::Message::new(Some(RUNTIME_TOPIC_STR.into()), evt),
             _ => messr::Message::new(None, evt),
         }
     }
