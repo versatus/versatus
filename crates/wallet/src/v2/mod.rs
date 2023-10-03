@@ -171,9 +171,10 @@ impl Wallet {
             .signature(signature)
             .validators(HashMap::new())
             .nonce(self.nonce)
-            .build_kind().expect("failed to build transfer transaction");
+            .build_kind()
+            .map_err(|_| WalletError::Custom("Failed to build transfer transaction".to_string()))?;
 
-        let txn = self
+        self
             .client
             .create_txn(transfer.clone())
             .await
