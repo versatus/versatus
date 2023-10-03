@@ -532,6 +532,7 @@ impl NodeRuntime {
         self.state_driver.mempool_len()
     }
 
+    #[deprecated]
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
     pub fn validate_mempool(&mut self, n: usize) -> std::result::Result<Vec<Vote>, anyhow::Error> {
@@ -550,7 +551,7 @@ impl NodeRuntime {
 
         let validated_txns = self
             .consensus_driver
-            .validate_transactions(&state_snapshot, entries);
+            .validate_transactions(entries);
 
         let votes = self
             .consensus_driver

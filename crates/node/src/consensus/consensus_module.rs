@@ -355,11 +355,10 @@ impl ConsensusModule {
     pub fn validate_transactions(
         &mut self,
         // TODO: revisit how much data to grab from state to run these validations
-        state_snapshot: &HashMap<Address, Account>,
         txns: Vec<TransactionKind>,
     ) -> HashSet<(TransactionKind, validator::txn_validator::Result<()>)> {
         self.validator_core_manager
-            .validate(state_snapshot, txns)
+            .validate(txns)
             .into_iter()
             .collect()
     }
@@ -418,11 +417,10 @@ impl ConsensusModule {
     fn validate_single_transaction(
         &mut self,
         txn: &TransactionKind,
-        accounts_state: &HashMap<Address, Account>,
     ) -> bool {
         let validated_txns = self
             .validator_core_manager
-            .validate(&accounts_state, vec![txn.clone()]);
+            .validate(vec![txn.clone()]);
 
         validated_txns.iter().any(|x| x.0.id() == txn.id())
     }

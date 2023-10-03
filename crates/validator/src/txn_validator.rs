@@ -1,6 +1,7 @@
 use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
 
 use primitives::Address;
+use storage::vrrbdb::StateStoreReadHandle;
 use vrrb_core::transactions::{Transaction, TransactionKind};
 use vrrb_core::{account::Account, keypair::KeyPair};
 
@@ -70,19 +71,19 @@ impl TxnValidator {
     // TODO: include fees and signature threshold.
     pub fn validate(
         &self,
-        account_state: &HashMap<Address, Account>,
+        state_reader: StateStoreReadHandle,
         txn: &TransactionKind,
     ) -> Result<()> {
-        self.validate_structure(account_state, txn)
+        self.validate_structure(state_reader, txn)
     }
 
     /// An entire Txn structure validator
     pub fn validate_structure(
         &self,
-        account_state: &HashMap<Address, Account>,
+        state_reader: StateStoreReadHandle,
         txn: &TransactionKind,
     ) -> Result<()> {
-        self.validate_amount(account_state, txn)
+        self.validate_amount(state_reader, txn)
             .and_then(|_| self.validate_public_key(txn))
             .and_then(|_| self.validate_sender_address(txn))
             .and_then(|_| self.validate_receiver_address(txn))
@@ -164,14 +165,13 @@ impl TxnValidator {
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(
         &self,
-        account_state: &HashMap<Address, Account>,
+        state_reader: StateStoreReadHandle,
         txn: &TransactionKind,
     ) -> Result<()> {
         let address = txn.sender_address();
         if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
-            let account = account_state
-                .get(&Address::new(address))
-                .ok_or(TxnValidatorError::SenderAddressIncorrect)?;
+            let account = state_reader.get(&Address::new(address))
+                .map_err(|_| TxnValidatorError::SenderAddressIncorrect)?;
             if (account.credits() - account.debits())
                 .checked_sub(txn.amount())
                 .is_none()

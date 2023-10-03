@@ -55,7 +55,6 @@ impl ValidatorCoreManager {
 
     pub fn validate(
         &mut self,
-        account_state: &HashMap<Address, Account>,
         batch: Vec<TransactionKind>,
     ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         // ) -> HashSet<(Txn, bool)> {
@@ -64,8 +63,11 @@ impl ValidatorCoreManager {
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
                 ClaimValidator,
+                self.mempool_reader.clone(),
+                self.state_reader.clone(),
+                self.claim_reader.clone(),
             );
-            valcore.process_transactions(account_state, batch)
+            valcore.process_transactions(batch)
         })
     }
 
@@ -78,6 +80,9 @@ impl ValidatorCoreManager {
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
                 ClaimValidator,
+                self.mempool_reader.clone(),
+                self.state_reader.clone(),
+                self.claim_reader.clone(),
             );
             valcore.process_claims(claims)
         })

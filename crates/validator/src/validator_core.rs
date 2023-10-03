@@ -3,8 +3,10 @@ use std::{
     sync::mpsc::RecvError,
 };
 
+use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
 use vrrb_core::{account::Account, claim::Claim};
 use vrrb_core::transactions::TransactionKind;
 
@@ -48,6 +50,9 @@ pub struct Core {
     id: CoreId,
     txn_validator: TxnValidator,
     claims_validator: ClaimValidator,
+    mempool_reader: MempoolReadHandleFactory,
+    state_reader: StateStoreReadHandleFactory,
+    claim_reader: ClaimStoreReadHandleFactory,
 }
 
 impl Core {
@@ -60,11 +65,21 @@ impl Core {
     ///   propagate it's errors to main thread
     // pub fn new<D: Database>(id: CoreId, error_sender: Sender<(CoreId,
     // CoreError)>) -> Self {
-    pub fn new(id: CoreId, txn_validator: TxnValidator, claims_validator: ClaimValidator) -> Self {
+    pub fn new(
+        id: CoreId, 
+        txn_validator: TxnValidator, 
+        claims_validator: ClaimValidator,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
+        claim_reader: ClaimStoreReadHandleFactory
+    ) -> Self {
         Self {
             id,
             txn_validator,
             claims_validator,
+            mempool_reader,
+            state_reader,
+            claim_reader
         }
     }
 
@@ -74,13 +89,12 @@ impl Core {
 
     pub fn process_transactions(
         &self,
-        account_state: &HashMap<Address, Account>,
         batch: Vec<TransactionKind>,
     ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         batch
             .into_iter()
             .map(
-                |txn| match self.txn_validator.validate(account_state, &txn) {
+                |txn| match self.txn_validator.validate(self.state_reader.handle(), &txn) {
                     Ok(_) => (txn, Ok(())),
                     Err(err) => {
                         telemetry::error!("{err:?}");
