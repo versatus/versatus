@@ -38,7 +38,7 @@ pub struct StateUpdate {
     pub amount: u128,
     pub nonce: Option<u128>,
     pub storage: Option<String>,
-    pub code: Option<String>,
+    pub package_address: Option<String>,
     pub digest: TransactionDigest,
     pub update_account: UpdateAccount,
 }
@@ -82,7 +82,7 @@ impl From<StateUpdate> for UpdateArgs {
                     credits: None,
                     debits: Some(item.amount),
                     storage: Some(item.storage.clone()),
-                    code: Some(item.code.clone()),
+                    package_address: Some(item.package_address.clone()),
                     digests: Some(digest.clone()),
                 }
             },
@@ -94,7 +94,7 @@ impl From<StateUpdate> for UpdateArgs {
                     credits: Some(item.amount),
                     debits: None,
                     storage: Some(item.storage.clone()),
-                    code: Some(item.code.clone()),
+                    package_address: Some(item.package_address.clone()),
                     digests: Some(digest.clone()),
                 }
             },
@@ -107,7 +107,7 @@ impl From<StateUpdate> for UpdateArgs {
                     credits: None,
                     debits: None,
                     storage: None,
-                    code: None,
+                    package_address: None,
                     digests: Some(digest.clone()),
                 }
             },
@@ -117,7 +117,7 @@ impl From<StateUpdate> for UpdateArgs {
                 credits: Some(item.amount),
                 debits: None,
                 storage: None,
-                code: None,
+                package_address: None,
                 digests: None,
             },
             UpdateAccount::Reward => UpdateArgs {
@@ -126,7 +126,7 @@ impl From<StateUpdate> for UpdateArgs {
                 credits: Some(item.amount),
                 debits: None,
                 storage: None,
-                code: None,
+                package_address: None,
                 digests: None,
             },
         }
@@ -159,7 +159,7 @@ impl FromBlock for HashSet<StateUpdate> {
             nonce: None,
             amount: proposer_fees,
             storage: None,
-            code: None,
+            package_address: None,
             digest: TransactionDigest::default(),
             update_account: UpdateAccount::Fee,
         };
@@ -181,7 +181,7 @@ impl FromTxn for IntoUpdates {
             amount: txn.amount(),
             nonce: Some(txn.nonce()),
             storage: None,
-            code: None,
+            package_address: None,
             digest: txn.id(),
             update_account: UpdateAccount::Sender,
         };
@@ -192,7 +192,7 @@ impl FromTxn for IntoUpdates {
             amount: txn.amount(),
             nonce: None,
             storage: None,
-            code: None,
+            package_address: None,
             digest: txn.id(),
             update_account: UpdateAccount::Receiver,
         };
@@ -222,7 +222,7 @@ impl FromTxn for HashSet<StateUpdate> {
                         amount: validator_share,
                         nonce: None,
                         storage: None,
-                        code: None,
+                        package_address: None,
                         digest: TransactionDigest::default(),
                         update_account: UpdateAccount::Fee,
                     });

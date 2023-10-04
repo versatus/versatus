@@ -148,6 +148,12 @@ impl NodeRuntime {
         todo!()
     }
 
+    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
+        self.dag_driver.append_certificate(certificate); 
+
+        Ok(())
+    }
+
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
         let members: std::collections::HashSet<NodeId> = self
             .consensus_driver

@@ -203,8 +203,9 @@ impl ConsensusModule {
                 ))
             })?;
 
+        //TODO: If Quorums are pending inauguration include inauguration info
         let certificate = Certificate {
-            signature: hex::encode(signature),
+            signature,
             inauguration: None,
             root_hash: prev_txn_root_hash,
             next_root_hash: next_txn_root_hash,

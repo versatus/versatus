@@ -65,7 +65,7 @@ impl std::hash::Hash for QuorumData {
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct Certificate {
-    pub signature: String,
+    pub signature: RawSignature,
     pub inauguration: Option<QuorumMembers>,
     pub root_hash: String,
     pub next_root_hash: String,
@@ -109,7 +109,7 @@ impl Hash for Conflict {
 }
 
 impl Certificate {
-    pub(crate) fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
+    pub fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
         let signature = hex::decode(self.signature.clone())?;
         Ok(signature)
     }

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use block::Certificate;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
 use primitives::{NodeId, NodeType, ValidatorPublicKey};
@@ -266,6 +267,14 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            Event::BlockConfirmed(certificate) => {
+
+                let certificate: Certificate = bincode::deserialize(&certificate)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.handle_block_certificate(certificate).await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            }
             Event::QuorumFormed => {
                 self.handle_quorum_formed().await.map_err(|err| {
                     TheaterError::Other(err.to_string())

@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use block::{
     header::BlockHeader,
     valid::{BlockValidationData, Valid},
-    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumMembers,
+    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumMembers, Certificate,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -149,6 +149,16 @@ impl DagModule {
                 block: convergence.to_owned(),
             });
         }
+
+        Ok(())
+    }
+
+    pub fn append_certificate(&mut self, certificate: Certificate) -> Result<()> {
+        let signature = certificate.decode_signature()
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+//        let valid = self.verify_threshold_sig(validation_data)
+//            .map_err(|err| NodeError::Other(err.to_string()))?;
 
         Ok(())
     }

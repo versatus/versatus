@@ -170,18 +170,14 @@ impl TxnValidator {
         txn: &TransactionKind,
     ) -> Result<()> {
         let address = txn.sender_address();
-        if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
-            let account = state_reader.handle().get(&Address::new(address))
-                .map_err(|_| TxnValidatorError::SenderAddressIncorrect)?;
-            if (account.credits() - account.debits())
-                .checked_sub(txn.amount())
-                .is_none()
-            {
-                return Err(TxnValidatorError::TxnAmountIncorrect);
-            };
-        } else {
-            return Err(TxnValidatorError::SenderAddressIncorrect);
-        }
+        let account = state_reader.handle().get(&address)
+            .map_err(|_| TxnValidatorError::SenderAddressIncorrect)?;
+        if (account.credits() - account.debits())
+            .checked_sub(txn.amount())
+            .is_none()
+        {
+            return Err(TxnValidatorError::TxnAmountIncorrect);
+        };
 
         Ok(())
     }
