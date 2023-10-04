@@ -13,7 +13,7 @@ use hbbft::{
     pairing::PrimeField,
 };
 use primitives::{NodeId, NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
-use vrrb_config::ThresholdConfig;
+use vrrb_config::{ThresholdConfig, QuorumMembershipConfig};
 
 use crate::types::{SignerError, SignerResult};
 
@@ -61,6 +61,23 @@ impl NodeIdFrBuilder for NodeId {}
 pub struct SignatureProvider {
     pub dkg_state: Arc<RwLock<DkgState>>,
     pub quorum_config: ThresholdConfig,
+}
+
+impl From<&DkgState> for SignatureProvider {
+    fn from(item: &DkgState) -> SignatureProvider {
+        let mut dkg_state = DkgState::new();
+        dkg_state.set_sync_key_gen(None); 
+        dkg_state.set_public_key_set(item.public_key_set().clone());
+        dkg_state.set_secret_key_share(item.secret_key_share().clone());
+        dkg_state.set_peer_public_keys(item.peer_public_keys().clone());
+        dkg_state.set_part_message_store(item.part_message_store().clone());
+        dkg_state.set_ack_message_store(item.ack_message_store().clone());
+        dkg_state.set_random_number_gen(item.random_number_gen().clone());
+        SignatureProvider { 
+            dkg_state: Arc::new(RwLock::new(dkg_state)), 
+            quorum_config: ThresholdConfig::default() 
+        }
+    }
 }
 
 impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
