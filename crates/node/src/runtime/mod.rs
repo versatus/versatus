@@ -127,7 +127,7 @@ mod tests {
     use vrrb_core::transactions::Transaction;
 
     use crate::runtime::handler_helpers::*;
-    use crate::test_utils::create_txn_from_accounts;
+    use crate::test_utils::{create_txn_from_accounts, create_txn_from_accounts_invalid_signature};
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
@@ -898,6 +898,160 @@ mod tests {
         }
 
         let txn = create_txn_from_accounts(
+            (sender_address, Some(sender_account)),
+            receiver_address,
+            vec![],
+        );
+
+        for farmer in farmer_nodes.iter_mut() {
+            let _ = farmer.insert_txn_to_mempool(txn.clone());
+            let (transaction_kind, validity) = farmer.validate_transaction_kind(
+                txn.id(),
+                farmer.mempool_read_handle_factory().clone(),
+                farmer.state_store_read_handle_factory().clone(),
+            ).unwrap();
+            assert!(!validity);
+            farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn farmer_node_runtime_can_form_invalid_vote_on_invalid_transaction_invalid_signature() {
+        let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+
+        let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
+
+        // NOTE: remove bootstrap
+        nodes.pop_front().unwrap();
+
+        let mut node_1 = nodes.pop_front().unwrap();
+        assert_eq!(node_1.config.node_type, NodeType::Validator);
+
+        let mut node_2 = nodes.pop_front().unwrap();
+        assert_eq!(node_2.config.node_type, NodeType::Validator);
+
+        let node_1_peer_data = PeerData {
+            node_id: node_1.config.id.clone(),
+            node_type: node_1.config.node_type,
+            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node_1.config.udp_gossip_address,
+            raptorq_gossip_addr: node_1.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node_1.config.kademlia_liveness_address,
+            validator_public_key: node_1.config.keypair.validator_public_key_owned(),
+        };
+
+        let node_2_peer_data = PeerData {
+            node_id: node_2.config.id.clone(),
+            node_type: node_2.config.node_type,
+            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node_2.config.udp_gossip_address,
+            raptorq_gossip_addr: node_2.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node_2.config.kademlia_liveness_address,
+            validator_public_key: node_2.config.keypair.validator_public_key_owned(),
+        };
+
+        node_1
+            .handle_node_added_to_peer_list(node_2_peer_data.clone())
+            .await
+            .unwrap();
+
+        node_2
+            .handle_node_added_to_peer_list(node_1_peer_data.clone())
+            .await
+            .unwrap();
+
+        let assigned_membership_1 = AssignedQuorumMembership {
+            quorum_kind: QuorumKind::Farmer,
+            node_id: node_1.id.clone(),
+            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
+            peers: vec![node_2_peer_data],
+        };
+
+        node_1
+            .handle_quorum_membership_assigment_created(assigned_membership_1)
+            .unwrap();
+
+        let assigned_membership_2 = AssignedQuorumMembership {
+            quorum_kind: QuorumKind::Farmer,
+            node_id: node_2.id.clone(),
+            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
+            peers: vec![node_1_peer_data],
+        };
+
+        node_2
+            .handle_quorum_membership_assigment_created(assigned_membership_2)
+            .unwrap();
+
+        let (part_1, node_id_1) = node_1.generate_partial_commitment_message().unwrap();
+        let (part_2, node_id_2) = node_2.generate_partial_commitment_message().unwrap();
+
+        let parts = vec![(node_id_1, part_1), (node_id_2, part_2)];
+
+        let mut acks = vec![];
+
+        for (node_id, part) in parts {
+            let (receiver_id, sender_id, ack) = node_1
+                .handle_part_commitment_created(node_id.clone(), part.clone())
+                .unwrap();
+
+            acks.push((receiver_id, sender_id, ack));
+
+            let (receiver_id, sender_id, ack) = node_2
+                .handle_part_commitment_created(node_id.clone(), part.clone())
+                .unwrap();
+
+            acks.push((receiver_id, sender_id, ack));
+        }
+
+        let mut farmer_nodes = vec![&mut node_1, &mut node_2];
+
+        for node in farmer_nodes.iter_mut() {
+            for (receiver_id, sender_id, ack) in acks.iter().cloned() {
+                node.handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
+                    .unwrap();
+            }
+        }
+
+        for node in farmer_nodes.iter_mut() {
+            node.handle_all_ack_messages().unwrap();
+        }
+        for node in farmer_nodes.iter_mut() {
+            node.generate_keysets().await.unwrap();
+        }
+        let ids: Vec<&primitives::QuorumId> = farmer_nodes
+            .iter()
+            .map(|node| node.consensus_driver.quorum_membership.as_ref().unwrap())
+            .collect();
+
+        let mut node_0 = nodes.pop_front().unwrap();
+
+        let (_, sender_public_key) = generate_account_keypair();
+        let mut sender_account = Account::new(sender_public_key);
+        let update_field = AccountField::Credits(100000);
+        let _ = sender_account.update_field(update_field);
+        let sender_address = node_0.create_account(sender_public_key).unwrap();
+
+        let (_, receiver_public_key) = generate_account_keypair();
+        let receiver_account = Account::new(receiver_public_key);
+        let receiver_address = node_0.create_account(receiver_public_key).unwrap();
+
+        let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
+        let receiver_account_bytes = bincode::serialize(&receiver_account.clone()).unwrap();
+
+        for farmer in farmer_nodes.iter_mut() {
+            let _ = farmer.handle_create_account_requested(
+                sender_address.clone(), 
+                sender_account_bytes.clone()
+            );
+            
+            let _ = farmer.handle_create_account_requested(
+                receiver_address.clone(),
+                receiver_account_bytes.clone()
+            );
+        }
+
+        let mut txn = create_txn_from_accounts_invalid_signature(
             (sender_address, Some(sender_account)),
             receiver_address,
             vec![],

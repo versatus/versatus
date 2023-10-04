@@ -328,6 +328,56 @@ pub fn create_txn_from_accounts(
     txn
 }
 
+
+pub fn create_txn_from_accounts_invalid_signature(
+    sender: (Address, Option<Account>),
+    receiver: Address,
+    validators: Vec<(String, bool)>,
+) -> TransactionKind {
+    let (sk1, pk1) = create_keypair();
+    let (sk2, pk2) = create_keypair();
+    let saddr = sender.0.clone();
+    let raddr = receiver;
+    let amount = 100u128.pow(2);
+    let token = None;
+
+    let validators = validators
+        .iter()
+        .map(|(k, v)| (k.to_string(), *v))
+        .collect();
+
+    let txn_args = NewTransferArgs {
+        timestamp: chrono::Utc::now().timestamp(),
+        sender_address: saddr,
+        sender_public_key: pk1,
+        receiver_address: raddr,
+        token,
+        amount,
+        signature: sk2
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+        validators: Some(validators),
+        nonce: sender.1.unwrap().nonce() + 1,
+    };
+
+    let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
+
+    txn.sign(&sk2);
+
+    let txn_digest_vec = generate_transfer_digest_vec(
+        txn.timestamp(),
+        txn.sender_address().to_string(),
+        txn.sender_public_key(),
+        txn.receiver_address().to_string(),
+        txn.token().clone(),
+        txn.amount(),
+        txn.nonce(),
+    );
+
+    let _digest = TransactionDigest::from(txn_digest_vec);
+
+    txn
+}
+
 // /// Creates a `DagModule` for testing the event handler.
 // pub(crate) fn create_dag_module() -> DagModule {
 //     let miner = create_miner();
