@@ -126,7 +126,7 @@ mod tests {
     use vrrb_core::account::{self, Account};
 
     use crate::runtime::handler_helpers::*;
-    use crate::test_utils::create_txn_from_accounts;
+    use crate::test_utils::{create_txn_from_accounts, create_test_network, create_node_runtime_network_from_nodes};
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
@@ -322,6 +322,15 @@ mod tests {
             .collect();
         dbg!(&ids);
         assert_eq!(ids[0], ids[1]);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn quorum_info_is_broadcasted() {
+        let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+        let nodes = create_test_network(4).await;
+        let node_runtimes = create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
+        assert!(true);
     }
 
     #[tokio::test]

@@ -742,3 +742,20 @@ pub async fn create_node_runtime_network(
 
     nodes
 }
+
+/// Creates NodeRuntimes to simulate networks from a list of existing nodes.
+pub async fn create_node_runtime_network_from_nodes(
+    nodes: &[Node],
+    events_tx: EventPublisher,
+) -> VecDeque<NodeRuntime> {
+    let mut node_runtimes = VecDeque::new();
+    for node in nodes {
+        node_runtimes.push_back(
+            NodeRuntime::new(&node.config().await, events_tx.clone())
+                .await
+                .unwrap(),
+        )
+    }
+
+    node_runtimes
+}
