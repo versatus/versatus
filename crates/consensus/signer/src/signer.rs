@@ -163,7 +163,6 @@ impl Signer for SignatureProvider {
         let secret_key_share = match secret_key_share {
             Some(key) => key,
             None => {
-                // dbg!("Secret Key is Missing");
                 return Err(SignerError::SecretKeyShareMissing)
             },
         };

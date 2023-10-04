@@ -123,7 +123,7 @@ mod tests {
     use hbbft::sync_key_gen::{AckOutcome, Part};
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use validator::txn_validator;
-    use vrrb_core::account::{self, Account};
+    use vrrb_core::account::{self, Account, AccountField};
     use vrrb_core::transactions::Transaction;
 
     use crate::runtime::handler_helpers::*;
@@ -316,13 +316,11 @@ mod tests {
         }
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
-            // dbg!("dkg_state: {}", &node.consensus_driver.sig_provider);
         }
         let ids: Vec<&primitives::QuorumId> = farmer_nodes
             .iter()
             .map(|node| node.consensus_driver.quorum_membership.as_ref().unwrap())
             .collect();
-        // dbg!(&ids);
         assert_eq!(ids[0], ids[1]);
     }
 
@@ -403,7 +401,11 @@ mod tests {
 
         for (node_id, farmer) in farmers.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            farmer.validate_transaction_kind(txn.id()).unwrap();
+            farmer.validate_transaction_kind(
+                txn.id(),
+                farmer.mempool_read_handle_factory().clone(),
+                farmer.state_store_read_handle_factory().clone()
+            ).unwrap();
         }
     }
 
@@ -478,8 +480,6 @@ mod tests {
                     claim.clone(),
                 )
                 .unwrap();
-
-            // dbg!(proposal_block);
         }
     }
 
@@ -517,8 +517,6 @@ mod tests {
             let txn_trie_root_hash = harvester.transactions_root_hash().unwrap();
             let state_trie_root_hash = harvester.state_root_hash().unwrap();
             for res in apply_results.iter() {
-                // dbg!("{} == {}", &txn_trie_root_hash, &res.transactions_root_hash_str());
-                // dbg!("{} == {}", &state_trie_root_hash, &res.state_root_hash_str());
                 assert_eq!(txn_trie_root_hash, res.transactions_root_hash_str());
                 assert_eq!(state_trie_root_hash, res.state_root_hash_str());
             }
@@ -571,10 +569,6 @@ mod tests {
                 block: genesis_block.clone(),
             })
             .unwrap();
-
-        // dbg!(&miner_node.state_driver.dag);
-        // dbg!(&miner_node.dag_driver);
-        // dbg!(&miner_node.mining_driver.dag);
 
         let convergence_block = miner_node.mine_convergence_block().unwrap();
 
@@ -715,7 +709,6 @@ mod tests {
         }
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
-            // dbg!("dkg_state: {}", &node.consensus_driver.sig_provider);
         }
         let ids: Vec<&primitives::QuorumId> = farmer_nodes
             .iter()
@@ -725,11 +718,29 @@ mod tests {
         let mut node_0 = nodes.pop_front().unwrap();
 
         let (_, sender_public_key) = generate_account_keypair();
-        let sender_account = Account::new(sender_public_key);
+        let mut sender_account = Account::new(sender_public_key);
+        let update_field = AccountField::Credits(100000);
+        let _ = sender_account.update_field(update_field);
         let sender_address = node_0.create_account(sender_public_key).unwrap();
 
         let (_, receiver_public_key) = generate_account_keypair();
+        let receiver_account = Account::new(receiver_public_key);
         let receiver_address = node_0.create_account(receiver_public_key).unwrap();
+
+        let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
+        let receiver_account_bytes = bincode::serialize(&receiver_account.clone()).unwrap();
+
+        for farmer in farmer_nodes.iter_mut() {
+            let _ = farmer.handle_create_account_requested(
+                sender_address.clone(), 
+                sender_account_bytes.clone()
+            );
+            
+            let _ = farmer.handle_create_account_requested(
+                receiver_address.clone(),
+                receiver_account_bytes.clone()
+            );
+        }
 
         let txn = create_txn_from_accounts(
             (sender_address, Some(sender_account)),
@@ -739,7 +750,12 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            let (transaction_kind, validity) = farmer.validate_transaction_kind(txn.id()).unwrap();
+            let (transaction_kind, validity) = farmer.validate_transaction_kind(
+                txn.id(),
+                farmer.mempool_read_handle_factory().clone(),
+                farmer.state_store_read_handle_factory().clone(),
+            ).unwrap();
+            assert!(validity);
             farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
         }
     }

@@ -287,7 +287,7 @@ pub async fn run(args: RunOpts) -> Result<()> {
     node_config.keypair = keypair;
 
     if args.debug_config {
-        // dbg!(&node_config);
+        dbg!(&node_config);
     }
 
     if args.dettached {

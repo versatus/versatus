@@ -103,7 +103,9 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::QuorumElectionStarted(header) => {
-                self.handle_quorum_election_started(header);
+                self.handle_quorum_election_started(header).map_err(|err| {
+                    TheaterError::Other(err.to_string())
+                })?;
             },
 
             Event::MinerElectionStarted(header) => {
@@ -236,7 +238,7 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::CreateAccountRequested((address, account_bytes)) => {
-                // self.handle_create_account_requested(address.clone(), account_bytes);
+                self.handle_create_account_requested(address.clone(), account_bytes);
             },
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 //                if let Ok(account) =
@@ -319,7 +321,13 @@ impl Handler<EventMessage> for NodeRuntime {
             //     }
             // },
             Event::TxnAddedToMempool(txn_hash) => {
-                if let Ok((transaction, validity)) = self.validate_transaction_kind(txn_hash) {
+                let mempool_reader = self.mempool_read_handle_factory().clone();
+                let state_reader = self.state_store_read_handle_factory().clone();
+                if let Ok((transaction, validity)) = self.validate_transaction_kind(
+                    txn_hash,
+                    mempool_reader,
+                    state_reader
+                ) {
                     if let Ok(vote) = self.cast_vote_on_transaction_kind(transaction, validity) {
                         self.events_tx
                             .send(

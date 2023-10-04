@@ -25,7 +25,7 @@ use primitives::{
 use quorum::quorum::Quorum;
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
-use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle, StateStoreReadHandleFactory};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -103,7 +103,7 @@ impl NodeRuntime {
 
         let state_driver = StateManager::new(StateManagerConfig {
             database: database.clone(),
-            mempool: mempool.clone(),
+            mempool,
             dag: dag.clone(),
             claim: claim.clone(),
         });
@@ -137,7 +137,7 @@ impl NodeRuntime {
                 dkg_generator,
                 validator_public_key: config.keypair.validator_public_key_owned()
             },
-            mempool.factory(),
+            state_driver.mempool_read_handle_factory(),
             database.state_store_factory(),
             database.claim_store_factory()
         )?;
@@ -219,6 +219,10 @@ impl NodeRuntime {
 
     pub fn state_read_handle(&self) -> VrrbDbReadHandle {
         self.state_driver.read_handle()
+    }
+
+    pub fn state_store_read_handle_factory(&self) -> StateStoreReadHandleFactory {
+        self.state_driver.database.state_store_factory()
     }
 
     pub fn mempool_read_handle_factory(&self) -> MempoolReadHandleFactory {
@@ -529,10 +533,21 @@ impl NodeRuntime {
         self.state_driver.mempool_len()
     }
 
-    pub fn validate_transaction_kind(&mut self, digest: TransactionDigest) -> Result<(TransactionKind, bool)> {
+    pub fn validate_transaction_kind(
+        &mut self, 
+        digest: TransactionDigest,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
+    ) -> Result<(TransactionKind, bool)> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
-        let validated_transaction_kind = self.consensus_driver.validate_transaction_kind(&digest);
+        let validated_transaction_kind = self.consensus_driver
+            .validate_transaction_kind(
+                &digest, 
+                mempool_reader, 
+                state_reader
+        );
+
         match validated_transaction_kind {
             Ok(transaction_kind) => {
                 return Ok((transaction_kind, true))
@@ -566,7 +581,13 @@ impl NodeRuntime {
 
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
-    pub fn validate_mempool(&mut self, n: usize) -> std::result::Result<Vec<Vote>, anyhow::Error> {
+    #[deprecated]
+    pub fn validate_mempool(
+        &mut self, 
+        n: usize, 
+        mempool_reader: MempoolReadHandleFactory, 
+        state_reader: StateStoreReadHandleFactory
+    ) -> std::result::Result<Vec<Vote>, anyhow::Error> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
 
@@ -580,7 +601,7 @@ impl NodeRuntime {
 
         let validated_txns = self
             .consensus_driver
-            .validate_transactions(entries);
+            .validate_transactions(entries, mempool_reader, state_reader);
 
         let votes = self
             .consensus_driver

@@ -332,7 +332,6 @@ impl ConsensusModule {
 
     pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
         let dkg_state = &self.dkg_engine.dkg_state;
-        // dbg!(&dkg_state);
         let public_keyset = self
             .dkg_engine
             .dkg_state
@@ -354,18 +353,24 @@ impl ConsensusModule {
 
     pub fn validate_transaction_kind(
         &mut self,
-        digest: &TransactionDigest
+        digest: &TransactionDigest,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
     ) -> validator::txn_validator::Result<TransactionKind> {
-        self.validator_core_manager.validate_transaction_kind(digest)
+        self.validator_core_manager.validate_transaction_kind(
+            digest, mempool_reader, state_reader
+        )
     }
 
     #[deprecated]
     pub fn validate_transactions(
         &mut self,
         txns: Vec<TransactionKind>,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory
     ) -> HashSet<(TransactionKind, validator::txn_validator::Result<()>)> {
         self.validator_core_manager
-            .validate(txns)
+            .validate(txns, mempool_reader, state_reader)
             .into_iter()
             .collect()
     }
@@ -412,10 +417,8 @@ impl ConsensusModule {
         let farmer_node_id = self.node_config.id.clone();
 
         let sig_provider = &self.sig_provider;
-        dbg!("acquired signature provider: {}", &sig_provider);
         let txn_bytes = bincode::serialize(&transaction.clone()).ok()?;
         let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
-        // dbg!("produced signature: {}", &signature);
 
         Some(
             Vote {
@@ -484,10 +487,12 @@ impl ConsensusModule {
     fn validate_single_transaction(
         &mut self,
         txn: &TransactionKind,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory
     ) -> bool {
         let validated_txns = self
             .validator_core_manager
-            .validate(vec![txn.clone()]);
+            .validate(vec![txn.clone()], mempool_reader, state_reader);
 
         validated_txns.iter().any(|x| x.0.id() == txn.id())
     }

@@ -339,8 +339,6 @@ impl StateManager {
             .insert(txn)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        // dbg!("Transaction {} stored in mempool", txn_hash.clone());
-
         Ok(txn_hash)
     }
 
