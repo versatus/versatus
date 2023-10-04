@@ -130,6 +130,13 @@ impl ConsensusModule {
             NodeError::Other(format!("failed to generate validator core manager: {err}"))
         })?;
 
+        let mut sig_provider = SignatureProvider::from(
+            &cfg.dkg_generator.clone().dkg_state
+        );
+        sig_provider.set_threshold_config(
+            cfg.node_config.threshold_config.clone()
+        );
+
         Ok(Self {
             quorum_certified_txns: vec![],
             keypair: cfg.keypair,
@@ -137,10 +144,7 @@ impl ConsensusModule {
             quorum_driver: QuorumModule::new(quorum_module_config),
             dkg_engine: cfg.dkg_generator.clone(),
             node_config: cfg.node_config.clone(),
-            sig_provider: SignatureProvider::new(
-                Arc::new(RwLock::new(cfg.dkg_generator.clone().dkg_state)),
-                cfg.node_config.threshold_config.clone(),
-            ),
+            sig_provider,
             convergence_block_certificates: Cache::new(10, 300),
             current_quorums: HashMap::new(),
             quorum_membership: None,
@@ -255,11 +259,7 @@ impl ConsensusModule {
             })?;
 
         let secret_share = sig_provider
-            .dkg_state
-            .read()
-            .map_err(|err| NodeError::Other(format!("missing a secret key share: {err}")))?
             .secret_key_share()
-            .to_owned()
             .ok_or(NodeError::Other("failed to read secret key share".into()))?;
 
         Ok((
