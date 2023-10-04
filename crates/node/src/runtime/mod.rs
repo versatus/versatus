@@ -124,6 +124,7 @@ mod tests {
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use validator::txn_validator;
     use vrrb_core::account::{self, Account};
+    use vrrb_core::transactions::Transaction;
 
     use crate::runtime::handler_helpers::*;
     use crate::test_utils::create_txn_from_accounts;
@@ -315,12 +316,13 @@ mod tests {
         }
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
+            // dbg!("dkg_state: {}", &node.consensus_driver.sig_provider);
         }
         let ids: Vec<&primitives::QuorumId> = farmer_nodes
             .iter()
             .map(|node| node.consensus_driver.quorum_membership.as_ref().unwrap())
             .collect();
-        dbg!(&ids);
+        // dbg!(&ids);
         assert_eq!(ids[0], ids[1]);
     }
 
@@ -400,8 +402,8 @@ mod tests {
         );
 
         for (node_id, farmer) in farmers.iter_mut() {
-            farmer.insert_txn_to_mempool(txn.clone());
-            farmer.validate_mempool(1).unwrap();
+            let _ = farmer.insert_txn_to_mempool(txn.clone());
+            farmer.validate_transaction_kind(txn.id()).unwrap();
         }
     }
 
@@ -477,7 +479,7 @@ mod tests {
                 )
                 .unwrap();
 
-            dbg!(proposal_block);
+            // dbg!(proposal_block);
         }
     }
 
@@ -515,6 +517,8 @@ mod tests {
             let txn_trie_root_hash = harvester.transactions_root_hash().unwrap();
             let state_trie_root_hash = harvester.state_root_hash().unwrap();
             for res in apply_results.iter() {
+                dbg!("{} == {}", &txn_trie_root_hash, &res.transactions_root_hash_str());
+                dbg!("{} == {}", &state_trie_root_hash, &res.state_root_hash_str());
                 assert_eq!(txn_trie_root_hash, res.transactions_root_hash_str());
                 assert_eq!(state_trie_root_hash, res.state_root_hash_str());
             }

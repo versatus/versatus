@@ -575,7 +575,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 
     let node_0 = Node::start(config).await.unwrap();
 
-    dbg!("{}", &node_0);
+    // dbg!("{}", &node_0);
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 

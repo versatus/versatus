@@ -332,7 +332,7 @@ impl ConsensusModule {
 
     pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
         let dkg_state = &self.dkg_engine.dkg_state;
-        dbg!(&dkg_state);
+        // dbg!(&dkg_state);
         let public_keyset = self
             .dkg_engine
             .dkg_state
@@ -412,8 +412,10 @@ impl ConsensusModule {
         let farmer_node_id = self.node_config.id.clone();
 
         let sig_provider = &self.sig_provider;
+        // dbg!("acquired signature provider: {}", &sig_provider);
         let txn_bytes = bincode::serialize(&transaction.clone()).ok()?;
         let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
+        // dbg!("produced signature: {}", &signature);
 
         Some(
             Vote {

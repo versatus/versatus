@@ -121,7 +121,10 @@ impl Signer for SignatureProvider {
         let secret_key_share = dkg_state.secret_key_share();
         let secret_key_share = match secret_key_share {
             Some(key) => key,
-            None => return Err(SignerError::SecretKeyShareMissing),
+            None => {
+                // dbg!("Secret Key is Missing");
+                return Err(SignerError::SecretKeyShareMissing)
+            },
         };
 
         let signature = secret_key_share.sign(payload_hash);

@@ -319,25 +319,28 @@ impl Handler<EventMessage> for NodeRuntime {
             //     }
             // },
             Event::TxnAddedToMempool(txn_hash) => {
-                //TODO: Refactor to use self.validate_transaction_kind
-                if let Ok(votes) = self.validate_mempool(1) {
-                    self.events_tx
-                        .send(
-                            Event::TransactionsValidated {
-                                votes,
-                                quorum_threshold: self.config.threshold_config.threshold as usize,
-                            }
-                            .into(),
-                        )
-                        .await
-                        .map_err(|err| TheaterError::Other(err.to_string()))?;
-                }
+                if let Ok((transaction, validity)) = self.validate_transaction_kind(txn_hash) {
+                    if let Ok(vote) = self.cast_vote_on_transaction_kind(transaction, validity) {
+                        self.events_tx
+                            .send(
+                                Event::TransactionsValidated {
+                                    vote,
+                                    quorum_threshold: self.config.threshold_config.threshold as usize,
+                                }
+                                .into(),
+                            )
+                            .await
+                            .map_err(|err| TheaterError::Other(err.to_string()))?;
+                        }
+                    }
             },
             Event::TransactionsValidated {
-                votes,
+                vote,
                 quorum_threshold,
             } => {
-                // TODO: Send Votes to Harvester Nodes
+                self.events_tx.send(
+                    Event::BroadcastTransactionVote(vote).into()
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::NoOp => {},
             _ => {},

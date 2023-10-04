@@ -81,6 +81,10 @@ impl Handler<EventMessage> for NetworkModule {
             Event::BroadcastQuorumFormed(quorum_data) => {
                 info!("Broadcasting quorum information to network");
                 self.broadcast_quorum_membership(quorum_data).await?;
+            },
+            Event::BroadcastTransactionVote(vote) => {
+                info!("Broadcasting transaction vote to network");
+                self.broadcast_transaction_vote(vote).await?;
             }
             _ => {},
         }

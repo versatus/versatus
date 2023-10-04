@@ -532,29 +532,23 @@ impl NodeRuntime {
         self.state_driver.mempool_len()
     }
 
-    pub fn validate_transaction_kind(&mut self, digest: TransactionDigest) -> Result<Vote> {
+    pub fn validate_transaction_kind(&mut self, digest: TransactionDigest) -> Result<(TransactionKind, bool)> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
         let validated_transaction_kind = self.consensus_driver.validate_transaction_kind(&digest);
-        let vote = match validated_transaction_kind {
+        match validated_transaction_kind {
             Ok(transaction_kind) => {
-                self.consensus_driver.cast_vote_on_transaction_kind(
-                    transaction_kind, 
-                    true
-                )
+                return Ok((transaction_kind, true))
             },
             Err(_) => {
                 let handle = self.mempool_read_handle_factory().handle();
                 let transaction_record = handle.get(&digest).clone();
                 match transaction_record {
                     Some(record) => {
-                        self.consensus_driver.cast_vote_on_transaction_kind(
-                            record.txn.clone(),
-                            false
-                        )
+                        return Ok((record.txn.clone(), false))
                     },
                     None => {
-                        Err(
+                        return Err(
                             NodeError::Other(
                                 format!("transaction record not found")
                             )
@@ -562,9 +556,15 @@ impl NodeRuntime {
                     }
                 }
             }
-        };
+        }
+    }
 
-        return vote
+    pub fn cast_vote_on_transaction_kind(
+        &mut self,
+        transaction: TransactionKind,
+        validity: bool
+    ) -> Result<Vote> {
+        self.consensus_driver.cast_vote_on_transaction_kind(transaction, validity)
     }
 
     /// Validates a batch of up to n transactions within a Node's mempool.
