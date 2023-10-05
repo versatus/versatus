@@ -13,7 +13,7 @@ use hbbft::{
     crypto::{PublicKeySet, PublicKeyShare, SecretKeyShare},
     sync_key_gen::Part,
 };
-use mempool::TxnStatus;
+use mempool::{TxnStatus, MempoolReadHandleFactory};
 use primitives::{
     Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes,
     PKShareBytes, PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature,
@@ -22,6 +22,7 @@ use primitives::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use signer::signer::{SignatureProvider, Signer};
+use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStore, ClaimStoreReadHandleFactory};
 use telemetry::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
@@ -107,7 +108,12 @@ pub struct ConsensusModule {
 }
 
 impl ConsensusModule {
-    pub fn new(cfg: ConsensusModuleConfig) -> Result<Self> {
+    pub fn new(
+        cfg: ConsensusModuleConfig,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
+        claim_reader: ClaimStoreReadHandleFactory,
+    ) -> Result<Self> {
         let quorum_module_config = QuorumModuleConfig {
             membership_config: None,
             node_config: cfg.node_config.clone(),
@@ -115,9 +121,21 @@ impl ConsensusModule {
 
         let validator_public_key = cfg.keypair.validator_public_key_owned();
 
-        let validator_core_manager = ValidatorCoreManager::new(10).map_err(|err| {
+        let validator_core_manager = ValidatorCoreManager::new(
+            10,
+            mempool_reader,
+            state_reader,
+            claim_reader
+        ).map_err(|err| {
             NodeError::Other(format!("failed to generate validator core manager: {err}"))
         })?;
+
+        let mut sig_provider = SignatureProvider::from(
+            &cfg.dkg_generator.clone().dkg_state
+        );
+        sig_provider.set_threshold_config(
+            cfg.node_config.threshold_config.clone()
+        );
 
         Ok(Self {
             quorum_certified_txns: vec![],
@@ -126,10 +144,7 @@ impl ConsensusModule {
             quorum_driver: QuorumModule::new(quorum_module_config),
             dkg_engine: cfg.dkg_generator.clone(),
             node_config: cfg.node_config.clone(),
-            sig_provider: SignatureProvider::new(
-                Arc::new(RwLock::new(cfg.dkg_generator.clone().dkg_state)),
-                cfg.node_config.threshold_config.clone(),
-            ),
+            sig_provider,
             convergence_block_certificates: Cache::new(10, 300),
             current_quorums: HashMap::new(),
             quorum_membership: None,
@@ -244,11 +259,7 @@ impl ConsensusModule {
             })?;
 
         let secret_share = sig_provider
-            .dkg_state
-            .read()
-            .map_err(|err| NodeError::Other(format!("missing a secret key share: {err}")))?
             .secret_key_share()
-            .to_owned()
             .ok_or(NodeError::Other("failed to read secret key share".into()))?;
 
         Ok((
@@ -321,7 +332,6 @@ impl ConsensusModule {
 
     pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
         let dkg_state = &self.dkg_engine.dkg_state;
-        dbg!(&dkg_state);
         let public_keyset = self
             .dkg_engine
             .dkg_state
@@ -341,18 +351,88 @@ impl ConsensusModule {
         Ok(secret_key_share)
     }
 
+    pub fn validate_transaction_kind(
+        &mut self,
+        digest: &TransactionDigest,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
+    ) -> validator::txn_validator::Result<TransactionKind> {
+        self.validator_core_manager.validate_transaction_kind(
+            digest, mempool_reader, state_reader
+        )
+    }
+
+    #[deprecated]
     pub fn validate_transactions(
         &mut self,
-        // TODO: revisit how much data to grab from state to run these validations
-        state_snapshot: &HashMap<Address, Account>,
         txns: Vec<TransactionKind>,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory
     ) -> HashSet<(TransactionKind, validator::txn_validator::Result<()>)> {
         self.validator_core_manager
-            .validate(state_snapshot, txns)
+            .validate(txns, mempool_reader, state_reader)
             .into_iter()
             .collect()
     }
 
+    pub fn cast_vote_on_transaction_kind(
+        &mut self,
+        transaction: TransactionKind,
+        valid: bool
+    ) -> Result<Vote> {
+        // NOTE: comments originally by vsawant, check with them to figure out what they meant
+        //
+        // TODO  Add Delegation logic + Handling Double Spend by checking whether
+        // MagLev Hashing over( Quorum Keys) to identify whether current farmer
+        // quorum is supposed to vote on txn Txn is intended
+        // to be validated by current validator
+        //
+        // let _backpressure = self.job_scheduler.calculate_back_pressure();
+        // Delegation Principle need to be done
+
+        // let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
+        // let quorum_public_key = self
+        //     .quorum_public_keyset()?
+        //     .public_key()
+        //     .to_bytes()
+        //     .to_vec();
+        
+        if let Some(vote) = self.form_vote(transaction, valid) {
+            return Ok(vote)
+        }
+
+        // TODO: Return the transaction id in the error for better 
+        // error handling
+        Err(
+            NodeError::Other(
+                format!(
+                    "could not produce vote on transaction"
+                )
+            )
+        )
+    }
+
+    fn form_vote(&self, transaction: TransactionKind, valid: bool) -> Option<Vote> {
+        let receiver_farmer_id = self.node_config.id.clone();
+        let farmer_node_id = self.node_config.id.clone();
+
+        let sig_provider = &self.sig_provider;
+        let txn_bytes = bincode::serialize(&transaction.clone()).ok()?;
+        let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
+
+        Some(
+            Vote {
+                farmer_id: receiver_farmer_id.clone().into(),
+                farmer_node_id: farmer_node_id.clone(),
+                signature,
+                txn: transaction.clone(),
+                execution_result: None,
+                is_txn_valid: valid
+            }
+        )
+    }
+
+    #[deprecated]
     pub fn cast_vote_on_validated_txns(
         &mut self,
         validated_txns: HashSet<(TransactionKind, validator::txn_validator::Result<()>)>,
@@ -407,11 +487,12 @@ impl ConsensusModule {
     fn validate_single_transaction(
         &mut self,
         txn: &TransactionKind,
-        accounts_state: &HashMap<Address, Account>,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory
     ) -> bool {
         let validated_txns = self
             .validator_core_manager
-            .validate(&accounts_state, vec![txn.clone()]);
+            .validate(vec![txn.clone()], mempool_reader, state_reader);
 
         validated_txns.iter().any(|x| x.0.id() == txn.id())
     }

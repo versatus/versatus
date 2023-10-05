@@ -305,7 +305,6 @@ impl DkgGenerator for DkgEngine {
                 let (pks, sks) = (key.0, key.1);
                 self.dkg_state.set_public_key_set(Some(pks.clone()));
                 self.dkg_state.set_secret_key_share(sks);
-
                 Ok(Some(pks.clone()))
             },
             Err(e) => Err(DkgError::Unknown(format!(

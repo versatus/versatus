@@ -12,7 +12,7 @@ use block::{
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
-use events::{AssignedQuorumMembership, EventPublisher, PeerData};
+use events::{AssignedQuorumMembership, EventPublisher, PeerData, AccountBytes};
 use hbbft::{
     crypto::PublicKeySet,
     sync_key_gen::{Ack, Part},
@@ -265,6 +265,21 @@ impl NodeRuntime {
             .handle_quorum_election_started(header, claims)?;
 
         Ok(quorum)
+    }
+    
+    pub fn handle_create_account_requested(
+        &mut self, 
+        address: Address, 
+        account_bytes: AccountBytes
+    ) -> Result<()> {
+
+        let account = bincode::deserialize(&account_bytes).map_err(|err| {
+           NodeError::Other(
+               format!("unable to deserialize account bytes: {err}")
+            ) 
+        })?;
+
+        self.state_driver.insert_account(address, account)
     }
 
     pub fn handle_vote_received(&mut self) {

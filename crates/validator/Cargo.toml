@@ -25,6 +25,7 @@ telemetry = { workspace = true }
 rayon = { workspace = true }
 hbbft = { workspace = true }
 integral-db = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
