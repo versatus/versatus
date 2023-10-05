@@ -1,4 +1,4 @@
-use events::{Event, EventPublisher, EventRouter};
+use events::{EventPublisher, EventRouter};
 use telemetry::info;
 use vrrb_config::NodeConfig;
 
@@ -115,12 +115,14 @@ pub async fn setup_runtime_components(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, VecDeque};
     use std::ops::AddAssign;
+    use std::sync::mpsc::Sender;
 
     use block::{Block, ConvergenceBlock, QuorumId};
     use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
     use hbbft::sync_key_gen::{AckOutcome, Part};
+    use messr::Message;
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use theater::{ActorState, Handler};
     use validator::txn_validator;
@@ -333,113 +335,26 @@ mod tests {
     async fn quorum_data_is_broadcasted() {
         let (events_tx, mut _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let nodes = create_test_network(4).await;
-        let mut node_runtimes =
-            create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
+        println!("created test network");
+        let node_runtimes = create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
+        println!("created node runtimes");
+        let (bootstrap_node, mut farmers, validators, miners) =
+            setup_peer_network_and_assign_quorum_type_from_node_runtimes(node_runtimes).await;
+        println!("assigned quorum types");
+        run_dkg_process(&mut farmers).await;
+        println!("generated public key shares");
 
-        // NOTE: remove bootstrap
-        node_runtimes.pop_front().unwrap();
-
-        let mut node_1 = node_runtimes.pop_front().unwrap();
-        assert_eq!(node_1.config.node_type, NodeType::Validator);
-
-        let mut node_2 = node_runtimes.pop_front().unwrap();
-        assert_eq!(node_2.config.node_type, NodeType::Validator);
-
-        let node_1_peer_data = PeerData {
-            node_id: node_1.config.id.clone(),
-            node_type: node_1.config.node_type,
-            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
-            udp_gossip_addr: node_1.config.udp_gossip_address,
-            raptorq_gossip_addr: node_1.config.raptorq_gossip_address,
-            kademlia_liveness_addr: node_1.config.kademlia_liveness_address,
-            validator_public_key: node_1.config.keypair.validator_public_key_owned(),
-        };
-
-        let node_2_peer_data = PeerData {
-            node_id: node_2.config.id.clone(),
-            node_type: node_2.config.node_type,
-            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
-            udp_gossip_addr: node_2.config.udp_gossip_address,
-            raptorq_gossip_addr: node_2.config.raptorq_gossip_address,
-            kademlia_liveness_addr: node_2.config.kademlia_liveness_address,
-            validator_public_key: node_2.config.keypair.validator_public_key_owned(),
-        };
-
-        node_1
-            .handle_node_added_to_peer_list(node_2_peer_data.clone())
-            .await
-            .unwrap();
-
-        node_2
-            .handle_node_added_to_peer_list(node_1_peer_data.clone())
-            .await
-            .unwrap();
-
-        let assigned_membership_1 = AssignedQuorumMembership {
-            quorum_kind: QuorumKind::Farmer,
-            node_id: node_1.id.clone(),
-            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
-            peers: vec![node_2_peer_data],
-        };
-
-        node_1
-            .handle_quorum_membership_assigment_created(assigned_membership_1)
-            .unwrap();
-
-        let assigned_membership_2 = AssignedQuorumMembership {
-            quorum_kind: QuorumKind::Farmer,
-            node_id: node_2.id.clone(),
-            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
-            peers: vec![node_1_peer_data],
-        };
-
-        node_2
-            .handle_quorum_membership_assigment_created(assigned_membership_2)
-            .unwrap();
-
-        let (part_1, node_id_1) = node_1.generate_partial_commitment_message().unwrap();
-        let (part_2, node_id_2) = node_2.generate_partial_commitment_message().unwrap();
-
-        let parts = vec![(node_id_1, part_1), (node_id_2, part_2)];
-
-        let mut acks = vec![];
-
-        for (node_id, part) in parts {
-            let (receiver_id, sender_id, ack) = node_1
-                .handle_part_commitment_created(node_id.clone(), part.clone())
-                .unwrap();
-
-            acks.push((receiver_id, sender_id, ack));
-
-            let (receiver_id, sender_id, ack) = node_2
-                .handle_part_commitment_created(node_id.clone(), part.clone())
-                .unwrap();
-
-            acks.push((receiver_id, sender_id, ack));
-        }
-
-        let mut farmer_nodes = vec![&mut node_1, &mut node_2];
-
-        for node in farmer_nodes.iter_mut() {
-            for (receiver_id, sender_id, ack) in acks.iter().cloned() {
-                node.handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
-                    .unwrap();
-            }
-        }
-
-        for node in farmer_nodes.iter_mut() {
-            node.handle_all_ack_messages().unwrap();
-        }
-        for node in farmer_nodes.iter_mut() {
-            node.generate_keysets().await.unwrap();
-        }
         if let Some(msg) = _rx.recv().await {
             if let messr::MessageData::Data(Event::QuorumFormed) = msg.data {
-                for node in farmer_nodes {
+                println!("found message");
+                for (id, node) in farmers.iter_mut() {
+                    println!("checking actor state for node: {id}");
                     let actor_state = node.handle(msg.clone()).await.unwrap();
                     assert_eq!(actor_state, ActorState::Running);
                 }
             }
+        } else {
+            panic!("did not recieve message");
         }
     }
 
@@ -719,12 +634,12 @@ mod tests {
     #[tokio::test]
     #[ignore = "broken atm"]
     async fn node_runtime_can_form_quorum_with_valid_config() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (mut node_0, mut farmers, harvesters, miners) = setup_network(8).await;
 
         let res = node_0.generate_partial_commitment_message();
         assert!(res.is_err(), "bootstrap nodes cannot participate in DKG");
 
-        run_dkg_process(farmers);
+        run_dkg_process(&mut farmers);
     }
 
     #[tokio::test]
@@ -1513,10 +1428,10 @@ mod tests {
         }
     }
 
-    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
+    async fn run_dkg_process(nodes: &mut HashMap<NodeId, NodeRuntime>) {
         let mut parts = HashMap::new();
 
-        for (node_id, node) in nodes.iter_mut() {
+        for (_node_id, node) in nodes.iter_mut() {
             let (part, node_id) = node.generate_partial_commitment_message().unwrap();
             parts.insert(node_id, part);
         }
@@ -1537,7 +1452,6 @@ mod tests {
 
         let mut acks = Vec::new();
 
-        let mut parts_handled = 0;
         for (_, node) in nodes.iter_mut() {
             for (sender_node_id, (part, quorum_kind)) in parts.iter() {
                 let ack = node
@@ -1545,8 +1459,6 @@ mod tests {
                     .unwrap();
 
                 acks.push((ack, quorum_kind));
-
-                parts_handled += 1;
             }
         }
 
@@ -1665,13 +1577,6 @@ mod tests {
                     .unwrap();
             }
         }
-        // for (_, node) in validator_nodes.iter_mut() {
-        //     let quorum_kind = node.quorum_membership().unwrap().quorum_kind;
-        //     if quorum_kind == QuorumKind::Farmer || quorum_kind == QuorumKind::Harvester {
-        //         node.generate_keysets()
-        //             .expect(&format!("failed to generate keyset for node {}", node.id));
-        //     }
-        // }
 
         let mut farmer_nodes = validator_nodes
             .clone()
@@ -1688,6 +1593,120 @@ mod tests {
             .collect::<HashMap<NodeId, NodeRuntime>>();
 
         let mut miner_nodes = nodes
+            .clone()
+            .into_iter()
+            .filter(|(_, node)| node.config.node_type == NodeType::Miner)
+            .collect::<HashMap<NodeId, NodeRuntime>>();
+
+        (node_0, farmer_nodes, harvester_nodes, miner_nodes)
+    }
+    async fn setup_peer_network_and_assign_quorum_type_from_node_runtimes(
+        mut nodes: VecDeque<NodeRuntime>,
+    ) -> (
+        NodeRuntime,
+        HashMap<NodeId, NodeRuntime>, // farmers
+        HashMap<NodeId, NodeRuntime>, // validators
+        HashMap<NodeId, NodeRuntime>, // Miners
+    ) {
+        let mut node_0 = nodes.pop_front().unwrap();
+
+        // let address = node_0
+        //     .create_account(node_0.config_ref().keypair.miner_public_key_owned())
+        //     .unwrap();
+
+        let mut quorum_assignments = HashMap::new();
+
+        for node in nodes.iter() {
+            let peer_data = PeerData {
+                node_id: node.config.id.clone(),
+                node_type: node.config.node_type,
+                kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+                udp_gossip_addr: node.config.udp_gossip_address,
+                raptorq_gossip_addr: node.config.raptorq_gossip_address,
+                kademlia_liveness_addr: node.config.kademlia_liveness_address,
+                validator_public_key: node.config.keypair.validator_public_key_owned(),
+            };
+
+            let assignments = node_0
+                .handle_node_added_to_peer_list(peer_data.clone())
+                .await
+                .unwrap();
+
+            if let Some(assignments) = assignments {
+                quorum_assignments.extend(assignments);
+            }
+        }
+
+        let other_nodes_copy = nodes.clone();
+
+        // NOTE: let nodes be aware of each other
+        for node in nodes.iter_mut() {
+            for other_node in other_nodes_copy.iter() {
+                if node.config.id == other_node.config.id {
+                    continue;
+                }
+
+                let peer_data = PeerData {
+                    node_id: other_node.config.id.clone(),
+                    node_type: other_node.config.node_type,
+                    kademlia_peer_id: other_node.config.kademlia_peer_id.unwrap(),
+                    udp_gossip_addr: other_node.config.udp_gossip_address,
+                    raptorq_gossip_addr: other_node.config.raptorq_gossip_address,
+                    kademlia_liveness_addr: other_node.config.kademlia_liveness_address,
+                    validator_public_key: other_node.config.keypair.validator_public_key_owned(),
+                };
+
+                node.handle_node_added_to_peer_list(peer_data.clone())
+                    .await
+                    .unwrap();
+            }
+        }
+
+        let node_0_pubkey = node_0.config_ref().keypair.miner_public_key_owned();
+
+        // NOTE: create te bootstrap's node account as well as their accounts on everyone's state
+        for current_node in nodes.iter_mut() {
+            for node in other_nodes_copy.iter() {
+                let node_pubkey = node.config_ref().keypair.miner_public_key_owned();
+                node_0.create_account(node_pubkey).unwrap();
+                current_node.create_account(node_0_pubkey).unwrap();
+                current_node.create_account(node_pubkey).unwrap();
+            }
+        }
+
+        let nodes = nodes
+            .into_iter()
+            .map(|node| (node.config.id.clone(), node))
+            .collect::<HashMap<NodeId, NodeRuntime>>();
+
+        let mut validator_nodes = nodes
+            .clone()
+            .into_iter()
+            .filter(|(_, node)| node.config.node_type == NodeType::Validator)
+            .collect::<HashMap<NodeId, NodeRuntime>>();
+
+        for (_node_id, node) in validator_nodes.iter_mut() {
+            if let Some(assigned_membership) = quorum_assignments.get(&node.config.id) {
+                node.handle_quorum_membership_assigment_created(assigned_membership.clone())
+                    .unwrap();
+            }
+        }
+
+        let farmer_nodes = validator_nodes
+            .clone()
+            .into_iter()
+            .filter(|(_, node)| node.quorum_membership().unwrap().quorum_kind == QuorumKind::Farmer)
+            .collect::<HashMap<NodeId, NodeRuntime>>();
+
+        let harvester_nodes = validator_nodes
+            .clone()
+            .into_iter()
+            .filter(|(_, node)| {
+                node.quorum_membership().unwrap().quorum_kind == QuorumKind::Harvester
+            })
+            .collect::<HashMap<NodeId, NodeRuntime>>();
+
+        let miner_nodes = nodes
             .clone()
             .into_iter()
             .filter(|(_, node)| node.config.node_type == NodeType::Miner)
