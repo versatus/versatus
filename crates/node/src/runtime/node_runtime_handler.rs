@@ -265,9 +265,9 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::QuorumFormed => {
-                self.handle_quorum_formed().await.map_err(|err| {
-                    TheaterError::Other(err.to_string())
-                })?;
+                self.handle_quorum_formed()
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::QuorumMembersReceived(quorum_members) => self
                 .state_driver

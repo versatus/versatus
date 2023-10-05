@@ -181,10 +181,10 @@ impl NodeRuntime {
 
             Ok(())
         } else {
-            Err(NodeError::Other(
-                "consensus driver missing one of quorum id, quorum public key, or quorum type"
-                    .into(),
-            ))
+            Err(NodeError::Other(format!(
+                "incomplete consensus driver:\nid: {:?}\nquorum_key: {:?}\nquorum_type: {:?}",
+                id, quorum_pubkey, quorum_type
+            )))
         }
     }
 

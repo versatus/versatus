@@ -122,11 +122,14 @@ mod tests {
     use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
     use hbbft::sync_key_gen::{AckOutcome, Part};
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
+    use theater::{ActorState, Handler};
     use validator::txn_validator;
     use vrrb_core::account::{self, Account};
 
     use crate::runtime::handler_helpers::*;
-    use crate::test_utils::{create_txn_from_accounts, create_test_network, create_node_runtime_network_from_nodes};
+    use crate::test_utils::{
+        create_node_runtime_network_from_nodes, create_test_network, create_txn_from_accounts,
+    };
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
@@ -217,15 +220,15 @@ mod tests {
     async fn validator_node_runtimes_can_generate_a_shared_key() {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
-        let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
+        let mut node_runtimes = create_node_runtime_network(4, events_tx.clone()).await;
 
         // NOTE: remove bootstrap
-        nodes.pop_front().unwrap();
+        node_runtimes.pop_front().unwrap();
 
-        let mut node_1 = nodes.pop_front().unwrap();
+        let mut node_1 = node_runtimes.pop_front().unwrap();
         assert_eq!(node_1.config.node_type, NodeType::Validator);
 
-        let mut node_2 = nodes.pop_front().unwrap();
+        let mut node_2 = node_runtimes.pop_front().unwrap();
         assert_eq!(node_2.config.node_type, NodeType::Validator);
 
         let node_1_peer_data = PeerData {
@@ -327,10 +330,116 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn quorum_info_is_broadcasted() {
-        let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+        let (events_tx, mut _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let nodes = create_test_network(4).await;
-        let node_runtimes = create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
-        assert!(true);
+        let mut node_runtimes =
+            create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
+
+        // NOTE: remove bootstrap
+        node_runtimes.pop_front().unwrap();
+
+        let mut node_1 = node_runtimes.pop_front().unwrap();
+        assert_eq!(node_1.config.node_type, NodeType::Validator);
+
+        let mut node_2 = node_runtimes.pop_front().unwrap();
+        assert_eq!(node_2.config.node_type, NodeType::Validator);
+
+        let node_1_peer_data = PeerData {
+            node_id: node_1.config.id.clone(),
+            node_type: node_1.config.node_type,
+            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node_1.config.udp_gossip_address,
+            raptorq_gossip_addr: node_1.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node_1.config.kademlia_liveness_address,
+            validator_public_key: node_1.config.keypair.validator_public_key_owned(),
+        };
+
+        let node_2_peer_data = PeerData {
+            node_id: node_2.config.id.clone(),
+            node_type: node_2.config.node_type,
+            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node_2.config.udp_gossip_address,
+            raptorq_gossip_addr: node_2.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node_2.config.kademlia_liveness_address,
+            validator_public_key: node_2.config.keypair.validator_public_key_owned(),
+        };
+
+        node_1
+            .handle_node_added_to_peer_list(node_2_peer_data.clone())
+            .await
+            .unwrap();
+
+        node_2
+            .handle_node_added_to_peer_list(node_1_peer_data.clone())
+            .await
+            .unwrap();
+
+        let assigned_membership_1 = AssignedQuorumMembership {
+            quorum_kind: QuorumKind::Farmer,
+            node_id: node_1.id.clone(),
+            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
+            peers: vec![node_2_peer_data],
+        };
+
+        node_1
+            .handle_quorum_membership_assigment_created(assigned_membership_1)
+            .unwrap();
+
+        let assigned_membership_2 = AssignedQuorumMembership {
+            quorum_kind: QuorumKind::Farmer,
+            node_id: node_2.id.clone(),
+            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
+            peers: vec![node_1_peer_data],
+        };
+
+        node_2
+            .handle_quorum_membership_assigment_created(assigned_membership_2)
+            .unwrap();
+
+        let (part_1, node_id_1) = node_1.generate_partial_commitment_message().unwrap();
+        let (part_2, node_id_2) = node_2.generate_partial_commitment_message().unwrap();
+
+        let parts = vec![(node_id_1, part_1), (node_id_2, part_2)];
+
+        let mut acks = vec![];
+
+        for (node_id, part) in parts {
+            let (receiver_id, sender_id, ack) = node_1
+                .handle_part_commitment_created(node_id.clone(), part.clone())
+                .unwrap();
+
+            acks.push((receiver_id, sender_id, ack));
+
+            let (receiver_id, sender_id, ack) = node_2
+                .handle_part_commitment_created(node_id.clone(), part.clone())
+                .unwrap();
+
+            acks.push((receiver_id, sender_id, ack));
+        }
+
+        let mut farmer_nodes = vec![&mut node_1, &mut node_2];
+
+        for node in farmer_nodes.iter_mut() {
+            for (receiver_id, sender_id, ack) in acks.iter().cloned() {
+                node.handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
+                    .unwrap();
+            }
+        }
+
+        for node in farmer_nodes.iter_mut() {
+            node.handle_all_ack_messages().unwrap();
+        }
+        for node in farmer_nodes.iter_mut() {
+            node.generate_keysets().await.unwrap();
+        }
+        if let Some(msg) = _rx.recv().await {
+            if let messr::MessageData::Data(Event::QuorumFormed) = msg.data {
+                for node in farmer_nodes {
+                    let actor_state = node.handle(msg.clone()).await.unwrap();
+                    assert_eq!(actor_state, ActorState::Running);
+                }
+            }
+        }
     }
 
     #[tokio::test]

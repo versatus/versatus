@@ -398,20 +398,17 @@ impl NetworkModule {
         Ok(())
     }
 
-    pub async fn broadcast_quorum_membership(
-        &mut self,
-        quorum_data: QuorumData, 
-    ) -> Result<()> {
-        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastQuorumFormed(quorum_data));
+    pub async fn broadcast_quorum_membership(&mut self, quorum_data: QuorumData) -> Result<()> {
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::BroadcastQuorumFormed(quorum_data));
 
         self.dyswarm_client
-            .broadcast(
-                BroadcastArgs {
-                    config: Default::default(),
-                    message,
-                    erasure_count: 0,
-                }
-            ).await?;
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
 
         Ok(())
     }
