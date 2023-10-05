@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex, RwLock}};
 
-use block::{header::BlockHeader, BlockHash, ConvergenceBlock};
+use block::{header::BlockHeader, BlockHash, ConvergenceBlock, Block, ProposalBlock, InnerBlock};
+use bulldag::graph::BullDag;
 use dkg_engine::{
     dkg::DkgGenerator,
     prelude::{ReceiverId, SenderId},
@@ -12,11 +13,13 @@ use hbbft::{
     sync_key_gen::{Ack, Part},
 };
 use maglev::Maglev;
+use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
 use primitives::{
     ByteSlice48Bit, FarmerQuorumThreshold, NodeId, NodeType, ProgramExecutionOutput,
     PublicKeyShareVec, RawSignature, TxnValidationStatus, ValidatorPublicKeyShare,
 };
 use quorum::quorum::Quorum;
+use ritelinked::{LinkedHashMap, LinkedHashSet};
 use signer::signer::SignatureProvider;
 use vrrb_config::QuorumMember;
 use vrrb_config::QuorumMembershipConfig;
@@ -330,15 +333,81 @@ impl ConsensusModule {
         //         }
     }
 
-    pub fn precheck_convergence_block(
+    pub fn precheck_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
         last_confirmed_block_header: BlockHeader,
+        resolver: R,
+        dag: Arc<RwLock<BullDag<Block, String>>>
     ) {
-        let claims = block.claims.clone();
-        let txns = block.txns.clone();
+
         let proposal_block_hashes = block.header.ref_hashes.clone();
-        let mut pre_check = true;
+
+        // TODO: move this process to its own function.
+        let proposals = {
+            if let Ok(dag) = dag.read() {
+                let proposals: Vec<ProposalBlock> = proposal_block_hashes.iter().filter_map(|hash| {
+                    dag.get_vertex(hash.clone()).and_then(|vtx| {
+                        match vtx.get_data() {
+                            Block::Proposal { block } => Some(block.clone()),
+                            _ => None
+                        }
+                    })
+                }).collect();
+                Ok(proposals)
+            } else {
+                Err(NodeError::Other("could not acquire read lock on dag".to_string()))
+            }
+        };
+
+        let resolved = {
+            match proposals {
+                Ok(proposals) => {
+                    let resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>> = resolver.resolve(
+                        &proposals, 
+                        block.get_header().round, 
+                        block.get_header().block_seed
+                    ).iter().map(|block| {
+                        (block.hash.clone(), block.txn_id_set())
+                    }).collect();
+                    
+                    Ok(resolved)
+                }
+                Err(err) => {
+                    Err(NodeError::Other(err.to_string()))
+                }
+            }
+        };
+
+        let mut valid_txns = true;
+        match resolved {
+            Ok(map) => {
+                let comp: Vec<bool> = map.iter().filter_map(|(pblock_hash, txn_id_set)| {
+                    match block.txns.get(pblock_hash) {
+                        Some(set) => { Some(set == txn_id_set) }
+                        None => { None }
+                    }
+                }).collect();
+
+                if comp.len() != block.txns.len() {
+                    valid_txns = false;
+                }
+
+                if comp.iter().any(|&value| !value) {
+                    valid_txns = false;
+                }
+            },
+            Err(_) => { valid_txns = false; }
+        }
+
+        if !valid_txns {
+
+        }
+
+        //let claims = block.claims.clone();
+        //let txns = block.txns.clone();
+        //let proposal_block_hashes = block.header.ref_hashes.clone();
+        //let mut pre_check = true;
         // let mut tmp_proposal_blocks = Vec::new();
         //     if let Ok(dag) = self.dag.read() {
         //         for proposal_block_hash in proposal_block_hashes.iter() {

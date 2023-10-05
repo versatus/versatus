@@ -18,9 +18,9 @@ use hbbft::{
     sync_key_gen::{Ack, Part},
 };
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
-use miner::{Miner, MinerConfig};
+use miner::{Miner, MinerConfig, conflict_resolver::Resolver};
 use primitives::{
-    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey, RawSignature,
+    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey, RawSignature, QuorumType,
 };
 use quorum::quorum::Quorum;
 use ritelinked::LinkedHashMap;
@@ -275,13 +275,25 @@ impl NodeRuntime {
         self.consensus_driver
             .handle_quorum_membership_assigment_created(assigned_membership)
     }
-    pub fn handle_convergence_block_precheck_requested(
+    pub fn handle_convergence_block_precheck_requested<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
         last_confirmed_block_header: BlockHeader,
+        resolver: R
     ) {
-        self.consensus_driver
-            .precheck_convergence_block(block, last_confirmed_block_header);
+        match &self.consensus_driver.quorum_type {
+            Some(QuorumType::Harvester) => {
+                self.consensus_driver
+                    .precheck_convergence_block(
+                        block, 
+                        last_confirmed_block_header, 
+                        resolver, 
+                        self.dag_driver.dag()
+                    );
+            }
+            _ => {
+            }
+        }
     }
 
     pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Quorum> {

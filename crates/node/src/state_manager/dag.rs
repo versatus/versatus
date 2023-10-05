@@ -84,6 +84,10 @@ impl DagModule {
             .map_err(|err| NodeError::Other(err.to_string()))
     }
 
+    pub fn dag(&self) -> Arc<RwLock<BullDag<Block, String>>> {
+        self.dag.clone()
+    }
+
     pub fn last_confirmed_block_header(&self) -> Option<BlockHeader> {
         self.last_confirmed_block_header.clone()
     }

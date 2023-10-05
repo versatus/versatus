@@ -287,6 +287,7 @@ pub enum Event {
     HarvesterSignatureReceived(BlockHash, NodeId, RawSignature),
     BroadcastQuorumFormed(QuorumData),
     BroadcastTransactionVote(Vote),
+    BlockAppended(String)
 }
 
 impl From<&theater::Message> for Event {

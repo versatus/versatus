@@ -444,7 +444,9 @@ impl NodeRuntime {
         self.consensus_driver.certify_convergence_block(
             block,
             last_block_header,
-            next_txn_trie_hash,
+            next_txn_trie_hash.clone(),
+            self.mining_driver.clone(),
+            self.dag_driver.dag().clone(),
         );
 
         Ok(())

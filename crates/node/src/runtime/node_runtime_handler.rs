@@ -214,7 +214,8 @@ impl Handler<EventMessage> for NodeRuntime {
                 convergence_block,
                 block_header,
             } => {
-                self.handle_convergence_block_precheck_requested(convergence_block, block_header);
+                let resolver = self.mining_driver.clone();
+                self.handle_convergence_block_precheck_requested(convergence_block, block_header, resolver);
             },
 
             Event::TxnsReadyForProcessing(txns) => {
@@ -259,9 +260,12 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
             },
-            Event::BlockReceived(block) => {
-                self.state_driver
-                    .handle_block_received(block)
+            Event::BlockReceived(mut block) => {
+                let next_event = self.state_driver
+                    .handle_block_received(&mut block)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.events_tx.send(next_event.into()).await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {

@@ -5,8 +5,9 @@ use std::{
 
 use anyhow::anyhow;
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData, ProposalBlock,
 };
+use bulldag::graph::BullDag;
 use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
@@ -14,6 +15,7 @@ use hbbft::{
     sync_key_gen::Part,
 };
 use mempool::{TxnStatus, MempoolReadHandleFactory};
+use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
 use primitives::{
     Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes,
     PKShareBytes, PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature,
@@ -85,7 +87,6 @@ pub struct ConsensusModule {
     pub(crate) quorum_driver: QuorumModule,
     pub(crate) dkg_engine: DkgEngine,
     pub(crate) node_config: NodeConfig,
-
     // pub(crate) group_public_key: GroupPublicKey,
     pub(crate) sig_provider: SignatureProvider,
     pub(crate) convergence_block_certificates:
@@ -227,16 +228,23 @@ impl ConsensusModule {
         )
     }
 
-    pub fn certify_convergence_block(
+    pub fn certify_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
         last_block_header: BlockHeader,
         next_txn_root_hash: String,
+        resolver: R,
+        dag: Arc<RwLock<BullDag<Block, String>>>
         // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
     ) -> Result<Certificate> {
         let prev_txn_root_hash = last_block_header.txn_hash.clone();
 
-        self.precheck_convergence_block(block.clone(), last_block_header.clone());
+        self.precheck_convergence_block(
+            block.clone(), 
+            last_block_header.clone(),
+            resolver,
+            dag.clone()
+        );
         self.certify_block(
             block.into(),
             last_block_header,

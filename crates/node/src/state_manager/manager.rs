@@ -287,40 +287,41 @@ impl StateManager {
         proposals
     }
 
-    pub(crate) fn handle_block_received(&mut self, block: Block) -> Result<()> {
+    pub(crate) fn handle_block_received(&mut self, block: &mut Block) -> Result<Event> {
         match block {
-            Block::Genesis { block } => {
+            Block::Genesis { ref mut block } => {
                 if let Err(e) = self.dag.append_genesis(&block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 };
             },
-            Block::Proposal { block } => {
+            Block::Proposal { ref mut block } => {
                 if let Err(e) = self.dag.append_proposal(&block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
             },
-            Block::Convergence { mut block } => {
-                if let Err(e) = self.dag.append_convergence(&mut block) {
+            Block::Convergence { ref mut block } => {
+                if let Err(e) = self.dag.append_convergence(block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
 
                 if block.certificate.is_none() {
                     if let Some(header) = self.dag.last_confirmed_block_header() {
-                        // let event = Event::ConvergenceBlockPrecheckRequested {
-                        //     convergence_block: block,
-                        //     block_header: header,
-                        // };
+                        
+                        let event = Event::ConvergenceBlockPrecheckRequested {
+                            convergence_block: block.clone(),
+                            block_header: header,
+                        };
 
-                        return Ok(());
+                        return Ok(event);
                     }
                 }
             },
         }
 
-        Ok(())
+        Ok(Event::BlockAppended(block.hash()))
     }
 
     pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
