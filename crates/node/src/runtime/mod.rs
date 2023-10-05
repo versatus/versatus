@@ -330,7 +330,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    async fn quorum_info_is_broadcasted() {
+    async fn quorum_data_is_broadcasted() {
         let (events_tx, mut _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let nodes = create_test_network(4).await;
         let mut node_runtimes =
