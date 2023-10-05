@@ -333,17 +333,11 @@ impl ConsensusModule {
         //         }
     }
 
-    pub fn precheck_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
+    fn precheck_convergence_block_get_proposal_blocks(
         &mut self,
-        block: ConvergenceBlock,
-        last_confirmed_block_header: BlockHeader,
-        resolver: R,
-        dag: Arc<RwLock<BullDag<Block, String>>>
-    ) {
-
-        let proposal_block_hashes = block.header.ref_hashes.clone();
-
-        // TODO: move this process to its own function.
+        proposal_block_hashes: Vec<String>,
+        dag: Arc<RwLock<BullDag<Block, String>>>,
+    ) -> Result<Vec<ProposalBlock>> {
         let proposals = {
             if let Ok(dag) = dag.read() {
                 let proposals: Vec<ProposalBlock> = proposal_block_hashes.iter().filter_map(|hash| {
@@ -360,48 +354,95 @@ impl ConsensusModule {
             }
         };
 
-        let resolved = {
-            match proposals {
-                Ok(proposals) => {
-                    let resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>> = resolver.resolve(
-                        &proposals, 
-                        block.get_header().round, 
-                        block.get_header().block_seed
-                    ).iter().map(|block| {
-                        (block.hash.clone(), block.txn_id_set())
-                    }).collect();
+        proposals
+    }
+
+    fn precheck_resolve_proposal_block_conflicts<R: Resolver<Proposal = ProposalBlock>>(
+        &mut self,
+        block: ConvergenceBlock,
+        proposals: Vec<ProposalBlock>,
+        resolver: R,
+    ) -> LinkedHashMap<String, LinkedHashSet<TransactionDigest>> {
+        let resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>> = resolver.resolve(
+            &proposals, 
+            block.get_header().round, 
+            block.get_header().block_seed
+        ).iter().map(|block| {
+            (block.hash.clone(), block.txn_id_set())
+        }).collect();
                     
-                    Ok(resolved)
-                }
-                Err(err) => {
-                    Err(NodeError::Other(err.to_string()))
-                }
-            }
-        };
+        resolved
+    }
+
+    fn precheck_resolved_transactions_are_valid(
+        &mut self,
+        block: ConvergenceBlock,
+        resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>>,
+    ) -> bool {
 
         let mut valid_txns = true;
-        match resolved {
-            Ok(map) => {
-                let comp: Vec<bool> = map.iter().filter_map(|(pblock_hash, txn_id_set)| {
-                    match block.txns.get(pblock_hash) {
-                        Some(set) => { Some(set == txn_id_set) }
-                        None => { None }
-                    }
-                }).collect();
+        let comp: Vec<bool> = resolved.iter().filter_map(|(pblock_hash, txn_id_set)| {
+            match block.txns.get(pblock_hash) {
+                Some(set) => { Some(set == txn_id_set) }
+                None => { None }
+            }
+        }).collect();
 
-                if comp.len() != block.txns.len() {
-                    valid_txns = false;
-                }
-
-                if comp.iter().any(|&value| !value) {
-                    valid_txns = false;
-                }
-            },
-            Err(_) => { valid_txns = false; }
+        if comp.len() != block.txns.len() {
+            valid_txns = false;
         }
 
-        if !valid_txns {
+        if comp.iter().any(|&value| !value) {
+            valid_txns = false;
+        }
 
+        valid_txns
+    }
+
+
+    fn precheck_convergence_block_transactions<R: Resolver<Proposal = ProposalBlock>>(
+        &mut self,
+        block: ConvergenceBlock,
+        proposal_block_hashes: Vec<String>, 
+        resolver: R,
+        dag: Arc<RwLock<BullDag<Block, String>>>,
+    ) -> Result<bool> {
+        
+        let proposals = self.precheck_convergence_block_get_proposal_blocks(
+            proposal_block_hashes, 
+            dag.clone()
+        )?;
+        
+        let resolved = self.precheck_resolve_proposal_block_conflicts(
+            block.clone(), 
+            proposals, 
+            resolver, 
+        );
+
+        Ok(self.precheck_resolved_transactions_are_valid(block, resolved))
+    }
+
+    pub fn precheck_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
+        &mut self,
+        block: ConvergenceBlock,
+        last_confirmed_block_header: BlockHeader,
+        resolver: R,
+        dag: Arc<RwLock<BullDag<Block, String>>>
+    ) {
+
+        let proposal_block_hashes = block.header.ref_hashes.clone();
+
+        // TODO: move this process to its own function.
+        
+        match self.precheck_convergence_block_transactions(
+            block, 
+            proposal_block_hashes, 
+            resolver, 
+            dag
+        ) {
+            Ok(true) => {},
+            Ok(false) => {},
+            Err(_) => {}
         }
 
         //let claims = block.claims.clone();
