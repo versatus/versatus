@@ -335,6 +335,7 @@ impl ConsensusModule {
 
     fn precheck_convergence_block_get_proposal_blocks(
         &mut self,
+        block_hash: String,
         proposal_block_hashes: Vec<String>,
         dag: Arc<RwLock<BullDag<Block, String>>>,
     ) -> Result<Vec<ProposalBlock>> {
@@ -348,9 +349,19 @@ impl ConsensusModule {
                         }
                     })
                 }).collect();
+                if proposals.len() != proposal_block_hashes.len() {
+                    return Err(
+                        NodeError::Other(
+                            format!(
+                                "missing proposal blocks referenced by convergence block: {}",
+                                block_hash.clone()
+                            )
+                        )
+                    )
+                }
                 Ok(proposals)
             } else {
-                Err(NodeError::Other("could not acquire read lock on dag".to_string()))
+                return Err(NodeError::Other("could not acquire read lock on dag".to_string()))
             }
         };
 
@@ -409,6 +420,7 @@ impl ConsensusModule {
     ) -> Result<bool> {
         
         let proposals = self.precheck_convergence_block_get_proposal_blocks(
+            block.hash.clone(),
             proposal_block_hashes, 
             dag.clone()
         )?;
@@ -433,16 +445,21 @@ impl ConsensusModule {
         let proposal_block_hashes = block.header.ref_hashes.clone();
 
         // TODO: move this process to its own function.
-        
         match self.precheck_convergence_block_transactions(
             block, 
             proposal_block_hashes, 
             resolver, 
             dag
         ) {
-            Ok(true) => {},
-            Ok(false) => {},
-            Err(_) => {}
+            Ok(false) => { 
+                // return an error
+            },
+            Err(_) => {
+                // return an error
+            }
+            _ => {
+                // continue on.
+            }
         }
 
         //let claims = block.claims.clone();
