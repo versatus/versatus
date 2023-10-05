@@ -549,6 +549,7 @@ impl NodeRuntime {
                 mempool_reader, 
                 state_reader
         );
+
         dbg!("{}", &validated_transaction_kind);
         match validated_transaction_kind {
             Ok(transaction_kind) => {
