@@ -24,7 +24,7 @@ pub type RuntimeComponentLabel = String;
 pub type RuntimeHandle = JoinHandle<Result<()>>;
 pub type OptionalRuntimeHandle = Option<(RuntimeHandle, RuntimeComponentLabel)>;
 pub type RaptorHandle = Option<thread::JoinHandle<bool>>;
-pub type SchedulerHandle = Option<thread::JoinHandle<Result<()>>>;
+pub type SchedulerHandle = Option<thread::JoinHandle<()>>;
 
 #[derive(Debug)]
 pub struct RuntimeComponentHandle<D: Sized> {
