@@ -16,7 +16,7 @@ use hbbft::{
     sync_key_gen::{Ack, Part},
 };
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use primitives::{KademliaPeerId, NodeId, NodeType, ValidatorPublicKey, RawSignature};
+use primitives::{KademliaPeerId, NodeId, NodeType, ValidatorPublicKey, RawSignature, ConvergencePartialSig};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
@@ -398,7 +398,7 @@ impl NetworkModule {
         Ok(())
     }
 
-    pub async fn broadcast_convergence_block_partial_signature(&mut self, sig: RawSignature) -> Result<()> {
+    pub async fn broadcast_convergence_block_partial_signature(&mut self, sig: ConvergencePartialSig) -> Result<()> {
         let message = dyswarm::types::Message::new(NetworkEvent::ConvergenceBlockPartialSignComplete(sig));
 
         self.dyswarm_client

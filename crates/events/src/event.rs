@@ -9,7 +9,7 @@ use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
     Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, 
+    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, ConvergencePartialSig, 
 };
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
@@ -251,7 +251,7 @@ pub enum Event {
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
     ConvergenceBlockPartialSign(JobStatus),
-    ConvergenceBlockPartialSignComplete(RawSignature),
+    ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
 
     /// `CheckConflictResolution` is an event that triggers the checking of a
     /// proposed conflict resolution.The event is used to initiate the

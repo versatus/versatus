@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use block::Certificate;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey};
+use primitives::{NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig};
 use signer::signer::Signer;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
@@ -223,11 +223,16 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::SignConvergenceBlock(block) => {
                 let sig = self.handle_sign_convergence_block(
-                    block
+                    block.clone()
                 ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
 
+                let partial_sig = ConvergencePartialSig {
+                    sig,
+                    block_hash: block.hash,
+                };
+
                 self.events_tx.send(
-                    Event::ConvergenceBlockPartialSignComplete(sig).into()
+                    Event::ConvergenceBlockPartialSignComplete(partial_sig).into()
                 ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::TxnsReadyForProcessing(txns) => {

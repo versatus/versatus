@@ -7,7 +7,7 @@ use hbbft::{
     sync_key_gen::{Ack, Part},
 };
 use mempool::TxnRecord;
-use primitives::{KademliaPeerId, NodeId, NodeType, PeerId, RawSignature};
+use primitives::{KademliaPeerId, NodeId, NodeType, PeerId, ConvergencePartialSig};
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
 
@@ -60,7 +60,7 @@ pub enum NetworkEvent {
     },
 
     ConvergenceBlockCertified(ConvergenceBlock),
-    ConvergenceBlockPartialSignComplete(RawSignature),
+    ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastQuorumFormed(QuorumData),
     BroadcastTransactionVote(Vote),
     Ping(NodeId),
