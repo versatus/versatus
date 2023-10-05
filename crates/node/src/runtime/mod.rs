@@ -1600,6 +1600,7 @@ mod tests {
 
         (node_0, farmer_nodes, harvester_nodes, miner_nodes)
     }
+
     async fn setup_peer_network_and_assign_quorum_type_from_node_runtimes(
         mut nodes: VecDeque<NodeRuntime>,
     ) -> (
@@ -1609,11 +1610,6 @@ mod tests {
         HashMap<NodeId, NodeRuntime>, // Miners
     ) {
         let mut node_0 = nodes.pop_front().unwrap();
-
-        // let address = node_0
-        //     .create_account(node_0.config_ref().keypair.miner_public_key_owned())
-        //     .unwrap();
-
         let mut quorum_assignments = HashMap::new();
 
         for node in nodes.iter() {
