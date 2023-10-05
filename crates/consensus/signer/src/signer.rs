@@ -9,11 +9,11 @@ use std::{
 
 use dkg_engine::prelude::*;
 use hbbft::{
-    crypto::{Fr, FrRepr, Signature, SignatureShare, SIG_SIZE},
+    crypto::{Fr, FrRepr, Signature, SignatureShare, SIG_SIZE, PublicKeySet, SecretKeyShare},
     pairing::PrimeField,
 };
 use primitives::{NodeId, NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
-use vrrb_config::ThresholdConfig;
+use vrrb_config::{ThresholdConfig, QuorumMembershipConfig, threshold_config};
 
 use crate::types::{SignerError, SignerResult};
 
@@ -59,8 +59,29 @@ impl NodeIdFrBuilder for NodeId {}
 
 #[derive(Clone, Debug)]
 pub struct SignatureProvider {
-    pub dkg_state: Arc<RwLock<DkgState>>,
+    public_key_set: Option<PublicKeySet>,
+    secret_key_share: Option<SecretKeyShare>, 
     pub quorum_config: ThresholdConfig,
+}
+
+impl From<&DkgState> for SignatureProvider {
+    fn from(item: &DkgState) -> SignatureProvider {
+        let public_key_set = item.public_key_set().clone();
+        let secret_key_share = item.secret_key_share().clone();
+
+        let mut sig_provider = SignatureProvider::new(ThresholdConfig::default());
+        
+        match public_key_set {
+            Some(pks) => sig_provider.set_public_key_set(pks),
+            _ => {}
+        }
+        match secret_key_share {
+            Some(sks) => sig_provider.set_secret_key_share(sks),
+            _ => {}
+        }
+
+        sig_provider
+    }
 }
 
 impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
@@ -70,15 +91,36 @@ impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
 }
 
 impl SignatureProvider {
-    pub fn new(dkg_state: Arc<RwLock<DkgState>>, quorum_config: ThresholdConfig) -> Self {
+    pub fn new(quorum_config: ThresholdConfig) -> Self {
         Self {
-            dkg_state,
+            public_key_set: None,
+            secret_key_share: None,
             quorum_config,
         }
     }
 
-    pub fn set_dkg_state(&mut self, dkg_state: DkgState) {
-        self.dkg_state = Arc::new(RwLock::new(dkg_state));
+    pub fn set_public_key_set(&mut self, public_key_set: PublicKeySet) {
+        self.public_key_set = Some(public_key_set.clone());
+    }
+
+    pub fn set_secret_key_share(&mut self, secret_key_share: SecretKeyShare) {
+        self.secret_key_share = Some(secret_key_share.clone());
+    }
+
+    pub fn set_threshold_config(&mut self, threshold_config: ThresholdConfig) {
+        self.quorum_config = threshold_config;
+    }
+
+    pub fn secret_key_share(&self) -> Option<SecretKeyShare> {
+        self.secret_key_share.clone()
+    }
+
+    pub fn public_key_set(&self) -> Option<PublicKeySet> {
+        self.public_key_set.clone()
+    }
+    
+    pub fn quorum_config(&self) -> ThresholdConfig {
+        self.quorum_config.clone()
     }
 }
 
@@ -117,11 +159,12 @@ impl Signer for SignatureProvider {
     /// }
     /// ```
     fn generate_partial_signature(&self, payload_hash: Hash) -> SignerResult<RawSignature> {
-        let dkg_state = self.dkg_state.read()?;
-        let secret_key_share = dkg_state.secret_key_share();
+        let secret_key_share = self.secret_key_share();
         let secret_key_share = match secret_key_share {
             Some(key) => key,
-            None => return Err(SignerError::SecretKeyShareMissing),
+            None => {
+                return Err(SignerError::SecretKeyShareMissing)
+            },
         };
 
         let signature = secret_key_share.sign(payload_hash);
@@ -192,7 +235,6 @@ impl Signer for SignatureProvider {
                 "Received less than t+1 signature shares".to_string(),
             ));
         }
-        let dkg_state = self.dkg_state.read()?;
         for (_, sig) in signature_shares.iter() {
             if sig.len() != SIG_SIZE {
                 return Err(SignerError::CorruptSignatureShare(
@@ -214,7 +256,7 @@ impl Signer for SignatureProvider {
             }
         }
 
-        let result = dkg_state.public_key_set();
+        let result = self.public_key_set();
         //Construction of combining t+1 valid shares to form threshold
         let combine_signature_result = match result {
             // TODO figure out how to turn strings into IntoFr
@@ -314,10 +356,9 @@ impl Signer for SignatureProvider {
                 "Invalid Signature ,Size must be 96 bytes".to_string(),
             ));
         }
-        let dkg_state = self.dkg_state.read()?;
         match signature_type {
             SignatureType::PartialSignature => {
-                let public_key_share_opt = dkg_state.public_key_set();
+                let public_key_share_opt = self.public_key_set();
                 let public_key_share = match public_key_share_opt {
                     Some(public_key_share) => public_key_share.public_key_share(node_idx as usize),
                     None => return Err(SignerError::GroupPublicKeyMissing),
@@ -337,7 +378,7 @@ impl Signer for SignatureProvider {
                 }
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-                let public_key_set_opt = dkg_state.public_key_set();
+                let public_key_set_opt = self.public_key_set();
                 if public_key_set_opt.is_none() {
                     return Err(SignerError::GroupPublicKeyMissing);
                 }
@@ -381,13 +422,9 @@ mod tests {
     async fn successful_test_generation_partial_signature() {
         let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
         let message = "This is test message";
-        let sig_provider = SignatureProvider {
-            dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-            quorum_config: ThresholdConfig {
-                threshold: 1,
-                upper_bound: 4,
-            },
-        };
+        let threshold_config = ThresholdConfig { upper_bound: 4, threshold: 1 };
+        let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state);
+        sig_provider.set_threshold_config(threshold_config);
         let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
         match result {
             Ok(sig_share) => assert_eq!(sig_share.len() > 0, true),
@@ -400,14 +437,13 @@ mod tests {
         let mut dkg_engines = generate_dkg_engine_with_states().await;
         let mut dkg_engine_node = dkg_engines.pop().unwrap();
         let message = "This is test message";
-        dkg_engine_node.dkg_state.set_secret_key_share(None);
-        let sig_provider = SignatureProvider {
-            dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-            quorum_config: ThresholdConfig {
-                threshold: 1,
-                upper_bound: 4,
-            },
+        let threshold_config = ThresholdConfig {
+            threshold: 1,
+            upper_bound: 4,
         };
+        dkg_engine_node.dkg_state.set_secret_key_share(None);
+        let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state); 
+        sig_provider.set_threshold_config(threshold_config);
         let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
         assert_eq!(result, Err(SignerError::SecretKeyShareMissing));
     }
@@ -421,13 +457,10 @@ mod tests {
         while !dkg_engines.is_empty() {
             let dkg_engine_node = dkg_engines.pop().unwrap();
 
-            let sig_provider_node = SignatureProvider {
-                dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-                quorum_config: ThresholdConfig {
-                    threshold: 1,
-                    upper_bound: 4,
-                },
-            };
+            let mut sig_provider_node = SignatureProvider::from(&dkg_engine_node.dkg_state);
+            let threshold_config = ThresholdConfig { threshold: 1, upper_bound: 4 };
+            sig_provider_node.set_threshold_config(threshold_config);
+
             let signature_share_node = sig_provider_node
                 .generate_partial_signature(message.as_bytes().to_vec())
                 .unwrap();
@@ -448,13 +481,12 @@ mod tests {
     async fn successful_verification_partial_signature() {
         let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
         let message = "This is test message";
-        let sig_provider = SignatureProvider {
-            dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-            quorum_config: ThresholdConfig {
+        let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state); 
+        sig_provider.set_threshold_config(ThresholdConfig {
                 threshold: 1,
                 upper_bound: 4,
-            },
-        };
+            }
+        );
 
         let signature_share = sig_provider
             .generate_partial_signature(message.as_bytes().to_vec())
@@ -480,14 +512,16 @@ mod tests {
         let mut i: u16 = 3;
         while !dkg_engines.is_empty() {
             let dkg_engine_node = dkg_engines.pop().unwrap();
-
-            let sig_provider_node = SignatureProvider {
-                dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-                quorum_config: ThresholdConfig {
+            let mut sig_provider_node = SignatureProvider::from(
+                &dkg_engine_node.dkg_state
+            );
+            sig_provider_node.set_threshold_config(
+                ThresholdConfig {
                     threshold: 1,
                     upper_bound: 4,
-                },
-            };
+                }
+            );
+
             let signature_share_node = sig_provider_node
                 .generate_partial_signature(message.as_bytes().to_vec())
                 .unwrap();
@@ -520,13 +554,16 @@ mod tests {
         let mut dkg_engines = generate_dkg_engine_with_states().await;
         let dkg_engine_node = dkg_engines.pop().unwrap();
 
-        let sig_provider = SignatureProvider {
-            dkg_state: std::sync::Arc::new(std::sync::RwLock::new(dkg_engine_node.dkg_state)),
-            quorum_config: ThresholdConfig {
+        let mut sig_provider = SignatureProvider::from(
+            &dkg_engine_node.dkg_state
+        );
+
+        sig_provider.set_threshold_config(
+            ThresholdConfig {
                 threshold: 1,
                 upper_bound: 4,
-            },
-        };
+            }
+        );
 
         let sig_status = sig_provider.verify_signature(
             2,

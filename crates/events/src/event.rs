@@ -177,7 +177,7 @@ pub enum Event {
     TransactionValidated(Vote),
 
     TransactionsValidated {
-        votes: Vec<Vote>,
+        vote: Vote,
         quorum_threshold: FarmerQuorumThreshold,
     },
 
@@ -285,6 +285,7 @@ pub enum Event {
     QuorumMembersReceived(QuorumMembers),
     QuorumFormed,
     BroadcastQuorumFormed(QuorumData),
+    BroadcastTransactionVote(Vote),
 }
 
 impl From<&theater::Message> for Event {

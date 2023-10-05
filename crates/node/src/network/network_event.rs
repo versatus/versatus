@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use block::{ConvergenceBlock, QuorumData};
-use events::AssignedQuorumMembership;
+use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::{PublicKey, PublicKeySet},
     sync_key_gen::{Ack, Part},
@@ -61,6 +61,7 @@ pub enum NetworkEvent {
 
     ConvergenceBlockCertified(ConvergenceBlock),
     BroadcastQuorumFormed(QuorumData),
+    BroadcastTransactionVote(Vote),
     Ping(NodeId),
 
     #[default]

@@ -10,7 +10,7 @@ use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
-use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber};
+use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote};
 use hbbft::{
     crypto::PublicKey as ThresholdSignaturePublicKey,
     sync_key_gen::{Ack, Part},
@@ -410,6 +410,23 @@ impl NetworkModule {
             })
             .await?;
 
+        Ok(())
+    }
+
+    pub async fn broadcast_transaction_vote(
+        &mut self,
+        vote: Vote
+    ) -> Result<()> {
+        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(vote));
+        self.dyswarm_client
+            .broadcast(
+                BroadcastArgs { 
+                    config: Default::default(), 
+                    message, 
+                    erasure_count: 0 
+                }
+            ).await?;
+        
         Ok(())
     }
 }

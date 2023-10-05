@@ -60,24 +60,28 @@ impl ValidatorCoreManager {
 
     pub fn validate_transaction_kind(
         &mut self,
-        transaction: &TransactionDigest 
+        transaction: &TransactionDigest,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
     ) -> crate::txn_validator::Result<TransactionKind> {
         self.core_pool.install(|| {
             let valcore = Core::new(
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
                 ClaimValidator,
-                self.mempool_reader.clone(),
-                self.state_reader.clone(),
-                self.claim_reader.clone()
             );
-            valcore.process_transaction_kind(transaction)
+            let res = valcore.process_transaction_kind(
+                transaction, mempool_reader, state_reader
+            );
+            res
         })
     }
 
     pub fn validate(
         &mut self,
         batch: Vec<TransactionKind>,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory
     ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         // ) -> HashSet<(Txn, bool)> {
         self.core_pool.install(|| {
@@ -85,26 +89,23 @@ impl ValidatorCoreManager {
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
                 ClaimValidator,
-                self.mempool_reader.clone(),
-                self.state_reader.clone(),
-                self.claim_reader.clone(),
             );
-            valcore.process_transactions(batch)
+            valcore.process_transactions(
+                batch, mempool_reader, state_reader
+            )
         })
     }
 
     pub fn validate_claims(
         &mut self,
         claims: Vec<Claim>,
+        claim_reader: ClaimStoreReadHandleFactory,
     ) -> HashSet<(Claim, crate::claim_validator::Result<()>)> {
         self.core_pool.install(|| {
             let valcore = Core::new(
                 self.core_pool.current_thread_index().unwrap_or(0) as CoreId,
                 TxnValidator::new(),
                 ClaimValidator,
-                self.mempool_reader.clone(),
-                self.state_reader.clone(),
-                self.claim_reader.clone(),
             );
             valcore.process_claims(claims)
         })
