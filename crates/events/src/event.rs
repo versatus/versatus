@@ -251,6 +251,7 @@ pub enum Event {
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
     ConvergenceBlockPartialSign(JobStatus),
+    ConvergenceBlockPartialSignComplete(RawSignature),
 
     /// `CheckConflictResolution` is an event that triggers the checking of a
     /// proposed conflict resolution.The event is used to initiate the

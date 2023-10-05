@@ -72,7 +72,10 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting certified convergence block to network");
                 self.broadcast_certified_convergence_block(block).await?;
             },
-
+            Event::ConvergenceBlockPartialSignComplete(sig) => {
+                info!("Broadcasting partial signature of convergence block to network");
+                self.broadcast_convergence_block_partial_signature(sig).await?;
+            },
             Event::Stop => {
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();

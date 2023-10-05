@@ -221,6 +221,15 @@ impl Handler<EventMessage> for NodeRuntime {
                     resolver
                 ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            Event::SignConvergenceBlock(block) => {
+                let sig = self.handle_sign_convergence_block(
+                    block
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.events_tx.send(
+                    Event::ConvergenceBlockPartialSignComplete(sig).into()
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
             Event::TxnsReadyForProcessing(txns) => {
                 // Receives a batch of transactions from mempool and sends
                 // them to scheduler to get it validated and voted

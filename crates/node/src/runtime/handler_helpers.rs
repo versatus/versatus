@@ -4,10 +4,10 @@ use std::{
     hash::Hash,
     sync::{Arc, RwLock},
 };
-
+use sha2::{Sha256, Digest};
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, QuorumData, RefHash,
+    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, QuorumData, RefHash, InnerBlock,
 };
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
@@ -317,6 +317,22 @@ impl NodeRuntime {
                 )
             }
         }
+    }
+
+    pub async fn handle_sign_convergence_block(
+        &mut self, 
+        block: ConvergenceBlock
+    ) -> Result<RawSignature> {
+        self.consensus_driver.sig_provider.generate_partial_signature(
+            block.hash.as_bytes().to_vec()
+        ).map_err(|err| {
+            NodeError::Other(
+                format!(
+                    "could not generate partial_signature on block: {}. err: {}",
+                    block.hash.clone(),
+                    err
+                )
+            )})
     }
 
     pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Quorum> {
