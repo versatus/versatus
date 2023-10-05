@@ -25,7 +25,9 @@ use primitives::{
 use quorum::quorum::Quorum;
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
-use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle, StateStoreReadHandleFactory};
+use storage::vrrbdb::{
+    ApplyBlockResult, StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle,
+};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -135,11 +137,11 @@ impl NodeRuntime {
                 keypair: config.keypair.clone(),
                 node_config: config.clone(),
                 dkg_generator,
-                validator_public_key: config.keypair.validator_public_key_owned()
+                validator_public_key: config.keypair.validator_public_key_owned(),
             },
             state_driver.mempool_read_handle_factory(),
             database.state_store_factory(),
-            database.claim_store_factory()
+            database.claim_store_factory(),
         )?;
 
         let dag_driver = DagModule::new(dag, claim.clone());
@@ -254,6 +256,7 @@ impl NodeRuntime {
         if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
             self.consensus_driver.assign_quorum_id(pks);
             self.events_tx.send(Event::QuorumFormed.into()).await?;
+            println!("quorum formed event sent to tx: {:?}", self.events_tx);
         }
 
         Ok(())
@@ -534,59 +537,47 @@ impl NodeRuntime {
     }
 
     pub fn validate_transaction_kind(
-        &mut self, 
+        &mut self,
         digest: TransactionDigest,
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
     ) -> Result<(TransactionKind, bool)> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
-        let validated_transaction_kind = self.consensus_driver
-            .validate_transaction_kind(
-                &digest, 
-                mempool_reader, 
-                state_reader
-        );
+        let validated_transaction_kind =
+            self.consensus_driver
+                .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
         match validated_transaction_kind {
-            Ok(transaction_kind) => {
-                return Ok((transaction_kind, true))
-            },
+            Ok(transaction_kind) => return Ok((transaction_kind, true)),
             Err(_) => {
                 let handle = self.mempool_read_handle_factory().handle();
                 let transaction_record = handle.get(&digest).clone();
                 match transaction_record {
-                    Some(record) => {
-                        return Ok((record.txn.clone(), false))
-                    },
-                    None => {
-                        return Err(
-                            NodeError::Other(
-                                format!("transaction record not found")
-                            )
-                        )
-                    }
+                    Some(record) => return Ok((record.txn.clone(), false)),
+                    None => return Err(NodeError::Other(format!("transaction record not found"))),
                 }
-            }
+            },
         }
     }
 
     pub fn cast_vote_on_transaction_kind(
         &mut self,
         transaction: TransactionKind,
-        validity: bool
+        validity: bool,
     ) -> Result<Vote> {
-        self.consensus_driver.cast_vote_on_transaction_kind(transaction, validity)
+        self.consensus_driver
+            .cast_vote_on_transaction_kind(transaction, validity)
     }
 
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
     #[deprecated]
     pub fn validate_mempool(
-        &mut self, 
-        n: usize, 
-        mempool_reader: MempoolReadHandleFactory, 
-        state_reader: StateStoreReadHandleFactory
+        &mut self,
+        n: usize,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
     ) -> std::result::Result<Vec<Vote>, anyhow::Error> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
@@ -599,9 +590,9 @@ impl NodeRuntime {
             .map(|txn_record| txn_record.txn.to_owned())
             .collect();
 
-        let validated_txns = self
-            .consensus_driver
-            .validate_transactions(entries, mempool_reader, state_reader);
+        let validated_txns =
+            self.consensus_driver
+                .validate_transactions(entries, mempool_reader, state_reader);
 
         let votes = self
             .consensus_driver

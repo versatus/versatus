@@ -1437,16 +1437,16 @@ mod tests {
         }
 
         let parts = parts
-            .into_iter()
+            .iter()
             .map(|(node_id, part)| {
                 let quorum_kind = nodes
-                    .get(&node_id)
+                    .get(node_id)
                     .unwrap()
                     .quorum_membership()
                     .unwrap()
                     .quorum_kind;
 
-                (node_id, (part, quorum_kind))
+                (node_id.clone(), (part.clone(), quorum_kind))
             })
             .collect::<HashMap<NodeId, (Part, QuorumKind)>>();
 
@@ -1477,6 +1477,7 @@ mod tests {
             node.handle_all_ack_messages().unwrap();
         }
 
+        dbg!(&nodes);
         for (_, node) in nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
         }
