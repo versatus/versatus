@@ -275,23 +275,46 @@ impl NodeRuntime {
         self.consensus_driver
             .handle_quorum_membership_assigment_created(assigned_membership)
     }
-    pub fn handle_convergence_block_precheck_requested<R: Resolver<Proposal = ProposalBlock>>(
+    pub async fn handle_convergence_block_precheck_requested<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
         last_confirmed_block_header: BlockHeader,
         resolver: R
-    ) {
+    ) -> Result<()> {
         match &self.consensus_driver.quorum_type {
             Some(QuorumType::Harvester) => {
-                self.consensus_driver
+                match self.consensus_driver
                     .precheck_convergence_block(
-                        block, 
+                        block.clone(), 
                         last_confirmed_block_header, 
                         resolver, 
                         self.dag_driver.dag()
-                    );
+                    ) {
+                        Ok((true, true)) => {
+                            self.events_tx.send(
+                                Event::SignConvergenceBlock(block.clone()).into()
+                            ).await.map_err(|err| NodeError::Other(err.to_string()))?;
+                            Ok(())
+                        }
+                        Err(err) => {
+                            return Err(NodeError::Other(err.to_string()))
+                        }
+                        _ => {
+                            return Err(
+                                NodeError::Other(
+                                    "convergence block is not valid".to_string()
+                                )
+                            )
+                        }
+
+                    }
             }
             _ => {
+                return Err(
+                    NodeError::Other(
+                        "local node is not  a member of the active harvester quorum".to_string()
+                    )
+                )
             }
         }
     }

@@ -215,9 +215,12 @@ impl Handler<EventMessage> for NodeRuntime {
                 block_header,
             } => {
                 let resolver = self.mining_driver.clone();
-                self.handle_convergence_block_precheck_requested(convergence_block, block_header, resolver);
+                self.handle_convergence_block_precheck_requested(
+                    convergence_block, 
+                    block_header, 
+                    resolver
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
             Event::TxnsReadyForProcessing(txns) => {
                 // Receives a batch of transactions from mempool and sends
                 // them to scheduler to get it validated and voted

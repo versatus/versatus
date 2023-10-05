@@ -409,7 +409,20 @@ impl ConsensusModule {
 
         valid_txns
     }
-
+    
+    fn precheck_get_proposal_block_claims(
+        &mut self,
+        proposals: Vec<ProposalBlock>,
+    ) -> LinkedHashMap<String, LinkedHashSet<U256>> {
+        proposals.iter().map(|block| {
+            let block_claims = block.claims
+                .keys()
+                .into_iter()
+                .map(|key| key.clone())
+                .collect();
+            (block.hash.clone(), block_claims)
+        }).collect()
+    }
 
     fn precheck_convergence_block_transactions<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
@@ -417,7 +430,7 @@ impl ConsensusModule {
         proposal_block_hashes: Vec<String>, 
         resolver: R,
         dag: Arc<RwLock<BullDag<Block, String>>>,
-    ) -> Result<bool> {
+    ) -> Result<(bool, bool)> {
         
         let proposals = self.precheck_convergence_block_get_proposal_blocks(
             block.hash.clone(),
@@ -427,111 +440,59 @@ impl ConsensusModule {
         
         let resolved = self.precheck_resolve_proposal_block_conflicts(
             block.clone(), 
-            proposals, 
+            proposals.clone(), 
             resolver, 
         );
+        
+        let proposal_claims = self.precheck_get_proposal_block_claims(proposals);
 
-        Ok(self.precheck_resolved_transactions_are_valid(block, resolved))
+        Ok((self.precheck_resolved_transactions_are_valid(block.clone(), resolved),
+            self.precheck_convergence_block_claims(block.claims.clone(), proposal_claims)
+        ))
+    }
+
+    fn precheck_convergence_block_claims(
+        &mut self,
+        convergence_claims: LinkedHashMap<String, LinkedHashSet<U256>>,
+        proposal_claims: LinkedHashMap<String, LinkedHashSet<U256>>,
+    ) -> bool {
+        let mut valid_claims = true;
+        let comp: Vec<bool> = proposal_claims.iter()
+            .filter_map(|(pblock_hash, claim_hash_set)| {
+                match convergence_claims.get(pblock_hash) {
+                    Some(set) => Some(set == claim_hash_set),
+                    None => None,
+                }
+            }).collect();
+
+        if comp.len() != convergence_claims.len() {
+            valid_claims = false;
+        }
+
+        if comp.iter().any(|&value| !value) {
+            valid_claims = false;
+        }
+
+        valid_claims
     }
 
     pub fn precheck_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
-        last_confirmed_block_header: BlockHeader,
+        // TODO: use last_confirmed_block_header for seed & round
+        // for conflict resolution
+        _last_confirmed_block_header: BlockHeader,
         resolver: R,
         dag: Arc<RwLock<BullDag<Block, String>>>
-    ) {
+    ) -> Result<(bool, bool)> {
 
         let proposal_block_hashes = block.header.ref_hashes.clone();
-
-        // TODO: move this process to its own function.
-        match self.precheck_convergence_block_transactions(
+        self.precheck_convergence_block_transactions(
             block, 
             proposal_block_hashes, 
             resolver, 
             dag
-        ) {
-            Ok(false) => { 
-                // return an error
-            },
-            Err(_) => {
-                // return an error
-            }
-            _ => {
-                // continue on.
-            }
-        }
-
-        //let claims = block.claims.clone();
-        //let txns = block.txns.clone();
-        //let proposal_block_hashes = block.header.ref_hashes.clone();
-        //let mut pre_check = true;
-        // let mut tmp_proposal_blocks = Vec::new();
-        //     if let Ok(dag) = self.dag.read() {
-        //         for proposal_block_hash in proposal_block_hashes.iter() {
-        //             if let Some(block) = dag.get_vertex(proposal_block_hash.clone()) {
-        //                 if let Block::Proposal { block } = block.get_data() {
-        //                     tmp_proposal_blocks.push(block.clone());
-        //                 }
-        //             }
-        //         }
-        //         for (ref_hash, claim_hashset) in claims.iter() {
-        //             match dag.get_vertex(ref_hash.clone()) {
-        //                 Some(block) => {
-        //                     if let Block::Proposal { block } = block.get_data() {
-        //                         for claim_hash in claim_hashset.iter() {
-        //                             if !block.claims.contains_key(claim_hash) {
-        //                                 pre_check = false;
-        //                                 break;
-        //                             }
-        //                         }
-        //                     }
-        //                 },
-        //                 None => {
-        //                     pre_check = false;
-        //                     break;
-        //                 },
-        //             }
-        //         }
-        //         if pre_check {
-        //             for (ref_hash, txn_digest_set) in txns.iter() {
-        //                 match dag.get_vertex(ref_hash.clone()) {
-        //                     Some(block) => {
-        //                         if let Block::Proposal { block } = block.get_data() {
-        //                             for txn_digest in txn_digest_set.iter() {
-        //                                 if !block.txns.contains_key(txn_digest) {
-        //                                     pre_check = false;
-        //                                     break;
-        //                                 }
-        //                             }
-        //                         }
-        //                     },
-        //                     None => {
-        //                         pre_check = false;
-        //                         break;
-        //                     },
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     if pre_check {
-        //         self.broadcast_events_tx
-        //             .send(EventMessage::new(
-        //                 None,
-        //                 Event::CheckConflictResolution((
-        //                     tmp_proposal_blocks,
-        //                     last_confirmed_block_header.round,
-        //                     last_confirmed_block_header.next_block_seed,
-        //                     block,
-        //                 )),
-        //             ))
-        //             .await
-        //             .map_err(|err| {
-        //                 theater::TheaterError::Other(format!(
-        //                     "failed to send conflict resolution check: {err}"
-        //                 ))
-        //             })?
-        //     }
+        ) 
     }
 
     pub fn handle_convergence_block_peer_signature_request(
