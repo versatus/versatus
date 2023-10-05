@@ -9,7 +9,7 @@ use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
     Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare,
+    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, 
 };
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
@@ -284,6 +284,7 @@ pub enum Event {
     BlockCertificateCreated(Certificate),
     QuorumMembersReceived(QuorumMembers),
     QuorumFormed,
+    HarvesterSignatureReceived(BlockHash, NodeId, RawSignature),
     BroadcastQuorumFormed(QuorumData),
     BroadcastTransactionVote(Vote),
 }

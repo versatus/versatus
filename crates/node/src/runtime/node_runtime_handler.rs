@@ -3,6 +3,7 @@ use block::Certificate;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
 use primitives::{NodeId, NodeType, ValidatorPublicKey};
+use signer::signer::Signer;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::{QuorumMember, QuorumMembershipConfig};
@@ -263,12 +264,19 @@ impl Handler<EventMessage> for NodeRuntime {
                     .handle_block_received(block)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
+                // TODO, refactor into a node_runtime method
+                self.handle_harvester_signature_received(
+                    block_hash, 
+                    node_id, 
+                    sig
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
             Event::BlockCertificateCreated(certificate) => {
                 self.handle_block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockConfirmed(certificate) => {
-
                 let certificate: Certificate = bincode::deserialize(&certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 

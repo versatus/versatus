@@ -12,7 +12,7 @@ use block::{
 use bulldag::graph::BullDag;
 use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use ethereum_types::U256;
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, AccountBytes};
+use events::{AssignedQuorumMembership, EventPublisher, PeerData, AccountBytes, Event};
 use hbbft::{
     crypto::PublicKeySet,
     sync_key_gen::{Ack, Part},
@@ -20,13 +20,14 @@ use hbbft::{
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{
-    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey,
+    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey, RawSignature,
 };
 use quorum::quorum::Quorum;
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
+use signer::signer::Signer;
 use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle};
-use theater::{ActorId, ActorState};
+use theater::{ActorId, ActorState, TheaterError};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
@@ -82,14 +83,14 @@ impl NodeRuntime {
     /// Certifies and stores a convergence block within a node's state if certification succeeds
     fn handle_convergence_block_received(
         &mut self,
-        block: ConvergenceBlock,
+        mut block: ConvergenceBlock,
     ) -> Result<ApplyBlockResult> {
         self.has_required_node_type(NodeType::Validator, "certify convergence block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
 
         self.state_driver
             .dag
-            .append_convergence(&block)
+            .append_convergence(&mut block)
             .map_err(|err| {
                 NodeError::Other(format!(
                     "Could not append convergence block to DAG: {err:?}"
@@ -107,6 +108,27 @@ impl NodeRuntime {
             .apply_block(Block::Convergence { block })?;
 
         Ok(apply_result)
+    }
+
+    pub async fn handle_harvester_signature_received(
+        &mut self, 
+        block_hash: String, 
+        node_id: NodeId, 
+        sig: RawSignature
+    ) -> Result<()> {
+        let set = self.dag_driver.add_signer_to_convergence_block(block_hash.clone(), sig, node_id)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let threshold = self.dag_driver.harvester_quorum_threshold().ok_or("threshold_not_reached")
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let sig = self.consensus_driver.sig_provider
+            .generate_quorum_signature(threshold as u16, set.into_iter().collect())
+            .map_err(|err| NodeError::Other(err.to_string()))?; 
+        let cert = self.dag_driver.form_convergence_certificate(block_hash, sig)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        self.events_tx.send(
+            Event::BlockCertificateCreated(cert).into()
+        ).await.map_err(|err| NodeError::Other(err.to_string()))
     }
 
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
@@ -149,9 +171,7 @@ impl NodeRuntime {
     }
 
     pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
-        self.dag_driver.append_certificate(certificate); 
-
-        Ok(())
+        todo!()
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {

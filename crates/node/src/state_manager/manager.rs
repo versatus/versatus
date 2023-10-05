@@ -301,8 +301,8 @@ impl StateManager {
                     return Err(NodeError::Other(err_note));
                 }
             },
-            Block::Convergence { block } => {
-                if let Err(e) = self.dag.append_convergence(&block) {
+            Block::Convergence { mut block } => {
+                if let Err(e) = self.dag.append_convergence(&mut block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }

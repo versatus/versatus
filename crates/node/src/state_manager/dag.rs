@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::{sync::{Arc, RwLock, RwLockReadGuard}, collections::HashSet};
 
 use block::{
     header::BlockHeader,
@@ -9,8 +9,9 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use hbbft::crypto::{PublicKeySet, Signature, SignatureShare, SIG_SIZE};
-use primitives::{SignatureType, QuorumType};
+use hbbft::crypto::{PublicKeySet, PublicKeyShare, Signature, SignatureShare, SIG_SIZE};
+use indexmap::IndexMap;
+use primitives::{SignatureType, QuorumType, RawSignature, HarvesterQuorumThreshold, NodeId};
 use signer::types::{SignerError, SignerResult};
 use theater::{ActorId, ActorState};
 use vrrb_core::claim::Claim;
@@ -47,8 +48,14 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 pub struct DagModule {
     dag: Arc<RwLock<BullDag<Block, String>>>,
     quorum_members: Option<QuorumMembers>,
+    harvester_quorum_threshold: Option<HarvesterQuorumThreshold>,
     last_confirmed_block_header: Option<BlockHeader>,
     last_confirmed_block: Option<Block>,
+    // String in next 2 fields represent the block hash
+    pending_convergence_blocks: IndexMap<String, ConvergenceBlock>,
+    pending_certificates: IndexMap<String, Certificate>,
+    partial_certificate_signatures: IndexMap<String, HashSet<(NodeId, RawSignature)>>,
+    // TODO: Why is the Claim here?
     claim: Claim,
 }
 
@@ -57,8 +64,12 @@ impl DagModule {
         Self {
             dag,
             quorum_members: None,
+            harvester_quorum_threshold: None,
             last_confirmed_block_header: None,
             last_confirmed_block: None,
+            pending_convergence_blocks: IndexMap::new(),
+            pending_certificates: IndexMap::new(),
+            partial_certificate_signatures: IndexMap::new(),
             claim,
         }
     }
@@ -79,6 +90,14 @@ impl DagModule {
 
     pub fn set_quorum_members(&mut self, quorum_members: QuorumMembers) {
         self.quorum_members = Some(quorum_members);
+    }
+
+    pub fn set_harvester_quorum_threshold(&mut self, quorum_threshold: HarvesterQuorumThreshold) {
+        self.harvester_quorum_threshold = Some(quorum_threshold);
+    }
+
+    pub fn harvester_quorum_threshold(&self) -> Option<HarvesterQuorumThreshold> {
+        self.harvester_quorum_threshold.clone()
     }
 
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
@@ -121,15 +140,19 @@ impl DagModule {
         Ok(())
     }
 
-    pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<()> {
+    pub fn append_convergence(&mut self, convergence: &mut ConvergenceBlock) -> GraphResult<()> {
         let valid = self.check_valid_convergence(convergence);
 
+
+
+        // TODO: Can we remove the commented out code below?
         // if !valid {
         //     return Err(GraphError::Other(format!(
         //         "invalid convergence block: {}",
         //         convergence.hash,
         //     )));
         // }
+
 
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
@@ -148,17 +171,11 @@ impl DagModule {
             self.last_confirmed_block = Some(Block::Convergence {
                 block: convergence.to_owned(),
             });
+        } else {
+            self.pending_convergence_blocks
+                .entry(convergence.hash.clone())
+                .or_insert(convergence.clone());
         }
-
-        Ok(())
-    }
-
-    pub fn append_certificate(&mut self, certificate: Certificate) -> Result<()> {
-        let signature = certificate.decode_signature()
-            .map_err(|err| NodeError::Other(err.to_string()))?;
-
-//        let valid = self.verify_threshold_sig(validation_data)
-//            .map_err(|err| NodeError::Other(err.to_string()))?;
 
         Ok(())
     }
@@ -235,11 +252,178 @@ impl DagModule {
         }
     }
 
-    fn check_valid_convergence(&self, block: &ConvergenceBlock) -> bool {
-        if let Ok(validation_data) = block.get_validation_data() {
-            matches!(self.verify_signature(validation_data), Ok(true))
+    //TODO: Refactor to return ConvergenceBlockStatus Enum as Pending
+    // or Confirmed variant
+    fn check_valid_convergence(&mut self, block: &mut ConvergenceBlock) -> bool {
+        if let Some(certificate) = &block.certificate {
+            match self.verify_certificate(certificate) {
+                Ok(true) => return true,
+                Ok(false) => return false,
+                Err(_) => return false
+            }
+        } 
+        false 
+    }
+
+    pub fn add_signer_to_convergence_block(
+        &mut self, 
+        block_hash: String, 
+        sig: RawSignature, 
+        node_id: NodeId,
+    ) -> Result<HashSet<(NodeId, RawSignature)>> {
+        match self.partial_certificate_signatures.entry(block_hash.clone()) {
+            indexmap::map::Entry::Occupied(mut entry) => {
+                entry.get_mut().insert((node_id, sig.clone()));
+            },
+            indexmap::map::Entry::Vacant(entry) => {
+                let mut set = HashSet::new();
+                set.insert((node_id, sig.clone()));
+                entry.insert(set);
+            }
+        }
+        self.check_threshold_reached(&block_hash) 
+    }
+
+    fn check_threshold_reached(&self, block_hash: &String) -> Result<HashSet<(NodeId, RawSignature)>> {
+        if let Some(set) = self.partial_certificate_signatures.get(block_hash) {
+            if let Some(threshold) = &self.harvester_quorum_threshold {
+                if &set.len() >= threshold {
+                    return Ok(set.clone())
+                }
+            }
+        }
+
+        Err(NodeError::Other(format!("threshold not reached")))
+    }
+
+    pub fn form_convergence_certificate(&self, block_hash: String, sig: RawSignature) -> Result<Certificate> {
+//        let block_hash = block.hash.clone();
+//        if let Some(sigs) = self.partial_certificate_signatures.get(&block_hash) {
+//            if let Some(threshold) = &self.harvester_quorum_threshold {
+//                if &sigs.len() >= threshold {
+//                    return Ok(())
+//                }
+//            }
+//        }
+
+//        Ok(())
+        todo!()
+    }
+
+    fn check_invalid_partial_sig(&self, block_hash: String) -> SignerResult<NodeId> {
+        todo!()
+    }
+
+    fn verify_certificate(&self, certificate: &Certificate) -> SignerResult<bool> {
+        todo!();
+    }
+
+    fn verify_certificate_signature(
+        &self, 
+        signature: RawSignature, 
+        sig_type: SignatureType,
+        node_idx: Option<u16>,
+        payload_hash: Vec<u8>,
+    ) -> SignerResult<(bool, SignatureType)> {
+        if signature.len() != SIG_SIZE {
+            return Err(SignerError::CorruptSignatureShare(
+                    "invalid signature, size must be 96 bytes".to_string(),
+            ));
+        }
+
+        match sig_type {
+            SignatureType::PartialSignature => {
+                self.verify_certificate_partial_sig(
+                    signature, 
+                    node_idx,
+                    payload_hash
+                )
+            },
+            SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
+                self.verify_certificate_threshold_sig(
+                    signature,
+                    payload_hash
+                )
+            }
+        }
+    }
+
+    fn verify_certificate_partial_sig(
+        &self, 
+        sig: RawSignature, 
+        node_idx: Option<u16>,
+        payload_hash: Vec<u8>
+    ) -> SignerResult<(bool, SignatureType)> {
+        let public_keyshare = self.get_harvester_public_keyshare(node_idx)?;
+        self.verify_partial_sig_with_public_keyshare(
+            sig, 
+            public_keyshare, 
+            payload_hash
+        )
+    }
+
+    fn verify_certificate_threshold_sig(
+        &self, 
+        sig: RawSignature,
+        payload_hash: Vec<u8>,
+    ) -> SignerResult<(bool, SignatureType)> {
+        let public_keyset = self.get_harvester_public_keyset()?;
+        self.verify_threshold_sig_with_public_keyset(sig, public_keyset, payload_hash)
+    }
+
+    fn verify_threshold_sig_with_public_keyset(
+        &self,
+        sig: RawSignature,
+        public_keyset: PublicKeySet,
+        payload_hash: Vec<u8>,
+    ) -> SignerResult<(bool, SignatureType)> {
+        if let Ok(signature_arr) = sig.clone().try_into() {
+            let signature_arr: [u8; 96] = signature_arr;
+            match Signature::from_bytes(signature_arr) {
+                Ok(signature) => {
+                    Ok((
+                    public_keyset.public_key().verify(&signature, payload_hash),
+                    SignatureType::ThresholdSignature
+                ))
+                },
+                Err(e) => Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing threshold signature details: {:?}",
+                    e
+                ))),
+            }
         } else {
-            false
+            Err(SignerError::PartialSignatureError(
+                "Error parsing signature into array".to_string(),
+            ))
+        }
+    }
+
+    fn verify_partial_sig_with_public_keyshare(
+        &self, 
+        sig: RawSignature,
+        public_keyshare: PublicKeyShare, 
+        payload_hash: Vec<u8>
+    ) -> SignerResult<(bool, SignatureType)> {
+        if let Ok(signature_arr) = sig.clone().try_into() {
+            let signature_arr: [u8; 96] = signature_arr;
+
+            match SignatureShare::from_bytes(signature_arr) {
+                Ok(sig_share) => {
+                    return Ok((
+                        public_keyshare.verify(&sig_share, payload_hash), 
+                        SignatureType::PartialSignature
+                    ))
+                },
+                Err(e) => {
+                    return Err(SignerError::SignatureVerificationError(format!(
+                    "Error parsing partial signature details : {:?}",
+                    e
+                )))},
+            }
+        } else {
+            return Err(SignerError::PartialSignatureError(
+                "Error parsing signature into array".to_string(),
+            ));
         }
     }
 
@@ -326,5 +510,46 @@ impl DagModule {
                 "Error parsing signature into array".to_string(),
             ))
         }
+    }
+
+    fn get_harvester_public_keyshare(&self, node_idx: Option<u16>) -> SignerResult<PublicKeyShare> {
+        let public_key_share = {
+            if let Some(quorum_members) = self.quorum_members.clone() {
+                if let Some(public_key_set) = quorum_members.values().find(|quorum_data| {
+                    quorum_data.quorum_type == QuorumType::Harvester
+                }).map(|quorum_data| quorum_data.quorum_pubkey.clone()) {
+                    if let Some(idx) = node_idx {
+                        public_key_set.public_key_share(idx as usize)
+                    } else {
+                        return Err(SignerError::GroupPublicKeyMissing);
+                    }
+                } else {
+                    return Err(SignerError::GroupPublicKeyMissing);
+                }
+            } else {
+                return Err(SignerError::GroupPublicKeyMissing);
+            }
+        };
+
+        Ok(public_key_share)
+    }
+
+    fn get_harvester_public_keyset(&self) -> SignerResult<PublicKeySet> {
+        let public_keyset = {
+            if let Some(quorum_members) = self.quorum_members.clone() {
+                if let Some(public_key_set) = quorum_members.values().find(|quorum_data| {
+                    quorum_data.quorum_type == QuorumType::Harvester
+                }).map(|quorum_data| quorum_data.quorum_pubkey.clone()) {
+                    public_key_set
+                } else {
+                    return Err(SignerError::GroupPublicKeyMissing);
+                }
+            } else {
+                return Err(SignerError::GroupPublicKeyMissing);
+            }
+        };
+
+        Ok(public_keyset)
+
     }
 }
