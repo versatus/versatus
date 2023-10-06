@@ -17,3 +17,6 @@ tokio = { workspace = true }
 vrrb_core = { workspace = true }
 vrrb_config = { workspace = true }
 uuid = { workspace = true }
+block = { workspace = true }
+secp256k1 = { workspace = true }
+sha2 = { workspace = true }

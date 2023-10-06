@@ -16,7 +16,10 @@ use primitives::{
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use signer::signer::{SignatureProvider, Signer};
+use signer::{
+    engine::SignerEngine,
+    signer::{SignatureProvider, Signer},
+};
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use telemetry::error;
 use validator::validator_core_manager::ValidatorCoreManager;
@@ -79,13 +82,14 @@ pub struct ConsensusModule {
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule,
     // pub(crate) dkg_engine: DkgEngine,
+    pub(crate) sig_engine: SignerEngine,
     pub(crate) node_config: NodeConfig,
 
     // pub(crate) group_public_key: GroupPublicKey,
-    pub(crate) sig_provider: SignatureProvider,
+    // pub(crate) sig_provider: SignatureProvider,
     pub(crate) convergence_block_certificates:
         Cache<BlockHash, HashSet<(NodeId, PublicKeyShare, RawSignature)>>,
-    pub(crate) current_quorums: HashMap<QuorumId, QuorumData>,
+
     pub(crate) quorum_membership: Option<QuorumId>,
     pub(crate) quorum_type: Option<QuorumType>,
     // NOTE: harvester types
@@ -123,7 +127,10 @@ impl ConsensusModule {
 
         // let mut sig_provider = SignatureProvider::from(&cfg.dkg_generator.clone().dkg_state);
         // sig_provider.set_threshold_config(cfg.node_config.threshold_config.clone());
-        let sig_provider = todo!();
+        let sig_engine = SignerEngine::new(
+            cfg.keypair.get_miner_public_key().clone(),
+            cfg.keypair.get_miner_secret_key().clone(),
+        );
 
         Ok(Self {
             quorum_certified_txns: vec![],
@@ -131,10 +138,11 @@ impl ConsensusModule {
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
             // dkg_engine: cfg.dkg_generator.clone(),
+            sig_engine,
             node_config: cfg.node_config.clone(),
-            sig_provider,
+            // sig_provider,
             convergence_block_certificates: Cache::new(10, 300),
-            current_quorums: HashMap::new(),
+
             quorum_membership: None,
             quorum_type: None,
             validator_core_manager,
