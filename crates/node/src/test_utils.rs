@@ -723,6 +723,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 
         nodes.push(miner_node);
     }
+    dbg!(&nodes.len());
 
     nodes
 }

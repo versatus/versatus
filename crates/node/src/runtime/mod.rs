@@ -370,9 +370,53 @@ mod tests {
         let node_runtimes = create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
         println!("created node runtimes");
 
-        let (_bootstrap_node, mut farmers, _validators, _miners) =
+        let (_bootstrap_node, mut farmers, mut validators, _miners) =
             setup_peer_network_and_assign_quorum_type_from_node_runtimes(node_runtimes).await;
         println!("assigned quorum types");
+        let mut node_1 = validators.pop().unwrap();
+        let mut node_2 = validators.pop().unwrap();
+
+        let node_1_peer_data = PeerData {
+            node_id: node_1.config.id.clone(),
+            node_type: node_1.config.node_type,
+            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node_1.config.udp_gossip_address,
+            raptorq_gossip_addr: node_1.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node_1.config.kademlia_liveness_address,
+            validator_public_key: node_1.config.keypair.validator_public_key_owned(),
+        };
+
+        let node_2_peer_data = PeerData {
+            node_id: node_2.config.id.clone(),
+            node_type: node_2.config.node_type,
+            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node_2.config.udp_gossip_address,
+            raptorq_gossip_addr: node_2.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node_2.config.kademlia_liveness_address,
+            validator_public_key: node_2.config.keypair.validator_public_key_owned(),
+        };
+
+        let assigned_membership_1 = AssignedQuorumMembership {
+            quorum_kind: QuorumKind::Farmer,
+            node_id: node_1.id.clone(),
+            kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
+            peers: vec![node_2_peer_data],
+        };
+
+        node_1
+            .handle_quorum_membership_assigment_created(assigned_membership_1)
+            .unwrap();
+
+        let assigned_membership_2 = AssignedQuorumMembership {
+            quorum_kind: QuorumKind::Farmer,
+            node_id: node_2.id.clone(),
+            kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
+            peers: vec![node_1_peer_data],
+        };
+
+        node_2
+            .handle_quorum_membership_assigment_created(assigned_membership_2)
+            .unwrap();
 
         for (_, node_runtime) in farmers.iter() {
             for (_, node_runtime_other) in farmers.iter() {
@@ -1506,23 +1550,23 @@ mod tests {
         for (_, node) in nodes.iter_mut() {
             node.handle_all_ack_messages().unwrap();
         }
-        for (_, node) in nodes.iter() {
-            dbg!(node
-                .consensus_driver
-                .dkg_engine
-                .dkg_state
-                .sync_key_gen()
-                .as_ref()
-                .unwrap());
-            dbg!(node
-                .consensus_driver
-                .dkg_engine
-                .dkg_state
-                .sync_key_gen()
-                .as_ref()
-                .unwrap()
-                .is_ready());
-        }
+        // for (_, node) in nodes.iter() {
+        //     dbg!(node
+        //         .consensus_driver
+        //         .dkg_engine
+        //         .dkg_state
+        //         .sync_key_gen()
+        //         .as_ref()
+        //         .unwrap());
+        //     dbg!(node
+        //         .consensus_driver
+        //         .dkg_engine
+        //         .dkg_state
+        //         .sync_key_gen()
+        //         .as_ref()
+        //         .unwrap()
+        //         .is_ready());
+        // }
 
         for (_, node) in nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
@@ -1727,6 +1771,7 @@ mod tests {
             .into_iter()
             .filter(|(_, node)| node.config.node_type == NodeType::Validator)
             .collect::<HashMap<NodeId, NodeRuntime>>();
+        dbg!(&validator_nodes.len());
 
         for (_node_id, node) in validator_nodes.iter_mut() {
             if let Some(assigned_membership) = quorum_assignments.get(&node.config.id) {

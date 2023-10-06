@@ -280,7 +280,7 @@ impl ConsensusModule {
             NodeError::Other(err_msg)
         })?;
 
-        let threshold = dbg!(quorum_membership_config.quorum_members().len()) / 2;
+        let threshold = quorum_membership_config.quorum_members().len() / 2;
 
         // NOTE: add this node's own validator key to participate in DKG, otherwise they're considered
         // an observer and no part message is generated
