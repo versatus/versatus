@@ -57,49 +57,49 @@ impl Handler<EventMessage> for NodeRuntime {
                 let assignments =
                     self.handle_quorum_membership_assigment_created(assigned_membership.clone());
 
-                let (part, node_id) =
-                    self.generate_partial_commitment_message().map_err(|err| {
-                        telemetry::error!("{}", err);
-                        TheaterError::Other(err.to_string())
-                    })?;
+//                let (part, node_id) =
+//                    self.generate_partial_commitment_message().map_err(|err| {
+//                        telemetry::error!("{}", err);
+//                        TheaterError::Other(err.to_string())
+//                    })?;
 
-                let event = Event::PartCommitmentCreated(node_id, part);
+//                let event = Event::PartCommitmentCreated(node_id, part);
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+//                let em = EventMessage::new(Some("network-events".into()), event);
 
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+//                self.events_tx
+//                    .send(em)
+//                    .await
+//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
-            Event::PartCommitmentCreated(node_id, part) => {
-                let (receiver_id, sender_id, ack) = self
-                    .handle_part_commitment_created(node_id.clone(), part)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+//            Event::PartCommitmentCreated(node_id, part) => {
+//                let (receiver_id, sender_id, ack) = self
+//                    .handle_part_commitment_created(node_id.clone(), part)
+//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+// 
+//                let event = Event::PartCommitmentAcknowledged {
+//                    node_id,
+//                    sender_id: self.config.id.clone(),
+//                    ack,
+//                };
+//
+//                let em = EventMessage::new(Some("network-events".into()), event);
+//
+//                self.events_tx
+//                    .send(em)
+//                    .await
+//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+//            },
 
-                let event = Event::PartCommitmentAcknowledged {
-                    node_id,
-                    sender_id: self.config.id.clone(),
-                    ack,
-                };
-
-                let em = EventMessage::new(Some("network-events".into()), event);
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
-
-            Event::PartCommitmentAcknowledged {
-                node_id,
-                sender_id,
-                ack,
-            } => {
-                self.consensus_driver
-                    .handle_part_commitment_acknowledged(node_id, sender_id, ack)?;
-            },
+//            Event::PartCommitmentAcknowledged {
+//                node_id,
+//                sender_id,
+//                ack,
+//            } => {
+//                self.consensus_driver
+//                    .handle_part_commitment_acknowledged(node_id, sender_id, ack)?;
+//            },
 
             Event::QuorumElectionStarted(header) => {
                 self.handle_quorum_election_started(header)
@@ -231,12 +231,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     Event::ConvergenceBlockPartialSignComplete(partial_sig).into()
                 ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::TxnsReadyForProcessing(txns) => {
-                // Receives a batch of transactions from mempool and sends
-                // them to scheduler to get it validated and voted
-                self.consensus_driver.handle_txns_ready_for_processing(txns);
-            },
-
             Event::NewTxnCreated(txn) => {
                 let txn_hash = self
                     .state_driver
@@ -275,7 +269,7 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::BlockReceived(mut block) => {
                 let next_event = self.state_driver
-                    .handle_block_received(&mut block)
+                    .handle_block_received(&mut block, self.consensus_driver.sig_engine.clone())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx.send(next_event.into()).await
@@ -301,59 +295,10 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             }
             Event::QuorumFormed => {
-                self.handle_quorum_formed()
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+//                self.handle_quorum_formed()
+//                    .await
+//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::QuorumMembersReceived(quorum_members) => self
-                .state_driver
-                .handle_quorum_members_received(quorum_members),
-            // Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {
-            //     if self.miner.check_claim(winner_claim.hash) {
-            //         let mining_result = self.miner.try_mine();
-            //
-            //         if let Ok(block) = mining_result {
-            //             let _ = self
-            //                 .events_tx
-            //                 .send(Event::MinedBlock(block.clone()).into())
-            //                 .await
-            //                 .map_err(|err| {
-            //                     theater::TheaterError::Other(format!(
-            //                         "failed to send mined block to event bus: {err}"
-            //                     ))
-            //                 });
-            //         }
-            //     };
-            // },
-            // Event::CheckConflictResolution((proposal_blocks, round, seed, convergence_block)) =>
-            // {     let tmp_proposal_blocks = proposal_blocks.clone();
-            //     let resolved_proposals_set = self
-            //         .miner
-            //         .resolve(&tmp_proposal_blocks, round, seed)
-            //         .iter()
-            //         .cloned()
-            //         .collect::<HashSet<ProposalBlock>>();
-            //
-            //     let proposal_blocks_set = proposal_blocks
-            //         .iter()
-            //         .cloned()
-            //         .collect::<HashSet<ProposalBlock>>();
-            //
-            //     if proposal_blocks_set == resolved_proposals_set {
-            //         if let Err(err) = self
-            //             .events_tx
-            //             .send(EventMessage::new(
-            //                 None,
-            //                 Event::SignConvergenceBlock(convergence_block),
-            //             ))
-            //             .await
-            //         {
-            //             theater::TheaterError::Other(format!(
-            //                 "failed to send EventMessage for Event::SignConvergenceBlock: {err}"
-            //             ));
-            //         };
-            //     }
-            // },
             Event::TxnAddedToMempool(txn_hash) => {
                 let mempool_reader = self.mempool_read_handle_factory().clone();
                 let state_reader = self.state_store_read_handle_factory().clone();

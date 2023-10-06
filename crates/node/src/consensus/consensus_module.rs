@@ -1,26 +1,27 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
-
+use std::sync::{Arc, RwLock};
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData, ProposalBlock,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 // use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use bulldag::graph::BullDag;
-use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
+//use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
     crypto::{PublicKeySet, PublicKeyShare, SecretKeyShare},
     sync_key_gen::Part,
 };
+use indexmap::IndexMap;
 use mempool::{TxnStatus, MempoolReadHandleFactory};
 use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
 use primitives::{
     ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes, PKShareBytes,
-    PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature, ValidatorPublicKey,
+    PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature, ValidatorPublicKey, Signature, PublicKey,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use signer::{
-    engine::SignerEngine,
+    engine::{SignerEngine, QuorumData, QuorumMembers},
     signer::{SignatureProvider, Signer},
 };
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
@@ -84,27 +85,11 @@ pub struct ConsensusModule {
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule,
-    // pub(crate) dkg_engine: DkgEngine,
     pub(crate) sig_engine: SignerEngine,
     pub(crate) node_config: NodeConfig,
-    // pub(crate) group_public_key: GroupPublicKey,
-    // pub(crate) sig_provider: SignatureProvider,
-    pub(crate) convergence_block_certificates:
-        Cache<BlockHash, HashSet<(NodeId, PublicKeyShare, RawSignature)>>,
-
     pub(crate) quorum_membership: Option<QuorumId>,
     pub(crate) quorum_type: Option<QuorumType>,
-    // NOTE: harvester types
-    // pub certified_txns_filter: Bloom,
-    // pub votes_pool: DashMap<(TransactionDigest, String), Vec<Vote>>,
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
-    pub group_public_key: GroupPublicKey,
-    // pub sig_provider: Option<SignatureProvider>,
-    // pub(crate) vrrbdb_read_handle: VrrbDbReadHandle,
-    //     Cache<BlockHash, HashSet<(NodeIdx, PublicKeyShare, RawSignature)>>,
-    // pub harvester_id: NodeIdx,
-    // pub dag: Arc<RwLock<BullDag<Block, String>>>,
-    // sync_jobs_sender: Sender<Job>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
 }
 
@@ -114,6 +99,7 @@ impl ConsensusModule {
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
         claim_reader: ClaimStoreReadHandleFactory,
+        cores: usize
     ) -> Result<Self> {
         let quorum_module_config = QuorumModuleConfig {
             membership_config: None,
@@ -123,12 +109,10 @@ impl ConsensusModule {
         let validator_public_key = cfg.keypair.validator_public_key_owned();
 
         let validator_core_manager =
-            ValidatorCoreManager::new(10, mempool_reader, state_reader, claim_reader).map_err(
+            ValidatorCoreManager::new(cores, mempool_reader, state_reader, claim_reader).map_err(
                 |err| NodeError::Other(format!("failed to generate validator core manager: {err}")),
             )?;
 
-        // let mut sig_provider = SignatureProvider::from(&cfg.dkg_generator.clone().dkg_state);
-        // sig_provider.set_threshold_config(cfg.node_config.threshold_config.clone());
         let sig_engine = SignerEngine::new(
             cfg.keypair.get_miner_public_key().clone(),
             cfg.keypair.get_miner_secret_key().clone(),
@@ -139,17 +123,12 @@ impl ConsensusModule {
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
-            // dkg_engine: cfg.dkg_generator.clone(),
             sig_engine,
             node_config: cfg.node_config.clone(),
-            // sig_provider,
-            convergence_block_certificates: Cache::new(10, 300),
-
             quorum_membership: None,
             quorum_type: None,
             validator_core_manager,
             votes_pool: Default::default(),
-            group_public_key: Default::default(),
         })
     }
 
@@ -163,47 +142,24 @@ impl ConsensusModule {
         last_block_header: BlockHeader,
         prev_txn_root_hash: String,
         next_txn_root_hash: String,
-        // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
+        certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let block = block.clone();
         let block_hash = block.hash();
         let quorum_threshold = self.node_config.threshold_config.threshold;
 
-        let certificates_share = self
-            .convergence_block_certificates
-            .get(&block_hash)
-            .ok_or_else(|| {
-                NodeError::Other(format!(
-                    "No certificate shares found for block {}",
-                    block_hash
-                ))
-            })?;
-
-        if certificates_share.len() as u16 <= quorum_threshold {
+        if certs.len() as u16 <= quorum_threshold {
             return Err(NodeError::Other(
                 "Not enough partial signatures to create a certificate".to_string(),
             ));
         }
-
-        let mut sig_shares = BTreeMap::new();
-        certificates_share
-            .iter()
-            .for_each(|(node_id, _, signature)| {
-                sig_shares.insert(node_id.clone(), signature.clone());
-            });
-
-        let signature = self
-            .sig_provider
-            .generate_quorum_signature(quorum_threshold as u16, sig_shares)
-            .map_err(|err| {
-                NodeError::Other(format!(
-                    "Failed to generate block certificate for block {block_hash}: {err}",
-                ))
-            })?;
+       
+        self.sig_engine.verify_batch(&certs, &block.hash())
+            .map_err(|err| NodeError::Other(err.to_string()))?;
 
         //TODO: If Quorums are pending inauguration include inauguration info
         let certificate = Certificate {
-            signature,
+            signatures: certs.clone(),
             inauguration: None,
             root_hash: prev_txn_root_hash,
             next_root_hash: next_txn_root_hash,
@@ -213,7 +169,7 @@ impl ConsensusModule {
         Ok(certificate)
     }
 
-    pub fn certify_genesis_block(&mut self, block: GenesisBlock) -> Result<Certificate> {
+    pub fn certify_genesis_block(&mut self, block: GenesisBlock, certs: Vec<(NodeId, Signature)>) -> Result<Certificate> {
         let txn_trie_hash = block.header.txn_hash.clone();
         let last_block_header = block.header.clone();
 
@@ -222,6 +178,7 @@ impl ConsensusModule {
             last_block_header,
             txn_trie_hash.clone(),
             txn_trie_hash,
+            certs
         )
     }
 
@@ -231,7 +188,8 @@ impl ConsensusModule {
         last_block_header: BlockHeader,
         next_txn_root_hash: String,
         resolver: R,
-        dag: Arc<RwLock<BullDag<Block, String>>>
+        dag: Arc<RwLock<BullDag<Block, String>>>,
+        certs: Vec<(NodeId, Signature)>
         // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
     ) -> Result<Certificate> {
         let prev_txn_root_hash = last_block_header.txn_hash.clone();
@@ -247,34 +205,30 @@ impl ConsensusModule {
             last_block_header,
             prev_txn_root_hash,
             next_txn_root_hash,
+            certs
         )
     }
 
     async fn sign_convergence_block(
-        &self,
+        &mut self,
         block: ConvergenceBlock,
-    ) -> Result<(String, PublicKeyShare, ByteVec)> {
-        let sig_provider = self.sig_provider.clone();
+    ) -> Result<(String, PublicKey, Signature)> {
         let block_hash_bytes = hex::decode(block.hash.clone())
-            .map_err(|err| NodeError::Other(format!("missing a secret key share: {err}")))?;
+            .map_err(|err| NodeError::Other(format!("unable to decode block hash: {err}")))?;
 
-        let signature = sig_provider
-            .generate_partial_signature(block_hash_bytes)
+        let signature = self.sig_engine.sign(block_hash_bytes)
             .map_err(|err| {
                 NodeError::Other(format!("failed to generate partial signature: {err}"))
             })?;
 
-        let secret_share = sig_provider
-            .secret_key_share()
-            .ok_or(NodeError::Other("failed to read secret key share".into()))?;
-
         Ok((
             block.hash.clone(),
-            secret_share.public_key_share(),
+            self.sig_engine.public_key(),
             signature.clone(),
         ))
     }
-
+    
+    #[deprecated]
     pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
         if self.node_config.node_type == NodeType::Bootstrap {
             return Err(NodeError::Other(
@@ -414,13 +368,12 @@ impl ConsensusModule {
         )))
     }
 
-    fn form_vote(&self, transaction: TransactionKind, valid: bool) -> Option<Vote> {
+    fn form_vote(&mut self, transaction: TransactionKind, valid: bool) -> Option<Vote> {
         let receiver_farmer_id = self.node_config.id.clone();
         let farmer_node_id = self.node_config.id.clone();
 
-        let sig_provider = &self.sig_provider;
         let txn_bytes = bincode::serialize(&transaction.clone()).ok()?;
-        let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
+        let signature = self.sig_engine.sign(txn_bytes).ok()?;
 
         Some(Vote {
             farmer_id: receiver_farmer_id.clone().into(),
@@ -437,6 +390,7 @@ impl ConsensusModule {
         &mut self,
         validated_txns: HashSet<(TransactionKind, validator::txn_validator::Result<()>)>,
     ) -> Result<Vec<Vote>> {
+        todo!()
         // NOTE: comments originally by vsawant, check with them to figure out what they meant
         //
         // TODO  Add Delegation logic + Handling Double Spend by checking whether
@@ -448,10 +402,10 @@ impl ConsensusModule {
         // Delegation Principle need to be done
         //
 
-        let receiver_farmer_id = self.node_config.id.clone();
-        let farmer_node_id = self.node_config.id.clone();
+//        let receiver_farmer_id = self.node_config.id.clone();
+//        let farmer_node_id = self.node_config.id.clone();
 
-        let sig_provider = &self.sig_provider;
+//        let sig_provider = &self.sig_provider;
 
         // let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
         // let quorum_public_key = self
@@ -460,28 +414,28 @@ impl ConsensusModule {
         //     .to_bytes()
         //     .to_vec();
 
-        let votes = validated_txns
-            .par_iter()
-            .filter_map(|(txn, validation_result)| {
-                let farmer_node_id = farmer_node_id.clone();
-                let new_txn = txn.clone();
+//        let votes = validated_txns
+//            .par_iter()
+//            .filter_map(|(txn, validation_result)| {
+//                let farmer_node_id = farmer_node_id.clone();
+//                let new_txn = txn.clone();
 
-                let txn_bytes = bincode::serialize(&new_txn).ok()?;
+//                let txn_bytes = bincode::serialize(&new_txn).ok()?;
 
-                let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
+//                let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
 
-                Some(Vote {
-                    farmer_id: receiver_farmer_id.clone().into(),
-                    farmer_node_id,
-                    signature,
-                    txn: new_txn,
-                    execution_result: None,
-                    is_txn_valid: validation_result.is_err(),
-                })
-            })
-            .collect::<Vec<Vote>>();
+//                Some(Vote {
+//                    farmer_id: receiver_farmer_id.clone().into(),
+//                    farmer_node_id,
+//                    signature,
+//                    txn: new_txn,
+//                    execution_result: None,
+//                    is_txn_valid: validation_result.is_err(),
+//                })
+//            })
+//            .collect::<Vec<Vote>>();
 
-        Ok(votes)
+//        Ok(votes)
     }
 
     fn validate_single_transaction(
@@ -518,8 +472,9 @@ impl ConsensusModule {
     }
 
     fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumType)> {
-        for (quorum_id, quorum_data) in self.current_quorums.iter() {
-            if quorum_data.members.contains(node_id) {
+        let quorum_members = self.sig_engine.quorum_members();
+        for (quorum_id, quorum_data) in quorum_members.0.iter() {
+            if quorum_data.members.contains_key(node_id) {
                 return Some((quorum_id.clone(), quorum_data.quorum_type.clone()));
             }
         }
@@ -638,8 +593,8 @@ impl ConsensusModule {
     //     Ok(())
     // }
 
-    fn group_votes_by_validity(votes: &[Vote]) -> HashMap<bool, BTreeMap<NodeId, Vec<u8>>> {
-        let mut vote_shares: HashMap<bool, BTreeMap<NodeId, Vec<u8>>> = HashMap::new();
+    fn group_votes_by_validity(votes: &[Vote]) -> HashMap<bool, BTreeMap<NodeId, Signature>> {
+        let mut vote_shares: HashMap<bool, BTreeMap<NodeId, Signature>> = HashMap::new();
 
         for v in votes.iter() {
             vote_shares

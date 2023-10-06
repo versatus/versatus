@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use block::BlockHash;
 use primitives::{
     ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeIdx,
-    NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare,
+    NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare, Signature,
 };
 use serde::{Deserialize, Serialize};
 use vrrb_config::QuorumMember;
@@ -53,7 +53,7 @@ pub struct Vote {
     pub farmer_id: NodeId,
     pub farmer_node_id: NodeId,
     /// Partial Signature
-    pub signature: RawSignature,
+    pub signature: Signature,
     pub txn: TransactionKind,
     pub is_txn_valid: bool,
     // May want to serialize this as a vector of bytes

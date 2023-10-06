@@ -1,13 +1,49 @@
-// secpt
-use block::QuorumData;
-use primitives::{NodeId, PublicKey, QuorumId, SecretKey, Signature};
+use primitives::{NodeId, PublicKey, QuorumId, SecretKey, Signature, QuorumType};
 use secp256k1::Message;
 use sha2::Digest;
-
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::hash::Hasher;
+use std::cmp::Ord;
 
-#[derive(Debug, Clone)]
+pub const VALIDATION_THRESHOLD: f64 = 0.6;
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[repr(C)]
+pub struct QuorumData {
+    pub id: QuorumId,
+    pub quorum_type: QuorumType,
+    pub members: HashMap<NodeId, PublicKey>,
+}
+
+impl std::hash::Hash for QuorumData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.quorum_type.hash(state);
+        let members: Vec<(NodeId, PublicKey)> = self.members.clone().into_iter().collect();
+        members.hash(state);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
 pub struct QuorumMembers(pub HashMap<QuorumId, QuorumData>);
+impl std::hash::Hash for QuorumMembers {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Get a mutable reference to the inner HashMap
+        let map = &self.0;
+
+        // Collect the entries into a Vec and sort them by key
+        let mut entries: Vec<_> = map.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+
+        // Hash each entry in order
+        for (key, value) in entries {
+            key.hash(state);
+            value.hash(state);
+        }
+    }
+}
+
 impl QuorumMembers {
     pub fn get_public_key_from_members(&self, k: &NodeId) -> Option<PublicKey> {
         for (_, quorum_data) in self.0.iter() {
@@ -16,6 +52,24 @@ impl QuorumMembers {
             }
         }
         None
+    }
+
+    pub fn get_harvester_data(&self) -> Option<QuorumData> {
+        for (_, quorum_data) in self.0.iter() {
+            match &quorum_data.quorum_type {
+                QuorumType::Harvester => return Some(quorum_data.clone()),
+                _ => {}
+            }
+        }
+        return None
+    }
+
+    pub fn get_harvester_threshold(&self) -> usize {
+        if let Some(data) = self.get_harvester_data() {
+            return (data.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize 
+        }
+
+        0usize
     }
 }
 
@@ -87,5 +141,13 @@ impl SignerEngine {
             return Err(Error);
         }
         Ok(())
+    }
+
+    pub fn quorum_members(&self) -> QuorumMembers {
+        self.quorum_members.clone()
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.local_node_public_key.clone()
     }
 }

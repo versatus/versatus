@@ -94,6 +94,10 @@ mod tests {
         let (mut miner, dag) = create_miner_return_dag();
         let keypair = Keypair::random();
         let other_miner = create_miner_from_keypair(&keypair);
+        let mut engine = signer::engine::SignerEngine::new(
+            keypair.get_miner_public_key().clone(),
+            keypair.get_miner_secret_key().clone(),
+        );
 
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
@@ -109,7 +113,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                keypair.get_miner_secret_key(),
+                engine.clone()
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),
@@ -141,6 +145,16 @@ mod tests {
         let m2kp = Keypair::random();
         let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
         let mut other_miner = create_miner_from_keypair_and_dag(&m2kp, dag.clone());
+        let mut engine1 = signer::engine::SignerEngine::new(
+            m1kp.get_miner_public_key().clone(),
+            m1kp.get_miner_secret_key().clone(),
+        );
+        let mut engine2 = signer::engine::SignerEngine::new(
+            m2kp.get_miner_public_key().clone(),
+            m2kp.get_miner_secret_key().clone(),
+        );
+
+
 
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
@@ -157,7 +171,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                m1kp.get_miner_secret_key(),
+                engine1
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -166,7 +180,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                m2kp.get_miner_secret_key(),
+                engine2
             );
 
             let pblock1 = Block::Proposal {

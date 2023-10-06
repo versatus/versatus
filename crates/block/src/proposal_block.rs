@@ -1,15 +1,11 @@
-use hbbft::crypto::SIG_SIZE;
 use hex::FromHexError;
-use primitives::Epoch;
+use primitives::{Epoch, Signature, NodeId};
 use ritelinked::LinkedHashSet;
 use serde::{Deserialize, Serialize};
 use utils::hash_data;
-use vrrb_core::transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest};
-use vrrb_core::{
-    claim::Claim,
-    keypair::{Keypair, MinerSk},
-};
-
+use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
+use vrrb_core::claim::Claim;
+use signer::engine::SignerEngine;
 use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
@@ -22,7 +18,7 @@ pub struct ProposalBlock {
     pub claims: ClaimList,
     pub from: Claim,
     pub hash: BlockHash,
-    pub signature: String,
+    pub signature: Option<Signature>,
 }
 
 impl ProposalBlock {
@@ -62,7 +58,7 @@ impl ProposalBlock {
         txns: QuorumCertifiedTxnList,
         claims: ClaimList,
         from: Claim,
-        secret_key: &MinerSk,
+        mut sig_engine: SignerEngine,
     ) -> ProposalBlock {
         let hashable_txns: Vec<(String, QuorumCertifiedTxn)> = {
             txns.iter()
@@ -71,11 +67,11 @@ impl ProposalBlock {
         };
         let payload = hash_data!(round, epoch, hashable_txns, claims, from);
         let signature = if let Ok(signature) =
-            Keypair::ecdsa_sign(&payload, secret_key.secret_bytes().to_vec())
+            sig_engine.sign(&payload)
         {
-            signature
+            Some(signature)
         } else {
-            String::from("Invalid")
+            None
         };
 
         let hash = hex::encode(hash_data!(
@@ -103,19 +99,21 @@ impl ProposalBlock {
         self.round == round
     }
 
+    #[deprecated]
     pub fn decode_signature_share(&self) -> Result<[u8; 96], FromHexError> {
-        let byte_vec = hex::decode(&self.signature)?;
+//        let byte_vec = hex::decode(&self.signature)?;
 
-        if byte_vec.len() != SIG_SIZE {
-            return Err(FromHexError::InvalidStringLength);
-        }
+//        if byte_vec.len() != SIG_SIZE {
+//            return Err(FromHexError::InvalidStringLength);
+//        }
 
-        let mut byte_array: [u8; 96] = [0u8; 96];
-        (0..SIG_SIZE).for_each(|i| {
-            byte_array[i] = byte_vec[i];
-        });
+//        let mut byte_array: [u8; 96] = [0u8; 96];
+//        (0..SIG_SIZE).for_each(|i| {
+//            byte_array[i] = byte_vec[i];
+//        });
 
-        Ok(byte_array)
+//        Ok(byte_array)
+        Ok([0u8; 96])
     }
 
     /// This function returns a vector of tuples containing the digest string

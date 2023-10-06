@@ -4,6 +4,7 @@ use hbbft::crypto::PublicKeySet;
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use crate::Signature;
 
 use crate::NodeIdx;
 
@@ -71,7 +72,7 @@ pub enum QuorumType {
 
 #[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
 pub struct ConvergencePartialSig {
-    pub sig: RawSignature,
+    pub sig: Signature,
     pub block_hash: String,
     //TODO: add node_idx for checking sig along the way
     //pub node_idx: NodeIdx 
@@ -108,8 +109,9 @@ impl Display for QuorumKind {
 }
 
 /// A hashed [PublicKeySet].
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct QuorumId(String);
+
 impl QuorumId {
     pub fn new(s: PublicKeySet) -> Self {
         let mut hasher = Sha256::new();

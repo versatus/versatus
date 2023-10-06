@@ -8,10 +8,10 @@ use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex, RwLock}};
 
 use block::{header::BlockHeader, BlockHash, ConvergenceBlock, Block, ProposalBlock, InnerBlock};
 use bulldag::graph::BullDag;
-use dkg_engine::{
-    dkg::DkgGenerator,
-    prelude::{ReceiverId, SenderId},
-};
+//use dkg_engine::{
+//    dkg::DkgGenerator,
+//    prelude::{ReceiverId, SenderId},
+//};
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, PeerData, Vote};
 use hbbft::{
@@ -22,7 +22,7 @@ use maglev::Maglev;
 use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
 use primitives::{
     FarmerQuorumThreshold, NodeId, NodeType, ProgramExecutionOutput, PublicKeyShareVec,
-    RawSignature, TxnValidationStatus, ValidatorPublicKeyShare,
+    RawSignature, TxnValidationStatus, ValidatorPublicKeyShare, Signature,
 };
 use quorum::quorum::Quorum;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -280,7 +280,7 @@ impl ConsensusModule {
         &mut self,
         block_hash: BlockHash,
         public_key_share: ValidatorPublicKeyShare,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     ) {
         //         if let Some(certificates_share) =
         //             self.convergence_block_certificates.get(&block_hash)
@@ -503,7 +503,7 @@ impl ConsensusModule {
         node_id: NodeId,
         block_hash: BlockHash,
         public_key_share: PublicKeyShareVec,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     ) {
         //     let mut pb_key_share = None;
         //     let preliminary_check = TryInto::<[u8; 48]>::try_into(public_key_share_bytes)

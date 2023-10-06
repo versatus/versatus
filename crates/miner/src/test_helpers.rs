@@ -252,7 +252,7 @@ pub fn build_single_proposal_block(
     round: u128,
     epoch: u128,
     from: Claim,
-    sk: &MinerSk,
+    mut sk: signer::engine::SignerEngine,
 ) -> ProposalBlock {
     let txns = create_txns(n_txns).collect();
     let claims = create_claims(n_claims).collect();
@@ -268,6 +268,7 @@ pub fn build_multiple_proposal_blocks_single_round(
     n_claims: usize,
     round: u128,
     epoch: u128,
+    mut sk: signer::engine::SignerEngine
 ) -> Vec<ProposalBlock> {
     (0..n_blocks)
         .map(|_| {
@@ -296,7 +297,7 @@ pub fn build_multiple_proposal_blocks_single_round(
                 round,
                 epoch,
                 claim,
-                keypair.get_miner_secret_key(),
+                sk.clone(),
             );
             prop
         })
@@ -352,6 +353,7 @@ pub fn build_multiple_rounds(
     n_rounds: usize,
     round: &mut usize,
     epoch: usize,
+    mut sk: signer::engine::SignerEngine
 ) {
     if n_rounds > *round {
         if dag_has_genesis(dag.clone()) {
@@ -364,14 +366,15 @@ pub fn build_multiple_rounds(
                     n_claims,
                     *round as u128,
                     epoch as u128,
+                    sk.clone()
                 );
 
                 append_proposal_blocks_to_dag(&mut dag.clone(), proposals);
-                build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
+                build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch, sk.clone());
             };
         } else if add_genesis_to_dag(&mut dag.clone()).is_some() {
             *round += 1usize;
-            build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
+            build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch, sk.clone());
         }
     }
 }
@@ -388,6 +391,8 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
     let mut prop_vertices = Vec::new();
     let genesis = mine_genesis();
     let keypair = Keypair::random();
+    let mut signer = signer::engine::SignerEngine::new(
+        keypair.get_miner_public_key().clone(), keypair.get_miner_secret_key().clone());
     let miner = create_miner_from_keypair(&keypair);
 
     if let Some(genesis) = genesis {
@@ -402,7 +407,7 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
             LinkedHashMap::new(),
             LinkedHashMap::new(),
             miner.claim,
-            keypair.get_miner_secret_key(),
+            signer
         );
         let pblock = Block::Proposal { block: prop1 };
         let pvtx: Vertex<Block, String> = pblock.into();
@@ -507,6 +512,9 @@ pub fn build_single_proposal_block_from_txns(
 ) -> ProposalBlock {
     let kp = Keypair::random();
     let miner = create_miner_from_keypair(&kp);
+    let mut engine = signer::engine::SignerEngine::new(
+        kp.get_miner_public_key().clone(), kp.get_miner_secret_key().clone()
+    );
     let mut prop = build_single_proposal_block(
         last_block_hash,
         5,
@@ -514,7 +522,7 @@ pub fn build_single_proposal_block_from_txns(
         round,
         epoch,
         miner.claim,
-        kp.get_miner_secret_key(),
+        engine
     );
 
     prop.txns.extend(txns);

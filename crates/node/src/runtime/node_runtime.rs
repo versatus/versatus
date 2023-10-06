@@ -3,6 +3,7 @@ use block::{
     GenesisBlock, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
+use signer::engine::SignerEngine;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -13,7 +14,7 @@ use crate::{
     result::{NodeError, Result},
     state_manager::{DagModule, StateManager, StateManagerConfig},
 };
-use events::{Event, EventPublisher, Vote};
+use events::{EventPublisher, Vote};
 use hbbft::sync_key_gen::Part;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
@@ -121,12 +122,14 @@ impl NodeRuntime {
             ConsensusModuleConfig {
                 keypair: config.keypair.clone(),
                 node_config: config.clone(),
-                dkg_generator,
+                //dkg_generator,
                 validator_public_key: config.keypair.validator_public_key_owned(),
             },
             state_driver.mempool_read_handle_factory(),
             database.state_store_factory(),
             database.claim_store_factory(),
+            // TODO: Replace with a configurable number
+            10
         )?;
 
         let dag_driver = DagModule::new(dag, claim.clone());
@@ -228,20 +231,23 @@ impl NodeRuntime {
     //     self.consensus_driver
     //         .add_peer_public_key_to_dkg_state(node_id, public_key);
     // }
-
+    
+    #[deprecated]
     pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
-        let (part, node_id) = self
-            .consensus_driver
-            .generate_partial_commitment_message()?;
-
-        Ok((part, node_id))
+//        let (part, node_id) = self
+//            .consensus_driver
+//            .generate_partial_commitment_message()?;
+//
+//        Ok((part, node_id))
+        todo!()
     }
-
+    
+    #[deprecated]
     pub async fn generate_keysets(&mut self) -> Result<()> {
-        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
-            self.consensus_driver.assign_quorum_id(pks);
-            self.events_tx.send(Event::QuorumFormed.into()).await?;
-        }
+//        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
+//            self.consensus_driver.assign_quorum_id(pks);
+//            self.events_tx.send(Event::QuorumFormed.into()).await?;
+//        }
 
         Ok(())
     }
@@ -349,8 +355,8 @@ impl NodeRuntime {
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
         self.has_required_node_type(NodeType::Validator, "certify blocks")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify blocks")?;
-
-        let certificate = self.consensus_driver.certify_genesis_block(genesis)?;
+        let certs = self.dag_driver.check_threshold_reached(&genesis.hash)?;
+        let certificate = self.consensus_driver.certify_genesis_block(genesis, certs.into_iter().collect())?;
 
         Ok(certificate)
     }
@@ -362,6 +368,7 @@ impl NodeRuntime {
         round: Round,
         epoch: Epoch,
         from: Claim,
+        mut sig_engine: SignerEngine,
     ) -> Result<ProposalBlock> {
         self.has_required_node_type(NodeType::Validator, "create proposal block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "create proposal block")?;
@@ -400,7 +407,7 @@ impl NodeRuntime {
             txns_list,
             claim_list,
             from,
-            self.config.keypair.get_miner_secret_key(),
+            sig_engine,
         ))
     }
 
@@ -427,6 +434,7 @@ impl NodeRuntime {
                 )))?;
 
         let next_txn_trie_hash = self.state_driver.transactions_root_hash()?;
+        let certs = self.dag_driver.check_threshold_reached(&block.hash)?;
 
         self.consensus_driver.certify_convergence_block(
             block,
@@ -434,6 +442,7 @@ impl NodeRuntime {
             next_txn_trie_hash.clone(),
             self.mining_driver.clone(),
             self.dag_driver.dag().clone(),
+            certs.into_iter().collect()
         );
 
         Ok(())

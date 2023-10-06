@@ -290,33 +290,6 @@ impl Miner {
         self.build()
     }
 
-    /// This method has been deprecated and will be removed soon
-    #[deprecated(note = "Building proposal blocks will be done in Harvester")]
-    pub fn mine_proposal_block(
-        &self,
-        ref_block: RefHash,
-        round: u128,
-        epoch: Epoch,
-        txns: QuorumCertifiedTxnList,
-        claims: ClaimList,
-        from: Claim,
-    ) -> ProposalBlock {
-        let payload = create_payload!(round, epoch, txns, claims, from);
-        let signature = self.secret_key.sign_ecdsa(payload).to_string();
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
-
-        ProposalBlock {
-            ref_block,
-            round,
-            epoch,
-            txns,
-            claims,
-            hash: format!("{hash:x}"),
-            from,
-            signature,
-        }
-    }
-
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
         let seed = 0;
