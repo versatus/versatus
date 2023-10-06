@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
@@ -6,11 +5,13 @@ use ethereum_types::U256;
 use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
-    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, ConvergencePartialSig, Signature, 
+    Address, ConvergencePartialSig, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx,
+    ProgramExecutionOutput, PublicKeyShareVec, Round, Seed, Signature, TxnValidationStatus,
+    ValidatorPublicKeyShare,
 };
-use signer::engine::{QuorumData, QuorumMembers};
 use serde::{Deserialize, Serialize};
+use signer::engine::{QuorumData, QuorumMembers};
+use std::net::SocketAddr;
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
@@ -286,8 +287,9 @@ pub enum Event {
     QuorumFormed,
     HarvesterSignatureReceived(BlockHash, NodeId, Signature),
     BroadcastQuorumFormed(QuorumData),
+    BroadcastCertificate(Certificate),
     BroadcastTransactionVote(Vote),
-    BlockAppended(String)
+    BlockAppended(String),
 }
 
 impl From<&theater::Message> for Event {

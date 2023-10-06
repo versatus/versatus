@@ -86,7 +86,7 @@ impl NodeRuntime {
         block_hash: String,
         node_id: NodeId,
         sig: Signature,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> Result<()> {
         self.consensus_driver
             .sig_engine
@@ -121,10 +121,11 @@ impl NodeRuntime {
         &mut self,
         block_hash: String,
         sigs: Vec<(NodeId, Signature)>,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> Result<Certificate> {
         // TODO: figure out how to get next_root_hash back into cert
         // this should probably be part of the signature process
+        self.consensus_driver.is_harvester()?;
         sig_engine
             .verify_batch(&sigs, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
@@ -134,13 +135,30 @@ impl NodeRuntime {
         {
             let root_hash = block.header.txn_hash.clone();
             let block_hash = block.hash.clone();
-            Ok(Certificate {
+            let inauguration = if let Some(quorum) = &self.quorum_pending {
+                Some(quorum.clone())
+            } else {
+                None
+            };
+            let cert = Certificate {
                 signatures: sigs,
                 //TODO: handle inauguration blocks
-                inauguration: None,
+                inauguration: inauguration.clone(),
                 root_hash,
                 block_hash: block_hash.clone(),
-            })
+            };
+            if let Some(quorum_members) = inauguration {
+                self.consensus_driver.sig_engine.set_quorum_members(
+                    quorum_members
+                        .0
+                        .into_iter()
+                        .map(|(_, data)| {
+                            (data.quorum_type, data.members.clone().into_iter().collect())
+                        })
+                        .collect(),
+                )
+            }
+            Ok(cert)
         } else {
             Err(NodeError::Other(format!(
                 "unable to find convergence block: {} in pending convergence blocks in dag",
@@ -156,8 +174,7 @@ impl NodeRuntime {
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
-        // self.consensus_driver.sig_engine.quorum_members()
-        Ok(())
+        todo!();
     }
 
     // recieve cert from network

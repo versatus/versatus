@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::node_runtime::NodeRuntime;
 use async_trait::async_trait;
 use block::Certificate;
@@ -5,7 +7,7 @@ use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
 use primitives::{
     ConvergencePartialSig, NodeId, NodeType, PublicKey, QuorumId, QuorumType, ValidatorPublicKey,
 };
-use signer::signer::Signer;
+use signer::{engine::QuorumData, engine::QuorumMembers as InaugaratedMembers, signer::Signer};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
@@ -76,9 +78,19 @@ impl Handler<EventMessage> for NodeRuntime {
                         .collect()
                 };
 
-                self.consensus_driver
-                    .sig_engine
-                    .set_quorum_members(quorum_assignment.clone());
+                let mut inaug_members = InaugaratedMembers(HashMap::new());
+
+                quorum_assignment.iter().for_each(|quorum| {
+                    let quorum_id = QuorumId::new(quorum.0.clone(), quorum.1.clone());
+                    let quorum_data = QuorumData {
+                        id: quorum_id.clone(),
+                        quorum_type: quorum.0.clone(),
+                        members: quorum.1.clone().into_iter().collect(),
+                    };
+                    inaug_members.0.insert(quorum_id, quorum_data);
+                });
+                self.quorum_pending = Some(inaug_members);
+
                 let local_id = self.config.id.clone();
                 for (qt, members) in quorum_assignment.iter() {
                     if members

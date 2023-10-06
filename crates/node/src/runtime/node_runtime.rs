@@ -1,25 +1,24 @@
-use block::{
-    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
-};
-use bulldag::graph::BullDag;
-use signer::engine::SignerEngine;
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
 use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
     result::{NodeError, Result},
     state_manager::{DagModule, StateManager, StateManagerConfig},
 };
+use block::{
+    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
+    GenesisBlock, ProposalBlock, RefHash,
+};
+use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
-use hbbft::sync_key_gen::Part;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
+use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
@@ -49,6 +48,7 @@ pub struct NodeRuntime {
     pub consensus_driver: ConsensusModule,
     pub mining_driver: Miner,
     pub claim: Claim,
+    pub quorum_pending: Option<InaugaratedMembers>,
 }
 
 impl NodeRuntime {
@@ -117,7 +117,7 @@ impl NodeRuntime {
             database.state_store_factory(),
             database.claim_store_factory(),
             // TODO: Replace with a configurable number
-            10
+            10,
         )?;
 
         let dag_driver = DagModule::new(dag, claim.clone());
@@ -132,6 +132,7 @@ impl NodeRuntime {
             consensus_driver,
             mining_driver: miner,
             claim,
+            quorum_pending: None,
         })
     }
 
@@ -315,7 +316,9 @@ impl NodeRuntime {
         self.has_required_node_type(NodeType::Validator, "certify blocks")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify blocks")?;
         let certs = self.dag_driver.check_threshold_reached(&genesis.hash)?;
-        let certificate = self.consensus_driver.certify_genesis_block(genesis, certs.into_iter().collect())?;
+        let certificate = self
+            .consensus_driver
+            .certify_genesis_block(genesis, certs.into_iter().collect())?;
 
         Ok(certificate)
     }
@@ -360,13 +363,7 @@ impl NodeRuntime {
             .collect();
 
         Ok(ProposalBlock::build(
-            ref_hash,
-            round,
-            epoch,
-            txns_list,
-            claim_list,
-            from,
-            sig_engine,
+            ref_hash, round, epoch, txns_list, claim_list, from, sig_engine,
         ))
     }
 
@@ -401,7 +398,7 @@ impl NodeRuntime {
             next_txn_trie_hash.clone(),
             self.mining_driver.clone(),
             self.dag_driver.dag().clone(),
-            certs.into_iter().collect()
+            certs.into_iter().collect(),
         );
 
         Ok(())

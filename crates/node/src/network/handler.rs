@@ -74,21 +74,22 @@ impl Handler<EventMessage> for NetworkModule {
             },
             Event::ConvergenceBlockPartialSignComplete(sig) => {
                 info!("Broadcasting partial signature of convergence block to network");
-                self.broadcast_convergence_block_partial_signature(sig).await?;
+                self.broadcast_convergence_block_partial_signature(sig)
+                    .await?;
             },
             Event::Stop => {
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
             },
-            Event::BroadcastQuorumFormed(quorum_data) => {
-                info!("Broadcasting quorum information to network");
-                self.broadcast_quorum_membership(quorum_data).await?;
+            Event::BroadcastCertificate(cert) => {
+                info!("Broadcasting certificate to network");
+                self.broadcast_certificate(cert).await?;
             },
             Event::BroadcastTransactionVote(vote) => {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
-            }
+            },
             _ => {},
         }
 

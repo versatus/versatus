@@ -1,16 +1,16 @@
 use std::net::SocketAddr;
 
-use block::ConvergenceBlock;
+use block::{Certificate, ConvergenceBlock};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::{PublicKey, PublicKeySet},
     sync_key_gen::{Ack, Part},
 };
 use mempool::TxnRecord;
-use primitives::{KademliaPeerId, NodeId, NodeType, PeerId, ConvergencePartialSig};
+use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId};
 use serde::{Deserialize, Serialize};
-use vrrb_core::claim::Claim;
 use signer::engine::QuorumData;
+use vrrb_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 /// Represents data trasmitted over the VRRB network by nodes that participate
@@ -62,7 +62,7 @@ pub enum NetworkEvent {
 
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
-    BroadcastQuorumFormed(QuorumData),
+    BroadcastCertificate(Certificate),
     BroadcastTransactionVote(Vote),
     Ping(NodeId),
 

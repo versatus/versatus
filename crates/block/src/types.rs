@@ -7,20 +7,15 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use hbbft::crypto::PublicKeySet;
-use hex::FromHexError;
-use primitives::{NodeId, QuorumType, RawSignature, PublicKey, Signature};
+use primitives::{NodeId, Signature};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
+use signer::engine::QuorumMembers;
 use tokio::task::JoinHandle;
 use vrrb_core::claim::Claim;
-use vrrb_core::transactions::{
-    QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind,
-};
-use signer::engine::QuorumData;
-
+use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -41,10 +36,8 @@ pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
 pub type BlockHash = String;
 pub type QuorumId = String;
 pub type QuorumPubkey = String;
-pub type QuorumMembers = LinkedHashMap<QuorumId, QuorumData>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
 pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
-
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
@@ -92,9 +85,9 @@ impl Hash for Conflict {
 }
 
 impl Certificate {
-//    pub fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
-//        let signature = hex::decode(self.signatures.clone())?;
-//
-//        Ok(signature)
-//    }
+    //    pub fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
+    //        let signature = hex::decode(self.signatures.clone())?;
+    //
+    //        Ok(signature)
+    //    }
 }
