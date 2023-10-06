@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 // use dkg_engine::dkg::DkgGenerator;
 use crate::node_runtime::NodeRuntime;
-use events::{Event, EventMessage};
+use block::Certificate;
+use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
+use primitives::{NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig};
+use signer::signer::Signer;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
@@ -207,9 +210,27 @@ impl Handler<EventMessage> for NodeRuntime {
                 convergence_block,
                 block_header,
             } => {
-                self.handle_convergence_block_precheck_requested(convergence_block, block_header);
+                let resolver = self.mining_driver.clone();
+                self.handle_convergence_block_precheck_requested(
+                    convergence_block, 
+                    block_header, 
+                    resolver
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            Event::SignConvergenceBlock(block) => {
+                let sig = self.handle_sign_convergence_block(
+                    block.clone()
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
 
+                let partial_sig = ConvergencePartialSig {
+                    sig,
+                    block_hash: block.hash,
+                };
+
+                self.events_tx.send(
+                    Event::ConvergenceBlockPartialSignComplete(partial_sig).into()
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
             Event::TxnsReadyForProcessing(txns) => {
                 // Receives a batch of transactions from mempool and sends
                 // them to scheduler to get it validated and voted
@@ -252,15 +273,33 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
             },
-            Event::BlockReceived(block) => {
-                self.state_driver
-                    .handle_block_received(block)
+            Event::BlockReceived(mut block) => {
+                let next_event = self.state_driver
+                    .handle_block_received(&mut block)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.events_tx.send(next_event.into()).await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+            Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
+                // TODO, refactor into a node_runtime method
+                self.handle_harvester_signature_received(
+                    block_hash, 
+                    node_id, 
+                    sig
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockCertificateCreated(certificate) => {
                 self.handle_block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            Event::BlockConfirmed(certificate) => {
+                let certificate: Certificate = bincode::deserialize(&certificate)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.handle_block_certificate(certificate).await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            }
             Event::QuorumFormed => {
                 self.handle_quorum_formed()
                     .await

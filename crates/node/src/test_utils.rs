@@ -14,7 +14,7 @@ use events::EventPublisher;
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round, ValidatorSecretKey,
+    Round, ValidatorSecretKey, Signature,
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
@@ -158,7 +158,7 @@ fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<Tra
                 if (validator.clone() != receiver)
                     && (validator.clone() != (address.clone(), account.clone()))
                 {
-                    let pk = validator.clone().0.public_key().to_string();
+                    let pk = validator.clone().0.to_string();
                     validators.push((pk, true));
                 }
             });
@@ -442,9 +442,9 @@ pub fn create_txn_from_accounts_invalid_timestamp(
 // }
 
 /// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(claim_signature: String) -> block::Certificate {
+pub(crate) fn create_blank_certificate(threshold_signature: RawSignature) -> block::Certificate {
     block::Certificate {
-        signature: claim_signature,
+        signature: threshold_signature,
         inauguration: None,
         root_hash: "".to_string(),
         next_root_hash: "".to_string(),

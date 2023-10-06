@@ -1,15 +1,18 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData, ProposalBlock,
 };
 // use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
+use bulldag::graph::BullDag;
+use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
     crypto::{PublicKeySet, PublicKeyShare, SecretKeyShare},
     sync_key_gen::Part,
 };
-use mempool::{MempoolReadHandleFactory, TxnStatus};
+use mempool::{TxnStatus, MempoolReadHandleFactory};
+use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
 use primitives::{
     ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes, PKShareBytes,
     PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature, ValidatorPublicKey,
@@ -84,7 +87,6 @@ pub struct ConsensusModule {
     // pub(crate) dkg_engine: DkgEngine,
     pub(crate) sig_engine: SignerEngine,
     pub(crate) node_config: NodeConfig,
-
     // pub(crate) group_public_key: GroupPublicKey,
     // pub(crate) sig_provider: SignatureProvider,
     pub(crate) convergence_block_certificates:
@@ -199,8 +201,9 @@ impl ConsensusModule {
                 ))
             })?;
 
+        //TODO: If Quorums are pending inauguration include inauguration info
         let certificate = Certificate {
-            signature: hex::encode(signature),
+            signature,
             inauguration: None,
             root_hash: prev_txn_root_hash,
             next_root_hash: next_txn_root_hash,
@@ -222,16 +225,23 @@ impl ConsensusModule {
         )
     }
 
-    pub fn certify_convergence_block(
+    pub fn certify_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
         last_block_header: BlockHeader,
         next_txn_root_hash: String,
+        resolver: R,
+        dag: Arc<RwLock<BullDag<Block, String>>>
         // certificates_share: &HashSet<(NodeIdx, ValidatorPublicKeyShare, RawSignature)>,
     ) -> Result<Certificate> {
         let prev_txn_root_hash = last_block_header.txn_hash.clone();
 
-        self.precheck_convergence_block(block.clone(), last_block_header.clone());
+        self.precheck_convergence_block(
+            block.clone(), 
+            last_block_header.clone(),
+            resolver,
+            dag.clone()
+        );
         self.certify_block(
             block.into(),
             last_block_header,

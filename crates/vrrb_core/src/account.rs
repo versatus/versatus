@@ -20,7 +20,7 @@ pub enum AccountField {
     Credits(u128),
     Debits(u128),
     Storage(Option<String>),
-    Code(Option<String>),
+    PackageAddress(Option<String>),
     Digests(AccountDigests),
 }
 
@@ -129,7 +129,7 @@ pub struct UpdateArgs {
     pub credits: Option<u128>,
     pub debits: Option<u128>,
     pub storage: Option<Option<String>>,
-    pub code: Option<Option<String>>,
+    pub package_address: Option<Option<String>>,
     pub digests: Option<AccountDigests>,
 }
 
@@ -155,7 +155,7 @@ impl Hash for UpdateArgs {
         self.credits.hash(state);
         self.debits.hash(state);
         self.storage.hash(state);
-        self.code.hash(state);
+        self.package_address.hash(state);
 
         if let Some(ref digests) = self.digests {
             digests.len().hash(state); // Hash the number of digests
@@ -184,7 +184,7 @@ pub struct Account {
     credits: u128,
     debits: u128,
     storage: Option<String>,
-    code: Option<String>,
+    package_address: Option<String>,
     pubkey: SerializedPublicKey,
     digests: AccountDigests,
     created_at: i64,
@@ -198,7 +198,7 @@ impl Account {
         let credits = 0u128;
         let debits = 0u128;
         let storage = None;
-        let code = None;
+        let package_address = None;
         let digests = AccountDigests::default();
 
         let mut hasher = Sha256::new();
@@ -219,7 +219,7 @@ impl Account {
             credits,
             debits,
             storage,
-            code,
+            package_address,
             pubkey,
             digests,
             created_at: Utc::now().timestamp(),
@@ -238,8 +238,8 @@ impl Account {
             hasher.update(storage.as_bytes());
         }
 
-        if let Some(code) = &self.code {
-            hasher.update(code.as_bytes());
+        if let Some(package_address) = &self.package_address {
+            hasher.update(package_address.as_bytes());
         }
         self.hash = format!("{:x}", hasher.finalize());
     }
@@ -290,8 +290,8 @@ impl Account {
             },
 
             // Should the code be impossible to delete?
-            AccountField::Code(code) => {
-                self.code = code;
+            AccountField::PackageAddress(package_address) => {
+                self.package_address = package_address;
             },
 
             // Maybe we want to change `digests` to digest and only
@@ -345,8 +345,8 @@ impl Account {
             self.update_single_field_no_hash(AccountField::Debits(debits_update))?;
         }
 
-        if let Some(code_update) = args.code {
-            self.update_single_field_no_hash(AccountField::Code(code_update))?;
+        if let Some(code_update) = args.package_address {
+            self.update_single_field_no_hash(AccountField::PackageAddress(code_update))?;
         }
         if let Some(storage_update) = args.storage {
             self.update_single_field_no_hash(AccountField::Storage(storage_update))?;
@@ -397,8 +397,8 @@ impl Account {
     pub fn storage(&self) -> &Option<String> {
         &self.storage
     }
-    pub fn code(&self) -> &Option<String> {
-        &self.code
+    pub fn package_address(&self) -> &Option<String> {
+        &self.package_address
     }
     pub fn pubkey(&self) -> &SerializedPublicKey {
         &self.pubkey

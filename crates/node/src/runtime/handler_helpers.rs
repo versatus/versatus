@@ -1,6 +1,26 @@
+use std::{
+    collections::HashMap,
+    fmt::format,
+    hash::Hash,
+    sync::{Arc, RwLock},
+};
+use sha2::{Sha256, Digest};
 use block::{
-    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
-    QuorumData, RefHash,
+    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
+    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, QuorumData, RefHash, InnerBlock,
+};
+use bulldag::graph::BullDag;
+use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
+use ethereum_types::U256;
+use events::{AssignedQuorumMembership, EventPublisher, PeerData, AccountBytes, Event};
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
+use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
+use miner::{Miner, MinerConfig, conflict_resolver::Resolver};
+use primitives::{
+    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey, RawSignature, QuorumType,
 };
 use std::collections::HashMap;
 // use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
@@ -8,8 +28,21 @@ use events::{AccountBytes, AssignedQuorumMembership, PeerData};
 use hbbft::sync_key_gen::{Ack, Part};
 use primitives::{Address, Epoch, NodeId, NodeType, QuorumKind, Round};
 use quorum::quorum::Quorum;
-use storage::vrrbdb::ApplyBlockResult;
-use vrrb_core::claim::Claim;
+use ritelinked::LinkedHashMap;
+use secp256k1::Message;
+use signer::signer::Signer;
+use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle};
+use theater::{ActorId, ActorState, TheaterError};
+use tokio::task::JoinHandle;
+use utils::payload::digest_data_to_bytes;
+use vrrb_config::{NodeConfig, QuorumMembershipConfig};
+use vrrb_core::{
+    account::{Account, UpdateArgs},
+    claim::Claim,
+    transactions::{
+        NewTransferArgs, Token, Transaction, TransactionDigest, TransactionKind, Transfer,
+    },
+};
 
 use crate::{
     node_runtime::NodeRuntime,
@@ -52,14 +85,14 @@ impl NodeRuntime {
     /// Certifies and stores a convergence block within a node's state if certification succeeds
     fn handle_convergence_block_received(
         &mut self,
-        block: ConvergenceBlock,
+        mut block: ConvergenceBlock,
     ) -> Result<ApplyBlockResult> {
         self.has_required_node_type(NodeType::Validator, "certify convergence block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
 
         self.state_driver
             .dag
-            .append_convergence(&block)
+            .append_convergence(&mut block)
             .map_err(|err| {
                 NodeError::Other(format!(
                     "Could not append convergence block to DAG: {err:?}"
@@ -77,6 +110,27 @@ impl NodeRuntime {
             .apply_block(Block::Convergence { block })?;
 
         Ok(apply_result)
+    }
+
+    pub async fn handle_harvester_signature_received(
+        &mut self, 
+        block_hash: String, 
+        node_id: NodeId, 
+        sig: RawSignature
+    ) -> Result<()> {
+        let set = self.dag_driver.add_signer_to_convergence_block(block_hash.clone(), sig, node_id)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let threshold = self.dag_driver.harvester_quorum_threshold().ok_or("threshold_not_reached")
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let sig = self.consensus_driver.sig_provider
+            .generate_quorum_signature(threshold as u16, set.into_iter().collect())
+            .map_err(|err| NodeError::Other(err.to_string()))?; 
+        let cert = self.dag_driver.form_convergence_certificate(block_hash, sig)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        self.events_tx.send(
+            Event::BlockCertificateCreated(cert).into()
+        ).await.map_err(|err| NodeError::Other(err.to_string()))
     }
 
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
@@ -135,28 +189,9 @@ impl NodeRuntime {
     //         .dkg_state
     //         .public_key_set()
     //         .clone();
-
-    //     if let (Some(id), Some(quorum_pubkey), Some(quorum_type)) =
-    //         (id.clone(), quorum_pubkey.clone(), quorum_type.clone())
-    //     {
-    //         let quorum_data = QuorumData {
-    //             id: id.get_inner(),
-    //             quorum_type,
-    //             members,
-    //             quorum_pubkey,
-    //         };
-    //         self.events_tx
-    //             .send(events::Event::BroadcastQuorumFormed(quorum_data).into())
-    //             .await?;
-
-    //         Ok(())
-    //     } else {
-    //         Err(NodeError::Other(
-    //             "consensus driver missing one of quorum id, quorum public key, or quorum type"
-    //                 .into(),
-    //         ))
-    //     }
-    // }
+    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
+        todo!()
+    }
 
     pub async fn handle_node_added_to_peer_list(
         &mut self,
@@ -220,13 +255,64 @@ impl NodeRuntime {
         self.consensus_driver
             .handle_quorum_membership_assigment_created(assigned_membership)
     }
-    pub fn handle_convergence_block_precheck_requested(
+    pub async fn handle_convergence_block_precheck_requested<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
         last_confirmed_block_header: BlockHeader,
-    ) {
-        self.consensus_driver
-            .precheck_convergence_block(block, last_confirmed_block_header);
+        resolver: R
+    ) -> Result<()> {
+        match &self.consensus_driver.quorum_type {
+            Some(QuorumType::Harvester) => {
+                match self.consensus_driver
+                    .precheck_convergence_block(
+                        block.clone(), 
+                        last_confirmed_block_header, 
+                        resolver, 
+                        self.dag_driver.dag()
+                    ) {
+                        Ok((true, true)) => {
+                            self.events_tx.send(
+                                Event::SignConvergenceBlock(block.clone()).into()
+                            ).await.map_err(|err| NodeError::Other(err.to_string()))?;
+                            Ok(())
+                        }
+                        Err(err) => {
+                            return Err(NodeError::Other(err.to_string()))
+                        }
+                        _ => {
+                            return Err(
+                                NodeError::Other(
+                                    "convergence block is not valid".to_string()
+                                )
+                            )
+                        }
+
+                    }
+            }
+            _ => {
+                return Err(
+                    NodeError::Other(
+                        "local node is not  a member of the active harvester quorum".to_string()
+                    )
+                )
+            }
+        }
+    }
+
+    pub async fn handle_sign_convergence_block(
+        &mut self, 
+        block: ConvergenceBlock
+    ) -> Result<RawSignature> {
+        self.consensus_driver.sig_provider.generate_partial_signature(
+            block.hash.as_bytes().to_vec()
+        ).map_err(|err| {
+            NodeError::Other(
+                format!(
+                    "could not generate partial_signature on block: {}. err: {}",
+                    block.hash.clone(),
+                    err
+                )
+            )})
     }
 
     pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Quorum> {

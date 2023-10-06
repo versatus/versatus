@@ -5,6 +5,8 @@ use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::NodeIdx;
+
 /// The unit of time within VRRB.
 /// It lasts for some number
 pub type Epoch = u128;
@@ -65,6 +67,14 @@ pub type GroupPublicKey = ByteVec;
 pub enum QuorumType {
     Farmer,
     Harvester,
+}
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub struct ConvergencePartialSig {
+    pub sig: RawSignature,
+    pub block_hash: String,
+    //TODO: add node_idx for checking sig along the way
+    //pub node_idx: NodeIdx 
 }
 
 pub type QuorumSize = usize;

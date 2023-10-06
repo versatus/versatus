@@ -431,7 +431,9 @@ impl NodeRuntime {
         self.consensus_driver.certify_convergence_block(
             block,
             last_block_header,
-            next_txn_trie_hash,
+            next_txn_trie_hash.clone(),
+            self.mining_driver.clone(),
+            self.dag_driver.dag().clone(),
         );
 
         Ok(())
@@ -532,6 +534,7 @@ impl NodeRuntime {
             self.consensus_driver
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
+        dbg!("{}", &validated_transaction_kind);
         match validated_transaction_kind {
             Ok(transaction_kind) => return Ok((transaction_kind, true)),
             Err(_) => {

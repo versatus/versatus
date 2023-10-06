@@ -9,7 +9,7 @@ use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
     Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare,
+    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, ConvergencePartialSig, 
 };
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
@@ -251,6 +251,7 @@ pub enum Event {
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
     ConvergenceBlockPartialSign(JobStatus),
+    ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
 
     /// `CheckConflictResolution` is an event that triggers the checking of a
     /// proposed conflict resolution.The event is used to initiate the
@@ -284,8 +285,10 @@ pub enum Event {
     BlockCertificateCreated(Certificate),
     QuorumMembersReceived(QuorumMembers),
     QuorumFormed,
+    HarvesterSignatureReceived(BlockHash, NodeId, RawSignature),
     BroadcastQuorumFormed(QuorumData),
     BroadcastTransactionVote(Vote),
+    BlockAppended(String)
 }
 
 impl From<&theater::Message> for Event {

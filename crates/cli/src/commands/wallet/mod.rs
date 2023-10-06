@@ -129,7 +129,8 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             Ok(())
         },
         WalletCmd::Get { address } => {
-            let address = Address::from_str(&address)?;
+            let address = Address::from_str(&address)
+                .map_err(|err| CliError::Other(err.to_string()))?;
 
             if let Ok(account) = get::exec(&mut wallet, address).await {
                 let account_info = serde_json::to_string_pretty(&account)
