@@ -24,6 +24,7 @@ use signer::{
 };
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use telemetry::error;
+use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{bloom::Bloom, keypair::Keypair};
@@ -251,6 +252,8 @@ impl ConsensusModule {
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
     ) -> validator::txn_validator::Result<TransactionKind> {
+        self.is_farmer()
+            .map_err(|err| { TxnValidatorError::Other(err.to_string()) })?;
         self.validator_core_manager
             .validate_transaction_kind(digest, mempool_reader, state_reader)
     }

@@ -59,6 +59,8 @@ pub enum TxnValidatorError {
     AccountNotFound(String),
     #[error("transaction payload not valid")]
     PayloadInvalid(String),
+    #[error("other")]
+    Other(String)
 }
 
 #[derive(Debug, Clone, Default)]
