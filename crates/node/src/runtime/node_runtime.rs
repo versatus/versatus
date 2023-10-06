@@ -253,10 +253,10 @@ impl NodeRuntime {
     }
 
     pub async fn generate_keysets(&mut self) -> Result<()> {
-        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
+        if let Some(pks) = self.consensus_driver.generate_keysets()? {
             self.consensus_driver.assign_quorum_id(pks);
+            assert!(!self.events_tx.is_closed());
             self.events_tx.send(Event::QuorumFormed.into()).await?;
-            println!("quorum formed event sent to tx: {:?}", self.events_tx);
         }
 
         Ok(())

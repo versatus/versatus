@@ -328,7 +328,6 @@ pub fn create_txn_from_accounts(
     txn
 }
 
-
 pub fn create_txn_from_accounts_invalid_signature(
     sender: (Address, Option<Account>),
     receiver: Address,

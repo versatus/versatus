@@ -177,7 +177,8 @@ impl ConsensusModule {
     }
 
     pub fn generate_keysets(&mut self) -> Result<Option<PublicKeySet>> {
-        let res = self.dkg_engine
+        let res = self
+            .dkg_engine
             .generate_key_sets()
             .map_err(|err| NodeError::Other(err.to_string()))?;
         self.sig_provider = SignatureProvider::from(&self.dkg_engine.dkg_state);

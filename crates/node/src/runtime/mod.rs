@@ -265,6 +265,19 @@ mod tests {
             .await
             .unwrap();
 
+        assert!(node_1
+            .consensus_driver
+            .dkg_engine
+            .dkg_state
+            .peer_public_keys()
+            .contains_key(&node_2.config.id));
+        assert!(node_2
+            .consensus_driver
+            .dkg_engine
+            .dkg_state
+            .peer_public_keys()
+            .contains_key(&node_1.config.id));
+
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_1.id.clone(),
@@ -320,6 +333,23 @@ mod tests {
         for node in farmer_nodes.iter_mut() {
             node.handle_all_ack_messages().unwrap();
         }
+        for node in farmer_nodes.iter() {
+            dbg!(node
+                .consensus_driver
+                .dkg_engine
+                .dkg_state
+                .sync_key_gen()
+                .as_ref()
+                .unwrap());
+            dbg!(node
+                .consensus_driver
+                .dkg_engine
+                .dkg_state
+                .sync_key_gen()
+                .as_ref()
+                .unwrap()
+                .is_ready());
+        }
         for node in farmer_nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
         }
@@ -336,11 +366,29 @@ mod tests {
         let (events_tx, mut _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let nodes = create_test_network(4).await;
         println!("created test network");
+
         let node_runtimes = create_node_runtime_network_from_nodes(&nodes, events_tx.clone()).await;
         println!("created node runtimes");
-        let (bootstrap_node, mut farmers, validators, miners) =
+
+        let (_bootstrap_node, mut farmers, _validators, _miners) =
             setup_peer_network_and_assign_quorum_type_from_node_runtimes(node_runtimes).await;
         println!("assigned quorum types");
+
+        for (_, node_runtime) in farmers.iter() {
+            for (_, node_runtime_other) in farmers.iter() {
+                if node_runtime.config.id == node_runtime_other.config.id {
+                    continue;
+                }
+                assert!(node_runtime
+                    .consensus_driver
+                    .dkg_engine
+                    .dkg_state
+                    .peer_public_keys()
+                    .contains_key(&node_runtime_other.config.id));
+            }
+        }
+        println!("verified farmer peer list");
+
         run_dkg_process(&mut farmers).await;
         println!("generated public key shares");
 
@@ -1436,48 +1484,46 @@ mod tests {
             parts.insert(node_id, part);
         }
 
-        let parts = parts
-            .iter()
-            .map(|(node_id, part)| {
-                let quorum_kind = nodes
-                    .get(node_id)
-                    .unwrap()
-                    .quorum_membership()
-                    .unwrap()
-                    .quorum_kind;
-
-                (node_id.clone(), (part.clone(), quorum_kind))
-            })
-            .collect::<HashMap<NodeId, (Part, QuorumKind)>>();
-
         let mut acks = Vec::new();
 
         for (_, node) in nodes.iter_mut() {
-            for (sender_node_id, (part, quorum_kind)) in parts.iter() {
+            for (sender_node_id, part) in parts.iter() {
                 let ack = node
                     .handle_part_commitment_created(sender_node_id.to_owned(), part.to_owned())
                     .unwrap();
 
-                acks.push((ack, quorum_kind));
+                acks.push(ack);
             }
         }
 
         for (_, node) in nodes.iter_mut() {
-            for ((receiver_id, sender_id, ack), quorum_kind) in acks.iter() {
-                node.handle_part_commitment_acknowledged(
-                    receiver_id.to_owned(),
-                    sender_id.to_owned(),
-                    ack.to_owned(),
-                )
-                .unwrap();
+            for (receiver_id, sender_id, ack) in acks.iter().cloned() {
+                node.handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
+                    .unwrap();
             }
         }
 
         for (_, node) in nodes.iter_mut() {
             node.handle_all_ack_messages().unwrap();
         }
+        for (_, node) in nodes.iter() {
+            dbg!(node
+                .consensus_driver
+                .dkg_engine
+                .dkg_state
+                .sync_key_gen()
+                .as_ref()
+                .unwrap());
+            dbg!(node
+                .consensus_driver
+                .dkg_engine
+                .dkg_state
+                .sync_key_gen()
+                .as_ref()
+                .unwrap()
+                .is_ready());
+        }
 
-        dbg!(&nodes);
         for (_, node) in nodes.iter_mut() {
             node.generate_keysets().await.unwrap();
         }
