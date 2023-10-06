@@ -300,6 +300,7 @@ impl ConsensusModule {
         resolver: R,
         dag: Arc<RwLock<BullDag<Block, String>>>
     ) -> Result<(bool, bool)> {
+        self.is_harvester()?;
 
         let proposal_block_hashes = block.header.ref_hashes.clone();
         self.precheck_convergence_block_transactions(

@@ -255,19 +255,6 @@ impl ConsensusModule {
             .validate_transaction_kind(digest, mempool_reader, state_reader)
     }
 
-    #[deprecated]
-    pub fn validate_transactions(
-        &mut self,
-        txns: Vec<TransactionKind>,
-        mempool_reader: MempoolReadHandleFactory,
-        state_reader: StateStoreReadHandleFactory,
-    ) -> HashSet<(TransactionKind, validator::txn_validator::Result<()>)> {
-        self.validator_core_manager
-            .validate(txns, mempool_reader, state_reader)
-            .into_iter()
-            .collect()
-    }
-
     pub fn cast_vote_on_transaction_kind(
         &mut self,
         transaction: TransactionKind,
@@ -284,6 +271,7 @@ impl ConsensusModule {
         // Delegation Principle need to be done
 
         // let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
+        self.is_farmer()?;
 
         if let Some(vote) = self.form_vote(transaction, valid) {
             return Ok(vote);
@@ -370,7 +358,7 @@ impl ConsensusModule {
         self.quorum_membership = Some(QuorumId::new(quorum_type, members));
     }
 
-    fn is_harvester(&self) -> Result<()> {
+    pub(crate) fn is_harvester(&self) -> Result<()> {
         if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Harvester) {
             return Err(NodeError::Other(format!(
                 "local node is not a Harvester Node"
@@ -380,7 +368,7 @@ impl ConsensusModule {
         Ok(())
     }
 
-    fn is_farmer(&self) -> Result<()> {
+    pub(crate) fn is_farmer(&self) -> Result<()> {
         if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Farmer) {
             return Err(NodeError::Other(format!(
                 "local node is not a Harvester Node"
