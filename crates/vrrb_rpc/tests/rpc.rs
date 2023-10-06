@@ -4,7 +4,7 @@ use events::{EventMessage, DEFAULT_BUFFER};
 use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use tokio::sync::mpsc::channel;
-use vrrb_core::transactions::{generate_transfer_digest_vec, NewTransferArgs, Token};
+use vrrb_core::transactions::{generate_transfer_digest_vec, Token, TransactionKind};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
@@ -22,8 +22,7 @@ async fn server_can_publish_transactions_to_be_created() {
     let (events_tx, _events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
     // Set up RPC Server to accept connection from client
-    let mut json_rpc_server_config = JsonRpcServerConfig::default();
-    json_rpc_server_config.events_tx = events_tx;
+    let json_rpc_server_config = JsonRpcServerConfig { events_tx, ..Default::default() };
 
     let (handle, rpc_server_address) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
 
@@ -32,8 +31,8 @@ async fn server_can_publish_transactions_to_be_created() {
     let (secret_key, public_key) = generate_mock_account_keypair();
     let (_, recv_public_key) = generate_mock_account_keypair();
 
-    let address = Address::new(public_key.clone());
-    let recv_address = Address::new(recv_public_key.clone());
+    let address = Address::new(public_key);
+    let recv_address = Address::new(recv_public_key);
 
     let timestamp = 0;
     let sender_address = address.clone();
@@ -56,19 +55,17 @@ async fn server_can_publish_transactions_to_be_created() {
     let msg = Message::from_hashed_data::<H>(&digest);
     let signature = secret_key.sign_ecdsa(msg);
 
-    let args = NewTransferArgs {
-        timestamp: 0,
-        sender_address: address.clone(),
-        sender_public_key: public_key.clone(),
-        receiver_address: recv_address.clone(),
-        token: None,
-        amount: 10,
-        signature: signature.clone(),
-        validators: None,
-        nonce: 0,
-    };
+    let txn = TransactionKind::transfer_builder()
+        .timestamp(0)
+        .sender_address(address.clone())
+        .sender_public_key(public_key.clone())
+        .receiver_address(recv_address.clone())
+        .amount(10)
+        .signature(signature.clone())
+        .nonce(0)
+        .build_kind().expect("failed to build transfer transaction");
 
-    let rec = client.create_txn(args).await.unwrap();
+    let rec = client.create_txn(txn).await.unwrap();
 
     let mock_digest =
         "d43e21d53897192f83c2ff701cb538cf5b4d2439b93fae87b30f8ac6f07c20d1".to_string();

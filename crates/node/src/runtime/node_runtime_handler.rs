@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use dkg_engine::dkg::DkgGenerator;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey};
+use primitives::{NETWORK_TOPIC_STR, NodeId, NodeType, ValidatorPublicKey};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::{QuorumMember, QuorumMembershipConfig};
@@ -38,15 +38,15 @@ impl Handler<EventMessage> for NodeRuntime {
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
             Event::NodeAddedToPeerList(peer_data) => {
-                let assigments = self
+                let assignments = self
                     .handle_node_added_to_peer_list(peer_data.clone())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                if let Some(assigments) = assigments {
-                    for (_, assigned_membership) in assigments {
+                if let Some(assignments) = assignments {
+                    for (_, assigned_membership) in assignments {
                         let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
-                        let em = EventMessage::new(Some("network-events".into()), event);
+                        let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
                         self.events_tx
                             .send(em)
                             .await
@@ -66,7 +66,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let event = Event::PartCommitmentCreated(node_id, part);
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)
@@ -75,7 +75,8 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::PartCommitmentCreated(node_id, part) => {
-                let (receiver_id, sender_id, ack) = self
+                //TODO: handle receiver_id and sender_id
+                let (_receiver_id, _sender_id, ack) = self
                     .handle_part_commitment_created(node_id.clone(), part)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
@@ -85,7 +86,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     ack,
                 };
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)
@@ -118,7 +119,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let event = Event::MinerElected(winner);
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)
@@ -237,8 +238,9 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.state_driver.handle_transaction_validated(txn);
             },
 
-            Event::CreateAccountRequested((address, account_bytes)) => {
-                self.handle_create_account_requested(address.clone(), account_bytes);
+            Event::CreateAccountRequested((address, _account_bytes)) => {
+                //TODO: handle account_bytes
+                self.create_account(address.public_key()).expect("TODO: panic message");
             },
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 //                if let Ok(account) =
