@@ -9,7 +9,7 @@ use std::{
 
 use hbbft::crypto::PublicKeySet;
 use hex::FromHexError;
-use primitives::{NodeId, QuorumType, RawSignature};
+use primitives::{NodeId, QuorumType, RawSignature, PublicKey};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -48,17 +48,15 @@ pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
 pub struct QuorumData {
     pub id: QuorumId,
     pub quorum_type: QuorumType,
-    pub members: HashSet<NodeId>,
-    pub quorum_pubkey: PublicKeySet,
+    pub members: HashMap<NodeId, PublicKey>,
 }
 
 impl std::hash::Hash for QuorumData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
         self.quorum_type.hash(state);
-        let members: Vec<NodeId> = self.members.clone().into_iter().collect();
+        let members: Vec<(NodeId, PublicKey)> = self.members.clone().into_iter().collect();
         members.hash(state);
-        self.quorum_pubkey.hash(state);
     }
 }
 
