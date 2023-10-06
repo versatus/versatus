@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use crate::node_runtime::NodeRuntime;
 use block::Certificate;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig};
+use primitives::{NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig, QuorumType, PublicKey, QuorumId};
 use signer::signer::Signer;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
@@ -60,11 +60,30 @@ impl Handler<EventMessage> for NodeRuntime {
                 let quorums = self.handle_quorum_election_started(header)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                let quorum_assignment = quorums.clone().iter().filter_map(|quorum| {
-                    quorum.quorum_type.clone().map(|qt| (qt.clone(), quorum.members.clone()))
-                }).collect();
+                let quorum_assignment: Vec<(QuorumType, Vec<(NodeId, PublicKey)>)> = {
+                    quorums.clone().iter().filter_map(|quorum| {
+                        quorum.quorum_type.clone().map(|qt| {
+                            (qt.clone(), quorum.members.clone())
+                        })
+                    }).collect()
+                };
 
-                self.consensus_driver.sig_engine.set_quorum_members(quorum_assignment);
+                self.consensus_driver.sig_engine.set_quorum_members(quorum_assignment.clone());
+                let local_id = self.config.id.clone();
+                for (qt, members) in quorum_assignment.iter() {
+                    if members.clone().iter().any(|(node_id, _)| node_id == &local_id) {
+                        self.consensus_driver.quorum_membership = Some(
+                            QuorumId::new(
+                                qt.clone(),
+                                members.clone()
+                            )
+                        );
+                        self.consensus_driver.quorum_type = Some(
+                            qt.clone()
+                        );
+                    }
+                }
+
             },
             Event::MinerElectionStarted(header) => {
                 let claims = self.state_driver.read_handle().claim_store_values();
