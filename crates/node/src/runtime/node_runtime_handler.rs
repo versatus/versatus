@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-// use dkg_engine::dkg::DkgGenerator;
 use crate::node_runtime::NodeRuntime;
 use block::Certificate;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
@@ -99,11 +98,13 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             // This certifies txns once vote threshold is reached.
+            // TODO: remove this event as it is not necessary
+            // transactions have no certificate, they only have 
+            // votes.
             Event::TransactionCertificateCreated {
                 votes,
                 signature,
                 digest,
-                /// OUtput of the program executed
                 execution_result,
                 farmer_id,
                 txn,
@@ -111,30 +112,6 @@ impl Handler<EventMessage> for NodeRuntime {
             } => {
                 // TODO: refactor process
             },
-
-            // Mines proposal block after every X seconds.
-            Event::ProposalBlockMineRequestCreated {
-                ref_hash,
-                round,
-                epoch,
-                claim,
-            } => {
-                self.handle_proposal_block_mine_request_created(ref_hash, round, epoch, claim);
-            },
-            // it sends a job to sign the convergence block using the signature
-            // provider
-            Event::ConvergenceBlockSignatureRequested(block) => {
-                //     TODO: merge with ConvergenceBlockPartialSignatureCreated so it all happens
-                //     within one function call
-                //     if let Some(sig_provider) = self.sig_provider.clone() {
-                //         let _ = self
-                //             .sync_jobs_sender
-                //             .send(Job::SignConvergenceBlock(sig_provider, block));
-                //     }
-            },
-
-            // Process the job result of signing convergence block and adds the
-            // partial signature to the cache for certificate generation
             Event::ConvergenceBlockPartialSignatureCreated {
                 block_hash,
                 public_key_share,
@@ -206,11 +183,6 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_create_account_requested(address.clone(), account_bytes);
             },
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
-                //                if let Ok(account) =
-                // decode_from_binary_byte_slice(&account_bytes) {
-                // self.update_account(address, account)
-                // .map_err(|err| TheaterError::Other(err.to_string()))?;
-                //               }
                 todo!()
             },
             Event::UpdateState(block_hash) => {
@@ -250,9 +222,8 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             }
             Event::QuorumFormed => {
-//                self.handle_quorum_formed()
-//                    .await
-//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                //TODO: build logic for setting/updating quorums 
+                //once formed/elected
             },
             Event::TxnAddedToMempool(txn_hash) => {
                 let mempool_reader = self.mempool_read_handle_factory().clone();

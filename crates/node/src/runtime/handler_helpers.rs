@@ -3,7 +3,6 @@ use block::{
     header::BlockHeader, Block, Certificate, ConvergenceBlock,
     GenesisBlock, ProposalBlock, RefHash,
 };
-// use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use events::{AssignedQuorumMembership, PeerData, AccountBytes, Event};
 use miner::conflict_resolver::Resolver;
 use primitives::{
@@ -31,10 +30,7 @@ impl NodeRuntime {
     }
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
-        //
-        //
         // TODO: append blocks to only one instance of the DAG
-        //
         self.dag_driver.append_genesis(&block).map_err(|err| {
             NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
         })?;
@@ -109,63 +105,17 @@ impl NodeRuntime {
     }
 
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
-        //
-        //         let mut mine_block: Option<ConvergenceBlock> = None;
-        //         let block_hash = certificate.block_hash.clone();
-        //         if let Ok(Some(Block::Convergence { mut block })) =
-        //             self.dag.write().map(|mut bull_dag| {
-        //                 bull_dag
-        //                     .get_vertex_mut(block_hash)
-        //                     .map(|vertex| vertex.get_data())
-        //             })
-        //         {
-        //             block.append_certificate(certificate.clone());
-        //             self.last_confirmed_block_header = Some(block.get_header());
-        //             mine_block = Some(block.clone());
-        //         }
-        //         if let Some(block) = mine_block {
-        //             let proposal_block = Event::MineProposalBlock(
-        //                 block.hash.clone(),
-        //                 block.get_header().round,
-        //                 block.get_header().epoch,
-        //                 self.claim.clone(),
-        //             );
-        //             if let Err(err) = self
-        //                 .events_tx
-        //                 .send(EventMessage::new(None, proposal_block.clone()))
-        //                 .await
-        //             {
-        //                 let err_msg = format!(
-        //                     "Error occurred while broadcasting event {proposal_block:?}: {err:?}"
-        //                 );
-        //                 return Err(TheaterError::Other(err_msg));
-        //             }
-        //         } else {
-        //             telemetry::debug!("Missing ConvergenceBlock for certificate: {certificate:?}");
-        //         }
-        //
-        todo!()
+        //TODO: implement logic under new model
+        Ok(())
     }
 
-    // pub async fn handle_quorum_formed(&mut self) -> Result<()> {
-    //     let members: std::collections::HashSet<NodeId> = self
-    //         .consensus_driver
-    //         .dkg_engine
-    //         .dkg_state
-    //         .peer_public_keys()
-    //         .iter()
-    //         .map(|(id, _)| id.clone())
-    //         .collect();
-    //     let id = self.consensus_driver.quorum_membership.clone();
-    //     let quorum_type = self.consensus_driver.quorum_type.clone();
-    //     let quorum_pubkey = self
-    //         .consensus_driver
-    //         .dkg_engine
-    //         .dkg_state
-    //         .public_key_set()
-    //         .clone();
+    pub async fn handle_quorum_formed(&mut self) -> Result<()> {
+        //TODO: implement logic under new model
+        Ok(())
+    }
     pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
-        todo!()
+        //TODO: implement logic under new model
+        Ok(())
     }
 
     pub async fn handle_node_added_to_peer_list(
@@ -176,52 +126,6 @@ impl NodeRuntime {
             .handle_node_added_to_peer_list(peer_data)
             .await
     }
-
-    pub fn handle_proposal_block_mine_request_created(
-        &mut self,
-        ref_hash: RefHash,
-        round: Round,
-        epoch: Epoch,
-        claim: Claim,
-    ) -> Result<ProposalBlock> {
-        self.has_required_node_type(NodeType::Validator, "create proposal block")?;
-        self.belongs_to_correct_quorum(QuorumKind::Harvester, "create proposal block")?;
-
-        // let proposal_block = self
-        //     .consensus_driver
-        //     .handle_proposal_block_mine_request_created(
-        //         args.ref_hash,
-        //         args.round,
-        //         args.epoch,
-        //         args.claim,
-        //     )?;
-        //
-        // Ok(proposal_block)
-        todo!()
-    }
-
-    // pub fn handle_part_commitment_created(
-    //     &mut self,
-    //     sender_id: SenderId,
-    //     part: Part,
-    // ) -> Result<(ReceiverId, SenderId, Ack)> {
-    //     self.consensus_driver
-    //         .handle_part_commitment_created(sender_id, part)
-    // }
-
-    // pub fn handle_part_commitment_acknowledged(
-    //     &mut self,
-    //     receiver_id: ReceiverId,
-    //     sender_id: SenderId,
-    //     ack: Ack,
-    // ) -> Result<()> {
-    //     self.consensus_driver
-    //         .handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
-    // }
-
-    // pub fn handle_all_ack_messages(&mut self) -> Result<()> {
-    //     self.consensus_driver.handle_all_ack_messages()
-    // }
 
     pub fn handle_quorum_membership_assigment_created(
         &mut self,
@@ -314,6 +218,5 @@ impl NodeRuntime {
     }
 
     pub fn handle_vote_received(&mut self) {
-        //
     }
 }
