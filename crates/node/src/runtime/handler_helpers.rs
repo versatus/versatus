@@ -1,15 +1,14 @@
-use std::collections::HashMap;
 use block::{
-    header::BlockHeader, Block, Certificate, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock, RefHash,
 };
-use events::{AssignedQuorumMembership, PeerData, AccountBytes, Event};
+use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData};
 use miner::conflict_resolver::Resolver;
 use primitives::{
-    Address, Epoch, NodeId, NodeType, QuorumKind, Round, RawSignature, QuorumType, Signature,
+    Address, Epoch, NodeId, NodeType, QuorumKind, QuorumType, RawSignature, Round, Signature,
 };
 use quorum::quorum::Quorum;
-use signer::engine::{VALIDATION_THRESHOLD, SignerEngine};
+use signer::engine::{SignerEngine, VALIDATION_THRESHOLD};
+use std::collections::HashMap;
 use storage::vrrbdb::ApplyBlockResult;
 use vrrb_core::claim::Claim;
 
@@ -41,7 +40,11 @@ impl NodeRuntime {
     }
 
     fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<ApplyBlockResult> {
-        if let Err(e) = self.state_driver.dag.append_proposal(&block, self.consensus_driver.sig_engine.clone()) {
+        if let Err(e) = self
+            .state_driver
+            .dag
+            .append_proposal(&block, self.consensus_driver.sig_engine.clone())
+        {
             let err_note = format!("Failed to append proposal block to DAG: {e:?}");
             return Err(NodeError::Other(err_note));
         }
@@ -79,64 +82,74 @@ impl NodeRuntime {
     }
 
     pub async fn handle_harvester_signature_received(
-        &mut self, 
-        block_hash: String, 
-        node_id: NodeId, 
+        &mut self,
+        block_hash: String,
+        node_id: NodeId,
         sig: Signature,
-        mut sig_engine: SignerEngine
+        mut sig_engine: SignerEngine,
     ) -> Result<()> {
-        self.consensus_driver.sig_engine.verify(&node_id, &sig, &block_hash)
+        self.consensus_driver
+            .sig_engine
+            .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
-        let set = self.dag_driver.add_signer_to_convergence_block(block_hash.clone(), sig, node_id)
+        let set = self
+            .dag_driver
+            .add_signer_to_convergence_block(block_hash.clone(), sig, node_id)
             .map_err(|err| NodeError::Other(err.to_string()))?;
-        if set.len() <= self.consensus_driver.sig_engine.quorum_members().get_harvester_threshold() {
-            return Err(NodeError::Other(
-                format!("threshold not reached yet")
-                )
-            )
+        if set.len()
+            <= self
+                .consensus_driver
+                .sig_engine
+                .quorum_members()
+                .get_harvester_threshold()
+        {
+            return Err(NodeError::Other(format!("threshold not reached yet")));
         }
-        
+
         let sig_set = set.into_iter().collect();
-        let cert = self.form_convergence_certificate(block_hash, sig_set, sig_engine)
+        let cert = self
+            .form_convergence_certificate(block_hash, sig_set, sig_engine)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        self.events_tx.send(
-            Event::BlockCertificateCreated(cert).into()
-        ).await.map_err(|err| NodeError::Other(err.to_string()))
+        self.events_tx
+            .send(Event::BlockCertificateCreated(cert).into())
+            .await
+            .map_err(|err| NodeError::Other(err.to_string()))
     }
 
     pub fn form_convergence_certificate(
-        &mut self, 
-        block_hash: String, 
-        sigs: Vec<(NodeId, Signature)>, 
-        mut sig_engine: SignerEngine
+        &mut self,
+        block_hash: String,
+        sigs: Vec<(NodeId, Signature)>,
+        mut sig_engine: SignerEngine,
     ) -> Result<Certificate> {
         // TODO: figure out how to get next_root_hash back into cert
         // this should probably be part of the signature process
-        sig_engine.verify_batch(&sigs, &block_hash)
-            .map_err(|err| {
-                NodeError::Other(err.to_string())
-            })?;
-        if let Some(ref mut block) = self.dag_driver.get_pending_convergence_block_mut(&block_hash) {
+        sig_engine
+            .verify_batch(&sigs, &block_hash)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        if let Some(ref mut block) = self
+            .dag_driver
+            .get_pending_convergence_block_mut(&block_hash)
+        {
             let root_hash = block.header.txn_hash.clone();
             let block_hash = block.hash.clone();
             Ok(Certificate {
                 signatures: sigs,
                 //TODO: handle inauguration blocks
-                inauguration: None, 
+                inauguration: None,
                 root_hash,
                 block_hash: block_hash.clone(),
             })
         } else {
             Err(NodeError::Other(format!(
-                        "unable to find convergence block: {} in pending convergence blocks in dag",
-                        block_hash.clone()
-                        )
-                    )
-                )
+                "unable to find convergence block: {} in pending convergence blocks in dag",
+                block_hash.clone()
+            )))
         }
     }
 
+    // harvester sign and create cert
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
         //TODO: implement logic under new model
         Ok(())
@@ -146,6 +159,8 @@ impl NodeRuntime {
         //TODO: implement logic under new model
         Ok(())
     }
+
+    // recieve cert from network
     pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
         //TODO: implement logic under new model
         Ok(())
@@ -168,65 +183,59 @@ impl NodeRuntime {
             .handle_quorum_membership_assigment_created(assigned_membership)
     }
 
-    pub async fn handle_convergence_block_precheck_requested<R: Resolver<Proposal = ProposalBlock>>(
+    pub async fn handle_convergence_block_precheck_requested<
+        R: Resolver<Proposal = ProposalBlock>,
+    >(
         &mut self,
         block: ConvergenceBlock,
         last_confirmed_block_header: BlockHeader,
-        resolver: R
+        resolver: R,
     ) -> Result<()> {
         match &self.consensus_driver.quorum_type {
             Some(QuorumType::Harvester) => {
-                match self.consensus_driver
-                    .precheck_convergence_block(
-                        block.clone(), 
-                        last_confirmed_block_header, 
-                        resolver, 
-                        self.dag_driver.dag()
-                    ) {
-                        Ok((true, true)) => {
-                            self.events_tx.send(
-                                Event::SignConvergenceBlock(block.clone()).into()
-                            ).await.map_err(|err| NodeError::Other(err.to_string()))?;
-                            Ok(())
-                        }
-                        Err(err) => {
-                            return Err(NodeError::Other(err.to_string()))
-                        }
-                        _ => {
-                            return Err(
-                                NodeError::Other(
-                                    "convergence block is not valid".to_string()
-                                )
-                            )
-                        }
-
-                    }
-            }
+                match self.consensus_driver.precheck_convergence_block(
+                    block.clone(),
+                    last_confirmed_block_header,
+                    resolver,
+                    self.dag_driver.dag(),
+                ) {
+                    Ok((true, true)) => {
+                        self.events_tx
+                            .send(Event::SignConvergenceBlock(block.clone()).into())
+                            .await
+                            .map_err(|err| NodeError::Other(err.to_string()))?;
+                        Ok(())
+                    },
+                    Err(err) => return Err(NodeError::Other(err.to_string())),
+                    _ => {
+                        return Err(NodeError::Other(
+                            "convergence block is not valid".to_string(),
+                        ))
+                    },
+                }
+            },
             _ => {
-                return Err(
-                    NodeError::Other(
-                        "local node is not  a member of the active harvester quorum".to_string()
-                    )
-                )
-            }
+                return Err(NodeError::Other(
+                    "local node is not  a member of the active harvester quorum".to_string(),
+                ))
+            },
         }
     }
 
     pub async fn handle_sign_convergence_block(
-        &mut self, 
-        block: ConvergenceBlock
+        &mut self,
+        block: ConvergenceBlock,
     ) -> Result<Signature> {
-        self.consensus_driver.sig_engine.sign(&block.hash)
+        self.consensus_driver
+            .sig_engine
+            .sign(&block.hash)
             .map_err(|err| {
-                NodeError::Other(
-                    format!(
-                        "could not generate partial_signature on block: {}. err: {}",
-                        block.hash.clone(),
-                        err
-                    )
-                )
-            }
-        )
+                NodeError::Other(format!(
+                    "could not generate partial_signature on block: {}. err: {}",
+                    block.hash.clone(),
+                    err
+                ))
+            })
     }
 
     pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Vec<Quorum>> {
@@ -250,6 +259,5 @@ impl NodeRuntime {
         self.state_driver.insert_account(address, account)
     }
 
-    pub fn handle_vote_received(&mut self) {
-    }
+    pub fn handle_vote_received(&mut self) {}
 }

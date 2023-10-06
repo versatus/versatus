@@ -1,7 +1,6 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::{Arc, RwLock};
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock,
+    ProposalBlock,
 };
 use bulldag::graph::BullDag;
 use events::{SyncPeerData, Vote};
@@ -10,18 +9,21 @@ use hbbft::{
     sync_key_gen::Part,
 };
 use indexmap::IndexMap;
-use mempool::{TxnStatus, MempoolReadHandleFactory};
-use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
+use mempool::{MempoolReadHandleFactory, TxnStatus};
+use miner::{block_builder::BlockBuilder, conflict_resolver::Resolver};
 use primitives::{
     ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes, PKShareBytes,
-    PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature, ValidatorPublicKey, Signature, PublicKey,
+    PayloadBytes, PublicKey, QuorumId, QuorumPublicKey, QuorumType, RawSignature, Signature,
+    ValidatorPublicKey,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use signer::{
-    engine::{SignerEngine, QuorumData, QuorumMembers},
+    engine::{QuorumData, QuorumMembers, SignerEngine},
     signer::{SignatureProvider, Signer},
 };
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::{Arc, RwLock};
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use telemetry::error;
 use validator::txn_validator::TxnValidatorError;
@@ -98,7 +100,7 @@ impl ConsensusModule {
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
         claim_reader: ClaimStoreReadHandleFactory,
-        cores: usize
+        cores: usize,
     ) -> Result<Self> {
         let quorum_module_config = QuorumModuleConfig {
             membership_config: None,
@@ -140,7 +142,7 @@ impl ConsensusModule {
         block: Block,
         last_block_header: BlockHeader,
         prev_txn_root_hash: String,
-//        next_txn_root_hash: String,
+        //        next_txn_root_hash: String,
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let block = block.clone();
@@ -152,8 +154,9 @@ impl ConsensusModule {
                 "Not enough partial signatures to create a certificate".to_string(),
             ));
         }
-       
-        self.sig_engine.verify_batch(&certs, &block.hash())
+
+        self.sig_engine
+            .verify_batch(&certs, &block.hash())
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         //TODO: If Quorums are pending inauguration include inauguration info
@@ -167,7 +170,11 @@ impl ConsensusModule {
         Ok(certificate)
     }
 
-    pub fn certify_genesis_block(&mut self, block: GenesisBlock, certs: Vec<(NodeId, Signature)>) -> Result<Certificate> {
+    pub fn certify_genesis_block(
+        &mut self,
+        block: GenesisBlock,
+        certs: Vec<(NodeId, Signature)>,
+    ) -> Result<Certificate> {
         let txn_trie_hash = block.header.txn_hash.clone();
         let last_block_header = block.header.clone();
 
@@ -175,7 +182,7 @@ impl ConsensusModule {
             block.into(),
             last_block_header,
             txn_trie_hash.clone(),
-            certs
+            certs,
         )
     }
 
@@ -186,22 +193,17 @@ impl ConsensusModule {
         next_txn_root_hash: String,
         resolver: R,
         dag: Arc<RwLock<BullDag<Block, String>>>,
-        certs: Vec<(NodeId, Signature)>
+        certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let prev_txn_root_hash = last_block_header.txn_hash.clone();
 
         self.precheck_convergence_block(
-            block.clone(), 
+            block.clone(),
             last_block_header.clone(),
             resolver,
-            dag.clone()
+            dag.clone(),
         );
-        self.certify_block(
-            block.into(),
-            last_block_header,
-            prev_txn_root_hash,
-            certs
-        )
+        self.certify_block(block.into(), last_block_header, prev_txn_root_hash, certs)
     }
 
     async fn sign_convergence_block(
@@ -211,10 +213,9 @@ impl ConsensusModule {
         let block_hash_bytes = hex::decode(block.hash.clone())
             .map_err(|err| NodeError::Other(format!("unable to decode block hash: {err}")))?;
 
-        let signature = self.sig_engine.sign(block_hash_bytes)
-            .map_err(|err| {
-                NodeError::Other(format!("failed to generate partial signature: {err}"))
-            })?;
+        let signature = self.sig_engine.sign(block_hash_bytes).map_err(|err| {
+            NodeError::Other(format!("failed to generate partial signature: {err}"))
+        })?;
 
         Ok((
             block.hash.clone(),
@@ -250,7 +251,7 @@ impl ConsensusModule {
         state_reader: StateStoreReadHandleFactory,
     ) -> validator::txn_validator::Result<TransactionKind> {
         self.is_farmer()
-            .map_err(|err| { TxnValidatorError::Other(err.to_string()) })?;
+            .map_err(|err| TxnValidatorError::Other(err.to_string()))?;
         self.validator_core_manager
             .validate_transaction_kind(digest, mempool_reader, state_reader)
     }
@@ -370,9 +371,7 @@ impl ConsensusModule {
 
     pub(crate) fn is_farmer(&self) -> Result<()> {
         if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Farmer) {
-            return Err(NodeError::Other(format!(
-                "local node is not a Harvester Node"
-            )));
+            return Err(NodeError::Other(format!("local node is not a Farmer Node")));
         }
 
         Ok(())
