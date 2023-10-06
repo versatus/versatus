@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     env,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, RwLock},
@@ -14,7 +14,7 @@ use events::EventPublisher;
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round, Signature, ValidatorSecretKey,
+    Round, Signature,
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
@@ -634,8 +634,10 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
 
-        let threshold_sk = ValidatorSecretKey::random();
-        let validator_public_key = threshold_sk.public_key();
+        // let threshold_sk = ValidatorSecretKey::random();
+        // let validator_public_key = threshold_sk.public_key();
+        let keypair = Keypair::random();
+        let validator_public_key = keypair.miner_public_key_owned();
 
         let node_id = format!("node-{}", i);
 
@@ -742,8 +744,10 @@ pub async fn create_node_runtime_network(
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
 
-        let threshold_sk = ValidatorSecretKey::random();
-        let validator_public_key = threshold_sk.public_key();
+        // let threshold_sk = ValidatorSecretKey::random();
+        // let validator_public_key = threshold_sk.public_key();
+        let keypair = Keypair::random();
+        let validator_public_key = keypair.miner_public_key_owned();
 
         let node_id = format!("node-{}", i);
 

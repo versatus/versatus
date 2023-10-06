@@ -3,11 +3,11 @@ use std::net::SocketAddr;
 use block::{Certificate, ConvergenceBlock};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
-    crypto::{PublicKey, PublicKeySet},
+    crypto::PublicKeySet,
     sync_key_gen::{Ack, Part},
 };
 use mempool::TxnRecord;
-use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId};
+use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
 use serde::{Deserialize, Serialize};
 use signer::engine::QuorumData;
 use vrrb_core::claim::Claim;

@@ -472,6 +472,14 @@ mod tests {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
+        for node in nodes.iter() {
+            assert!(node
+                .consensus_driver
+                .sig_engine
+                .quorum_members()
+                .get_public_key_from_members(&node.config.id)
+                .is_some());
+        }
 
         // NOTE: remove bootstrap
         nodes.pop_front().unwrap();

@@ -18,9 +18,7 @@ use hbbft::{
     sync_key_gen::{Ack, Part},
 };
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use primitives::{
-    ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, RawSignature, ValidatorPublicKey,
-};
+use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
 use signer::engine::QuorumData;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
@@ -51,7 +49,7 @@ pub struct NetworkModule {
     pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
     pub(crate) dyswarm_client: dyswarm::client::Client,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
-    pub(crate) validator_public_key: ValidatorPublicKey,
+    pub(crate) validator_public_key: PublicKey,
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +76,7 @@ pub struct NetworkModuleConfig {
 
     pub events_tx: EventPublisher,
 
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 impl NetworkModule {
@@ -223,11 +221,11 @@ impl NetworkModule {
         &mut self.kademlia_node
     }
 
-    pub fn validator_public_key(&self) -> ValidatorPublicKey {
+    pub fn validator_public_key(&self) -> PublicKey {
         self.validator_public_key
     }
 
-    pub fn set_validator_public_key(&mut self, public_key: ValidatorPublicKey) {
+    pub fn set_validator_public_key(&mut self, public_key: PublicKey) {
         self.validator_public_key = public_key;
     }
 

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use block::BlockHash;
 use primitives::{
     ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeIdx,
-    NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare, Signature,
+    NodeType, PublicKey, QuorumKind, RawSignature, Signature, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
 use vrrb_config::QuorumMember;
@@ -17,7 +17,7 @@ pub struct PeerData {
     pub udp_gossip_addr: SocketAddr,
     pub raptorq_gossip_addr: SocketAddr,
     pub kademlia_liveness_addr: SocketAddr,
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 impl From<QuorumMember> for PeerData {
