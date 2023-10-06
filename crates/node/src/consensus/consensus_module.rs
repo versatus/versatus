@@ -33,7 +33,7 @@ pub struct ConsensusModuleConfig {
     pub keypair: Keypair,
     pub node_config: NodeConfig,
     // pub dkg_generator: DkgEngine,
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -117,7 +117,7 @@ impl ConsensusModule {
         })
     }
 
-    pub fn validator_public_key_owned(&self) -> ValidatorPublicKey {
+    pub fn validator_public_key_owned(&self) -> PublicKey {
         self.keypair.validator_public_key_owned()
     }
 
