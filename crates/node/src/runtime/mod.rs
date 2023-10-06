@@ -240,7 +240,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn farmer_node_runtime_can_validate_transactions() {
-        let (mut node_0, mut farmers, mut harvesters, mut miners) = setup_network(8).await;
+        let (mut node_0, mut farmers, _harvesters, _miners) = setup_network(8).await;
 
         let (_, sender_public_key) = generate_account_keypair();
         let sender_account = Account::new(sender_public_key);
@@ -255,7 +255,7 @@ mod tests {
             vec![],
         );
 
-        for (node_id, farmer) in farmers.iter_mut() {
+        for (_node_id, farmer) in farmers.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
             farmer
                 .validate_transaction_kind(
@@ -501,16 +501,31 @@ mod tests {
             kademlia_liveness_addr: node_2.config.kademlia_liveness_address,
             validator_public_key: node_2.config.keypair.validator_public_key_owned(),
         };
+        assert!(node_1
+            .consensus_driver
+            .quorum_driver
+            .bootstrap_quorum_config
+            .is_some());
 
         node_1
             .handle_node_added_to_peer_list(node_2_peer_data.clone())
             .await
             .unwrap();
+        assert!(node_1
+            .consensus_driver
+            .quorum_driver
+            .bootstrap_quorum_available_nodes
+            .contains_key(&node_2_peer_data.node_id));
 
         node_2
             .handle_node_added_to_peer_list(node_1_peer_data.clone())
             .await
             .unwrap();
+        assert!(node_2
+            .consensus_driver
+            .quorum_driver
+            .bootstrap_quorum_available_nodes
+            .contains_key(&node_1_peer_data.node_id));
 
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
@@ -570,10 +585,10 @@ mod tests {
         );
 
         for farmer in farmer_nodes.iter() {
+            dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
             dbg!(&farmer.consensus_driver.is_farmer());
         }
         for farmer in farmer_nodes.iter_mut() {
-            dbg!(&farmer.consensus_driver.is_farmer());
             let _ = farmer.insert_txn_to_mempool(txn.clone());
             let (transaction_kind, validity) = farmer
                 .validate_transaction_kind(

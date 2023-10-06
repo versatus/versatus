@@ -1,28 +1,21 @@
 use super::ConsensusModule;
 use crate::{NodeError, Result};
-use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex, RwLock}};
-
-use block::{header::BlockHeader, BlockHash, ConvergenceBlock, Block, ProposalBlock, InnerBlock};
+use block::{header::BlockHeader, Block, ConvergenceBlock, InnerBlock, ProposalBlock};
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
-use events::{AssignedQuorumMembership, PeerData, Vote};
-use hbbft::{
-    crypto::PublicKeySet,
-    sync_key_gen::{Ack, Part},
-};
-use maglev::Maglev;
-use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
-use primitives::{
-    FarmerQuorumThreshold, NodeId, NodeType, ProgramExecutionOutput, PublicKeyShareVec,
-    RawSignature, TxnValidationStatus, ValidatorPublicKeyShare, Signature,
-};
+use events::{AssignedQuorumMembership, PeerData};
+use miner::conflict_resolver::Resolver;
+use primitives::{NodeId, NodeType};
 use quorum::quorum::Quorum;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use signer::signer::SignatureProvider;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::{Arc, RwLock},
+};
 use vrrb_config::QuorumMember;
 use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
-use vrrb_core::transactions::{TransactionDigest, TransactionKind};
+use vrrb_core::transactions::TransactionDigest;
 
 impl ConsensusModule {
     pub async fn handle_node_added_to_peer_list(
@@ -119,6 +112,7 @@ impl ConsensusModule {
         };
 
         self.quorum_driver.membership_config = Some(quorum_membership_config);
+        self.quorum_kind = Some(assigned_membership.quorum_kind);
         Ok(())
     }
 
@@ -131,7 +125,7 @@ impl ConsensusModule {
             .quorum_driver
             .elect_quorums(claims, header)
             .map_err(|err| NodeError::Other(format!("failed to elect quorum: {err}")))?;
-        
+
         Ok(quorum)
     }
 
@@ -156,27 +150,27 @@ impl ConsensusModule {
     ) -> Result<Vec<ProposalBlock>> {
         let proposals = {
             if let Ok(dag) = dag.read() {
-                let proposals: Vec<ProposalBlock> = proposal_block_hashes.iter().filter_map(|hash| {
-                    dag.get_vertex(hash.clone()).and_then(|vtx| {
-                        match vtx.get_data() {
-                            Block::Proposal { block } => Some(block.clone()),
-                            _ => None
-                        }
+                let proposals: Vec<ProposalBlock> = proposal_block_hashes
+                    .iter()
+                    .filter_map(|hash| {
+                        dag.get_vertex(hash.clone())
+                            .and_then(|vtx| match vtx.get_data() {
+                                Block::Proposal { block } => Some(block.clone()),
+                                _ => None,
+                            })
                     })
-                }).collect();
+                    .collect();
                 if proposals.len() != proposal_block_hashes.len() {
-                    return Err(
-                        NodeError::Other(
-                            format!(
-                                "missing proposal blocks referenced by convergence block: {}",
-                                block_hash.clone()
-                            )
-                        )
-                    )
+                    return Err(NodeError::Other(format!(
+                        "missing proposal blocks referenced by convergence block: {}",
+                        block_hash.clone()
+                    )));
                 }
                 Ok(proposals)
             } else {
-                return Err(NodeError::Other("could not acquire read lock on dag".to_string()))
+                return Err(NodeError::Other(
+                    "could not acquire read lock on dag".to_string(),
+                ));
             }
         };
 
@@ -189,14 +183,16 @@ impl ConsensusModule {
         proposals: Vec<ProposalBlock>,
         resolver: R,
     ) -> LinkedHashMap<String, LinkedHashSet<TransactionDigest>> {
-        let resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>> = resolver.resolve(
-            &proposals, 
-            block.get_header().round, 
-            block.get_header().block_seed
-        ).iter().map(|block| {
-            (block.hash.clone(), block.txn_id_set())
-        }).collect();
-                    
+        let resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>> = resolver
+            .resolve(
+                &proposals,
+                block.get_header().round,
+                block.get_header().block_seed,
+            )
+            .iter()
+            .map(|block| (block.hash.clone(), block.txn_id_set()))
+            .collect();
+
         resolved
     }
 
@@ -205,14 +201,16 @@ impl ConsensusModule {
         block: ConvergenceBlock,
         resolved: LinkedHashMap<String, LinkedHashSet<TransactionDigest>>,
     ) -> bool {
-
         let mut valid_txns = true;
-        let comp: Vec<bool> = resolved.iter().filter_map(|(pblock_hash, txn_id_set)| {
-            match block.txns.get(pblock_hash) {
-                Some(set) => { Some(set == txn_id_set) }
-                None => { None }
-            }
-        }).collect();
+        let comp: Vec<bool> = resolved
+            .iter()
+            .filter_map(
+                |(pblock_hash, txn_id_set)| match block.txns.get(pblock_hash) {
+                    Some(set) => Some(set == txn_id_set),
+                    None => None,
+                },
+            )
+            .collect();
 
         if comp.len() != block.txns.len() {
             valid_txns = false;
@@ -224,45 +222,49 @@ impl ConsensusModule {
 
         valid_txns
     }
-    
+
     fn precheck_get_proposal_block_claims(
         &mut self,
         proposals: Vec<ProposalBlock>,
     ) -> LinkedHashMap<String, LinkedHashSet<U256>> {
-        proposals.iter().map(|block| {
-            let block_claims = block.claims
-                .keys()
-                .into_iter()
-                .map(|key| key.clone())
-                .collect();
-            (block.hash.clone(), block_claims)
-        }).collect()
+        proposals
+            .iter()
+            .map(|block| {
+                let block_claims = block
+                    .claims
+                    .keys()
+                    .into_iter()
+                    .map(|key| key.clone())
+                    .collect();
+                (block.hash.clone(), block_claims)
+            })
+            .collect()
     }
 
     fn precheck_convergence_block_transactions<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
-        proposal_block_hashes: Vec<String>, 
+        proposal_block_hashes: Vec<String>,
         resolver: R,
         dag: Arc<RwLock<BullDag<Block, String>>>,
     ) -> Result<(bool, bool)> {
-        
         let proposals = self.precheck_convergence_block_get_proposal_blocks(
             block.hash.clone(),
-            proposal_block_hashes, 
-            dag.clone()
+            proposal_block_hashes,
+            dag.clone(),
         )?;
-        
+
         let resolved = self.precheck_resolve_proposal_block_conflicts(
-            block.clone(), 
-            proposals.clone(), 
-            resolver, 
+            block.clone(),
+            proposals.clone(),
+            resolver,
         );
-        
+
         let proposal_claims = self.precheck_get_proposal_block_claims(proposals);
 
-        Ok((self.precheck_resolved_transactions_are_valid(block.clone(), resolved),
-            self.precheck_convergence_block_claims(block.claims.clone(), proposal_claims)
+        Ok((
+            self.precheck_resolved_transactions_are_valid(block.clone(), resolved),
+            self.precheck_convergence_block_claims(block.claims.clone(), proposal_claims),
         ))
     }
 
@@ -272,13 +274,15 @@ impl ConsensusModule {
         proposal_claims: LinkedHashMap<String, LinkedHashSet<U256>>,
     ) -> bool {
         let mut valid_claims = true;
-        let comp: Vec<bool> = proposal_claims.iter()
-            .filter_map(|(pblock_hash, claim_hash_set)| {
-                match convergence_claims.get(pblock_hash) {
+        let comp: Vec<bool> = proposal_claims
+            .iter()
+            .filter_map(
+                |(pblock_hash, claim_hash_set)| match convergence_claims.get(pblock_hash) {
                     Some(set) => Some(set == claim_hash_set),
                     None => None,
-                }
-            }).collect();
+                },
+            )
+            .collect();
 
         if comp.len() != convergence_claims.len() {
             valid_claims = false;
@@ -298,16 +302,11 @@ impl ConsensusModule {
         // for conflict resolution
         _last_confirmed_block_header: BlockHeader,
         resolver: R,
-        dag: Arc<RwLock<BullDag<Block, String>>>
+        dag: Arc<RwLock<BullDag<Block, String>>>,
     ) -> Result<(bool, bool)> {
         self.is_harvester()?;
 
         let proposal_block_hashes = block.header.ref_hashes.clone();
-        self.precheck_convergence_block_transactions(
-            block, 
-            proposal_block_hashes, 
-            resolver, 
-            dag
-        ) 
+        self.precheck_convergence_block_transactions(block, proposal_block_hashes, resolver, dag)
     }
 }

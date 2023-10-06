@@ -3,9 +3,7 @@ use block::{
 };
 use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData};
 use miner::conflict_resolver::Resolver;
-use primitives::{
-    Address, Epoch, NodeId, NodeType, QuorumKind, QuorumType, RawSignature, Round, Signature,
-};
+use primitives::{Address, Epoch, NodeId, NodeType, QuorumKind, RawSignature, Round, Signature};
 use quorum::quorum::Quorum;
 use signer::engine::{SignerEngine, VALIDATION_THRESHOLD};
 use std::collections::HashMap;
@@ -153,7 +151,7 @@ impl NodeRuntime {
                         .0
                         .into_iter()
                         .map(|(_, data)| {
-                            (data.quorum_type, data.members.clone().into_iter().collect())
+                            (data.quorum_kind, data.members.clone().into_iter().collect())
                         })
                         .collect(),
                 )
@@ -208,8 +206,8 @@ impl NodeRuntime {
         last_confirmed_block_header: BlockHeader,
         resolver: R,
     ) -> Result<()> {
-        match &self.consensus_driver.quorum_type {
-            Some(QuorumType::Harvester) => {
+        match &self.consensus_driver.quorum_kind {
+            Some(QuorumKind::Harvester) => {
                 match self.consensus_driver.precheck_convergence_block(
                     block.clone(),
                     last_confirmed_block_header,

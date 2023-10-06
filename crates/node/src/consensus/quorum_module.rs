@@ -106,7 +106,7 @@ impl QuorumModule {
             .cloned()
             .collect::<Vec<PeerData>>();
 
-        let mut unassigned_peers = peer_list
+        let unassigned_peers = peer_list
             .iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)

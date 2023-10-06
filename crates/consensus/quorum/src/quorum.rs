@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use ethereum_types::U256;
-use primitives::{QuorumType, PublicKey, NodeId};
+use primitives::{NodeId, PublicKey, QuorumKind};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vrrb_core::{
@@ -39,7 +39,7 @@ pub struct Quorum {
     pub quorum_seed: u64,
     pub members: Vec<(NodeId, PublicKey)>,
     pub election_block_height: u128,
-    pub quorum_type: Option<QuorumType> 
+    pub quorum_kind: Option<QuorumKind>,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -98,19 +98,23 @@ impl Election for Quorum {
 }
 
 impl Quorum {
-    //TODO: Make these configurable 
+    //TODO: Make these configurable
     pub const MIN_QUORUM_SIZE: usize = 3;
     pub const MAX_QUORUM_SIZE: usize = 50;
     /// Makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
-    pub fn new(seed: u64, height: u128, quorum_type: Option<QuorumType>) -> Result<Quorum, QuorumError> {
+    pub fn new(
+        seed: u64,
+        height: u128,
+        quorum_kind: Option<QuorumKind>,
+    ) -> Result<Quorum, QuorumError> {
         if !Quorum::check_validity(height) {
             Err(QuorumError::InvalidChildBlockError)
         } else {
             Ok(Quorum {
                 quorum_seed: seed,
                 members: Vec::new(),
-                quorum_type,  
+                quorum_kind,
                 election_block_height: height,
             })
         }
@@ -174,11 +178,14 @@ impl Quorum {
         Ok(quorums)
     }
 
-    fn split_into_quorums(&self, nodes: Vec<(NodeId, PublicKey)>) -> Result<Vec<Quorum>, QuorumError> {
-         let mut quorums = Vec::new();
+    fn split_into_quorums(
+        &self,
+        nodes: Vec<(NodeId, PublicKey)>,
+    ) -> Result<Vec<Quorum>, QuorumError> {
+        let mut quorums = Vec::new();
 
         if nodes.len() < 3 * Self::MIN_QUORUM_SIZE {
-            return Err(QuorumError::InsufficientNodesError)
+            return Err(QuorumError::InsufficientNodesError);
         }
 
         let mut quorum_size = nodes.len() - 2 * Self::MIN_QUORUM_SIZE;
@@ -190,11 +197,11 @@ impl Quorum {
         let mut harvester_quorum = Quorum::new(
             self.quorum_seed,
             self.election_block_height,
-            Some(QuorumType::Harvester)
+            Some(QuorumKind::Harvester),
         )?;
 
         harvester_quorum.members = harvester_nodes;
-        quorums.push(harvester_quorum); 
+        quorums.push(harvester_quorum);
 
         let mut start = quorum_size;
         while start < nodes.len() {
@@ -202,13 +209,13 @@ impl Quorum {
             let mut farmer = Quorum::new(
                 self.quorum_seed,
                 self.election_block_height,
-                Some(QuorumType::Farmer)
+                Some(QuorumKind::Farmer),
             )?;
 
             farmer.members = nodes[start..end].to_vec();
             quorums.push(farmer);
             start = end;
-        }       
+        }
 
         Ok(quorums)
     }

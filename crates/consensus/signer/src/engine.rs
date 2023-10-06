@@ -1,4 +1,4 @@
-use primitives::{NodeId, PublicKey, QuorumId, QuorumType, SecretKey, Signature};
+use primitives::{NodeId, PublicKey, QuorumId, QuorumKind, SecretKey, Signature};
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -12,14 +12,14 @@ pub const VALIDATION_THRESHOLD: f64 = 0.6;
 #[repr(C)]
 pub struct QuorumData {
     pub id: QuorumId,
-    pub quorum_type: QuorumType,
+    pub quorum_kind: QuorumKind,
     pub members: HashMap<NodeId, PublicKey>,
 }
 
 impl std::hash::Hash for QuorumData {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
-        self.quorum_type.hash(state);
+        self.quorum_kind.hash(state);
         let members: Vec<(NodeId, PublicKey)> = self.members.clone().into_iter().collect();
         members.hash(state);
     }
@@ -56,8 +56,8 @@ impl QuorumMembers {
 
     pub fn get_harvester_data(&self) -> Option<QuorumData> {
         for (_, quorum_data) in self.0.iter() {
-            match &quorum_data.quorum_type {
-                QuorumType::Harvester => return Some(quorum_data.clone()),
+            match &quorum_data.quorum_kind {
+                QuorumKind::Harvester => return Some(quorum_data.clone()),
                 _ => {},
             }
         }
@@ -72,13 +72,13 @@ impl QuorumMembers {
         0usize
     }
 
-    pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumType, Vec<(NodeId, PublicKey)>)>) {
+    pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>) {
         self.0.clear();
         quorums.iter().for_each(|quorum| {
             let quorum_id = QuorumId::new(quorum.0.clone(), quorum.1.clone());
             let quorum_data = QuorumData {
                 id: quorum_id.clone(),
-                quorum_type: quorum.0.clone(),
+                quorum_kind: quorum.0.clone(),
                 members: quorum.1.clone().into_iter().collect(),
             };
             self.0.insert(quorum_id, quorum_data);
@@ -164,7 +164,7 @@ impl SignerEngine {
         self.local_node_public_key.clone()
     }
 
-    pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumType, Vec<(NodeId, PublicKey)>)>) {
+    pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>) {
         self.quorum_members.set_quorum_members(quorums);
     }
 }

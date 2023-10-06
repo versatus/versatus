@@ -1,42 +1,28 @@
+use super::{QuorumModule, QuorumModuleConfig};
+use crate::{NodeError, Result};
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock,
-    ProposalBlock,
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 use bulldag::graph::BullDag;
 use events::{SyncPeerData, Vote};
-use hbbft::{
-    crypto::{PublicKeySet, PublicKeyShare, SecretKeyShare},
-    sync_key_gen::Part,
-};
-use indexmap::IndexMap;
-use mempool::{MempoolReadHandleFactory, TxnStatus};
-use miner::{block_builder::BlockBuilder, conflict_resolver::Resolver};
+use mempool::MempoolReadHandleFactory;
+use miner::conflict_resolver::Resolver;
 use primitives::{
-    ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes, PKShareBytes,
-    PayloadBytes, PublicKey, QuorumId, QuorumPublicKey, QuorumType, RawSignature, Signature,
-    ValidatorPublicKey,
+    NodeId, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
+    QuorumPublicKey, RawSignature, Signature, ValidatorPublicKey,
 };
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use signer::{
-    engine::{QuorumData, QuorumMembers, SignerEngine},
-    signer::{SignatureProvider, Signer},
-};
+use signer::engine::SignerEngine;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
-use telemetry::error;
 use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
-use vrrb_core::{bloom::Bloom, keypair::Keypair};
-use vrrb_core::{
-    cache::Cache,
-    transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind},
+use vrrb_core::transactions::{
+    QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind,
 };
-
-use super::{QuorumModule, QuorumModuleConfig};
-use crate::{NodeError, Result};
+use vrrb_core::{bloom::Bloom, keypair::Keypair};
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -89,7 +75,7 @@ pub struct ConsensusModule {
     pub(crate) sig_engine: SignerEngine,
     pub(crate) node_config: NodeConfig,
     pub(crate) quorum_membership: Option<QuorumId>,
-    pub(crate) quorum_type: Option<QuorumType>,
+    pub(crate) quorum_kind: Option<QuorumKind>,
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
 }
@@ -106,8 +92,6 @@ impl ConsensusModule {
             membership_config: None,
             node_config: cfg.node_config.clone(),
         };
-
-        let validator_public_key = cfg.keypair.validator_public_key_owned();
 
         let validator_core_manager =
             ValidatorCoreManager::new(cores, mempool_reader, state_reader, claim_reader).map_err(
@@ -127,7 +111,7 @@ impl ConsensusModule {
             sig_engine,
             node_config: cfg.node_config.clone(),
             quorum_membership: None,
-            quorum_type: None,
+            quorum_kind: None,
             validator_core_manager,
             votes_pool: Default::default(),
         })
@@ -140,7 +124,7 @@ impl ConsensusModule {
     pub fn certify_block(
         &mut self,
         block: Block,
-        last_block_header: BlockHeader,
+        _last_block_header: BlockHeader,
         prev_txn_root_hash: String,
         //        next_txn_root_hash: String,
         certs: Vec<(NodeId, Signature)>,
@@ -190,7 +174,7 @@ impl ConsensusModule {
         &mut self,
         block: ConvergenceBlock,
         last_block_header: BlockHeader,
-        next_txn_root_hash: String,
+        _next_txn_root_hash: String,
         resolver: R,
         dag: Arc<RwLock<BullDag<Block, String>>>,
         certs: Vec<(NodeId, Signature)>,
@@ -202,7 +186,7 @@ impl ConsensusModule {
             last_block_header.clone(),
             resolver,
             dag.clone(),
-        );
+        )?;
         self.certify_block(block.into(), last_block_header, prev_txn_root_hash, certs)
     }
 
@@ -319,7 +303,7 @@ impl ConsensusModule {
         self.is_quorum_member()?;
         self.is_harvester()?;
 
-        if let Some((quorum_id, QuorumType::Farmer)) = self.get_node_quorum_id(&vote.farmer_id) {
+        if let Some((quorum_id, QuorumKind::Farmer)) = self.get_node_quorum_id(&vote.farmer_id) {
             let nested_map = self
                 .votes_pool
                 .entry(quorum_id)
@@ -335,11 +319,11 @@ impl ConsensusModule {
         )));
     }
 
-    fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumType)> {
+    fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumKind)> {
         let quorum_members = self.sig_engine.quorum_members();
         for (quorum_id, quorum_data) in quorum_members.0.iter() {
             if quorum_data.members.contains_key(node_id) {
-                return Some((quorum_id.clone(), quorum_data.quorum_type.clone()));
+                return Some((quorum_id.clone(), quorum_data.quorum_kind.clone()));
             }
         }
         None
@@ -355,12 +339,12 @@ impl ConsensusModule {
         Ok(())
     }
 
-    pub fn assign_quorum_id(&mut self, quorum_type: QuorumType, members: Vec<(NodeId, PublicKey)>) {
-        self.quorum_membership = Some(QuorumId::new(quorum_type, members));
+    pub fn assign_quorum_id(&mut self, quorum_kind: QuorumKind, members: Vec<(NodeId, PublicKey)>) {
+        self.quorum_membership = Some(QuorumId::new(quorum_kind, members));
     }
 
     pub(crate) fn is_harvester(&self) -> Result<()> {
-        if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Harvester) {
+        if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Harvester) {
             return Err(NodeError::Other(format!(
                 "local node is not a Harvester Node"
             )));
@@ -370,7 +354,7 @@ impl ConsensusModule {
     }
 
     pub(crate) fn is_farmer(&self) -> Result<()> {
-        if self.quorum_type.is_none() || self.quorum_type != Some(QuorumType::Farmer) {
+        if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Farmer) {
             return Err(NodeError::Other(format!("local node is not a Farmer Node")));
         }
 

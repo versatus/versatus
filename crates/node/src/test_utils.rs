@@ -741,7 +741,6 @@ pub async fn create_node_runtime_network(
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
-        let pk_bytes = [0; 32];
 
         let threshold_sk = ValidatorSecretKey::random();
         let validator_public_key = threshold_sk.public_key();
@@ -769,7 +768,7 @@ pub async fn create_node_runtime_network(
             quorum_members: quorum_members.clone(),
             quorum_kind: QuorumKind::Farmer,
         },
-        genesis_transaction_threshold: 3,
+        genesis_transaction_threshold: (n / 2) as u64,
     };
 
     let mut config = create_mock_full_node_config();
@@ -802,6 +801,7 @@ pub async fn create_node_runtime_network(
 
         config.id = format!("node-{}", i);
         config.bootstrap_config = Some(bootstrap_node_config.clone());
+        config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
         config.node_type = NodeType::Validator;
         config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
         config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
@@ -820,6 +820,7 @@ pub async fn create_node_runtime_network(
 
         miner_config.id = format!("node-{}", i);
         miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
+        miner_config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
         miner_config.node_type = NodeType::Miner;
         miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
         miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;

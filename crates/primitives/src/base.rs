@@ -1,14 +1,11 @@
 use std::fmt::Display;
 
-use hbbft::crypto::PublicKeySet;
-use hex;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use crate::NodeId;
 use crate::PublicKey;
 use crate::Signature;
-
-use crate::NodeIdx;
+use hex;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// The unit of time within VRRB.
 /// It lasts for some number
@@ -76,7 +73,7 @@ impl std::fmt::Display for QuorumType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             QuorumType::Farmer => f.write_str("Farmer"),
-            QuorumType::Harvester => f.write_str("Harvester")
+            QuorumType::Harvester => f.write_str("Harvester"),
         }
     }
 }
@@ -86,7 +83,7 @@ pub struct ConvergencePartialSig {
     pub sig: Signature,
     pub block_hash: String,
     //TODO: add node_idx for checking sig along the way
-    //pub node_idx: NodeIdx 
+    //pub node_idx: NodeIdx
 }
 
 pub type QuorumSize = usize;
@@ -124,10 +121,10 @@ impl Display for QuorumKind {
 pub struct QuorumId(String);
 
 impl QuorumId {
-    pub fn new(quorum_type: QuorumType, members: Vec<(NodeId, PublicKey)>) -> Self {
+    pub fn new(quorum_kind: QuorumKind, members: Vec<(NodeId, PublicKey)>) -> Self {
         let mut hasher = Sha256::new();
-        hasher.update(quorum_type.to_string().as_bytes());
-        
+        hasher.update(quorum_kind.to_string().as_bytes());
+
         for (id, pubkey) in members.iter() {
             hasher.update(id.as_bytes());
             hasher.update(&pubkey.serialize());

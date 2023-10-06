@@ -175,7 +175,7 @@ impl NodeRuntime {
         if let Some(membership) = self.quorum_membership() {
             let quorum_kind = membership.quorum_kind();
 
-            if !matches!(quorum_kind, intended_quorum) {
+            if quorum_kind != intended_quorum {
                 return Err(NodeError::Other(format!(
                     "Only {intended_quorum} nodes are allowed to: {action}"
                 )));
@@ -330,7 +330,7 @@ impl NodeRuntime {
         round: Round,
         epoch: Epoch,
         from: Claim,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> Result<ProposalBlock> {
         self.has_required_node_type(NodeType::Validator, "create proposal block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "create proposal block")?;
@@ -399,7 +399,7 @@ impl NodeRuntime {
             self.mining_driver.clone(),
             self.dag_driver.dag().clone(),
             certs.into_iter().collect(),
-        );
+        )?;
 
         Ok(())
     }
@@ -499,7 +499,6 @@ impl NodeRuntime {
             self.consensus_driver
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
-        dbg!("{}", &validated_transaction_kind);
         match validated_transaction_kind {
             Ok(transaction_kind) => return Ok((transaction_kind, true)),
             Err(_) => {
