@@ -77,30 +77,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
-            Event::TransactionCertificateRequested {
-                votes,
-                txn_id,
-                quorum_key,
-                farmer_id,
-                txn,
-                quorum_threshold,
-            } => {
-                self.consensus_driver
-                    .handle_transaction_certificate_requested(
-                        votes,
-                        txn_id,
-                        quorum_key,
-                        farmer_id,
-                        txn,
-                        quorum_threshold,
-                    );
-            },
-
-            // This certifies txns once vote threshold is reached.
-            // TODO: remove this event as it is not necessary
-            // transactions have no certificate, they only have 
-            // votes.
             Event::TransactionCertificateCreated {
                 votes,
                 signature,
@@ -117,26 +93,6 @@ impl Handler<EventMessage> for NodeRuntime {
                 public_key_share,
                 partial_signature,
             } => {
-                self.consensus_driver
-                    .handle_convergence_block_partial_signature_created(
-                        block_hash,
-                        public_key_share,
-                        partial_signature,
-                    );
-            },
-            Event::ConvergenceBlockPeerSignatureRequested {
-                node_id,
-                block_hash,
-                public_key_share,
-                partial_signature,
-            } => {
-                self.consensus_driver
-                    .handle_convergence_block_peer_signature_request(
-                        node_id,
-                        block_hash,
-                        public_key_share,
-                        partial_signature,
-                    );
             },
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
