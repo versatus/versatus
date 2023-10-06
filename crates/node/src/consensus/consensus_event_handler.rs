@@ -1,11 +1,17 @@
+// use dkg_engine::{
+//     dkg::DkgGenerator,
+//     prelude::{ReceiverId, SenderId},
+// };
+use super::ConsensusModule;
+use crate::{NodeError, Result};
 use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex, RwLock}};
 
 use block::{header::BlockHeader, BlockHash, ConvergenceBlock, Block, ProposalBlock, InnerBlock};
 use bulldag::graph::BullDag;
-use dkg_engine::{
-    dkg::DkgGenerator,
-    prelude::{ReceiverId, SenderId},
-};
+//use dkg_engine::{
+//    dkg::DkgGenerator,
+//    prelude::{ReceiverId, SenderId},
+//};
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, PeerData, Vote};
 use hbbft::{
@@ -15,8 +21,8 @@ use hbbft::{
 use maglev::Maglev;
 use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder};
 use primitives::{
-    ByteSlice48Bit, FarmerQuorumThreshold, NodeId, NodeType, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, TxnValidationStatus, ValidatorPublicKeyShare,
+    FarmerQuorumThreshold, NodeId, NodeType, ProgramExecutionOutput, PublicKeyShareVec,
+    RawSignature, TxnValidationStatus, ValidatorPublicKeyShare, Signature,
 };
 use quorum::quorum::Quorum;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -25,10 +31,6 @@ use vrrb_config::QuorumMember;
 use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
-
-use crate::{NodeError, Result};
-
-use super::ConsensusModule;
 
 impl ConsensusModule {
     pub async fn handle_node_added_to_peer_list(
@@ -74,10 +76,10 @@ impl ConsensusModule {
             }
         }
 
-        self.add_peer_public_key_to_dkg_state(
-            peer_data.node_id.clone(),
-            peer_data.validator_public_key,
-        );
+        // self.add_peer_public_key_to_dkg_state(
+        //     peer_data.node_id.clone(),
+        //     peer_data.validator_public_key,
+        // );
 
         Ok(None)
     }
@@ -133,59 +135,60 @@ impl ConsensusModule {
         Ok(())
     }
 
-    pub fn handle_part_commitment_created(
-        &mut self,
-        sender_id: SenderId,
-        part: Part,
-    ) -> Result<(ReceiverId, SenderId, Ack)> {
-        if let Ok(membership_config) = self.membership_config_owned() {
-            if sender_id != self.node_config.id
-                && !membership_config.quorum_members.contains_key(&sender_id)
-            {
-                let msg = format!("Node {} is not a quorum member", self.node_config.id);
+    // pub fn handle_part_commitment_created(
+    //     &mut self,
+    //     sender_id: SenderId,
+    //     part: Part,
+    // ) -> Result<(ReceiverId, SenderId, Ack)> {
+    //     if let Ok(membership_config) = self.membership_config_owned() {
+    //         if sender_id != self.node_config.id
+    //             && !membership_config.quorum_members.contains_key(&sender_id)
+    //         {
+    //             let msg = format!("Node {} is not a quorum member", self.node_config.id);
 
-                return Err(NodeError::Other(msg));
-            }
-        }
+    //             return Err(NodeError::Other(msg));
+    //         }
+    //     }
 
-        self.dkg_engine
-            .dkg_state
-            .part_message_store_mut()
-            .entry(sender_id.clone())
-            .or_insert_with(|| part);
+    //     self.dkg_engine
+    //         .dkg_state
+    //         .part_message_store_mut()
+    //         .entry(sender_id.clone())
+    //         .or_insert_with(|| part);
 
-        self.dkg_engine
-            .ack_partial_commitment(sender_id)
-            .map_err(|err| NodeError::Other(err.to_string()))
-    }
+    //     self.dkg_engine
+    //         .ack_partial_commitment(sender_id)
+    //         .map_err(|err| NodeError::Other(err.to_string()))
+    // }
 
-    pub fn handle_part_commitment_acknowledged(
-        &mut self,
-        receiver_id: ReceiverId,
-        sender_id: SenderId,
-        ack: Ack,
-    ) -> Result<()> {
-        self.dkg_engine
-            .dkg_state
-            .ack_message_store_mut()
-            .entry((receiver_id, sender_id))
-            .or_insert_with(|| ack);
+    // pub fn handle_part_commitment_acknowledged(
+    //     &mut self,
+    //     receiver_id: ReceiverId,
+    //     sender_id: SenderId,
+    //     ack: Ack,
+    // ) -> Result<()> {
+    //     self.dkg_engine
+    //         .dkg_state
+    //         .ack_message_store_mut()
+    //         .entry((receiver_id, sender_id))
+    //         .or_insert_with(|| ack);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub fn handle_all_ack_messages(&mut self) -> Result<()> {
-        self.dkg_engine.handle_ack_messages()?;
-        Ok(())
-    }
+    // pub fn handle_all_ack_messages(&mut self) -> Result<()> {
+    //     self.dkg_engine.handle_ack_messages()?;
+    //     Ok(())
+    // }
 
-    pub fn generate_keysets(&mut self) -> Result<Option<PublicKeySet>> {
-        let res = self.dkg_engine
-            .generate_key_sets()
-            .map_err(|err| NodeError::Other(err.to_string()))?;
-        self.sig_provider = SignatureProvider::from(&self.dkg_engine.dkg_state);
-        Ok(res)
-    }
+    // pub fn generate_keysets(&mut self) -> Result<Option<PublicKeySet>> {
+    //     let res = self
+    //         .dkg_engine
+    //         .generate_key_sets()
+    //         .map_err(|err| NodeError::Other(err.to_string()))?;
+    //     self.sig_provider = SignatureProvider::from(&self.dkg_engine.dkg_state);
+    //     Ok(res)
+    // }
 
     pub fn handle_quorum_election_started(
         &mut self,
@@ -213,71 +216,71 @@ impl ConsensusModule {
         Ok(winner)
     }
 
-    pub async fn handle_txns_ready_for_processing(
-        &mut self,
-        txns: Vec<TransactionKind>,
-    ) -> Result<()> {
-        let keys: Vec<ByteSlice48Bit> = self
-            .dkg_engine
-            .dkg_state
-            .peer_public_keys()
-            .values()
-            .map(|pk| pk.to_bytes())
-            .collect();
+    // pub async fn handle_txns_ready_for_processing(
+    //     &mut self,
+    //     txns: Vec<TransactionKind>,
+    // ) -> Result<()> {
+    //     let keys: Vec<ByteSlice48Bit> = self
+    //         .dkg_engine
+    //         .dkg_state
+    //         .peer_public_keys()
+    //         .values()
+    //         .map(|pk| pk.to_bytes())
+    //         .collect();
 
-        let maglev_hash_ring = Maglev::new(keys);
-        // let mut new_txns = vec![];
+    //     let maglev_hash_ring = Maglev::new(keys);
+    //     // let mut new_txns = vec![];
 
-        for txn in txns {
-            // match maglev_hash_ring.get(&txn.id()).cloned() {
-            //     Some(group_public_key) if group_public_key == self.group_public_key => {
-            //         new_txns.push(txn)
-            //     },
-            //     Some(group_public_key) => {
-            //         if let Some(broadcast_addresses) =
-            //             self.neighbouring_farmer_quorum_peers.get(&group_public_key)
-            //         {
-            //             let addresses: Vec<SocketAddr> =
-            //                 broadcast_addresses.iter().cloned().collect();
-            //             self.broadcast_events_tx
-            //                 .send(EventMessage::new(
-            //                     None,
-            //                     Event::ForwardTxn((txn.1.clone(), addresses.clone())),
-            //                 ))
-            //                 .await
-            //                 .map_err(|err| {
-            //                     theater::TheaterError::Other(format!(
-            //                         "failed to forward txn {:?} to peers {:?}: {}",
-            //                         txn.1, addresses, err
-            //                     ))
-            //                 })?;
-            //         }
-            //     },
-            //     _ => new_txns.push(txn),
-            // }
-        }
+    //     for txn in txns {
+    //         // match maglev_hash_ring.get(&txn.id()).cloned() {
+    //         //     Some(group_public_key) if group_public_key == self.group_public_key => {
+    //         //         new_txns.push(txn)
+    //         //     },
+    //         //     Some(group_public_key) => {
+    //         //         if let Some(broadcast_addresses) =
+    //         //             self.neighbouring_farmer_quorum_peers.get(&group_public_key)
+    //         //         {
+    //         //             let addresses: Vec<SocketAddr> =
+    //         //                 broadcast_addresses.iter().cloned().collect();
+    //         //             self.broadcast_events_tx
+    //         //                 .send(EventMessage::new(
+    //         //                     None,
+    //         //                     Event::ForwardTxn((txn.1.clone(), addresses.clone())),
+    //         //                 ))
+    //         //                 .await
+    //         //                 .map_err(|err| {
+    //         //                     theater::TheaterError::Other(format!(
+    //         //                         "failed to forward txn {:?} to peers {:?}: {}",
+    //         //                         txn.1, addresses, err
+    //         //                     ))
+    //         //                 })?;
+    //         //         }
+    //         //     },
+    //         //     _ => new_txns.push(txn),
+    //         // }
+    //     }
 
-        // if let Some(sig_provider) = self.sig_provider.clone() {
-        //     if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
-        //         new_txns,
-        //         self.farmer_id.clone(),
-        //         self.farmer_node_idx,
-        //         self.group_public_key.clone(),
-        //         sig_provider,
-        //         self.quorum_threshold,
-        //     ))) {
-        //         telemetry::error!("error sending job to scheduler: {}", err);
-        //     }
-        // }
+    //     // if let Some(sig_provider) = self.sig_provider.clone() {
+    //     //     if let Err(err) = self.sync_jobs_sender.send(Job::Farm((
+    //     //         new_txns,
+    //     //         self.farmer_id.clone(),
+    //     //         self.farmer_node_idx,
+    //     //         self.group_public_key.clone(),
+    //     //         sig_provider,
+    //     //         self.quorum_threshold,
+    //     //     ))) {
+    //     //         telemetry::error!("error sending job to scheduler: {}", err);
+    //     //     }
+    //     // }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn handle_convergence_block_partial_signature_created(
         &mut self,
         block_hash: BlockHash,
         public_key_share: ValidatorPublicKeyShare,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     ) {
         //         if let Some(certificates_share) =
         //             self.convergence_block_certificates.get(&block_hash)
@@ -500,7 +503,7 @@ impl ConsensusModule {
         node_id: NodeId,
         block_hash: BlockHash,
         public_key_share: PublicKeyShareVec,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     ) {
         //     let mut pb_key_share = None;
         //     let preliminary_check = TryInto::<[u8; 48]>::try_into(public_key_share_bytes)

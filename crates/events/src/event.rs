@@ -1,6 +1,4 @@
 use std::net::SocketAddr;
-
-use block::{QuorumMembers, QuorumData};
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
@@ -9,8 +7,9 @@ use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
     Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, ConvergencePartialSig, 
+    PublicKeyShareVec, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare, ConvergencePartialSig, Signature, 
 };
+use signer::engine::{QuorumData, QuorumMembers};
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
@@ -150,7 +149,7 @@ pub enum Event {
     /// This event is emitted whenever a transaction is certified by a Farmer Quorum
     TransactionCertificateCreated {
         votes: Vec<Vote>,
-        signature: RawSignature,
+        signature: Signature,
         digest: TransactionDigest,
         /// OUtput of the program executed
         execution_result: ProgramExecutionOutput,
@@ -206,7 +205,7 @@ pub enum Event {
     ConvergenceBlockPartialSignatureCreated {
         block_hash: BlockHash,
         public_key_share: ValidatorPublicKeyShare,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     },
 
     /// `ConvergenceBlockPrecheckRequested` is a function
@@ -227,7 +226,7 @@ pub enum Event {
         node_id: NodeId,
         block_hash: BlockHash,
         public_key_share: PublicKeyShareVec,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     },
 
     Ping(NodeId),
@@ -270,7 +269,7 @@ pub enum Event {
 
     /// `SendPeerConvergenceBlockSign` is an event that triggers the sharing of
     /// a convergence block partial signature with other peers.
-    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
+    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, Signature),
 
     /// `SendBlockCertificate(Certificate)` is an event that triggers the
     /// sending of a `Certificate` object representing a proof that a block
@@ -285,7 +284,7 @@ pub enum Event {
     BlockCertificateCreated(Certificate),
     QuorumMembersReceived(QuorumMembers),
     QuorumFormed,
-    HarvesterSignatureReceived(BlockHash, NodeId, RawSignature),
+    HarvesterSignatureReceived(BlockHash, NodeId, Signature),
     BroadcastQuorumFormed(QuorumData),
     BroadcastTransactionVote(Vote),
     BlockAppended(String)

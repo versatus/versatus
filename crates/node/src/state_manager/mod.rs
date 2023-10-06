@@ -20,6 +20,7 @@ mod tests {
     use miner::test_helpers::{create_address, create_claim};
     use primitives::Address;
     use serial_test::serial;
+    use signer::engine::SignerEngine;
     use storage::vrrbdb::types::*;
     use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
     use theater::{Actor, ActorImpl, ActorState, Handler};
@@ -76,6 +77,10 @@ mod tests {
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
 
         let keypair = KeyPair::random();
+        let mut sig_engine = SignerEngine::new(
+            keypair.get_miner_public_key().clone(),
+            keypair.get_miner_secret_key().clone()
+        );
         let pk = keypair.get_miner_public_key().clone();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
@@ -105,7 +110,7 @@ mod tests {
             guard.add_vertex(&gvtx);
         }
 
-        let proposals = produce_proposal_blocks(genesis.hash, accounts.clone(), 5, 5);
+        let proposals = produce_proposal_blocks(genesis.hash, accounts.clone(), 5, 5, sig_engine);
 
         let edges: Vec<(Vertex<Block, BlockHash>, Vertex<Block, BlockHash>)> = {
             proposals

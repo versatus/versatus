@@ -9,7 +9,7 @@ use std::{
 
 use hbbft::crypto::PublicKeySet;
 use hex::FromHexError;
-use primitives::{NodeId, QuorumType, RawSignature};
+use primitives::{NodeId, QuorumType, RawSignature, PublicKey, Signature};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
@@ -19,6 +19,8 @@ use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{
     QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind,
 };
+use signer::engine::QuorumData;
+
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -43,29 +45,11 @@ pub type QuorumMembers = LinkedHashMap<QuorumId, QuorumData>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
 pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[repr(C)]
-pub struct QuorumData {
-    pub id: QuorumId,
-    pub quorum_type: QuorumType,
-    pub members: HashSet<NodeId>,
-    pub quorum_pubkey: PublicKeySet,
-}
-
-impl std::hash::Hash for QuorumData {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-        self.quorum_type.hash(state);
-        let members: Vec<NodeId> = self.members.clone().into_iter().collect();
-        members.hash(state);
-        self.quorum_pubkey.hash(state);
-    }
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct Certificate {
-    pub signature: RawSignature,
+    pub signatures: Vec<(NodeId, Signature)>,
     pub inauguration: Option<QuorumMembers>,
     pub root_hash: String,
     pub next_root_hash: String,
@@ -109,8 +93,9 @@ impl Hash for Conflict {
 }
 
 impl Certificate {
-    pub fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
-        let signature = hex::decode(self.signature.clone())?;
-        Ok(signature)
-    }
+//    pub fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
+//        let signature = hex::decode(self.signatures.clone())?;
+//
+//        Ok(signature)
+//    }
 }

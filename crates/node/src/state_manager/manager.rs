@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock, QuorumMembers};
+use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher, Vote};
@@ -14,6 +14,7 @@ use primitives::{
     Address, ByteSlice, ByteVec, NodeId, ProgramExecutionOutput, RawSignature, Round,
     TxnValidationStatus,
 };
+use signer::engine::{QuorumMembers, SignerEngine};
 use storage::vrrbdb::{types::*, ApplyBlockResult};
 use storage::{
     storage_utils::StorageError,
@@ -287,7 +288,11 @@ impl StateManager {
         proposals
     }
 
-    pub(crate) fn handle_block_received(&mut self, block: &mut Block) -> Result<Event> {
+    pub(crate) fn handle_block_received(
+        &mut self, 
+        block: &mut Block, 
+        mut sig_engine: SignerEngine
+    ) -> Result<Event> {
         match block {
             Block::Genesis { ref mut block } => {
                 if let Err(e) = self.dag.append_genesis(&block) {
@@ -296,7 +301,7 @@ impl StateManager {
                 };
             },
             Block::Proposal { ref mut block } => {
-                if let Err(e) = self.dag.append_proposal(&block) {
+                if let Err(e) = self.dag.append_proposal(&block, sig_engine.clone()) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }

@@ -54,7 +54,7 @@ members = [
     "crates/events",
     "crates/consensus",
     "crates/consensus/quorum",
-    "crates/consensus/dkg_engine",
+    # "crates/consensus/dkg_engine",
     "crates/consensus/signer",
     "crates/consensus/job_pool",
     "crates/consensus/job_scheduler",

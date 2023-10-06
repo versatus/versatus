@@ -5,7 +5,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::{ConvergenceBlock, QuorumData};
+use block::ConvergenceBlock;
+use signer::engine::QuorumData;
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,

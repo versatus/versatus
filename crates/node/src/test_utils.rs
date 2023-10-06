@@ -18,6 +18,7 @@ use primitives::{
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
+use signer::engine::SignerEngine;
 use storage::vrrbdb::Claims;
 use uuid::Uuid;
 use vrrb_config::{
@@ -177,6 +178,7 @@ pub fn produce_proposal_blocks(
     accounts: Vec<(Address, Option<Account>)>,
     n: usize,
     ntx: usize,
+    mut sig_engine: SignerEngine,
 ) -> Vec<ProposalBlock> {
     (0..n)
         .map(|_| {
@@ -232,7 +234,7 @@ pub fn produce_proposal_blocks(
                 txn_list,
                 claim_list,
                 from,
-                keypair.get_miner_secret_key(),
+                sig_engine.clone()
             )
         })
         .collect()
@@ -442,9 +444,9 @@ pub fn create_txn_from_accounts_invalid_timestamp(
 // }
 
 /// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(threshold_signature: RawSignature) -> block::Certificate {
+pub(crate) fn create_blank_certificate(threshold_signature: Vec<(NodeId, Signature)>) -> block::Certificate {
     block::Certificate {
-        signature: threshold_signature,
+        signatures: threshold_signature,
         inauguration: None,
         root_hash: "".to_string(),
         next_root_hash: "".to_string(),

@@ -1,31 +1,27 @@
-use std::{
-    collections::HashMap,
-    fmt::format,
-    hash::Hash,
-    sync::{Arc, RwLock},
-};
-
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
+    GenesisBlock, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
-use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
-use ethereum_types::U256;
-use events::{AssignedQuorumMembership, Event, EventPublisher, PeerData, Vote};
-use hbbft::{
-    crypto::PublicKeySet,
-    sync_key_gen::{Ack, Part},
+use signer::engine::SignerEngine;
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
 };
+// use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
+use crate::{
+    consensus::{ConsensusModule, ConsensusModuleConfig},
+    result::{NodeError, Result},
+    state_manager::{DagModule, StateManager, StateManagerConfig},
+};
+use events::{EventPublisher, Vote};
+use hbbft::sync_key_gen::Part;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{
-    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey,
-};
-use quorum::quorum::Quorum;
+use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
-use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle, StateStoreReadHandleFactory};
+use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -37,14 +33,6 @@ use vrrb_core::{
         generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Token, Transaction,
         TransactionDigest, TransactionKind, Transfer,
     },
-};
-
-use crate::{
-    consensus::{ConsensusModule, ConsensusModuleConfig},
-    mining_module::{MiningModule, MiningModuleConfig},
-    network::NetworkEvent,
-    result::{NodeError, Result},
-    state_manager::{DagModule, StateManager, StateManagerConfig},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -121,25 +109,27 @@ impl NodeRuntime {
 
         let miner = miner::Miner::new(miner_config, config.id.clone()).map_err(NodeError::from)?;
 
-        let dkg_engine_config = DkgEngineConfig {
-            node_id: config.id.clone(),
-            node_type: config.node_type,
-            secret_key: config.keypair.get_validator_secret_key_owned(),
-            threshold_config: config.threshold_config.clone(),
-        };
+        // let dkg_engine_config = DkgEngineConfig {
+        //     node_id: config.id.clone(),
+        //     node_type: config.node_type,
+        //     secret_key: config.keypair.get_validator_secret_key_owned(),
+        //     threshold_config: config.threshold_config.clone(),
+        // };
 
-        let dkg_generator = DkgEngine::new(dkg_engine_config);
+        // let dkg_generator = DkgEngine::new(dkg_engine_config);
 
         let consensus_driver = ConsensusModule::new(
             ConsensusModuleConfig {
                 keypair: config.keypair.clone(),
                 node_config: config.clone(),
-                dkg_generator,
-                validator_public_key: config.keypair.validator_public_key_owned()
+                //dkg_generator,
+                validator_public_key: config.keypair.validator_public_key_owned(),
             },
             state_driver.mempool_read_handle_factory(),
             database.state_store_factory(),
-            database.claim_store_factory()
+            database.claim_store_factory(),
+            // TODO: Replace with a configurable number
+            10
         )?;
 
         let dag_driver = DagModule::new(dag, claim.clone());
@@ -233,28 +223,31 @@ impl NodeRuntime {
         self.mempool_read_handle_factory().entries()
     }
 
-    pub fn add_peer_public_key_to_dkg_state(
-        &mut self,
-        node_id: NodeId,
-        public_key: ValidatorPublicKey,
-    ) {
-        self.consensus_driver
-            .add_peer_public_key_to_dkg_state(node_id, public_key);
-    }
-
+    // pub fn add_peer_public_key_to_dkg_state(
+    //     &mut self,
+    //     node_id: NodeId,
+    //     public_key: ValidatorPublicKey,
+    // ) {
+    //     self.consensus_driver
+    //         .add_peer_public_key_to_dkg_state(node_id, public_key);
+    // }
+    
+    #[deprecated]
     pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
-        let (part, node_id) = self
-            .consensus_driver
-            .generate_partial_commitment_message()?;
-
-        Ok((part, node_id))
+//        let (part, node_id) = self
+//            .consensus_driver
+//            .generate_partial_commitment_message()?;
+//
+//        Ok((part, node_id))
+        todo!()
     }
-
+    
+    #[deprecated]
     pub async fn generate_keysets(&mut self) -> Result<()> {
-        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
-            self.consensus_driver.assign_quorum_id(pks);
-            self.events_tx.send(Event::QuorumFormed.into()).await?;
-        }
+//        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
+//            self.consensus_driver.assign_quorum_id(pks);
+//            self.events_tx.send(Event::QuorumFormed.into()).await?;
+//        }
 
         Ok(())
     }
@@ -362,8 +355,8 @@ impl NodeRuntime {
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
         self.has_required_node_type(NodeType::Validator, "certify blocks")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify blocks")?;
-
-        let certificate = self.consensus_driver.certify_genesis_block(genesis)?;
+        let certs = self.dag_driver.check_threshold_reached(&genesis.hash)?;
+        let certificate = self.consensus_driver.certify_genesis_block(genesis, certs.into_iter().collect())?;
 
         Ok(certificate)
     }
@@ -375,6 +368,7 @@ impl NodeRuntime {
         round: Round,
         epoch: Epoch,
         from: Claim,
+        mut sig_engine: SignerEngine,
     ) -> Result<ProposalBlock> {
         self.has_required_node_type(NodeType::Validator, "create proposal block")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "create proposal block")?;
@@ -413,7 +407,7 @@ impl NodeRuntime {
             txns_list,
             claim_list,
             from,
-            self.config.keypair.get_miner_secret_key(),
+            sig_engine,
         ))
     }
 
@@ -440,6 +434,7 @@ impl NodeRuntime {
                 )))?;
 
         let next_txn_trie_hash = self.state_driver.transactions_root_hash()?;
+        let certs = self.dag_driver.check_threshold_reached(&block.hash)?;
 
         self.consensus_driver.certify_convergence_block(
             block,
@@ -447,6 +442,7 @@ impl NodeRuntime {
             next_txn_trie_hash.clone(),
             self.mining_driver.clone(),
             self.dag_driver.dag().clone(),
+            certs.into_iter().collect()
         );
 
         Ok(())
@@ -536,60 +532,48 @@ impl NodeRuntime {
     }
 
     pub fn validate_transaction_kind(
-        &mut self, 
+        &mut self,
         digest: TransactionDigest,
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
     ) -> Result<(TransactionKind, bool)> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
-        let validated_transaction_kind = self.consensus_driver
-            .validate_transaction_kind(
-                &digest, 
-                mempool_reader, 
-                state_reader
-        );
+        let validated_transaction_kind =
+            self.consensus_driver
+                .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
         dbg!("{}", &validated_transaction_kind);
         match validated_transaction_kind {
-            Ok(transaction_kind) => {
-                return Ok((transaction_kind, true))
-            },
+            Ok(transaction_kind) => return Ok((transaction_kind, true)),
             Err(_) => {
                 let handle = self.mempool_read_handle_factory().handle();
                 let transaction_record = handle.get(&digest).clone();
                 match transaction_record {
-                    Some(record) => {
-                        return Ok((record.txn.clone(), false))
-                    },
-                    None => {
-                        return Err(
-                            NodeError::Other(
-                                format!("transaction record not found")
-                            )
-                        )
-                    }
+                    Some(record) => return Ok((record.txn.clone(), false)),
+                    None => return Err(NodeError::Other(format!("transaction record not found"))),
                 }
-            }
+            },
         }
     }
 
     pub fn cast_vote_on_transaction_kind(
         &mut self,
         transaction: TransactionKind,
-        validity: bool
+        validity: bool,
     ) -> Result<Vote> {
-        self.consensus_driver.cast_vote_on_transaction_kind(transaction, validity)
+        self.consensus_driver
+            .cast_vote_on_transaction_kind(transaction, validity)
     }
 
     /// Validates a batch of up to n transactions within a Node's mempool.
     /// This function is meant to be triggered at a configurable interval
     #[deprecated]
     pub fn validate_mempool(
-        &mut self, 
-        n: usize, 
-        mempool_reader: MempoolReadHandleFactory, 
-        state_reader: StateStoreReadHandleFactory
+        &mut self,
+        n: usize,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
     ) -> std::result::Result<Vec<Vote>, anyhow::Error> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
@@ -602,9 +586,9 @@ impl NodeRuntime {
             .map(|txn_record| txn_record.txn.to_owned())
             .collect();
 
-        let validated_txns = self
-            .consensus_driver
-            .validate_transactions(entries, mempool_reader, state_reader);
+        let validated_txns =
+            self.consensus_driver
+                .validate_transactions(entries, mempool_reader, state_reader);
 
         let votes = self
             .consensus_driver
