@@ -156,7 +156,7 @@ impl NodeRuntime {
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
-        //TODO: implement logic under new model
+        // self.consensus_driver.sig_engine.quorum_members()
         Ok(())
     }
 

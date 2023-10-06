@@ -1,8 +1,10 @@
-use async_trait::async_trait;
 use crate::node_runtime::NodeRuntime;
+use async_trait::async_trait;
 use block::Certificate;
 use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig, QuorumType, PublicKey, QuorumId};
+use primitives::{
+    ConvergencePartialSig, NodeId, NodeType, PublicKey, QuorumId, QuorumType, ValidatorPublicKey,
+};
 use signer::signer::Signer;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
@@ -57,33 +59,38 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.handle_quorum_membership_assigment_created(assigned_membership.clone());
             },
             Event::QuorumElectionStarted(header) => {
-                let quorums = self.handle_quorum_election_started(header)
+                let quorums = self
+                    .handle_quorum_election_started(header)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 let quorum_assignment: Vec<(QuorumType, Vec<(NodeId, PublicKey)>)> = {
-                    quorums.clone().iter().filter_map(|quorum| {
-                        quorum.quorum_type.clone().map(|qt| {
-                            (qt.clone(), quorum.members.clone())
+                    quorums
+                        .clone()
+                        .iter()
+                        .filter_map(|quorum| {
+                            quorum
+                                .quorum_type
+                                .clone()
+                                .map(|qt| (qt.clone(), quorum.members.clone()))
                         })
-                    }).collect()
+                        .collect()
                 };
 
-                self.consensus_driver.sig_engine.set_quorum_members(quorum_assignment.clone());
+                self.consensus_driver
+                    .sig_engine
+                    .set_quorum_members(quorum_assignment.clone());
                 let local_id = self.config.id.clone();
                 for (qt, members) in quorum_assignment.iter() {
-                    if members.clone().iter().any(|(node_id, _)| node_id == &local_id) {
-                        self.consensus_driver.quorum_membership = Some(
-                            QuorumId::new(
-                                qt.clone(),
-                                members.clone()
-                            )
-                        );
-                        self.consensus_driver.quorum_type = Some(
-                            qt.clone()
-                        );
+                    if members
+                        .clone()
+                        .iter()
+                        .any(|(node_id, _)| node_id == &local_id)
+                    {
+                        self.consensus_driver.quorum_membership =
+                            Some(QuorumId::new(qt.clone(), members.clone()));
+                        self.consensus_driver.quorum_type = Some(qt.clone());
                     }
                 }
-
             },
             Event::MinerElectionStarted(header) => {
                 let claims = self.state_driver.read_handle().claim_store_values();
@@ -106,32 +113,35 @@ impl Handler<EventMessage> for NodeRuntime {
                 block_hash,
                 public_key_share,
                 partial_signature,
-            } => {
-            },
+            } => {},
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
                 block_header,
             } => {
                 let resolver = self.mining_driver.clone();
                 self.handle_convergence_block_precheck_requested(
-                    convergence_block, 
-                    block_header, 
-                    resolver
-                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+                    convergence_block,
+                    block_header,
+                    resolver,
+                )
+                .await
+                .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::SignConvergenceBlock(block) => {
-                let sig = self.handle_sign_convergence_block(
-                    block.clone()
-                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+                let sig = self
+                    .handle_sign_convergence_block(block.clone())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 let partial_sig = ConvergencePartialSig {
                     sig,
                     block_hash: block.hash,
                 };
 
-                self.events_tx.send(
-                    Event::ConvergenceBlockPartialSignComplete(partial_sig).into()
-                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.events_tx
+                    .send(Event::ConvergenceBlockPartialSignComplete(partial_sig).into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::NewTxnCreated(txn) => {
                 let txn_hash = self
@@ -164,21 +174,26 @@ impl Handler<EventMessage> for NodeRuntime {
                 info!("Storing claim from: {}", claim.address);
             },
             Event::BlockReceived(mut block) => {
-                let next_event = self.state_driver
+                let next_event = self
+                    .state_driver
                     .handle_block_received(&mut block, self.consensus_driver.sig_engine.clone())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.events_tx.send(next_event.into()).await
+                self.events_tx
+                    .send(next_event.into())
+                    .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
                 // TODO, refactor into a node_runtime method
                 self.handle_harvester_signature_received(
-                    block_hash, 
-                    node_id, 
+                    block_hash,
+                    node_id,
                     sig,
-                    self.consensus_driver.sig_engine.clone()
-                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+                    self.consensus_driver.sig_engine.clone(),
+                )
+                .await
+                .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockCertificateCreated(certificate) => {
                 self.handle_block_certificate_created(certificate)
@@ -188,13 +203,14 @@ impl Handler<EventMessage> for NodeRuntime {
                 let certificate: Certificate = bincode::deserialize(&certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.handle_block_certificate(certificate).await
+                self.handle_block_certificate(certificate)
+                    .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            }
-            Event::QuorumFormed => {
-                //TODO: build logic for setting/updating quorums 
-                //once formed/elected
             },
+            Event::QuorumFormed => self
+                .handle_quorum_formed()
+                .await
+                .map_err(|err| TheaterError::Other(err.to_string()))?,
             Event::TxnAddedToMempool(txn_hash) => {
                 let mempool_reader = self.mempool_read_handle_factory().clone();
                 let state_reader = self.state_store_read_handle_factory().clone();

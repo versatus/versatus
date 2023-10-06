@@ -1,10 +1,10 @@
-use primitives::{NodeId, PublicKey, QuorumId, SecretKey, Signature, QuorumType};
+use primitives::{NodeId, PublicKey, QuorumId, QuorumType, SecretKey, Signature};
 use secp256k1::Message;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use serde::{Serialize, Deserialize};
+use std::cmp::Ord;
 use std::collections::HashMap;
 use std::hash::Hasher;
-use std::cmp::Ord;
 
 pub const VALIDATION_THRESHOLD: f64 = 0.6;
 
@@ -58,15 +58,15 @@ impl QuorumMembers {
         for (_, quorum_data) in self.0.iter() {
             match &quorum_data.quorum_type {
                 QuorumType::Harvester => return Some(quorum_data.clone()),
-                _ => {}
+                _ => {},
             }
         }
-        return None
+        return None;
     }
 
     pub fn get_harvester_threshold(&self) -> usize {
         if let Some(data) = self.get_harvester_data() {
-            return (data.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize 
+            return (data.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize;
         }
 
         0usize
@@ -79,7 +79,7 @@ impl QuorumMembers {
             let quorum_data = QuorumData {
                 id: quorum_id.clone(),
                 quorum_type: quorum.0.clone(),
-                members: quorum.1.clone().into_iter().collect()
+                members: quorum.1.clone().into_iter().collect(),
             };
             self.0.insert(quorum_id, quorum_data);
         });
@@ -111,7 +111,7 @@ impl SignerEngine {
     }
     /// transaction sign method
     pub fn sign<T: AsRef<[u8]>>(&mut self, data: T) -> Result<Signature, Error> {
-        let mut hasher = sha2::Sha256::new();
+        let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
         let result = hasher.finalize().to_vec();
         let message = Message::from_slice(&result);
@@ -127,7 +127,7 @@ impl SignerEngine {
         sig: &Signature,
         data: &T,
     ) -> Result<(), Error> {
-        let mut hasher = sha2::Sha256::new();
+        let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
         let result = hasher.finalize().to_vec();
         let message = Message::from_slice(&result);
