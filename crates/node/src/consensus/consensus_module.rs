@@ -385,59 +385,6 @@ impl ConsensusModule {
         })
     }
 
-    #[deprecated]
-    pub fn cast_vote_on_validated_txns(
-        &mut self,
-        validated_txns: HashSet<(TransactionKind, validator::txn_validator::Result<()>)>,
-    ) -> Result<Vec<Vote>> {
-        todo!()
-        // NOTE: comments originally by vsawant, check with them to figure out what they meant
-        //
-        // TODO  Add Delegation logic + Handling Double Spend by checking whether
-        // MagLev Hashing over( Quorum Keys) to identify whether current farmer
-        // quorum is supposed to vote on txn Txn is intended
-        // to be validated by current validator
-        //
-        // let _backpressure = self.job_scheduler.calculate_back_pressure();
-        // Delegation Principle need to be done
-        //
-
-//        let receiver_farmer_id = self.node_config.id.clone();
-//        let farmer_node_id = self.node_config.id.clone();
-
-//        let sig_provider = &self.sig_provider;
-
-        // let farmer_quorum_threshold = self.quorum_public_keyset()?.threshold();
-        // let quorum_public_key = self
-        //     .quorum_public_keyset()?
-        //     .public_key()
-        //     .to_bytes()
-        //     .to_vec();
-
-//        let votes = validated_txns
-//            .par_iter()
-//            .filter_map(|(txn, validation_result)| {
-//                let farmer_node_id = farmer_node_id.clone();
-//                let new_txn = txn.clone();
-
-//                let txn_bytes = bincode::serialize(&new_txn).ok()?;
-
-//                let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
-
-//                Some(Vote {
-//                    farmer_id: receiver_farmer_id.clone().into(),
-//                    farmer_node_id,
-//                    signature,
-//                    txn: new_txn,
-//                    execution_result: None,
-//                    is_txn_valid: validation_result.is_err(),
-//                })
-//            })
-//            .collect::<Vec<Vote>>();
-
-//        Ok(votes)
-    }
-
     fn validate_single_transaction(
         &mut self,
         txn: &TransactionKind,

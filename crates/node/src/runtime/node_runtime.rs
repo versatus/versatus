@@ -223,35 +223,6 @@ impl NodeRuntime {
         self.mempool_read_handle_factory().entries()
     }
 
-    // pub fn add_peer_public_key_to_dkg_state(
-    //     &mut self,
-    //     node_id: NodeId,
-    //     public_key: ValidatorPublicKey,
-    // ) {
-    //     self.consensus_driver
-    //         .add_peer_public_key_to_dkg_state(node_id, public_key);
-    // }
-    
-    #[deprecated]
-    pub fn generate_partial_commitment_message(&mut self) -> Result<(Part, NodeId)> {
-//        let (part, node_id) = self
-//            .consensus_driver
-//            .generate_partial_commitment_message()?;
-//
-//        Ok((part, node_id))
-        todo!()
-    }
-    
-    #[deprecated]
-    pub async fn generate_keysets(&mut self) -> Result<()> {
-//        if let Ok(Some(pks)) = self.consensus_driver.generate_keysets() {
-//            self.consensus_driver.assign_quorum_id(pks);
-//            self.events_tx.send(Event::QuorumFormed.into()).await?;
-//        }
-
-        Ok(())
-    }
-
     pub fn produce_genesis_transactions(
         &self,
     ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
@@ -564,36 +535,5 @@ impl NodeRuntime {
     ) -> Result<Vote> {
         self.consensus_driver
             .cast_vote_on_transaction_kind(transaction, validity)
-    }
-
-    /// Validates a batch of up to n transactions within a Node's mempool.
-    /// This function is meant to be triggered at a configurable interval
-    #[deprecated]
-    pub fn validate_mempool(
-        &mut self,
-        n: usize,
-        mempool_reader: MempoolReadHandleFactory,
-        state_reader: StateStoreReadHandleFactory,
-    ) -> std::result::Result<Vec<Vote>, anyhow::Error> {
-        self.has_required_node_type(NodeType::Validator, "validate transactions")?;
-        self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
-
-        let entries = self
-            .mempool_read_handle_factory()
-            .handle()
-            .values()
-            .take(n)
-            .map(|txn_record| txn_record.txn.to_owned())
-            .collect();
-
-        let validated_txns =
-            self.consensus_driver
-                .validate_transactions(entries, mempool_reader, state_reader);
-
-        let votes = self
-            .consensus_driver
-            .cast_vote_on_validated_txns(validated_txns)?;
-
-        Ok(votes)
     }
 }
