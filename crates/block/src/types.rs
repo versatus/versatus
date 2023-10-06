@@ -52,7 +52,6 @@ pub struct Certificate {
     pub signatures: Vec<(NodeId, Signature)>,
     pub inauguration: Option<QuorumMembers>,
     pub root_hash: String,
-    pub next_root_hash: String,
     pub block_hash: String,
 }
 

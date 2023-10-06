@@ -82,7 +82,8 @@ impl NodeRuntime {
         &mut self, 
         block_hash: String, 
         node_id: NodeId, 
-        sig: Signature 
+        sig: Signature,
+        mut sig_engine: SignerEngine
     ) -> Result<()> {
         self.consensus_driver.sig_engine.verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
@@ -96,12 +97,44 @@ impl NodeRuntime {
         }
         
         let sig_set = set.into_iter().collect();
-        let cert = self.dag_driver.form_convergence_certificate(block_hash, sig_set)
+        let cert = self.form_convergence_certificate(block_hash, sig_set, sig_engine)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         self.events_tx.send(
             Event::BlockCertificateCreated(cert).into()
         ).await.map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    pub fn form_convergence_certificate(
+        &mut self, 
+        block_hash: String, 
+        sigs: Vec<(NodeId, Signature)>, 
+        mut sig_engine: SignerEngine
+    ) -> Result<Certificate> {
+        // TODO: figure out how to get next_root_hash back into cert
+        // this should probably be part of the signature process
+        sig_engine.verify_batch(&sigs, &block_hash)
+            .map_err(|err| {
+                NodeError::Other(err.to_string())
+            })?;
+        if let Some(ref mut block) = self.dag_driver.get_pending_convergence_block_mut(&block_hash) {
+            let root_hash = block.header.txn_hash.clone();
+            let block_hash = block.hash.clone();
+            Ok(Certificate {
+                signatures: sigs,
+                //TODO: handle inauguration blocks
+                inauguration: None, 
+                root_hash,
+                block_hash: block_hash.clone(),
+            })
+        } else {
+            Err(NodeError::Other(format!(
+                        "unable to find convergence block: {} in pending convergence blocks in dag",
+                        block_hash.clone()
+                        )
+                    )
+                )
+        }
     }
 
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {

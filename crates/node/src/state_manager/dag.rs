@@ -105,6 +105,14 @@ impl DagModule {
         self.harvester_quorum_threshold.clone()
     }
 
+    pub fn get_pending_convergence_block(&self) -> Option<ConvergenceBlock> {
+        todo!()
+    }
+
+    pub fn get_pending_convergence_block_mut(&mut self, key: &String) -> Option<&mut ConvergenceBlock> {
+        self.pending_convergence_blocks.get_mut(key)
+    }
+
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
         // TODO: re-enable checking genesis block certificates
         //
@@ -301,19 +309,6 @@ impl DagModule {
         Err(NodeError::Other(format!("threshold not reached")))
     }
 
-    pub fn form_convergence_certificate(&self, block_hash: String, sigs: Vec<(NodeId, Signature)>) -> Result<Certificate> {
-//        let block_hash = block.hash.clone();
-//        if let Some(sigs) = self.partial_certificate_signatures.get(&block_hash) {
-//            if let Some(threshold) = &self.harvester_quorum_threshold {
-//                if &sigs.len() >= threshold {
-//                    return Ok(())
-//                }
-//            }
-//        }
-
-//        Ok(())
-        todo!()
-    }
 
     fn check_invalid_partial_sig(&self, block_hash: String) -> SignerResult<NodeId> {
         todo!()

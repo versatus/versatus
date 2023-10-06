@@ -102,17 +102,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::TransactionCertificateCreated {
-                votes,
-                signature,
-                digest,
-                execution_result,
-                farmer_id,
-                txn,
-                is_valid,
-            } => {
-                // TODO: refactor process
-            },
             Event::ConvergenceBlockPartialSignatureCreated {
                 block_hash,
                 public_key_share,
@@ -159,7 +148,6 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::TxnValidated(txn) => {
                 self.state_driver.handle_transaction_validated(txn);
             },
-
             Event::CreateAccountRequested((address, account_bytes)) => {
                 self.handle_create_account_requested(address.clone(), account_bytes);
             },
@@ -188,7 +176,8 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_harvester_signature_received(
                     block_hash, 
                     node_id, 
-                    sig
+                    sig,
+                    self.consensus_driver.sig_engine.clone()
                 ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockCertificateCreated(certificate) => {

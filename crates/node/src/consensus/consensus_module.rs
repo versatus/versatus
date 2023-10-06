@@ -140,7 +140,7 @@ impl ConsensusModule {
         block: Block,
         last_block_header: BlockHeader,
         prev_txn_root_hash: String,
-        next_txn_root_hash: String,
+//        next_txn_root_hash: String,
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let block = block.clone();
@@ -161,7 +161,6 @@ impl ConsensusModule {
             signatures: certs.clone(),
             inauguration: None,
             root_hash: prev_txn_root_hash,
-            next_root_hash: next_txn_root_hash,
             block_hash,
         };
 
@@ -176,7 +175,6 @@ impl ConsensusModule {
             block.into(),
             last_block_header,
             txn_trie_hash.clone(),
-            txn_trie_hash,
             certs
         )
     }
@@ -202,7 +200,6 @@ impl ConsensusModule {
             block.into(),
             last_block_header,
             prev_txn_root_hash,
-            next_txn_root_hash,
             certs
         )
     }

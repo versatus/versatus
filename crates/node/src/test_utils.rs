@@ -449,7 +449,6 @@ pub(crate) fn create_blank_certificate(threshold_signature: Vec<(NodeId, Signatu
         signatures: threshold_signature,
         inauguration: None,
         root_hash: "".to_string(),
-        next_root_hash: "".to_string(),
         block_hash: "".to_string(),
     }
 }
