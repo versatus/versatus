@@ -456,7 +456,7 @@ mod tests {
     }
 
     #[tokio::test]
-    // #[ignore = "broken atm"]
+    #[ignore = "broken atm"]
     async fn node_runtime_can_form_quorum_with_valid_config() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
 

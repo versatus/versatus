@@ -14,7 +14,7 @@ use events::EventPublisher;
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round, ValidatorSecretKey, Signature,
+    Round, Signature, ValidatorSecretKey,
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
@@ -56,8 +56,6 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let kademlia_liveness_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-
-    let default_node_config = NodeConfig::default();
 
     NodeConfigBuilder::default()
         .id(id)
@@ -234,7 +232,7 @@ pub fn produce_proposal_blocks(
                 txn_list,
                 claim_list,
                 from,
-                sig_engine.clone()
+                sig_engine.clone(),
             )
         })
         .collect()
@@ -329,7 +327,6 @@ pub fn create_txn_from_accounts(
 
     txn
 }
-
 
 pub fn create_txn_from_accounts_invalid_signature(
     sender: (Address, Option<Account>),
@@ -444,7 +441,9 @@ pub fn create_txn_from_accounts_invalid_timestamp(
 // }
 
 /// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(threshold_signature: Vec<(NodeId, Signature)>) -> block::Certificate {
+pub(crate) fn create_blank_certificate(
+    threshold_signature: Vec<(NodeId, Signature)>,
+) -> block::Certificate {
     block::Certificate {
         signatures: threshold_signature,
         inauguration: None,
@@ -628,15 +627,12 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
     let miner_count = n as usize - validator_count;
 
     let mut nodes = vec![];
-
-    // let mut quorum_members = vec![];
     let mut quorum_members = BTreeMap::new();
 
     for i in 1..=n as u16 {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
-        let pk_bytes = [0; 32];
 
         let threshold_sk = ValidatorSecretKey::random();
         let validator_public_key = threshold_sk.public_key();
@@ -664,7 +660,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
             quorum_members: quorum_members.clone(),
             quorum_kind: QuorumKind::Farmer,
         },
-        genesis_transaction_threshold: 3,
+        genesis_transaction_threshold: (n / 2) as u64,
     };
 
     let mut config = create_mock_full_node_config();
