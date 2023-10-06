@@ -1,49 +1,19 @@
-use std::{
-    collections::HashMap,
-    fmt::format,
-    hash::Hash,
-    sync::{Arc, RwLock},
-};
-
 use block::{
-    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, QuorumCertifiedTxnList, QuorumData, RefHash,
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+    QuorumData, RefHash,
 };
-use bulldag::graph::BullDag;
-use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
-use ethereum_types::U256;
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, AccountBytes};
-use hbbft::{
-    crypto::PublicKeySet,
-    sync_key_gen::{Ack, Part},
-};
-use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
-use miner::{Miner, MinerConfig};
-use primitives::{
-    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, ValidatorPublicKey,
-};
+use std::collections::HashMap;
+// use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
+use events::{AccountBytes, AssignedQuorumMembership, PeerData};
+use hbbft::sync_key_gen::{Ack, Part};
+use primitives::{Address, Epoch, NodeId, NodeType, QuorumKind, Round};
 use quorum::quorum::Quorum;
-use ritelinked::LinkedHashMap;
-use secp256k1::Message;
-use storage::vrrbdb::{ApplyBlockResult, VrrbDbConfig, VrrbDbReadHandle};
-use theater::{ActorId, ActorState};
-use tokio::task::JoinHandle;
-use utils::payload::digest_data_to_bytes;
-use vrrb_config::{NodeConfig, QuorumMembershipConfig};
-use vrrb_core::{
-    account::{Account, UpdateArgs},
-    claim::Claim,
-    transactions::{
-        NewTransferArgs, Token, Transaction, TransactionDigest, TransactionKind, Transfer,
-    },
-};
+use storage::vrrbdb::ApplyBlockResult;
+use vrrb_core::claim::Claim;
 
 use crate::{
-    consensus::{ConsensusModule, ConsensusModuleConfig},
-    mining_module::{MiningModule, MiningModuleConfig},
     node_runtime::NodeRuntime,
     result::{NodeError, Result},
-    state_manager::{DagModule, StateManager, StateManagerConfig},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -148,45 +118,45 @@ impl NodeRuntime {
         todo!()
     }
 
-    pub async fn handle_quorum_formed(&mut self) -> Result<()> {
-        let members: std::collections::HashSet<NodeId> = self
-            .consensus_driver
-            .dkg_engine
-            .dkg_state
-            .peer_public_keys()
-            .iter()
-            .map(|(id, _)| id.clone())
-            .collect();
-        let id = self.consensus_driver.quorum_membership.clone();
-        let quorum_type = self.consensus_driver.quorum_type.clone();
-        let quorum_pubkey = self
-            .consensus_driver
-            .dkg_engine
-            .dkg_state
-            .public_key_set()
-            .clone();
+    // pub async fn handle_quorum_formed(&mut self) -> Result<()> {
+    //     let members: std::collections::HashSet<NodeId> = self
+    //         .consensus_driver
+    //         .dkg_engine
+    //         .dkg_state
+    //         .peer_public_keys()
+    //         .iter()
+    //         .map(|(id, _)| id.clone())
+    //         .collect();
+    //     let id = self.consensus_driver.quorum_membership.clone();
+    //     let quorum_type = self.consensus_driver.quorum_type.clone();
+    //     let quorum_pubkey = self
+    //         .consensus_driver
+    //         .dkg_engine
+    //         .dkg_state
+    //         .public_key_set()
+    //         .clone();
 
-        if let (Some(id), Some(quorum_pubkey), Some(quorum_type)) =
-            (id.clone(), quorum_pubkey.clone(), quorum_type.clone())
-        {
-            let quorum_data = QuorumData {
-                id: id.get_inner(),
-                quorum_type,
-                members,
-                quorum_pubkey,
-            };
-            self.events_tx
-                .send(events::Event::BroadcastQuorumFormed(quorum_data).into())
-                .await?;
+    //     if let (Some(id), Some(quorum_pubkey), Some(quorum_type)) =
+    //         (id.clone(), quorum_pubkey.clone(), quorum_type.clone())
+    //     {
+    //         let quorum_data = QuorumData {
+    //             id: id.get_inner(),
+    //             quorum_type,
+    //             members,
+    //             quorum_pubkey,
+    //         };
+    //         self.events_tx
+    //             .send(events::Event::BroadcastQuorumFormed(quorum_data).into())
+    //             .await?;
 
-            Ok(())
-        } else {
-            Err(NodeError::Other(
-                "consensus driver missing one of quorum id, quorum public key, or quorum type"
-                    .into(),
-            ))
-        }
-    }
+    //         Ok(())
+    //     } else {
+    //         Err(NodeError::Other(
+    //             "consensus driver missing one of quorum id, quorum public key, or quorum type"
+    //                 .into(),
+    //         ))
+    //     }
+    // }
 
     pub async fn handle_node_added_to_peer_list(
         &mut self,
@@ -220,27 +190,28 @@ impl NodeRuntime {
         todo!()
     }
 
-    pub fn handle_part_commitment_created(
-        &mut self,
-        sender_id: SenderId,
-        part: Part,
-    ) -> Result<(ReceiverId, SenderId, Ack)> {
-        self.consensus_driver
-            .handle_part_commitment_created(sender_id, part)
-    }
+    // pub fn handle_part_commitment_created(
+    //     &mut self,
+    //     sender_id: SenderId,
+    //     part: Part,
+    // ) -> Result<(ReceiverId, SenderId, Ack)> {
+    //     self.consensus_driver
+    //         .handle_part_commitment_created(sender_id, part)
+    // }
 
-    pub fn handle_part_commitment_acknowledged(
-        &mut self,
-        receiver_id: ReceiverId,
-        sender_id: SenderId,
-        ack: Ack,
-    ) -> Result<()> {
-        self.consensus_driver
-            .handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
-    }
-    pub fn handle_all_ack_messages(&mut self) -> Result<()> {
-        self.consensus_driver.handle_all_ack_messages()
-    }
+    // pub fn handle_part_commitment_acknowledged(
+    //     &mut self,
+    //     receiver_id: ReceiverId,
+    //     sender_id: SenderId,
+    //     ack: Ack,
+    // ) -> Result<()> {
+    //     self.consensus_driver
+    //         .handle_part_commitment_acknowledged(receiver_id, sender_id, ack)
+    // }
+
+    // pub fn handle_all_ack_messages(&mut self) -> Result<()> {
+    //     self.consensus_driver.handle_all_ack_messages()
+    // }
 
     pub fn handle_quorum_membership_assigment_created(
         &mut self,
@@ -266,17 +237,14 @@ impl NodeRuntime {
 
         Ok(quorum)
     }
-    
-    pub fn handle_create_account_requested(
-        &mut self, 
-        address: Address, 
-        account_bytes: AccountBytes
-    ) -> Result<()> {
 
+    pub fn handle_create_account_requested(
+        &mut self,
+        address: Address,
+        account_bytes: AccountBytes,
+    ) -> Result<()> {
         let account = bincode::deserialize(&account_bytes).map_err(|err| {
-           NodeError::Other(
-               format!("unable to deserialize account bytes: {err}")
-            ) 
+            NodeError::Other(format!("unable to deserialize account bytes: {err}"))
         })?;
 
         self.state_driver.insert_account(address, account)

@@ -1,32 +1,27 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    sync::{Arc, RwLock},
-};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-use anyhow::anyhow;
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, QuorumData,
 };
-use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
+// use dkg_engine::{dkg::DkgGenerator, prelude::DkgEngine};
 use events::{SyncPeerData, Vote};
 use hbbft::{
     crypto::{PublicKeySet, PublicKeyShare, SecretKeyShare},
     sync_key_gen::Part,
 };
-use mempool::{TxnStatus, MempoolReadHandleFactory};
+use mempool::{MempoolReadHandleFactory, TxnStatus};
 use primitives::{
-    Address, ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes,
-    PKShareBytes, PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature,
-    ValidatorPublicKey,
+    ByteVec, FarmerQuorumThreshold, GroupPublicKey, NodeId, NodeType, NodeTypeBytes, PKShareBytes,
+    PayloadBytes, QuorumId, QuorumPublicKey, QuorumType, RawSignature, ValidatorPublicKey,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use signer::signer::{SignatureProvider, Signer};
-use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStore, ClaimStoreReadHandleFactory};
+use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use telemetry::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
-use vrrb_core::{account::Account, bloom::Bloom, keypair::Keypair};
+use vrrb_core::{bloom::Bloom, keypair::Keypair};
 use vrrb_core::{
     cache::Cache,
     transactions::{QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind},
@@ -43,7 +38,7 @@ pub const PULL_TXN_BATCH_SIZE: usize = 100;
 pub struct ConsensusModuleConfig {
     pub keypair: Keypair,
     pub node_config: NodeConfig,
-    pub dkg_generator: DkgEngine,
+    // pub dkg_generator: DkgEngine,
     pub validator_public_key: ValidatorPublicKey,
 }
 
@@ -83,7 +78,7 @@ pub struct ConsensusModule {
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule,
-    pub(crate) dkg_engine: DkgEngine,
+    // pub(crate) dkg_engine: DkgEngine,
     pub(crate) node_config: NodeConfig,
 
     // pub(crate) group_public_key: GroupPublicKey,
@@ -121,28 +116,21 @@ impl ConsensusModule {
 
         let validator_public_key = cfg.keypair.validator_public_key_owned();
 
-        let validator_core_manager = ValidatorCoreManager::new(
-            10,
-            mempool_reader,
-            state_reader,
-            claim_reader
-        ).map_err(|err| {
-            NodeError::Other(format!("failed to generate validator core manager: {err}"))
-        })?;
+        let validator_core_manager =
+            ValidatorCoreManager::new(10, mempool_reader, state_reader, claim_reader).map_err(
+                |err| NodeError::Other(format!("failed to generate validator core manager: {err}")),
+            )?;
 
-        let mut sig_provider = SignatureProvider::from(
-            &cfg.dkg_generator.clone().dkg_state
-        );
-        sig_provider.set_threshold_config(
-            cfg.node_config.threshold_config.clone()
-        );
+        // let mut sig_provider = SignatureProvider::from(&cfg.dkg_generator.clone().dkg_state);
+        // sig_provider.set_threshold_config(cfg.node_config.threshold_config.clone());
+        let sig_provider = todo!();
 
         Ok(Self {
             quorum_certified_txns: vec![],
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
-            dkg_engine: cfg.dkg_generator.clone(),
+            // dkg_engine: cfg.dkg_generator.clone(),
             node_config: cfg.node_config.clone(),
             sig_provider,
             convergence_block_certificates: Cache::new(10, 300),
@@ -292,23 +280,24 @@ impl ConsensusModule {
 
         // NOTE: add this node's own validator key to participate in DKG, otherwise they're considered
         // an observer and no part message is generated
-        self.dkg_engine.add_peer_public_key(
-            self.node_config.id.clone(),
-            self.validator_public_key_owned(),
-        );
+        // self.dkg_engine.add_peer_public_key(
+        //     self.node_config.id.clone(),
+        //     self.validator_public_key_owned(),
+        // );
 
-        self.dkg_engine
-            .generate_partial_commitment(threshold)
-            .map_err(|err| NodeError::Other(err.to_string()))
+        // self.dkg_engine
+        //     .generate_partial_commitment(threshold)
+        //     .map_err(|err| NodeError::Other(err.to_string()))
+        todo!()
     }
 
-    pub fn add_peer_public_key_to_dkg_state(
-        &mut self,
-        node_id: NodeId,
-        public_key: ValidatorPublicKey,
-    ) {
-        self.dkg_engine.add_peer_public_key(node_id, public_key);
-    }
+    // pub fn add_peer_public_key_to_dkg_state(
+    //     &mut self,
+    //     node_id: NodeId,
+    //     public_key: ValidatorPublicKey,
+    // ) {
+    //     self.dkg_engine.add_peer_public_key(node_id, public_key);
+    // }
 
     pub fn membership_config(&self) -> &Option<QuorumMembershipConfig> {
         &self.quorum_driver.membership_config
@@ -330,26 +319,26 @@ impl ConsensusModule {
         Ok(quorum_membership_config)
     }
 
-    pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
-        let dkg_state = &self.dkg_engine.dkg_state;
-        let public_keyset = self
-            .dkg_engine
-            .dkg_state
-            .public_key_set_owned()
-            .ok_or(NodeError::Other("failed to read public key set".into()))?;
+    // pub fn quorum_public_keyset(&self) -> Result<PublicKeySet> {
+    //     let dkg_state = &self.dkg_engine.dkg_state;
+    //     let public_keyset = self
+    //         .dkg_engine
+    //         .dkg_state
+    //         .public_key_set_owned()
+    //         .ok_or(NodeError::Other("failed to read public key set".into()))?;
 
-        Ok(public_keyset)
-    }
+    //     Ok(public_keyset)
+    // }
 
-    pub fn quorum_secret_key_share(&self) -> Result<SecretKeyShare> {
-        let secret_key_share = self
-            .dkg_engine
-            .dkg_state
-            .secret_key_share_owned()
-            .ok_or(NodeError::Other("failed to read secret key share".into()))?;
+    // pub fn quorum_secret_key_share(&self) -> Result<SecretKeyShare> {
+    //     let secret_key_share = self
+    //         .dkg_engine
+    //         .dkg_state
+    //         .secret_key_share_owned()
+    //         .ok_or(NodeError::Other("failed to read secret key share".into()))?;
 
-        Ok(secret_key_share)
-    }
+    //     Ok(secret_key_share)
+    // }
 
     pub fn validate_transaction_kind(
         &mut self,
@@ -357,9 +346,8 @@ impl ConsensusModule {
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
     ) -> validator::txn_validator::Result<TransactionKind> {
-        self.validator_core_manager.validate_transaction_kind(
-            digest, mempool_reader, state_reader
-        )
+        self.validator_core_manager
+            .validate_transaction_kind(digest, mempool_reader, state_reader)
     }
 
     #[deprecated]
@@ -367,7 +355,7 @@ impl ConsensusModule {
         &mut self,
         txns: Vec<TransactionKind>,
         mempool_reader: MempoolReadHandleFactory,
-        state_reader: StateStoreReadHandleFactory
+        state_reader: StateStoreReadHandleFactory,
     ) -> HashSet<(TransactionKind, validator::txn_validator::Result<()>)> {
         self.validator_core_manager
             .validate(txns, mempool_reader, state_reader)
@@ -378,7 +366,7 @@ impl ConsensusModule {
     pub fn cast_vote_on_transaction_kind(
         &mut self,
         transaction: TransactionKind,
-        valid: bool
+        valid: bool,
     ) -> Result<Vote> {
         // NOTE: comments originally by vsawant, check with them to figure out what they meant
         //
@@ -396,20 +384,16 @@ impl ConsensusModule {
         //     .public_key()
         //     .to_bytes()
         //     .to_vec();
-        
+
         if let Some(vote) = self.form_vote(transaction, valid) {
-            return Ok(vote)
+            return Ok(vote);
         }
 
-        // TODO: Return the transaction id in the error for better 
+        // TODO: Return the transaction id in the error for better
         // error handling
-        Err(
-            NodeError::Other(
-                format!(
-                    "could not produce vote on transaction"
-                )
-            )
-        )
+        Err(NodeError::Other(format!(
+            "could not produce vote on transaction"
+        )))
     }
 
     fn form_vote(&self, transaction: TransactionKind, valid: bool) -> Option<Vote> {
@@ -420,16 +404,14 @@ impl ConsensusModule {
         let txn_bytes = bincode::serialize(&transaction.clone()).ok()?;
         let signature = sig_provider.generate_partial_signature(txn_bytes).ok()?;
 
-        Some(
-            Vote {
-                farmer_id: receiver_farmer_id.clone().into(),
-                farmer_node_id: farmer_node_id.clone(),
-                signature,
-                txn: transaction.clone(),
-                execution_result: None,
-                is_txn_valid: valid
-            }
-        )
+        Some(Vote {
+            farmer_id: receiver_farmer_id.clone().into(),
+            farmer_node_id: farmer_node_id.clone(),
+            signature,
+            txn: transaction.clone(),
+            execution_result: None,
+            is_txn_valid: valid,
+        })
     }
 
     #[deprecated]
@@ -488,11 +470,11 @@ impl ConsensusModule {
         &mut self,
         txn: &TransactionKind,
         mempool_reader: MempoolReadHandleFactory,
-        state_reader: StateStoreReadHandleFactory
+        state_reader: StateStoreReadHandleFactory,
     ) -> bool {
-        let validated_txns = self
-            .validator_core_manager
-            .validate(vec![txn.clone()], mempool_reader, state_reader);
+        let validated_txns =
+            self.validator_core_manager
+                .validate(vec![txn.clone()], mempool_reader, state_reader);
 
         validated_txns.iter().any(|x| x.0.id() == txn.id())
     }

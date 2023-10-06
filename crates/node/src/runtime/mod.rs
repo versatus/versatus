@@ -1,4 +1,4 @@
-use events::{Event, EventPublisher, EventRouter};
+use events::{EventPublisher, EventRouter};
 use telemetry::info;
 use vrrb_config::NodeConfig;
 
@@ -127,7 +127,10 @@ mod tests {
     use vrrb_core::transactions::Transaction;
 
     use crate::runtime::handler_helpers::*;
-    use crate::test_utils::{create_txn_from_accounts, create_txn_from_accounts_invalid_signature, create_txn_from_accounts_invalid_timestamp};
+    use crate::test_utils::{
+        create_txn_from_accounts, create_txn_from_accounts_invalid_signature,
+        create_txn_from_accounts_invalid_timestamp,
+    };
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
@@ -401,11 +404,13 @@ mod tests {
 
         for (node_id, farmer) in farmers.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            farmer.validate_transaction_kind(
-                txn.id(),
-                farmer.mempool_read_handle_factory().clone(),
-                farmer.state_store_read_handle_factory().clone()
-            ).unwrap();
+            farmer
+                .validate_transaction_kind(
+                    txn.id(),
+                    farmer.mempool_read_handle_factory().clone(),
+                    farmer.state_store_read_handle_factory().clone(),
+                )
+                .unwrap();
         }
     }
 
@@ -732,13 +737,13 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.handle_create_account_requested(
-                sender_address.clone(), 
-                sender_account_bytes.clone()
+                sender_address.clone(),
+                sender_account_bytes.clone(),
             );
-            
+
             let _ = farmer.handle_create_account_requested(
                 receiver_address.clone(),
-                receiver_account_bytes.clone()
+                receiver_account_bytes.clone(),
             );
         }
 
@@ -750,20 +755,24 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            let (transaction_kind, validity) = farmer.validate_transaction_kind(
-                txn.id(),
-                farmer.mempool_read_handle_factory().clone(),
-                farmer.state_store_read_handle_factory().clone(),
-            ).unwrap();
+            let (transaction_kind, validity) = farmer
+                .validate_transaction_kind(
+                    txn.id(),
+                    farmer.mempool_read_handle_factory().clone(),
+                    farmer.state_store_read_handle_factory().clone(),
+                )
+                .unwrap();
             assert!(validity);
-            farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
+            farmer
+                .cast_vote_on_transaction_kind(transaction_kind, validity)
+                .unwrap();
         }
     }
 
-
     #[tokio::test]
     #[serial_test::serial]
-    async fn farmer_node_runtime_can_form_invalid_vote_on_invalid_transaction_amount_greater_than_balance() {
+    async fn farmer_node_runtime_can_form_invalid_vote_on_invalid_transaction_amount_greater_than_balance(
+    ) {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
@@ -887,13 +896,13 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.handle_create_account_requested(
-                sender_address.clone(), 
-                sender_account_bytes.clone()
+                sender_address.clone(),
+                sender_account_bytes.clone(),
             );
-            
+
             let _ = farmer.handle_create_account_requested(
                 receiver_address.clone(),
-                receiver_account_bytes.clone()
+                receiver_account_bytes.clone(),
             );
         }
 
@@ -905,13 +914,17 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            let (transaction_kind, validity) = farmer.validate_transaction_kind(
-                txn.id(),
-                farmer.mempool_read_handle_factory().clone(),
-                farmer.state_store_read_handle_factory().clone(),
-            ).unwrap();
+            let (transaction_kind, validity) = farmer
+                .validate_transaction_kind(
+                    txn.id(),
+                    farmer.mempool_read_handle_factory().clone(),
+                    farmer.state_store_read_handle_factory().clone(),
+                )
+                .unwrap();
             assert!(!validity);
-            farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
+            farmer
+                .cast_vote_on_transaction_kind(transaction_kind, validity)
+                .unwrap();
         }
     }
 
@@ -1041,13 +1054,13 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.handle_create_account_requested(
-                sender_address.clone(), 
-                sender_account_bytes.clone()
+                sender_address.clone(),
+                sender_account_bytes.clone(),
             );
-            
+
             let _ = farmer.handle_create_account_requested(
                 receiver_address.clone(),
-                receiver_account_bytes.clone()
+                receiver_account_bytes.clone(),
             );
         }
 
@@ -1059,13 +1072,17 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            let (transaction_kind, validity) = farmer.validate_transaction_kind(
-                txn.id(),
-                farmer.mempool_read_handle_factory().clone(),
-                farmer.state_store_read_handle_factory().clone(),
-            ).unwrap();
+            let (transaction_kind, validity) = farmer
+                .validate_transaction_kind(
+                    txn.id(),
+                    farmer.mempool_read_handle_factory().clone(),
+                    farmer.state_store_read_handle_factory().clone(),
+                )
+                .unwrap();
             assert!(!validity);
-            farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
+            farmer
+                .cast_vote_on_transaction_kind(transaction_kind, validity)
+                .unwrap();
         }
     }
 
@@ -1195,13 +1212,13 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.handle_create_account_requested(
-                sender_address.clone(), 
-                sender_account_bytes.clone()
+                sender_address.clone(),
+                sender_account_bytes.clone(),
             );
-            
+
             let _ = farmer.handle_create_account_requested(
                 receiver_address.clone(),
-                receiver_account_bytes.clone()
+                receiver_account_bytes.clone(),
             );
         }
 
@@ -1213,16 +1230,19 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            let (transaction_kind, validity) = farmer.validate_transaction_kind(
-                txn.id(),
-                farmer.mempool_read_handle_factory().clone(),
-                farmer.state_store_read_handle_factory().clone(),
-            ).unwrap();
+            let (transaction_kind, validity) = farmer
+                .validate_transaction_kind(
+                    txn.id(),
+                    farmer.mempool_read_handle_factory().clone(),
+                    farmer.state_store_read_handle_factory().clone(),
+                )
+                .unwrap();
             assert!(!validity);
-            farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
+            farmer
+                .cast_vote_on_transaction_kind(transaction_kind, validity)
+                .unwrap();
         }
     }
-
 
     #[tokio::test]
     #[serial_test::serial]
@@ -1351,7 +1371,7 @@ mod tests {
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.handle_create_account_requested(
                 receiver_address.clone(),
-                receiver_account_bytes.clone()
+                receiver_account_bytes.clone(),
             );
         }
 
@@ -1363,13 +1383,17 @@ mod tests {
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
-            let (transaction_kind, validity) = farmer.validate_transaction_kind(
-                txn.id(),
-                farmer.mempool_read_handle_factory().clone(),
-                farmer.state_store_read_handle_factory().clone(),
-            ).unwrap();
+            let (transaction_kind, validity) = farmer
+                .validate_transaction_kind(
+                    txn.id(),
+                    farmer.mempool_read_handle_factory().clone(),
+                    farmer.state_store_read_handle_factory().clone(),
+                )
+                .unwrap();
             assert!(!validity);
-            farmer.cast_vote_on_transaction_kind(transaction_kind, validity).unwrap();
+            farmer
+                .cast_vote_on_transaction_kind(transaction_kind, validity)
+                .unwrap();
         }
     }
 

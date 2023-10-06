@@ -1,13 +1,9 @@
 use async_trait::async_trait;
-use dkg_engine::dkg::DkgGenerator;
-use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NodeId, NodeType, ValidatorPublicKey};
+// use dkg_engine::dkg::DkgGenerator;
+use crate::node_runtime::NodeRuntime;
+use events::{Event, EventMessage};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::{QuorumMember, QuorumMembershipConfig};
-use vrrb_core::serde_helpers::decode_from_binary_byte_slice;
-
-use crate::{consensus::ConsensusModule, node_runtime::NodeRuntime, state_reader::StateReader};
+use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
 #[async_trait]
 impl Handler<EventMessage> for NodeRuntime {
@@ -103,9 +99,8 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::QuorumElectionStarted(header) => {
-                self.handle_quorum_election_started(header).map_err(|err| {
-                    TheaterError::Other(err.to_string())
-                })?;
+                self.handle_quorum_election_started(header)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
             Event::MinerElectionStarted(header) => {
@@ -267,9 +262,9 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::QuorumFormed => {
-                self.handle_quorum_formed().await.map_err(|err| {
-                    TheaterError::Other(err.to_string())
-                })?;
+                self.handle_quorum_formed()
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::QuorumMembersReceived(quorum_members) => self
                 .state_driver
@@ -323,32 +318,32 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::TxnAddedToMempool(txn_hash) => {
                 let mempool_reader = self.mempool_read_handle_factory().clone();
                 let state_reader = self.state_store_read_handle_factory().clone();
-                if let Ok((transaction, validity)) = self.validate_transaction_kind(
-                    txn_hash,
-                    mempool_reader,
-                    state_reader
-                ) {
+                if let Ok((transaction, validity)) =
+                    self.validate_transaction_kind(txn_hash, mempool_reader, state_reader)
+                {
                     if let Ok(vote) = self.cast_vote_on_transaction_kind(transaction, validity) {
                         self.events_tx
                             .send(
                                 Event::TransactionsValidated {
                                     vote,
-                                    quorum_threshold: self.config.threshold_config.threshold as usize,
+                                    quorum_threshold: self.config.threshold_config.threshold
+                                        as usize,
                                 }
                                 .into(),
                             )
                             .await
                             .map_err(|err| TheaterError::Other(err.to_string()))?;
-                        }
                     }
+                }
             },
             Event::TransactionsValidated {
                 vote,
                 quorum_threshold,
             } => {
-                self.events_tx.send(
-                    Event::BroadcastTransactionVote(vote).into()
-                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.events_tx
+                    .send(Event::BroadcastTransactionVote(vote).into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::NoOp => {},
             _ => {},
