@@ -59,6 +59,12 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::QuorumElectionStarted(header) => {
                 let quorums = self.handle_quorum_election_started(header)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                let quorum_assignment = quorums.clone().iter().filter_map(|quorum| {
+                    quorum.quorum_type.clone().map(|qt| (qt.clone(), quorum.members.clone()))
+                }).collect();
+
+                self.consensus_driver.sig_engine.set_quorum_members(quorum_assignment);
             },
             Event::MinerElectionStarted(header) => {
                 let claims = self.state_driver.read_handle().claim_store_values();

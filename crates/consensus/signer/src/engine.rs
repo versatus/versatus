@@ -163,4 +163,8 @@ impl SignerEngine {
     pub fn public_key(&self) -> PublicKey {
         self.local_node_public_key.clone()
     }
+
+    pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumType, Vec<(NodeId, PublicKey)>)>) {
+        self.quorum_members.set_quorum_members(quorums);
+    }
 }
