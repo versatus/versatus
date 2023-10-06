@@ -168,6 +168,7 @@ impl NodeRuntime {
     // harvester sign and create cert
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
         //TODO: implement logic under new model
+        //apply block to state
         Ok(())
     }
 
@@ -178,6 +179,7 @@ impl NodeRuntime {
     // recieve cert from network
     pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
         //TODO: implement logic under new model
+        // redundant can probably delete
         Ok(())
     }
 
@@ -206,34 +208,29 @@ impl NodeRuntime {
         last_confirmed_block_header: BlockHeader,
         resolver: R,
     ) -> Result<()> {
-        match &self.consensus_driver.quorum_kind {
-            Some(QuorumKind::Harvester) => {
-                match self.consensus_driver.precheck_convergence_block(
-                    block.clone(),
-                    last_confirmed_block_header,
-                    resolver,
-                    self.dag_driver.dag(),
-                ) {
-                    Ok((true, true)) => {
-                        self.events_tx
-                            .send(Event::SignConvergenceBlock(block.clone()).into())
-                            .await
-                            .map_err(|err| NodeError::Other(err.to_string()))?;
-                        Ok(())
-                    },
-                    Err(err) => return Err(NodeError::Other(err.to_string())),
-                    _ => {
-                        return Err(NodeError::Other(
-                            "convergence block is not valid".to_string(),
-                        ))
-                    },
-                }
-            },
+        self.consensus_driver.is_harvester()?;
+        match self.consensus_driver.precheck_convergence_block(
+            block.clone(), 
+            last_confirmed_block_header, 
+            resolver, 
+            self.dag_driver.dag()
+        ) {
+            Ok((true, true)) => {
+                self.events_tx.send(
+                    Event::SignConvergenceBlock(block.clone()).into()
+                ).await.map_err(|err| NodeError::Other(err.to_string()))?;
+                Ok(())
+            }
+            Err(err) => {
+                return Err(NodeError::Other(err.to_string()))
+            }
             _ => {
-                return Err(NodeError::Other(
-                    "local node is not  a member of the active harvester quorum".to_string(),
-                ))
-            },
+                return Err(
+                    NodeError::Other(
+                        "convergence block is not valid".to_string()
+                    )
+                )
+            }
         }
     }
 
@@ -274,5 +271,7 @@ impl NodeRuntime {
         self.state_driver.insert_account(address, account)
     }
 
-    pub fn handle_vote_received(&mut self) {}
+    pub fn handle_vote_received(&mut self) {
+        //TODO: check for redundancy and delete if possible or implement
+    }
 }
