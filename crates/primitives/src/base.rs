@@ -4,6 +4,8 @@ use hbbft::crypto::PublicKeySet;
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use crate::NodeId;
+use crate::PublicKey;
 use crate::Signature;
 
 use crate::NodeIdx;
@@ -70,6 +72,15 @@ pub enum QuorumType {
     Harvester,
 }
 
+impl std::fmt::Display for QuorumType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuorumType::Farmer => f.write_str("Farmer"),
+            QuorumType::Harvester => f.write_str("Harvester")
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
 pub struct ConvergencePartialSig {
     pub sig: Signature,
@@ -113,9 +124,14 @@ impl Display for QuorumKind {
 pub struct QuorumId(String);
 
 impl QuorumId {
-    pub fn new(s: PublicKeySet) -> Self {
+    pub fn new(quorum_type: QuorumType, members: Vec<(NodeId, PublicKey)>) -> Self {
         let mut hasher = Sha256::new();
-        hasher.update(s.public_key().to_bytes());
+        hasher.update(quorum_type.to_string().as_bytes());
+        
+        for (id, pubkey) in members.iter() {
+            hasher.update(id.as_bytes());
+            hasher.update(&pubkey.serialize());
+        }
         let result = hasher.finalize();
 
         Self(hex::encode(result))

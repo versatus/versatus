@@ -491,8 +491,8 @@ impl ConsensusModule {
         Ok(())
     }
 
-    pub fn assign_quorum_id(&mut self, s: PublicKeySet) {
-        self.quorum_membership = Some(QuorumId::new(s));
+    pub fn assign_quorum_id(&mut self, quorum_type: QuorumType, members: Vec<(NodeId, PublicKey)>) {
+        self.quorum_membership = Some(QuorumId::new(quorum_type, members));
     }
 
     fn is_harvester(&self) -> Result<()> {

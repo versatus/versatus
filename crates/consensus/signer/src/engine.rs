@@ -1,6 +1,6 @@
 use primitives::{NodeId, PublicKey, QuorumId, SecretKey, Signature, QuorumType};
 use secp256k1::Message;
-use sha2::Digest;
+use sha2::{Digest, Sha256};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::hash::Hasher;
@@ -70,6 +70,19 @@ impl QuorumMembers {
         }
 
         0usize
+    }
+
+    pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumType, Vec<(NodeId, PublicKey)>)>) {
+        self.0.clear();
+        quorums.iter().for_each(|quorum| {
+            let quorum_id = QuorumId::new(quorum.0.clone(), quorum.1.clone());
+            let quorum_data = QuorumData {
+                id: quorum_id.clone(),
+                quorum_type: quorum.0.clone(),
+                members: quorum.1.clone().into_iter().collect()
+            };
+            self.0.insert(quorum_id, quorum_data);
+        });
     }
 }
 

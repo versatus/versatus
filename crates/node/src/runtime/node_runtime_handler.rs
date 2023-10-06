@@ -56,56 +56,11 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 let assignments =
                     self.handle_quorum_membership_assigment_created(assigned_membership.clone());
-
-//                let (part, node_id) =
-//                    self.generate_partial_commitment_message().map_err(|err| {
-//                        telemetry::error!("{}", err);
-//                        TheaterError::Other(err.to_string())
-//                    })?;
-
-//                let event = Event::PartCommitmentCreated(node_id, part);
-
-//                let em = EventMessage::new(Some("network-events".into()), event);
-
-//                self.events_tx
-//                    .send(em)
-//                    .await
-//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
-//            Event::PartCommitmentCreated(node_id, part) => {
-//                let (receiver_id, sender_id, ack) = self
-//                    .handle_part_commitment_created(node_id.clone(), part)
-//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-// 
-//                let event = Event::PartCommitmentAcknowledged {
-//                    node_id,
-//                    sender_id: self.config.id.clone(),
-//                    ack,
-//                };
-//
-//                let em = EventMessage::new(Some("network-events".into()), event);
-//
-//                self.events_tx
-//                    .send(em)
-//                    .await
-//                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-//            },
-
-//            Event::PartCommitmentAcknowledged {
-//                node_id,
-//                sender_id,
-//                ack,
-//            } => {
-//                self.consensus_driver
-//                    .handle_part_commitment_acknowledged(node_id, sender_id, ack)?;
-//            },
-
             Event::QuorumElectionStarted(header) => {
-                self.handle_quorum_election_started(header)
+                let quorums = self.handle_quorum_election_started(header)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
             Event::MinerElectionStarted(header) => {
                 let claims = self.state_driver.read_handle().claim_store_values();
 

@@ -230,6 +230,7 @@ impl NodeRuntime {
         self.consensus_driver
             .handle_quorum_membership_assigment_created(assigned_membership)
     }
+
     pub async fn handle_convergence_block_precheck_requested<R: Resolver<Proposal = ProposalBlock>>(
         &mut self,
         block: ConvergenceBlock,
@@ -291,7 +292,7 @@ impl NodeRuntime {
         )
     }
 
-    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Quorum> {
+    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Vec<Quorum>> {
         let claims = self.state_driver.read_handle().claim_store_values();
         let quorum = self
             .consensus_driver

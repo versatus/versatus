@@ -168,15 +168,15 @@ impl QuorumModule {
         Ok(quorum_assignments)
     }
 
-    pub fn elect_quorum(
+    pub fn elect_quorums(
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,
-    ) -> Result<Quorum, QuorumError> {
+    ) -> Result<Vec<Quorum>, QuorumError> {
         let last_block_height = header.block_height;
         let seed = header.next_block_seed;
 
-        if let Ok(mut quorum) = Quorum::new(seed, last_block_height) {
+        if let Ok(mut quorum) = Quorum::new(seed, last_block_height, None) {
             let claim_vec: Vec<Claim> = claims.values().cloned().collect();
             if let Ok(elected_quorum) = quorum.run_election(claim_vec) {
                 return Ok(elected_quorum.clone());

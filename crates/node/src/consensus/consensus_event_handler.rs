@@ -135,71 +135,16 @@ impl ConsensusModule {
         Ok(())
     }
 
-    // pub fn handle_part_commitment_created(
-    //     &mut self,
-    //     sender_id: SenderId,
-    //     part: Part,
-    // ) -> Result<(ReceiverId, SenderId, Ack)> {
-    //     if let Ok(membership_config) = self.membership_config_owned() {
-    //         if sender_id != self.node_config.id
-    //             && !membership_config.quorum_members.contains_key(&sender_id)
-    //         {
-    //             let msg = format!("Node {} is not a quorum member", self.node_config.id);
-
-    //             return Err(NodeError::Other(msg));
-    //         }
-    //     }
-
-    //     self.dkg_engine
-    //         .dkg_state
-    //         .part_message_store_mut()
-    //         .entry(sender_id.clone())
-    //         .or_insert_with(|| part);
-
-    //     self.dkg_engine
-    //         .ack_partial_commitment(sender_id)
-    //         .map_err(|err| NodeError::Other(err.to_string()))
-    // }
-
-    // pub fn handle_part_commitment_acknowledged(
-    //     &mut self,
-    //     receiver_id: ReceiverId,
-    //     sender_id: SenderId,
-    //     ack: Ack,
-    // ) -> Result<()> {
-    //     self.dkg_engine
-    //         .dkg_state
-    //         .ack_message_store_mut()
-    //         .entry((receiver_id, sender_id))
-    //         .or_insert_with(|| ack);
-
-    //     Ok(())
-    // }
-
-    // pub fn handle_all_ack_messages(&mut self) -> Result<()> {
-    //     self.dkg_engine.handle_ack_messages()?;
-    //     Ok(())
-    // }
-
-    // pub fn generate_keysets(&mut self) -> Result<Option<PublicKeySet>> {
-    //     let res = self
-    //         .dkg_engine
-    //         .generate_key_sets()
-    //         .map_err(|err| NodeError::Other(err.to_string()))?;
-    //     self.sig_provider = SignatureProvider::from(&self.dkg_engine.dkg_state);
-    //     Ok(res)
-    // }
-
     pub fn handle_quorum_election_started(
         &mut self,
         header: BlockHeader,
         claims: HashMap<NodeId, Claim>,
-    ) -> Result<Quorum> {
+    ) -> Result<Vec<Quorum>> {
         let quorum = self
             .quorum_driver
-            .elect_quorum(claims, header)
+            .elect_quorums(claims, header)
             .map_err(|err| NodeError::Other(format!("failed to elect quorum: {err}")))?;
-
+        
         Ok(quorum)
     }
 
