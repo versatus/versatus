@@ -8,7 +8,6 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-// use dkg_engine::prelude::{DkgEngine, DkgEngineConfig, ReceiverId, SenderId};
 use crate::{
     consensus::{ConsensusModule, ConsensusModuleConfig},
     result::{NodeError, Result},
@@ -108,21 +107,10 @@ impl NodeRuntime {
         };
 
         let miner = miner::Miner::new(miner_config, config.id.clone()).map_err(NodeError::from)?;
-
-        // let dkg_engine_config = DkgEngineConfig {
-        //     node_id: config.id.clone(),
-        //     node_type: config.node_type,
-        //     secret_key: config.keypair.get_validator_secret_key_owned(),
-        //     threshold_config: config.threshold_config.clone(),
-        // };
-
-        // let dkg_generator = DkgEngine::new(dkg_engine_config);
-
         let consensus_driver = ConsensusModule::new(
             ConsensusModuleConfig {
                 keypair: config.keypair.clone(),
                 node_config: config.clone(),
-                //dkg_generator,
                 validator_public_key: config.keypair.validator_public_key_owned(),
             },
             state_driver.mempool_read_handle_factory(),
