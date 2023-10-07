@@ -157,18 +157,22 @@ impl ConsensusModule {
             self.quorum_driver.membership_config = Some(config.clone());
             self.quorum_kind = Some(membership.quorum_kind);
         }
-        let quorums = assigned_memberships.iter().map(|mem| {
+        
+        let mut unique_quorums = HashSet::new();
+        for mem in assigned_memberships.iter() {
             let kind = mem.quorum_kind.clone();
-
             let mut peers = mem.peers.clone().into_iter().map(|peer| {
                 (peer.node_id.clone(), peer.validator_public_key.clone())
             }).collect::<HashSet<(NodeId, PublicKey)>>();
 
             peers.insert((mem.node_id.clone(), mem.pub_key.clone()));
-            (kind.clone(), peers.into_iter().collect())
+            let mut peers = peers.into_iter().collect::<Vec<_>>();
+            peers.sort();
 
-        }).collect::<Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>>();
+            unique_quorums.insert((kind, peers));
+        }
 
+        let quorums = unique_quorums.into_iter().collect::<Vec<_>>();
         self.sig_engine.set_quorum_members(quorums);
         Ok(())
     }
