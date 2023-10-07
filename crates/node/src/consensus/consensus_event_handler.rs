@@ -5,11 +5,11 @@ use bulldag::graph::BullDag;
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, PeerData};
 use miner::conflict_resolver::Resolver;
-use primitives::{NodeId, NodeType};
+use primitives::{NodeId, NodeType, PublicKey, QuorumKind};
 use quorum::quorum::Quorum;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     sync::{Arc, RwLock},
 };
 use vrrb_config::QuorumMember;
@@ -113,6 +113,63 @@ impl ConsensusModule {
 
         self.quorum_driver.membership_config = Some(quorum_membership_config);
         self.quorum_kind = Some(assigned_membership.quorum_kind);
+        Ok(())
+    }
+
+
+    pub fn handle_quorum_membership_assigments_created(
+        &mut self,
+        assigned_memberships: Vec<AssignedQuorumMembership>,
+    ) -> Result<()> {
+        if matches!(self.node_config.node_type, NodeType::Bootstrap) {
+            return Err(NodeError::Other(format!(
+                "bootstrap node {} cannot belong to a quorum",
+                &self.node_config.id
+            )));
+        }
+        
+        let mut local_membership = assigned_memberships.clone();
+        local_membership.retain(|membership| membership.node_id == self.node_config.id);
+        if let Some(membership) = local_membership.pop() {
+            let quorum_kind = membership.quorum_kind.clone();
+            let config = QuorumMembershipConfig {
+                quorum_members: membership
+                    .peers
+                    .into_iter()
+                    .map(|peer| {
+                        (
+                            peer.node_id.clone(),
+                            QuorumMember {
+                                node_id: peer.node_id,
+                                kademlia_peer_id: peer.kademlia_peer_id,
+                                // TODO: get from kademlia metadata
+                                node_type: NodeType::Validator,
+                                udp_gossip_address: peer.udp_gossip_addr,
+                                raptorq_gossip_address: peer.raptorq_gossip_addr,
+                                kademlia_liveness_address: peer.kademlia_liveness_addr,
+                                validator_public_key: peer.validator_public_key,
+                            },
+                        )
+                    })
+                    .collect(),
+                quorum_kind,
+            };
+            self.quorum_driver.membership_config = Some(config.clone());
+            self.quorum_kind = Some(membership.quorum_kind);
+        }
+        let quorums = assigned_memberships.iter().map(|mem| {
+            let kind = mem.quorum_kind.clone();
+
+            let mut peers = mem.peers.clone().into_iter().map(|peer| {
+                (peer.node_id.clone(), peer.validator_public_key.clone())
+            }).collect::<HashSet<(NodeId, PublicKey)>>();
+
+            peers.insert((mem.node_id.clone(), mem.pub_key.clone()));
+            (kind.clone(), peers.into_iter().collect())
+
+        }).collect::<Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>>();
+
+        self.sig_engine.set_quorum_members(quorums);
         Ok(())
     }
 

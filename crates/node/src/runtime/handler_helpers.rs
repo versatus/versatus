@@ -200,6 +200,14 @@ impl NodeRuntime {
             .handle_quorum_membership_assigment_created(assigned_membership)
     }
 
+    pub fn handle_quorum_membership_assigments_created(
+        &mut self,
+        assigned_membership: Vec<AssignedQuorumMembership>,
+    ) -> Result<()> {
+        self.consensus_driver
+            .handle_quorum_membership_assigments_created(assigned_membership)
+    }
+
     pub async fn handle_convergence_block_precheck_requested<
         R: Resolver<Proposal = ProposalBlock>,
     >(
