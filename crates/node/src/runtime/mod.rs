@@ -503,7 +503,6 @@ mod tests {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
-
         // NOTE: remove bootstrap
         nodes.pop_front().unwrap();
 
@@ -532,12 +531,6 @@ mod tests {
             kademlia_liveness_addr: node_2.config.kademlia_liveness_address,
             validator_public_key: node_2.config.keypair.validator_public_key_owned(),
         };
-        assert!(node_1
-            .consensus_driver
-            .quorum_driver
-            .bootstrap_quorum_config
-            .is_some());
-
         node_1
             .handle_node_added_to_peer_list(node_2_peer_data.clone())
             .await
@@ -566,10 +559,6 @@ mod tests {
             peers: vec![node_2_peer_data],
         };
 
-        node_1
-            .handle_quorum_membership_assigment_created(assigned_membership_1)
-            .unwrap();
-
         let assigned_membership_2 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_2.id.clone(),
@@ -578,9 +567,43 @@ mod tests {
             peers: vec![node_1_peer_data],
         };
 
+        let assignments = vec![assigned_membership_1.clone(), assigned_membership_2.clone()];
+
+        dbg!("passing assignments to handle_quorum_membership_assignments_created method");
+        node_1
+            .handle_quorum_membership_assigment_created(
+                assigned_membership_1
+            ).unwrap();
+
         node_2
-            .handle_quorum_membership_assigment_created(assigned_membership_2)
+            .handle_quorum_membership_assigment_created(
+                assigned_membership_2
+            )
             .unwrap();
+
+        node_1
+            .handle_quorum_membership_assigments_created(
+                assignments.clone()
+            ).unwrap();
+
+        node_2
+            .handle_quorum_membership_assigments_created(assignments.clone())
+            .unwrap();
+
+        assert!(node_1
+            .consensus_driver
+            .quorum_driver
+            .bootstrap_quorum_config
+            .is_some());
+
+        assert!(
+            node_1.consensus_driver
+                .sig_engine
+                .quorum_members()
+                .get_public_key_from_members(
+                    &node_1.config.id
+                ).is_some()
+        );
 
         let mut farmer_nodes = vec![&mut node_1, &mut node_2];
 

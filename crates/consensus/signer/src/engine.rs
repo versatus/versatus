@@ -27,6 +27,7 @@ impl std::hash::Hash for QuorumData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Default)]
 pub struct QuorumMembers(pub HashMap<QuorumId, QuorumData>);
+
 impl std::hash::Hash for QuorumMembers {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Get a mutable reference to the inner HashMap
@@ -83,6 +84,26 @@ impl QuorumMembers {
             };
             self.0.insert(quorum_id, quorum_data);
         });
+    }
+
+    pub fn is_farmer_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
+        if let Some(data) = self.0.get(quorum_id) {
+            if data.members.contains_key(node_id) && data.quorum_kind == QuorumKind::Farmer {
+                return Ok(())
+            }
+        }
+
+        return Err(Error)
+    }
+
+    pub fn is_harvester_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
+        if let Some(data) = self.0.get(quorum_id) {
+            if data.members.contains_key(node_id) && data.quorum_kind == QuorumKind::Harvester {
+                return Ok(())
+            }
+        }
+
+        return Err(Error)
     }
 }
 
@@ -143,7 +164,7 @@ impl SignerEngine {
 
     pub fn verify_batch<T: AsRef<[u8]>>(
         &self,
-        batch_sigs: &[(NodeId, Signature)],
+        batch_sigs: &Vec<(NodeId, Signature)>,
         data: &T,
     ) -> Result<(), Error> {
         if batch_sigs
@@ -166,5 +187,13 @@ impl SignerEngine {
 
     pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>) {
         self.quorum_members.set_quorum_members(quorums);
+    }
+
+    pub fn is_farmer_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
+        self.quorum_members.is_farmer_quorum_member(quorum_id, node_id)
+    }
+
+    pub fn is_harvester_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
+        self.quorum_members.is_harvester_quorum_member(quorum_id, node_id)
     }
 }

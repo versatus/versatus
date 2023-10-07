@@ -1,7 +1,7 @@
 use block::{
     header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock, RefHash,
 };
-use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData};
+use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData, Vote};
 use miner::conflict_resolver::Resolver;
 use primitives::{Address, Epoch, NodeId, NodeType, QuorumKind, RawSignature, Round, Signature};
 use quorum::quorum::Quorum;
@@ -183,6 +183,10 @@ impl NodeRuntime {
         Ok(())
     }
 
+    pub async fn handle_vote_received(&mut self, vote: Vote) -> Result<()> {
+        self.consensus_driver.handle_vote_received(vote).await
+    }
+
     pub async fn handle_node_added_to_peer_list(
         &mut self,
         peer_data: PeerData,
@@ -277,9 +281,5 @@ impl NodeRuntime {
         })?;
 
         self.state_driver.insert_account(address, account)
-    }
-
-    pub fn handle_vote_received(&mut self) {
-        //TODO: check for redundancy and delete if possible or implement
     }
 }

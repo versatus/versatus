@@ -121,6 +121,7 @@ impl ConsensusModule {
         &mut self,
         assigned_memberships: Vec<AssignedQuorumMembership>,
     ) -> Result<()> {
+        dbg!("Attempting to assign quorum membership");
         if matches!(self.node_config.node_type, NodeType::Bootstrap) {
             return Err(NodeError::Other(format!(
                 "bootstrap node {} cannot belong to a quorum",
@@ -128,6 +129,7 @@ impl ConsensusModule {
             )));
         }
         
+        dbg!("Getting local membership");
         let mut local_membership = assigned_memberships.clone();
         local_membership.retain(|membership| membership.node_id == self.node_config.id);
         if let Some(membership) = local_membership.pop() {
@@ -154,10 +156,12 @@ impl ConsensusModule {
                     .collect(),
                 quorum_kind,
             };
+            dbg!("setting local membership");
             self.quorum_driver.membership_config = Some(config.clone());
             self.quorum_kind = Some(membership.quorum_kind);
         }
         
+        dbg!("Consolidating quorum members");
         let mut unique_quorums = HashSet::new();
         for mem in assigned_memberships.iter() {
             let kind = mem.quorum_kind.clone();
@@ -174,6 +178,7 @@ impl ConsensusModule {
 
         let quorums = unique_quorums.into_iter().collect::<Vec<_>>();
         self.sig_engine.set_quorum_members(quorums);
+        dbg!("{}", self.sig_engine.quorum_members());
         Ok(())
     }
 

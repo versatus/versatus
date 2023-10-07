@@ -294,10 +294,10 @@ impl DagModule {
                 entry.insert(set);
             }
         }
-        self.check_threshold_reached(&block_hash) 
+        self.check_certificate_threshold_reached(&block_hash) 
     }
 
-    pub fn check_threshold_reached(&self, block_hash: &String) -> Result<HashSet<(NodeId, Signature)>> {
+    pub fn check_certificate_threshold_reached(&self, block_hash: &String) -> Result<HashSet<(NodeId, Signature)>> {
         if let Some(set) = self.partial_certificate_signatures.get(block_hash) {
             if let Some(threshold) = &self.harvester_quorum_threshold {
                 if &set.len() >= threshold {
