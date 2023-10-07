@@ -43,19 +43,23 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                if let Some(assigments) = assigments {
-                    for (_, assigned_membership) in assigments {
-                        let event = Event::QuorumMembershipAssigmentCreated(assigned_membership);
-                        let em = EventMessage::new(Some("network-events".into()), event);
-                        self.events_tx
-                            .send(em)
-                            .await
-                            .map_err(|err| TheaterError::Other(err.to_string()))?;
-                    }
+                if let Some(assignments) = assigments {
+                    let assignments = assignments.into_values().collect();
+                    let event = EventMessage::new(
+                        Some("network-events".into()),
+                        Event::QuorumMembershipAssigmentsCreated(assignments),
+                    );
+                    self.events_tx
+                        .send(event)
+                        .await
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 self.handle_quorum_membership_assigment_created(assigned_membership.clone())?;
+            },
+            Event::QuorumMembershipAssigmentsCreated(assignments) => {
+                self.handle_quorum_membership_assigments_created(assignments)?
             },
             Event::QuorumElectionStarted(header) => {
                 let quorums = self

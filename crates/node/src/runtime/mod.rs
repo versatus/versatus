@@ -207,6 +207,40 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
+    async fn assigned_quorum_members_exist_in_sig_engine() {
+        let (_node_0, farmers, harvesters, _miners) = setup_network(8).await;
+        let mut validators = farmers.clone();
+        validators.extend(harvesters.clone().into_iter());
+        for (farmer_id, farmer) in farmers.iter() {
+            for (validator_id, member) in validators.iter() {
+                if validator_id == farmer_id {
+                    continue;
+                }
+                assert!(farmer
+                    .consensus_driver
+                    .sig_engine
+                    .quorum_members()
+                    .get_public_key_from_members(&member.config.id)
+                    .is_some());
+            }
+        }
+        for (harvester_id, harvester) in harvesters.iter() {
+            for (validator_id, member) in validators.iter() {
+                if validator_id == harvester_id {
+                    continue;
+                }
+                assert!(harvester
+                    .consensus_driver
+                    .sig_engine
+                    .quorum_members()
+                    .get_public_key_from_members(&member.config.id)
+                    .is_some());
+            }
+        }
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions().unwrap();
@@ -469,14 +503,6 @@ mod tests {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
-        for node in nodes.iter() {
-            assert!(node
-                .consensus_driver
-                .sig_engine
-                .quorum_members()
-                .get_public_key_from_members(&node.config.id)
-                .is_some());
-        }
 
         // NOTE: remove bootstrap
         nodes.pop_front().unwrap();
@@ -1162,7 +1188,7 @@ mod tests {
 
         let mut node_0 = nodes.pop_front().unwrap();
 
-        let address = node_0
+        node_0
             .create_account(node_0.config_ref().keypair.miner_public_key_owned())
             .unwrap();
 
@@ -1226,7 +1252,7 @@ mod tests {
             }
         }
 
-        let mut nodes = nodes
+        let nodes = nodes
             .into_iter()
             .map(|node| (node.config.id.clone(), node))
             .collect::<HashMap<NodeId, NodeRuntime>>();
@@ -1237,20 +1263,20 @@ mod tests {
             .filter(|(_, node)| node.config.node_type == NodeType::Validator)
             .collect::<HashMap<NodeId, NodeRuntime>>();
 
-        for (node_id, node) in validator_nodes.iter_mut() {
-            if let Some(assigned_membership) = quorum_assignments.get(&node.config.id) {
-                node.handle_quorum_membership_assigment_created(assigned_membership.clone())
-                    .unwrap();
-            }
+        for (_node_id, node) in validator_nodes.iter_mut() {
+            node.handle_quorum_membership_assigments_created(
+                quorum_assignments.clone().into_values().collect(),
+            )
+            .unwrap();
         }
 
-        let mut farmer_nodes = validator_nodes
+        let farmer_nodes = validator_nodes
             .clone()
             .into_iter()
             .filter(|(_, node)| node.quorum_membership().unwrap().quorum_kind == QuorumKind::Farmer)
             .collect::<HashMap<NodeId, NodeRuntime>>();
 
-        let mut harvester_nodes = validator_nodes
+        let harvester_nodes = validator_nodes
             .clone()
             .into_iter()
             .filter(|(_, node)| {
@@ -1258,7 +1284,7 @@ mod tests {
             })
             .collect::<HashMap<NodeId, NodeRuntime>>();
 
-        let mut miner_nodes = nodes
+        let miner_nodes = nodes
             .clone()
             .into_iter()
             .filter(|(_, node)| node.config.node_type == NodeType::Miner)

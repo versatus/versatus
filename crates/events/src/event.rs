@@ -117,6 +117,10 @@ pub enum Event {
     /// to a particular quorum
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
+    /// Event emitted by a bootrstrap QuorumModule to signal a group of nodes were assigned
+    /// to a particular quorum
+    QuorumMembershipAssigmentsCreated(Vec<AssignedQuorumMembership>),
+
     /// Signals thaa a node acknowledges belonging to a quorum
     QuorumMembershipSet(NodeId),
 
