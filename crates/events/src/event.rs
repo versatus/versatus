@@ -7,10 +7,7 @@ use block::{
 use ethereum_types::U256;
 use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
-use primitives::{
-    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare,
-};
+use primitives::{Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput, PublicKeyShareVec, RawSignature, Round, RUNTIME_TOPIC_STR, Seed, TxnValidationStatus, ValidatorPublicKeyShare};
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
@@ -314,8 +311,12 @@ impl From<Event> for Vec<u8> {
 
 impl From<Event> for messr::Message<Event> {
     fn from(evt: Event) -> Self {
-        match evt {
+        match &evt {
             Event::Stop => messr::Message::stop_signal(None),
+            Event::CreateAccountRequested(_)
+            | Event::NewTxnCreated(_)
+            | Event::TxnAddedToMempool(_) =>
+                messr::Message::new(Some(RUNTIME_TOPIC_STR.into()), evt),
             _ => messr::Message::new(None, evt),
         }
     }
