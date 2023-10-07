@@ -83,6 +83,7 @@ impl QuorumModule {
         let assigned_membership = AssignedQuorumMembership {
             quorum_kind,
             node_id: node_id.clone(),
+            pub_key: peer_data.validator_public_key,
             kademlia_peer_id: peer_data.kademlia_peer_id,
             peers: peers
                 .into_iter()

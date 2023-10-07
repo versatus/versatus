@@ -116,22 +116,17 @@ pub async fn setup_runtime_components(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::ops::AddAssign;
 
-    use block::{Block, ConvergenceBlock, QuorumId};
-    use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
-    use hbbft::sync_key_gen::{AckOutcome, Part};
-    use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
-    use validator::txn_validator;
-    use vrrb_core::account::{self, Account, AccountField};
-    use vrrb_core::transactions::Transaction;
-
-    use crate::runtime::handler_helpers::*;
     use crate::test_utils::{
         create_txn_from_accounts, create_txn_from_accounts_invalid_signature,
         create_txn_from_accounts_invalid_timestamp,
     };
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
+    use block::Block;
+    use events::{AssignedQuorumMembership, PeerData, DEFAULT_BUFFER};
+    use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
+    use vrrb_core::account::{self, Account, AccountField};
+    use vrrb_core::transactions::Transaction;
 
     #[tokio::test]
     #[serial_test::serial]
@@ -145,6 +140,7 @@ mod tests {
         let assigned_membership = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node.id.clone(),
+            pub_key: node.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
             peers: vec![],
         };
@@ -169,6 +165,7 @@ mod tests {
         let assigned_membership = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node.id.clone(),
+            pub_key: node.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
             peers: vec![],
         };
@@ -538,6 +535,7 @@ mod tests {
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_1.id.clone(),
+            pub_key: node_1.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
             peers: vec![node_2_peer_data],
         };
@@ -549,6 +547,7 @@ mod tests {
         let assigned_membership_2 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_2.id.clone(),
+            pub_key: node_2.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
             peers: vec![node_1_peer_data],
         };
@@ -662,6 +661,7 @@ mod tests {
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_1.id.clone(),
+            pub_key: node_1.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
             peers: vec![node_2_peer_data],
         };
@@ -673,6 +673,7 @@ mod tests {
         let assigned_membership_2 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_2.id.clone(),
+            pub_key: node_2.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
             peers: vec![node_1_peer_data],
         };
@@ -781,6 +782,7 @@ mod tests {
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_1.id.clone(),
+            pub_key: node_1.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
             peers: vec![node_2_peer_data],
         };
@@ -792,6 +794,7 @@ mod tests {
         let assigned_membership_2 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_2.id.clone(),
+            pub_key: node_2.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
             peers: vec![node_1_peer_data],
         };
@@ -900,6 +903,7 @@ mod tests {
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_1.id.clone(),
+            pub_key: node_1.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
             peers: vec![node_2_peer_data],
         };
@@ -911,6 +915,7 @@ mod tests {
         let assigned_membership_2 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_2.id.clone(),
+            pub_key: node_2.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
             peers: vec![node_1_peer_data],
         };
@@ -1019,6 +1024,7 @@ mod tests {
         let assigned_membership_1 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_1.id.clone(),
+            pub_key: node_1.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_1.config.kademlia_peer_id.unwrap(),
             peers: vec![node_2_peer_data],
         };
@@ -1030,6 +1036,7 @@ mod tests {
         let assigned_membership_2 = AssignedQuorumMembership {
             quorum_kind: QuorumKind::Farmer,
             node_id: node_2.id.clone(),
+            pub_key: node_2.config.keypair.validator_public_key_owned(),
             kademlia_peer_id: node_2.config.kademlia_peer_id.unwrap(),
             peers: vec![node_1_peer_data],
         };

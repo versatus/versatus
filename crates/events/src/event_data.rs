@@ -117,6 +117,7 @@ pub enum JobStatus {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
 pub struct AssignedQuorumMembership {
     pub node_id: NodeId,
+    pub pub_key: PublicKey,
     pub kademlia_peer_id: KademliaPeerId,
     pub quorum_kind: QuorumKind,
     pub peers: Vec<PeerData>,
