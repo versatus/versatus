@@ -28,6 +28,7 @@ name = "versa-storage"
 path = "crates/storage_agent/src/main.rs"
 
 [dependencies]
+faucet = { workspace = true }
 tokio = { workspace = true }
 telemetry = { workspace = true }
 cli = { workspace = true }

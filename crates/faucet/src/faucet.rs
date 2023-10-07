@@ -1,9 +1,15 @@
-use axum::{handler::post, http::StatusCode, Router};
+use axum::{Extension, http::StatusCode, Json, Router};
+
 use serde::Deserialize;
 use serde_json::json;
 use std::{convert::Infallible, net::SocketAddr};
+use std::sync::Arc;
+use axum::routing::post;
 use tokio::spawn;
-use wallet::v2::{Wallet, WalletConfig};
+use tokio::sync::Mutex;
+use primitives::{Address, SecretKey};
+use vrrb_core::transactions::{RpcTransactionDigest, Token};
+use wallet::v2::{Wallet, WalletConfig, WalletError};
 
 #[derive(Deserialize)]
 struct FaucetRequest {
@@ -11,50 +17,73 @@ struct FaucetRequest {
 }
 
 pub struct FaucetConfig {
-    pub rpc_server_address: String,
+    pub rpc_server_address: SocketAddr,
     pub server_port: u16,
-    pub wallet_mnemonic: String,
+    pub secret_key: SecretKey,
+    pub transfer_amount: u64,
     // Add other configuration parameters if needed.
 }
 
 struct Faucet {
     config: FaucetConfig,
-    wallet: Wallet,
+    wallet: Arc<Mutex<Wallet>>,
 }
+async fn drip(
+    Extension(wallet): Extension<Arc<Mutex<Wallet>>>,
+    Json(req): Json<FaucetRequest>,
+) -> Result<Json<RpcTransactionDigest>, StatusCode> {
+    let recipient: Address = req.account.parse().unwrap();
 
-async fn faucet(req: axum::extract::Json<FaucetRequest>) -> Result<axum::response::Json<serde_json::Value>, StatusCode> {
-    println!("Setting RPC server address: {}", req.rpc_server);
+    let timestamp = chrono::Utc::now().timestamp();
 
-    // Here, you should call your crate's function to handle transactions.
-    // spawn(your_crate::start_transaction_handler(req.rpc_server));
+    // Locking wallet for mutation.
+    let mut wallet = wallet.lock().await;
 
-    // Simulating the process with a dummy async block.
-    spawn(async {
-        println!("Dummy transaction handler started with RPC: {}", req.rpc_server);
-    });
-
-    Ok(axum::response::Json(json!({"message": "RPC Server Set"})))
+    let digest = wallet
+        .send_transaction(
+            0,
+            recipient,
+            10,
+            Token::default(),
+            timestamp
+        )
+        // .map_err(|err| {
+        //     eprintln!("Unable to send transaction: {}", err);
+        //     StatusCode::INTERNAL_SERVER_ERROR
+        // })?;
+    ;
+    //
+    // Ok(Json::from(digest))
+    Ok(Json::from("digest".to_string()))
 }
 
 impl Faucet {
-    pub async fn start(config: FaucetConfig) -> Result<(), Box<dyn std::error::Error>> {
-        let mut wallet_config = WalletConfig::default();
-        wallet_config.rpc_server_address = config.rpc_server_address;
+    pub async fn new(config: FaucetConfig) -> Result<Self, WalletError> {
+        let wallet_config = WalletConfig {
+            rpc_server_address: config.rpc_server_address,
+            secret_key: config.secret_key,
+            ..Default::default()
+        };
 
-        let mut wallet = Wallet::new(wallet_config).await.unwrap();
+        let wallet = Wallet::new(wallet_config).await?;
+
+        let faucet = Faucet {
+            config,
+            wallet: Arc::new(Mutex::new(wallet)),
+        };
+
+        Ok(faucet)
+    }
+    pub async fn start(self) -> Result<(), axum::Error> {
 
         let app = Router::new()
-            .route("/faucet", post(faucet))
-            .handle_error(|error: axum::Error| {
-                let (status, _response_body) = (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Unhandled internal error: {:?}", error),
-                );
-                Ok::<_, Infallible>((status, _response_body))
-            });
+            .route("/faucet", post(drip))
+            .layer(Extension(self.wallet));
 
-        let addr = SocketAddr::from(([127, 0, 0, 1], config.server_port));
+        let addr = SocketAddr::from(([127, 0, 0, 1], self.config.server_port));
         println!("Server started at http://{}", addr);
         axum::Server::bind(&addr).serve(app.into_make_service()).await.unwrap();
+
+        Ok(())
     }
 }
