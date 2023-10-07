@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 
-use events::EventPublisher;
+use events::{EventPublisher, DEFAULT_BUFFER, PeerData, AssignedQuorumMembership};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
     generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
@@ -839,4 +839,136 @@ pub async fn create_node_runtime_network(
     }
 
     nodes
+}
+
+pub async fn create_quorum_assigned_node_runtime_network(
+    n: usize, 
+    min_quorum_size: usize
+) -> Vec<NodeRuntime> {
+    assert!(n > (1 + (min_quorum_size * 2)));
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
+    // NOTE: remove bootstrap
+    nodes.pop_front().unwrap();
+    
+    let mut quorums = vec![];
+    form_groups_with_peer_data(&mut nodes, min_quorum_size, &mut quorums);
+    add_group_peer_data_to_node(&mut quorums); 
+    let mut assigned_memberships = vec![]; 
+    assign_node_to_quorum(&quorums, &mut assigned_memberships);
+    let mut quorums_only = quorums.into_iter().map(|(nr, _)| nr).collect();
+    handle_assigned_memberships(&mut quorums_only, assigned_memberships);
+    let flattened = quorums_only.into_iter().flatten().collect();
+    flattened
+}
+
+fn handle_assigned_memberships(
+    quorums: &mut Vec<Vec<NodeRuntime>>, 
+    assigned_memberships: Vec<AssignedQuorumMembership>
+) {
+    for group in quorums {
+        for node in group {
+            node.handle_quorum_membership_assigments_created(assigned_memberships.clone());
+        }
+    }
+}
+
+fn assign_node_to_quorum(
+    quorums: &Vec<(Vec<NodeRuntime>, Vec<PeerData>)>, 
+    assigned_memberships: &mut Vec<AssignedQuorumMembership>
+) {
+    for (idx, (group, peer_data)) in quorums.into_iter().enumerate() {
+        for node in group.iter() {
+            for data in peer_data.iter() {
+                let node_peer_data: Vec<PeerData> = peer_data.clone().iter().filter_map(|data| {
+                    if data.node_id.clone() != node.id.clone() {
+                        Some(data.clone())
+                    } else { None }
+                }).collect();
+
+                if idx == 0 {
+                    assign_node_to_harvester_quorum(
+                        &node, 
+                        assigned_memberships, 
+                        node_peer_data.clone()
+                    );
+                } else {
+                    assign_node_to_farmer_quorum(
+                        &node, 
+                        assigned_memberships, 
+                        node_peer_data.clone()
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn assign_node_to_farmer_quorum(
+    node: &NodeRuntime, 
+    assigned_memberships: &mut Vec<AssignedQuorumMembership>,
+    peers: Vec<PeerData>
+) {
+    assigned_memberships.push(AssignedQuorumMembership {
+        quorum_kind: QuorumKind::Farmer,
+        node_id: node.id.clone(),
+        pub_key: node.config.keypair.validator_public_key_owned(),
+        kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+        peers: peers.clone() 
+    });
+}
+
+fn assign_node_to_harvester_quorum(
+    node: &NodeRuntime,
+    assigned_memberships: &mut Vec<AssignedQuorumMembership>,
+    peers: Vec<PeerData>
+) {
+    assigned_memberships.push(AssignedQuorumMembership {
+        quorum_kind: QuorumKind::Farmer,
+        node_id: node.id.clone(),
+        pub_key: node.config.keypair.validator_public_key_owned(),
+        kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+        peers: peers.clone() 
+    });
+} 
+
+fn add_group_peer_data_to_node(quorums: &mut Vec<(Vec<NodeRuntime>, Vec<PeerData>)>) {
+    for (group, group_peer_data) in quorums {
+        for node in group.iter_mut() {
+            for peer_data in group_peer_data.iter_mut() {
+                if peer_data.node_id != node.config.id {
+                    node.handle_node_added_to_peer_list(peer_data.clone());
+                }
+            }
+        }
+    }
+}
+
+fn form_groups_with_peer_data(
+    nodes: &mut VecDeque<NodeRuntime>, 
+    min_quorum_size: usize, 
+    quorums: &mut Vec<(Vec<NodeRuntime>, Vec<PeerData>)>
+) -> Vec<(Vec<NodeRuntime>, Vec<PeerData>)> {
+    while nodes.len() >= min_quorum_size {
+        let mut group = vec![];
+        let mut group_peer_data = vec![];
+        while group.len() < min_quorum_size {
+            let mut member = nodes.pop_front().unwrap();
+            let peer_data = PeerData {
+                node_id: member.config.id.clone(),
+                node_type: member.config.node_type,
+                kademlia_peer_id: member.config.kademlia_peer_id.unwrap(),
+                udp_gossip_addr: member.config.udp_gossip_address,
+                raptorq_gossip_addr: member.config.raptorq_gossip_address,
+                kademlia_liveness_addr: member.config.kademlia_liveness_address,
+                validator_public_key: member.config.keypair.validator_public_key_owned(),
+            };
+            
+            group.push(member);
+            group_peer_data.push(peer_data);
+        }
+        quorums.push((group, group_peer_data));
+    }
+
+    quorums.clone()
 }
