@@ -743,16 +743,13 @@ pub async fn create_node_runtime_network(
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
-
-        // let threshold_sk = ValidatorSecretKey::random();
-        // let validator_public_key = threshold_sk.public_key();
         let keypair = Keypair::random();
         let validator_public_key = keypair.miner_public_key_owned();
 
         let node_id = format!("node-{}", i);
 
         let member = QuorumMember {
-            node_id: format!("node-{}", i),
+            node_id: node_id.clone(),
             kademlia_peer_id: KademliaPeerId::rand(),
             node_type: NodeType::Validator,
             udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
@@ -879,26 +876,24 @@ fn assign_node_to_quorum(
 ) {
     for (idx, (group, peer_data)) in quorums.into_iter().enumerate() {
         for node in group.iter() {
-            for data in peer_data.iter() {
-                let node_peer_data: Vec<PeerData> = peer_data.clone().iter().filter_map(|data| {
-                    if data.node_id.clone() != node.id.clone() {
-                        Some(data.clone())
-                    } else { None }
-                }).collect();
+            let node_peer_data: Vec<PeerData> = peer_data.clone().iter().filter_map(|data| {
+                if data.node_id.clone() != node.id.clone() {
+                    Some(data.clone())
+                } else { None }
+            }).collect();
 
-                if idx == 0 {
-                    assign_node_to_harvester_quorum(
-                        &node, 
-                        assigned_memberships, 
-                        node_peer_data.clone()
-                    );
-                } else {
-                    assign_node_to_farmer_quorum(
-                        &node, 
-                        assigned_memberships, 
-                        node_peer_data.clone()
-                    );
-                }
+            if idx == 0 {
+                assign_node_to_harvester_quorum(
+                    &node, 
+                    assigned_memberships, 
+                    node_peer_data.clone()
+                );
+            } else {
+                assign_node_to_farmer_quorum(
+                    &node, 
+                    assigned_memberships, 
+                    node_peer_data.clone()
+                );
             }
         }
     }

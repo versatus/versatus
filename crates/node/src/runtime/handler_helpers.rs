@@ -209,7 +209,7 @@ impl NodeRuntime {
         assigned_membership: Vec<AssignedQuorumMembership>,
     ) -> Result<()> {
         self.consensus_driver
-            .handle_quorum_membership_assigments_created(assigned_membership)
+            .handle_quorum_membership_assigments_created(assigned_membership, self.id.clone())
     }
 
     pub async fn handle_convergence_block_precheck_requested<

@@ -119,7 +119,7 @@ mod tests {
 
     use crate::test_utils::{
         create_txn_from_accounts, create_txn_from_accounts_invalid_signature,
-        create_txn_from_accounts_invalid_timestamp,
+        create_txn_from_accounts_invalid_timestamp, create_quorum_assigned_node_runtime_network,
     };
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
     use block::Block;
@@ -569,7 +569,6 @@ mod tests {
 
         let assignments = vec![assigned_membership_1.clone(), assigned_membership_2.clone()];
 
-        dbg!("passing assignments to handle_quorum_membership_assignments_created method");
         node_1
             .handle_quorum_membership_assigment_created(
                 assigned_membership_1
@@ -1139,6 +1138,26 @@ mod tests {
                 .unwrap();
         }
     }
+
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn harvesters_can_stash_farmer_votes() {
+        let mut nodes = create_quorum_assigned_node_runtime_network(8, 3).await; 
+
+        let mut farmers: Vec<&NodeRuntime> = nodes.iter().filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind == Some(QuorumKind::Farmer) {
+                Some(nr)
+            } else {
+                None
+            }
+        }).collect();
+        
+        dbg!("{}", farmers.len());
+    }
+
+
+
 
     //    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
     //        let mut parts = HashMap::new();
