@@ -26,7 +26,7 @@ use vrrb_config::{
     ThresholdConfig,
 };
 use vrrb_core::{
-    account::Account,
+    account::{Account, AccountField},
     claim::Claim,
     keypair::Keypair,
     transactions::{
@@ -35,7 +35,6 @@ use vrrb_core::{
     },
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
-
 use crate::{
     data_store::DataStore, network::NetworkEvent, node_runtime::NodeRuntime,
     state_reader::StateReader, Node, NodeError, Result,
@@ -883,6 +882,7 @@ fn assign_node_to_quorum(
             }).collect();
 
             if idx == 0 {
+                dbg!("calling assign node to harvester");
                 assign_node_to_harvester_quorum(
                     &node, 
                     assigned_memberships, 
@@ -919,7 +919,7 @@ fn assign_node_to_harvester_quorum(
     peers: Vec<PeerData>
 ) {
     assigned_memberships.push(AssignedQuorumMembership {
-        quorum_kind: QuorumKind::Farmer,
+        quorum_kind: QuorumKind::Harvester,
         node_id: node.id.clone(),
         pub_key: node.config.keypair.validator_public_key_owned(),
         kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
@@ -967,3 +967,21 @@ fn form_groups_with_peer_data(
 
     quorums.clone()
 }
+
+pub fn create_sender_receiver_addresses() -> ((Account, Address), Address) {
+    let (_, sender_public_key) = generate_account_keypair();
+    let mut sender_account = Account::new(sender_public_key);
+    let update_field = AccountField::Credits(100000);
+    let _ = sender_account.update_field(update_field);
+    let sender_address = Address::new(sender_public_key);
+
+    let (_, receiver_public_key) = generate_account_keypair();
+    let receiver_address = Address::new(receiver_public_key);
+
+    let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
+
+    
+    ((sender_account, sender_address), receiver_address)
+}
+
+

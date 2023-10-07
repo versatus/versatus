@@ -120,8 +120,9 @@ mod tests {
     use crate::test_utils::{
         create_txn_from_accounts, create_txn_from_accounts_invalid_signature,
         create_txn_from_accounts_invalid_timestamp, create_quorum_assigned_node_runtime_network,
+        create_sender_receiver_addresses, create_node_runtime_network
     };
-    use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
+    use crate::{node_runtime::NodeRuntime};
     use block::Block;
     use events::{AssignedQuorumMembership, PeerData, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
@@ -1152,11 +1153,18 @@ mod tests {
                 None
             }
         }).collect();
+
+        let mut harvesters: Vec<&NodeRuntime> = nodes.iter().filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind == Some(QuorumKind::Harvester) {
+                Some(nr)
+            } else {
+                None
+            }
+        }).collect();
         
-        dbg!("{}", farmers.len());
+        let ((sender_address, sender_account), receiver_address) = create_sender_receiver_addresses();
+
     }
-
-
 
 
     //    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
