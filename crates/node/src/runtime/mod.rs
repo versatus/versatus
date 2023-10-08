@@ -1137,7 +1137,8 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn harvesters_can_stash_farmer_votes() {
-        let nodes = create_quorum_assigned_node_runtime_network(8, 3).await;
+        let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+        let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
         let farmers: Vec<&NodeRuntime> = nodes
             .iter()

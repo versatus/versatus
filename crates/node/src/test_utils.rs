@@ -840,9 +840,9 @@ pub async fn create_node_runtime_network(
 pub async fn create_quorum_assigned_node_runtime_network(
     n: usize,
     min_quorum_size: usize,
+    events_tx: EventPublisher,
 ) -> Vec<NodeRuntime> {
     assert!(n > (1 + (min_quorum_size * 2)));
-    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
     // NOTE: remove bootstrap
     nodes.pop_front().unwrap();

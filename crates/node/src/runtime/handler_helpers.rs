@@ -98,7 +98,6 @@ impl NodeRuntime {
                 &self.consensus_driver.sig_engine,
             )
             .map_err(|err| NodeError::Other(err.to_string()))?;
-
         if set.len()
             < self
                 .consensus_driver
@@ -134,7 +133,8 @@ impl NodeRuntime {
             .verify_batch(&sigs, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
         if let Some(ref mut block) = self
-            .dag_driver
+            .state_driver
+            .dag
             .get_pending_convergence_block_mut(&block_hash)
         {
             let root_hash = block.header.txn_hash.clone();

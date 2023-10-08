@@ -314,7 +314,6 @@ impl DagModule {
                 entry.insert(set);
             },
         }
-        dbg!(&self.partial_certificate_signatures);
         self.check_certificate_threshold_reached(&block_hash, sig_engine)
     }
 

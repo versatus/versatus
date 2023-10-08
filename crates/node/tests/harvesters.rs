@@ -6,6 +6,7 @@
 //! Integration tests are needed for testing that these `Certificate`s are broadcasted.
 
 use block::{header::BlockHeader, Certificate, ConvergenceBlock};
+use events::DEFAULT_BUFFER;
 use node::{
     node_runtime::NodeRuntime,
     test_utils::{create_quorum_assigned_node_runtime_network, produce_random_claim},
@@ -16,7 +17,8 @@ use primitives::{QuorumKind, Signature};
 #[tokio::test]
 #[serial_test::serial]
 async fn harvester_nodes_form_certificate() {
-    let nodes = create_quorum_assigned_node_runtime_network(8, 3).await;
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
     let mut harvesters: Vec<NodeRuntime> = nodes
         .into_iter()
@@ -61,11 +63,6 @@ async fn harvester_nodes_form_certificate() {
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
     for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
-        dbg!(&harvester
-            .consensus_driver
-            .sig_engine()
-            .quorum_members()
-            .get_harvester_threshold());
         res = chosen_harvester
             .handle_harvester_signature_received(
                 convergence_block.hash.clone(),
@@ -73,7 +70,6 @@ async fn harvester_nodes_form_certificate() {
                 sig,
             )
             .await;
-        dbg!(&res);
     }
 
     // ensure they form a full certificate
