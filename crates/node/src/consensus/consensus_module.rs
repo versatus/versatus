@@ -12,8 +12,8 @@ use primitives::{
     QuorumPublicKey, RawSignature, Signature, ValidatorPublicKey,
 };
 use serde::{Deserialize, Serialize};
-use signer::engine::{SignerEngine, VALIDATION_THRESHOLD, QuorumData};
-use std::collections::{BTreeMap, HashMap, HashSet, hash_map::Entry};
+use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
+use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use validator::txn_validator::TxnValidatorError;
@@ -115,6 +115,10 @@ impl ConsensusModule {
             validator_core_manager,
             votes_pool: Default::default(),
         })
+    }
+
+    pub fn quorum_kind(&self) -> Option<QuorumKind> {
+        self.quorum_kind.clone()
     }
 
     pub fn validator_public_key_owned(&self) -> PublicKey {
@@ -289,22 +293,26 @@ impl ConsensusModule {
 
     pub async fn handle_vote_received(&mut self, vote: Vote) -> Result<()> {
         self.is_harvester()?;
-        let quorum_id = self.get_node_quorum_id(&vote.farmer_node_id.clone()).ok_or(
-            NodeError::Other(format!("node {} is not a quorum member", vote.farmer_node_id.clone())
-        ))?.0;
+        let quorum_id = self
+            .get_node_quorum_id(&vote.farmer_node_id.clone())
+            .ok_or(NodeError::Other(format!(
+                "node {} is not a quorum member",
+                vote.farmer_node_id.clone()
+            )))?
+            .0;
         self.check_vote_is_valid(&quorum_id, &vote).await?;
         match self.votes_pool.entry(quorum_id.clone()) {
             Entry::Occupied(mut entry) => {
-                let mut map = entry.get_mut(); 
+                let mut map = entry.get_mut();
                 match map.entry(vote.txn.id()) {
                     Entry::Occupied(mut set) => {
-                        set.get_mut().insert(vote.clone()); 
+                        set.get_mut().insert(vote.clone());
                     },
                     Entry::Vacant(mut entry) => {
                         let mut set = HashSet::new();
                         set.insert(vote.clone());
                         entry.insert(set);
-                    }
+                    },
                 }
             },
             Entry::Vacant(mut entry) => {
@@ -313,99 +321,121 @@ impl ConsensusModule {
                 set.insert(vote.clone());
                 map.insert(vote.txn.id().clone(), set);
                 entry.insert(map);
-            }
+            },
         }
 
-        self.check_vote_threshold_reached(&quorum_id, &vote).await.map_err(|err| {
-            NodeError::Other(
-                "threhold net yet reached".to_string()
-            )
-        })
+        self.check_vote_threshold_reached(&quorum_id, &vote)
+            .await
+            .map_err(|err| NodeError::Other("threhold net yet reached".to_string()))
     }
 
-    pub async fn check_vote_threshold_reached(&mut self, quorum_id: &QuorumId, vote: &Vote) -> Result<()> {
+    pub async fn check_vote_threshold_reached(
+        &mut self,
+        quorum_id: &QuorumId,
+        vote: &Vote,
+    ) -> Result<()> {
         self.is_harvester()?;
         self.batch_verify_vote_sigs(quorum_id, vote)
     }
 
     fn batch_verify_vote_sigs(&mut self, quorum_id: &QuorumId, vote: &Vote) -> Result<()> {
-        let set = self.get_quorum_pending_votes_for_transaction(quorum_id, vote)?; 
+        let set = self.get_quorum_pending_votes_for_transaction(quorum_id, vote)?;
         let quorum_members = self.get_quorum_members(quorum_id)?;
         if self.double_check_vote_threshold_reached(&set, quorum_members) {
-            let batch_sigs = set.iter().map(|vote| {
-                (vote.farmer_node_id.clone(), vote.signature.clone())
-            }).collect();
-            self.sig_engine.verify_batch(&batch_sigs, &vote.txn.build_payload())
+            let batch_sigs = set
+                .iter()
+                .map(|vote| (vote.farmer_node_id.clone(), vote.signature.clone()))
+                .collect();
+            self.sig_engine
+                .verify_batch(&batch_sigs, &vote.txn.build_payload())
                 .map_err(|err| {
-                    NodeError::Other(
-                        format!(
-                            "unable to batch verify vote signatures for txn: {}",
-                            &vote.txn.id().clone()
-                        )
-                    )
-            })?;
+                    NodeError::Other(format!(
+                        "unable to batch verify vote signatures for txn: {}",
+                        &vote.txn.id().clone()
+                    ))
+                })?;
 
-            return Ok(())
+            return Ok(());
         }
 
-        Err(NodeError::Other(
-            format!(
-                "quorum {:?} doesn't have enough pending votes to meet threshold",
-                quorum_id
-            )
-        ))
+        Err(NodeError::Other(format!(
+            "quorum {:?} doesn't have enough pending votes to meet threshold",
+            quorum_id
+        )))
     }
 
-    fn double_check_vote_threshold_reached(&self, set: &HashSet<Vote>, quorum_members: QuorumData) -> bool {
-        set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize 
+    fn double_check_vote_threshold_reached(
+        &self,
+        set: &HashSet<Vote>,
+        quorum_members: QuorumData,
+    ) -> bool {
+        set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize
     }
 
-    fn get_quorum_pending_votes_for_transaction(&self, quorum_id: &QuorumId, vote: &Vote) -> Result<HashSet<Vote>> {
+    fn get_quorum_pending_votes_for_transaction(
+        &self,
+        quorum_id: &QuorumId,
+        vote: &Vote,
+    ) -> Result<HashSet<Vote>> {
         let map = self.get_quorum_pending_votes(quorum_id)?;
         if let Some(set) = map.get(&vote.txn.id().clone()) {
-            return Ok(set.clone())
+            return Ok(set.clone());
         }
 
-        Err(NodeError::Other(format!("no votes pending for quorum_id: {:?} for transaction: {}", quorum_id, vote.txn.id())))
+        Err(NodeError::Other(format!(
+            "no votes pending for quorum_id: {:?} for transaction: {}",
+            quorum_id,
+            vote.txn.id()
+        )))
     }
 
-    fn get_quorum_pending_votes(&self, quorum_id: &QuorumId) -> Result<HashMap<TransactionDigest, HashSet<Vote>>> {
+    fn get_quorum_pending_votes(
+        &self,
+        quorum_id: &QuorumId,
+    ) -> Result<HashMap<TransactionDigest, HashSet<Vote>>> {
         if let Some(map) = self.votes_pool.get(quorum_id) {
-            return Ok(map.clone())
+            return Ok(map.clone());
         }
 
-        Err(NodeError::Other(format!("no votes pending for quorum id: {:?}", quorum_id)))
+        Err(NodeError::Other(format!(
+            "no votes pending for quorum id: {:?}",
+            quorum_id
+        )))
     }
 
     pub fn get_quorum_members(&self, quorum_id: &QuorumId) -> Result<QuorumData> {
         match self.sig_engine.quorum_members().0.get(quorum_id) {
             Some(quorum_data) => return Ok(quorum_data.clone()),
-            None => return Err(NodeError::Other(
-                format!(
+            None => {
+                return Err(NodeError::Other(format!(
                     "quorum {:?} is not in the sig engine quorum members",
                     quorum_id
-                )
-            ))
+                )))
+            },
         }
     }
 
     pub async fn check_vote_is_valid(&mut self, quorum_id: &QuorumId, vote: &Vote) -> Result<()> {
         self.is_harvester()?;
         let voter = vote.farmer_node_id.clone();
-        self.sig_engine.is_farmer_quorum_member(quorum_id, &voter).map_err(|err| {
-            NodeError::Other(
-                format!("node {} is not a farmer quorum member", voter.clone())
-            )
-        })?;
+        self.sig_engine
+            .is_farmer_quorum_member(quorum_id, &voter)
+            .map_err(|err| {
+                NodeError::Other(format!(
+                    "node {} is not a farmer quorum member",
+                    voter.clone()
+                ))
+            })?;
         let data = vote.txn.build_payload();
-        self.sig_engine.verify(&voter, &vote.txn.signature(), &data).map_err(|err| {
-            NodeError::Other(
-                format!(
+        self.sig_engine
+            .verify(&voter, &vote.txn.signature(), &data)
+            .map_err(|err| {
+                NodeError::Other(format!(
                     "Unable to verify signature of {} on transaction {}",
-                    voter.clone(), vote.txn.id().clone()
-                )
-            )
-        })
+                    voter.clone(),
+                    vote.txn.id().clone()
+                ))
+            })
     }
 
     fn validate_single_transaction(

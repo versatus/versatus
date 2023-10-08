@@ -222,27 +222,24 @@ impl NodeRuntime {
     ) -> Result<()> {
         self.consensus_driver.is_harvester()?;
         match self.consensus_driver.precheck_convergence_block(
-            block.clone(), 
-            last_confirmed_block_header, 
-            resolver, 
-            self.dag_driver.dag()
+            block.clone(),
+            last_confirmed_block_header,
+            resolver,
+            self.dag_driver.dag(),
         ) {
             Ok((true, true)) => {
-                self.events_tx.send(
-                    Event::SignConvergenceBlock(block.clone()).into()
-                ).await.map_err(|err| NodeError::Other(err.to_string()))?;
+                self.events_tx
+                    .send(Event::SignConvergenceBlock(block.clone()).into())
+                    .await
+                    .map_err(|err| NodeError::Other(err.to_string()))?;
                 Ok(())
-            }
-            Err(err) => {
-                return Err(NodeError::Other(err.to_string()))
-            }
+            },
+            Err(err) => return Err(NodeError::Other(err.to_string())),
             _ => {
-                return Err(
-                    NodeError::Other(
-                        "convergence block is not valid".to_string()
-                    )
-                )
-            }
+                return Err(NodeError::Other(
+                    "convergence block is not valid".to_string(),
+                ))
+            },
         }
     }
 

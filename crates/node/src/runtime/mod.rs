@@ -117,12 +117,12 @@ pub async fn setup_runtime_components(
 mod tests {
     use std::collections::HashMap;
 
+    use crate::node_runtime::NodeRuntime;
     use crate::test_utils::{
-        create_txn_from_accounts, create_txn_from_accounts_invalid_signature,
-        create_txn_from_accounts_invalid_timestamp, create_quorum_assigned_node_runtime_network,
-        create_sender_receiver_addresses, create_node_runtime_network
+        create_node_runtime_network, create_quorum_assigned_node_runtime_network,
+        create_sender_receiver_addresses, create_txn_from_accounts,
+        create_txn_from_accounts_invalid_signature, create_txn_from_accounts_invalid_timestamp,
     };
-    use crate::{node_runtime::NodeRuntime};
     use block::Block;
     use events::{AssignedQuorumMembership, PeerData, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
@@ -571,20 +571,16 @@ mod tests {
         let assignments = vec![assigned_membership_1.clone(), assigned_membership_2.clone()];
 
         node_1
-            .handle_quorum_membership_assigment_created(
-                assigned_membership_1
-            ).unwrap();
+            .handle_quorum_membership_assigment_created(assigned_membership_1)
+            .unwrap();
 
         node_2
-            .handle_quorum_membership_assigment_created(
-                assigned_membership_2
-            )
+            .handle_quorum_membership_assigment_created(assigned_membership_2)
             .unwrap();
 
         node_1
-            .handle_quorum_membership_assigments_created(
-                assignments.clone()
-            ).unwrap();
+            .handle_quorum_membership_assigments_created(assignments.clone())
+            .unwrap();
 
         node_2
             .handle_quorum_membership_assigments_created(assignments.clone())
@@ -596,14 +592,12 @@ mod tests {
             .bootstrap_quorum_config
             .is_some());
 
-        assert!(
-            node_1.consensus_driver
-                .sig_engine
-                .quorum_members()
-                .get_public_key_from_members(
-                    &node_1.config.id
-                ).is_some()
-        );
+        assert!(node_1
+            .consensus_driver
+            .sig_engine
+            .quorum_members()
+            .get_public_key_from_members(&node_1.config.id)
+            .is_some());
 
         let mut farmer_nodes = vec![&mut node_1, &mut node_2];
 
@@ -1140,32 +1134,36 @@ mod tests {
         }
     }
 
-
     #[tokio::test]
     #[serial_test::serial]
     async fn harvesters_can_stash_farmer_votes() {
-        let mut nodes = create_quorum_assigned_node_runtime_network(8, 3).await; 
+        let nodes = create_quorum_assigned_node_runtime_network(8, 3).await;
 
-        let mut farmers: Vec<&NodeRuntime> = nodes.iter().filter_map(|nr| {
-            if nr.consensus_driver.quorum_kind == Some(QuorumKind::Farmer) {
-                Some(nr)
-            } else {
-                None
-            }
-        }).collect();
+        let farmers: Vec<&NodeRuntime> = nodes
+            .iter()
+            .filter_map(|nr| {
+                if nr.consensus_driver.quorum_kind == Some(QuorumKind::Farmer) {
+                    Some(nr)
+                } else {
+                    None
+                }
+            })
+            .collect();
 
-        let mut harvesters: Vec<&NodeRuntime> = nodes.iter().filter_map(|nr| {
-            if nr.consensus_driver.quorum_kind == Some(QuorumKind::Harvester) {
-                Some(nr)
-            } else {
-                None
-            }
-        }).collect();
-        
-        let ((sender_address, sender_account), receiver_address) = create_sender_receiver_addresses();
+        let harvesters: Vec<&NodeRuntime> = nodes
+            .iter()
+            .filter_map(|nr| {
+                if nr.consensus_driver.quorum_kind == Some(QuorumKind::Harvester) {
+                    Some(nr)
+                } else {
+                    None
+                }
+            })
+            .collect();
 
+        let ((sender_address, sender_account), receiver_address) =
+            create_sender_receiver_addresses();
     }
-
 
     //    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
     //        let mut parts = HashMap::new();

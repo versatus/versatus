@@ -169,10 +169,10 @@ impl Handler<EventMessage> for NodeRuntime {
             },
 
             Event::TxnValidated(txn) => {
-                self.state_driver.handle_transaction_validated(txn);
+                self.state_driver.handle_transaction_validated(txn).await?;
             },
             Event::CreateAccountRequested((address, account_bytes)) => {
-                self.handle_create_account_requested(address.clone(), account_bytes);
+                self.handle_create_account_requested(address.clone(), account_bytes)?;
             },
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 todo!()
