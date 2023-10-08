@@ -134,7 +134,7 @@ impl ConsensusModule {
             .iter()
             .map(|mem| mem.node_id.clone())
             .collect();
-        dbg!("{:?}", assigned_memberships.len());
+        dbg!("{:?}", &ids);
         local_membership.retain(|membership| membership.node_id == local_node_id);
         if let Some(membership) = local_membership.pop() {
             let quorum_kind = membership.quorum_kind.clone();

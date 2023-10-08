@@ -43,7 +43,6 @@ pub struct NodeRuntime {
     // TODO: make private
     pub config: NodeConfig,
     pub events_tx: EventPublisher,
-    pub dag_driver: DagModule,
     pub state_driver: StateManager,
     pub consensus_driver: ConsensusModule,
     pub mining_driver: Miner,
@@ -120,14 +119,11 @@ impl NodeRuntime {
             10,
         )?;
 
-        let dag_driver = DagModule::new(dag, claim.clone());
-
         Ok(Self {
             id: uuid::Uuid::new_v4().to_string(),
             status: ActorState::Stopped,
             config: config.to_owned(),
             events_tx,
-            dag_driver,
             state_driver,
             consensus_driver,
             mining_driver: miner,
@@ -313,9 +309,8 @@ impl NodeRuntime {
     }
 
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
-        self.has_required_node_type(NodeType::Validator, "certify blocks")?;
-        self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify blocks")?;
-        let certs = self.dag_driver.check_certificate_threshold_reached(
+        self.consensus_driver.is_harvester()?;
+        let certs = self.state_driver.dag.check_certificate_threshold_reached(
             &genesis.hash,
             &self.consensus_driver.sig_engine,
         )?;
@@ -385,7 +380,7 @@ impl NodeRuntime {
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
 
         let last_block_header =
-            self.dag_driver
+            self.state_driver.dag
                 .last_confirmed_block_header()
                 .ok_or(NodeError::Other(format!(
                     "Node {} does not have a last confirmed block header",
@@ -394,7 +389,7 @@ impl NodeRuntime {
 
         let next_txn_trie_hash = self.state_driver.transactions_root_hash()?;
         let certs = self
-            .dag_driver
+            .state_driver.dag
             .check_certificate_threshold_reached(&block.hash, &self.consensus_driver.sig_engine)?;
 
         self.consensus_driver.certify_convergence_block(
@@ -402,7 +397,7 @@ impl NodeRuntime {
             last_block_header,
             next_txn_trie_hash.clone(),
             self.mining_driver.clone(),
-            self.dag_driver.dag().clone(),
+            self.state_driver.dag.dag().clone(),
             certs.into_iter().collect(),
         )?;
 

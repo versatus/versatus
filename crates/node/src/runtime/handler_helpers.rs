@@ -28,7 +28,7 @@ impl NodeRuntime {
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         // TODO: append blocks to only one instance of the DAG
-        self.dag_driver.append_genesis(&block).map_err(|err| {
+        self.state_driver.dag.append_genesis(&block).map_err(|err| {
             NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
         })?;
 
@@ -67,7 +67,7 @@ impl NodeRuntime {
             })?;
 
         if block.certificate.is_none() {
-            if let Some(_) = self.dag_driver.last_confirmed_block_header() {
+            if let Some(_) = self.state_driver.dag.last_confirmed_block_header() {
                 let certificate = self.certify_convergence_block(block.clone());
             }
         }
@@ -90,7 +90,7 @@ impl NodeRuntime {
             .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
         let set = self
-            .dag_driver
+            .state_driver.dag
             .add_signer_to_convergence_block(
                 block_hash.clone(),
                 sig,
@@ -231,7 +231,7 @@ impl NodeRuntime {
             block.clone(),
             last_confirmed_block_header,
             resolver,
-            self.dag_driver.dag(),
+            self.state_driver.dag.dag(),
         ) {
             Ok((true, true)) => {
                 self.events_tx

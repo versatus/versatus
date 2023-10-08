@@ -241,8 +241,8 @@ impl VrrbDb {
         read_handle.get_account_by_address(&sender_address)?;
         if let Err(StorageError::Other(err)) = read_handle.get_account_by_address(&receiver_address) {
             let account = Account::new(receiver_address.clone());
-            self.insert_account(receiver_address, account)?;
-        }?;
+            self.insert_account(receiver_address.clone(), account)?;
+        };
 
         let updates = IntoUpdates::from_txn(txn.clone());
 
