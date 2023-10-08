@@ -66,7 +66,7 @@ async fn harvester_nodes_form_certificate() {
         res = chosen_harvester
             .handle_harvester_signature_received(
                 convergence_block.hash.clone(),
-                harvester.id.clone(),
+                harvester.config.id.clone(),
                 sig,
             )
             .await;

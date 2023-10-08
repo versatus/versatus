@@ -880,7 +880,7 @@ fn assign_node_to_quorum(
                 .clone()
                 .iter()
                 .filter_map(|data| {
-                    if data.node_id.clone() != node.id.clone() {
+                    if data.node_id.clone() != node.config.id.clone() {
                         Some(data.clone())
                     } else {
                         None
@@ -909,7 +909,7 @@ fn assign_node_to_farmer_quorum(
 ) {
     assigned_memberships.push(AssignedQuorumMembership {
         quorum_kind: QuorumKind::Farmer,
-        node_id: node.id.clone(),
+        node_id: node.config.id.clone(),
         pub_key: node.config.keypair.validator_public_key_owned(),
         kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
         peers: peers.clone(),
@@ -923,7 +923,7 @@ fn assign_node_to_harvester_quorum(
 ) {
     assigned_memberships.push(AssignedQuorumMembership {
         quorum_kind: QuorumKind::Harvester,
-        node_id: node.id.clone(),
+        node_id: node.config.id.clone(),
         pub_key: node.config.keypair.validator_public_key_owned(),
         kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
         peers: peers.clone(),
