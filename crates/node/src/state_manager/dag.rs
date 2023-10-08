@@ -305,7 +305,6 @@ impl DagModule {
             .entry(block_hash.clone())
         {
             indexmap::map::Entry::Occupied(mut entry) => {
-                println!("hi");
                 entry.get_mut().insert((node_id, sig.clone()));
             },
             indexmap::map::Entry::Vacant(entry) => {

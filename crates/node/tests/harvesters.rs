@@ -16,6 +16,11 @@ use primitives::{QuorumKind, Signature};
 
 #[tokio::test]
 #[serial_test::serial]
+/// This test proves the functionality of `handle_harvester_signature_received`.
+///
+/// 2 of 3 harvester nodes sign a convergence block, which all 3 harvesters have
+/// appended to state, afterwhich the harvester VALIDATION_THRESHOLD is reached
+/// confirmed by the SignerEngine, and forms a complete certificate.
 async fn harvester_nodes_form_certificate() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
@@ -53,11 +58,6 @@ async fn harvester_nodes_form_certificate() {
         harvester
             .state_driver
             .append_convergence(&mut convergence_block.clone())
-            .map_err(|err| {
-                NodeError::Other(format!(
-                    "Could not append convergence block to DAG: {err:?}"
-                ))
-            })
             .unwrap();
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
