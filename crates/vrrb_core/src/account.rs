@@ -185,7 +185,6 @@ pub struct Account {
     debits: u128,
     storage: Option<String>,
     package_address: Option<String>,
-    pubkey: SerializedPublicKey,
     digests: AccountDigests,
     created_at: i64,
     updated_at: Option<i64>,
@@ -193,7 +192,7 @@ pub struct Account {
 
 impl Account {
     /// Returns new, empty account.
-    pub fn new(pubkey: secp256k1::PublicKey) -> Account {
+    pub fn new(address: Address) -> Account {
         let nonce = 0u128;
         let credits = 0u128;
         let debits = 0u128;
@@ -208,10 +207,6 @@ impl Account {
 
         let hash = format!("{:x}", hasher.finalize());
 
-        let address = Address::new(pubkey);
-
-        let pubkey = pubkey.serialize().to_vec();
-
         Account {
             address,
             hash,
@@ -220,7 +215,6 @@ impl Account {
             debits,
             storage,
             package_address,
-            pubkey,
             digests,
             created_at: Utc::now().timestamp(),
             updated_at: None,
@@ -400,9 +394,6 @@ impl Account {
     pub fn package_address(&self) -> &Option<String> {
         &self.package_address
     }
-    pub fn pubkey(&self) -> &SerializedPublicKey {
-        &self.pubkey
-    }
     pub fn digests(&self) -> &AccountDigests {
         &self.digests
     }
@@ -430,8 +421,9 @@ mod tests {
     #[test]
     fn should_create_account() {
         let (_, pk) = generate_account_keypair();
+        let address = Address::new(pk);
 
-        let account = Account::new(pk);
+        let account = Account::new(address);
 
         assert_eq!(account.nonce, 0);
     }

@@ -299,8 +299,8 @@ impl Wallet {
         alias: AddressAlias,
         public_key: PublicKey,
     ) -> Result<(Address, Account), WalletError> {
-        let account = Account::new(public_key);
         let address = Address::new(public_key);
+        let account = Account::new(address.clone());
 
         self.client
             .create_account(address.clone(), account.clone())

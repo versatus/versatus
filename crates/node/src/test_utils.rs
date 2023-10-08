@@ -103,12 +103,12 @@ pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
     (0..n)
         .map(|_| {
             let kp = generate_account_keypair();
-            let mut account = Some(Account::new(kp.1));
+            let mut account = Some(Account::new(kp.1.clone().into()));
             account
                 .as_mut()
                 .unwrap()
                 .set_credits(1_000_000_000_000_000_000_000_000_000u128);
-            (Address::new(kp.1), account)
+            (kp.1.clone().into(), account)
         })
         .collect()
 }
@@ -975,13 +975,13 @@ fn form_groups_with_peer_data(
 
 pub fn create_sender_receiver_addresses() -> ((Account, Address), Address) {
     let (_, sender_public_key) = generate_account_keypair();
-    let mut sender_account = Account::new(sender_public_key);
+    let mut sender_account = Account::new(sender_public_key.into());
     let update_field = AccountField::Credits(100000);
     let _ = sender_account.update_field(update_field);
     let sender_address = Address::new(sender_public_key);
 
     let (_, receiver_public_key) = generate_account_keypair();
-    let receiver_address = Address::new(receiver_public_key);
+    let receiver_address = Address::new(receiver_public_key.into());
 
     ((sender_account, sender_address), receiver_address)
 }

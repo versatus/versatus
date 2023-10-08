@@ -440,12 +440,11 @@ impl NodeRuntime {
     }
 
     pub fn create_account(&mut self, public_key: PublicKey) -> Result<Address> {
-        let account = Account::new(public_key);
-        let address = Address::new(public_key);
+        let account = Account::new(public_key.clone().into());
 
-        self.state_driver.insert_account(address.clone(), account)?;
+        self.state_driver.insert_account(public_key.into(), account)?;
 
-        Ok(address)
+        Ok(public_key.into())
     }
 
     pub fn update_account(&mut self, args: UpdateArgs) -> Result<()> {
