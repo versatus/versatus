@@ -76,6 +76,63 @@ async fn harvester_nodes_form_certificate() {
     assert!(res.is_ok());
 }
 
+#[tokio::test]
+#[serial_test::serial]
+async fn certificate_formed_includes_pending_quorum() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    let mut harvesters: Vec<NodeRuntime> = nodes
+        .into_iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() == Some(QuorumKind::Harvester) {
+                Some(nr)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut convergence_block = dummy_convergence_block();
+    let mut chosen_harvester = harvesters.pop().unwrap();
+    chosen_harvester
+        .state_driver
+        .append_convergence(&mut convergence_block)
+        .map_err(|err| {
+            NodeError::Other(format!(
+                "Could not append convergence block to DAG: {err:?}"
+            ))
+        })
+        .unwrap();
+    let mut sigs: Vec<Signature> = Vec::new();
+    for harvester in harvesters.iter_mut() {
+        // 2 of 3 harvester nodes sign a convergence block
+        sigs.push(
+            harvester
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
+                .unwrap(),
+        );
+        harvester
+            .state_driver
+            .append_convergence(&mut convergence_block.clone())
+            .unwrap();
+    }
+    let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
+    // all harvester nodes get the other's signatures
+    for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+        res = chosen_harvester
+            .handle_harvester_signature_received(
+                convergence_block.hash.clone(),
+                harvester.config.id.clone(),
+                sig,
+            )
+            .await;
+    }
+
+    // ensure they form a full certificate
+    assert!(res.is_ok());
+}
+
 fn dummy_convergence_block() -> ConvergenceBlock {
     ConvergenceBlock {
         header: BlockHeader {

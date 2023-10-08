@@ -133,10 +133,7 @@ impl Quorum {
         let mut eligible_claims = Vec::<Claim>::new();
         claims
             .into_iter()
-            .filter(|claim| {
-                claim.eligibility == Eligibility::Harvester
-                    && claim.eligibility == Eligibility::Farmer
-            })
+            .filter(|claim| claim.eligibility == Eligibility::Validator)
             .for_each(|claim| {
                 eligible_claims.push(claim);
             });

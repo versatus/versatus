@@ -28,9 +28,12 @@ impl NodeRuntime {
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         // TODO: append blocks to only one instance of the DAG
-        self.state_driver.dag.append_genesis(&block).map_err(|err| {
-            NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
-        })?;
+        self.state_driver
+            .dag
+            .append_genesis(&block)
+            .map_err(|err| {
+                NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
+            })?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 
@@ -90,7 +93,8 @@ impl NodeRuntime {
             .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
         let set = self
-            .state_driver.dag
+            .state_driver
+            .dag
             .add_signer_to_convergence_block(
                 block_hash.clone(),
                 sig,
@@ -160,7 +164,8 @@ impl NodeRuntime {
                             (data.quorum_kind, data.members.clone().into_iter().collect())
                         })
                         .collect(),
-                )
+                );
+                self.quorum_pending = None;
             }
             Ok(cert)
         } else {
@@ -216,8 +221,8 @@ impl NodeRuntime {
     ) -> Result<()> {
         self.consensus_driver
             .handle_quorum_membership_assigments_created(
-                assigned_membership, 
-                self.config.id.clone()
+                assigned_membership,
+                self.config.id.clone(),
             )
     }
 
