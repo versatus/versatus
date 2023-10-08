@@ -55,7 +55,8 @@ pub struct Claim {
     stake_txns: Vec<Stake>,
 }
 
-///Node has privileges to be Miner/Validator,Farmer or None
+// TODO: Remove None variant and use Option<Eligibility>.
+/// Node has privileges to be a Validator, Miner or None
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Eligibility {
     Validator,
