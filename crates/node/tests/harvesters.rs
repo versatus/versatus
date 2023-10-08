@@ -28,8 +28,17 @@ async fn harvester_nodes_form_certificate() {
             }
         })
         .collect();
+    let mut convergence_block = dummy_convergence_block();
     let mut chosen_harvester = harvesters.pop().unwrap();
-    let convergence_block = dummy_convergence_block();
+    chosen_harvester
+        .state_driver
+        .append_convergence(&mut convergence_block)
+        .map_err(|err| {
+            NodeError::Other(format!(
+                "Could not append convergence block to DAG: {err:?}"
+            ))
+        })
+        .unwrap();
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
         // 2 of 3 harvester nodes sign a convergence block
@@ -39,10 +48,9 @@ async fn harvester_nodes_form_certificate() {
                 .await
                 .unwrap(),
         );
-        let mut convergence_block = convergence_block.clone();
         harvester
             .state_driver
-            .append_convergence(&mut convergence_block)
+            .append_convergence(&mut convergence_block.clone())
             .map_err(|err| {
                 NodeError::Other(format!(
                     "Could not append convergence block to DAG: {err:?}"
