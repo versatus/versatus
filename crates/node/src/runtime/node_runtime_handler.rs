@@ -199,14 +199,9 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
                 // TODO, refactor into a node_runtime method
-                self.handle_harvester_signature_received(
-                    block_hash,
-                    node_id,
-                    sig,
-                    self.consensus_driver.sig_engine.clone(),
-                )
-                .await
-                .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.handle_harvester_signature_received(block_hash, node_id, sig)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockCertificateCreated(certificate) => {
                 self.handle_block_certificate_created(certificate)

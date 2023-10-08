@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock};
+use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
 use events::{Event, EventMessage, EventPublisher, Vote};
@@ -33,7 +33,7 @@ use crate::{NodeError, Result};
 
 use super::{
     utils::{consolidate_update_args, get_update_args},
-    DagModule,
+    DagModule, GraphResult,
 };
 
 /// Provides a convenient configuration struct for building a
@@ -66,6 +66,10 @@ impl StateManager {
             dag: dag_module,
             mempool: config.mempool,
         }
+    }
+
+    pub fn append_convergence(&mut self, convergence: &mut ConvergenceBlock) -> GraphResult<()> {
+        self.dag.append_convergence(convergence)
     }
 
     pub fn export_state(&self) {
@@ -289,9 +293,9 @@ impl StateManager {
     }
 
     pub(crate) fn handle_block_received(
-        &mut self, 
-        block: &mut Block, 
-        mut sig_engine: SignerEngine
+        &mut self,
+        block: &mut Block,
+        mut sig_engine: SignerEngine,
     ) -> Result<Event> {
         match block {
             Block::Genesis { ref mut block } => {
@@ -314,7 +318,6 @@ impl StateManager {
 
                 if block.certificate.is_none() {
                     if let Some(header) = self.dag.last_confirmed_block_header() {
-                        
                         let event = Event::ConvergenceBlockPrecheckRequested {
                             convergence_block: block.clone(),
                             block_header: header,

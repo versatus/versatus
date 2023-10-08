@@ -5,7 +5,7 @@ use bulldag::graph::BullDag;
 use ethereum_types::U256;
 use events::{AssignedQuorumMembership, PeerData};
 use miner::conflict_resolver::Resolver;
-use primitives::{NodeId, NodeType, PublicKey, QuorumKind};
+use primitives::{NodeId, NodeType, PublicKey};
 use quorum::quorum::Quorum;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use std::{
@@ -116,11 +116,10 @@ impl ConsensusModule {
         Ok(())
     }
 
-
     pub fn handle_quorum_membership_assigments_created(
         &mut self,
         assigned_memberships: Vec<AssignedQuorumMembership>,
-        local_node_id: NodeId
+        local_node_id: NodeId,
     ) -> Result<()> {
         if matches!(self.node_config.node_type, NodeType::Bootstrap) {
             dbg!("node is boostrap, aborting");
@@ -129,11 +128,12 @@ impl ConsensusModule {
                 &self.node_config.id
             )));
         }
-        
+
         let mut local_membership = assigned_memberships.clone();
-        let ids: Vec<String> = assigned_memberships.iter().map(|mem| {
-            mem.node_id.clone()
-        }).collect();
+        let ids: Vec<String> = assigned_memberships
+            .iter()
+            .map(|mem| mem.node_id.clone())
+            .collect();
         dbg!("{:?}", assigned_memberships.len());
         local_membership.retain(|membership| membership.node_id == local_node_id);
         if let Some(membership) = local_membership.pop() {
@@ -163,13 +163,16 @@ impl ConsensusModule {
             self.quorum_driver.membership_config = Some(config.clone());
             self.quorum_kind = Some(membership.quorum_kind);
         }
-        
+
         let mut unique_quorums = HashSet::new();
         for mem in assigned_memberships.iter() {
             let kind = mem.quorum_kind.clone();
-            let mut peers = mem.peers.clone().into_iter().map(|peer| {
-                (peer.node_id.clone(), peer.validator_public_key.clone())
-            }).collect::<HashSet<(NodeId, PublicKey)>>();
+            let mut peers = mem
+                .peers
+                .clone()
+                .into_iter()
+                .map(|peer| (peer.node_id.clone(), peer.validator_public_key.clone()))
+                .collect::<HashSet<(NodeId, PublicKey)>>();
 
             peers.insert((mem.node_id.clone(), mem.pub_key.clone()));
             let mut peers = peers.into_iter().collect::<Vec<_>>();

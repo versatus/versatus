@@ -1,9 +1,12 @@
-use std::{sync::{Arc, RwLock, RwLockReadGuard}, collections::HashSet};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock, RwLockReadGuard},
+};
 
 use block::{
     header::BlockHeader,
     valid::{BlockValidationData, Valid},
-    Block, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, Certificate,
+    Block, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
 };
 use bulldag::{
     graph::{BullDag, GraphError},
@@ -11,9 +14,17 @@ use bulldag::{
 };
 use hbbft::crypto::{PublicKeySet, PublicKeyShare, SignatureShare, SIG_SIZE};
 use indexmap::IndexMap;
-use primitives::{SignatureType, QuorumType, RawSignature, HarvesterQuorumThreshold, NodeId, Signature, PublicKey};
-use signer::{types::{SignerError, SignerResult}, engine::VALIDATION_THRESHOLD};
-use signer::engine::{QuorumData, QuorumMembers, SignerEngine};
+use primitives::{
+    HarvesterQuorumThreshold, NodeId, PublicKey, QuorumType, RawSignature, Signature, SignatureType,
+};
+use signer::{
+    engine::VALIDATION_THRESHOLD,
+    types::{SignerError, SignerResult},
+};
+use signer::{
+    engine::{QuorumData, QuorumMembers, SignerEngine},
+    signer::Signer,
+};
 use theater::{ActorId, ActorState};
 use vrrb_core::claim::Claim;
 
@@ -109,7 +120,10 @@ impl DagModule {
         todo!()
     }
 
-    pub fn get_pending_convergence_block_mut(&mut self, key: &String) -> Option<&mut ConvergenceBlock> {
+    pub fn get_pending_convergence_block_mut(
+        &mut self,
+        key: &String,
+    ) -> Option<&mut ConvergenceBlock> {
         self.pending_convergence_blocks.get_mut(key)
     }
 
@@ -136,7 +150,11 @@ impl DagModule {
         Ok(())
     }
 
-    pub fn append_proposal(&mut self, proposal: &ProposalBlock, mut sig_engine: SignerEngine) -> GraphResult<()> {
+    pub fn append_proposal(
+        &mut self,
+        proposal: &ProposalBlock,
+        mut sig_engine: SignerEngine,
+    ) -> GraphResult<()> {
         let valid = self.check_valid_proposal(proposal, sig_engine);
 
         if valid {
@@ -156,8 +174,6 @@ impl DagModule {
     pub fn append_convergence(&mut self, convergence: &mut ConvergenceBlock) -> GraphResult<()> {
         let valid = self.check_valid_convergence(convergence);
 
-
-
         // TODO: Can we remove the commented out code below?
         // if !valid {
         //     return Err(GraphError::Other(format!(
@@ -165,7 +181,6 @@ impl DagModule {
         //         convergence.hash,
         //     )));
         // }
-
 
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
@@ -272,43 +287,50 @@ impl DagModule {
             match self.verify_certificate(certificate) {
                 Ok(true) => return true,
                 Ok(false) => return false,
-                Err(_) => return false
+                Err(_) => return false,
             }
-        } 
-        false 
+        }
+        false
     }
 
     pub fn add_signer_to_convergence_block(
-        &mut self, 
-        block_hash: String, 
-        sig: Signature, 
+        &mut self,
+        block_hash: String,
+        sig: Signature,
         node_id: NodeId,
+        sig_engine: &SignerEngine,
     ) -> Result<HashSet<(NodeId, Signature)>> {
-        match self.partial_certificate_signatures.entry(block_hash.clone()) {
+        match self
+            .partial_certificate_signatures
+            .entry(block_hash.clone())
+        {
             indexmap::map::Entry::Occupied(mut entry) => {
+                println!("hi");
                 entry.get_mut().insert((node_id, sig.clone()));
             },
             indexmap::map::Entry::Vacant(entry) => {
                 let mut set = HashSet::new();
                 set.insert((node_id, sig.clone()));
                 entry.insert(set);
-            }
+            },
         }
-        self.check_certificate_threshold_reached(&block_hash) 
+        dbg!(&self.partial_certificate_signatures);
+        self.check_certificate_threshold_reached(&block_hash, sig_engine)
     }
 
-    pub fn check_certificate_threshold_reached(&self, block_hash: &String) -> Result<HashSet<(NodeId, Signature)>> {
+    pub fn check_certificate_threshold_reached(
+        &self,
+        block_hash: &String,
+        sig_engine: &SignerEngine,
+    ) -> Result<HashSet<(NodeId, Signature)>> {
         if let Some(set) = self.partial_certificate_signatures.get(block_hash) {
-            if let Some(threshold) = &self.harvester_quorum_threshold {
-                if &set.len() >= threshold {
-                    return Ok(set.clone())
-                }
+            if &set.len() >= &sig_engine.quorum_members().get_harvester_threshold() {
+                return Ok(set.clone());
             }
         }
 
         Err(NodeError::Other(format!("threshold not reached")))
     }
-
 
     fn check_invalid_partial_sig(&self, block_hash: String) -> SignerResult<NodeId> {
         todo!()
@@ -319,59 +341,44 @@ impl DagModule {
     }
 
     fn verify_certificate_signature(
-        &self, 
-        signature: &mut Vec<(NodeId, Signature)>, 
+        &self,
+        signature: &mut Vec<(NodeId, Signature)>,
         sig_type: SignatureType,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine
+        mut sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         match sig_type {
             SignatureType::PartialSignature => {
                 if let Some((id, sig)) = signature.pop() {
-                    self.verify_certificate_partial_sig(
-                        sig, 
-                        id,
-                        payload_hash,
-                        sig_engine
-                    )
+                    self.verify_certificate_partial_sig(sig, id, payload_hash, sig_engine)
                 } else {
                     Err(SignerError::PartialSignatureError(
-                        "no signature provided".to_string()
+                        "no signature provided".to_string(),
                     ))
                 }
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-
-                self.verify_certificate_threshold_sig(
-                    signature.clone(),
-                    payload_hash,
-                    sig_engine
-                )
-            }
+                self.verify_certificate_threshold_sig(signature.clone(), payload_hash, sig_engine)
+            },
         }
     }
 
     fn verify_certificate_partial_sig(
-        &self, 
-        sig: Signature, 
+        &self,
+        sig: Signature,
         node_idx: NodeId,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine
+        mut sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         let public_keyshare = self.get_harvester_public_keyshare(node_idx)?;
-        self.verify_partial_sig_with_public_keyshare(
-            sig, 
-            public_keyshare, 
-            payload_hash,
-            sig_engine
-        )
+        self.verify_partial_sig_with_public_keyshare(sig, public_keyshare, payload_hash, sig_engine)
     }
 
     fn verify_certificate_threshold_sig(
-        &self, 
+        &self,
         sigs: Vec<(NodeId, Signature)>,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine
+        mut sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         self.verify_threshold_sig_with_public_keyset(sigs, payload_hash, sig_engine)
     }
@@ -382,33 +389,33 @@ impl DagModule {
         payload_hash: Vec<u8>,
         mut sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
-        sig_engine.verify_batch(&sigs, &payload_hash)
+        sig_engine
+            .verify_batch(&sigs, &payload_hash)
             .map_err(|err| SignerError::ThresholdSignatureError(err.to_string()))?;
 
         Ok((true, SignatureType::ThresholdSignature))
     }
 
     fn verify_partial_sig_with_public_keyshare(
-        &self, 
+        &self,
         sig: Signature,
-        public_keyshare: PublicKey, 
+        public_keyshare: PublicKey,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine
+        mut sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         if let Some(mut harvesters) = sig_engine.quorum_members().get_harvester_data() {
-            harvesters.members.retain(|id, pk| { pk.clone() == public_keyshare });
+            harvesters
+                .members
+                .retain(|id, pk| pk.clone() == public_keyshare);
             if let Some((id, pk)) = harvesters.members.iter().next() {
-                sig_engine.verify(id, &sig, &payload_hash)
-                    .map_err(|err| SignerError::PartialSignatureError(
-                        format!(
-                            "unable to verify signature"
-                        )
-                    ))?;
+                sig_engine.verify(id, &sig, &payload_hash).map_err(|err| {
+                    SignerError::PartialSignatureError(format!("unable to verify signature"))
+                })?;
                 Ok((true, SignatureType::PartialSignature))
             } else {
                 return Err(SignerError::PartialSignatureError(
-                    "unable to find signer in sig engine".to_string()
-                ))
+                    "unable to find signer in sig engine".to_string(),
+                ));
             }
         } else {
             return Err(SignerError::PartialSignatureError(
@@ -416,31 +423,40 @@ impl DagModule {
             ));
         }
     }
-    
+
     #[deprecated]
-    fn verify_signature(&self, validation_data: BlockValidationData, mut sig_engine: SignerEngine) -> SignerResult<bool> {
+    fn verify_signature(
+        &self,
+        validation_data: BlockValidationData,
+        mut sig_engine: SignerEngine,
+    ) -> SignerResult<bool> {
         todo!()
     }
-    
+
     #[deprecated]
-    fn verify_partial_sig(&self, validation_data: BlockValidationData, mut sig_engine: SignerEngine) -> SignerResult<bool> {
+    fn verify_partial_sig(
+        &self,
+        validation_data: BlockValidationData,
+        mut sig_engine: SignerEngine,
+    ) -> SignerResult<bool> {
         todo!();
     }
-    
+
     #[deprecated]
-    fn verify_threshold_sig(&self, validation_data: BlockValidationData, mut sig_engine: SignerEngine) -> SignerResult<bool> {
+    fn verify_threshold_sig(
+        &self,
+        validation_data: BlockValidationData,
+        mut sig_engine: SignerEngine,
+    ) -> SignerResult<bool> {
         let sig_set = validation_data.signatures.clone();
         if sig_set.len() <= sig_engine.quorum_members().get_harvester_threshold() {
-            return Err(
-                SignerError::ThresholdSignatureError(
-                    format!(
-                        "not enough signatures received to meet threshold"
-                    )
-                )
-            )
+            return Err(SignerError::ThresholdSignatureError(format!(
+                "not enough signatures received to meet threshold"
+            )));
         }
 
-        sig_engine.verify_batch(&sig_set, &validation_data.payload_hash)
+        sig_engine
+            .verify_batch(&sig_set, &validation_data.payload_hash)
             .map_err(|err| SignerError::ThresholdSignatureError(err.to_string()))?;
 
         Ok(true)

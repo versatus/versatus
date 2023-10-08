@@ -117,6 +117,10 @@ impl ConsensusModule {
         })
     }
 
+    pub fn sig_engine(&self) -> SignerEngine {
+        self.sig_engine.clone()
+    }
+
     pub fn quorum_kind(&self) -> Option<QuorumKind> {
         self.quorum_kind.clone()
     }

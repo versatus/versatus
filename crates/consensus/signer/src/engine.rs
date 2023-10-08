@@ -67,7 +67,7 @@ impl QuorumMembers {
 
     pub fn get_harvester_threshold(&self) -> usize {
         if let Some(data) = self.get_harvester_data() {
-            return (data.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize;
+            return (data.members.len() as f64 * VALIDATION_THRESHOLD) as usize;
         }
 
         0usize
@@ -86,24 +86,32 @@ impl QuorumMembers {
         });
     }
 
-    pub fn is_farmer_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
+    pub fn is_farmer_quorum_member(
+        &mut self,
+        quorum_id: &QuorumId,
+        node_id: &NodeId,
+    ) -> Result<(), Error> {
         if let Some(data) = self.0.get(quorum_id) {
             if data.members.contains_key(node_id) && data.quorum_kind == QuorumKind::Farmer {
-                return Ok(())
+                return Ok(());
             }
         }
 
-        return Err(Error)
+        return Err(Error);
     }
 
-    pub fn is_harvester_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
+    pub fn is_harvester_quorum_member(
+        &mut self,
+        quorum_id: &QuorumId,
+        node_id: &NodeId,
+    ) -> Result<(), Error> {
         if let Some(data) = self.0.get(quorum_id) {
             if data.members.contains_key(node_id) && data.quorum_kind == QuorumKind::Harvester {
-                return Ok(())
+                return Ok(());
             }
         }
 
-        return Err(Error)
+        return Err(Error);
     }
 }
 
@@ -189,11 +197,21 @@ impl SignerEngine {
         self.quorum_members.set_quorum_members(quorums);
     }
 
-    pub fn is_farmer_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
-        self.quorum_members.is_farmer_quorum_member(quorum_id, node_id)
+    pub fn is_farmer_quorum_member(
+        &mut self,
+        quorum_id: &QuorumId,
+        node_id: &NodeId,
+    ) -> Result<(), Error> {
+        self.quorum_members
+            .is_farmer_quorum_member(quorum_id, node_id)
     }
 
-    pub fn is_harvester_quorum_member(&mut self, quorum_id: &QuorumId, node_id: &NodeId) -> Result<(), Error> {
-        self.quorum_members.is_harvester_quorum_member(quorum_id, node_id)
+    pub fn is_harvester_quorum_member(
+        &mut self,
+        quorum_id: &QuorumId,
+        node_id: &NodeId,
+    ) -> Result<(), Error> {
+        self.quorum_members
+            .is_harvester_quorum_member(quorum_id, node_id)
     }
 }

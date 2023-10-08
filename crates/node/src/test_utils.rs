@@ -114,28 +114,28 @@ pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
 }
 
 fn produce_random_claims(n: usize) -> HashSet<Claim> {
-    (0..n)
-        .map(|_| {
-            let kp = Keypair::random();
-            let address = Address::new(kp.miner_kp.1);
-            let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-            let signature = Claim::signature_for_valid_claim(
-                kp.miner_kp.1,
-                ip_address,
-                kp.get_miner_secret_key().secret_bytes().to_vec(),
-            )
-            .unwrap();
+    (0..n).map(|_| produce_random_claim()).collect()
+}
 
-            Claim::new(
-                kp.miner_kp.1,
-                address,
-                ip_address,
-                signature,
-                NodeId::default(),
-            )
-            .unwrap()
-        })
-        .collect()
+pub fn produce_random_claim() -> Claim {
+    let kp = Keypair::random();
+    let address = Address::new(kp.miner_kp.1);
+    let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    let signature = Claim::signature_for_valid_claim(
+        kp.miner_kp.1,
+        ip_address,
+        kp.get_miner_secret_key().secret_bytes().to_vec(),
+    )
+    .unwrap();
+
+    Claim::new(
+        kp.miner_kp.1,
+        address,
+        ip_address,
+        signature,
+        NodeId::default(),
+    )
+    .unwrap()
 }
 
 fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<TransactionKind> {

@@ -84,18 +84,23 @@ impl NodeRuntime {
         block_hash: String,
         node_id: NodeId,
         sig: Signature,
-        sig_engine: SignerEngine,
-    ) -> Result<()> {
+    ) -> Result<Certificate> {
         self.consensus_driver
             .sig_engine
             .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
         let set = self
             .dag_driver
-            .add_signer_to_convergence_block(block_hash.clone(), sig, node_id)
+            .add_signer_to_convergence_block(
+                block_hash.clone(),
+                sig,
+                node_id,
+                &self.consensus_driver.sig_engine,
+            )
             .map_err(|err| NodeError::Other(err.to_string()))?;
+
         if set.len()
-            <= self
+            < self
                 .consensus_driver
                 .sig_engine
                 .quorum_members()
@@ -106,25 +111,26 @@ impl NodeRuntime {
 
         let sig_set = set.into_iter().collect();
         let cert = self
-            .form_convergence_certificate(block_hash, sig_set, sig_engine)
+            .form_convergence_certificate(block_hash, sig_set)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         self.events_tx
-            .send(Event::BlockCertificateCreated(cert).into())
+            .send(Event::BlockCertificateCreated(cert.clone()).into())
             .await
-            .map_err(|err| NodeError::Other(err.to_string()))
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        Ok(cert)
     }
 
     pub fn form_convergence_certificate(
         &mut self,
         block_hash: String,
         sigs: Vec<(NodeId, Signature)>,
-        sig_engine: SignerEngine,
     ) -> Result<Certificate> {
         // TODO: figure out how to get next_root_hash back into cert
         // this should probably be part of the signature process
         self.consensus_driver.is_harvester()?;
-        sig_engine
+        self.consensus_driver
+            .sig_engine
             .verify_batch(&sigs, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
         if let Some(ref mut block) = self
@@ -247,6 +253,7 @@ impl NodeRuntime {
         &mut self,
         block: ConvergenceBlock,
     ) -> Result<Signature> {
+        self.consensus_driver.is_harvester()?;
         self.consensus_driver
             .sig_engine
             .sign(&block.hash)

@@ -315,7 +315,10 @@ impl NodeRuntime {
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
         self.has_required_node_type(NodeType::Validator, "certify blocks")?;
         self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify blocks")?;
-        let certs = self.dag_driver.check_certificate_threshold_reached(&genesis.hash)?;
+        let certs = self.dag_driver.check_certificate_threshold_reached(
+            &genesis.hash,
+            &self.consensus_driver.sig_engine,
+        )?;
         let certificate = self
             .consensus_driver
             .certify_genesis_block(genesis, certs.into_iter().collect())?;
@@ -390,7 +393,9 @@ impl NodeRuntime {
                 )))?;
 
         let next_txn_trie_hash = self.state_driver.transactions_root_hash()?;
-        let certs = self.dag_driver.check_certificate_threshold_reached(&block.hash)?;
+        let certs = self
+            .dag_driver
+            .check_certificate_threshold_reached(&block.hash, &self.consensus_driver.sig_engine)?;
 
         self.consensus_driver.certify_convergence_block(
             block,
