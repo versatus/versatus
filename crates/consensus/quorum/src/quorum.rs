@@ -101,6 +101,8 @@ impl Quorum {
     //TODO: Make these configurable
     pub const MIN_QUORUM_SIZE: usize = 3;
     pub const MAX_QUORUM_SIZE: usize = 50;
+    /// 6 hours worth of 1 second block times.
+    pub const BLOCKS_PER_ELECTION: u128 = 21_600;
     /// Makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
     pub fn new(
@@ -120,10 +122,10 @@ impl Quorum {
         }
     }
 
-    ///checks if the child block height is valid, its used at seed and quorum
+    /// Checks if the child block height is valid, its used at seed and quorum
     /// creation
     pub fn check_validity(height: Height) -> bool {
-        height > 0
+        height % Self::BLOCKS_PER_ELECTION == 0
     }
 
     ///gets all claims that belong to eligible nodes (master nodes)
@@ -133,10 +135,7 @@ impl Quorum {
         let mut eligible_claims = Vec::<Claim>::new();
         claims
             .into_iter()
-            .filter(|claim| {
-                claim.eligibility == Eligibility::Harvester
-                    && claim.eligibility == Eligibility::Farmer
-            })
+            .filter(|claim| claim.eligibility == Eligibility::Validator)
             .for_each(|claim| {
                 eligible_claims.push(claim);
             });

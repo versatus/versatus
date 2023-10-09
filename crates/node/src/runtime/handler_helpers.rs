@@ -1,14 +1,12 @@
 use block::{
-    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock, RefHash,
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData, Vote};
 use miner::conflict_resolver::Resolver;
-use primitives::{Address, Epoch, NodeId, NodeType, QuorumKind, RawSignature, Round, Signature};
-use quorum::quorum::Quorum;
-use signer::engine::{SignerEngine, VALIDATION_THRESHOLD};
+use primitives::{Address, NodeId, NodeType, PublicKey, QuorumId, QuorumKind, Signature};
+use signer::engine::{QuorumData, QuorumMembers as InaugaratedMembers};
 use std::collections::HashMap;
 use storage::vrrbdb::ApplyBlockResult;
-use vrrb_core::claim::Claim;
 
 use crate::{
     node_runtime::NodeRuntime,
@@ -28,15 +26,22 @@ impl NodeRuntime {
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         // TODO: append blocks to only one instance of the DAG
-        self.state_driver.dag.append_genesis(&block).map_err(|err| {
-            NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
-        })?;
+        self.state_driver
+            .dag
+            .append_genesis(&block)
+            .map_err(|err| {
+                NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
+            })?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 
         Ok(apply_result)
     }
 
+    // TODO:
+    // check if from valid harvester
+    // whoever sent the proposal block must be a valid harvester
+    // sig_engine.quorum_members().is_harvester()
     fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<ApplyBlockResult> {
         if let Err(e) = self
             .state_driver
@@ -50,6 +55,8 @@ impl NodeRuntime {
     }
 
     /// Certifies and stores a convergence block within a node's state if certification succeeds
+    // TODO: check if harvester, request a pre check
+    // ConvergenceBlockPrecheckRequested
     fn handle_convergence_block_received(
         &mut self,
         mut block: ConvergenceBlock,
@@ -65,12 +72,6 @@ impl NodeRuntime {
                     "Could not append convergence block to DAG: {err:?}"
                 ))
             })?;
-
-        if block.certificate.is_none() {
-            if let Some(_) = self.state_driver.dag.last_confirmed_block_header() {
-                let certificate = self.certify_convergence_block(block.clone())?;
-            }
-        }
 
         let apply_result = self
             .state_driver
@@ -90,7 +91,8 @@ impl NodeRuntime {
             .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
         let set = self
-            .state_driver.dag
+            .state_driver
+            .dag
             .add_signer_to_convergence_block(
                 block_hash.clone(),
                 sig,
@@ -139,7 +141,7 @@ impl NodeRuntime {
         {
             let root_hash = block.header.txn_hash.clone();
             let block_hash = block.hash.clone();
-            let inauguration = if let Some(quorum) = &self.quorum_pending {
+            let inauguration = if let Some(quorum) = &self.pending_quorum {
                 Some(quorum.clone())
             } else {
                 None
@@ -151,17 +153,18 @@ impl NodeRuntime {
                 root_hash,
                 block_hash: block_hash.clone(),
             };
-            if let Some(quorum_members) = inauguration {
-                self.consensus_driver.sig_engine.set_quorum_members(
-                    quorum_members
-                        .0
-                        .into_iter()
-                        .map(|(_, data)| {
-                            (data.quorum_kind, data.members.clone().into_iter().collect())
-                        })
-                        .collect(),
-                )
-            }
+            //            if let Some(quorum_members) = inauguration {
+            //                self.consensus_driver.sig_engine.set_quorum_members(
+            //                    quorum_members
+            //                        .0
+            //                        .into_iter()
+            //                        .map(|(_, data)| {
+            //                            (data.quorum_kind, data.members.clone().into_iter().collect())
+            //                        })
+            //                        .collect(),
+            //                );
+            //                self.pending_quorum = None;
+            //            }
             Ok(cert)
         } else {
             Err(NodeError::Other(format!(
@@ -216,8 +219,8 @@ impl NodeRuntime {
     ) -> Result<()> {
         self.consensus_driver
             .handle_quorum_membership_assigments_created(
-                assigned_membership, 
-                self.config.id.clone()
+                assigned_membership,
+                self.config.id.clone(),
             )
     }
 
@@ -269,13 +272,52 @@ impl NodeRuntime {
             })
     }
 
-    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<Vec<Quorum>> {
+    // TODO: Replace claims HashMap with claim_store_read_handle_factory
+    pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<()> {
         let claims = self.state_driver.read_handle().claim_store_values();
-        let quorum = self
+        let quorums = self
             .consensus_driver
             .handle_quorum_election_started(header, claims)?;
 
-        Ok(quorum)
+        let quorum_assignment: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)> = {
+            quorums
+                .clone()
+                .iter()
+                .filter_map(|quorum| {
+                    quorum
+                        .quorum_kind
+                        .clone()
+                        .map(|qk| (qk.clone(), quorum.members.clone()))
+                })
+                .collect()
+        };
+
+        let mut inaug_members = InaugaratedMembers(HashMap::new());
+
+        quorum_assignment.iter().for_each(|quorum| {
+            let quorum_id = QuorumId::new(quorum.0.clone(), quorum.1.clone());
+            let quorum_data = QuorumData {
+                id: quorum_id.clone(),
+                quorum_kind: quorum.0.clone(),
+                members: quorum.1.clone().into_iter().collect(),
+            };
+            inaug_members.0.insert(quorum_id, quorum_data);
+        });
+        self.pending_quorum = Some(inaug_members);
+
+        //        let local_id = self.config.id.clone();
+        //        for (qk, members) in quorum_assignment.iter() {
+        //            if members
+        //                .clone()
+        //                .iter()
+        //                .any(|(node_id, _)| node_id == &local_id)
+        //            {
+        //                self.consensus_driver.quorum_membership =
+        //                    Some(QuorumId::new(qk.clone(), members.clone()));
+        //                self.consensus_driver.quorum_kind = Some(qk.clone());
+        //            }
+        //        }
+        Ok(())
     }
 
     pub fn handle_create_account_requested(

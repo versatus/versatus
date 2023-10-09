@@ -130,10 +130,6 @@ impl ConsensusModule {
         }
 
         let mut local_membership = assigned_memberships.clone();
-        let ids: Vec<String> = assigned_memberships
-            .iter()
-            .map(|mem| mem.node_id.clone())
-            .collect();
         local_membership.retain(|membership| membership.node_id == local_node_id);
         if let Some(membership) = local_membership.pop() {
             let quorum_kind = membership.quorum_kind.clone();

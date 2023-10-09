@@ -113,11 +113,11 @@ pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
         .collect()
 }
 
-fn produce_random_claims(n: usize) -> HashSet<Claim> {
-    (0..n).map(|_| produce_random_claim()).collect()
+pub fn produce_random_claims(n: usize) -> HashSet<Claim> {
+    (0..n).map(|x| produce_random_claim(x)).collect()
 }
 
-pub fn produce_random_claim() -> Claim {
+pub fn produce_random_claim(x: usize) -> Claim {
     let kp = Keypair::random();
     let address = Address::new(kp.miner_kp.1);
     let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
@@ -133,7 +133,7 @@ pub fn produce_random_claim() -> Claim {
         address,
         ip_address,
         signature,
-        NodeId::default(),
+        format!("node-{x}"),
     )
     .unwrap()
 }

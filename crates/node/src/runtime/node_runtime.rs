@@ -47,7 +47,7 @@ pub struct NodeRuntime {
     pub consensus_driver: ConsensusModule,
     pub mining_driver: Miner,
     pub claim: Claim,
-    pub quorum_pending: Option<InaugaratedMembers>,
+    pub pending_quorum: Option<InaugaratedMembers>,
 }
 
 impl NodeRuntime {
@@ -128,7 +128,7 @@ impl NodeRuntime {
             consensus_driver,
             mining_driver: miner,
             claim,
-            quorum_pending: None,
+            pending_quorum: None,
         })
     }
 
@@ -374,11 +374,10 @@ impl NodeRuntime {
     }
 
     pub fn certify_convergence_block(&mut self, block: ConvergenceBlock) -> Result<()> {
-        self.has_required_node_type(NodeType::Validator, "certify convergence block")?;
-        self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
-
+        self.consensus_driver.is_harvester()?;
         let last_block_header =
-            self.state_driver.dag
+            self.state_driver
+                .dag
                 .last_confirmed_block_header()
                 .ok_or(NodeError::Other(format!(
                     "Node {} does not have a last confirmed block header",
@@ -387,7 +386,8 @@ impl NodeRuntime {
 
         let next_txn_trie_hash = self.state_driver.transactions_root_hash()?;
         let certs = self
-            .state_driver.dag
+            .state_driver
+            .dag
             .check_certificate_threshold_reached(&block.hash, &self.consensus_driver.sig_engine)?;
 
         self.consensus_driver.certify_convergence_block(
@@ -435,7 +435,8 @@ impl NodeRuntime {
     pub fn create_account(&mut self, public_key: PublicKey) -> Result<Address> {
         let account = Account::new(public_key.clone().into());
 
-        self.state_driver.insert_account(public_key.into(), account)?;
+        self.state_driver
+            .insert_account(public_key.into(), account)?;
 
         Ok(public_key.into())
     }

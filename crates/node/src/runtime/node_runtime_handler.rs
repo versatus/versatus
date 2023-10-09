@@ -62,48 +62,8 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.handle_quorum_membership_assigments_created(assignments)?
             },
             Event::QuorumElectionStarted(header) => {
-                let quorums = self
-                    .handle_quorum_election_started(header)
+                self.handle_quorum_election_started(header)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                let quorum_assignment: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)> = {
-                    quorums
-                        .clone()
-                        .iter()
-                        .filter_map(|quorum| {
-                            quorum
-                                .quorum_kind
-                                .clone()
-                                .map(|qk| (qk.clone(), quorum.members.clone()))
-                        })
-                        .collect()
-                };
-
-                let mut inaug_members = InaugaratedMembers(HashMap::new());
-
-                quorum_assignment.iter().for_each(|quorum| {
-                    let quorum_id = QuorumId::new(quorum.0.clone(), quorum.1.clone());
-                    let quorum_data = QuorumData {
-                        id: quorum_id.clone(),
-                        quorum_kind: quorum.0.clone(),
-                        members: quorum.1.clone().into_iter().collect(),
-                    };
-                    inaug_members.0.insert(quorum_id, quorum_data);
-                });
-                self.quorum_pending = Some(inaug_members);
-
-                let local_id = self.config.id.clone();
-                for (qk, members) in quorum_assignment.iter() {
-                    if members
-                        .clone()
-                        .iter()
-                        .any(|(node_id, _)| node_id == &local_id)
-                    {
-                        self.consensus_driver.quorum_membership =
-                            Some(QuorumId::new(qk.clone(), members.clone()));
-                        self.consensus_driver.quorum_kind = Some(qk.clone());
-                    }
-                }
             },
             Event::MinerElectionStarted(header) => {
                 let claims = self.state_driver.read_handle().claim_store_values();
