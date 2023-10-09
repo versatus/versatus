@@ -150,7 +150,8 @@ async fn certificate_formed_includes_pending_quorum() {
     }
 
     let cert = res.unwrap();
-    assert!(cert.inauguration.is_some() && chosen_harvester.pending_quorum.is_none());
+    assert!(cert.inauguration.is_some());
+    assert!(chosen_harvester.pending_quorum.is_none());
 }
 
 fn dummy_convergence_block() -> ConvergenceBlock {
