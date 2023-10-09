@@ -172,9 +172,10 @@ impl SignerEngine {
         let result = hasher.finalize().to_vec();
         let message = Message::from_slice(&result);
         let pk = self.quorum_members.get_public_key_from_members(node_id);
+        dbg!(&pk);
         if let Some(pk) = pk {
-            sig.verify(&message.map_err(|e| Error::SecpError(e.to_string()))?, &pk)
-                .map_err(|e| Error::SecpError(e.to_string()))?
+            return sig.verify(&message.map_err(|e| Error::SecpError(e.to_string()))?, &pk)
+                .map_err(|e| Error::SecpError(e.to_string()));
         }
 
         Err(Error::FailedVerification("missing public key".to_string()))
