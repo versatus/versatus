@@ -1,6 +1,6 @@
 use block::{
-    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
-    BlockHash
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock,
+    ProposalBlock,
 };
 use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData, Vote};
 use miner::conflict_resolver::Resolver;
@@ -63,7 +63,8 @@ impl NodeRuntime {
         mut block: ConvergenceBlock,
     ) -> Result<ApplyBlockResult> {
         self.consensus_driver.is_harvester()?;
-        let apply_result = self.state_driver
+        let apply_result = self
+            .state_driver
             .append_convergence(&mut block)
             .map_err(|err| {
                 NodeError::Other(format!(
@@ -169,55 +170,68 @@ impl NodeRuntime {
     }
 
     // harvester sign and create cert
-    pub async fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<ConvergenceBlock> {
+    pub async fn handle_block_certificate_created(
+        &mut self,
+        certificate: Certificate,
+    ) -> Result<ConvergenceBlock> {
         // This is for when the local node is a harvester and forms the certificate
-        self.handle_block_certificate(certificate).await
+        self.handle_block_certificate_received(certificate).await
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
-        // This is probably where we want to put the logic for 
+        // This is probably where we want to put the logic for
         // taking a pending quorum and applying it
         todo!();
     }
 
     // recieve cert from network
-    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<ConvergenceBlock> {
+    pub async fn handle_block_certificate_received(
+        &mut self,
+        certificate: Certificate,
+    ) -> Result<ConvergenceBlock> {
         // This is for when a certificate is received from the network.
         self.verify_certificate(&certificate)?;
-        let block = self.append_certificate_to_convergence_block(&certificate)?.ok_or(
-            NodeError::Other("certificate not appended to convergence block".to_string())
-        )?;
-        
-        // This is redundant use Event::UpdateState
-        //let res = self.state_driver.append_convergence(&block).map_err(|err| {
-        //    NodeError::Other(format!("{:?}", err))
-        //})?;
+        let block = self
+            .append_certificate_to_convergence_block(&certificate)?
+            .ok_or(NodeError::Other(
+                "certificate not appended to convergence block".to_string(),
+            ))?;
 
         Ok(block.clone())
     }
 
     pub fn verify_certificate(&mut self, certificate: &Certificate) -> Result<()> {
         let cert_sigs = certificate.signatures.clone();
-        if cert_sigs.len() < self.consensus_driver
-            .sig_engine
-            .quorum_members()
-            .get_harvester_threshold() {
-                return Err(NodeError::Other("threshold not reached".to_string()));
+        if cert_sigs.len()
+            < self
+                .consensus_driver
+                .sig_engine
+                .quorum_members()
+                .get_harvester_threshold()
+        {
+            return Err(NodeError::Other("threshold not reached".to_string()));
         }
-        self.consensus_driver.sig_engine.verify_batch(
-            &certificate.signatures,
-            &certificate.block_hash
-        ).map_err(|err| NodeError::Other(err.to_string()))?;
+        self.consensus_driver
+            .sig_engine
+            .verify_batch(&certificate.signatures, &certificate.block_hash)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
 
         Ok(())
     }
 
-    pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> Result<Option<ConvergenceBlock>> {
-        self.state_driver.append_certificate_to_convergence_block(&certificate)
+    pub fn append_certificate_to_convergence_block(
+        &mut self,
+        certificate: &Certificate,
+    ) -> Result<Option<ConvergenceBlock>> {
+        self.state_driver
+            .append_certificate_to_convergence_block(&certificate)
             .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
-    pub async fn handle_build_proposal_block_requested(&mut self, block: ConvergenceBlock) -> Result<ProposalBlock> {
+    pub async fn handle_build_proposal_block_requested(
+        &mut self,
+        block: ConvergenceBlock,
+    ) -> Result<ProposalBlock> {
         let block_hash = block.hash.clone();
         let block_round = block.header.round + 1;
         let block_epoch = block.header.epoch;
@@ -230,7 +244,7 @@ impl NodeRuntime {
             block_round,
             block_epoch,
             from,
-            sig_engine
+            sig_engine,
         )
     }
 

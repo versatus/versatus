@@ -206,7 +206,79 @@ async fn certificate_formed_includes_pending_quorum() {
 
     let cert = res.unwrap();
     assert!(cert.inauguration.is_some());
-    //    assert!(chosen_harvester.pending_quorum.is_none());
+}
+
+#[tokio::test]
+async fn all_nodes_append_certificate_to_convergence_block() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    let mut harvesters: Vec<NodeRuntime> = nodes
+        .iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() == Some(QuorumKind::Harvester) {
+                Some(nr.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut all_nodes: Vec<NodeRuntime> = nodes
+        .into_iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() != Some(QuorumKind::Harvester)
+                && !nr.consensus_driver.is_bootstrap_node()
+            {
+                Some(nr.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut convergence_block = dummy_convergence_block();
+    let mut chosen_harvester = harvesters.pop().unwrap();
+    let _ = chosen_harvester
+        .state_driver
+        .append_convergence(&mut convergence_block);
+    let mut sigs: Vec<Signature> = Vec::new();
+    for harvester in harvesters.iter_mut() {
+        // 2 of 3 harvester nodes sign a convergence block
+        sigs.push(
+            harvester
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
+                .unwrap(),
+        );
+        let _ = harvester
+            .state_driver
+            .append_convergence(&mut convergence_block.clone());
+    }
+    let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
+    // all harvester nodes get the other's signatures
+    for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+        res = chosen_harvester
+            .handle_harvester_signature_received(
+                convergence_block.hash.clone(),
+                harvester.config.id.clone(),
+                sig,
+            )
+            .await;
+    }
+    // handle_convergence_block_precheck_requested()
+    let certificate = res.unwrap();
+    all_nodes.extend(harvesters);
+    for node in all_nodes.iter_mut() {
+        let convergence_block = node
+            .handle_block_certificate_received(certificate.clone())
+            .await
+            .unwrap();
+        assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
+    }
+    let convergence_block = chosen_harvester
+        .handle_block_certificate_created(certificate.clone())
+        .await
+        .unwrap();
+    assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
 }
 
 fn dummy_convergence_block() -> ConvergenceBlock {
