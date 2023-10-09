@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cmp::Ord;
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::hash::Hasher;
 
 pub const VALIDATION_THRESHOLD: f64 = 0.6;
@@ -97,7 +98,7 @@ impl QuorumMembers {
             }
         }
 
-        return Err(Error);
+        return Err(Error::IsNotFarmer);
     }
 
     pub fn is_harvester_quorum_member(
@@ -111,7 +112,7 @@ impl QuorumMembers {
             }
         }
 
-        return Err(Error);
+        return Err(Error::IsNotHarvester);
     }
 }
 
@@ -123,11 +124,21 @@ pub struct SignerEngine {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub struct Error;
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("signer error: {self:?}")
-    }
+pub enum Error {
+    #[error("{0}")]
+    SecpError(String),
+
+    #[error("failed verification: {0}")]
+    FailedVerification(String),
+
+    #[error("failed batch verification: {0}")]
+    FailedBatchVerification(String),
+
+    #[error("is not harvester")]
+    IsNotHarvester,
+
+    #[error("is not farmer")]
+    IsNotFarmer,
 }
 
 impl SignerEngine {
@@ -146,7 +157,7 @@ impl SignerEngine {
         let message = Message::from_slice(&result);
         Ok(self
             .local_node_secret_key
-            .sign_ecdsa(message.map_err(|_| Error)?))
+            .sign_ecdsa(message.map_err(|e| Error::SecpError(e.to_string()))?))
     }
 
     /// signature verification
@@ -162,12 +173,11 @@ impl SignerEngine {
         let message = Message::from_slice(&result);
         let pk = self.quorum_members.get_public_key_from_members(node_id);
         if let Some(pk) = pk {
-            return sig
-                .verify(&message.map_err(|_| Error)?, &pk)
-                .map_err(|_| Error);
+            sig.verify(&message.map_err(|e| Error::SecpError(e.to_string()))?, &pk)
+                .map_err(|e| Error::SecpError(e.to_string()))?
         }
 
-        Err(Error)
+        Err(Error::FailedVerification("missing public key".to_string()))
     }
 
     pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
@@ -175,15 +185,20 @@ impl SignerEngine {
         batch_sigs: &Vec<(NodeId, Signature)>,
         data: &T,
     ) -> Result<(), Error> {
-        if batch_sigs
+        let errs = batch_sigs
             .iter()
             .map(|(node_id, sig)| self.verify(node_id, sig, data))
-            .any(|res| res.is_err())
-        {
-            dbg!(&data);
-            dbg!(&batch_sigs);
-            return Err(Error);
+            .filter(|res| res.is_err())
+            .map(|res| res.unwrap_err())
+            .collect::<Vec<_>>();
+        if !errs.is_empty() {
+            let mut err_str = String::with_capacity(errs.len());
+            for err in errs.iter() {
+                writeln!(err_str, "{err}").expect("failed to write into error string");
+            }
+            return Err(Error::FailedBatchVerification(err_str));
         }
+
         Ok(())
     }
 
