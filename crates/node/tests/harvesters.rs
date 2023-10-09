@@ -50,10 +50,9 @@ async fn harvester_nodes_form_certificate() {
         .collect();
     let mut convergence_block = dummy_convergence_block();
     let mut chosen_harvester = harvesters.pop().unwrap();
-    chosen_harvester
+    let _ = chosen_harvester
         .state_driver
-        .append_convergence(&mut convergence_block)
-        .unwrap();
+        .append_convergence(&mut convergence_block);
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
         // 2 of 3 harvester nodes sign a convergence block
@@ -63,10 +62,9 @@ async fn harvester_nodes_form_certificate() {
                 .await
                 .unwrap(),
         );
-        harvester
+        let _ = harvester
             .state_driver
-            .append_convergence(&mut convergence_block.clone())
-            .unwrap();
+            .append_convergence(&mut convergence_block.clone());
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
@@ -104,10 +102,9 @@ async fn certificate_formed_includes_pending_quorum() {
     let mut convergence_block = dummy_convergence_block();
     let mut chosen_harvester = harvesters.pop().unwrap();
 
-    chosen_harvester
+    let _ = chosen_harvester
         .state_driver
-        .append_convergence(&mut convergence_block)
-        .unwrap();
+        .append_convergence(&mut convergence_block);
 
     let mut sigs: Vec<Signature> = Vec::new();
 
@@ -119,10 +116,9 @@ async fn certificate_formed_includes_pending_quorum() {
                 .await
                 .unwrap(),
         );
-        harvester
+        let _ = harvester
             .state_driver
-            .append_convergence(&mut convergence_block.clone())
-            .unwrap();
+            .append_convergence(&mut convergence_block.clone());
     }
 
     let mut eligible_claims = produce_random_claims(21)

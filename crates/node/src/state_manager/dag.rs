@@ -127,6 +127,17 @@ impl DagModule {
         self.pending_convergence_blocks.get_mut(key)
     }
 
+    pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> GraphResult<Option<ConvergenceBlock>> {
+        let mut block = self.get_pending_convergence_block_mut(&certificate.block_hash).ok_or(
+            GraphError::Other("unable to find pending convergence block".to_string()))?.clone();
+
+        block.append_certificate(certificate).map_err(|err| {
+            GraphError::Other(err.to_string())
+        })?;
+
+        self.append_convergence(&mut block).map_err(|err| GraphError::Other(format!("{:?}", err)))
+    }
+
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
         // TODO: re-enable checking genesis block certificates
         //
@@ -171,16 +182,8 @@ impl DagModule {
         Ok(())
     }
 
-    pub fn append_convergence(&mut self, convergence: &mut ConvergenceBlock) -> GraphResult<()> {
+    pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<Option<ConvergenceBlock>> {
         let valid = self.check_valid_convergence(convergence);
-
-        // TODO: Can we remove the commented out code below?
-        // if !valid {
-        //     return Err(GraphError::Other(format!(
-        //         "invalid convergence block: {}",
-        //         convergence.hash,
-        //     )));
-        // }
 
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
@@ -197,18 +200,26 @@ impl DagModule {
 
             self.last_confirmed_block_header = Some(convergence.header.clone());
             self.last_confirmed_block = Some(Block::Convergence {
-                block: convergence.to_owned(),
+                block: convergence.clone(),
             });
+
+            self.pending_convergence_blocks.remove(&convergence.hash).ok_or(
+                GraphError::Other(
+                    "unable to find pending convergence block".to_string()
+                )
+            )?;
+
+            return Ok(Some(convergence.clone()))
         } else {
             self.pending_convergence_blocks
                 .entry(convergence.hash.clone())
                 .or_insert(convergence.clone());
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    fn get_convergence_reference_blocks(
+    pub fn get_convergence_reference_blocks(
         &self,
         convergence: &ConvergenceBlock,
     ) -> Vec<Vertex<Block, String>> {
@@ -282,13 +293,15 @@ impl DagModule {
 
     //TODO: Refactor to return ConvergenceBlockStatus Enum as Pending
     // or Confirmed variant
-    fn check_valid_convergence(&mut self, block: &mut ConvergenceBlock) -> bool {
+    fn check_valid_convergence(&mut self, block: &ConvergenceBlock) -> bool {
         if let Some(certificate) = &block.certificate {
-            match self.verify_certificate(certificate) {
-                Ok(true) => return true,
-                Ok(false) => return false,
-                Err(_) => return false,
-            }
+            //TODO: Remove this as it is redundant... 
+            //match self.verify_certificate(certificate) {
+                //Ok(true) => return true,
+                //Ok(false) => return false,
+                //Err(_) => return false,
+            //}
+            return true
         }
         false
     }
@@ -334,6 +347,7 @@ impl DagModule {
         todo!()
     }
 
+    // This is probably redundant
     fn verify_certificate(&self, certificate: &Certificate) -> SignerResult<bool> {
         todo!();
     }

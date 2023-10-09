@@ -171,10 +171,13 @@ impl Handler<EventMessage> for NodeRuntime {
                 let certificate: Certificate = bincode::deserialize(&certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.handle_block_certificate(certificate)
+                let apply_block_result = self.handle_block_certificate(certificate)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
+
             },
+            Event::BlockAppended(block_hash) => {
+            }
             Event::QuorumFormed => self
                 .handle_quorum_formed()
                 .await

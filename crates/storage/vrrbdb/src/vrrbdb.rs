@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use block::Block;
+use block::{Block, convergence_block, ConvergenceBlock, ProposalBlock};
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
@@ -274,6 +274,38 @@ impl VrrbDb {
                 ))
             },
         }
+    }
+
+    pub fn apply_convergence_block(&mut self, convergence: &ConvergenceBlock, proposals: &[ProposalBlock]) -> Result<ApplyBlockResult> {
+        let read_handle = self.read_handle();
+        for (proposal, txn_set) in &convergence.txns {
+            let block = proposals.iter().find(|pblock| {
+                pblock.hash == proposal.clone()
+            }).ok_or(
+                StorageError::Other(
+                    format!(
+                        "unable to find proposal block with hash {}",
+                        &proposal
+                    )
+                )
+            )?;
+
+            let mut txns = block.txns.clone();
+            txns.retain(|digest, _| txn_set.contains(digest));
+            txns.into_iter().for_each(|(_, txn_kind)| {
+                let _ = self.apply_txn(read_handle.clone(), txn_kind);
+            });
+        }
+
+        self.transaction_store.commit();
+        self.state_store.commit();
+
+        let state_root_hash = self.state_store.root_hash()?;
+        let transactions_root_hash = self.transaction_store.root_hash()?;
+
+        Ok(
+            ApplyBlockResult { state_root_hash, transactions_root_hash }
+        )
     }
 
     /// Applies a block of transactions updating the account states accordingly.

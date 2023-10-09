@@ -1,5 +1,6 @@
 use block::{
     header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+    BlockHash
 };
 use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData, Vote};
 use miner::conflict_resolver::Resolver;
@@ -61,21 +62,14 @@ impl NodeRuntime {
         &mut self,
         mut block: ConvergenceBlock,
     ) -> Result<ApplyBlockResult> {
-        self.has_required_node_type(NodeType::Validator, "certify convergence block")?;
-        self.belongs_to_correct_quorum(QuorumKind::Harvester, "certify convergence block")?;
-
-        self.state_driver
-            .dag
+        self.consensus_driver.is_harvester()?;
+        let apply_result = self.state_driver
             .append_convergence(&mut block)
             .map_err(|err| {
                 NodeError::Other(format!(
                     "Could not append convergence block to DAG: {err:?}"
                 ))
             })?;
-
-        let apply_result = self
-            .state_driver
-            .apply_block(Block::Convergence { block })?;
 
         Ok(apply_result)
     }
@@ -176,8 +170,7 @@ impl NodeRuntime {
 
     // harvester sign and create cert
     pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
-        //TODO: implement logic under new model
-        //apply block to state
+        // This is for when the local node is a harvester and forms the certificate
         Ok(())
     }
 
@@ -186,10 +179,39 @@ impl NodeRuntime {
     }
 
     // recieve cert from network
-    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<()> {
-        //TODO: implement logic under new model
-        // redundant can probably delete
+    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<ApplyBlockResult> {
+        // This is for when a certificate is received from the network.
+        self.verify_certificate(&certificate)?;
+        let block = self.append_certificate_to_convergence_block(&certificate)?.ok_or(
+            NodeError::Other("certificate not appended to convergence block".to_string())
+        )?;
+        
+        let res = self.state_driver.append_convergence(&block).map_err(|err| {
+            NodeError::Other(format!("{:?}", err))
+        })?;
+
+        Ok(res)
+    }
+
+    pub fn verify_certificate(&mut self, certificate: &Certificate) -> Result<()> {
+        let cert_sigs = certificate.signatures.clone();
+        if cert_sigs.len() < self.consensus_driver
+            .sig_engine
+            .quorum_members()
+            .get_harvester_threshold() {
+                return Err(NodeError::Other("threshold not reached".to_string()));
+        }
+        self.consensus_driver.sig_engine.verify_batch(
+            &certificate.signatures,
+            &certificate.block_hash
+        ).map_err(|err| NodeError::Other(err.to_string()))?;
+
         Ok(())
+    }
+
+    pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> Result<Option<ConvergenceBlock>> {
+        self.state_driver.append_certificate_to_convergence_block(&certificate)
+            .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
     pub async fn handle_vote_received(&mut self, vote: Vote) -> Result<()> {
