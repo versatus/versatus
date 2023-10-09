@@ -68,7 +68,7 @@ impl NodeRuntime {
 
         if block.certificate.is_none() {
             if let Some(_) = self.state_driver.dag.last_confirmed_block_header() {
-                let certificate = self.certify_convergence_block(block.clone());
+                let certificate = self.certify_convergence_block(block.clone())?;
             }
         }
 

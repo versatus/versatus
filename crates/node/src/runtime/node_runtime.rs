@@ -1,5 +1,5 @@
 use crate::{
-    consensus::{ConsensusModule, ConsensusModuleConfig},
+    consensus::{ConsensusModule, ConsensusModuleConfig, TransactionKindCertificate},
     result::{NodeError, Result},
     state_manager::{DagModule, StateManager, StateManagerConfig},
 };
@@ -330,9 +330,7 @@ impl NodeRuntime {
         from: Claim,
         sig_engine: SignerEngine,
     ) -> Result<ProposalBlock> {
-        self.has_required_node_type(NodeType::Validator, "create proposal block")?;
-        self.belongs_to_correct_quorum(QuorumKind::Harvester, "create proposal block")?;
-
+        self.consensus_driver.is_harvester()?;
         let txns = self
             .consensus_driver
             .quorum_certified_txns
@@ -346,17 +344,17 @@ impl NodeRuntime {
             .map(|from| (from.hash, from.clone()))
             .collect();
 
-        let txns_list: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = txns
+        let txns_list: LinkedHashMap<TransactionDigest, TransactionKind> = txns
             .into_iter()
-            .map(|txn| {
-                if let Err(err) = self
-                    .consensus_driver
-                    .certified_txns_filter
-                    .push(&txn.txn().id().to_string())
-                {
-                    telemetry::error!("Error pushing txn to certified txns filter: {err}");
-                }
-                (txn.txn().id(), txn.clone())
+            .map(|(digest, (txn, cert))| {
+//                if let Err(err) = self
+//                    .consensus_driver
+//                    .certified_txns_filter
+//                    .push(&txn.id().to_string())
+//                {
+//                    telemetry::error!("Error pushing txn to certified txns filter: {err}");
+//                }
+                (digest.clone(), txn.clone())
             })
             .collect();
 

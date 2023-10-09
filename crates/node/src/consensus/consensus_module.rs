@@ -20,7 +20,7 @@ use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::transactions::{
-    QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind,
+    Transaction, TransactionDigest, TransactionKind,
 };
 use vrrb_core::{bloom::Bloom, keypair::Keypair};
 
@@ -66,9 +66,16 @@ pub enum RendezvousResponse {
     NamespaceRegistered,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransactionKindCertificate {
+    quorum_id: QuorumId,
+    votes: HashSet<Vote>,
+    pub is_txn_valid: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct ConsensusModule {
-    pub(crate) quorum_certified_txns: Vec<QuorumCertifiedTxn>,
+    pub(crate) quorum_certified_txns: HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)>,
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule,
@@ -104,7 +111,7 @@ impl ConsensusModule {
         );
 
         Ok(Self {
-            quorum_certified_txns: vec![],
+            quorum_certified_txns: HashMap::new(),
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
@@ -330,7 +337,28 @@ impl ConsensusModule {
 
         self.check_vote_threshold_reached(&quorum_id, &vote)
             .await
-            .map_err(|err| NodeError::Other("threhold net yet reached".to_string()))
+            .map_err(|err| NodeError::Other("threhold net yet reached".to_string()))?;
+
+        self.certify_transaction(&vote, &quorum_id).await
+    }
+
+    pub async fn certify_transaction(&mut self, vote: &Vote, voting_quorum: &QuorumId) -> Result<()> {
+        if let Some(map) = self.votes_pool.get(voting_quorum) {
+            if let Some(set) = map.get(&vote.txn.id().clone()) {
+                let cert = TransactionKindCertificate {
+                    quorum_id: voting_quorum.clone(),
+                    votes: set.clone(),
+                    is_txn_valid: true, 
+                };
+                self.quorum_certified_txns.entry(vote.txn.id().clone()).or_insert(
+                    (vote.txn.clone(), cert)
+                );
+
+                return Ok(())
+            }
+        }
+
+        Err(NodeError::Other("unable to set transaction certificate to consensus module".to_string()))
     }
 
     pub async fn check_vote_threshold_reached(
@@ -350,8 +378,18 @@ impl ConsensusModule {
                 .iter()
                 .map(|vote| (vote.farmer_node_id.clone(), vote.signature.clone()))
                 .collect();
+
+            let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
+                NodeError::Other(
+                    format!(
+                        "unable to serialize txn: {} to verify vote signature. err: {}", 
+                        &vote.txn.digest(),
+                        err
+                    )
+                )
+            })?;
             self.sig_engine
-                .verify_batch(&batch_sigs, &vote.txn.build_payload())
+                .verify_batch(&batch_sigs, &data)
                 .map_err(|err| {
                     NodeError::Other(format!(
                         "unable to batch verify vote signatures for txn: {}",
@@ -373,7 +411,9 @@ impl ConsensusModule {
         set: &HashSet<Vote>,
         quorum_members: QuorumData,
     ) -> bool {
-        set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize
+        dbg!(set.len());
+        dbg!(quorum_members.members.len());
+        set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD) as usize
     }
 
     fn get_quorum_pending_votes_for_transaction(
@@ -430,9 +470,18 @@ impl ConsensusModule {
                     voter.clone()
                 ))
             })?;
-        let data = vote.txn.build_payload();
+
+        let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
+            NodeError::Other(
+                format!(
+                    "unable to serialize txn: {} to verify vote signature. err: {}", 
+                    &vote.txn.digest(),
+                    err
+                )
+            )
+        })?;
         self.sig_engine
-            .verify(&voter, &vote.txn.signature(), &data)
+            .verify(&voter, &vote.signature, &data)
             .map_err(|err| {
                 NodeError::Other(format!(
                     "Unable to verify signature of {} on transaction {}",
@@ -528,5 +577,9 @@ impl ConsensusModule {
         }
 
         vote_shares
+    }
+
+    pub fn get_quorum_certified_transactions(&self) -> HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)> {
+        self.quorum_certified_txns.clone()
     }
 }

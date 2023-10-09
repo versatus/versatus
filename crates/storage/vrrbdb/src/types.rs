@@ -145,11 +145,11 @@ impl FromBlock for HashSet<StateUpdate> {
             let fee = txn.proposer_fee_share();
             proposer_fees += fee;
 
-            let updates = IntoUpdates::from_txn(txn.txn());
+            let updates = IntoUpdates::from_txn(txn.clone());
             set.insert(updates.sender_update);
             set.insert(updates.receiver_update);
 
-            let validator_fees = HashSet::<StateUpdate>::from_txn(txn.txn());
+            let validator_fees = HashSet::<StateUpdate>::from_txn(txn.clone());
             set.extend(validator_fees);
         });
 
