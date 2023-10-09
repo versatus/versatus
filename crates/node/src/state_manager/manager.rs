@@ -154,7 +154,7 @@ impl StateManager {
         let consolidated: HashSet<TransactionKind> = {
             let nested: Vec<HashSet<TransactionKind>> = proposals
                 .iter()
-                .map(|block| block.txns.iter().map(|(_, v)| v.clone().txn()).collect())
+                .map(|block| block.txns.iter().map(|(_, v)| v.clone()).collect())
                 .collect();
 
             nested.into_iter().flatten().collect()

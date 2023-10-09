@@ -3,7 +3,7 @@ use primitives::{Epoch, Signature, NodeId};
 use ritelinked::LinkedHashSet;
 use serde::{Deserialize, Serialize};
 use utils::hash_data;
-use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
+use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
 use vrrb_core::claim::Claim;
 use signer::engine::SignerEngine;
 use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
@@ -60,7 +60,7 @@ impl ProposalBlock {
         from: Claim,
         mut sig_engine: SignerEngine,
     ) -> ProposalBlock {
-        let hashable_txns: Vec<(String, QuorumCertifiedTxn)> = {
+        let hashable_txns: Vec<(String, TransactionKind)> = {
             txns.iter()
                 .map(|(k, v)| (k.digest_string(), v.clone()))
                 .collect()
@@ -125,7 +125,7 @@ impl ProposalBlock {
     /// A vector of tuples, where each tuple contains a string representing the
     /// digest of a transaction and a clone of the corresponding
     /// QuorumCertifiedTxn object from the original vector of transactions.
-    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, QuorumCertifiedTxn)> {
+    pub(crate) fn get_hashable_txns(&self) -> Vec<(String, TransactionKind)> {
         self.txns
             .clone()
             .iter()

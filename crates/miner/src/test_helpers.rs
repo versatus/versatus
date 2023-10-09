@@ -152,7 +152,7 @@ pub fn mine_genesis() -> Option<GenesisBlock> {
 /// to be collected by the caller.
 pub(crate) fn create_txns(
     n: usize,
-) -> impl Iterator<Item = (TransactionDigest, QuorumCertifiedTxn)> {
+) -> impl Iterator<Item = (TransactionDigest, TransactionKind)> {
     (0..n).map(|n| {
         let (sk, pk) = create_keypair();
         let (_, rpk) = create_keypair();
@@ -189,7 +189,7 @@ pub(crate) fn create_txns(
         let digest = TransactionDigest::from(txn_digest_vec);
         (
             digest,
-            QuorumCertifiedTxn::new(vec![], vec![], txn, vec![], true),
+            txn,
         )
     })
 }
@@ -493,7 +493,7 @@ pub fn build_conflicting_proposal_blocks(
     round: u128,
     epoch: u128,
 ) -> (ProposalBlock, ProposalBlock) {
-    let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = create_txns(5).collect();
+    let txns: LinkedHashMap<TransactionDigest, TransactionKind> = create_txns(5).collect();
     let prop1 =
         build_single_proposal_block_from_txns(last_block_hash.clone(), txns.clone(), round, epoch);
 
@@ -506,7 +506,7 @@ pub fn build_conflicting_proposal_blocks(
 /// `ProposalBlock` with transactions provided in the function call.
 pub fn build_single_proposal_block_from_txns(
     last_block_hash: String,
-    txns: impl IntoIterator<Item = (TransactionDigest, QuorumCertifiedTxn)>,
+    txns: impl IntoIterator<Item = (TransactionDigest, TransactionKind)>,
     round: u128,
     epoch: u128,
 ) -> ProposalBlock {
@@ -561,7 +561,7 @@ pub fn get_genesis_block_from_dag(dag: MinerDag) -> Option<GenesisBlock> {
 pub fn add_orphaned_block_to_dag(
     dag: MinerDag,
     last_block_hash: String,
-    txns: impl IntoIterator<Item = (TransactionDigest, QuorumCertifiedTxn)>,
+    txns: impl IntoIterator<Item = (TransactionDigest, TransactionKind)>,
     round: u128,
     epoch: u128,
 ) {

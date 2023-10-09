@@ -153,18 +153,18 @@ impl NodeRuntime {
                 root_hash,
                 block_hash: block_hash.clone(),
             };
-//            if let Some(quorum_members) = inauguration {
-//                self.consensus_driver.sig_engine.set_quorum_members(
-//                    quorum_members
-//                        .0
-//                        .into_iter()
-//                        .map(|(_, data)| {
-//                            (data.quorum_kind, data.members.clone().into_iter().collect())
-//                        })
-//                        .collect(),
-//                );
-//                self.pending_quorum = None;
-//            }
+            //            if let Some(quorum_members) = inauguration {
+            //                self.consensus_driver.sig_engine.set_quorum_members(
+            //                    quorum_members
+            //                        .0
+            //                        .into_iter()
+            //                        .map(|(_, data)| {
+            //                            (data.quorum_kind, data.members.clone().into_iter().collect())
+            //                        })
+            //                        .collect(),
+            //                );
+            //                self.pending_quorum = None;
+            //            }
             Ok(cert)
         } else {
             Err(NodeError::Other(format!(
@@ -305,18 +305,18 @@ impl NodeRuntime {
         });
         self.pending_quorum = Some(inaug_members);
 
-//        let local_id = self.config.id.clone();
-//        for (qk, members) in quorum_assignment.iter() {
-//            if members
-//                .clone()
-//                .iter()
-//                .any(|(node_id, _)| node_id == &local_id)
-//            {
-//                self.consensus_driver.quorum_membership =
-//                    Some(QuorumId::new(qk.clone(), members.clone()));
-//                self.consensus_driver.quorum_kind = Some(qk.clone());
-//            }
-//        }
+        //        let local_id = self.config.id.clone();
+        //        for (qk, members) in quorum_assignment.iter() {
+        //            if members
+        //                .clone()
+        //                .iter()
+        //                .any(|(node_id, _)| node_id == &local_id)
+        //            {
+        //                self.consensus_driver.quorum_membership =
+        //                    Some(QuorumId::new(qk.clone(), members.clone()));
+        //                self.consensus_driver.quorum_kind = Some(qk.clone());
+        //            }
+        //        }
         Ok(())
     }
 

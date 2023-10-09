@@ -204,16 +204,7 @@ pub fn produce_proposal_blocks(
                 .into_iter()
                 .map(|txn| {
                     let digest = txn.id();
-
-                    let certified_txn = QuorumCertifiedTxn::new(
-                        Vec::new(),
-                        Vec::new(),
-                        txn,
-                        RawSignature::new(),
-                        true,
-                    );
-
-                    (digest, certified_txn)
+                    (digest, txn.clone())
                 })
                 .collect();
 
