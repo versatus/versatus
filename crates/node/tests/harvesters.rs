@@ -28,7 +28,55 @@ use vrrb_core::{
 };
 
 #[tokio::test]
-#[serial_test::serial]
+async fn harvesters_can_build_proposal_blocks() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    let mut harvesters: Vec<NodeRuntime> = nodes
+        .into_iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() == Some(QuorumKind::Harvester) {
+                Some(nr)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if let Some(harvester) = harvesters.iter_mut().last() {
+        assert!(harvester
+            .handle_build_proposal_block_requested(dummy_convergence_block())
+            .await
+            .is_ok());
+    }
+}
+
+#[tokio::test]
+async fn non_harvesters_cannot_build_proposal_blocks() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    let mut non_harvesters: Vec<NodeRuntime> = nodes
+        .into_iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() != Some(QuorumKind::Harvester)
+                && !nr.consensus_driver.is_bootstrap_node()
+            {
+                Some(nr)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let convergence_block = dummy_convergence_block();
+    for node in non_harvesters.iter_mut() {
+        assert!(node
+            .handle_build_proposal_block_requested(convergence_block.clone())
+            .await
+            .is_err());
+    }
+}
+
+#[tokio::test]
 /// This test proves the functionality of `handle_harvester_signature_received`.
 ///
 /// 2 of 3 harvester nodes sign a convergence block, which all 3 harvesters have
@@ -83,7 +131,8 @@ async fn harvester_nodes_form_certificate() {
 }
 
 #[tokio::test]
-#[serial_test::serial]
+/// Asserts that a full certificate created by harvester nodes contains
+/// the pending quorum that formed directly prior to the certificate's creation.
 async fn certificate_formed_includes_pending_quorum() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
@@ -157,7 +206,7 @@ async fn certificate_formed_includes_pending_quorum() {
 
     let cert = res.unwrap();
     assert!(cert.inauguration.is_some());
-//    assert!(chosen_harvester.pending_quorum.is_none());
+    //    assert!(chosen_harvester.pending_quorum.is_none());
 }
 
 fn dummy_convergence_block() -> ConvergenceBlock {
