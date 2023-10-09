@@ -86,7 +86,9 @@ impl Handler<EventMessage> for NodeRuntime {
                 block_hash,
                 public_key_share,
                 partial_signature,
-            } => {},
+            } => {
+                // This is likely redundant
+            },
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
                 block_header,
@@ -132,19 +134,47 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.state_driver.handle_transaction_validated(txn).await?;
             },
             Event::CreateAccountRequested((address, account_bytes)) => {
+                // I think we can get rid of this, as we now add accounts 
+                // when they are a receiver of a transaction
                 self.handle_create_account_requested(address.clone(), account_bytes)?;
             },
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 todo!()
+                // This can occur as a result of block application
             },
-            Event::UpdateState(block_hash) => {
-                if let Err(err) = self.state_driver.update_state(block_hash) {
+            Event::UpdateState(block) => {
+                if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
                     telemetry::error!("error updating state: {}", err);
+                } else {
+
+                    self.events_tx.send(
+                        Event::BuildProposalBlock(block).into()
+                    ).await.map_err(|err| {
+                        TheaterError::Other(err.to_string())
+                    })?;
                 }
             },
-            Event::ClaimCreated(claim) => {},
+            Event::BuildProposalBlock(block) => {
+                let proposal_block = self.handle_build_proposal_block_requested(block)
+                    .await
+                    .map_err(|err| {
+                        TheaterError::Other(err.to_string())
+                })?;
+
+                self.events_tx.send(
+                    Event::BroadcastProposalBlock(proposal_block).into()
+                ).await.map_err(|err|{
+                    TheaterError::Other(err.to_string())
+                })?;
+            },
+
+            Event::ClaimCreated(claim) => {
+                // This is likely unneeded
+            },
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
+                // Claim should be added to pending claims
+                // Event to validate claim should be created
             },
             Event::BlockReceived(mut block) => {
                 let next_event = self
@@ -158,25 +188,38 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
-                // TODO, refactor into a node_runtime method
                 self.handle_harvester_signature_received(block_hash, node_id, sig)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockCertificateCreated(certificate) => {
-                self.handle_block_certificate_created(certificate)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let confirmed_block = self.handle_block_certificate_created(
+                    certificate
+                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.events_tx.send(
+                    Event::UpdateState(confirmed_block).into()
+                ).await.map_err(|err| {
+                    TheaterError::Other(err.to_string())
+                })?;
+
             },
-            Event::BlockConfirmed(certificate) => {
-                let certificate: Certificate = bincode::deserialize(&certificate)
+            Event::BlockConfirmed(cert_bytes) => {
+                let certificate: Certificate = bincode::deserialize(&cert_bytes)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                let apply_block_result = self.handle_block_certificate(certificate)
+                let confirmed_block = self.handle_block_certificate(certificate)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
+                self.events_tx.send(
+                    Event::UpdateState(confirmed_block).into()
+                ).await.map_err(|err| {
+                    TheaterError::Other(err.to_string())
+                })?;
             },
             Event::BlockAppended(block_hash) => {
+                // This is likely redundant
             }
             Event::QuorumFormed => self
                 .handle_quorum_formed()

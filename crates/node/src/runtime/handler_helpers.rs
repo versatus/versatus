@@ -169,28 +169,31 @@ impl NodeRuntime {
     }
 
     // harvester sign and create cert
-    pub fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<()> {
+    pub async fn handle_block_certificate_created(&mut self, certificate: Certificate) -> Result<ConvergenceBlock> {
         // This is for when the local node is a harvester and forms the certificate
-        Ok(())
+        self.handle_block_certificate(certificate).await
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
+        // This is probably where we want to put the logic for 
+        // taking a pending quorum and applying it
         todo!();
     }
 
     // recieve cert from network
-    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<ApplyBlockResult> {
+    pub async fn handle_block_certificate(&mut self, certificate: Certificate) -> Result<ConvergenceBlock> {
         // This is for when a certificate is received from the network.
         self.verify_certificate(&certificate)?;
         let block = self.append_certificate_to_convergence_block(&certificate)?.ok_or(
             NodeError::Other("certificate not appended to convergence block".to_string())
         )?;
         
-        let res = self.state_driver.append_convergence(&block).map_err(|err| {
-            NodeError::Other(format!("{:?}", err))
-        })?;
+        // This is redundant use Event::UpdateState
+        //let res = self.state_driver.append_convergence(&block).map_err(|err| {
+        //    NodeError::Other(format!("{:?}", err))
+        //})?;
 
-        Ok(res)
+        Ok(block.clone())
     }
 
     pub fn verify_certificate(&mut self, certificate: &Certificate) -> Result<()> {
@@ -212,6 +215,23 @@ impl NodeRuntime {
     pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> Result<Option<ConvergenceBlock>> {
         self.state_driver.append_certificate_to_convergence_block(&certificate)
             .map_err(|err| NodeError::Other(format!("{:?}", err)))
+    }
+
+    pub async fn handle_build_proposal_block_requested(&mut self, block: ConvergenceBlock) -> Result<ProposalBlock> {
+        let block_hash = block.hash.clone();
+        let block_round = block.header.round + 1;
+        let block_epoch = block.header.epoch;
+        let from = self.claim.clone();
+        let sig_engine = self.consensus_driver.sig_engine.clone();
+        let claims_map = self.consensus_driver.quorum_certified_claims.clone();
+        self.mine_proposal_block(
+            block_hash,
+            claims_map,
+            block_round,
+            block_epoch,
+            from,
+            sig_engine
+        )
     }
 
     pub async fn handle_vote_received(&mut self, vote: Vote) -> Result<()> {

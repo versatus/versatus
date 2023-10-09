@@ -243,7 +243,7 @@ pub enum Event {
     /// `UpdateState` is an event that triggers the update of the node's state
     /// to a new block hash. This event is used to update the node's state
     /// after a last new convergence block has been certified .
-    UpdateState(BlockHash),
+    UpdateState(ConvergenceBlock),
 
     /// `ConvergenceBlockPartialSign(JobResult)` is an event that is triggered
     /// when a node has partially signed a convergence block. The
@@ -294,6 +294,8 @@ pub enum Event {
     BroadcastCertificate(Certificate),
     BroadcastTransactionVote(Vote),
     BlockAppended(String),
+    BuildProposalBlock(ConvergenceBlock),
+    BroadcastProposalBlock(ProposalBlock)
 }
 
 impl From<&theater::Message> for Event {

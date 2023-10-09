@@ -13,6 +13,7 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
+use vrrb_core::claim::Claim;
 use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
@@ -76,6 +77,7 @@ pub struct TransactionKindCertificate {
 #[derive(Debug, Clone)]
 pub struct ConsensusModule {
     pub(crate) quorum_certified_txns: HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)>,
+    pub(crate) quorum_certified_claims: HashMap<String, Claim>,
     pub(crate) keypair: Keypair,
     pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule,
@@ -112,6 +114,7 @@ impl ConsensusModule {
 
         Ok(Self {
             quorum_certified_txns: HashMap::new(),
+            quorum_certified_claims: HashMap::new(),
             keypair: cfg.keypair,
             certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),

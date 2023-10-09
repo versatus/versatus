@@ -104,10 +104,11 @@ impl Handler<EventMessage> for StateManager {
                 //               }
                 todo!()
             },
-            Event::UpdateState(block_hash) => {
-                if let Err(err) = self.update_state(block_hash) {
-                    telemetry::error!("error updating state: {}", err);
-                }
+            Event::UpdateState(block) => {
+                
+                //if let Err(err) = self.update_state(block.hash) {
+                //    telemetry::error!("error updating state: {}", err);
+                //}
             },
             Event::ClaimCreated(_claim) => {},
             Event::ClaimReceived(claim) => {
