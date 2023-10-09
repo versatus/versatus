@@ -5,14 +5,27 @@
 //!
 //! Integration tests are needed for testing that these `Certificate`s are broadcasted.
 
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use block::{header::BlockHeader, Certificate, ConvergenceBlock};
 use events::DEFAULT_BUFFER;
 use node::{
     node_runtime::NodeRuntime,
-    test_utils::{create_quorum_assigned_node_runtime_network, produce_random_claim},
+    test_utils::{
+        create_quorum_assigned_node_runtime_network, produce_random_claim, produce_random_claims,
+    },
     NodeError,
 };
 use primitives::{QuorumKind, Signature};
+use quorum::{election::Election, quorum::Quorum};
+use sha256::digest;
+use vrrb_core::{
+    claim::{Claim, Eligibility},
+    keypair::KeyPair,
+};
 
 #[tokio::test]
 #[serial_test::serial]
@@ -40,11 +53,6 @@ async fn harvester_nodes_form_certificate() {
     chosen_harvester
         .state_driver
         .append_convergence(&mut convergence_block)
-        .map_err(|err| {
-            NodeError::Other(format!(
-                "Could not append convergence block to DAG: {err:?}"
-            ))
-        })
         .unwrap();
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
@@ -97,11 +105,6 @@ async fn certificate_formed_includes_pending_quorum() {
     chosen_harvester
         .state_driver
         .append_convergence(&mut convergence_block)
-        .map_err(|err| {
-            NodeError::Other(format!(
-                "Could not append convergence block to DAG: {err:?}"
-            ))
-        })
         .unwrap();
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
@@ -117,9 +120,26 @@ async fn certificate_formed_includes_pending_quorum() {
             .append_convergence(&mut convergence_block.clone())
             .unwrap();
     }
+    let mut eligible_claims = produce_random_claims(21)
+        .into_iter()
+        .collect::<Vec<Claim>>();
+    eligible_claims
+        .iter_mut()
+        .for_each(|claim| claim.eligibility = Eligibility::Validator);
+
+    chosen_harvester
+        .state_driver
+        .insert_claims(eligible_claims)
+        .unwrap();
+    assert!(chosen_harvester.consensus_driver.is_harvester().is_ok());
+    chosen_harvester
+        .handle_quorum_election_started(convergence_block.header)
+        .unwrap();
+    assert!(chosen_harvester.consensus_driver.is_harvester().is_ok());
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
     for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+        assert!(harvester.consensus_driver.is_harvester().is_ok());
         res = chosen_harvester
             .handle_harvester_signature_received(
                 convergence_block.hash.clone(),
@@ -129,22 +149,34 @@ async fn certificate_formed_includes_pending_quorum() {
             .await;
     }
 
-    // ensure they form a full certificate
-    assert!(res.is_ok());
+    let cert = res.unwrap();
+    assert!(cert.inauguration.is_some() && chosen_harvester.pending_quorum.is_none());
 }
 
 fn dummy_convergence_block() -> ConvergenceBlock {
+    let keypair = KeyPair::random();
+    let public_key = keypair.get_miner_public_key();
+    let mut hasher = DefaultHasher::new();
+    public_key.hash(&mut hasher);
+    let pubkey_hash = hasher.finish();
+
+    let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+    pub_key_bytes.push(1u8);
+
+    let hash = digest(digest(&*pub_key_bytes).as_bytes());
+
+    let payload = (21_600, hash);
     ConvergenceBlock {
         header: BlockHeader {
             ref_hashes: Default::default(),
             epoch: Default::default(),
             round: Default::default(),
             block_seed: Default::default(),
-            next_block_seed: Default::default(),
-            block_height: Default::default(),
+            next_block_seed: Quorum::generate_seed(payload, keypair).unwrap(),
+            block_height: 21_600,
             timestamp: Default::default(),
             txn_hash: Default::default(),
-            miner_claim: produce_random_claim(),
+            miner_claim: produce_random_claim(22),
             claim_list_hash: Default::default(),
             block_reward: Default::default(),
             next_block_reward: Default::default(),

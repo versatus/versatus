@@ -3,26 +3,21 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use block::{Block, BlockHash, ClaimHash, ConvergenceBlock, ProposalBlock};
 use bulldag::{graph::BullDag, vertex::Vertex};
 use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher, Vote};
-use hbbft::crypto::PublicKeySet;
+use events::Event;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use patriecia::RootHash;
-use primitives::{
-    Address, ByteSlice, ByteVec, NodeId, ProgramExecutionOutput, RawSignature, Round,
-    TxnValidationStatus,
-};
+use primitives::{Address, NodeId, Round};
 use signer::engine::{QuorumMembers, SignerEngine};
 use storage::vrrbdb::{types::*, ApplyBlockResult};
 use storage::{
     storage_utils::StorageError,
-    vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},
+    vrrbdb::{Claims, VrrbDb, VrrbDbReadHandle},
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};
-use vrrb_core::{account::Account, claim::Claim, serde_helpers::decode_from_binary_byte_slice};
+use vrrb_core::{account::Account, claim::Claim};
 use vrrb_core::{
     account::UpdateArgs,
     transactions::{Transaction, TransactionDigest, TransactionKind},
@@ -48,7 +43,7 @@ pub struct StateManagerConfig {
 
 #[derive(Debug, Clone)]
 pub struct StateManager {
-    pub(crate) id: ActorId,
+    pub(crate) actor_id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) dag: DagModule,
     pub(crate) database: VrrbDb,
@@ -60,7 +55,7 @@ impl StateManager {
         let dag_module = DagModule::new(config.dag.clone(), config.claim.clone());
 
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
+            actor_id: uuid::Uuid::new_v4().to_string(),
             database: config.database,
             status: ActorState::Stopped,
             dag: dag_module,
@@ -423,6 +418,14 @@ impl StateManager {
         handle
             .get(address)
             .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    /// For testing purposes only. Do not use in production.
+    pub fn insert_claims(&mut self, claims: Vec<Claim>) -> Result<()> {
+        for claim in claims {
+            self.database.insert_claim(claim)?
+        }
+        Ok(())
     }
 }
 

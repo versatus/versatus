@@ -170,7 +170,7 @@ impl SignerEngine {
         Err(Error)
     }
 
-    pub fn verify_batch<T: AsRef<[u8]>>(
+    pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
         &self,
         batch_sigs: &Vec<(NodeId, Signature)>,
         data: &T,
@@ -180,6 +180,8 @@ impl SignerEngine {
             .map(|(node_id, sig)| self.verify(node_id, sig, data))
             .any(|res| res.is_err())
         {
+            dbg!(&data);
+            dbg!(&batch_sigs);
             return Err(Error);
         }
         Ok(())

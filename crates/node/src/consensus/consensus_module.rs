@@ -499,7 +499,7 @@ impl ConsensusModule {
         self.quorum_membership = Some(QuorumId::new(quorum_kind, members));
     }
 
-    pub(crate) fn is_harvester(&self) -> Result<()> {
+    pub fn is_harvester(&self) -> Result<()> {
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Harvester) {
             return Err(NodeError::Other(format!(
                 "local node is not a Harvester Node"
