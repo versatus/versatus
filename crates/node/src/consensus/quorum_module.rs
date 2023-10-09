@@ -178,7 +178,6 @@ impl QuorumModule {
         let seed = header.next_block_seed;
 
         if let Ok(mut quorum) = Quorum::new(seed, last_block_height, None) {
-            dbg!(&quorum);
             let claim_vec: Vec<Claim> = claims.values().cloned().collect();
             if let Ok(elected_quorum) = quorum.run_election(claim_vec) {
                 return Ok(elected_quorum.clone());

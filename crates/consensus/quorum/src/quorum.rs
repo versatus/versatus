@@ -79,7 +79,6 @@ impl Election for Quorum {
 
     /// Master nodes run elections to determine the next master node quorum
     fn run_election(&mut self, ballot: Self::Ballot) -> Result<Self::Return, Self::Error> {
-        dbg!(&ballot);
         if self.election_block_height == 0 {
             return Err(QuorumError::InvalidChildBlockError);
         }
@@ -112,7 +111,6 @@ impl Quorum {
         quorum_kind: Option<QuorumKind>,
     ) -> Result<Quorum, QuorumError> {
         if !Quorum::check_validity(height) {
-            dbg!(&height);
             Err(QuorumError::InvalidChildBlockError)
         } else {
             Ok(Quorum {
@@ -141,7 +139,6 @@ impl Quorum {
             .for_each(|claim| {
                 eligible_claims.push(claim);
             });
-        dbg!(&eligible_claims);
 
         if eligible_claims.len() < 20 {
             return Err(QuorumError::InsufficientNodesError);

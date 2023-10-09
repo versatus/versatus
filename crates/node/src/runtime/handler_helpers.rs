@@ -153,18 +153,18 @@ impl NodeRuntime {
                 root_hash,
                 block_hash: block_hash.clone(),
             };
-            // if let Some(quorum_members) = inauguration {
-            //     self.consensus_driver.sig_engine.set_quorum_members(
-            //         quorum_members
-            //             .0
-            //             .into_iter()
-            //             .map(|(_, data)| {
-            //                 (data.quorum_kind, data.members.clone().into_iter().collect())
-            //             })
-            //             .collect(),
-            //     );
-            //     self.pending_quorum = None;
-            // }
+            if let Some(quorum_members) = inauguration {
+                self.consensus_driver.sig_engine.set_quorum_members(
+                    quorum_members
+                        .0
+                        .into_iter()
+                        .map(|(_, data)| {
+                            (data.quorum_kind, data.members.clone().into_iter().collect())
+                        })
+                        .collect(),
+                );
+                self.pending_quorum = None;
+            }
             Ok(cert)
         } else {
             Err(NodeError::Other(format!(
