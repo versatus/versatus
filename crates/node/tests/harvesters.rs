@@ -236,6 +236,26 @@ async fn all_nodes_append_certificate_to_convergence_block() {
         })
         .collect();
     let mut convergence_block = dummy_convergence_block();
+    harvesters.iter_mut().for_each(|node| {
+        node.state_driver
+            .handle_block_received(
+                &mut block::Block::Convergence {
+                    block: convergence_block.clone(),
+                },
+                node.consensus_driver.sig_engine(),
+            )
+            .unwrap();
+    });
+    all_nodes.iter_mut().for_each(|node| {
+        node.state_driver
+            .handle_block_received(
+                &mut block::Block::Convergence {
+                    block: convergence_block.clone(),
+                },
+                node.consensus_driver.sig_engine(),
+            )
+            .unwrap();
+    });
     let mut chosen_harvester = harvesters.pop().unwrap();
     let _ = chosen_harvester
         .state_driver
@@ -264,7 +284,6 @@ async fn all_nodes_append_certificate_to_convergence_block() {
             )
             .await;
     }
-    // handle_convergence_block_precheck_requested()
     let certificate = res.unwrap();
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {

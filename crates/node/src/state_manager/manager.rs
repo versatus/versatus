@@ -3,8 +3,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, ClaimHash, ConvergenceBlock, ProposalBlock, Certificate};
-use bulldag::{graph::{BullDag, GraphError}, vertex::Vertex};
+use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use bulldag::{
+    graph::{BullDag, GraphError},
+    vertex::Vertex,
+};
 use ethereum_types::U256;
 use events::Event;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
@@ -63,32 +66,48 @@ impl StateManager {
         }
     }
 
-    pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<ApplyBlockResult> {
+    pub fn append_convergence(
+        &mut self,
+        convergence: &ConvergenceBlock,
+    ) -> GraphResult<ApplyBlockResult> {
         let opt = self.dag.append_convergence(convergence)?;
         if let Some(cblock) = opt {
             let ref_blocks = self.dag.get_convergence_reference_blocks(convergence);
-            let proposals: Vec<ProposalBlock> = ref_blocks.iter().filter_map(|vertex| {
-                match vertex.get_data() {
+            let proposals: Vec<ProposalBlock> = ref_blocks
+                .iter()
+                .filter_map(|vertex| match vertex.get_data() {
                     Block::Proposal { block } => Some(block.clone()),
                     _ => None,
-                }
-            }).collect();
-            
+                })
+                .collect();
+
             let res = self.apply_convergence_block(&cblock, &proposals)?;
-            return Ok(res)
+            return Ok(res);
         }
 
-        Err(GraphError::Other("unable to append and apply convergence block".to_string()))
+        Err(GraphError::Other(
+            "unable to append and apply convergence block".to_string(),
+        ))
     }
 
-    fn apply_convergence_block(&mut self, convergence: &ConvergenceBlock, proposals: &[ProposalBlock]) -> GraphResult<ApplyBlockResult> {
-        let res = self.database.apply_convergence_block(convergence, proposals).map_err(|err| {
-            GraphError::Other(err.to_string())})?;
+    fn apply_convergence_block(
+        &mut self,
+        convergence: &ConvergenceBlock,
+        proposals: &[ProposalBlock],
+    ) -> GraphResult<ApplyBlockResult> {
+        let res = self
+            .database
+            .apply_convergence_block(convergence, proposals)
+            .map_err(|err| GraphError::Other(err.to_string()))?;
         Ok(res)
     }
 
-    pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> GraphResult<Option<ConvergenceBlock>> {
-        self.dag.append_certificate_to_convergence_block(certificate)
+    pub fn append_certificate_to_convergence_block(
+        &mut self,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<ConvergenceBlock>> {
+        self.dag
+            .append_certificate_to_convergence_block(certificate)
     }
 
     pub fn export_state(&self) {
@@ -311,10 +330,10 @@ impl StateManager {
         proposals
     }
 
-    pub(crate) fn handle_block_received(
+    pub fn handle_block_received(
         &mut self,
         block: &mut Block,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> Result<Event> {
         match block {
             Block::Genesis { ref mut block } => {
