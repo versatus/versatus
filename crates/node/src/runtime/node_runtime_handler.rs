@@ -134,7 +134,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.state_driver.handle_transaction_validated(txn).await?;
             },
             Event::CreateAccountRequested((address, account_bytes)) => {
-                // I think we can get rid of this, as we now add accounts 
+                // I think we can get rid of this, as we now add accounts
                 // when they are a receiver of a transaction
                 self.handle_create_account_requested(address.clone(), account_bytes)?;
             },
@@ -146,26 +146,22 @@ impl Handler<EventMessage> for NodeRuntime {
                 if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
                     telemetry::error!("error updating state: {}", err);
                 } else {
-
-                    self.events_tx.send(
-                        Event::BuildProposalBlock(block).into()
-                    ).await.map_err(|err| {
-                        TheaterError::Other(err.to_string())
-                    })?;
+                    self.events_tx
+                        .send(Event::BuildProposalBlock(block).into())
+                        .await
+                        .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
             Event::BuildProposalBlock(block) => {
-                let proposal_block = self.handle_build_proposal_block_requested(block)
+                let proposal_block = self
+                    .handle_build_proposal_block_requested(block)
                     .await
-                    .map_err(|err| {
-                        TheaterError::Other(err.to_string())
-                })?;
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.events_tx.send(
-                    Event::BroadcastProposalBlock(proposal_block).into()
-                ).await.map_err(|err|{
-                    TheaterError::Other(err.to_string())
-                })?;
+                self.events_tx
+                    .send(Event::BroadcastProposalBlock(proposal_block).into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
 
             Event::ClaimCreated(claim) => {
@@ -193,34 +189,33 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockCertificateCreated(certificate) => {
-                let confirmed_block = self.handle_block_certificate_created(
-                    certificate
-                ).await.map_err(|err| TheaterError::Other(err.to_string()))?;
+                let confirmed_block = self
+                    .handle_block_certificate_created(certificate)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.events_tx.send(
-                    Event::UpdateState(confirmed_block).into()
-                ).await.map_err(|err| {
-                    TheaterError::Other(err.to_string())
-                })?;
-
+                self.events_tx
+                    .send(Event::UpdateState(confirmed_block).into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockConfirmed(cert_bytes) => {
                 let certificate: Certificate = bincode::deserialize(&cert_bytes)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                let confirmed_block = self.handle_block_certificate(certificate)
+                let confirmed_block = self
+                    .handle_block_certificate_received(certificate)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.events_tx.send(
-                    Event::UpdateState(confirmed_block).into()
-                ).await.map_err(|err| {
-                    TheaterError::Other(err.to_string())
-                })?;
+                self.events_tx
+                    .send(Event::UpdateState(confirmed_block).into())
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::BlockAppended(block_hash) => {
                 // This is likely redundant
-            }
+            },
             Event::QuorumFormed => self
                 .handle_quorum_formed()
                 .await

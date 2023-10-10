@@ -127,15 +127,23 @@ impl DagModule {
         self.pending_convergence_blocks.get_mut(key)
     }
 
-    pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> GraphResult<Option<ConvergenceBlock>> {
-        let mut block = self.get_pending_convergence_block_mut(&certificate.block_hash).ok_or(
-            GraphError::Other("unable to find pending convergence block".to_string()))?.clone();
+    pub fn append_certificate_to_convergence_block(
+        &mut self,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<ConvergenceBlock>> {
+        let mut block = self
+            .get_pending_convergence_block_mut(&certificate.block_hash)
+            .ok_or(GraphError::Other(
+                "unable to find pending convergence block".to_string(),
+            ))?
+            .clone();
 
-        block.append_certificate(certificate).map_err(|err| {
-            GraphError::Other(err.to_string())
-        })?;
+        block
+            .append_certificate(certificate)
+            .map_err(|err| GraphError::Other(err.to_string()))?;
 
-        self.append_convergence(&mut block).map_err(|err| GraphError::Other(format!("{:?}", err)))
+        self.append_convergence(&mut block)
+            .map_err(|err| GraphError::Other(format!("{:?}", err)))
     }
 
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
@@ -182,20 +190,23 @@ impl DagModule {
         Ok(())
     }
 
-    pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<Option<ConvergenceBlock>> {
+    pub fn append_convergence(
+        &mut self,
+        convergence: &ConvergenceBlock,
+    ) -> GraphResult<Option<ConvergenceBlock>> {
         let valid = self.check_valid_convergence(convergence);
 
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
                 self.get_convergence_reference_blocks(convergence);
-
+            dbg!(&ref_blocks);
             let block: Block = convergence.clone().into();
             let vtx: Vertex<Block, String> = block.into();
+            dbg!(&vtx);
             let edges: Edges = ref_blocks
                 .iter()
                 .map(|ref_block| (ref_block.clone(), vtx.clone()))
                 .collect();
-
             self.extend_edges(edges)?;
 
             self.last_confirmed_block_header = Some(convergence.header.clone());
@@ -203,13 +214,13 @@ impl DagModule {
                 block: convergence.clone(),
             });
 
-            self.pending_convergence_blocks.remove(&convergence.hash).ok_or(
-                GraphError::Other(
-                    "unable to find pending convergence block".to_string()
-                )
-            )?;
+            self.pending_convergence_blocks
+                .remove(&convergence.hash)
+                .ok_or(GraphError::Other(
+                    "unable to find pending convergence block".to_string(),
+                ))?;
 
-            return Ok(Some(convergence.clone()))
+            return Ok(Some(convergence.clone()));
         } else {
             self.pending_convergence_blocks
                 .entry(convergence.hash.clone())
@@ -275,6 +286,17 @@ impl DagModule {
         Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
+    //TODO: Move to test configured trait
+    pub fn write_vertex(&mut self, vertex: &Vertex<Block, String>) -> GraphResult<()> {
+        if let Ok(mut guard) = self.dag.write() {
+            guard.add_vertex(vertex);
+
+            return Ok(());
+        }
+
+        Err(GraphError::Other("Error getting write guard".to_string()))
+    }
+
     fn check_valid_genesis(&self, block: &GenesisBlock, mut sig_engine: SignerEngine) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             matches!(self.verify_signature(validation_data, sig_engine), Ok(true))
@@ -294,17 +316,18 @@ impl DagModule {
     //TODO: Refactor to return ConvergenceBlockStatus Enum as Pending
     // or Confirmed variant
     fn check_valid_convergence(&mut self, block: &ConvergenceBlock) -> bool {
-        if let Some(certificate) = &block.certificate {
-            //TODO: Remove this as it is redundant... 
+        if let Some(_certificate) = &block.certificate {
+            //TODO: Remove this as it is redundant...
             //match self.verify_certificate(certificate) {
-                //Ok(true) => return true,
-                //Ok(false) => return false,
-                //Err(_) => return false,
+            //Ok(true) => return true,
+            //Ok(false) => return false,
+            //Err(_) => return false,
             //}
-            return true
+            return true;
         }
         false
     }
+
 
     pub fn add_signer_to_convergence_block(
         &mut self,

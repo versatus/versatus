@@ -1,7 +1,7 @@
 use crate::{
-    consensus::{ConsensusModule, ConsensusModuleConfig, TransactionKindCertificate},
+    consensus::{ConsensusModule, ConsensusModuleConfig},
     result::{NodeError, Result},
-    state_manager::{DagModule, StateManager, StateManagerConfig},
+    state_manager::{StateManager, StateManagerConfig},
 };
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
@@ -28,8 +28,8 @@ use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
     transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Token, Transaction,
-        TransactionDigest, TransactionKind, Transfer,
+        generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
+        TransactionKind, Transfer,
     },
 };
 
@@ -130,6 +130,19 @@ impl NodeRuntime {
             claim,
             pending_quorum: None,
         })
+    }
+
+    pub fn certified_convergence_block_exists_within_dag(&self, block_hash: String) -> bool {
+        if let Ok(guard) = self.state_driver.dag.read() {
+            if let Some(vertex) = guard.get_vertex(block_hash) {
+                if let Block::Convergence { block } = vertex.get_data() {
+                    return block.certificate.is_some();
+                } else {
+                    return false;
+                }
+            }
+        }
+        false
     }
 
     pub fn config_ref(&self) -> &NodeConfig {
@@ -347,13 +360,13 @@ impl NodeRuntime {
         let txns_list: LinkedHashMap<TransactionDigest, TransactionKind> = txns
             .into_iter()
             .map(|(digest, (txn, cert))| {
-//                if let Err(err) = self
-//                    .consensus_driver
-//                    .certified_txns_filter
-//                    .push(&txn.id().to_string())
-//                {
-//                    telemetry::error!("Error pushing txn to certified txns filter: {err}");
-//                }
+                //                if let Err(err) = self
+                //                    .consensus_driver
+                //                    .certified_txns_filter
+                //                    .push(&txn.id().to_string())
+                //                {
+                //                    telemetry::error!("Error pushing txn to certified txns filter: {err}");
+                //                }
                 (digest.clone(), txn.clone())
             })
             .collect();
