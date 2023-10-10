@@ -475,6 +475,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     
     harvesters.iter_mut().for_each(|node| {
         node.state_driver.insert_account(address1.clone(), account1.clone()).unwrap();
+        node.state_driver.insert_account(address2.clone(), account2.clone()).unwrap();
         node.consensus_driver.miner_election_results = Some(miner_election_results.clone());
         node.state_driver.write_vertex(&vtx).unwrap();
         node.state_driver
@@ -489,6 +490,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
 
     all_nodes.iter_mut().for_each(|node| {
         node.state_driver.insert_account(address1.clone(), account1.clone()).unwrap();
+        node.state_driver.insert_account(address2.clone(), account2.clone()).unwrap();
         node.consensus_driver.miner_election_results = Some(miner_election_results.clone());
         node.state_driver.write_vertex(&vtx).unwrap();
         node.state_driver
@@ -629,7 +631,7 @@ fn dummy_proposal_block_and_accounts(sig_engine: signer::engine::SignerEngine) -
         "dummy_proposal_block".to_string(), 
         vec![(address1.clone(), Some(account1.clone())), (address2.clone(), Some(account2.clone()))], 
         1, 
-        2, 
+        1, 
         sig_engine
     ).pop().unwrap();
 

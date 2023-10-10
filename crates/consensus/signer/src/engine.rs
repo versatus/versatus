@@ -68,7 +68,9 @@ impl QuorumMembers {
 
     pub fn get_harvester_threshold(&self) -> usize {
         if let Some(data) = self.get_harvester_data() {
-            return (data.members.len() as f64 * VALIDATION_THRESHOLD) as usize;
+            let threshold = (data.members.len() as f64 * VALIDATION_THRESHOLD).ceil() as usize;
+            dbg!(&threshold);
+            return threshold         
         }
 
         0usize
