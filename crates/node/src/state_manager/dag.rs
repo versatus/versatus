@@ -127,15 +127,23 @@ impl DagModule {
         self.pending_convergence_blocks.get_mut(key)
     }
 
-    pub fn append_certificate_to_convergence_block(&mut self, certificate: &Certificate) -> GraphResult<Option<ConvergenceBlock>> {
-        let mut block = self.get_pending_convergence_block_mut(&certificate.block_hash).ok_or(
-            GraphError::Other("unable to find pending convergence block".to_string()))?.clone();
+    pub fn append_certificate_to_convergence_block(
+        &mut self,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<ConvergenceBlock>> {
+        let mut block = self
+            .get_pending_convergence_block_mut(&certificate.block_hash)
+            .ok_or(GraphError::Other(
+                "unable to find pending convergence block".to_string(),
+            ))?
+            .clone();
 
-        block.append_certificate(certificate).map_err(|err| {
-            GraphError::Other(err.to_string())
-        })?;
+        block
+            .append_certificate(certificate)
+            .map_err(|err| GraphError::Other(err.to_string()))?;
 
-        self.append_convergence(&mut block).map_err(|err| GraphError::Other(format!("{:?}", err)))
+        self.append_convergence(&mut block)
+            .map_err(|err| GraphError::Other(format!("{:?}", err)))
     }
 
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
@@ -182,7 +190,10 @@ impl DagModule {
         Ok(())
     }
 
-    pub fn append_convergence(&mut self, convergence: &ConvergenceBlock) -> GraphResult<Option<ConvergenceBlock>> {
+    pub fn append_convergence(
+        &mut self,
+        convergence: &ConvergenceBlock,
+    ) -> GraphResult<Option<ConvergenceBlock>> {
         let valid = self.check_valid_convergence(convergence);
 
         if valid {
@@ -203,13 +214,13 @@ impl DagModule {
                 block: convergence.clone(),
             });
 
-            self.pending_convergence_blocks.remove(&convergence.hash).ok_or(
-                GraphError::Other(
-                    "unable to find pending convergence block".to_string()
-                )
-            )?;
+            self.pending_convergence_blocks
+                .remove(&convergence.hash)
+                .ok_or(GraphError::Other(
+                    "unable to find pending convergence block".to_string(),
+                ))?;
 
-            return Ok(Some(convergence.clone()))
+            return Ok(Some(convergence.clone()));
         } else {
             self.pending_convergence_blocks
                 .entry(convergence.hash.clone())
@@ -294,14 +305,14 @@ impl DagModule {
     //TODO: Refactor to return ConvergenceBlockStatus Enum as Pending
     // or Confirmed variant
     fn check_valid_convergence(&mut self, block: &ConvergenceBlock) -> bool {
-        if let Some(certificate) = &block.certificate {
-            //TODO: Remove this as it is redundant... 
+        if let Some(_certificate) = &block.certificate {
+            //TODO: Remove this as it is redundant...
             //match self.verify_certificate(certificate) {
-                //Ok(true) => return true,
-                //Ok(false) => return false,
-                //Err(_) => return false,
+            //Ok(true) => return true,
+            //Ok(false) => return false,
+            //Err(_) => return false,
             //}
-            return true
+            return true;
         }
         false
     }

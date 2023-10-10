@@ -6,7 +6,7 @@ use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData, Vote};
 use miner::conflict_resolver::Resolver;
 use primitives::{Address, NodeId, NodeType, PublicKey, QuorumId, QuorumKind, Signature};
 use signer::engine::{QuorumData, QuorumMembers as InaugaratedMembers};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::format};
 use storage::vrrbdb::ApplyBlockResult;
 
 use crate::{
@@ -196,6 +196,7 @@ impl NodeRuntime {
             .ok_or(NodeError::Other(
                 "certificate not appended to convergence block".to_string(),
             ))?;
+        
 
         Ok(block.clone())
     }
