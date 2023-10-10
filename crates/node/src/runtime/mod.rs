@@ -1,4 +1,5 @@
-use events::{EventPublisher, EventRouter, Vote};
+use events::{Event, EventPublisher, EventRouter, Vote};
+use primitives::{JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 use telemetry::info;
 use vrrb_config::NodeConfig;
 
@@ -29,9 +30,9 @@ pub async fn setup_runtime_components(
 ) -> Result<(RuntimeComponentManager, NodeConfig)> {
     let mut config = original_config.clone();
 
-    let runtime_events_rx = router.subscribe(Some("runtime-events".into()))?;
-    let network_events_rx = router.subscribe(Some("network-events".into()))?;
-    let jsonrpc_events_rx = router.subscribe(Some("json-rpc-api-control".into()))?;
+    let runtime_events_rx = router.subscribe(Some(RUNTIME_TOPIC_STR.into()))?;
+    let network_events_rx = router.subscribe(Some(NETWORK_TOPIC_STR.into()))?;
+    let jsonrpc_events_rx = router.subscribe(Some(JSON_RPC_API_TOPIC_STR.into()))?;
     let indexer_events_rx = router.subscribe(None)?;
 
     let mut runtime_manager = RuntimeComponentManager::new();
@@ -191,7 +192,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (node_0, farmers, harvesters, miners) = setup_network(8).await;
         node_0.produce_genesis_transactions().unwrap();
 
         for (_, node) in farmers.iter() {

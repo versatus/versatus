@@ -31,6 +31,10 @@ pub const DEFAULT_CONNECTION_TIMEOUT_IN_SECS: u64 = 2;
 pub const RAPTOR_DECODER_CACHE_LIMIT: usize = 10000;
 pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;
 
+pub const NETWORK_TOPIC_STR: &str = "network-events";
+pub const RUNTIME_TOPIC_STR: &str = "runtime-events";
+pub const JSON_RPC_API_TOPIC_STR: &str = "json-rpc-api-control";
+
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
 pub type ByteSlice32Bit = [u8; 32];

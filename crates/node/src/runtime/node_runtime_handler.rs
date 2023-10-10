@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use crate::node_runtime::NodeRuntime;
 use async_trait::async_trait;
 use block::Certificate;
-use events::{Event, EventMessage};
-use primitives::{ConvergencePartialSig, NodeId, PublicKey, QuorumId, QuorumKind};
 use signer::{engine::QuorumData, engine::QuorumMembers as InaugaratedMembers};
+use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
+use primitives::{NETWORK_TOPIC_STR, NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig, NodeId, PublicKey, QuorumId, QuorumKind};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
@@ -38,11 +38,11 @@ impl Handler<EventMessage> for NodeRuntime {
     async fn handle(&mut self, event: EventMessage) -> theater::Result<ActorState> {
         match event.into() {
             Event::NodeAddedToPeerList(peer_data) => {
-                let assigments = self
+                let assignments = self
                     .handle_node_added_to_peer_list(peer_data.clone())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-
+              
                 if let Some(assignments) = assigments {
                     let assignments = assignments.into_values().collect();
                     let event = EventMessage::new(
@@ -79,7 +79,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let event = Event::MinerElected(winner);
 
-                let em = EventMessage::new(Some("network-events".into()), event);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
 
                 self.events_tx
                     .send(em)

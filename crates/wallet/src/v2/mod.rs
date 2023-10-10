@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 use telemetry::error;
 use thiserror::Error;
 use vrrb_core::account::Account;
-use vrrb_core::transactions::{NewTransferArgs, Token};
+use vrrb_core::transactions::{Transaction, TransactionKind, Token, RpcTransactionDigest};
 use vrrb_rpc::rpc::{
-    api::{RpcApiClient, RpcTransactionDigest, RpcTransactionRecord},
+    api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
 };
 
@@ -161,29 +161,29 @@ impl Wallet {
 
         let signature = self.sign_transaction(&payload[..]);
 
-        let txn_args = NewTransferArgs {
-            timestamp,
-            sender_address,
-            sender_public_key: self.public_key,
-            receiver_address: receiver,
-            token: Some(token),
-            amount,
-            signature,
-            validators: Some(HashMap::new()),
-            nonce: self.nonce,
-        };
+        let transfer = TransactionKind::transfer_builder()
+            .timestamp(timestamp)
+            .sender_address(sender_address)
+            .sender_public_key(self.public_key)
+            .receiver_address(receiver)
+            .token(token)
+            .amount(amount)
+            .signature(signature)
+            .validators(HashMap::new())
+            .nonce(self.nonce)
+            .build_kind()
+            .map_err(|_| WalletError::Custom("Failed to build transfer transaction".to_string()))?;
 
-        let txn = self
+        self
             .client
-            .create_txn(txn_args.clone())
+            .create_txn(transfer.clone())
             .await
             .map_err(|err| {
                 error!("{:?}", err.to_string());
-
-                WalletError::Custom(format!("API Error: {err}"))
+                WalletError::Custom(format!("API Error: {}", err))
             })?;
 
-        Ok(txn.id)
+        Ok(transfer.id().digest_string())
     }
 
     pub async fn get_transaction(
