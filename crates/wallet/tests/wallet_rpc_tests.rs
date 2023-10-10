@@ -1,38 +1,18 @@
-use std::{fs, net::SocketAddr};
+use std::net::SocketAddr;
 
 use primitives::Address;
 use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
+use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;
 use vrrb_core::transactions::Token;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
-#[test]
-// fn find_db_path() {
-//     let path = fs::canonicalize("/Users/ob/Code/versatus/crates/wallet/.vrrb/node/db").unwrap();
-//     print!("path={:?}", path)
-// }
-
-// pub fn it_deletes_db() {
-//     fs::remove_dir_all().unwrap();
-// }
-
-// pub fn it_deletes_node() {
-//     fs::remove_dir_all("crates/wallet/.vrrb/node").unwrap();
-// }
-
-pub fn it_deletes_vrrb() {
-    fs::remove_dir_all("").unwrap();
-}
-
 #[tokio::test]
 #[serial]
-// pub async fn remove_path() -> std::io::Result<()> {
-//     fs::remove_dir_all("crates/wallet/.vrrb")?;
-//     Ok(())
-// }
 pub async fn create_wallet_with_rpc_client() {
+    remove_vrrb_data_dir();
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
@@ -51,11 +31,8 @@ pub async fn create_wallet_with_rpc_client() {
 
 #[tokio::test]
 #[serial]
-// pub async fn remove_path() -> std::io::Result<()> {
-//     fs::remove_dir_all("crates/wallet/.vrrb")?;
-//     Ok(())
-// }
 pub async fn wallet_sends_txn_to_rpc_server() {
+    remove_vrrb_data_dir();
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
@@ -107,11 +84,8 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
 #[tokio::test]
 #[serial]
-// pub async fn remove_path() -> std::io::Result<()> {
-//     fs::remove_dir_all("crates/wallet/.vrrb")?;
-//     Ok(())
-// }
 pub async fn wallet_sends_create_account_request_to_rpc_server() {
+    remove_vrrb_data_dir();
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");

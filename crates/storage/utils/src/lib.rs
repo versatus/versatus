@@ -1,6 +1,5 @@
 use std::{
-    env,
-    fs,
+    env, fs,
     fs::File,
     path::{Path, PathBuf},
 };
@@ -19,6 +18,14 @@ pub fn create_vrrb_data_dir() -> Result<PathBuf> {
     fs::create_dir_all(&path)?;
 
     Ok(path)
+}
+
+/// Removes a data dir if it already exists.
+pub fn remove_vrrb_data_dir() {
+    let path = get_vrrb_data_dir().unwrap();
+    if path.exists() {
+        std::fs::remove_dir_all(path).expect("failed to remove .vrrb directory");
+    }
 }
 
 /// Gets the data directory path from environment variables or the default
