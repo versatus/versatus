@@ -198,13 +198,11 @@ impl ConsensusModule {
         &mut self,
         header: BlockHeader,
         claims: HashMap<String, Claim>,
-    ) -> Result<(U256, Claim)> {
-        let mut election_results: BTreeMap<U256, Claim> =
+    ) -> Result<BTreeMap<U256, Claim>> {
+        let election_results: BTreeMap<U256, Claim> =
             self.quorum_driver.elect_miner(claims, header.block_seed);
-
-        let winner = self.quorum_driver.get_winner(&mut election_results);
-
-        Ok(winner)
+        self.miner_election_results = Some(election_results.clone());
+        Ok(election_results)
     }
 
     fn precheck_convergence_block_get_proposal_blocks(
@@ -370,8 +368,25 @@ impl ConsensusModule {
         dag: Arc<RwLock<BullDag<Block, String>>>,
     ) -> Result<(bool, bool)> {
         self.is_harvester()?;
-
+        self.precheck_convergence_block_miner_is_winner(block.clone())?;
         let proposal_block_hashes = block.header.ref_hashes.clone();
         self.precheck_convergence_block_transactions(block, proposal_block_hashes, resolver, dag)
+    }
+
+    pub fn precheck_convergence_block_miner_is_winner(&self, block: ConvergenceBlock) -> Result<()> {
+        let miner = block.header.miner_claim.clone();
+
+        if let Some(results) = &self.miner_election_results {
+            for (idx, claim) in results.clone().values().enumerate() {
+                if idx < 5 {
+                    if claim == &miner {
+                        return Ok(())
+                    }
+                } else {
+                    break
+                }
+            }
+        }
+        return Err(NodeError::Other("miner was not elected".to_string()));
     }
 }

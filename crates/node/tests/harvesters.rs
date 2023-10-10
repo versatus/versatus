@@ -7,12 +7,13 @@
 
 use std::{
     collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
+    hash::{Hash, Hasher}, sync::{Arc, RwLock},
 };
 
 use block::{header::BlockHeader, Block, Certificate, ConvergenceBlock, ProposalBlock};
-use bulldag::vertex::Vertex;
+use bulldag::{vertex::Vertex, graph::BullDag};
 use events::DEFAULT_BUFFER;
+use miner::test_helpers::create_miner;
 use node::{
     node_runtime::NodeRuntime,
     test_utils::{
@@ -20,12 +21,12 @@ use node::{
     },
     NodeError,
 };
-use primitives::{QuorumKind, Signature};
+use primitives::{QuorumKind, Signature, Address};
 use quorum::{election::Election, quorum::Quorum};
 use sha256::digest;
 use vrrb_core::{
     claim::{Claim, Eligibility},
-    keypair::KeyPair,
+    keypair::KeyPair, account::Account,
 };
 
 #[tokio::test]
@@ -405,6 +406,120 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     assert!(chosen_harvester.certified_convergence_block_exists_within_dag(convergence_block.hash));
 }
 
+#[tokio::test]
+async fn all_nodes_update_state_upon_successfully_appending_certified_convergence_block_to_dag() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    let mut harvesters: Vec<NodeRuntime> = nodes
+        .iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() == Some(QuorumKind::Harvester) {
+                Some(nr.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let mut all_nodes: Vec<NodeRuntime> = nodes
+        .into_iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() != Some(QuorumKind::Harvester)
+                && !nr.consensus_driver.is_bootstrap_node()
+            {
+                Some(nr.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let mut miner = create_miner();
+    let dag = all_nodes[0].state_driver.dag();
+    miner.dag = dag;
+    let sig_engine = all_nodes[0].consensus_driver.sig_engine();
+    let mut proposal_block = dummy_proposal_block(sig_engine);
+    let pblock: Block = proposal_block.into();
+    let vtx = pblock.into();
+
+    all_nodes.iter_mut().for_each(|node| {
+        node.state_driver.write_vertex(&vtx).unwrap();
+    });
+
+    harvesters.iter_mut().for_each(|node| {
+        node.state_driver.write_vertex(&vtx).unwrap();
+        node.state_driver
+            .handle_block_received(
+                &mut block::Block::Convergence {
+                    block: convergence_block.clone(),
+                },
+                node.consensus_driver.sig_engine(),
+            )
+            .unwrap();
+    });
+
+    let block = miner.try_mine().unwrap();
+
+    all_nodes.iter_mut().for_each(|node| {
+        node.state_driver
+            .handle_block_received(
+                &mut block::Block::Convergence {
+                    block: convergence_block.clone(),
+                },
+                node.consensus_driver.sig_engine(),
+            )
+            .unwrap();
+    });
+
+    let mut chosen_harvester = harvesters.pop().unwrap();
+    let _ = chosen_harvester
+        .state_driver
+        .append_convergence(&mut convergence_block);
+
+    let mut sigs: Vec<Signature> = Vec::new();
+    for harvester in harvesters.iter_mut() {
+        // 2 of 3 harvester nodes sign a convergence block
+        sigs.push(
+            harvester
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
+                .unwrap(),
+        );
+        let _ = harvester
+            .state_driver
+            .append_convergence(&mut convergence_block.clone());
+    }
+    let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
+    // all harvester nodes get the other's signatures
+    for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+        res = chosen_harvester
+            .handle_harvester_signature_received(
+                convergence_block.hash.clone(),
+                harvester.config.id.clone(),
+                sig,
+            )
+            .await;
+    }
+    let certificate = res.unwrap();
+    all_nodes.extend(harvesters);
+    for node in all_nodes.iter_mut() {
+        let convergence_block = node
+            .handle_block_certificate_received(certificate.clone())
+            .await
+            .unwrap();
+        assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
+        assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
+    }
+    let convergence_block = chosen_harvester
+        .handle_block_certificate_created(certificate.clone())
+        .await
+        .unwrap();
+    assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
+    assert!(chosen_harvester.certified_convergence_block_exists_within_dag(convergence_block.hash));
+}
+
+
 fn dummy_convergence_block() -> ConvergenceBlock {
     let keypair = KeyPair::random();
     let public_key = keypair.get_miner_public_key();
@@ -442,7 +557,13 @@ fn dummy_convergence_block() -> ConvergenceBlock {
 }
 
 fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
+    let kp1 = Keypair::random();
+    let address1 = Address::new(kp1.miner_kp.1);
+    let kp2 = Keypair::random();
+    let address2 = Address::new(kp2.miner_kp.1);
+    let account1 = Account::new(address1);
+    let account2 = Account::new(address2);
     produce_proposal_blocks(
-        "dummy_proposal_block".to_string(), vec![], 1, 0, sig_engine
+        "dummy_proposal_block".to_string(), vec![account1, account2], 1, 2, sig_engine
     ).pop().unwrap()
 }

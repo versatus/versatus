@@ -477,6 +477,10 @@ impl StateManager {
         }
         Ok(())
     }
+
+    pub fn dag(&self) -> Arc<RwLock<BullDag<Block, String>>> {
+        self.dag.dag().clone()
+    }
 }
 
 #[async_trait::async_trait]

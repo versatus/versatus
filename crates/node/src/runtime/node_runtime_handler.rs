@@ -68,10 +68,14 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::MinerElectionStarted(header) => {
                 let claims = self.state_driver.read_handle().claim_store_values();
 
-                let winner = self
+                let results = self
                     .consensus_driver
                     .handle_miner_election_started(header, claims)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                let winner = results.clone().into_iter().next().ok_or(
+                    TheaterError::Other("no winner found".to_string())
+                )?;
 
                 let event = Event::MinerElected(winner);
 
