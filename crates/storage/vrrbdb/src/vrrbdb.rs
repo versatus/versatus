@@ -278,7 +278,6 @@ impl VrrbDb {
 
     pub fn apply_convergence_block(&mut self, convergence: &ConvergenceBlock, proposals: &[ProposalBlock]) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
-        dbg!(&read_handle.state_store_values()); 
         for (proposal, txn_set) in &convergence.txns {
             let block = proposals.iter().find(|pblock| {
                 pblock.hash == proposal.clone()
@@ -294,19 +293,14 @@ impl VrrbDb {
             let mut txns = block.txns.clone();
             txns.retain(|digest, _| txn_set.contains(digest));
             for (digest, txn_kind) in txns {
-                dbg!("from: {}", &txn_kind.sender_address());
                 self.apply_txn(read_handle.clone(), txn_kind)?;
             }
         }
 
-        dbg!("committing to transaction store");
         self.transaction_store.commit();
-        dbg!("committing to state store");
         self.state_store.commit();
 
-        dbg!("producing state root hash");
         let state_root_hash = self.state_store.root_hash()?;
-        dbg!("producing transaction root hash");
         let transactions_root_hash = self.transaction_store.root_hash()?;
 
         Ok(
