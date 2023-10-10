@@ -10,12 +10,13 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use block::{header::BlockHeader, Certificate, ConvergenceBlock};
+use block::{header::BlockHeader, Block, Certificate, ConvergenceBlock, ProposalBlock};
+use bulldag::vertex::Vertex;
 use events::DEFAULT_BUFFER;
 use node::{
     node_runtime::NodeRuntime,
     test_utils::{
-        create_quorum_assigned_node_runtime_network, produce_random_claim, produce_random_claims,
+        create_quorum_assigned_node_runtime_network, produce_random_claim, produce_random_claims, produce_proposal_blocks,
     },
     NodeError,
 };
@@ -327,8 +328,18 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
             }
         })
         .collect();
+    let sig_engine = all_nodes[0].consensus_driver.sig_engine();
+    let mut proposal_block = dummy_proposal_block(sig_engine);
     let mut convergence_block = dummy_convergence_block();
+    convergence_block.header.ref_hashes = vec![proposal_block.hash.clone()];
+    let pblock: Block = proposal_block.into();
+    let vtx = pblock.into();
+    all_nodes.iter_mut().for_each(|node| {
+        node.state_driver.write_vertex(&vtx).unwrap();
+    });
+
     harvesters.iter_mut().for_each(|node| {
+        node.state_driver.write_vertex(&vtx).unwrap();
         node.state_driver
             .handle_block_received(
                 &mut block::Block::Convergence {
@@ -428,4 +439,10 @@ fn dummy_convergence_block() -> ConvergenceBlock {
         hash: "dummy_convergence_block".into(),
         certificate: None,
     }
+}
+
+fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
+    produce_proposal_blocks(
+        "dummy_proposal_block".to_string(), vec![], 1, 0, sig_engine
+    ).pop().unwrap()
 }

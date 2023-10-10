@@ -143,6 +143,13 @@ impl StateManager {
         Ok(root_hash_hex)
     }
 
+    //TODO: Move to test configured trait
+    pub fn write_vertex(&mut self, vertex: &Vertex<Block, BlockHash>) -> Result<()> {
+        self.dag.write_vertex(vertex).map_err(|err| {
+            NodeError::Other(format!("{:?}", err))
+        })
+    }
+
     /// Inserts a Transaction into the TransactionStore and
     /// emits an event to inform other modules that a Transaction
     /// has been added to the TransactionStore.
