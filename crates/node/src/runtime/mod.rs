@@ -118,12 +118,14 @@ mod tests {
     use events::{AssignedQuorumMembership, Event, PeerData, DEFAULT_BUFFER};
     use hbbft::sync_key_gen::{AckOutcome, Part};
     use primitives::{NodeId, NodeType, QuorumKind};
+    use storage::storage_utils::remove_vrrb_data_dir;
     use validator::txn_validator;
 
     use crate::{node_runtime::NodeRuntime, test_utils::create_node_runtime_network};
 
     #[tokio::test]
     async fn bootstrap_node_runtime_cannot_be_assigned_to_quorum() {
+        remove_vrrb_data_dir();
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(1, events_tx.clone()).await;
@@ -146,6 +148,7 @@ mod tests {
 
     #[tokio::test]
     async fn validator_node_runtime_can_be_assigned_to_quorum() {
+        remove_vrrb_data_dir();
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(2, events_tx.clone()).await;
@@ -169,6 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn validator_node_runtime_can_create_and_ack_partial_commitment() {
+        remove_vrrb_data_dir();
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(2, events_tx.clone()).await;
@@ -204,6 +208,7 @@ mod tests {
 
     #[tokio::test]
     async fn validator_node_runtimes_can_generate_a_shared_key() {
+        remove_vrrb_data_dir();
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;

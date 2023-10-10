@@ -20,8 +20,8 @@ mod tests {
     use miner::test_helpers::{create_address, create_claim};
     use primitives::Address;
     use serial_test::serial;
-    use storage::vrrbdb::types::*;
     use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
+    use storage::{storage_utils::remove_vrrb_data_dir, vrrbdb::types::*};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
     use vrrb_core::transactions::TransactionKind;
@@ -36,6 +36,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_receives_new_txn_event() {
+        remove_vrrb_data_dir();
         let _temp_dir_path = env::temp_dir().join("state.json");
 
         let db_config = VrrbDbConfig::default();
