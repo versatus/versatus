@@ -90,11 +90,12 @@ impl StateManager {
         ))
     }
 
-    fn apply_convergence_block(
+    pub fn apply_convergence_block(
         &mut self,
         convergence: &ConvergenceBlock,
         proposals: &[ProposalBlock],
     ) -> GraphResult<ApplyBlockResult> {
+        dbg!("calling database.apply_convergence_block");
         let res = self
             .database
             .apply_convergence_block(convergence, proposals)

@@ -378,7 +378,6 @@ impl NodeRuntime {
 
     pub fn mine_convergence_block(&mut self) -> Result<ConvergenceBlock> {
         self.has_required_node_type(NodeType::Miner, "mine convergence block")?;
-
         self.mining_driver
             .mine_convergence_block()
             .ok_or(NodeError::Other(

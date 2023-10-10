@@ -880,7 +880,7 @@ fn assign_node_to_quorum(
                 .collect();
 
             if idx == 0 {
-                dbg!("calling assign node to harvester");
+                //dbg!("calling assign node to harvester");
                 assign_node_to_harvester_quorum(
                     &node,
                     assigned_memberships,

@@ -199,10 +199,10 @@ impl DagModule {
         if valid {
             let ref_blocks: Vec<Vertex<Block, String>> =
                 self.get_convergence_reference_blocks(convergence);
-            dbg!(&ref_blocks);
+            //dbg!(&ref_blocks);
             let block: Block = convergence.clone().into();
             let vtx: Vertex<Block, String> = block.into();
-            dbg!(&vtx);
+            //dbg!(&vtx);
             let edges: Edges = ref_blocks
                 .iter()
                 .map(|ref_block| (ref_block.clone(), vtx.clone()))

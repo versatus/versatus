@@ -87,7 +87,7 @@ pub struct ConsensusModule {
     pub(crate) quorum_kind: Option<QuorumKind>,
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
-    pub(crate) miner_election_results: Option<BTreeMap<U256, Claim>> 
+    pub miner_election_results: Option<BTreeMap<U256, Claim>> 
 }
 
 impl ConsensusModule {
@@ -420,8 +420,8 @@ impl ConsensusModule {
         set: &HashSet<Vote>,
         quorum_members: QuorumData,
     ) -> bool {
-        dbg!(set.len());
-        dbg!(quorum_members.members.len());
+        //dbg!(set.len());
+        //dbg!(quorum_members.members.len());
         set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD) as usize
     }
 

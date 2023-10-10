@@ -418,7 +418,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    #[ignore = "broken atm"]
+    #[ignore = "redundant tested in ../node/tests/harvesters"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions().unwrap();
@@ -1195,7 +1195,7 @@ mod tests {
             let mut res: Result<(), NodeError> = Err(NodeError::Other("".to_string())); 
             for vote in &votes {
                 res = harvester.handle_vote_received(vote.clone()).await;
-                dbg!(&res);
+                //dbg!(&res);
             }
             assert!(res.is_ok());
         }
