@@ -257,7 +257,8 @@ impl Wallet {
             let mut accounts = HashMap::new();
             let addresses = wallet.addresses.clone();
             for (_, addr) in addresses.iter() {
-                let account = wallet.get_account(addr.clone()).await?;
+                let account = wallet.get_account(addr.clone()).await;
+                let account = account?;
                 accounts.insert(addr.to_owned(), account);
             }
 

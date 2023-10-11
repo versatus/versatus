@@ -7,7 +7,7 @@ use std::sync::Arc;
 use axum::routing::post;
 use tokio::spawn;
 use tokio::sync::Mutex;
-use primitives::{Address, SecretKey};
+use primitives::Address;
 use vrrb_core::transactions::{RpcTransactionDigest, Token};
 use wallet::v2::{Wallet, WalletConfig, WalletError};
 
@@ -19,12 +19,11 @@ struct FaucetRequest {
 pub struct FaucetConfig {
     pub rpc_server_address: SocketAddr,
     pub server_port: u16,
-    pub secret_key: SecretKey,
+    pub secret_key: String,
     pub transfer_amount: u64,
-    // Add other configuration parameters if needed.
 }
 
-struct Faucet {
+pub struct Faucet {
     config: FaucetConfig,
     wallet: Arc<Mutex<Wallet>>,
 }
@@ -47,25 +46,25 @@ async fn drip(
             Token::default(),
             timestamp
         )
-        // .map_err(|err| {
-        //     eprintln!("Unable to send transaction: {}", err);
-        //     StatusCode::INTERNAL_SERVER_ERROR
-        // })?;
+        .await
+        .map_err(|err| {
+            eprintln!("Unable to send transaction: {}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     ;
     //
-    // Ok(Json::from(digest))
-    Ok(Json::from("digest".to_string()))
+    Ok(Json::from(digest))
 }
 
 impl Faucet {
     pub async fn new(config: FaucetConfig) -> Result<Self, WalletError> {
-        let wallet_config = WalletConfig {
-            rpc_server_address: config.rpc_server_address,
-            secret_key: config.secret_key,
-            ..Default::default()
-        };
 
-        let wallet = Wallet::new(wallet_config).await?;
+        let wallet = Wallet::restore_from_private_key(
+            config.secret_key.clone(),
+            config.rpc_server_address,
+        ).await?;
+
+        eprintln!("wallet: {:?}", wallet);
 
         let faucet = Faucet {
             config,
@@ -77,7 +76,7 @@ impl Faucet {
     pub async fn start(self) -> Result<(), axum::Error> {
 
         let app = Router::new()
-            .route("/faucet", post(drip))
+            .route("/drip", post(drip))
             .layer(Extension(self.wallet));
 
         let addr = SocketAddr::from(([127, 0, 0, 1], self.config.server_port));
