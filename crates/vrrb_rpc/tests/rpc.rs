@@ -58,10 +58,10 @@ async fn server_can_publish_transactions_to_be_created() {
     let txn = TransactionKind::transfer_builder()
         .timestamp(0)
         .sender_address(address.clone())
-        .sender_public_key(public_key.clone())
+        .sender_public_key(public_key)
         .receiver_address(recv_address.clone())
         .amount(10)
-        .signature(signature.clone())
+        .signature(signature)
         .nonce(0)
         .build_kind().expect("failed to build transfer transaction");
 
@@ -74,7 +74,7 @@ async fn server_can_publish_transactions_to_be_created() {
         id: mock_digest,
         timestamp: 0,
         sender_address: address.clone(),
-        sender_public_key: public_key.clone(),
+        sender_public_key: public_key,
         receiver_address: recv_address.clone(),
         token: Token::default(),
         amount: 10,
@@ -88,5 +88,5 @@ async fn server_can_publish_transactions_to_be_created() {
 
     assert_eq!(result_ser, mock_ser);
 
-    handle.stop().unwrap();
+    handle.stop().expect("Unable to stop server");
 }
