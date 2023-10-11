@@ -95,7 +95,6 @@ impl StateManager {
         convergence: &ConvergenceBlock,
         proposals: &[ProposalBlock],
     ) -> GraphResult<ApplyBlockResult> {
-        dbg!("calling database.apply_convergence_block");
         let res = self
             .database
             .apply_convergence_block(convergence, proposals)
@@ -146,9 +145,9 @@ impl StateManager {
 
     //TODO: Move to test configured trait
     pub fn write_vertex(&mut self, vertex: &Vertex<Block, BlockHash>) -> Result<()> {
-        self.dag.write_vertex(vertex).map_err(|err| {
-            NodeError::Other(format!("{:?}", err))
-        })
+        self.dag
+            .write_vertex(vertex)
+            .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
     /// Inserts a Transaction into the TransactionStore and

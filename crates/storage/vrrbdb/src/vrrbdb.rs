@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use block::{Block, convergence_block, ConvergenceBlock, ProposalBlock};
+use block::{convergence_block, Block, ConvergenceBlock, ProposalBlock};
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
@@ -239,20 +239,25 @@ impl VrrbDb {
 
         // TODO: create methods to check if these exist
         read_handle.get_account_by_address(&sender_address)?;
-        if let Err(StorageError::Other(err)) = read_handle.get_account_by_address(&receiver_address) {
+        if let Err(StorageError::Other(_err)) =
+            read_handle.get_account_by_address(&receiver_address)
+        {
             let account = Account::new(receiver_address.clone());
             self.insert_account(receiver_address.clone(), account)?;
         };
 
         let updates = IntoUpdates::from_txn(txn.clone());
+        // dbg!(&updates);
 
         self.state_store
-            .update_uncommited(sender_address, updates.sender_update.into())?;
+            .update_uncommited(sender_address.clone(), updates.sender_update.into())?;
 
         self.state_store
-            .update_uncommited(receiver_address, updates.receiver_update.into())?;
+            .update_uncommited(receiver_address.clone(), updates.receiver_update.into())?;
 
         self.state_store.commit();
+        dbg!(self.state_store.get_account(&sender_address)?);
+        dbg!(self.state_store.get_account(&receiver_address)?);
 
         // TODO: update transaction's state
         self.transaction_store.insert(txn)?;
@@ -276,23 +281,25 @@ impl VrrbDb {
         }
     }
 
-    pub fn apply_convergence_block(&mut self, convergence: &ConvergenceBlock, proposals: &[ProposalBlock]) -> Result<ApplyBlockResult> {
+    pub fn apply_convergence_block(
+        &mut self,
+        convergence: &ConvergenceBlock,
+        proposals: &[ProposalBlock],
+    ) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
         for (proposal, txn_set) in &convergence.txns {
-            let block = proposals.iter().find(|pblock| {
-                pblock.hash == proposal.clone()
-            }).ok_or(
-                StorageError::Other(
-                    format!(
-                        "unable to find proposal block with hash {}",
-                        &proposal
-                    )
-                )
-            )?;
+            let block = proposals
+                .iter()
+                .find(|pblock| pblock.hash == proposal.clone())
+                .ok_or(StorageError::Other(format!(
+                    "unable to find proposal block with hash {}",
+                    &proposal
+                )))?;
 
             let mut txns = block.txns.clone();
             txns.retain(|digest, _| txn_set.contains(digest));
             for (digest, txn_kind) in txns {
+                dbg!(&digest);
                 self.apply_txn(read_handle.clone(), txn_kind)?;
             }
         }
@@ -303,9 +310,10 @@ impl VrrbDb {
         let state_root_hash = self.state_store.root_hash()?;
         let transactions_root_hash = self.transaction_store.root_hash()?;
 
-        Ok(
-            ApplyBlockResult { state_root_hash, transactions_root_hash }
-        )
+        Ok(ApplyBlockResult {
+            state_root_hash,
+            transactions_root_hash,
+        })
     }
 
     /// Applies a block of transactions updating the account states accordingly.
