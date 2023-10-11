@@ -16,7 +16,7 @@ mod tests {
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
-    use primitives::{Address, NodeId};
+    use primitives::Address;
     use ritelinked::LinkedHashMap;
     use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
     use vrrb_core::{claim::Claim, keypair::Keypair};
@@ -113,7 +113,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                engine.clone()
+                engine.clone(),
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),
@@ -154,8 +154,6 @@ mod tests {
             m2kp.get_miner_secret_key().clone(),
         );
 
-
-
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
             miner.last_block = Some(Arc::new(genesis.clone()));
@@ -171,7 +169,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                engine1
+                engine1,
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -180,7 +178,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                engine2
+                engine2,
             );
 
             let pblock1 = Block::Proposal {

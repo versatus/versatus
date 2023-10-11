@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
-use crate::node_runtime::NodeRuntime;
+use crate::{node_runtime::NodeRuntime, runtime::NETWORK_TOPIC_STR};
 use async_trait::async_trait;
 use block::Certificate;
-use signer::{engine::QuorumData, engine::QuorumMembers as InaugaratedMembers};
-use events::{Event, EventMessage, EventPublisher, EventSubscriber, Vote};
-use primitives::{NETWORK_TOPIC_STR, NodeId, NodeType, ValidatorPublicKey, ConvergencePartialSig, NodeId, PublicKey, QuorumId, QuorumKind};
+use events::{Event, EventMessage};
+use primitives::ConvergencePartialSig;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
@@ -42,8 +39,8 @@ impl Handler<EventMessage> for NodeRuntime {
                     .handle_node_added_to_peer_list(peer_data.clone())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-              
-                if let Some(assignments) = assigments {
+
+                if let Some(assignments) = assignments {
                     let assignments = assignments.into_values().collect();
                     let event = EventMessage::new(
                         Some("network-events".into()),
@@ -73,9 +70,11 @@ impl Handler<EventMessage> for NodeRuntime {
                     .handle_miner_election_started(header, claims)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                let winner = results.clone().into_iter().next().ok_or(
-                    TheaterError::Other("no winner found".to_string())
-                )?;
+                let winner = results
+                    .clone()
+                    .into_iter()
+                    .next()
+                    .ok_or(TheaterError::Other("no winner found".to_string()))?;
 
                 let event = Event::MinerElected(winner);
 
