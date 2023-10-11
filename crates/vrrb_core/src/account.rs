@@ -186,7 +186,9 @@ pub struct Account {
     storage: Option<String>,
     package_address: Option<String>,
     digests: AccountDigests,
+    #[serde(skip_serializing)]
     created_at: i64,
+    #[serde(skip_serializing)]
     updated_at: Option<i64>,
 }
 

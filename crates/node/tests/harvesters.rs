@@ -579,6 +579,13 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     // dbg!(&block_apply_result);
     // dbg!(&results);
     let first_node = all_nodes.first().unwrap();
+
+    let first = results.first().unwrap();
+    assert_eq!(
+        first.state_root_hash_str(),
+        block_apply_result.state_root_hash_str()
+    );
+
     assert_eq!(
         first_node.state_driver.get_account(&address1).unwrap(),
         chosen_harvester
@@ -592,12 +599,6 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
             .state_driver
             .get_account(&address2)
             .unwrap()
-    );
-
-    let first = results.first().unwrap();
-    assert_eq!(
-        first.state_root_hash_str(),
-        block_apply_result.state_root_hash_str()
     );
 
     // results.iter().for_each(|res| {
