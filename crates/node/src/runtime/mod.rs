@@ -118,15 +118,15 @@ pub async fn setup_runtime_components(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::NodeError;
     use crate::node_runtime::NodeRuntime;
     use crate::test_utils::{
         create_node_runtime_network, create_quorum_assigned_node_runtime_network,
         create_sender_receiver_addresses, create_txn_from_accounts,
         create_txn_from_accounts_invalid_signature, create_txn_from_accounts_invalid_timestamp,
     };
+    use crate::NodeError;
     use block::Block;
-    use events::{AssignedQuorumMembership, PeerData, DEFAULT_BUFFER, Vote};
+    use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
     use vrrb_core::account::{self, Account, AccountField};
     use vrrb_core::transactions::Transaction;
@@ -1142,7 +1142,8 @@ mod tests {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
         let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-        let mut farmers: Vec<NodeRuntime> = nodes.clone()
+        let mut farmers: Vec<NodeRuntime> = nodes
+            .clone()
             .into_iter()
             .filter_map(|nr| {
                 if nr.consensus_driver.quorum_kind == Some(QuorumKind::Farmer) {
@@ -1172,28 +1173,27 @@ mod tests {
         let account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
 
         let mut txn = create_txn_from_accounts(
-            (sender_address.clone(), Some(sender_account.clone())), receiver_address,
+            (sender_address.clone(), Some(sender_account.clone())),
+            receiver_address,
             vec![],
         );
 
-        let votes: Vec<Vote> = farmers.iter_mut().map(|nr| {
-            nr.handle_create_account_requested(
-                sender_address.clone(), 
-                account_bytes.clone()
-            );
-            nr.insert_txn_to_mempool(txn.clone());
-            let mempool_reader = nr.mempool_read_handle_factory();
-            let state_reader = nr.state_store_read_handle_factory();
-            let res = nr.validate_transaction_kind(
-                txn.digest(), 
-                mempool_reader, 
-                state_reader
-            ).unwrap(); 
-            nr.cast_vote_on_transaction_kind(res.0, res.1).unwrap()
-        }).collect();
+        let votes: Vec<Vote> = farmers
+            .iter_mut()
+            .map(|nr| {
+                nr.handle_create_account_requested(sender_address.clone(), account_bytes.clone());
+                nr.insert_txn_to_mempool(txn.clone());
+                let mempool_reader = nr.mempool_read_handle_factory();
+                let state_reader = nr.state_store_read_handle_factory();
+                let res = nr
+                    .validate_transaction_kind(txn.digest(), mempool_reader, state_reader)
+                    .unwrap();
+                nr.cast_vote_on_transaction_kind(res.0, res.1).unwrap()
+            })
+            .collect();
 
         for harvester in harvesters.iter_mut() {
-            let mut res: Result<(), NodeError> = Err(NodeError::Other("".to_string())); 
+            let mut res: Result<(), NodeError> = Err(NodeError::Other("".to_string()));
             for vote in &votes {
                 res = harvester.handle_vote_received(vote.clone()).await;
                 //dbg!(&res);
@@ -1202,7 +1202,13 @@ mod tests {
         }
 
         for harvester in harvesters.iter() {
-            assert!(harvester.consensus_driver.get_quorum_certified_transactions().len() == 1);
+            assert!(
+                harvester
+                    .consensus_driver
+                    .get_quorum_certified_transactions()
+                    .len()
+                    == 1
+            );
         }
     }
 
