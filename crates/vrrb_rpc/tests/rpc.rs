@@ -3,6 +3,7 @@ use std::{collections::HashMap, net::SocketAddr};
 use events::{EventMessage, DEFAULT_BUFFER};
 use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
+use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;
 use vrrb_core::transactions::{generate_transfer_digest_vec, NewTransferArgs, Token};
 use vrrb_rpc::rpc::{
@@ -15,6 +16,7 @@ mod common;
 
 #[tokio::test]
 async fn server_can_publish_transactions_to_be_created() {
+    remove_vrrb_data_dir();
     let _: SocketAddr = "127.0.0.1:0"
         .parse()
         .expect("Unable to create Socket Address");
