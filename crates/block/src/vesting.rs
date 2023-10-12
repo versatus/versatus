@@ -1,11 +1,10 @@
-use primitives::Address;
+use primitives::{Address, PublicKey, SecretKey};
 use ritelinked::LinkedHashMap;
-use vrrb_core::transactions::{
-    NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer,
-};
+use secp256k1::Secp256k1;
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 // 50% after one year, then monthly for 12 months
-const EMPLOYEE_VESTING: VestingConfig = VestingConfig {
+const CONTRIBUTOR_VESTING: VestingConfig = VestingConfig {
     cliff_fraction: 0.5f64,
     cliff_years: 1f64,
     unlocks: 12,
@@ -19,16 +18,6 @@ const INVESTOR_VESTING: VestingConfig = VestingConfig {
     unlocks: 18,
     unlock_years: 1.5f64,
 };
-
-const EMPLOYEESS: [&str; 2] = [
-    "6pME5t7fLGubJjcn4L4ncN7DZs7tWPHU4FoYV4Cv3vGa",
-    "3ki3QpPM2cGE3X5MZm6L4NcMdrp7R9vVeE2PEE427uqa",
-];
-
-const INVESTORS: [&str; 2] = [
-    "C5dz418Wf5cKeGKCUBN7AUTRcGK9wcRknEfVbjSyAMZm",
-    "5TAgthC5PLYBP3JSvjjfnd1jkY1VLrC78p4T4MucHFE",
-];
 
 #[derive(Debug, Clone)]
 pub struct VestingConfig {
@@ -51,6 +40,20 @@ pub struct GenesisReceiver {
     pub vesting_config: Option<VestingConfig>,
 }
 
+impl GenesisReceiver {
+    fn new(
+        address: Address,
+        genesis_receiver_kind: GenesisReceiverKind,
+        vesting_config: VestingConfig,
+    ) -> Self {
+        Self {
+            address,
+            genesis_receiver_kind,
+            vesting_config: Some(vesting_config),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GenesisConfig {
     pub sender: Address,
@@ -66,39 +69,56 @@ impl GenesisConfig {
     }
 }
 
-#[allow(clippy::diverging_sub_expression)]
-pub fn create_vesting(
-    _target: &str,
-    _config: VestingConfig,
-) -> (TransactionDigest, TransactionKind) {
+pub fn create_vesting(genesis_receiver: &GenesisReceiver) -> (TransactionDigest, TransactionKind) {
     todo!()
 }
 
-// TODO: Genesis block on local/testnet should generate either a
-// faucet for tokens, or fill some initial accounts so that testing
-// can be executed
-//
-// TODO: revisit after discussing mainnet genesis inauguration
 pub fn generate_genesis_txns(
-    #[allow(unused)] genesis_config: GenesisConfig,
+    n: usize,
+    genesis_config: &mut GenesisConfig,
 ) -> LinkedHashMap<TransactionDigest, TransactionKind> {
-    #[cfg(not(mainnet))]
-    let genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> = LinkedHashMap::new();
+    let mut genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> =
+        LinkedHashMap::with_capacity(4);
+    let mut receivers = Vec::with_capacity(n);
 
-    #[cfg(mainnet)]
-    let mut genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> = LinkedHashMap::new();
+    let receiver_keysets = create_genesis_keysets(n);
+    let contributor_keysets = &receiver_keysets[0..(n / 2) - 1];
+    let investor_keysets = &receiver_keysets[(n / 2) - 1..];
 
-    #[cfg(mainnet)]
-    for employee in EMPLOYEESS {
-        let vesting_txn = create_vesting(employee, EMPLOYEE_VESTING);
+    for (_, public_key) in contributor_keysets {
+        let contributor = GenesisReceiver::new(
+            Address::new(*public_key),
+            GenesisReceiverKind::Contributor,
+            CONTRIBUTOR_VESTING,
+        );
+        let vesting_txn = create_vesting(&contributor);
         genesis_txns.insert(vesting_txn.0, vesting_txn.1);
+        receivers.push(contributor);
+    }
+    for (_, public_key) in investor_keysets {
+        let investor = GenesisReceiver::new(
+            Address::new(*public_key),
+            GenesisReceiverKind::Contributor,
+            INVESTOR_VESTING,
+        );
+        let vesting_txn = create_vesting(&investor);
+        genesis_txns.insert(vesting_txn.0, vesting_txn.1);
+        receivers.push(investor);
     }
 
-    #[cfg(mainnet)]
-    for investor in INVESTORS {
-        let vesting_txn = create_vesting(investor, INVESTOR_VESTING);
-        genesis_txns.insert(vesting_txn.0, vesting_txn.1);
-    }
-
+    genesis_config.receivers = receivers;
     genesis_txns
+}
+
+fn create_genesis_keyset(m: usize) -> (SecretKey, PublicKey) {
+    type H = secp256k1::hashes::sha256::Hash;
+    let secp = Secp256k1::new();
+    let secret_key = SecretKey::from_hashed_data::<H>(format!("genesis_member-{m}").as_bytes());
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+
+    (secret_key, public_key)
+}
+
+fn create_genesis_keysets(n: usize) -> Vec<(SecretKey, PublicKey)> {
+    (0..n).map(|m| create_genesis_keyset(m)).collect()
 }
