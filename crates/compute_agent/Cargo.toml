@@ -12,3 +12,8 @@ clap = { workspace = true }
 telemetry = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
+prometheus = { workspace = true }
+hyper = { workspace = true }
+rand = { workspace = true }
+lazy_static = { workspace = true }
+platform = { workspace = true }
