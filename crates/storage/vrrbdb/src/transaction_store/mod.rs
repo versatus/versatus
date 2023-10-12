@@ -71,7 +71,6 @@ impl TransactionStore {
     }
 
     pub fn root_hash(&self) -> Result<RootHash> {
-        dbg!(&self.trie.version());
         self.trie
             .root_latest()
             .map_err(|e| StorageError::Other(e.to_string()))

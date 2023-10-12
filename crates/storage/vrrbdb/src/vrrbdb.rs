@@ -247,7 +247,6 @@ impl VrrbDb {
         };
 
         let updates = IntoUpdates::from_txn(txn.clone());
-        // dbg!(&updates);
 
         self.state_store
             .update_uncommited(sender_address.clone(), updates.sender_update.into())?;
@@ -256,8 +255,6 @@ impl VrrbDb {
             .update_uncommited(receiver_address.clone(), updates.receiver_update.into())?;
 
         self.state_store.commit();
-        dbg!(self.state_store.get_account(&sender_address)?);
-        dbg!(self.state_store.get_account(&receiver_address)?);
 
         // TODO: update transaction's state
         self.transaction_store.insert(txn)?;
@@ -299,7 +296,6 @@ impl VrrbDb {
             let mut txns = block.txns.clone();
             txns.retain(|digest, _| txn_set.contains(digest));
             for (digest, txn_kind) in txns {
-                dbg!(&digest);
                 self.apply_txn(read_handle.clone(), txn_kind)?;
             }
         }

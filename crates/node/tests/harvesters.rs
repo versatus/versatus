@@ -576,41 +576,33 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     assert!(chosen_harvester.certified_convergence_block_exists_within_dag(convergence_block.hash));
-    // dbg!(&block_apply_result);
-    // dbg!(&results);
-    let first_node = all_nodes.first().unwrap();
 
-    let first = results.first().unwrap();
-    assert_eq!(
-        first.state_root_hash_str(),
-        block_apply_result.state_root_hash_str()
-    );
-
-    assert_eq!(
-        first_node.state_driver.get_account(&address1).unwrap(),
-        chosen_harvester
-            .state_driver
-            .get_account(&address1)
-            .unwrap()
-    );
-    assert_eq!(
-        first_node.state_driver.get_account(&address2).unwrap(),
-        chosen_harvester
-            .state_driver
-            .get_account(&address2)
-            .unwrap()
-    );
-
-    // results.iter().for_each(|res| {
-    //     assert_eq!(
-    //         res.transactions_root_hash_str(),
-    //         block_apply_result.clone().transactions_root_hash_str()
-    //     );
-    //     assert_eq!(
-    //         res.state_root_hash_str(),
-    //         block_apply_result.clone().state_root_hash_str()
-    //     );
-    // });
+    results.iter().for_each(|res| {
+        assert_eq!(
+            res.transactions_root_hash_str(),
+            block_apply_result.clone().transactions_root_hash_str()
+        );
+        assert_eq!(
+            res.state_root_hash_str(),
+            block_apply_result.clone().state_root_hash_str()
+        );
+    });
+    all_nodes.iter().for_each(|node| {
+        assert_eq!(
+            node.state_driver.get_account(&address1).unwrap(),
+            chosen_harvester
+                .state_driver
+                .get_account(&address1)
+                .unwrap()
+        );
+        assert_eq!(
+            node.state_driver.get_account(&address2).unwrap(),
+            chosen_harvester
+                .state_driver
+                .get_account(&address2)
+                .unwrap()
+        );
+    });
 }
 
 fn dummy_convergence_block() -> ConvergenceBlock {

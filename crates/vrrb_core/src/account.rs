@@ -5,8 +5,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use chrono::Utc;
-use primitives::{Address, SerializedPublicKey};
+use primitives::Address;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -186,10 +185,10 @@ pub struct Account {
     storage: Option<String>,
     package_address: Option<String>,
     digests: AccountDigests,
-    #[serde(skip_serializing)]
-    created_at: i64,
-    #[serde(skip_serializing)]
-    updated_at: Option<i64>,
+    // #[serde(skip_serializing)]
+    // created_at: i64,
+    // #[serde(skip_serializing)]
+    // updated_at: Option<i64>,
 }
 
 impl Account {
@@ -218,8 +217,8 @@ impl Account {
             storage,
             package_address,
             digests,
-            created_at: Utc::now().timestamp(),
-            updated_at: None,
+            // created_at: Utc::now().timestamp(),
+            // updated_at: None,
         }
     }
 
@@ -352,7 +351,7 @@ impl Account {
             self.update_single_field_no_hash(AccountField::Digests(digests))?;
         }
 
-        self.updated_at = Some(Utc::now().timestamp());
+        // self.updated_at = Some(Utc::now().timestamp());
         self.rehash();
         Ok(())
     }
@@ -399,12 +398,12 @@ impl Account {
     pub fn digests(&self) -> &AccountDigests {
         &self.digests
     }
-    pub fn created_at(&self) -> i64 {
-        self.created_at
-    }
-    pub fn updated_at(&self) -> Option<i64> {
-        self.updated_at
-    }
+    // pub fn created_at(&self) -> i64 {
+    //     self.created_at
+    // }
+    // pub fn updated_at(&self) -> Option<i64> {
+    //     self.updated_at
+    // }
 }
 
 impl std::fmt::Display for Account {
