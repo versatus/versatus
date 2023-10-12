@@ -44,6 +44,10 @@ pub struct ServiceConfig {
     pub tls_public_cert_file: String,
     /// A TLS CA certificate for validating certificates
     pub tls_ca_cert_file: String,
+    /// Prometheus exporter bind address
+    pub exporter_address: String,
+    /// Prometheus exporter bind port
+    pub exporter_port: String,
 }
 
 impl Config {
@@ -57,15 +61,9 @@ impl Config {
     /// Find a service definition by type and label
     pub fn find_service(&self, service_name: &str, service_type: &str) -> Result<ServiceConfig> {
         let collection: Vec<ServiceConfig> = match service_type {
-            "compute" => {
-                self.services.compute.clone()
-            },
-            "storage" => {
-                self.services.storage.clone()
-            },
-            "blockchain" => {
-                self.services.blockchain.clone()
-            },
+            "compute" => self.services.compute.clone(),
+            "storage" => self.services.storage.clone(),
+            "blockchain" => self.services.blockchain.clone(),
             _ => return Err(anyhow!("Invalid service type: {}", service_type)),
         };
 
