@@ -84,29 +84,43 @@ pub fn generate_genesis_txns(
 
     if n != 0 {
         let mut receivers = Vec::with_capacity(n);
-        let receiver_keysets = create_genesis_keysets(n);
-        let contributor_keysets = &receiver_keysets[0..(n / 2) - 1];
-        let investor_keysets = &receiver_keysets[(n / 2) - 1..];
-
-        for (_, public_key) in contributor_keysets {
-            let contributor = GenesisReceiver::new(
-                Address::new(*public_key),
-                GenesisReceiverKind::Contributor,
-                CONTRIBUTOR_VESTING,
-            );
-            let vesting_txn = create_vesting(&contributor);
-            genesis_txns.insert(vesting_txn.0, vesting_txn.1);
-            receivers.push(contributor);
-        }
-        for (_, public_key) in investor_keysets {
+        if n == 1 {
+            let (_, public_key) = create_genesis_keyset(n);
             let investor = GenesisReceiver::new(
-                Address::new(*public_key),
+                Address::new(public_key),
                 GenesisReceiverKind::Contributor,
                 INVESTOR_VESTING,
             );
             let vesting_txn = create_vesting(&investor);
             genesis_txns.insert(vesting_txn.0, vesting_txn.1);
             receivers.push(investor);
+        } else {
+            let receiver_keysets = create_genesis_keysets(n);
+            let lower_half = |n: usize| 0..(n / 2) - 1;
+            let upper_half = |n: usize| (n / 2)..;
+            let contributor_keysets = &receiver_keysets[lower_half(n)];
+            let investor_keysets = &receiver_keysets[upper_half(n)];
+
+            for (_, public_key) in contributor_keysets {
+                let contributor = GenesisReceiver::new(
+                    Address::new(*public_key),
+                    GenesisReceiverKind::Contributor,
+                    CONTRIBUTOR_VESTING,
+                );
+                let vesting_txn = create_vesting(&contributor);
+                genesis_txns.insert(vesting_txn.0, vesting_txn.1);
+                receivers.push(contributor);
+            }
+            for (_, public_key) in investor_keysets {
+                let investor = GenesisReceiver::new(
+                    Address::new(*public_key),
+                    GenesisReceiverKind::Contributor,
+                    INVESTOR_VESTING,
+                );
+                let vesting_txn = create_vesting(&investor);
+                genesis_txns.insert(vesting_txn.0, vesting_txn.1);
+                receivers.push(investor);
+            }
         }
 
         genesis_config.receivers = receivers;
