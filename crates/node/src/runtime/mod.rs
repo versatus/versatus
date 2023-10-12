@@ -193,18 +193,18 @@ mod tests {
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
         let (node_0, farmers, harvesters, miners) = setup_network(8).await;
-        node_0.produce_genesis_transactions().unwrap();
+        node_0.produce_genesis_transactions(0).unwrap();
 
         for (_, node) in farmers.iter() {
-            assert!(node.produce_genesis_transactions().is_err());
+            assert!(node.produce_genesis_transactions(0).is_err());
         }
 
         for (_, node) in harvesters.iter() {
-            assert!(node.produce_genesis_transactions().is_err());
+            assert!(node.produce_genesis_transactions(0).is_err());
         }
 
         for (_, node) in miners.iter() {
-            assert!(node.produce_genesis_transactions().is_err());
+            assert!(node.produce_genesis_transactions(0).is_err());
         }
     }
 
@@ -246,7 +246,7 @@ mod tests {
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -306,7 +306,7 @@ mod tests {
     async fn harvester_node_runtime_can_propose_blocks() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
 
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -381,7 +381,7 @@ mod tests {
     #[serial_test::serial]
     async fn harvester_node_runtime_can_handle_genesis_block_created() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -422,7 +422,7 @@ mod tests {
     #[ignore = "redundant tested in ../node/tests/harvesters"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
         let miner_ids = miners
             .clone()

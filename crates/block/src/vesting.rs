@@ -3,6 +3,8 @@ use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
+pub const N_ALPHANET_RECEIVERS: usize = 4;
+
 // 50% after one year, then monthly for 12 months
 const CONTRIBUTOR_VESTING: VestingConfig = VestingConfig {
     cliff_fraction: 0.5f64,
@@ -30,7 +32,7 @@ pub struct VestingConfig {
 #[derive(Debug, Clone)]
 pub enum GenesisReceiverKind {
     Investor,
-    Contributor, // formerly EMPLOYEE
+    Contributor,
 }
 
 #[derive(Debug, Clone)]
@@ -69,7 +71,7 @@ impl GenesisConfig {
     }
 }
 
-pub fn create_vesting(genesis_receiver: &GenesisReceiver) -> (TransactionDigest, TransactionKind) {
+pub fn create_vesting(_genesis_receiver: &GenesisReceiver) -> (TransactionDigest, TransactionKind) {
     todo!()
 }
 
@@ -78,35 +80,37 @@ pub fn generate_genesis_txns(
     genesis_config: &mut GenesisConfig,
 ) -> LinkedHashMap<TransactionDigest, TransactionKind> {
     let mut genesis_txns: LinkedHashMap<TransactionDigest, TransactionKind> =
-        LinkedHashMap::with_capacity(4);
-    let mut receivers = Vec::with_capacity(n);
+        LinkedHashMap::with_capacity(n);
 
-    let receiver_keysets = create_genesis_keysets(n);
-    let contributor_keysets = &receiver_keysets[0..(n / 2) - 1];
-    let investor_keysets = &receiver_keysets[(n / 2) - 1..];
+    if n != 0 {
+        let mut receivers = Vec::with_capacity(n);
+        let receiver_keysets = create_genesis_keysets(n);
+        let contributor_keysets = &receiver_keysets[0..(n / 2) - 1];
+        let investor_keysets = &receiver_keysets[(n / 2) - 1..];
 
-    for (_, public_key) in contributor_keysets {
-        let contributor = GenesisReceiver::new(
-            Address::new(*public_key),
-            GenesisReceiverKind::Contributor,
-            CONTRIBUTOR_VESTING,
-        );
-        let vesting_txn = create_vesting(&contributor);
-        genesis_txns.insert(vesting_txn.0, vesting_txn.1);
-        receivers.push(contributor);
+        for (_, public_key) in contributor_keysets {
+            let contributor = GenesisReceiver::new(
+                Address::new(*public_key),
+                GenesisReceiverKind::Contributor,
+                CONTRIBUTOR_VESTING,
+            );
+            let vesting_txn = create_vesting(&contributor);
+            genesis_txns.insert(vesting_txn.0, vesting_txn.1);
+            receivers.push(contributor);
+        }
+        for (_, public_key) in investor_keysets {
+            let investor = GenesisReceiver::new(
+                Address::new(*public_key),
+                GenesisReceiverKind::Contributor,
+                INVESTOR_VESTING,
+            );
+            let vesting_txn = create_vesting(&investor);
+            genesis_txns.insert(vesting_txn.0, vesting_txn.1);
+            receivers.push(investor);
+        }
+
+        genesis_config.receivers = receivers;
     }
-    for (_, public_key) in investor_keysets {
-        let investor = GenesisReceiver::new(
-            Address::new(*public_key),
-            GenesisReceiverKind::Contributor,
-            INVESTOR_VESTING,
-        );
-        let vesting_txn = create_vesting(&investor);
-        genesis_txns.insert(vesting_txn.0, vesting_txn.1);
-        receivers.push(investor);
-    }
-
-    genesis_config.receivers = receivers;
     genesis_txns
 }
 
