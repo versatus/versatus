@@ -29,6 +29,7 @@ use primitives::{Address, QuorumKind, Signature};
 use quorum::{election::Election, quorum::Quorum};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use sha256::digest;
+use storage::storage_utils::remove_vrrb_data_dir;
 use vrrb_core::{
     account::{Account, AccountField},
     claim::{Claim, Eligibility},
@@ -39,6 +40,7 @@ use vrrb_core::{
 #[tokio::test]
 #[serial_test::serial]
 async fn harvesters_can_build_proposal_blocks() {
+    remove_vrrb_data_dir();
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
@@ -63,6 +65,7 @@ async fn harvesters_can_build_proposal_blocks() {
 #[tokio::test]
 #[serial_test::serial]
 async fn non_harvesters_cannot_build_proposal_blocks() {
+    remove_vrrb_data_dir();
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
@@ -95,6 +98,7 @@ async fn non_harvesters_cannot_build_proposal_blocks() {
 /// appended to state, afterwhich the harvester VALIDATION_THRESHOLD is reached
 /// confirmed by the SignerEngine, and forms a complete certificate.
 async fn harvester_nodes_form_certificate() {
+    remove_vrrb_data_dir();
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
@@ -147,6 +151,7 @@ async fn harvester_nodes_form_certificate() {
 /// Asserts that a full certificate created by harvester nodes contains
 /// the pending quorum that formed directly prior to the certificate's creation.
 async fn certificate_formed_includes_pending_quorum() {
+    remove_vrrb_data_dir();
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
@@ -224,6 +229,7 @@ async fn certificate_formed_includes_pending_quorum() {
 #[tokio::test]
 #[serial_test::serial]
 async fn all_nodes_append_certificate_to_convergence_block() {
+    remove_vrrb_data_dir();
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
@@ -317,6 +323,7 @@ async fn all_nodes_append_certificate_to_convergence_block() {
 #[tokio::test]
 #[serial_test::serial]
 async fn all_nodes_append_certified_convergence_block_to_dag() {
+    remove_vrrb_data_dir();
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
