@@ -83,6 +83,7 @@ impl QuorumModule {
         let assigned_membership = AssignedQuorumMembership {
             quorum_kind,
             node_id: node_id.clone(),
+            pub_key: peer_data.validator_public_key,
             kademlia_peer_id: peer_data.kademlia_peer_id,
             peers: peers
                 .into_iter()
@@ -106,7 +107,7 @@ impl QuorumModule {
             .cloned()
             .collect::<Vec<PeerData>>();
 
-        let mut unassigned_peers = peer_list
+        let unassigned_peers = peer_list
             .iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Validator)
             .map(|(_, (peer_data, _))| peer_data)
@@ -168,15 +169,15 @@ impl QuorumModule {
         Ok(quorum_assignments)
     }
 
-    pub fn elect_quorum(
+    pub fn elect_quorums(
         &self,
         claims: HashMap<NodeId, Claim>,
         header: BlockHeader,
-    ) -> Result<Quorum, QuorumError> {
+    ) -> Result<Vec<Quorum>, QuorumError> {
         let last_block_height = header.block_height;
         let seed = header.next_block_seed;
 
-        if let Ok(mut quorum) = Quorum::new(seed, last_block_height) {
+        if let Ok(mut quorum) = Quorum::new(seed, last_block_height, None) {
             let claim_vec: Vec<Claim> = claims.values().cloned().collect();
             if let Ok(elected_quorum) = quorum.run_election(claim_vec) {
                 return Ok(elected_quorum.clone());

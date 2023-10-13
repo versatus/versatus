@@ -3,25 +3,24 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ProposalBlock, QuorumMembers};
-use bulldag::{graph::BullDag, vertex::Vertex};
-use ethereum_types::U256;
-use events::{Event, EventMessage, EventPublisher, Vote};
-use hbbft::crypto::PublicKeySet;
-use mempool::{LeftRightMempool, MempoolReadHandleFactory};
-use patriecia::RootHash;
-use primitives::{
-    Address, ByteSlice, ByteVec, NodeId, ProgramExecutionOutput, RawSignature, Round,
-    TxnValidationStatus,
+use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use bulldag::{
+    graph::{BullDag, GraphError},
+    vertex::Vertex,
 };
+use ethereum_types::U256;
+use events::Event;
+use mempool::{LeftRightMempool, MempoolReadHandleFactory};
+use primitives::{Address, NodeId, Round};
+use signer::engine::{QuorumMembers, SignerEngine};
 use storage::vrrbdb::{types::*, ApplyBlockResult};
 use storage::{
     storage_utils::StorageError,
-    vrrbdb::{Claims, StateStoreReadHandle, VrrbDb, VrrbDbReadHandle},
+    vrrbdb::{Claims, VrrbDb, VrrbDbReadHandle},
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};
-use vrrb_core::{account::Account, claim::Claim, serde_helpers::decode_from_binary_byte_slice};
+use vrrb_core::{account::Account, claim::Claim};
 use vrrb_core::{
     account::UpdateArgs,
     transactions::{Transaction, TransactionDigest, TransactionKind},
@@ -32,7 +31,7 @@ use crate::{NodeError, Result};
 
 use super::{
     utils::{consolidate_update_args, get_update_args},
-    DagModule,
+    DagModule, GraphResult,
 };
 
 /// Provides a convenient configuration struct for building a
@@ -47,7 +46,7 @@ pub struct StateManagerConfig {
 
 #[derive(Debug, Clone)]
 pub struct StateManager {
-    pub(crate) id: ActorId,
+    pub(crate) actor_id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) dag: DagModule,
     pub(crate) database: VrrbDb,
@@ -59,12 +58,56 @@ impl StateManager {
         let dag_module = DagModule::new(config.dag.clone(), config.claim.clone());
 
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
+            actor_id: uuid::Uuid::new_v4().to_string(),
             database: config.database,
             status: ActorState::Stopped,
             dag: dag_module,
             mempool: config.mempool,
         }
+    }
+
+    pub fn append_convergence(
+        &mut self,
+        convergence: &ConvergenceBlock,
+    ) -> GraphResult<ApplyBlockResult> {
+        let opt = self.dag.append_convergence(convergence)?;
+        if let Some(cblock) = opt {
+            let ref_blocks = self.dag.get_convergence_reference_blocks(convergence);
+            let proposals: Vec<ProposalBlock> = ref_blocks
+                .iter()
+                .filter_map(|vertex| match vertex.get_data() {
+                    Block::Proposal { block } => Some(block.clone()),
+                    _ => None,
+                })
+                .collect();
+
+            let res = self.apply_convergence_block(&cblock, &proposals)?;
+            return Ok(res);
+        }
+
+        Err(GraphError::Other(
+            "unable to append and apply convergence block".to_string(),
+        ))
+    }
+
+    pub fn apply_convergence_block(
+        &mut self,
+        convergence: &ConvergenceBlock,
+        proposals: &[ProposalBlock],
+    ) -> GraphResult<ApplyBlockResult> {
+        let res = self
+            .database
+            .apply_convergence_block(convergence, proposals)
+            .map_err(|err| GraphError::Other(err.to_string()))?;
+        Ok(res)
+    }
+
+    pub fn append_certificate_to_convergence_block(
+        &mut self,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<ConvergenceBlock>> {
+        self.dag
+            .append_certificate_to_convergence_block(certificate)
     }
 
     pub fn export_state(&self) {
@@ -98,6 +141,13 @@ impl StateManager {
         let root_hash = self.database.claims_root_hash()?;
         let root_hash_hex = hex::encode(root_hash.0);
         Ok(root_hash_hex)
+    }
+
+    //TODO: Move to test configured trait
+    pub fn write_vertex(&mut self, vertex: &Vertex<Block, BlockHash>) -> Result<()> {
+        self.dag
+            .write_vertex(vertex)
+            .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
     /// Inserts a Transaction into the TransactionStore and
@@ -154,7 +204,7 @@ impl StateManager {
         let consolidated: HashSet<TransactionKind> = {
             let nested: Vec<HashSet<TransactionKind>> = proposals
                 .iter()
-                .map(|block| block.txns.iter().map(|(_, v)| v.clone().txn()).collect())
+                .map(|block| block.txns.iter().map(|(_, v)| v.clone()).collect())
                 .collect();
 
             nested.into_iter().flatten().collect()
@@ -287,40 +337,44 @@ impl StateManager {
         proposals
     }
 
-    pub(crate) fn handle_block_received(&mut self, block: Block) -> Result<()> {
+    pub fn handle_block_received(
+        &mut self,
+        block: &mut Block,
+        sig_engine: SignerEngine,
+    ) -> Result<Event> {
         match block {
-            Block::Genesis { block } => {
+            Block::Genesis { ref mut block } => {
                 if let Err(e) = self.dag.append_genesis(&block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 };
             },
-            Block::Proposal { block } => {
-                if let Err(e) = self.dag.append_proposal(&block) {
+            Block::Proposal { ref mut block } => {
+                if let Err(e) = self.dag.append_proposal(&block, sig_engine.clone()) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
             },
-            Block::Convergence { block } => {
-                if let Err(e) = self.dag.append_convergence(&block) {
+            Block::Convergence { ref mut block } => {
+                if let Err(e) = self.dag.append_convergence(block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
 
                 if block.certificate.is_none() {
                     if let Some(header) = self.dag.last_confirmed_block_header() {
-                        // let event = Event::ConvergenceBlockPrecheckRequested {
-                        //     convergence_block: block,
-                        //     block_header: header,
-                        // };
+                        let event = Event::ConvergenceBlockPrecheckRequested {
+                            convergence_block: block.clone(),
+                            block_header: header,
+                        };
 
-                        return Ok(());
+                        return Ok(event);
                     }
                 }
             },
         }
 
-        Ok(())
+        Ok(Event::BlockAppended(block.hash()))
     }
 
     pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
@@ -414,6 +468,18 @@ impl StateManager {
         handle
             .get(address)
             .map_err(|err| NodeError::Other(err.to_string()))
+    }
+
+    /// For testing purposes only. Do not use in production.
+    pub fn insert_claims(&mut self, claims: Vec<Claim>) -> Result<()> {
+        for claim in claims {
+            self.database.insert_claim(claim)?
+        }
+        Ok(())
+    }
+
+    pub fn dag(&self) -> Arc<RwLock<BullDag<Block, String>>> {
+        self.dag.dag().clone()
     }
 }
 

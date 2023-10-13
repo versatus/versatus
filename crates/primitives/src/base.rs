@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-use hbbft::crypto::PublicKeySet;
+use crate::NodeId;
+use crate::PublicKey;
+use crate::Signature;
 use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -71,6 +73,23 @@ pub enum QuorumType {
     Harvester,
 }
 
+impl std::fmt::Display for QuorumType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuorumType::Farmer => f.write_str("Farmer"),
+            QuorumType::Harvester => f.write_str("Harvester"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub struct ConvergencePartialSig {
+    pub sig: Signature,
+    pub block_hash: String,
+    //TODO: add node_idx for checking sig along the way
+    //pub node_idx: NodeIdx
+}
+
 pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
@@ -102,12 +121,18 @@ impl Display for QuorumKind {
 }
 
 /// A hashed [PublicKeySet].
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct QuorumId(String);
+
 impl QuorumId {
-    pub fn new(s: PublicKeySet) -> Self {
+    pub fn new(quorum_kind: QuorumKind, members: Vec<(NodeId, PublicKey)>) -> Self {
         let mut hasher = Sha256::new();
-        hasher.update(s.public_key().to_bytes());
+        hasher.update(quorum_kind.to_string().as_bytes());
+
+        for (id, pubkey) in members.iter() {
+            hasher.update(id.as_bytes());
+            hasher.update(&pubkey.serialize());
+        }
         let result = hasher.finalize();
 
         Self(hex::encode(result))

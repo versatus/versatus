@@ -5,18 +5,21 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::{ConvergenceBlock, QuorumData};
+use block::{Certificate, ConvergenceBlock};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
-use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote};
+use events::{
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote,
+};
 use hbbft::{
     crypto::PublicKey as ThresholdSignaturePublicKey,
     sync_key_gen::{Ack, Part},
 };
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use primitives::{KademliaPeerId, NodeId, NodeType, ValidatorPublicKey};
+use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
+use signer::engine::QuorumData;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
@@ -46,7 +49,7 @@ pub struct NetworkModule {
     pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
     pub(crate) dyswarm_client: dyswarm::client::Client,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
-    pub(crate) validator_public_key: ValidatorPublicKey,
+    pub(crate) validator_public_key: PublicKey,
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +76,7 @@ pub struct NetworkModuleConfig {
 
     pub events_tx: EventPublisher,
 
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 impl NetworkModule {
@@ -218,11 +221,11 @@ impl NetworkModule {
         &mut self.kademlia_node
     }
 
-    pub fn validator_public_key(&self) -> ValidatorPublicKey {
+    pub fn validator_public_key(&self) -> PublicKey {
         self.validator_public_key
     }
 
-    pub fn set_validator_public_key(&mut self, public_key: ValidatorPublicKey) {
+    pub fn set_validator_public_key(&mut self, public_key: PublicKey) {
         self.validator_public_key = public_key;
     }
 
@@ -398,38 +401,48 @@ impl NetworkModule {
         Ok(())
     }
 
-    pub async fn broadcast_quorum_membership(
+    pub async fn broadcast_convergence_block_partial_signature(
         &mut self,
-        quorum_data: QuorumData, 
+        sig: ConvergencePartialSig,
     ) -> Result<()> {
-        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastQuorumFormed(quorum_data));
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::ConvergenceBlockPartialSignComplete(sig));
 
         self.dyswarm_client
-            .broadcast(
-                BroadcastArgs {
-                    config: Default::default(),
-                    message,
-                    erasure_count: 0,
-                }
-            ).await?;
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
 
         Ok(())
     }
 
-    pub async fn broadcast_transaction_vote(
-        &mut self,
-        vote: Vote
-    ) -> Result<()> {
+    pub async fn broadcast_certificate(&mut self, cert: Certificate) -> Result<()> {
+        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastCertificate(cert));
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
         let message = dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(vote));
         self.dyswarm_client
-            .broadcast(
-                BroadcastArgs { 
-                    config: Default::default(), 
-                    message, 
-                    erasure_count: 0 
-                }
-            ).await?;
-        
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
         Ok(())
     }
 }

@@ -15,3 +15,4 @@ jsonrpsee = { workspace = true }
 kademlia-dht = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+sha3 = { workspace = true }
