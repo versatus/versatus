@@ -13,8 +13,8 @@ mod tests {
     use primitives::{Address, Signature};
     use rand::{rngs::StdRng, Rng};
     use secp256k1::ecdsa;
-    use vrrb_core::{account::Account, keypair::KeyPair};
     use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
+    use vrrb_core::{account::Account, keypair::KeyPair};
 
     use crate::validator_core_manager::ValidatorCoreManager;
 
@@ -58,26 +58,26 @@ mod tests {
     #[test]
     #[ignore = "https://github.com/versatus/versatus/issues/472"]
     fn should_validate_a_list_of_invalid_transactions() {
-        let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
+        // let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
 
-        let mut batch = vec![];
+        // let mut batch = vec![];
 
-        for _ in 0..1000 {
-            batch.push(random_txn());
-        }
+        // for _ in 0..1000 {
+        //     batch.push(random_txn());
+        // }
 
-        let account_state: HashMap<Address, Account> = HashMap::new();
+        // let account_state: HashMap<Address, Account> = HashMap::new();
 
-        let target = batch
-            .iter()
-            .cloned()
-            .map(|txn| {
-                let err = Err(crate::txn_validator::TxnValidatorError::SenderAddressIncorrect);
-                (txn, err)
-            })
-            .collect();
+        // let target = batch
+        //     .iter()
+        //     .cloned()
+        //     .map(|txn| {
+        //         let err = Err(crate::txn_validator::TxnValidatorError::SenderAddressIncorrect);
+        //         (txn, err)
+        //     })
+        //     .collect();
 
-        let validated = valcore_manager.validate(&account_state, batch);
-        assert_eq!(validated, target);
+        // let validated = valcore_manager.validate(&account_state, batch);
+        // assert_eq!(validated, target);
     }
 }

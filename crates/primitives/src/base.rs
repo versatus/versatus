@@ -1,6 +1,11 @@
 use std::fmt::Display;
 
+use crate::NodeId;
+use crate::PublicKey;
+use crate::Signature;
+use hex;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// The unit of time within VRRB.
 /// It lasts for some number
@@ -25,6 +30,10 @@ pub const DEFAULT_VRRB_WALLET_DATA_DIR_PATH: &str = ".vrrb/wallet";
 pub const DEFAULT_CONNECTION_TIMEOUT_IN_SECS: u64 = 2;
 pub const RAPTOR_DECODER_CACHE_LIMIT: usize = 10000;
 pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;
+
+pub const NETWORK_TOPIC_STR: &str = "network-events";
+pub const RUNTIME_TOPIC_STR: &str = "runtime-events";
+pub const JSON_RPC_API_TOPIC_STR: &str = "json-rpc-api-control";
 
 pub type ByteVec = Vec<u8>;
 pub type ByteSlice<'a> = &'a [u8];
@@ -64,10 +73,28 @@ pub enum QuorumType {
     Harvester,
 }
 
+impl std::fmt::Display for QuorumType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QuorumType::Farmer => f.write_str("Farmer"),
+            QuorumType::Harvester => f.write_str("Harvester"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub struct ConvergencePartialSig {
+    pub sig: Signature,
+    pub block_hash: String,
+    //TODO: add node_idx for checking sig along the way
+    //pub node_idx: NodeIdx
+}
+
 pub type QuorumSize = usize;
 pub type QuorumThreshold = usize;
 pub type FarmerQuorumThreshold = usize;
 pub type HarvesterQuorumThreshold = usize;
+pub type QuorumPubKey = String;
 
 pub type NodeTypeBytes = ByteVec;
 pub type QuorumPublicKey = ByteVec;
@@ -90,5 +117,27 @@ impl Display for QuorumKind {
             QuorumKind::Farmer => write!(f, "Farmer"),
             QuorumKind::Miner => write!(f, "Miner"),
         }
+    }
+}
+
+/// A hashed [PublicKeySet].
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct QuorumId(String);
+
+impl QuorumId {
+    pub fn new(quorum_kind: QuorumKind, members: Vec<(NodeId, PublicKey)>) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(quorum_kind.to_string().as_bytes());
+
+        for (id, pubkey) in members.iter() {
+            hasher.update(id.as_bytes());
+            hasher.update(&pubkey.serialize());
+        }
+        let result = hasher.finalize();
+
+        Self(hex::encode(result))
+    }
+    pub fn get_inner(&self) -> String {
+        self.0.clone()
     }
 }

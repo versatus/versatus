@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use ethereum_types::U256;
+use primitives::{NodeId, PublicKey, QuorumKind};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vrrb_core::{
@@ -36,9 +37,9 @@ pub enum QuorumError {
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct Quorum {
     pub quorum_seed: u64,
-    pub master_pubkeys: Vec<String>,
-    pub quorum_pk: String,
+    pub members: Vec<(NodeId, PublicKey)>,
     pub election_block_height: u128,
+    pub quorum_kind: Option<QuorumKind>,
 }
 
 ///generic types from Election trait defined here for Quorums
@@ -51,7 +52,7 @@ impl Election for Quorum {
     type Ballot = Vec<Claim>;
     type Error = QuorumError;
     type Payload = (Height, BlockHash);
-    type Return = Self;
+    type Return = Vec<Self>;
     type Seed = Seed;
 
     /// A miner calls this fxn to generate a u64 seed for the election using the
@@ -77,7 +78,7 @@ impl Election for Quorum {
     }
 
     /// Master nodes run elections to determine the next master node quorum
-    fn run_election(&mut self, ballot: Self::Ballot) -> Result<&Self::Return, Self::Error> {
+    fn run_election(&mut self, ballot: Self::Ballot) -> Result<Self::Return, Self::Error> {
         if self.election_block_height == 0 {
             return Err(QuorumError::InvalidChildBlockError);
         }
@@ -97,25 +98,34 @@ impl Election for Quorum {
 }
 
 impl Quorum {
+    //TODO: Make these configurable
+    pub const MIN_QUORUM_SIZE: usize = 3;
+    pub const MAX_QUORUM_SIZE: usize = 50;
+    /// 6 hours worth of 1 second block times.
+    pub const BLOCKS_PER_ELECTION: u128 = 21_600;
     /// Makes a new Quorum and initializes seed, child block height, and child
     /// block timestamp
-    pub fn new(seed: u64, height: u128) -> Result<Quorum, QuorumError> {
+    pub fn new(
+        seed: u64,
+        height: u128,
+        quorum_kind: Option<QuorumKind>,
+    ) -> Result<Quorum, QuorumError> {
         if !Quorum::check_validity(height) {
             Err(QuorumError::InvalidChildBlockError)
         } else {
             Ok(Quorum {
                 quorum_seed: seed,
-                master_pubkeys: Vec::new(),
-                quorum_pk: String::new(),
+                members: Vec::new(),
+                quorum_kind,
                 election_block_height: height,
             })
         }
     }
 
-    ///checks if the child block height is valid, its used at seed and quorum
+    /// Checks if the child block height is valid, its used at seed and quorum
     /// creation
     pub fn check_validity(height: Height) -> bool {
-        height > 0
+        height % Self::BLOCKS_PER_ELECTION == 0
     }
 
     ///gets all claims that belong to eligible nodes (master nodes)
@@ -125,10 +135,7 @@ impl Quorum {
         let mut eligible_claims = Vec::<Claim>::new();
         claims
             .into_iter()
-            .filter(|claim| {
-                claim.eligibility == Eligibility::Harvester
-                    && claim.eligibility == Eligibility::Farmer
-            })
+            .filter(|claim| claim.eligibility == Eligibility::Validator)
             .for_each(|claim| {
                 eligible_claims.push(claim);
             });
@@ -144,7 +151,7 @@ impl Quorum {
 
     /// Gets the final quorum by getting 51% of master nodes with lowest pointer
     /// sums
-    pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<&Quorum, QuorumError> {
+    pub fn get_final_quorum(&mut self, claims: Vec<Claim>) -> Result<Vec<Quorum>, QuorumError> {
         if self.quorum_seed == 0 {
             return Err(QuorumError::NoSeedError);
         }
@@ -160,17 +167,56 @@ impl Quorum {
             return Err(QuorumError::InvalidPointerSumError(claims));
         }
 
-        let pubkeys: Vec<String> = election_results
+        let members: Vec<(NodeId, PublicKey)> = election_results
             .values()
-            .map(|claim| claim.public_key.clone().to_string())
-            .take(num_claims)
+            .map(|claim| (claim.node_id().clone(), claim.public_key.clone()))
             .collect();
 
-        let final_pubkeys = Vec::from_iter(pubkeys[0..num_claims].iter().cloned());
+        let final_pubkeys = Vec::from_iter(members[0..num_claims].iter().cloned());
+        let quorums = self.split_into_quorums(final_pubkeys)?;
+        Ok(quorums)
+    }
 
-        self.master_pubkeys = final_pubkeys;
+    fn split_into_quorums(
+        &self,
+        nodes: Vec<(NodeId, PublicKey)>,
+    ) -> Result<Vec<Quorum>, QuorumError> {
+        let mut quorums = Vec::new();
 
-        Ok(self)
+        if nodes.len() < 3 * Self::MIN_QUORUM_SIZE {
+            return Err(QuorumError::InsufficientNodesError);
+        }
+
+        let mut quorum_size = nodes.len() - 2 * Self::MIN_QUORUM_SIZE;
+        if quorum_size > Self::MAX_QUORUM_SIZE {
+            quorum_size = Self::MAX_QUORUM_SIZE;
+        }
+
+        let harvester_nodes = nodes[..quorum_size].to_vec();
+        let mut harvester_quorum = Quorum::new(
+            self.quorum_seed,
+            self.election_block_height,
+            Some(QuorumKind::Harvester),
+        )?;
+
+        harvester_quorum.members = harvester_nodes;
+        quorums.push(harvester_quorum);
+
+        let mut start = quorum_size;
+        while start < nodes.len() {
+            let end = usize::min(start + quorum_size, nodes.len());
+            let mut farmer = Quorum::new(
+                self.quorum_seed,
+                self.election_block_height,
+                Some(QuorumKind::Farmer),
+            )?;
+
+            farmer.members = nodes[start..end].to_vec();
+            quorums.push(farmer);
+            start = end;
+        }
+
+        Ok(quorums)
     }
 
     pub fn get_trusted_peers(&mut self, _claims: Vec<Claim>) -> Self {
