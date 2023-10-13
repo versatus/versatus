@@ -13,7 +13,7 @@ pub use crate::{
 };
 
 pub mod valid {
-    use primitives::{ByteVec, RawSignature, SignatureType};
+    use primitives::{ByteVec, RawSignature, SignatureType, Signature, NodeId};
     use serde::{Deserialize, Serialize};
     use utils::hash_data;
 
@@ -28,7 +28,7 @@ pub mod valid {
         fn get_payload_hash(&self) -> ByteVec {
             vec![]
         }
-        fn get_raw_signature(&self) -> Result<RawSignature, Self::DecodeError> {
+        fn get_raw_signatures(&self) -> Result<Vec<(NodeId, Signature)>, Self::DecodeError> {
             Ok(vec![])
         }
         fn get_node_idx(&self) -> Option<u16> {
@@ -40,7 +40,7 @@ pub mod valid {
     pub struct BlockValidationData {
         pub node_idx: Option<u16>,
         pub payload_hash: ByteVec,
-        pub signature: RawSignature,
+        pub signatures: Vec<(NodeId, Signature)>,
         pub signature_type: SignatureType,
     }
 
@@ -49,11 +49,12 @@ pub mod valid {
         type ValidationData = BlockValidationData;
 
         fn get_validation_data(&self) -> Result<Self::ValidationData, Self::DecodeError> {
-            let signature = self.get_raw_signature()?;
+            let signatures = self.get_raw_signatures()?;
+
             Ok(BlockValidationData {
                 node_idx: self.get_node_idx(),
                 payload_hash: self.get_payload_hash(),
-                signature,
+                signatures,
                 signature_type: self.get_signature_type(),
             })
         }
@@ -66,10 +67,10 @@ pub mod valid {
             vec![]
         }
 
-        fn get_raw_signature(&self) -> Result<RawSignature, Self::DecodeError> {
+        fn get_raw_signatures(&self) -> Result<Vec<(NodeId, Signature)>, Self::DecodeError> {
             if let Some(cert) = self.certificate.clone() {
-                let signature = cert.decode_signature()?;
-                Ok(signature)
+                let signatures = cert.signatures.into_iter().collect();
+                Ok(signatures)
             } else {
                 Err(hex::FromHexError::InvalidStringLength)
             }
@@ -85,11 +86,11 @@ pub mod valid {
         type ValidationData = BlockValidationData;
 
         fn get_validation_data(&self) -> Result<Self::ValidationData, Self::DecodeError> {
-            let signature = self.get_raw_signature()?;
+            let signatures = self.get_raw_signatures()?;
             Ok(BlockValidationData {
                 node_idx: self.get_node_idx(),
                 payload_hash: self.get_payload_hash(),
-                signature,
+                signatures,
                 signature_type: self.get_signature_type(),
             })
         }
@@ -110,9 +111,12 @@ pub mod valid {
             .to_vec()
         }
 
-        fn get_raw_signature(&self) -> Result<RawSignature, Self::DecodeError> {
-            let signature = self.decode_signature_share()?;
-            Ok(signature.to_vec())
+        fn get_raw_signatures(&self) -> Result<Vec<(NodeId, Signature)>, Self::DecodeError> {
+            if let Some(sig) = self.signature {
+                return Ok(vec![(self.from.node_id().clone(), sig.clone())])
+            }
+
+            Err(hex::FromHexError::InvalidStringLength)
         }
     }
 
@@ -121,11 +125,11 @@ pub mod valid {
         type ValidationData = BlockValidationData;
 
         fn get_validation_data(&self) -> Result<Self::ValidationData, Self::DecodeError> {
-            let signature = self.get_raw_signature()?;
+            let signatures = self.get_raw_signatures()?;
             Ok(BlockValidationData {
                 node_idx: self.get_node_idx(),
                 payload_hash: self.get_payload_hash(),
-                signature,
+                signatures,
                 signature_type: self.get_signature_type(),
             })
         }
@@ -134,10 +138,10 @@ pub mod valid {
             SignatureType::ThresholdSignature
         }
 
-        fn get_raw_signature(&self) -> Result<RawSignature, Self::DecodeError> {
+        fn get_raw_signatures(&self) -> Result<Vec<(NodeId, Signature)>, Self::DecodeError> {
             if let Some(cert) = self.certificate.clone() {
-                let signature = cert.decode_signature()?;
-                Ok(signature)
+                let signatures = cert.signatures.into_iter().collect();
+                Ok(signatures)
             } else {
                 Err(hex::FromHexError::InvalidStringLength)
             }

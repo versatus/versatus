@@ -7,17 +7,15 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use hex::FromHexError;
-use primitives::RawSignature;
+use primitives::{NodeId, Signature};
 #[cfg(mainnet)]
 use reward::reward::GENESIS_REWARD;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
+use signer::engine::QuorumMembers;
 use tokio::task::JoinHandle;
 use vrrb_core::claim::Claim;
-use vrrb_core::transactions::{
-    QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind,
-};
+use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;
@@ -31,24 +29,22 @@ pub type NextEpochAdjustment = i128;
 pub type ClaimHash = ethereum_types::U256;
 pub type RefHash = String;
 pub type TxnList = LinkedHashMap<TransactionDigest, TransactionKind>;
-pub type QuorumCertifiedTxnList = LinkedHashMap<TransactionDigest, QuorumCertifiedTxn>;
+pub type QuorumCertifiedTxnList = LinkedHashMap<TransactionDigest, TransactionKind>;
 pub type ClaimList = LinkedHashMap<ClaimHash, Claim>;
 pub type ConsolidatedTxns = LinkedHashMap<RefHash, LinkedHashSet<TransactionDigest>>;
 pub type ConsolidatedClaims = LinkedHashMap<RefHash, LinkedHashSet<ClaimHash>>;
 pub type BlockHash = String;
 pub type QuorumId = String;
 pub type QuorumPubkey = String;
-pub type QuorumPubkeys = LinkedHashMap<QuorumId, QuorumPubkey>;
 pub type ConflictList = HashMap<TransactionDigest, Conflict>;
 pub type ResolvedConflicts = Vec<JoinHandle<Result<Conflict, Box<dyn Error>>>>;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
 pub struct Certificate {
-    pub signature: String,
-    pub inauguration: Option<QuorumPubkeys>,
+    pub signatures: Vec<(NodeId, Signature)>,
+    pub inauguration: Option<QuorumMembers>,
     pub root_hash: String,
-    pub next_root_hash: String,
     pub block_hash: String,
 }
 
@@ -89,8 +85,9 @@ impl Hash for Conflict {
 }
 
 impl Certificate {
-    pub(crate) fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
-        let signature = hex::decode(self.signature.clone())?;
-        Ok(signature)
-    }
+    //    pub fn decode_signature(&self) -> Result<RawSignature, FromHexError> {
+    //        let signature = hex::decode(self.signatures.clone())?;
+    //
+    //        Ok(signature)
+    //    }
 }

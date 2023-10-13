@@ -16,13 +16,10 @@ mod tests {
 
     use block::{Block, ProposalBlock};
     use bulldag::vertex::Vertex;
-    use primitives::{Address, NodeId};
+    use primitives::Address;
     use ritelinked::LinkedHashMap;
-    use vrrb_core::{
-        claim::Claim,
-        keypair::Keypair,
-    };
-    use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest};
+    use vrrb_core::transactions::{TransactionDigest, TransactionKind};
+    use vrrb_core::{claim::Claim, keypair::Keypair};
 
     use crate::test_helpers::{
         build_single_proposal_block, build_single_proposal_block_from_txns,
@@ -47,7 +44,7 @@ mod tests {
             address.clone(),
             ip_address,
             signature,
-            NodeId::default(),
+            "test-miner-node".into(),
         )
         .unwrap();
         let miner = create_miner_from_keypair(&kp);
@@ -97,6 +94,10 @@ mod tests {
         let (mut miner, dag) = create_miner_return_dag();
         let keypair = Keypair::random();
         let other_miner = create_miner_from_keypair(&keypair);
+        let engine = signer::engine::SignerEngine::new(
+            keypair.get_miner_public_key().clone(),
+            keypair.get_miner_secret_key().clone(),
+        );
 
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
@@ -112,7 +113,7 @@ mod tests {
                 LinkedHashMap::new(),
                 LinkedHashMap::new(),
                 other_miner.claim.clone(),
-                keypair.get_miner_secret_key(),
+                engine.clone(),
             );
             let pblock = Block::Proposal {
                 block: prop1.clone(),
@@ -144,6 +145,14 @@ mod tests {
         let m2kp = Keypair::random();
         let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
         let mut other_miner = create_miner_from_keypair_and_dag(&m2kp, dag.clone());
+        let engine1 = signer::engine::SignerEngine::new(
+            m1kp.get_miner_public_key().clone(),
+            m1kp.get_miner_secret_key().clone(),
+        );
+        let engine2 = signer::engine::SignerEngine::new(
+            m2kp.get_miner_public_key().clone(),
+            m2kp.get_miner_secret_key().clone(),
+        );
 
         let genesis = mine_genesis();
         if let Some(genesis) = genesis {
@@ -160,7 +169,7 @@ mod tests {
                 0,
                 0,
                 miner.claim.clone(),
-                m1kp.get_miner_secret_key(),
+                engine1,
             );
             let prop2 = build_single_proposal_block(
                 genesis.hash.clone(),
@@ -169,7 +178,7 @@ mod tests {
                 0,
                 0,
                 other_miner.claim.clone(),
-                m2kp.get_miner_secret_key(),
+                engine2,
             );
 
             let pblock1 = Block::Proposal {
@@ -216,8 +225,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, TransactionKind> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let prop2 =
@@ -278,8 +286,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, TransactionKind> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -355,8 +362,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, TransactionKind> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {
@@ -404,8 +410,7 @@ mod tests {
                 block: genesis.clone(),
             };
             let gvtx: Vertex<Block, String> = gblock.into();
-            let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> =
-                create_txns(5).collect();
+            let txns: LinkedHashMap<TransactionDigest, TransactionKind> = create_txns(5).collect();
             let prop1 =
                 build_single_proposal_block_from_txns(genesis.hash.clone(), txns.clone(), 0, 0);
             let pblock1 = Block::Proposal {

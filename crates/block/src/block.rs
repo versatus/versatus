@@ -72,6 +72,14 @@ impl Block {
                 .sum(),
         }
     }
+
+    pub fn hash(&self) -> String {
+        match self {
+            Block::Convergence { block } => block.hash.clone(),
+            Block::Proposal { block } => block.hash.clone(),
+            Block::Genesis { block } => block.hash.clone(),
+        }
+    }
 }
 
 impl fmt::Display for ConvergenceBlock {

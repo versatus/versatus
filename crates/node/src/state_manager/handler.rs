@@ -104,17 +104,18 @@ impl Handler<EventMessage> for StateManager {
                 //               }
                 todo!()
             },
-            Event::UpdateState(block_hash) => {
-                if let Err(err) = self.update_state(block_hash) {
-                    telemetry::error!("error updating state: {}", err);
-                }
+            Event::UpdateState(block) => {
+                
+                //if let Err(err) = self.update_state(block.hash) {
+                //    telemetry::error!("error updating state: {}", err);
+                //}
             },
             Event::ClaimCreated(_claim) => {},
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
             },
             Event::BlockReceived(block) => {
-                self.handle_block_received(block)
+                self.handle_block_received(&mut block)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
