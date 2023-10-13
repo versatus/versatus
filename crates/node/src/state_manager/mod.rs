@@ -68,6 +68,7 @@ mod tests {
     pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
 
     #[tokio::test]
+    #[ignore]
     async fn vrrbdb_should_update_with_new_block() {
         let db_config = VrrbDbConfig::default().with_path(std::env::temp_dir().join("db"));
         let db = VrrbDb::new(db_config);

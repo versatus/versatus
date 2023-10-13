@@ -38,6 +38,7 @@ clap = { workspace = true }
 wasm_loader = { workspace = true }
 wasm_runtime = { workspace = true }
 web3_pkg = { workspace = true }
+platform = { workspace = true }
 vrrb_rpc = { workspace = true }
 primitives = { workspace = true }
 sha2 = { workspace = true }
@@ -47,6 +48,10 @@ serde_derive = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 sha3 = { workspace = true }
+prometheus = { workspace = true }
+hyper = { workspace = true }
+rand = { workspace = true }
+lazy_static = { workspace = true }
 
 [workspace]
 members = [
@@ -81,6 +86,7 @@ members = [
     "crates/storage_agent",
     "crates/service_config",
     "crates/web3_pkg",
+    "crates/platform"
 ]
 
 [workspace.dependencies]
@@ -118,6 +124,7 @@ wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 service_config = { path = "crates/service_config" }
 web3_pkg = { path = "crates/web3_pkg" }
+platform = { path = "crates/platform" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
