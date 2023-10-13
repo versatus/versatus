@@ -61,9 +61,11 @@ impl GenesisReceiver {
             vesting_config: Some(vesting_config),
         }
     }
+    #[cfg(test)]
     fn is_contributor(&self) -> bool {
         self.genesis_receiver_kind == GenesisReceiverKind::Contributor
     }
+    #[cfg(test)]
     fn is_investor(&self) -> bool {
         self.genesis_receiver_kind == GenesisReceiverKind::Investor
     }
