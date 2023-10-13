@@ -4,7 +4,7 @@ use events::{EventMessage, DEFAULT_BUFFER};
 use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use tokio::sync::mpsc::channel;
-use vrrb_core::transactions::{generate_transfer_digest_vec, Token, TransactionKind};
+use vrrb_core::transactions::{generate_transfer_digest_vec, Token, Transaction, TransactionKind};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
@@ -58,23 +58,23 @@ async fn server_can_publish_transactions_to_be_created() {
     let txn = TransactionKind::transfer_builder()
         .timestamp(0)
         .sender_address(address.clone())
-        .sender_public_key(public_key.clone())
+        .sender_public_key(public_key)
         .receiver_address(recv_address.clone())
         .amount(10)
-        .signature(signature.clone())
+        .signature(signature)
         .nonce(0)
         .build_kind().expect("failed to build transfer transaction");
 
-    let rec = client.create_txn(txn).await.unwrap();
+    let rec = client.create_txn(txn.clone()).await.unwrap();
 
     let mock_digest =
-        "d43e21d53897192f83c2ff701cb538cf5b4d2439b93fae87b30f8ac6f07c20d1".to_string();
+        "d9e444c59d773094d8aa755b9f412383ce0c15a99bc342d39b025a7cbf0b3d1a".to_string();
 
     let mock_record = RpcTransactionRecord {
         id: mock_digest,
         timestamp: 0,
         sender_address: address.clone(),
-        sender_public_key: public_key.clone(),
+        sender_public_key: public_key,
         receiver_address: recv_address.clone(),
         token: Token::default(),
         amount: 10,
@@ -88,5 +88,5 @@ async fn server_can_publish_transactions_to_be_created() {
 
     assert_eq!(result_ser, mock_ser);
 
-    handle.stop().unwrap();
+    handle.stop().expect("Unable to stop server");
 }

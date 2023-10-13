@@ -16,7 +16,7 @@ pub use threshold_config::*;
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use crate::{test_utils::*, ConfigError, ThresholdConfig};
+    use crate::{test_utils::*, ThresholdConfig};
     use primitives::NodeType;
     use vrrb_core::keypair::Keypair;
 

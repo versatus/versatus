@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use block::Block;
+use block::{convergence_block, Block, ConvergenceBlock, ProposalBlock};
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
@@ -239,15 +239,20 @@ impl VrrbDb {
 
         // TODO: create methods to check if these exist
         read_handle.get_account_by_address(&sender_address)?;
-        read_handle.get_account_by_address(&receiver_address)?;
+        if let Err(StorageError::Other(_err)) =
+            read_handle.get_account_by_address(&receiver_address)
+        {
+            let account = Account::new(receiver_address.clone());
+            self.insert_account(receiver_address.clone(), account)?;
+        };
 
         let updates = IntoUpdates::from_txn(txn.clone());
 
         self.state_store
-            .update_uncommited(sender_address, updates.sender_update.into())?;
+            .update_uncommited(sender_address.clone(), updates.sender_update.into())?;
 
         self.state_store
-            .update_uncommited(receiver_address, updates.receiver_update.into())?;
+            .update_uncommited(receiver_address.clone(), updates.receiver_update.into())?;
 
         self.state_store.commit();
 
@@ -271,6 +276,40 @@ impl VrrbDb {
                 ))
             },
         }
+    }
+
+    pub fn apply_convergence_block(
+        &mut self,
+        convergence: &ConvergenceBlock,
+        proposals: &[ProposalBlock],
+    ) -> Result<ApplyBlockResult> {
+        let read_handle = self.read_handle();
+        for (proposal, txn_set) in &convergence.txns {
+            let block = proposals
+                .iter()
+                .find(|pblock| pblock.hash == proposal.clone())
+                .ok_or(StorageError::Other(format!(
+                    "unable to find proposal block with hash {}",
+                    &proposal
+                )))?;
+
+            let mut txns = block.txns.clone();
+            txns.retain(|digest, _| txn_set.contains(digest));
+            for (digest, txn_kind) in txns {
+                self.apply_txn(read_handle.clone(), txn_kind)?;
+            }
+        }
+
+        self.transaction_store.commit();
+        self.state_store.commit();
+
+        let state_root_hash = self.state_store.root_hash()?;
+        let transactions_root_hash = self.transaction_store.root_hash()?;
+
+        Ok(ApplyBlockResult {
+            state_root_hash,
+            transactions_root_hash,
+        })
     }
 
     /// Applies a block of transactions updating the account states accordingly.

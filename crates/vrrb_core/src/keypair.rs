@@ -7,16 +7,11 @@ use std::{
 };
 
 use bs58::encode;
-use hbbft::crypto::{
-    serde_impl::SerdeSecret, PublicKey as ValidatorPublicKey, SecretKey as ValidatorSecretKey,
-};
-use primitives::SerializedSecretKey as SecretKeyBytes;
+use hbbft::crypto::serde_impl::SerdeSecret;
+use primitives::{PublicKey, SecretKey, SerializedSecretKey as SecretKeyBytes};
 use ring::digest::{Context, SHA256};
-use secp256k1::{ecdsa::Signature, Message, Secp256k1, SecretKey};
-use serde::{
-    ser::{Serialize, SerializeStruct, Serializer},
-    Deserialize,
-};
+use secp256k1::{ecdsa::Signature, Message, Secp256k1};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::storage_utils;
@@ -30,13 +25,13 @@ pub type MinerPk = secp256k1::PublicKey;
 pub type MinerPublicKey = secp256k1::PublicKey;
 pub type MinerSecretKey = secp256k1::SecretKey;
 
-pub type SecretKeys = (MinerSecretKey, ValidatorSecretKey);
-pub type PublicKeys = (MinerPublicKey, ValidatorPublicKey);
+pub type SecretKeys = (MinerSecretKey, SecretKey);
+pub type PublicKeys = (MinerPublicKey, PublicKey);
 
-#[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct KeyPair {
     pub miner_kp: (MinerSk, MinerPk),
-    pub validator_kp: (ValidatorSecretKey, ValidatorPublicKey),
+    pub validator_kp: (SecretKey, PublicKey),
 }
 
 /// Alias for KeyPair, to avoid frustrations because of subtle typos
@@ -69,15 +64,13 @@ pub type Result<T> = std::result::Result<T, KeyPairError>;
 impl KeyPair {
     /// Constructs a new, random `Keypair` using thread_rng() which uses RNG
     pub fn random() -> Self {
-        let validator_sk: ValidatorSecretKey = ValidatorSecretKey::random();
-        let validator_pk: ValidatorPublicKey = validator_sk.public_key();
         let secp = Secp256k1::new();
         let mut rng = rand::thread_rng();
-        let (miner_sk, miner_pk) = secp.generate_keypair(&mut rng);
+        let (sk, pk) = secp.generate_keypair(&mut rng);
         KeyPair {
             // TODO: Consider renaming to simply sk and pk as this pair is not only used for mining
-            miner_kp: (miner_sk, miner_pk),
-            validator_kp: (validator_sk, validator_pk),
+            miner_kp: (sk.clone(), pk.clone()),
+            validator_kp: (sk, pk),
         }
     }
 
@@ -111,19 +104,18 @@ impl KeyPair {
     /// Returns:
     ///
     /// A KeyPair struct
-    pub fn new(validator_sk: ValidatorSecretKey, miner_sk: MinerSk) -> Self {
+    pub fn new(sk: SecretKey, _miner_sk: MinerSk) -> Self {
         let secp = Secp256k1::new();
-        let pk = MinerPk::from_secret_key(&secp, &miner_sk);
-        let validator_pk = validator_sk.public_key();
+        let pk = sk.public_key(&secp);
         KeyPair {
-            miner_kp: (miner_sk, pk),
-            validator_kp: (validator_sk, validator_pk),
+            miner_kp: (sk.clone(), pk.clone()),
+            validator_kp: (sk, pk),
         }
     }
 
     /// Returns this `Keypair` as a byte array
     pub fn from_bytes(validator_key_bytes: &[u8], miner_key_bytes: &[u8]) -> Result<KeyPair> {
-        let result = bincode::deserialize::<SerdeSecret<ValidatorSecretKey>>(validator_key_bytes);
+        let result = bincode::deserialize::<SerdeSecret<SecretKey>>(validator_key_bytes);
         let miner_sk = if let Ok(miner_sk) = MinerSk::from_slice(miner_key_bytes) {
             miner_sk
         } else {
@@ -137,8 +129,8 @@ impl KeyPair {
     }
 
     /// Returns this Validator `PublicKey` from byte array `key_bytes`.
-    pub fn from_validator_pk_bytes(key_bytes: &[u8]) -> Result<ValidatorPublicKey> {
-        let result = bincode::deserialize::<ValidatorPublicKey>(key_bytes);
+    pub fn from_validator_pk_bytes(key_bytes: &[u8]) -> Result<PublicKey> {
+        let result = bincode::deserialize::<PublicKey>(key_bytes);
         match result {
             Ok(public_key) => Ok(public_key),
             Err(_) => Err(KeyPairError::InvalidPublicKey),
@@ -156,30 +148,15 @@ impl KeyPair {
     /// Returns  Both Validator and Miner `Secret key` as a byte array
     pub fn to_bytes(&self) -> Result<(Vec<u8>, Vec<u8>)> {
         let mut keys = (vec![], vec![]);
-        match bincode::serialize(&SerdeSecret(self.validator_kp.0.clone())) {
-            Ok(serialized_sk) => {
-                keys.0 = serialized_sk;
-            },
-            Err(e) => {
-                return Err(KeyPairError::SerializeKeyError(
-                    String::from("validator secret"),
-                    e.to_string(),
-                ));
-            },
-        };
+        keys.0 = self.validator_kp.0.secret_bytes().to_vec();
         keys.1 = self.miner_kp.0.secret_bytes().to_vec();
         Ok(keys)
     }
 
     /// Returns this Validator `PublicKey` as a byte array
+    // TODO: Remove Result here
     pub fn to_validator_pk_bytes(&self) -> Result<Vec<u8>> {
-        match bincode::serialize(&self.validator_kp.1) {
-            Ok(serialized_pk) => Ok(serialized_pk),
-            Err(e) => Err(KeyPairError::SerializeKeyError(
-                String::from("validator public"),
-                e.to_string(),
-            )),
-        }
+        Ok(self.get_validator_public_key().serialize().to_vec())
     }
 
     /// Returns this Miner `PublicKey` as a byte array
@@ -188,13 +165,13 @@ impl KeyPair {
     }
 
     /// Gets this `Keypair`'s SecretKey
-    pub fn get_secret_keys(&self) -> (&ValidatorSecretKey, &MinerSk) {
+    pub fn get_secret_keys(&self) -> (&SecretKey, &MinerSk) {
         (&self.validator_kp.0, &self.miner_kp.0)
     }
 
     /// > This function returns a tuple of references to the public keys of the
     /// > validator and miner
-    pub fn get_public_keys(&self) -> (&ValidatorPublicKey, &MinerPk) {
+    pub fn get_public_keys(&self) -> (&PublicKey, &MinerPk) {
         (&self.validator_kp.1, &self.miner_kp.1)
     }
 
@@ -289,11 +266,11 @@ impl KeyPair {
     /// Returns:
     ///
     /// The validator secret key.
-    pub fn get_validator_secret_key(&self) -> &ValidatorSecretKey {
+    pub fn get_validator_secret_key(&self) -> &SecretKey {
         &self.validator_kp.0
     }
 
-    pub fn get_validator_secret_key_owned(&self) -> ValidatorSecretKey {
+    pub fn get_validator_secret_key_owned(&self) -> SecretKey {
         self.validator_kp.0.clone()
     }
 
@@ -302,16 +279,16 @@ impl KeyPair {
     /// Returns:
     ///
     /// The public key of the validator.
-    pub fn get_validator_public_key(&self) -> &ValidatorPublicKey {
+    pub fn get_validator_public_key(&self) -> &PublicKey {
         &self.validator_kp.1
     }
 
-    pub fn validator_public_key_owned(&self) -> ValidatorPublicKey {
+    pub fn validator_public_key_owned(&self) -> PublicKey {
         self.validator_kp.1
     }
 
     #[deprecated(note = "use validator_public_key_owned instead")]
-    pub fn get_validator_public_key_owned(&self) -> ValidatorPublicKey {
+    pub fn get_validator_public_key_owned(&self) -> PublicKey {
         self.validator_public_key_owned()
     }
 
@@ -458,21 +435,21 @@ pub fn write_keypair_file<F: AsRef<Path>>(
     }
 }
 
-impl Serialize for KeyPair {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut s = serializer.serialize_struct("KeyPair", 2)?;
-        s.serialize_field("miner_kp", &self.miner_kp)?;
+// impl Serialize for KeyPair {
+//     fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let mut s = serializer.serialize_struct("KeyPair", 2)?;
+//         s.serialize_field("miner_kp", &self.miner_kp)?;
 
-        let wrapped_validator_sk = SerdeSecret(&self.validator_kp.0);
-        let validator_kp_serializable = (&wrapped_validator_sk, &self.validator_kp.1);
-        s.serialize_field("validator_kp", &validator_kp_serializable)?;
+//         let wrapped_validator_sk = SerdeSecret(&self.validator_kp.0);
+//         let validator_kp_serializable = (&wrapped_validator_sk, &self.validator_kp.1);
+//         s.serialize_field("validator_kp", &validator_kp_serializable)?;
 
-        s.end()
-    }
-}
+//         s.end()
+//     }
+// }
 
 #[allow(clippy::derived_hash_with_manual_eq)]
 impl Hash for KeyPair {
@@ -485,8 +462,7 @@ impl Hash for KeyPair {
         miner_pk_serialized.hash(state);
 
         // Hash validator_kp
-        let wrapped_validator_sk = SerdeSecret(&self.validator_kp.0);
-        let validator_sk_serialized = serde_json::to_string(&wrapped_validator_sk).unwrap();
+        let validator_sk_serialized = serde_json::to_string(&self.validator_kp.0).unwrap();
         validator_sk_serialized.hash(state);
 
         let validator_pk_serialized = serde_json::to_string(&self.validator_kp.1).unwrap();
@@ -496,7 +472,7 @@ impl Hash for KeyPair {
 
 #[cfg(test)]
 mod tests {
-    use secp256k1::Message;
+    use sha2::Digest;
 
     use super::*;
 
@@ -526,7 +502,7 @@ mod tests {
             "{}/tmp/{}-{}",
             out_dir,
             name,
-            keypair.get_secret_keys().0.reveal()
+            keypair.get_secret_keys().0.display_secret()
         )
     }
 
@@ -548,10 +524,9 @@ mod tests {
                 .unwrap()
                 .get_public_keys()
                 .0
-                .to_bytes()
-                .to_vec()
+                .serialize()
                 .len(),
-            48
+            33
         );
         assert_eq!(
             read_keypair_file(&outfile)
@@ -566,7 +541,11 @@ mod tests {
         assert!(!Path::new(&outfile).exists());
 
         //Testing signatures
-        let msg = "Hello VRRB";
+        let mut hasher = sha2::Sha256::new();
+        let msg = b"Hello VRRB";
+        hasher.update(msg);
+        let res = hasher.finalize();
+        let msg = secp256k1::Message::from_slice(&res).unwrap();
         let deserialized_key =
             KeyPair::from_bytes(read_keypair.0.as_slice(), read_keypair.1.as_slice()).unwrap();
 
@@ -575,14 +554,22 @@ mod tests {
         let miner_sk = deserialized_key.get_miner_secret_key();
         let miner_pk = deserialized_key.get_miner_public_key();
 
-        assert_eq!(keypair.validator_kp.0.sign(msg), validator_sk.sign(msg));
-        assert!(validator_pk.verify(&validator_sk.sign(msg), msg));
+        assert_eq!(
+            keypair.validator_kp.0.sign_ecdsa(msg),
+            validator_sk.sign_ecdsa(msg)
+        );
+        assert!(&validator_sk
+            .sign_ecdsa(msg)
+            .verify(&msg, &validator_pk)
+            .is_ok());
         let validator_pbytes = deserialized_key.to_validator_pk_bytes().unwrap();
         let validator_pkey = KeyPair::from_validator_pk_bytes(&validator_pbytes).unwrap();
-        assert!(validator_pkey.verify(&validator_sk.sign(msg), msg));
+        assert!(&validator_sk
+            .sign_ecdsa(msg)
+            .verify(&msg, &validator_pkey)
+            .is_ok());
 
         let secp = Secp256k1::new();
-        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg.as_bytes());
         assert_eq!(
             secp.sign_ecdsa(&msg, &keypair.miner_kp.0),
             secp.sign_ecdsa(&msg, miner_sk)
