@@ -223,6 +223,7 @@ impl NodeRuntime {
 
     pub fn produce_genesis_transactions(
         &self,
+        n: usize,
     ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
         self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
 
@@ -260,8 +261,13 @@ impl NodeRuntime {
         };
 
         let txn = TransactionKind::Transfer(Transfer::new(args));
+        let mut genesis_config = GenesisConfig::new(address.clone());
 
-        let mut txns = block::vesting::generate_genesis_txns(GenesisConfig::new(address.clone()));
+        let mut txns = block::vesting::generate_genesis_txns(
+            n,
+            self.config.keypair.clone(),
+            &mut genesis_config,
+        );
         txns.insert(txn.id(), txn);
 
         Ok(txns)
