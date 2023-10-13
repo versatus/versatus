@@ -43,7 +43,8 @@ async fn nodes_can_synchronize_state() {
                     .amount(0)
                     .signature(signature)
                     .nonce(0)
-                    .build_kind().expect("Unable to build transfer transaction")
+                    .build_kind()
+                    .expect("Unable to build transfer transaction"),
             )
             .await
             .unwrap();
