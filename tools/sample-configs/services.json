@@ -7,7 +7,9 @@
       "preSharedKey": "<random string>",
       "tlsPrivateKeyFile": "",
       "tlsPublicCertFile": "",
-      "tlsCaCertFile": ""
+      "tlsCaCertFile": "",
+      "exporterAddress": "0.0.0.0",
+      "exporterPort": "9102"
     } ],
     "storage": [ {
       "name": "storage1",
@@ -16,7 +18,9 @@
       "preSharedKey": "<random string>",
       "tlsPrivateKeyFile": "",
       "tlsPublicCertFile": "",
-      "tlsCaCertFile": ""
+      "tlsCaCertFile": "",
+      "exporterAddress": "0.0.0.0",
+      "exporterPort": "9103"
     } ],
     "blockchain": [ {
       "name": "blockchain1",
@@ -25,7 +29,9 @@
       "preSharedKey": "<random string>",
       "tlsPrivateKeyFile": "",
       "tlsPublicCertFile": "",
-      "tlsCaCertFile": ""
+      "tlsCaCertFile": "",
+      "exporterAddress": "0.0.0.0",
+      "exporterPort": "9101"
     } ]
   }
 }
