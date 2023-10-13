@@ -61,7 +61,7 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
     pub grpc_server_address: SocketAddr,
 
-    #[clap(long, default_value = "false")]
+    #[clap(long)]
     pub bootstrap: bool,
 
     #[clap(long, value_parser)]
