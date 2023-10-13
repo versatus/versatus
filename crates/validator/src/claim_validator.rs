@@ -61,26 +61,18 @@ impl ClaimValidator {
     /// variant, and if there is an error, it returns an `Err` variant with
     /// a `ClaimValidatorError` enum as the error type.
     pub fn validate(&self, claim: &Claim) -> Result<()> {
-        if claim.eligibility == Eligibility::None {
-            return Err(ClaimValidatorError::NotEligibleClaim);
-        }
         match claim.eligibility {
-            Eligibility::Harvester => {
+            Eligibility::Validator => {
                 if claim.get_stake() < MIN_STAKE_VALIDATOR {
                     return Err(ClaimValidatorError::NotEnoughStake(
                         claim.eligibility.to_string(),
                     ));
                 }
             },
-            Eligibility::Miner => {},
-            Eligibility::Farmer => {
-                if claim.get_stake() < MIN_STAKE_FARMER {
-                    return Err(ClaimValidatorError::NotEnoughStake(
-                        claim.eligibility.to_string(),
-                    ));
-                }
+            Eligibility::None => {
+                return Err(ClaimValidatorError::NotEligibleClaim);
             },
-            Eligibility::None => {},
+            Eligibility::Miner => {},
         }
 
         let stakes = claim.get_stake_txns();

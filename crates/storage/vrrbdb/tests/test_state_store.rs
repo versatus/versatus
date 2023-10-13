@@ -1,4 +1,3 @@
-use patriecia::{KeyHash, Sha256};
 use vrrb_core::account::Account;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
@@ -17,9 +16,9 @@ fn accounts_can_be_added() {
     let (_, addr4) = _generate_random_address();
     let (_, addr5) = _generate_random_address();
 
-    db.insert_account(addr1.clone(), Account::new(addr1.public_key()))
+    db.insert_account(addr1.clone(), Account::new(addr1))
         .unwrap();
-    db.insert_account(addr2.clone(), Account::new(addr2.public_key()))
+    db.insert_account(addr2.clone(), Account::new(addr2))
         .unwrap();
     let read_handle = db.state_store_factory().handle();
 
@@ -28,9 +27,9 @@ fn accounts_can_be_added() {
     assert_eq!(entries.len(), 2);
 
     db.extend_accounts(vec![
-        (addr3.clone(), Some(Account::new(addr3.public_key()))),
-        (addr4.clone(), Some(Account::new(addr4.public_key()))),
-        (addr5.clone(), Some(Account::new(addr5.public_key()))),
+        (addr3.clone(), Some(Account::new(addr3))),
+        (addr4.clone(), Some(Account::new(addr4))),
+        (addr5.clone(), Some(Account::new(addr5))),
     ]);
 
     let entries = db.state_store_factory().handle().entries();

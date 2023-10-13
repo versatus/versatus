@@ -74,10 +74,11 @@ pub enum MinerStatus {
 /// }
 #[derive(Debug)]
 pub struct MinerConfig {
-    pub secret_key: MinerSk,
-    pub public_key: MinerPk,
+    pub secret_key: MinerSecretKey,
+    pub public_key: MinerPublicKey,
     pub ip_address: SocketAddr,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
+    pub claim: Claim,
 }
 
 /// Miner struct which exposes methods to mine convergence blocks
@@ -146,18 +147,32 @@ impl Miner {
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
     /// use primitives::{Address, NodeId};
-    /// use vrrb_core::keypair::Keypair;
+    /// use vrrb_core::{keypair::Keypair, claim::Claim};
     ///
     /// let keypair = Keypair::random();
     /// let (secret_key, public_key) = keypair.miner_kp;
     /// let address = Address::new(public_key.clone());
     /// let dag = Arc::new(RwLock::new(BullDag::new()));
     /// let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    /// let signature = Claim::signature_for_valid_claim(
+    ///     keypair.miner_kp.1.clone(),
+    ///     ip_address.clone(),
+    ///     keypair.get_miner_secret_key().secret_bytes().to_vec(),
+    /// )
+    /// .unwrap();
+    /// let claim = Claim::new(
+    ///     public_key,
+    ///     address.clone(),
+    ///     ip_address,
+    ///     signature,
+    ///     "node_id".to_string(),
+    /// ).unwrap();
     /// let config = MinerConfig {
     ///     secret_key,
     ///     public_key,
     ///     ip_address,
     ///     dag,
+    ///     claim,
     /// };
     ///
     /// let miner = Miner::new(config, NodeId::default());
@@ -166,20 +181,9 @@ impl Miner {
     /// ```
     pub fn new(config: MinerConfig, node_id: NodeId) -> Result<Self> {
         let address = Address::new(config.public_key);
-        let signature = Claim::signature_for_valid_claim(
-            config.public_key,
-            config.ip_address,
-            config.secret_key.secret_bytes().to_vec(),
-        )
-        .map_err(MinerError::from)?;
-        let claim = Claim::new(
-            config.public_key,
-            address.clone(),
-            config.ip_address,
-            signature,
-            node_id,
-        )
-        .map_err(MinerError::from)?;
+
+        let claim = config.claim.clone();
+
         Ok(Miner {
             secret_key: config.secret_key,
             public_key: config.public_key,
@@ -286,34 +290,6 @@ impl Miner {
         self.build()
     }
 
-    /// This method has been deprecated and will be removed soon
-    #[deprecated(note = "Building proposal blocks will be done in Harvester")]
-    pub fn mine_proposal_block(
-        &self,
-        ref_block: RefHash,
-        round: u128,
-        epoch: Epoch,
-        txns: QuorumCertifiedTxnList,
-        claims: ClaimList,
-        from: Claim,
-    ) -> ProposalBlock {
-        let payload = create_payload!(round, epoch, txns, claims, from);
-        let signature = self.secret_key.sign_ecdsa(payload).to_string();
-        let hash = hash_data!(round, epoch, txns, claims, from, signature);
-
-        ProposalBlock {
-            ref_block,
-            round,
-            epoch,
-            txns,
-            claims,
-            hash: format!("{hash:x}"),
-            from,
-            signature,
-        }
-    }
-
-    #[deprecated(note = "This needs to be moved into a GenesisMiner crate")]
     pub fn mine_genesis_block(&self, claim_list: ClaimList) -> Option<GenesisBlock> {
         let claim_list_hash = hash_data!(claim_list);
         let seed = 0;

@@ -1,13 +1,10 @@
 use std::net::SocketAddr;
 
-use primitives::{Address, NodeId, SecretKey};
+use primitives::{Address, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
-use vrrb_core::{
-    claim::Claim,
-    keypair::Keypair,
-};
 use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
+use vrrb_core::{claim::Claim, keypair::Keypair};
 
 // NOTE: this is used to generate random filenames so files created by tests
 // don't get overwritten
@@ -38,7 +35,7 @@ pub fn _generate_random_transaction(
     TransactionKind::Transfer(Transfer::new(NewTransferArgs {
         timestamp: 0,
         sender_address: from.clone(),
-        sender_public_key: from.public_key(),
+        sender_public_key: secret_key.public_key(&secp),
         receiver_address: to,
         token: None,
         amount: 100,
@@ -61,7 +58,7 @@ pub fn _generate_random_valid_transaction() -> TransactionKind {
     TransactionKind::Transfer(Transfer::new(NewTransferArgs {
         timestamp: 0,
         sender_address: from.clone(),
-        sender_public_key: from.public_key(),
+        sender_public_key: sender_secret_key.public_key(&secp),
         receiver_address: to,
         token: None,
         amount: 100,

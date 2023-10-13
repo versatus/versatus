@@ -1,26 +1,31 @@
 use std::str::FromStr;
-
+use sha2::{Sha512, Sha256, Digest};
+use sha3::{Digest as KeccackDigest, Keccak256};
 use secp256k1::{rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
 
 use crate::{ByteVec, PublicKey, SecretKey};
 
-/// Represents a secp256k1 public key, hashed with sha256::digest
+/// Represents the lower 20 bytes
+/// of a secp256k1 public key, 
+/// hashed with sha256::digest
+//pub struct Address(PublicKey);
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
-pub struct Address(PublicKey);
+pub struct Address(pub [u8; 20]);
 
 impl Address {
     pub fn new(public_key: PublicKey) -> Self {
-        Self(public_key)
+        Self::from(public_key)
     }
 
-    pub fn public_key(&self) -> PublicKey {
+    pub fn raw_address(&self) -> [u8; 20] {
         self.0
     }
-
+    
+    #[deprecated]
     pub fn public_key_bytes(&self) -> ByteVec {
         // TODO: revisit later
-        self.0.to_string().into_bytes()
+        self.to_string().into_bytes()
     }
 }
 
@@ -29,17 +34,7 @@ impl Default for Address {
         // NOTE: should never panic as it's a valid string
         // TODO: impl default null public keys to avoid this call to expect
         let pk = PublicKey::from_str("null-address").expect("cant create null address");
-        Self(pk)
-    }
-}
-
-impl FromStr for Address {
-    type Err = crate::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        PublicKey::from_str(s)
-            .map_err(|err| crate::Error::Other(err.to_string()))
-            .map(Self)
+        Self::from(pk)
     }
 }
 
@@ -49,9 +44,50 @@ impl From<String> for Address {
     }
 }
 
+impl From<PublicKey> for Address {
+    fn from(item: PublicKey) -> Self {
+        let mut hasher = Keccak256::new();
+        let pk_bytes = item.serialize_uncompressed();
+        let apk_bytes = &pk_bytes[1..];
+        hasher.update(apk_bytes);
+        let hash = hasher.finalize();
+        let address_hash_slice = hash[(hash.len() - 20)..].to_vec();
+        let mut address_bytes = [0u8; 20];
+        address_bytes.copy_from_slice(&address_hash_slice);
+        Address(address_bytes)
+    }
+}
+
 impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0.to_string())
+        let hex_address = format!(
+            "0x{}", 
+            self.0.iter().map(|b| {
+                format!("{:02x}", b)
+            }).collect::<String>());
+
+        f.write_str(&hex_address)
+    }
+}
+
+impl FromStr for Address {
+    type Err = hex::FromHexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != 42 || !s.starts_with("0x") {
+            return Err(hex::FromHexError::OddLength);
+        }
+
+        let address_bytes = hex::decode(&s[2..])?; 
+        
+        if address_bytes.len() != 20 {
+            return Err(hex::FromHexError::OddLength);
+        }
+
+        let mut address = [0u8; 20];
+        address.copy_from_slice(&address_bytes);
+
+        Ok(Address(address))
     }
 }
 

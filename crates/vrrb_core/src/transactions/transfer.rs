@@ -406,7 +406,10 @@ impl Transaction for Transfer {
     fn sign(&mut self, sk: &SecretKey) {
         // TODO: refactor signing out the txn structure definition
         // TODO: return Result<(), SignatureError>
-        let message = Message::from_slice(self.build_payload().as_bytes());
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(self.build_payload().as_bytes());
+        let result = hasher.finalize().to_vec();
+        let message = Message::from_slice(&result);
         if let Ok(msg) = message {
             let sig = sk.sign_ecdsa(msg);
             self.signature = sig;

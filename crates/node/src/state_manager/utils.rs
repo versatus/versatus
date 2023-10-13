@@ -53,7 +53,7 @@ pub(super) fn consolidate_update_args(
                     (_, b) => b,
                 };
                 existing_update.storage = update.storage.clone(); // TODO: Update this to use the most recent value
-                existing_update.code = update.code.clone(); // TODO: Update this to use the most recent value
+                existing_update.package_address = update.package_address.clone(); // TODO: Update this to use the most recent value
                 if let Some(digests) = update.digests.clone() {
                     if let Some(ref mut existing_digests) = existing_update.digests {
                         existing_digests.extend_all(digests);

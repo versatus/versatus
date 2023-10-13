@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
@@ -7,10 +5,14 @@ use ethereum_types::U256;
 use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
-    Address, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx, ProgramExecutionOutput,
-    PublicKeyShareVec, RawSignature, Round, Seed, TxnValidationStatus, ValidatorPublicKeyShare,
+    Address, ConvergencePartialSig, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx,
+    ProgramExecutionOutput, PublicKeyShareVec, Round, RUNTIME_TOPIC_STR, Seed, Signature, TxnValidationStatus,
+    ValidatorPublicKeyShare,
 };
+
 use serde::{Deserialize, Serialize};
+use signer::engine::{QuorumData, QuorumMembers};
+use std::net::SocketAddr;
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
@@ -116,6 +118,10 @@ pub enum Event {
     /// to a particular quorum
     QuorumMembershipAssigmentCreated(AssignedQuorumMembership),
 
+    /// Event emitted by a bootrstrap QuorumModule to signal a group of nodes were assigned
+    /// to a particular quorum
+    QuorumMembershipAssigmentsCreated(Vec<AssignedQuorumMembership>),
+
     /// Signals thaa a node acknowledges belonging to a quorum
     QuorumMembershipSet(NodeId),
 
@@ -149,7 +155,7 @@ pub enum Event {
     /// This event is emitted whenever a transaction is certified by a Farmer Quorum
     TransactionCertificateCreated {
         votes: Vec<Vote>,
-        signature: RawSignature,
+        signature: Signature,
         digest: TransactionDigest,
         /// OUtput of the program executed
         execution_result: ProgramExecutionOutput,
@@ -173,8 +179,10 @@ pub enum Event {
     // NOTE: replaces Event::Farm and pushes txns to the scheduler instead of having it pull them
     TxnsReadyForProcessing(Vec<TransactionKind>),
 
-    TxnsValidated {
-        votes: Vec<Option<Vote>>,
+    TransactionValidated(Vote),
+
+    TransactionsValidated {
+        vote: Vote,
         quorum_threshold: FarmerQuorumThreshold,
     },
 
@@ -203,7 +211,7 @@ pub enum Event {
     ConvergenceBlockPartialSignatureCreated {
         block_hash: BlockHash,
         public_key_share: ValidatorPublicKeyShare,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     },
 
     /// `ConvergenceBlockPrecheckRequested` is a function
@@ -224,7 +232,7 @@ pub enum Event {
         node_id: NodeId,
         block_hash: BlockHash,
         public_key_share: PublicKeyShareVec,
-        partial_signature: RawSignature,
+        partial_signature: Signature,
     },
 
     Ping(NodeId),
@@ -236,7 +244,7 @@ pub enum Event {
     /// `UpdateState` is an event that triggers the update of the node's state
     /// to a new block hash. This event is used to update the node's state
     /// after a last new convergence block has been certified .
-    UpdateState(BlockHash),
+    UpdateState(ConvergenceBlock),
 
     /// `ConvergenceBlockPartialSign(JobResult)` is an event that is triggered
     /// when a node has partially signed a convergence block. The
@@ -248,6 +256,7 @@ pub enum Event {
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
     ConvergenceBlockPartialSign(JobStatus),
+    ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
 
     /// `CheckConflictResolution` is an event that triggers the checking of a
     /// proposed conflict resolution.The event is used to initiate the
@@ -266,7 +275,7 @@ pub enum Event {
 
     /// `SendPeerConvergenceBlockSign` is an event that triggers the sharing of
     /// a convergence block partial signature with other peers.
-    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, RawSignature),
+    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, Signature),
 
     /// `SendBlockCertificate(Certificate)` is an event that triggers the
     /// sending of a `Certificate` object representing a proof that a block
@@ -279,6 +288,15 @@ pub enum Event {
     /// object representing a proof that a block has been certified by a
     /// quorum. This certificate is then added to convergence block .
     BlockCertificateCreated(Certificate),
+    QuorumMembersReceived(QuorumMembers),
+    QuorumFormed,
+    HarvesterSignatureReceived(BlockHash, NodeId, Signature),
+    BroadcastQuorumFormed(QuorumData),
+    BroadcastCertificate(Certificate),
+    BroadcastTransactionVote(Vote),
+    BlockAppended(String),
+    BuildProposalBlock(ConvergenceBlock),
+    BroadcastProposalBlock(ProposalBlock)
 }
 
 impl From<&theater::Message> for Event {
@@ -307,8 +325,12 @@ impl From<Event> for Vec<u8> {
 
 impl From<Event> for messr::Message<Event> {
     fn from(evt: Event) -> Self {
-        match evt {
+        match &evt {
             Event::Stop => messr::Message::stop_signal(None),
+            Event::CreateAccountRequested(_)
+            | Event::NewTxnCreated(_)
+            | Event::TxnAddedToMempool(_) =>
+                messr::Message::new(Some(RUNTIME_TOPIC_STR.into()), evt),
             _ => messr::Message::new(None, evt),
         }
     }
