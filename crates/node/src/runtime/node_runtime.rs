@@ -263,7 +263,11 @@ impl NodeRuntime {
         let txn = TransactionKind::Transfer(Transfer::new(args));
         let mut genesis_config = GenesisConfig::new(address.clone());
 
-        let mut txns = block::vesting::generate_genesis_txns(n, &mut genesis_config);
+        let mut txns = block::vesting::generate_genesis_txns(
+            n,
+            self.config.keypair.clone(),
+            &mut genesis_config,
+        );
         txns.insert(txn.id(), txn);
 
         Ok(txns)
