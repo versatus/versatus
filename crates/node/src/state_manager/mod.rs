@@ -49,13 +49,8 @@ mod tests {
         let (sk, pk) = create_keypair();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-<<<<<<< HEAD
-        let signature = Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec())
-            .expect("Failed to generate signature for claim");
-=======
         let signature =
             Claim::signature_for_valid_claim(pk, ip_address, sk.secret_bytes().to_vec()).unwrap();
->>>>>>> main
         let claim = create_claim(&pk, &addr, ip_address, signature);
 
         let mut state_module = StateManager::new(StateManagerConfig {
@@ -85,7 +80,7 @@ mod tests {
         let keypair = KeyPair::random();
         let mut sig_engine = SignerEngine::new(
             keypair.get_miner_public_key().clone(),
-            keypair.get_miner_secret_key().clone()
+            keypair.get_miner_secret_key().clone(),
         );
         let pk = keypair.get_miner_public_key().clone();
         let addr = create_address(&pk);
