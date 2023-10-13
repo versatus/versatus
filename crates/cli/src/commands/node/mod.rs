@@ -15,7 +15,7 @@ pub enum NodeCmd {
     /// Prints currrent node configuration
     Info,
 
-    /// Stops any node currrently running in dettached mode
+    /// Stops any node currrently running in detached mode
     Stop,
 }
 
