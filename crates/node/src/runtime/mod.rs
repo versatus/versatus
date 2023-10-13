@@ -883,95 +883,6 @@ mod tests {
             vec![],
         );
 
-<<<<<<< HEAD
-    #[tokio::test]
-    #[serial_test::serial]
-    async fn bootstrap_node_runtime_can_assign_quorum_memberships_to_available_nodes() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
-
-        assert_eq!(farmers.len(), 4);
-        assert_eq!(harvesters.len(), 2);
-    }
-
-    #[tokio::test]
-    #[serial_test::serial]
-    #[ignore = "https://github.com/versatus/versatus/issues/487"]
-    async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
-        node_0.produce_genesis_transactions().unwrap();
-
-        for (_, node) in farmers.iter() {
-            assert!(node.produce_genesis_transactions().is_err());
-        }
-
-        for (_, node) in harvesters.iter() {
-            assert!(node.produce_genesis_transactions().is_err());
-        }
-
-        for (_, node) in miners.iter() {
-            assert!(node.produce_genesis_transactions().is_err());
-        }
-    }
-
-    #[tokio::test]
-    #[serial_test::serial]
-    #[ignore = "https://github.com/versatus/versatus/issues/490"]
-    async fn miner_node_runtime_can_mine_genesis_block() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
-
-        let miner_ids = miners
-            .clone()
-            .into_iter()
-            .map(|(key, _)| key)
-            .collect::<Vec<NodeId>>();
-
-        let miner_id = miner_ids.first().unwrap();
-
-        let miner_node = miners.get(miner_id).unwrap();
-
-        assert!(node_0.mine_genesis_block(genesis_txns.clone()).is_err());
-
-        for harvester in harvesters.values() {
-            assert!(harvester.mine_genesis_block(genesis_txns.clone()).is_err());
-        }
-
-        for farmer in farmers.values() {
-            assert!(farmer.mine_genesis_block(genesis_txns.clone()).is_err());
-        }
-
-        miner_node.mine_genesis_block(genesis_txns).unwrap();
-    }
-
-    #[tokio::test]
-    #[serial_test::serial]
-    #[ignore = "broken atm"]
-    async fn harvester_node_runtime_can_propose_blocks() {
-        let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
-
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
-
-        let miner_ids = miners
-            .clone()
-            .into_iter()
-            .map(|(key, _)| key)
-            .collect::<Vec<NodeId>>();
-
-        let miner_id = miner_ids.first().unwrap();
-
-        let miner_node = miners.get(miner_id).unwrap();
-        let claim = miner_node.state_driver.dag.claim();
-
-        let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
-
-        for (_, harvester) in harvesters.iter_mut() {
-            let proposal_block = harvester
-                .handle_proposal_block_mine_request_created(
-                    genesis_block.hash.clone(),
-                    1,
-                    1,
-                    claim.clone(),
-=======
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
             let (transaction_kind, validity) = farmer
@@ -979,7 +890,6 @@ mod tests {
                     txn.id(),
                     farmer.mempool_read_handle_factory().clone(),
                     farmer.state_store_read_handle_factory().clone(),
->>>>>>> main
                 )
                 .unwrap();
             assert!(!validity);
@@ -991,15 +901,8 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-<<<<<<< HEAD
-    #[ignore = "https://github.com/versatus/versatus/issues/489"]
-    async fn harvester_node_runtime_can_handle_genesis_block_created() {
-        let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
-=======
     async fn farmer_node_runtime_can_form_invalid_vote_on_invalid_transaction_invalid_timestamp() {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
->>>>>>> main
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
 
@@ -1119,15 +1022,8 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-<<<<<<< HEAD
-    #[ignore = "https://github.com/versatus/versatus/issues/488"]
-    async fn harvester_node_runtime_can_handle_convergence_block_created() {
-        let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions().unwrap();
-=======
     async fn farmer_node_runtime_can_form_invalid_vote_on_invalid_transaction_sender_missing() {
         let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
->>>>>>> main
 
         let mut nodes = create_node_runtime_network(4, events_tx.clone()).await;
 
