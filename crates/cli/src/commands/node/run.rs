@@ -24,7 +24,7 @@ const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 pub struct RunOpts {
     /// Start node as a background process
     #[clap(short, long, action, default_value = "false")]
-    pub dettached: bool,
+    pub detached: bool,
 
     ///Shows debugging config information
     #[clap(long, action, default_value = "false")]
@@ -61,7 +61,7 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
     pub grpc_server_address: SocketAddr,
 
-    #[clap(long, default_value = "false")]
+    #[clap(long)]
     pub bootstrap: bool,
 
     #[clap(long, value_parser)]
@@ -149,7 +149,7 @@ impl Default for RunOpts {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
         Self {
-            dettached: Default::default(),
+            detached: Default::default(),
             debug_config: Default::default(),
             id: Default::default(),
             idx: Default::default(),
@@ -192,7 +192,7 @@ impl RunOpts {
             .set_default("preload_mock_state", false)?
             .set_default("debug_config", false)?
             .set_default("bootstrap", false)?
-            .set_default("dettached", false)?
+            .set_default("detached", false)?
             .add_source(File::with_name(config_path))
             .build()?;
 
@@ -236,7 +236,7 @@ impl RunOpts {
         };
 
         Self {
-            dettached: other.dettached,
+            detached: other.detached,
             debug_config: other.debug_config,
             id: self.id.clone().or(other.id.clone()),
             idx: self.idx.or(other.idx),
@@ -290,8 +290,8 @@ pub async fn run(args: RunOpts) -> Result<()> {
         dbg!(&node_config);
     }
 
-    if args.dettached {
-        run_dettached(node_config).await
+    if args.detached {
+        run_detached(node_config).await
     } else {
         run_blocking(node_config).await
     }
@@ -319,8 +319,8 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 }
 
 #[telemetry::instrument]
-async fn run_dettached(node_config: NodeConfig) -> Result<()> {
-    info!("running node in dettached mode");
+async fn run_detached(node_config: NodeConfig) -> Result<()> {
+    info!("running node in detached mode");
     // start child process, run node within it
     Ok(())
 }

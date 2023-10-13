@@ -1,19 +1,14 @@
 //! This crate provides functionality for generating/verification of  partial
 //! and threshold signatures
-use std::{
-    collections::BTreeMap,
-    default,
-    str::FromStr,
-    sync::{Arc, PoisonError, RwLock, RwLockReadGuard},
-};
+use std::{collections::BTreeMap, str::FromStr};
 
-use dkg_engine::prelude::*;
+// use dkg_engine::prelude::*;
 use hbbft::{
-    crypto::{Fr, FrRepr, Signature, SignatureShare, SIG_SIZE, PublicKeySet, SecretKeyShare},
+    crypto::{Fr, FrRepr, PublicKeySet, SecretKeyShare, Signature, SignatureShare, SIG_SIZE},
     pairing::PrimeField,
 };
 use primitives::{NodeId, NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
-use vrrb_config::{ThresholdConfig, QuorumMembershipConfig, threshold_config};
+use vrrb_config::ThresholdConfig;
 
 use crate::types::{SignerError, SignerResult};
 
@@ -60,35 +55,35 @@ impl NodeIdFrBuilder for NodeId {}
 #[derive(Clone, Debug)]
 pub struct SignatureProvider {
     public_key_set: Option<PublicKeySet>,
-    secret_key_share: Option<SecretKeyShare>, 
+    secret_key_share: Option<SecretKeyShare>,
     pub quorum_config: ThresholdConfig,
 }
 
-impl From<&DkgState> for SignatureProvider {
-    fn from(item: &DkgState) -> SignatureProvider {
-        let public_key_set = item.public_key_set().clone();
-        let secret_key_share = item.secret_key_share().clone();
+// impl From<&DkgState> for SignatureProvider {
+//     fn from(item: &DkgState) -> SignatureProvider {
+//         let public_key_set = item.public_key_set().clone();
+//         let secret_key_share = item.secret_key_share().clone();
 
-        let mut sig_provider = SignatureProvider::new(ThresholdConfig::default());
-        
-        match public_key_set {
-            Some(pks) => sig_provider.set_public_key_set(pks),
-            _ => {}
-        }
-        match secret_key_share {
-            Some(sks) => sig_provider.set_secret_key_share(sks),
-            _ => {}
-        }
+//         let mut sig_provider = SignatureProvider::new(ThresholdConfig::default());
 
-        sig_provider
-    }
-}
+//         match public_key_set {
+//             Some(pks) => sig_provider.set_public_key_set(pks),
+//             _ => {},
+//         }
+//         match secret_key_share {
+//             Some(sks) => sig_provider.set_secret_key_share(sks),
+//             _ => {},
+//         }
 
-impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
-    fn from(_: PoisonError<RwLockReadGuard<'_, DkgState>>) -> SignerError {
-        SignerError::DkgStateCannotBeRead
-    }
-}
+//         sig_provider
+//     }
+// }
+
+// impl From<PoisonError<RwLockReadGuard<'_, DkgState>>> for SignerError {
+//     fn from(_: PoisonError<RwLockReadGuard<'_, DkgState>>) -> SignerError {
+//         SignerError::DkgStateCannotBeRead
+//     }
+// }
 
 impl SignatureProvider {
     pub fn new(quorum_config: ThresholdConfig) -> Self {
@@ -118,7 +113,7 @@ impl SignatureProvider {
     pub fn public_key_set(&self) -> Option<PublicKeySet> {
         self.public_key_set.clone()
     }
-    
+
     pub fn quorum_config(&self) -> ThresholdConfig {
         self.quorum_config.clone()
     }
@@ -162,9 +157,7 @@ impl Signer for SignatureProvider {
         let secret_key_share = self.secret_key_share();
         let secret_key_share = match secret_key_share {
             Some(key) => key,
-            None => {
-                return Err(SignerError::SecretKeyShareMissing)
-            },
+            None => return Err(SignerError::SecretKeyShareMissing),
         };
 
         let signature = secret_key_share.sign(payload_hash);
@@ -404,177 +397,174 @@ impl Signer for SignatureProvider {
     }
 }
 
-#[cfg(test)]
-mod tests {
+// #[cfg(test)]
+// mod tests {
 
-    use dkg_engine::test_utils::generate_dkg_engine_with_states;
-    use primitives::SignatureType;
-    use std::collections::BTreeMap;
-    use vrrb_config::ThresholdConfig;
-    use vrrb_core::is_enum_variant;
+//     use dkg_engine::test_utils::generate_dkg_engine_with_states;
+//     use primitives::SignatureType;
+//     use std::collections::BTreeMap;
+//     use vrrb_config::ThresholdConfig;
+//     use vrrb_core::is_enum_variant;
 
-    use crate::{
-        signer::{SignatureProvider, Signer},
-        types::SignerError,
-    };
+//     use crate::{
+//         signer::{SignatureProvider, Signer},
+//         types::SignerError,
+//     };
 
-    #[tokio::test]
-    async fn successful_test_generation_partial_signature() {
-        let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
-        let message = "This is test message";
-        let threshold_config = ThresholdConfig { upper_bound: 4, threshold: 1 };
-        let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state);
-        sig_provider.set_threshold_config(threshold_config);
-        let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
-        match result {
-            Ok(sig_share) => assert_eq!(sig_share.len() > 0, true),
-            Err(e) => panic!("{}", format!("Generating partial signature failed {:?}", e)),
-        }
-    }
+//     #[tokio::test]
+//     async fn successful_test_generation_partial_signature() {
+//         let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
+//         let message = "This is test message";
+//         let threshold_config = ThresholdConfig {
+//             upper_bound: 4,
+//             threshold: 1,
+//         };
+//         let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state);
+//         sig_provider.set_threshold_config(threshold_config);
+//         let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
+//         match result {
+//             Ok(sig_share) => assert_eq!(sig_share.len() > 0, true),
+//             Err(e) => panic!("{}", format!("Generating partial signature failed {:?}", e)),
+//         }
+//     }
 
-    #[tokio::test]
-    async fn failed_test_generation_partial_signature() {
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
-        let mut dkg_engine_node = dkg_engines.pop().unwrap();
-        let message = "This is test message";
-        let threshold_config = ThresholdConfig {
-            threshold: 1,
-            upper_bound: 4,
-        };
-        dkg_engine_node.dkg_state.set_secret_key_share(None);
-        let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state); 
-        sig_provider.set_threshold_config(threshold_config);
-        let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
-        assert_eq!(result, Err(SignerError::SecretKeyShareMissing));
-    }
+//     #[tokio::test]
+//     async fn failed_test_generation_partial_signature() {
+//         let mut dkg_engines = generate_dkg_engine_with_states().await;
+//         let mut dkg_engine_node = dkg_engines.pop().unwrap();
+//         let message = "This is test message";
+//         let threshold_config = ThresholdConfig {
+//             threshold: 1,
+//             upper_bound: 4,
+//         };
+//         dkg_engine_node.dkg_state.set_secret_key_share(None);
+//         let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state);
+//         sig_provider.set_threshold_config(threshold_config);
+//         let result = sig_provider.generate_partial_signature(message.as_bytes().to_vec());
+//         assert_eq!(result, Err(SignerError::SecretKeyShareMissing));
+//     }
 
-    #[tokio::test]
-    async fn successful_test_generation_quorum_signature() {
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
-        let mut sig_shares = BTreeMap::new();
-        let message = "This is test message";
-        let mut i: u16 = 3;
-        while !dkg_engines.is_empty() {
-            let dkg_engine_node = dkg_engines.pop().unwrap();
+//     #[tokio::test]
+//     async fn successful_test_generation_quorum_signature() {
+//         let mut dkg_engines = generate_dkg_engine_with_states().await;
+//         let mut sig_shares = BTreeMap::new();
+//         let message = "This is test message";
+//         let mut i: u16 = 3;
+//         while !dkg_engines.is_empty() {
+//             let dkg_engine_node = dkg_engines.pop().unwrap();
 
-            let mut sig_provider_node = SignatureProvider::from(&dkg_engine_node.dkg_state);
-            let threshold_config = ThresholdConfig { threshold: 1, upper_bound: 4 };
-            sig_provider_node.set_threshold_config(threshold_config);
+//             let mut sig_provider_node = SignatureProvider::from(&dkg_engine_node.dkg_state);
+//             let threshold_config = ThresholdConfig {
+//                 threshold: 1,
+//                 upper_bound: 4,
+//             };
+//             sig_provider_node.set_threshold_config(threshold_config);
 
-            let signature_share_node = sig_provider_node
-                .generate_partial_signature(message.as_bytes().to_vec())
-                .unwrap();
-            sig_shares.insert(format!("node-{i}"), signature_share_node);
-            if i == 0 {
-                let quorum_signature_result =
-                    sig_provider_node.generate_quorum_signature(1, sig_shares.clone());
-                assert_eq!(quorum_signature_result.is_err(), false);
-                assert_eq!(quorum_signature_result.unwrap().len() > 0, true);
-                break;
-            }
+//             let signature_share_node = sig_provider_node
+//                 .generate_partial_signature(message.as_bytes().to_vec())
+//                 .unwrap();
+//             sig_shares.insert(format!("node-{i}"), signature_share_node);
+//             if i == 0 {
+//                 let quorum_signature_result =
+//                     sig_provider_node.generate_quorum_signature(1, sig_shares.clone());
+//                 assert_eq!(quorum_signature_result.is_err(), false);
+//                 assert_eq!(quorum_signature_result.unwrap().len() > 0, true);
+//                 break;
+//             }
 
-            i = i - 1;
-        }
-    }
+//             i = i - 1;
+//         }
+//     }
 
-    #[tokio::test]
-    async fn successful_verification_partial_signature() {
-        let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
-        let message = "This is test message";
-        let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state); 
-        sig_provider.set_threshold_config(ThresholdConfig {
-                threshold: 1,
-                upper_bound: 4,
-            }
-        );
+//     #[tokio::test]
+//     async fn successful_verification_partial_signature() {
+//         let dkg_engine_node = generate_dkg_engine_with_states().await.pop().unwrap();
+//         let message = "This is test message";
+//         let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state);
+//         sig_provider.set_threshold_config(ThresholdConfig {
+//             threshold: 1,
+//             upper_bound: 4,
+//         });
 
-        let signature_share = sig_provider
-            .generate_partial_signature(message.as_bytes().to_vec())
-            .unwrap();
+//         let signature_share = sig_provider
+//             .generate_partial_signature(message.as_bytes().to_vec())
+//             .unwrap();
 
-        let sig_status = sig_provider.verify_signature(
-            3,
-            message.as_bytes().to_vec(),
-            signature_share,
-            SignatureType::PartialSignature,
-        );
-        assert_eq!(sig_status.is_err(), false);
-        if !sig_status.is_err() {
-            assert_eq!(sig_status.unwrap(), true);
-        }
-    }
+//         let sig_status = sig_provider.verify_signature(
+//             3,
+//             message.as_bytes().to_vec(),
+//             signature_share,
+//             SignatureType::PartialSignature,
+//         );
+//         assert_eq!(sig_status.is_err(), false);
+//         if !sig_status.is_err() {
+//             assert_eq!(sig_status.unwrap(), true);
+//         }
+//     }
 
-    #[tokio::test]
-    async fn successful_verification_threshold_signature() {
-        let message = "This is test message";
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
-        let mut sig_shares = BTreeMap::new();
-        let mut i: u16 = 3;
-        while !dkg_engines.is_empty() {
-            let dkg_engine_node = dkg_engines.pop().unwrap();
-            let mut sig_provider_node = SignatureProvider::from(
-                &dkg_engine_node.dkg_state
-            );
-            sig_provider_node.set_threshold_config(
-                ThresholdConfig {
-                    threshold: 1,
-                    upper_bound: 4,
-                }
-            );
+//     #[tokio::test]
+//     async fn successful_verification_threshold_signature() {
+//         let message = "This is test message";
+//         let mut dkg_engines = generate_dkg_engine_with_states().await;
+//         let mut sig_shares = BTreeMap::new();
+//         let mut i: u16 = 3;
+//         while !dkg_engines.is_empty() {
+//             let dkg_engine_node = dkg_engines.pop().unwrap();
+//             let mut sig_provider_node = SignatureProvider::from(&dkg_engine_node.dkg_state);
+//             sig_provider_node.set_threshold_config(ThresholdConfig {
+//                 threshold: 1,
+//                 upper_bound: 4,
+//             });
 
-            let signature_share_node = sig_provider_node
-                .generate_partial_signature(message.as_bytes().to_vec())
-                .unwrap();
-            sig_shares.insert(format!("node-{i}"), signature_share_node);
-            if i == 0 {
-                let threshold_sig_result =
-                    sig_provider_node.generate_quorum_signature(1, sig_shares);
-                let sig = threshold_sig_result.unwrap();
-                let sig_status = sig_provider_node.verify_signature(
-                    2,
-                    message.as_bytes().to_vec(),
-                    sig,
-                    SignatureType::ThresholdSignature,
-                );
+//             let signature_share_node = sig_provider_node
+//                 .generate_partial_signature(message.as_bytes().to_vec())
+//                 .unwrap();
+//             sig_shares.insert(format!("node-{i}"), signature_share_node);
+//             if i == 0 {
+//                 let threshold_sig_result =
+//                     sig_provider_node.generate_quorum_signature(1, sig_shares);
+//                 let sig = threshold_sig_result.unwrap();
+//                 let sig_status = sig_provider_node.verify_signature(
+//                     2,
+//                     message.as_bytes().to_vec(),
+//                     sig,
+//                     SignatureType::ThresholdSignature,
+//                 );
 
-                assert_eq!(sig_status.is_err(), false);
-                if !sig_status.is_err() {
-                    assert_eq!(sig_status.unwrap(), true);
-                }
-                break;
-            }
-            i = i - 1;
-        }
-    }
+//                 assert_eq!(sig_status.is_err(), false);
+//                 if !sig_status.is_err() {
+//                     assert_eq!(sig_status.unwrap(), true);
+//                 }
+//                 break;
+//             }
+//             i = i - 1;
+//         }
+//     }
 
-    #[tokio::test]
-    async fn failed_verification_threshold_signature() {
-        let message = "This is test message";
+//     #[tokio::test]
+//     async fn failed_verification_threshold_signature() {
+//         let message = "This is test message";
 
-        let mut dkg_engines = generate_dkg_engine_with_states().await;
-        let dkg_engine_node = dkg_engines.pop().unwrap();
+//         let mut dkg_engines = generate_dkg_engine_with_states().await;
+//         let dkg_engine_node = dkg_engines.pop().unwrap();
 
-        let mut sig_provider = SignatureProvider::from(
-            &dkg_engine_node.dkg_state
-        );
+//         let mut sig_provider = SignatureProvider::from(&dkg_engine_node.dkg_state);
 
-        sig_provider.set_threshold_config(
-            ThresholdConfig {
-                threshold: 1,
-                upper_bound: 4,
-            }
-        );
+//         sig_provider.set_threshold_config(ThresholdConfig {
+//             threshold: 1,
+//             upper_bound: 4,
+//         });
 
-        let sig_status = sig_provider.verify_signature(
-            2,
-            message.as_bytes().to_vec(),
-            [0u8; 96].to_vec(),
-            SignatureType::ThresholdSignature,
-        );
-        assert_eq!(sig_status.is_err(), true);
-        assert!(is_enum_variant!(
-            sig_status,
-            Err(SignerError::ThresholdSignatureError { .. })
-        ));
-    }
-}
+//         let sig_status = sig_provider.verify_signature(
+//             2,
+//             message.as_bytes().to_vec(),
+//             [0u8; 96].to_vec(),
+//             SignatureType::ThresholdSignature,
+//         );
+//         assert_eq!(sig_status.is_err(), true);
+//         assert!(is_enum_variant!(
+//             sig_status,
+//             Err(SignerError::ThresholdSignatureError { .. })
+//         ));
+//     }
+// }

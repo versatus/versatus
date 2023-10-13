@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use block::BlockHash;
 use primitives::{
     ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeIdx,
-    NodeType, QuorumKind, RawSignature, ValidatorPublicKey, ValidatorPublicKeyShare,
+    NodeType, PublicKey, QuorumKind, RawSignature, Signature, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
 use vrrb_config::QuorumMember;
@@ -17,7 +17,7 @@ pub struct PeerData {
     pub udp_gossip_addr: SocketAddr,
     pub raptorq_gossip_addr: SocketAddr,
     pub kademlia_liveness_addr: SocketAddr,
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 impl From<QuorumMember> for PeerData {
@@ -53,7 +53,7 @@ pub struct Vote {
     pub farmer_id: NodeId,
     pub farmer_node_id: NodeId,
     /// Partial Signature
-    pub signature: RawSignature,
+    pub signature: Signature,
     pub txn: TransactionKind,
     pub is_txn_valid: bool,
     // May want to serialize this as a vector of bytes
@@ -117,6 +117,7 @@ pub enum JobStatus {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Hash, Clone)]
 pub struct AssignedQuorumMembership {
     pub node_id: NodeId,
+    pub pub_key: PublicKey,
     pub kademlia_peer_id: KademliaPeerId,
     pub quorum_kind: QuorumKind,
     pub peers: Vec<PeerData>,

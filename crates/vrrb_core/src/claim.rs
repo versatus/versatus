@@ -55,20 +55,19 @@ pub struct Claim {
     stake_txns: Vec<Stake>,
 }
 
-///Node has privileges to be Miner/Validator,Farmer or None
+// TODO: Remove None variant and use Option<Eligibility>.
+/// Node has privileges to be a Validator, Miner or None
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Eligibility {
-    Harvester,
+    Validator,
     Miner,
-    Farmer,
     None,
 }
 
 impl std::fmt::Display for Eligibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Eligibility::Harvester => write!(f, "Harvester"),
-            Eligibility::Farmer => write!(f, "Farmer"),
+            Eligibility::Validator => write!(f, "Validator"),
             Eligibility::Miner => write!(f, "Miner"),
             Eligibility::None => write!(f, "None"),
         }

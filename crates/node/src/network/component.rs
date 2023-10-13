@@ -13,7 +13,7 @@ use dyswarm::{
 use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber};
 use hbbft::{crypto::PublicKey as ThresholdSignaturePublicKey, sync_key_gen::Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use primitives::{KademliaPeerId, NodeId, NodeType, ValidatorPublicKey};
+use primitives::{KademliaPeerId, NodeId, PublicKey};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
@@ -41,7 +41,7 @@ pub struct NetworkModuleComponentConfig {
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub membership_config: Option<QuorumMembershipConfig>,
     pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 #[derive(Debug, Clone)]
