@@ -1,7 +1,12 @@
 use primitives::{Address, PublicKey, SecretKey};
 use ritelinked::LinkedHashMap;
 use secp256k1::Secp256k1;
-use vrrb_core::transactions::{TransactionDigest, TransactionKind};
+use vrrb_core::{
+    keypair::KeyPair,
+    transactions::{TransactionDigest, TransactionKind},
+};
+
+use crate::genesis;
 
 pub const N_ALPHANET_RECEIVERS: usize = 4;
 
@@ -139,4 +144,12 @@ fn create_genesis_keyset(m: usize) -> (SecretKey, PublicKey) {
 
 fn create_genesis_keysets(n: usize) -> Vec<(SecretKey, PublicKey)> {
     (0..n).map(|m| create_genesis_keyset(m)).collect()
+}
+
+#[test]
+fn create_odd_number_of_genesis_txns() {
+    let kp = KeyPair::random();
+    let mut genesis_config = GenesisConfig::new(Address::new(kp.miner_public_key_owned()));
+    generate_genesis_txns(3, &mut genesis_config);
+    dbg!(&genesis_config);
 }
