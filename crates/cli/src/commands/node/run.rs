@@ -57,7 +57,10 @@ pub struct RunOpts {
     #[clap(long, value_parser, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub jsonrpc_api_address: SocketAddr,
 
-    #[clap(long, default_value = "false")]
+    #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
+    pub grpc_server_address: SocketAddr,
+
+    #[clap(long)]
     pub bootstrap: bool,
 
     #[clap(long, value_parser)]
