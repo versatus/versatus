@@ -109,7 +109,8 @@ fn create_node_config_with_whitelist() {
     deserialize_whitelisted_quorum_members(
         "tests/whitelist_data/whitelist.json".into(),
         &mut finalized_whitelist,
-    );
+    )
+    .unwrap();
     finalized_whitelist.sort();
 
     assert_eq!(quorum_members, finalized_whitelist);

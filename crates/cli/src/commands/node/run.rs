@@ -1,13 +1,13 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-};
-
 use config::{Config, ConfigError, File};
 use node::Node;
 use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use serde::Deserialize;
-use telemetry::{info, warn};
+use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
+};
+use telemetry::{error, info, warn};
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, QuorumMember};
 use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
@@ -292,14 +292,19 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
-    node_config.whitelisted_nodes = match args.whitelist_path {
-        Some(whitelist) => {
+
+    node_config.whitelisted_nodes = args
+        .whitelist_path
+        .and_then(|whitelist| {
             let mut finalized_whitelist = Vec::with_capacity(GENESIS_QUORUM_SIZE);
-            deserialize_whitelisted_quorum_members(whitelist, &mut finalized_whitelist);
-            finalized_whitelist
-        },
-        None => vec![],
-    };
+            if let Err(e) =
+                deserialize_whitelisted_quorum_members(whitelist, &mut finalized_whitelist)
+            {
+                error!("failed to deserialize whitelist: {e}");
+            }
+            Some(finalized_whitelist)
+        })
+        .unwrap_or_default();
 
     if args.debug_config {
         dbg!(&node_config);
@@ -315,25 +320,36 @@ pub async fn run(args: RunOpts) -> Result<()> {
 pub fn deserialize_whitelisted_quorum_members(
     whitelist: String,
     finalized_whitelist: &mut Vec<QuorumMember>,
-) {
+) -> Result<()> {
     let whitelist_path = PathBuf::from(whitelist);
-    let whitelist_str = std::fs::read_to_string(whitelist_path).unwrap();
-    let whitelist_values: serde_json::Value = serde_json::from_str(&whitelist_str).unwrap();
-    if let serde_json::Value::Object(whitelist_members) = whitelist_values {
+    let whitelist_str =
+        std::fs::read_to_string(whitelist_path).map_err(|e| CliError::OptsError(e.to_string()))?;
+    let whitelist_values: JsonValue =
+        json_from_str(&whitelist_str).map_err(|e| CliError::OptsError(e.to_string()))?;
+    if let JsonValue::Object(whitelist_members) = whitelist_values {
         for (node_type, value) in whitelist_members {
             match node_type.as_str() {
-                "genesis-miner" => finalized_whitelist.push(serde_json::from_value(value).unwrap()),
+                "genesis-miner" => finalized_whitelist
+                    .push(json_from_value(value).map_err(|e| CliError::OptsError(e.to_string()))?),
                 "genesis-farmers" | "genesis-harvesters" => {
-                    if let serde_json::Value::Array(genesis_quorum_members) = value {
+                    if let JsonValue::Array(genesis_quorum_members) = value {
                         for member in genesis_quorum_members {
-                            finalized_whitelist.push(serde_json::from_value(member).unwrap())
+                            finalized_whitelist.push(
+                                json_from_value(member)
+                                    .map_err(|e| CliError::OptsError(e.to_string()))?,
+                            )
                         }
                     }
                 },
-                _ => panic!("invalid genesis node type found in whitelist config"),
+                _ => {
+                    return Err(CliError::OptsError(
+                        "invalid genesis node type found in whitelist config".to_string(),
+                    ));
+                },
             }
         }
     }
+    Ok(())
 }
 
 #[telemetry::instrument]
