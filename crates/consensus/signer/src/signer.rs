@@ -446,6 +446,7 @@ impl Signer for SignatureProvider {
 //     }
 
 //     #[tokio::test]
+//     #[ignore = "https://github.com/versatus/versatus/issues/480"]
 //     async fn successful_test_generation_quorum_signature() {
 //         let mut dkg_engines = generate_dkg_engine_with_states().await;
 //         let mut sig_shares = BTreeMap::new();

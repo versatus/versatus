@@ -419,7 +419,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    #[ignore = "redundant tested in ../node/tests/harvesters"]
+    #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
