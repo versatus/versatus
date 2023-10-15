@@ -9,7 +9,7 @@ use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use serde::Deserialize;
 use telemetry::{info, warn};
 use uuid::Uuid;
-use vrrb_config::NodeConfig;
+use vrrb_config::{NodeConfig, QuorumMember};
 use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 use crate::result::{CliError, Result};
@@ -19,6 +19,7 @@ const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
 const DEFAULT_GRPC_ADDRESS: &str = "127.0.0.1:50051";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
+pub const GENESIS_QUORUM_SIZE: usize = 5;
 
 #[derive(clap::Parser, Debug, Clone, Deserialize)]
 pub struct RunOpts {
@@ -91,6 +92,9 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub public_ip_address: SocketAddr,
+
+    #[clap(long)]
+    pub whitelist_path: Option<String>,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -139,6 +143,7 @@ impl From<RunOpts> for NodeConfig {
             quorum_config: default_node_config.quorum_config,
             enable_block_indexing: default_node_config.enable_block_indexing,
             threshold_config: default_node_config.threshold_config,
+            whitelisted_nodes: default_node_config.whitelisted_nodes,
         }
     }
 }
@@ -170,6 +175,7 @@ impl Default for RunOpts {
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
             public_ip_address: ipv4_localhost_with_random_port,
+            whitelist_path: None,
         }
     }
 }
@@ -258,6 +264,7 @@ impl RunOpts {
             rendezvous_local_address: other.rendezvous_local_address,
             rendezvous_server_address: other.rendezvous_server_address,
             public_ip_address: other.public_ip_address,
+            whitelist_path: other.whitelist_path.clone(),
         }
     }
 }
@@ -285,6 +292,14 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
+    node_config.whitelisted_nodes = match args.whitelist_path {
+        Some(whitelist) => {
+            let mut finalized_whitelist = Vec::with_capacity(GENESIS_QUORUM_SIZE);
+            deserialize_whitelisted_quorum_members(whitelist, &mut finalized_whitelist);
+            finalized_whitelist
+        },
+        None => vec![],
+    };
 
     if args.debug_config {
         dbg!(&node_config);
@@ -294,6 +309,30 @@ pub async fn run(args: RunOpts) -> Result<()> {
         run_detached(node_config).await
     } else {
         run_blocking(node_config).await
+    }
+}
+
+pub fn deserialize_whitelisted_quorum_members(
+    whitelist: String,
+    finalized_whitelist: &mut Vec<QuorumMember>,
+) {
+    let whitelist_path = PathBuf::from(whitelist);
+    let whitelist_str = std::fs::read_to_string(whitelist_path).unwrap();
+    let whitelist_values: serde_json::Value = serde_json::from_str(&whitelist_str).unwrap();
+    if let serde_json::Value::Object(whitelist_members) = whitelist_values {
+        for (node_type, value) in whitelist_members {
+            match node_type.as_str() {
+                "genesis-miner" => finalized_whitelist.push(serde_json::from_value(value).unwrap()),
+                "genesis-farmers" | "genesis-harvesters" => {
+                    if let serde_json::Value::Array(genesis_quorum_members) = value {
+                        for member in genesis_quorum_members {
+                            finalized_whitelist.push(serde_json::from_value(member).unwrap())
+                        }
+                    }
+                },
+                _ => panic!("invalid genesis node type found in whitelist config"),
+            }
+        }
     }
 }
 
