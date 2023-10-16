@@ -8,7 +8,7 @@ use vrrb_core::transactions::TransactionKind;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
-#[ignore = "state sync is not implemented yet"]
+#[ignore = "https://github.com/versatus/versatus/issues/469"]
 async fn nodes_can_synchronize_state() {
     // NOTE: two instances of a config are required because the node will create a
     // data directory for the database which cannot be the same for both nodes
@@ -43,7 +43,8 @@ async fn nodes_can_synchronize_state() {
                     .amount(0)
                     .signature(signature)
                     .nonce(0)
-                    .build_kind().expect("Unable to build transfer transaction")
+                    .build_kind()
+                    .expect("Unable to build transfer transaction"),
             )
             .await
             .unwrap();
