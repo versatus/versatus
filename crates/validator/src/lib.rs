@@ -56,7 +56,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Needs to be rewritten to account for change in txn"]
+    #[ignore = "https://github.com/versatus/versatus/issues/472"]
     fn should_validate_a_list_of_invalid_transactions() {
         // let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
 

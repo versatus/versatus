@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::commands::{config::ConfigOpts, node::NodeOpts, wallet::WalletOpts};
+use crate::commands::{config::ConfigOpts, keygen::KeygenCmd, node::NodeOpts, wallet::WalletOpts};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None, arg_required_else_help(true))]
@@ -33,4 +33,7 @@ pub enum Commands {
 
     /// Interact with with accounts and objects on the network
     Wallet(WalletOpts),
+
+    /// Manage keypair creation
+    Keygen(KeygenCmd),
 }

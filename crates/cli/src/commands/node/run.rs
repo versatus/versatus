@@ -7,16 +7,17 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-use telemetry::{error, info, warn};
+use telemetry::{error, info};
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, QuorumMember};
-use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
-use crate::result::{CliError, Result};
+use crate::{
+    commands::keygen,
+    result::{CliError, Result},
+};
 
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
-const DEFAULT_GRPC_ADDRESS: &str = "127.0.0.1:50051";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 pub const GENESIS_QUORUM_SIZE: usize = 5;
@@ -58,9 +59,6 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub jsonrpc_api_address: SocketAddr,
-
-    #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
-    pub grpc_server_address: SocketAddr,
 
     #[clap(long)]
     pub bootstrap: bool,
@@ -165,7 +163,6 @@ impl Default for RunOpts {
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             http_api_address: ipv4_localhost_with_random_port,
             jsonrpc_api_address: ipv4_localhost_with_random_port,
-            grpc_server_address: ipv4_localhost_with_random_port,
             bootstrap: Default::default(),
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
@@ -253,7 +250,6 @@ impl RunOpts {
             udp_gossip_address: other.udp_gossip_address,
             raptorq_gossip_address: other.raptorq_gossip_address,
             jsonrpc_api_address: other.jsonrpc_api_address,
-            grpc_server_address: other.grpc_server_address,
             bootstrap: other.bootstrap,
             bootstrap_node_addresses,
             http_api_address: other.http_api_address,
@@ -271,24 +267,7 @@ impl RunOpts {
 
 /// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
-    let data_dir = vrrb_core::storage_utils::get_node_data_dir()?;
-
-    std::fs::create_dir_all(&data_dir)?;
-
-    let keypair_file_path = PathBuf::from(&data_dir).join("keypair");
-    let keypair = match read_keypair_file(&keypair_file_path) {
-        Ok(keypair) => keypair,
-        Err(err) => {
-            warn!("Failed to read keypair file: {err}");
-            info!("Generating new keypair");
-            let keypair = Keypair::random();
-
-            write_keypair_file(&keypair, &keypair_file_path)
-                .map_err(|err| CliError::Other(format!("failed to write keypair file: {err}")))?;
-
-            keypair
-        },
-    };
+    let keypair = keygen::keygen(false)?;
 
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
