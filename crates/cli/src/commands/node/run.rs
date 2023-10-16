@@ -7,12 +7,14 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-use telemetry::{error, info, warn};
+use telemetry::{error, info};
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, QuorumMember};
-use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
-use crate::result::{CliError, Result};
+use crate::{
+    commands::keygen,
+    result::{CliError, Result},
+};
 
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
@@ -271,24 +273,7 @@ impl RunOpts {
 
 /// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
-    let data_dir = vrrb_core::storage_utils::get_node_data_dir()?;
-
-    std::fs::create_dir_all(&data_dir)?;
-
-    let keypair_file_path = PathBuf::from(&data_dir).join("keypair");
-    let keypair = match read_keypair_file(&keypair_file_path) {
-        Ok(keypair) => keypair,
-        Err(err) => {
-            warn!("Failed to read keypair file: {err}");
-            info!("Generating new keypair");
-            let keypair = Keypair::random();
-
-            write_keypair_file(&keypair, &keypair_file_path)
-                .map_err(|err| CliError::Other(format!("failed to write keypair file: {err}")))?;
-
-            keypair
-        },
-    };
+    let keypair = keygen::keygen(false)?;
 
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
