@@ -49,6 +49,7 @@ mod tests {
             .threshold_config(ThresholdConfig::default())
             .bootstrap_quorum_config(None)
             .quorum_config(None)
+            .whitelisted_nodes(vec![])
             .build()
             .unwrap();
     }

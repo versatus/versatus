@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, net::SocketAddr};
 use primitives::{KademliaPeerId, NodeId, NodeType, PublicKey, QuorumKind};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QuorumMember {
     pub node_id: NodeId,
     pub kademlia_peer_id: KademliaPeerId,
