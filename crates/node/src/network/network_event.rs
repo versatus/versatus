@@ -1,14 +1,15 @@
 use std::net::SocketAddr;
 
-use block::ConvergenceBlock;
-use events::AssignedQuorumMembership;
+use block::{Certificate, ConvergenceBlock};
+use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
-    crypto::PublicKey,
+    crypto::PublicKeySet,
     sync_key_gen::{Ack, Part},
 };
 use mempool::TxnRecord;
-use primitives::{KademliaPeerId, NodeId, NodeType, PeerId};
+use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
 use serde::{Deserialize, Serialize};
+use signer::engine::QuorumData;
 use vrrb_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -60,7 +61,9 @@ pub enum NetworkEvent {
     },
 
     ConvergenceBlockCertified(ConvergenceBlock),
-
+    ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
+    BroadcastCertificate(Certificate),
+    BroadcastTransactionVote(Vote),
     Ping(NodeId),
 
     #[default]

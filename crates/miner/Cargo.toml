@@ -24,3 +24,4 @@ utils = { workspace = true }
 sha2 = { workspace = true }
 ethereum-types = { workspace = true }
 hbbft = { workspace = true }
+signer = { workspace = true }

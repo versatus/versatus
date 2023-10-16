@@ -28,7 +28,9 @@ impl RuntimeComponent<NodeRuntimeComponentConfig, NodeRuntimeComponentResolvedDa
         args: NodeRuntimeComponentConfig,
     ) -> crate::Result<RuntimeComponentHandle<NodeRuntimeComponentResolvedData>> {
         let mut events_rx = args.events_rx;
-        let node_runtime = NodeRuntime::new(&args.config, args.events_tx).await?;
+        let node_runtime = NodeRuntime::new(&args.config, args.events_tx).await.map_err(|err| {
+            NodeError::Other(err.to_string())
+        })?;
 
         let state_read_handle = node_runtime.state_read_handle();
         let mempool_read_handle_factory = node_runtime.mempool_read_handle_factory();

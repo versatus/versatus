@@ -1,15 +1,15 @@
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-};
-
 use config::{Config, ConfigError, File};
 use node::Node;
 use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use serde::Deserialize;
-use telemetry::{info, warn};
+use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
+};
+use telemetry::{error, info, warn};
 use uuid::Uuid;
-use vrrb_config::NodeConfig;
+use vrrb_config::{NodeConfig, QuorumMember};
 use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 use crate::result::{CliError, Result};
@@ -19,12 +19,13 @@ const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
 const DEFAULT_GRPC_ADDRESS: &str = "127.0.0.1:50051";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
+pub const GENESIS_QUORUM_SIZE: usize = 5;
 
 #[derive(clap::Parser, Debug, Clone, Deserialize)]
 pub struct RunOpts {
     /// Start node as a background process
     #[clap(short, long, action, default_value = "false")]
-    pub dettached: bool,
+    pub detached: bool,
 
     ///Shows debugging config information
     #[clap(long, action, default_value = "false")]
@@ -91,6 +92,9 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_OS_ASSIGNED_PORT_ADDRESS)]
     pub public_ip_address: SocketAddr,
+
+    #[clap(long)]
+    pub whitelist_path: Option<String>,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -139,6 +143,7 @@ impl From<RunOpts> for NodeConfig {
             quorum_config: default_node_config.quorum_config,
             enable_block_indexing: default_node_config.enable_block_indexing,
             threshold_config: default_node_config.threshold_config,
+            whitelisted_nodes: default_node_config.whitelisted_nodes,
         }
     }
 }
@@ -149,7 +154,7 @@ impl Default for RunOpts {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
         Self {
-            dettached: Default::default(),
+            detached: Default::default(),
             debug_config: Default::default(),
             id: Default::default(),
             idx: Default::default(),
@@ -170,6 +175,7 @@ impl Default for RunOpts {
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
             public_ip_address: ipv4_localhost_with_random_port,
+            whitelist_path: None,
         }
     }
 }
@@ -192,7 +198,7 @@ impl RunOpts {
             .set_default("preload_mock_state", false)?
             .set_default("debug_config", false)?
             .set_default("bootstrap", false)?
-            .set_default("dettached", false)?
+            .set_default("detached", false)?
             .add_source(File::with_name(config_path))
             .build()?;
 
@@ -236,7 +242,7 @@ impl RunOpts {
         };
 
         Self {
-            dettached: other.dettached,
+            detached: other.detached,
             debug_config: other.debug_config,
             id: self.id.clone().or(other.id.clone()),
             idx: self.idx.or(other.idx),
@@ -258,6 +264,7 @@ impl RunOpts {
             rendezvous_local_address: other.rendezvous_local_address,
             rendezvous_server_address: other.rendezvous_server_address,
             public_ip_address: other.public_ip_address,
+            whitelist_path: other.whitelist_path.clone(),
         }
     }
 }
@@ -286,15 +293,63 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
 
+    node_config.whitelisted_nodes = args
+        .whitelist_path
+        .and_then(|whitelist| {
+            let mut finalized_whitelist = Vec::with_capacity(GENESIS_QUORUM_SIZE);
+            if let Err(e) =
+                deserialize_whitelisted_quorum_members(whitelist, &mut finalized_whitelist)
+            {
+                error!("failed to deserialize whitelist: {e}");
+            }
+            Some(finalized_whitelist)
+        })
+        .unwrap_or_default();
+
     if args.debug_config {
         dbg!(&node_config);
     }
 
-    if args.dettached {
-        run_dettached(node_config).await
+    if args.detached {
+        run_detached(node_config).await
     } else {
         run_blocking(node_config).await
     }
+}
+
+pub fn deserialize_whitelisted_quorum_members(
+    whitelist: String,
+    finalized_whitelist: &mut Vec<QuorumMember>,
+) -> Result<()> {
+    let whitelist_path = PathBuf::from(whitelist);
+    let whitelist_str =
+        std::fs::read_to_string(whitelist_path).map_err(|e| CliError::OptsError(e.to_string()))?;
+    let whitelist_values: JsonValue =
+        json_from_str(&whitelist_str).map_err(|e| CliError::OptsError(e.to_string()))?;
+    if let JsonValue::Object(whitelist_members) = whitelist_values {
+        for (node_type, value) in whitelist_members {
+            match node_type.as_str() {
+                "genesis-miner" => finalized_whitelist
+                    .push(json_from_value(value).map_err(|e| CliError::OptsError(e.to_string()))?),
+                "genesis-farmers" | "genesis-harvesters" => {
+                    if let JsonValue::Array(genesis_quorum_members) = value {
+                        for member in genesis_quorum_members {
+                            finalized_whitelist.push(
+                                json_from_value(member)
+                                    .map_err(|e| CliError::OptsError(e.to_string()))?,
+                            )
+                        }
+                    }
+                },
+                _ => {
+                    return Err(CliError::OptsError(
+                        "invalid genesis node type found in whitelist config".to_string(),
+                    ));
+                },
+            }
+        }
+    }
+    Ok(())
 }
 
 #[telemetry::instrument]
@@ -319,8 +374,8 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
 }
 
 #[telemetry::instrument]
-async fn run_dettached(node_config: NodeConfig) -> Result<()> {
-    info!("running node in dettached mode");
+async fn run_detached(node_config: NodeConfig) -> Result<()> {
+    info!("running node in detached mode");
     // start child process, run node within it
     Ok(())
 }

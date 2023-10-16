@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, net::SocketAddr};
 
-use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind, ValidatorPublicKey};
+use primitives::{KademliaPeerId, NodeId, NodeType, PublicKey, QuorumKind};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QuorumMember {
     pub node_id: NodeId,
     pub kademlia_peer_id: KademliaPeerId,
@@ -11,7 +11,7 @@ pub struct QuorumMember {
     pub udp_gossip_address: SocketAddr,
     pub raptorq_gossip_address: SocketAddr,
     pub kademlia_liveness_address: SocketAddr,
-    pub validator_public_key: ValidatorPublicKey,
+    pub validator_public_key: PublicKey,
 }
 
 pub type QuorumMembers = BTreeMap<NodeId, QuorumMember>;

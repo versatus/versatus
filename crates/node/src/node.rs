@@ -4,7 +4,7 @@ use std::{
 };
 
 use events::{Event, EventPublisher, EventRouter, Topic};
-use primitives::{KademliaPeerId, NodeType};
+use primitives::{JSON_RPC_API_TOPIC_STR, KademliaPeerId, NETWORK_TOPIC_STR, NodeType, RUNTIME_TOPIC_STR};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
@@ -48,9 +48,9 @@ impl Node {
         let (events_tx, mut events_rx) = channel(events::DEFAULT_BUFFER);
 
         let mut router = EventRouter::new();
-        router.add_topic(Topic::from("json-rpc-api-control"), Some(1));
-        router.add_topic(Topic::from("network-events"), Some(1000));
-        router.add_topic(Topic::from("runtime-events"), Some(1000));
+        router.add_topic(Topic::from(JSON_RPC_API_TOPIC_STR), Some(1));
+        router.add_topic(Topic::from(NETWORK_TOPIC_STR), Some(1000));
+        router.add_topic(Topic::from(RUNTIME_TOPIC_STR), Some(1000));
 
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();

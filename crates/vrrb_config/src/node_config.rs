@@ -5,14 +5,14 @@ use std::{
 };
 
 use derive_builder::Builder;
-use hbbft::sync_key_gen::PublicKey;
-use primitives::{KademliaPeerId, NodeId, NodeIdx, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
+use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
 use crate::{
-    bootstrap::BootstrapConfig, BootstrapQuorumConfig, QuorumMembershipConfig, ThresholdConfig,
+    bootstrap::BootstrapConfig, BootstrapQuorumConfig, QuorumMember, QuorumMembershipConfig,
+    ThresholdConfig,
 };
 
 #[derive(Builder, Debug, Clone, Deserialize)]
@@ -104,6 +104,8 @@ pub struct NodeConfig {
     pub enable_block_indexing: bool,
 
     pub threshold_config: ThresholdConfig,
+
+    pub whitelisted_nodes: Vec<QuorumMember>,
 }
 
 impl NodeConfig {
@@ -177,6 +179,7 @@ impl Default for NodeConfig {
             disable_networking: false,
             threshold_config: ThresholdConfig::default(),
             enable_block_indexing: false,
+            whitelisted_nodes: vec![],
         }
     }
 }

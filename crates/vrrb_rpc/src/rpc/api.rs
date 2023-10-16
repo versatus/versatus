@@ -11,9 +11,7 @@ use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::account::Account;
 use vrrb_core::claim::Claim;
 use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{
-    NewTransferArgs, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp,
-};
+use vrrb_core::transactions::{RpcTransactionDigest, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp};
 
 use crate::rpc::SignOpts;
 
@@ -32,8 +30,6 @@ pub struct FullMempoolSnapshotResponse {
     data: Vec<TransactionRecord>,
 }
 
-pub type RpcTransactionDigest = String;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcTransactionRecord {
     pub id: RpcTransactionDigest,
@@ -51,7 +47,7 @@ pub struct RpcTransactionRecord {
 impl From<TransactionKind> for RpcTransactionRecord {
     fn from(txn: TransactionKind) -> Self {
         Self {
-            id: txn.digest().to_string(),
+            id: txn.id().digest_string(),
             timestamp: txn.timestamp(),
             sender_address: txn.sender_address(),
             sender_public_key: txn.sender_public_key(),
@@ -82,7 +78,7 @@ pub trait RpcApi {
 
     /// Create a new transaction
     #[method(name = "createTxn")]
-    async fn create_txn(&self, args: NewTransferArgs) -> Result<RpcTransactionRecord, Error>;
+    async fn create_txn(&self, txn: TransactionKind) -> Result<RpcTransactionRecord, Error>;
 
     /// Get a transaction from state
     #[method(name = "getTransaction")]

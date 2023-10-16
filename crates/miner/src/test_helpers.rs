@@ -10,11 +10,14 @@ use primitives::{Address, NodeId, PublicKey, SecretKey, Signature};
 use ritelinked::LinkedHashMap;
 use secp256k1::Message;
 use sha2::Digest;
+use vrrb_core::transactions::{
+    generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
+    TransactionDigest, TransactionKind, Transfer,
+};
 use vrrb_core::{
     claim::Claim,
     keypair::{Keypair, MinerSk},
 };
-use vrrb_core::transactions::{generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction, TransactionDigest, TransactionKind, Transfer};
 
 use crate::{result::MinerError, Miner, MinerConfig};
 
@@ -26,11 +29,26 @@ pub fn create_miner() -> Miner {
     let (secret_key, public_key) = create_keypair();
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
     let ip_address = "127.0.0.1:8080".parse().unwrap();
+
+    let signature =
+        Claim::signature_for_valid_claim(public_key, ip_address, secret_key.secret_bytes().into())
+            .unwrap();
+
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        ip_address,
+        signature,
+        String::from("test-miner-node"),
+    )
+    .unwrap();
+
     let config = MinerConfig {
         secret_key,
         public_key,
         ip_address,
         dag,
+        claim,
     };
     Miner::new(config, NodeId::default()).unwrap()
 }
@@ -40,10 +58,24 @@ pub fn create_miner_from_keypair(kp: &Keypair) -> Miner {
     let (secret_key, public_key) = kp.miner_kp;
     let dag: MinerDag = Arc::new(RwLock::new(BullDag::new()));
     let ip_address = "127.0.0.1:8080".parse().unwrap();
+    let signature =
+        Claim::signature_for_valid_claim(public_key, ip_address, secret_key.secret_bytes().into())
+            .unwrap();
+
+    let claim = Claim::new(
+        public_key,
+        Address::new(public_key),
+        ip_address,
+        signature,
+        String::from("test-miner-node"),
+    )
+    .unwrap();
+
     let config = MinerConfig {
         secret_key,
         ip_address,
         public_key,
+        claim,
         dag,
     };
     Miner::new(config, NodeId::default()).unwrap()
@@ -120,7 +152,7 @@ pub fn mine_genesis() -> Option<GenesisBlock> {
 /// to be collected by the caller.
 pub(crate) fn create_txns(
     n: usize,
-) -> impl Iterator<Item = (TransactionDigest, QuorumCertifiedTxn)> {
+) -> impl Iterator<Item = (TransactionDigest, TransactionKind)> {
     (0..n).map(|n| {
         let (sk, pk) = create_keypair();
         let (_, rpk) = create_keypair();
@@ -128,15 +160,19 @@ pub(crate) fn create_txns(
         let raddr = create_address(&rpk);
         let amount = (n.pow(2)) as u128;
 
-        let mut txn = TransactionKind::transfer_builder()
-            .timestamp(0)
-            .sender_address(saddr)
-            .sender_public_key(pk)
-            .receiver_address(raddr)
-            .amount(amount)
-            .signature(sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")))
-            .nonce(n as u128)
-            .build_kind().expect("Failed to build transaction");
+        let mut txn =
+            TransactionKind::transfer_builder()
+                .timestamp(0)
+                .sender_address(saddr)
+                .sender_public_key(pk)
+                .receiver_address(raddr)
+                .amount(amount)
+                .signature(sk.sign_ecdsa(Message::from_hashed_data::<
+                    secp256k1::hashes::sha256::Hash,
+                >(b"vrrb")))
+                .nonce(n as u128)
+                .build_kind()
+                .expect("Failed to build transaction");
 
         txn.sign(&sk);
 
@@ -153,7 +189,7 @@ pub(crate) fn create_txns(
         let digest = TransactionDigest::from(txn_digest_vec);
         (
             digest,
-            QuorumCertifiedTxn::new(vec![], vec![], txn, vec![], true),
+            txn,
         )
     })
 }
@@ -216,7 +252,7 @@ pub fn build_single_proposal_block(
     round: u128,
     epoch: u128,
     from: Claim,
-    sk: &MinerSk,
+    mut sk: signer::engine::SignerEngine,
 ) -> ProposalBlock {
     let txns = create_txns(n_txns).collect();
     let claims = create_claims(n_claims).collect();
@@ -232,6 +268,7 @@ pub fn build_multiple_proposal_blocks_single_round(
     n_claims: usize,
     round: u128,
     epoch: u128,
+    mut sk: signer::engine::SignerEngine
 ) -> Vec<ProposalBlock> {
     (0..n_blocks)
         .map(|_| {
@@ -260,7 +297,7 @@ pub fn build_multiple_proposal_blocks_single_round(
                 round,
                 epoch,
                 claim,
-                keypair.get_miner_secret_key(),
+                sk.clone(),
             );
             prop
         })
@@ -316,6 +353,7 @@ pub fn build_multiple_rounds(
     n_rounds: usize,
     round: &mut usize,
     epoch: usize,
+    mut sk: signer::engine::SignerEngine
 ) {
     if n_rounds > *round {
         if dag_has_genesis(dag.clone()) {
@@ -328,14 +366,15 @@ pub fn build_multiple_rounds(
                     n_claims,
                     *round as u128,
                     epoch as u128,
+                    sk.clone()
                 );
 
                 append_proposal_blocks_to_dag(&mut dag.clone(), proposals);
-                build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
+                build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch, sk.clone());
             };
         } else if add_genesis_to_dag(&mut dag.clone()).is_some() {
             *round += 1usize;
-            build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch);
+            build_multiple_rounds(dag, n_blocks, n_txns, n_claims, n_rounds, round, epoch, sk.clone());
         }
     }
 }
@@ -352,6 +391,8 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
     let mut prop_vertices = Vec::new();
     let genesis = mine_genesis();
     let keypair = Keypair::random();
+    let mut signer = signer::engine::SignerEngine::new(
+        keypair.get_miner_public_key().clone(), keypair.get_miner_secret_key().clone());
     let miner = create_miner_from_keypair(&keypair);
 
     if let Some(genesis) = genesis {
@@ -366,7 +407,7 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
             LinkedHashMap::new(),
             LinkedHashMap::new(),
             miner.claim,
-            keypair.get_miner_secret_key(),
+            signer
         );
         let pblock = Block::Proposal { block: prop1 };
         let pvtx: Vertex<Block, String> = pblock.into();
@@ -452,7 +493,7 @@ pub fn build_conflicting_proposal_blocks(
     round: u128,
     epoch: u128,
 ) -> (ProposalBlock, ProposalBlock) {
-    let txns: LinkedHashMap<TransactionDigest, QuorumCertifiedTxn> = create_txns(5).collect();
+    let txns: LinkedHashMap<TransactionDigest, TransactionKind> = create_txns(5).collect();
     let prop1 =
         build_single_proposal_block_from_txns(last_block_hash.clone(), txns.clone(), round, epoch);
 
@@ -465,12 +506,15 @@ pub fn build_conflicting_proposal_blocks(
 /// `ProposalBlock` with transactions provided in the function call.
 pub fn build_single_proposal_block_from_txns(
     last_block_hash: String,
-    txns: impl IntoIterator<Item = (TransactionDigest, QuorumCertifiedTxn)>,
+    txns: impl IntoIterator<Item = (TransactionDigest, TransactionKind)>,
     round: u128,
     epoch: u128,
 ) -> ProposalBlock {
     let kp = Keypair::random();
     let miner = create_miner_from_keypair(&kp);
+    let mut engine = signer::engine::SignerEngine::new(
+        kp.get_miner_public_key().clone(), kp.get_miner_secret_key().clone()
+    );
     let mut prop = build_single_proposal_block(
         last_block_hash,
         5,
@@ -478,7 +522,7 @@ pub fn build_single_proposal_block_from_txns(
         round,
         epoch,
         miner.claim,
-        kp.get_miner_secret_key(),
+        engine
     );
 
     prop.txns.extend(txns);
@@ -517,7 +561,7 @@ pub fn get_genesis_block_from_dag(dag: MinerDag) -> Option<GenesisBlock> {
 pub fn add_orphaned_block_to_dag(
     dag: MinerDag,
     last_block_hash: String,
-    txns: impl IntoIterator<Item = (TransactionDigest, QuorumCertifiedTxn)>,
+    txns: impl IntoIterator<Item = (TransactionDigest, TransactionKind)>,
     round: u128,
     epoch: u128,
 ) {

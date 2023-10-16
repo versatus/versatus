@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Arc};
 
 use integral_db::{LeftRightTrie, Proof, H256};
@@ -10,7 +9,7 @@ use crate::RocksDbAdapter;
 
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone)]
 pub struct TransactionStore {

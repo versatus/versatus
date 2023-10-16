@@ -8,8 +8,7 @@ use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
-use vrrb_core::transactions::{TransactionDigest, TxTimestamp, Transaction, TransactionKind};
-
+use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, TxTimestamp};
 
 use super::error::MempoolError;
 
@@ -177,6 +176,12 @@ impl LeftRightMempool {
         let factory = self.read.factory();
 
         MempoolReadHandleFactory { factory }
+    }
+
+    /// Return the number of key-value pairs in the map.
+    ///
+    pub fn len(&self) -> usize {
+        self.pool().len()
     }
 
     /// Adds a new transaction, makes sure it is unique in db.
