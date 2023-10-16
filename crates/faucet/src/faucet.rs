@@ -64,8 +64,6 @@ impl Faucet {
             config.rpc_server_address,
         ).await?;
 
-        eprintln!("wallet: {:?}", wallet);
-
         let faucet = Faucet {
             config,
             wallet: Arc::new(Mutex::new(wallet)),

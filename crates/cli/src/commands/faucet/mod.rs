@@ -46,11 +46,19 @@ pub async fn exec(args: FaucetOpts) -> Result<()> {
                 transfer_amount: 10,
             };
 
-            let faucet = Faucet::new(config).await.expect("Failed to create faucet");
+            let faucet = Faucet::new(config)
+                .await;
 
-            faucet.start().await.map_err(|err| {
-                CliError::Other(format!("Failed to start faucet: {}", err))
-            })
+            if let Err(err) = faucet {
+                return Err(CliError::Other(format!("Failed to create faucet: {}", err)));
+            }
+            if let Ok(faucet) = faucet {
+                faucet.start().await.map_err(|err| {
+                    CliError::Other(format!("Failed to start faucet: {}", err))
+                })
+            } else {
+                Err(CliError::Other("Failed to create faucet".to_string()))
+            }
         },
         _ => Err(CliError::InvalidCommand(format!("{sub_cmd:?}"))),
     }

@@ -73,6 +73,7 @@ impl GenesisReceiver {
 
 #[derive(Debug, Clone)]
 pub struct GenesisConfig {
+    //sender is the bootstrap miner's address
     pub sender: Address,
     pub receivers: Vec<GenesisReceiver>,
 }
