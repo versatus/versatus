@@ -25,7 +25,7 @@ pub struct StorageCli {
     )]
     pub service: String,
     /// The type of service definition to look up.
-    #[clap(short, long, value_parser, value_name = "TYPE")]
+    #[clap(short = 't', long, value_parser, value_name = "TYPE")]
     pub service_type: Option<String>,
     /// CLI subcommand
     #[clap(subcommand)]
