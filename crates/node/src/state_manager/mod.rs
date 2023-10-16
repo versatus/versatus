@@ -80,7 +80,7 @@ mod tests {
         let keypair = KeyPair::random();
         let mut sig_engine = SignerEngine::new(
             keypair.get_miner_public_key().clone(),
-            keypair.get_miner_secret_key().clone()
+            keypair.get_miner_secret_key().clone(),
         );
         let pk = keypair.get_miner_public_key().clone();
         let addr = create_address(&pk);

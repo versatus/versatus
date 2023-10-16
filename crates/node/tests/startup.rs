@@ -31,37 +31,6 @@ async fn node_can_start_as_a_bootstrap_node() {
 
 #[tokio::test]
 #[serial]
-#[ignore]
-async fn node_can_join_network() {
-    let node_config = create_mock_bootstrap_node_config();
-
-    let mut bootstrap_node = Node::start(node_config).await.unwrap();
-
-    // NOTE: use quic for peer discovery
-    let bootstrap_gossip_address = bootstrap_node.udp_gossip_address();
-
-    let node_config_1 = create_mock_full_node_config_with_bootstrap(vec![bootstrap_gossip_address]);
-
-    let mut node_1 = Node::start(node_config_1).await.unwrap();
-    let addr = node_1.jsonrpc_server_address();
-
-    let client = create_client(addr).await.unwrap();
-
-    assert!(client.is_connected());
-    let state = client.get_full_state().await;
-
-    assert!(state.is_ok());
-    assert_eq!(client.get_node_type().await.unwrap(), NodeType::Bootstrap);
-
-    let is_cancelled = node_1.stop().await.unwrap();
-
-    assert!(is_cancelled);
-
-    bootstrap_node.stop();
-}
-
-#[tokio::test]
-#[serial]
 async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
     let node_config = create_mock_bootstrap_node_config();
 
