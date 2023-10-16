@@ -125,7 +125,11 @@ impl Quorum {
     /// Checks if the child block height is valid, its used at seed and quorum
     /// creation
     pub fn check_validity(height: Height) -> bool {
-        height % Self::BLOCKS_PER_ELECTION == 0
+        if height == 0 {
+            false
+        } else {
+            height % Self::BLOCKS_PER_ELECTION == 0
+        }
     }
 
     ///gets all claims that belong to eligible nodes (master nodes)
