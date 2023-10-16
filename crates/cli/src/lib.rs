@@ -4,7 +4,7 @@ mod cli;
 pub mod result;
 
 pub(crate) use crate::cli::*;
-pub(crate) mod commands;
+pub mod commands;
 
 #[telemetry::instrument]
 pub async fn run() -> anyhow::Result<()> {
