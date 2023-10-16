@@ -131,10 +131,12 @@ impl QuorumCertifiedTxn
     }
 }
 
+pub type RpcTransactionDigest = String;
+
 #[derive(Debug, Default, Clone, Hash, Deserialize, Serialize, Eq, PartialEq)]
 pub struct TransactionDigest {
     inner: PrimitiveDigest,
-    digest_string: String,
+    digest_string: RpcTransactionDigest,
 }
 
 impl TransactionDigest {

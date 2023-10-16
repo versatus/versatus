@@ -16,7 +16,7 @@ pub enum Error {
     Other(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {

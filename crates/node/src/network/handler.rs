@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use events::{Event, EventMessage};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use primitives::RUNTIME_TOPIC_STR;
 
 use super::NetworkModule;
 
@@ -35,7 +36,7 @@ impl Handler<EventMessage> for NetworkModule {
                 );
 
                 let evt = Event::NodeAddedToPeerList(peer_data.clone());
-                let em = EventMessage::new(Some("runtime-events".into()), evt);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
                 self.events_tx
                     .send(em)
@@ -72,11 +73,23 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting certified convergence block to network");
                 self.broadcast_certified_convergence_block(block).await?;
             },
-
+            Event::ConvergenceBlockPartialSignComplete(sig) => {
+                info!("Broadcasting partial signature of convergence block to network");
+                self.broadcast_convergence_block_partial_signature(sig)
+                    .await?;
+            },
             Event::Stop => {
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
+            },
+            Event::BroadcastCertificate(cert) => {
+                info!("Broadcasting certificate to network");
+                self.broadcast_certificate(cert).await?;
+            },
+            Event::BroadcastTransactionVote(vote) => {
+                info!("Broadcasting transaction vote to network");
+                self.broadcast_transaction_vote(vote).await?;
             },
             _ => {},
         }

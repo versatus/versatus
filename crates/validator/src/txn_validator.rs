@@ -1,8 +1,11 @@
 use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
 
+use mempool::MempoolReadHandleFactory;
 use primitives::Address;
-use vrrb_core::{account::Account, keypair::KeyPair};
+use storage::vrrbdb::{StateStoreReadHandle, StateStoreReadHandleFactory};
 use vrrb_core::transactions::{Transaction, TransactionKind};
+use vrrb_core::{account::Account, keypair::KeyPair};
+use sha2::{Sha256, Digest};
 
 pub type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -44,7 +47,7 @@ pub enum TxnValidatorError {
     TxnAmountIncorrect,
 
     #[error("invalid signature")]
-    TxnSignatureIncorrect,
+    TxnSignatureIncorrect(String),
 
     #[error("invalid threshold signature")]
     TxnSignatureTresholdIncorrect,
@@ -54,6 +57,10 @@ pub enum TxnValidatorError {
 
     #[error("account not found within state state_snapshot: {0}")]
     AccountNotFound(String),
+    #[error("transaction payload not valid")]
+    PayloadInvalid(String),
+    #[error("other")]
+    Other(String)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -68,38 +75,39 @@ impl TxnValidator {
 
     /// An entire Txn validator
     // TODO: include fees and signature threshold.
-    pub fn validate(&self, account_state: &HashMap<Address, Account>, txn: &TransactionKind) -> Result<()> {
-        self.validate_structure(account_state, txn)
+    pub fn validate(
+        &self,
+        state_reader: StateStoreReadHandleFactory,
+        txn: &TransactionKind,
+    ) -> Result<()> {
+        self.validate_structure(state_reader, txn)
     }
 
     /// An entire Txn structure validator
     pub fn validate_structure(
         &self,
-        account_state: &HashMap<Address, Account>,
+        state_reader: StateStoreReadHandleFactory,
         txn: &TransactionKind,
     ) -> Result<()> {
-        self.validate_amount(account_state, txn)
+        self.validate_amount(state_reader, txn)
             .and_then(|_| self.validate_public_key(txn))
-            .and_then(|_| self.validate_sender_address(txn))
-            .and_then(|_| self.validate_receiver_address(txn))
+ //           .and_then(|_| self.validate_sender_address(txn))
+ //           .and_then(|_| self.validate_receiver_address(txn))
             .and_then(|_| self.validate_signature(txn))
             .and_then(|_| self.validate_timestamp(txn))
     }
 
     /// Txn signature validator.
     pub fn validate_signature(&self, txn: &TransactionKind) -> Result<()> {
-        let txn_signature = txn.signature();
-        if !txn_signature.to_string().is_empty() {
-            KeyPair::verify_ecdsa_sign(
-                // TODO: revisit this verification
-                format!("{:?}", txn.signature()),
-                txn.build_payload().as_bytes(),
-                txn.sender_public_key().to_string().as_bytes().to_vec(),
-            )
-            .map_err(|_| TxnValidatorError::TxnSignatureIncorrect)
-        } else {
-            Err(TxnValidatorError::TxnSignatureIncorrect)
-        }
+        let mut hasher = Sha256::new();
+        hasher.update(txn.build_payload().as_bytes());
+        let result = hasher.finalize().to_vec();
+        let message = secp256k1::Message::from_slice(&result).map_err(|err| {
+            TxnValidatorError::PayloadInvalid(err.to_string())
+        })?;
+        txn.signature().verify(&message, &txn.sender_public_key()).map_err(|err| {
+            TxnValidatorError::TxnSignatureIncorrect(err.to_string())
+        })
     }
 
     /// Txn public key validator
@@ -113,29 +121,32 @@ impl TxnValidator {
 
     /// Txn sender validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_sender_address(&self, txn: &TransactionKind) -> Result<()> {
-        if !txn.sender_address().to_string().is_empty()
-            && txn.sender_address().to_string().starts_with(ADDRESS_PREFIX)
-            && txn.sender_address().to_string().len() > 10
-        {
-            Ok(())
-        } else {
-            Err(TxnValidatorError::SenderAddressMissing)
-        }
-    }
+    // pub fn validate_sender_address(&self, txn: &TransactionKind) -> Result<()> {
+    //    if !txn.sender_address().to_string().is_empty()
+    //        && txn.sender_address().to_string().starts_with(ADDRESS_PREFIX)
+    //        && txn.sender_address().to_string().len() > 10
+    //    {
+    //        Ok(())
+    //    } else {
+    //        Err(TxnValidatorError::SenderAddressMissing)
+    //    }
+    // }
 
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
-    pub fn validate_receiver_address(&self, txn: &TransactionKind) -> Result<()> {
-        if !txn.receiver_address().to_string().is_empty()
-            && txn.receiver_address().to_string().starts_with(ADDRESS_PREFIX)
-            && txn.receiver_address().to_string().len() > 10
-        {
-            Ok(())
-        } else {
-            Err(TxnValidatorError::ReceiverAddressMissing)
-        }
-    }
+//    pub fn validate_receiver_address(&self, txn: &TransactionKind) -> Result<()> {
+//        if !txn.receiver_address().to_string().is_empty()
+//            && txn
+//                .receiver_address()
+//                .to_string()
+//                .starts_with(ADDRESS_PREFIX)
+//            && txn.receiver_address().to_string().len() > 10
+//        {
+//            Ok(())
+//        } else {
+//            Err(TxnValidatorError::ReceiverAddressMissing)
+//        }
+//    }
 
     /// Txn timestamp validator
     pub fn validate_timestamp(&self, txn: &TransactionKind) -> Result<()> {
@@ -143,7 +154,7 @@ impl TxnValidator {
 
         // TODO: revisit seconds vs nanoseconds for timestamp
         // let timestamp = duration.as_nanos();
-        if txn.timestamp() > 0 && txn.timestamp() < timestamp {
+        if txn.timestamp() > 0 && txn.timestamp() <= timestamp {
             Ok(())
         } else {
             Err(TxnValidatorError::OutOfBoundsTimestamp(
@@ -157,21 +168,18 @@ impl TxnValidator {
     // TODO, to be synchronized with transaction fees.
     pub fn validate_amount(
         &self,
-        account_state: &HashMap<Address, Account>,
+        state_reader: StateStoreReadHandleFactory,
         txn: &TransactionKind,
     ) -> Result<()> {
         let address = txn.sender_address();
-        if let Ok(address) = secp256k1::PublicKey::from_str(address.to_string().as_str()) {
-            let account = account_state.get(&Address::new(address)).unwrap();
-            if (account.credits() - account.debits())
-                .checked_sub(txn.amount())
-                .is_none()
-            {
-                return Err(TxnValidatorError::TxnAmountIncorrect);
-            };
-        } else {
-            return Err(TxnValidatorError::SenderAddressIncorrect);
-        }
+        let account = state_reader.handle().get(&address)
+            .map_err(|_| TxnValidatorError::SenderAddressIncorrect)?;
+        if (account.credits() - account.debits())
+            .checked_sub(txn.amount())
+            .is_none()
+        {
+            return Err(TxnValidatorError::TxnAmountIncorrect);
+        };
 
         Ok(())
     }

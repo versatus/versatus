@@ -3,9 +3,11 @@ use std::{
     sync::mpsc::RecvError,
 };
 
+use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use vrrb_core::{account::Account, claim::Claim};
+use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
+use vrrb_core::{account::Account, claim::Claim, transactions::TransactionDigest};
 use vrrb_core::transactions::TransactionKind;
 
 use crate::{claim_validator::ClaimValidator, txn_validator::TxnValidator};
@@ -60,7 +62,11 @@ impl Core {
     ///   propagate it's errors to main thread
     // pub fn new<D: Database>(id: CoreId, error_sender: Sender<(CoreId,
     // CoreError)>) -> Self {
-    pub fn new(id: CoreId, txn_validator: TxnValidator, claims_validator: ClaimValidator) -> Self {
+    pub fn new(
+        id: CoreId, 
+        txn_validator: TxnValidator, 
+        claims_validator: ClaimValidator,
+    ) -> Self {
         Self {
             id,
             txn_validator,
@@ -72,15 +78,30 @@ impl Core {
         self.id
     }
 
+    pub fn process_transaction_kind(
+        &self,
+        transaction: &TransactionDigest,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory
+    ) -> crate::txn_validator::Result<TransactionKind> {
+        if let Some(txn) = mempool_reader.handle().get(transaction) {
+            self.txn_validator.validate(state_reader, &txn.txn)?;
+            return Ok(txn.txn.clone())
+        }
+
+        return Err(crate::txn_validator::TxnValidatorError::NotFound)
+    }
+
     pub fn process_transactions(
         &self,
-        account_state: &HashMap<Address, Account>,
         batch: Vec<TransactionKind>,
+        mempool_reader: MempoolReadHandleFactory,
+        state_reader: StateStoreReadHandleFactory,
     ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         batch
             .into_iter()
             .map(
-                |txn| match self.txn_validator.validate(account_state, &txn) {
+                |txn| match self.txn_validator.validate(state_reader.clone(), &txn) {
                     Ok(_) => (txn, Ok(())),
                     Err(err) => {
                         telemetry::error!("{err:?}");

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
 use events::{Event, EventMessage, EventPublisher, PeerData};
-use primitives::NodeId;
+use primitives::{NETWORK_TOPIC_STR, NodeId, RUNTIME_TOPIC_STR};
 
 use crate::{network::NetworkEvent, NodeError};
 
@@ -45,7 +45,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 // TODO: once all known peers have been joined, send a `NetworkReady` event so a
                 // dkg can be started and the first quorums can be formed
 
-                let em = EventMessage::new(Some("network-events".into()), evt);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), evt);
 
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
@@ -58,7 +58,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 );
 
                 let evt = Event::ClaimReceived(claim);
-                let em = EventMessage::new(Some("network-events".into()), evt);
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), evt);
 
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
@@ -73,13 +73,13 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 );
 
                 let evt = Event::QuorumMembershipAssigmentCreated(assigned_membership);
-                let em = EventMessage::new(Some("runtime-events".into()), evt);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
             NetworkEvent::PartCommitmentCreated(node_id, part) => {
                 let evt = Event::PartCommitmentCreated(node_id, part);
-                let em = EventMessage::new(Some("runtime-events".into()), evt);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
                 if let Err(err) = self.events_tx.send(em).await {
                     telemetry::error!("{}", err);
@@ -96,7 +96,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     sender_id,
                     ack,
                 };
-                let em = EventMessage::new(Some("runtime-events".into()), evt);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
