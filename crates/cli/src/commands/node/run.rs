@@ -9,7 +9,7 @@ use std::{
 };
 use telemetry::{error, info};
 use uuid::Uuid;
-use vrrb_config::{NodeConfig, QuorumMember};
+use versa_config::{NodeConfig, QuorumMember};
 
 use crate::{
     commands::keygen,

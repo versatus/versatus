@@ -340,7 +340,7 @@ jobs:
           args: -p validator
 
   test-vrrb-config:
-    name: test vrrb_config
+    name: test versa_config
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -359,7 +359,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p vrrb_config
+          args: -p versa_config
 
   test-vrrb-core:
     name: test vrrb_core

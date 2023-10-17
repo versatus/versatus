@@ -4,14 +4,16 @@ use std::{
 };
 
 use events::{Event, EventPublisher, EventRouter, Topic};
-use primitives::{JSON_RPC_API_TOPIC_STR, KademliaPeerId, NETWORK_TOPIC_STR, NodeType, RUNTIME_TOPIC_STR};
+use primitives::{
+    KademliaPeerId, NodeType, JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR,
+};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
     task::JoinHandle,
 };
 use tokio_util::sync::CancellationToken;
-use vrrb_config::NodeConfig;
+use versa_config::NodeConfig;
 use vrrb_core::keypair::{KeyPair, Keypair};
 use vrrb_core::node_health_report::NodeHealthReport;
 

@@ -6,7 +6,7 @@ use primitives::{
     NodeType, PublicKey, QuorumKind, RawSignature, Signature, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
-use vrrb_config::QuorumMember;
+use versa_config::QuorumMember;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]

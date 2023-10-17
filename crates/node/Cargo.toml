@@ -11,7 +11,7 @@ block = { workspace = true }
 vrrb_core = { workspace = true }
 events = { workspace = true }
 telemetry = { workspace = true }
-vrrb_config = { workspace = true }
+versa_config = { workspace = true }
 storage = { workspace = true }
 wallet = { workspace = true }
 validator = { workspace = true }

@@ -3,7 +3,7 @@ use cli::commands::node::deserialize_whitelisted_quorum_members;
 use cli::commands::node::GENESIS_QUORUM_SIZE;
 use primitives::{KademliaPeerId, NodeType};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use vrrb_config::QuorumMember;
+use versa_config::QuorumMember;
 use vrrb_core::keypair::Keypair;
 
 #[tokio::test]

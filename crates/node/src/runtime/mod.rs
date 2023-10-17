@@ -1,7 +1,7 @@
 use events::{Event, EventPublisher, EventRouter, Vote};
 use primitives::{JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 use telemetry::info;
-use vrrb_config::NodeConfig;
+use versa_config::NodeConfig;
 
 use crate::{
     api::setup_rpc_api_server,

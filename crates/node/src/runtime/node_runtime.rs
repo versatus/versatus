@@ -23,7 +23,7 @@ use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandl
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
-use vrrb_config::{NodeConfig, QuorumMembershipConfig};
+use versa_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,

@@ -6,7 +6,7 @@ use hbbft::{
 };
 use primitives::{NodeId, NodeType, ValidatorPublicKey};
 use rand::rngs::OsRng;
-use vrrb_config::ThresholdConfig;
+use versa_config::ThresholdConfig;
 
 use crate::{
     prelude::{DkgGenerator, DkgState, ReceiverId, SenderId},
@@ -34,7 +34,7 @@ pub struct DkgEngine {
     pub node_type: NodeType,
 
     /// For DKG (Can be extended for hierarchical DKG)
-    pub threshold_config: vrrb_config::ThresholdConfig,
+    pub threshold_config: versa_config::ThresholdConfig,
 
     pub secret_key: SecretKey,
 
@@ -89,7 +89,7 @@ pub struct DkgEngineConfig {
     pub node_id: NodeId,
     pub node_type: NodeType,
     pub secret_key: SecretKey,
-    pub threshold_config: vrrb_config::ThresholdConfig,
+    pub threshold_config: versa_config::ThresholdConfig,
 }
 
 impl DkgEngine {

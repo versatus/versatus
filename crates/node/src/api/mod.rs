@@ -5,7 +5,7 @@ use mempool::MempoolReadHandleFactory;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use tokio::task::JoinHandle;
-use vrrb_config::NodeConfig;
+use versa_config::NodeConfig;
 use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use crate::result::{NodeError, Result};

@@ -36,7 +36,7 @@ ethereum-types = { workspace = true }
 quorum = { workspace = true }
 messr = { workspace = true }
 mempool = { workspace = true }
-vrrb_config = { workspace = true }
+versa_config = { workspace = true }
 signer = { workspace = true }
 
 [dev-dependencies]

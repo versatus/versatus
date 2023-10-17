@@ -8,7 +8,7 @@ use hbbft::{
     pairing::PrimeField,
 };
 use primitives::{NodeId, NodeIdx, PayloadHash as Hash, RawSignature, SignatureType};
-use vrrb_config::ThresholdConfig;
+use versa_config::ThresholdConfig;
 
 use crate::types::{SignerError, SignerResult};
 
@@ -403,7 +403,7 @@ impl Signer for SignatureProvider {
 //     use dkg_engine::test_utils::generate_dkg_engine_with_states;
 //     use primitives::SignatureType;
 //     use std::collections::BTreeMap;
-//     use vrrb_config::ThresholdConfig;
+//     use versa_config::ThresholdConfig;
 //     use vrrb_core::is_enum_variant;
 
 //     use crate::{

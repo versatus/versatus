@@ -3,7 +3,7 @@ use hbbft::{
     sync_key_gen::{Ack, Part},
 };
 use primitives::NodeId;
-use vrrb_config::ThresholdConfig;
+use versa_config::ThresholdConfig;
 
 use crate::result::Result;
 

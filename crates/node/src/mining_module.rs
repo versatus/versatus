@@ -10,7 +10,7 @@ use primitives::Address;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
-use vrrb_config::NodeConfig;
+use versa_config::NodeConfig;
 use vrrb_core::transactions::TransactionKind;
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};

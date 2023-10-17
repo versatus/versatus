@@ -25,7 +25,7 @@ use secp256k1::{Message, PublicKey, SecretKey};
 use signer::engine::SignerEngine;
 use storage::vrrbdb::Claims;
 use uuid::Uuid;
-use vrrb_config::{
+use versa_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
     ThresholdConfig,
 };
@@ -665,7 +665,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
-    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
+    let mut bootstrap_node_config = versa_config::BootstrapConfig {
         id: node_0.kademlia_peer_id(),
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
@@ -772,7 +772,7 @@ pub async fn create_node_runtime_network(
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
-    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
+    let mut bootstrap_node_config = versa_config::BootstrapConfig {
         id: node_0.config.kademlia_peer_id.unwrap(),
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,

@@ -4,7 +4,7 @@ use mempool::MempoolReadHandleFactory;
 use telemetry::{info, warn};
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use tokio::task::JoinHandle;
-use vrrb_config::NodeConfig;
+use versa_config::NodeConfig;
 use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
 
 use crate::{NodeError, Result};

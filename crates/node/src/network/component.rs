@@ -19,7 +19,7 @@ use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use versa_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;

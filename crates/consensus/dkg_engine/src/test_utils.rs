@@ -5,7 +5,7 @@ use hbbft::{
     sync_key_gen::Ack,
 };
 use primitives::{NodeId, NodeType};
-use vrrb_config::valid_threshold_config;
+use versa_config::valid_threshold_config;
 
 use crate::{
     dkg::DkgGenerator,
@@ -162,9 +162,7 @@ pub async fn generate_dkg_engine_with_states() -> Vec<DkgEngine> {
     dkg_engine_node3
         .dkg_state
         .set_ack_message_store(new_store.clone());
-    dkg_engine_node4
-        .dkg_state
-        .set_ack_message_store(new_store);
+    dkg_engine_node4.dkg_state.set_ack_message_store(new_store);
 
     for _ in 0..4 {
         let _ = dkg_engine_node1.handle_ack_messages();

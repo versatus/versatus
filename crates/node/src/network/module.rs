@@ -25,7 +25,7 @@ use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use versa_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
@@ -70,7 +70,7 @@ pub struct NetworkModuleConfig {
     pub kademlia_peer_id: Option<KademliaPeerId>,
 
     /// Configuration used to connect to a bootstrap node
-    pub bootstrap_node_config: Option<vrrb_config::BootstrapConfig>,
+    pub bootstrap_node_config: Option<versa_config::BootstrapConfig>,
 
     pub membership_config: Option<QuorumMembershipConfig>,
 

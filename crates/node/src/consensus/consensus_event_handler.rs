@@ -12,8 +12,8 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     sync::{Arc, RwLock},
 };
-use vrrb_config::QuorumMember;
-use vrrb_config::QuorumMembershipConfig;
+use versa_config::QuorumMember;
+use versa_config::QuorumMembershipConfig;
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::TransactionDigest;
 
@@ -373,17 +373,20 @@ impl ConsensusModule {
         self.precheck_convergence_block_transactions(block, proposal_block_hashes, resolver, dag)
     }
 
-    pub fn precheck_convergence_block_miner_is_winner(&self, block: ConvergenceBlock) -> Result<()> {
+    pub fn precheck_convergence_block_miner_is_winner(
+        &self,
+        block: ConvergenceBlock,
+    ) -> Result<()> {
         let miner = block.header.miner_claim.clone();
 
         if let Some(results) = &self.miner_election_results {
             for (idx, claim) in results.clone().values().enumerate() {
                 if idx < 5 {
                     if claim == &miner {
-                        return Ok(())
+                        return Ok(());
                     }
                 } else {
-                    break
+                    break;
                 }
             }
         }

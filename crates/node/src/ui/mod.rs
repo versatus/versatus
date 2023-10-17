@@ -2,7 +2,7 @@ use std::process::Command;
 
 use telemetry::info;
 use tokio::task::JoinHandle;
-use vrrb_config::NodeConfig;
+use versa_config::NodeConfig;
 
 use crate::result::{NodeError, Result};
 
