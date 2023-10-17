@@ -281,7 +281,7 @@ pub fn build_multiple_proposal_blocks_single_round(
                 NodeId::default(),
             )
             .unwrap();
-            let prop = build_single_proposal_block(
+            build_single_proposal_block(
                 last_block_hash.clone(),
                 n_txns,
                 n_claims,
@@ -289,8 +289,7 @@ pub fn build_multiple_proposal_blocks_single_round(
                 epoch,
                 claim,
                 sk.clone(),
-            );
-            prop
+            )
         })
         .collect()
 }
