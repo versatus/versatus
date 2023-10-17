@@ -33,7 +33,7 @@ tabled = { workspace = true }
 jsonrpsee = { workspace = true }
 primitives = { workspace = true }
 secp256k1 = { workspace = true }
-vrrb_rpc = { workspace = true }
+versa_rpc = { workspace = true }
 utils = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }

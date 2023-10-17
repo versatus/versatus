@@ -6,7 +6,7 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use tokio::task::JoinHandle;
 use versa_config::NodeConfig;
-use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
+use versa_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 
 use crate::result::{NodeError, Result};
 

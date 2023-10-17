@@ -10,12 +10,12 @@ use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use telemetry::error;
 use thiserror::Error;
-use vrrb_core::account::Account;
-use vrrb_core::transactions::{Transaction, TransactionKind, Token, RpcTransactionDigest};
-use vrrb_rpc::rpc::{
+use versa_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
 };
+use vrrb_core::account::Account;
+use vrrb_core::transactions::{RpcTransactionDigest, Token, Transaction, TransactionKind};
 
 type WalletResult<Wallet> = Result<Wallet, WalletError>;
 
@@ -25,7 +25,7 @@ pub enum WalletError {
     RpcError(#[from] jsonrpsee::core::Error),
 
     #[error("API error: {0}")]
-    ApiError(#[from] vrrb_rpc::ApiError),
+    ApiError(#[from] versa_rpc::ApiError),
 
     #[error("custom error")]
     Custom(String),
@@ -174,8 +174,7 @@ impl Wallet {
             .build_kind()
             .map_err(|_| WalletError::Custom("Failed to build transfer transaction".to_string()))?;
 
-        self
-            .client
+        self.client
             .create_txn(transfer.clone())
             .await
             .map_err(|err| {

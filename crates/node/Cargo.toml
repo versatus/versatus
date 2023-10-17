@@ -16,7 +16,7 @@ storage = { workspace = true }
 wallet = { workspace = true }
 validator = { workspace = true }
 reward = { workspace = true }
-vrrb_rpc = { workspace = true }
+versa_rpc = { workspace = true }
 patriecia = { workspace = true }
 trecho = { workspace = true }
 udp2p = { workspace = true }

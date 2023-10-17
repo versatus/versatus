@@ -39,7 +39,7 @@ pub enum NodeError {
     TaskJoin(#[from] tokio::task::JoinError),
 
     #[error("{0}")]
-    JsonRpc(#[from] vrrb_rpc::ApiError),
+    JsonRpc(#[from] versa_rpc::ApiError),
 
     #[error("{0}")]
     Messr(#[from] messr::Error),

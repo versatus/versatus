@@ -3,7 +3,7 @@ use axum_server::tls_rustls::RustlsConfig;
 use events::Event;
 use hyper::{Client, StatusCode};
 use tokio::sync::broadcast::channel;
-use vrrb_rpc::http::*;
+use versa_rpc::http::*;
 
 mod common;
 

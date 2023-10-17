@@ -9,7 +9,7 @@ use node::{
 use primitives::node::NodeType;
 use serial_test::serial;
 use storage::storage_utils::remove_vrrb_data_dir;
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
+use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
 #[serial]

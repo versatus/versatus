@@ -5,8 +5,8 @@ use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
 use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;
+use versa_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use vrrb_core::transactions::Token;
-use vrrb_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
 use wallet::v2::{Wallet, WalletConfig};
 
 #[tokio::test]
@@ -70,13 +70,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
     let recv_pk = PublicKey::from_secret_key(&secp, &recv_sk);
 
     let txn_digest = wallet
-        .send_transaction(
-            0,
-            Address::new(recv_pk),
-            10,
-            Token::default(),
-            timestamp,
-        )
+        .send_transaction(0, Address::new(recv_pk), 10, Token::default(), timestamp)
         .await
         .unwrap();
 

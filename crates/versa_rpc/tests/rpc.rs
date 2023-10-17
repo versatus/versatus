@@ -5,12 +5,12 @@ use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;
-use vrrb_core::transactions::{generate_transfer_digest_vec, Token, Transaction, TransactionKind};
-use vrrb_rpc::rpc::{
+use versa_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
     *,
 };
+use vrrb_core::transactions::{generate_transfer_digest_vec, Token, Transaction, TransactionKind};
 
 mod common;
 
@@ -24,7 +24,10 @@ async fn server_can_publish_transactions_to_be_created() {
     let (events_tx, _events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
     // Set up RPC Server to accept connection from client
-    let json_rpc_server_config = JsonRpcServerConfig { events_tx, ..Default::default() };
+    let json_rpc_server_config = JsonRpcServerConfig {
+        events_tx,
+        ..Default::default()
+    };
 
     let (handle, rpc_server_address) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
 
@@ -65,7 +68,8 @@ async fn server_can_publish_transactions_to_be_created() {
         .amount(10)
         .signature(signature)
         .nonce(0)
-        .build_kind().expect("failed to build transfer transaction");
+        .build_kind()
+        .expect("failed to build transfer transaction");
 
     let rec = client.create_txn(txn.clone()).await.unwrap();
 

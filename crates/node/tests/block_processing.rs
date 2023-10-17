@@ -1,8 +1,8 @@
 use node::{test_utils::create_mock_bootstrap_node_config, Node};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
+use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
 use vrrb_core::transactions::TransactionKind;
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
 #[ignore = "https://github.com/versatus/versatus/issues/495"]
@@ -34,7 +34,8 @@ async fn process_full_node_event_flow() {
                     .amount(0)
                     .signature(signature)
                     .nonce(0)
-                    .build_kind().expect("Unable to build transfer transaction")
+                    .build_kind()
+                    .expect("Unable to build transfer transaction"),
             )
             .await
             .unwrap();
@@ -44,5 +45,8 @@ async fn process_full_node_event_flow() {
 
     assert!(!mempool_snapshot.is_empty());
 
-    bootstrap_node.stop().await.expect("Unable to stop bootstrap node");
+    bootstrap_node
+        .stop()
+        .await
+        .expect("Unable to stop bootstrap node");
 }

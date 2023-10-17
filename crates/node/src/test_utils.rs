@@ -29,6 +29,7 @@ use versa_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
     ThresholdConfig,
 };
+use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
 use vrrb_core::{
     account::{Account, AccountField},
     claim::Claim,
@@ -38,7 +39,6 @@ use vrrb_core::{
         TransactionDigest, TransactionKind, Transfer,
     },
 };
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();

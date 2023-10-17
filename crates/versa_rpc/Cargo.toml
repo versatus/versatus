@@ -1,5 +1,5 @@
 [package]
-name = "vrrb_rpc"
+name = "versa_rpc"
 version = "0.0.0"
 edition = "2021"
 

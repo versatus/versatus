@@ -15,7 +15,7 @@ clap = { workspace = true }
 tokio = { workspace = true }
 node = { workspace = true }
 versa_config = { workspace = true }
-vrrb_rpc = { workspace = true }
+versa_rpc = { workspace = true }
 primitives = { workspace = true }
 telemetry = { workspace = true }
 storage = { workspace = true }

@@ -4,8 +4,8 @@ use node::{
 };
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
+use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
 use vrrb_core::transactions::TransactionKind;
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 #[tokio::test]
 #[ignore = "https://github.com/versatus/versatus/issues/469"]

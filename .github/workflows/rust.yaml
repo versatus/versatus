@@ -406,7 +406,7 @@ jobs:
           args: -p vrrb_http
 
   test-vrrb-rpc:
-    name: test vrrb_rpc
+    name: test versa_rpc
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -425,7 +425,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p vrrb_rpc
+          args: -p versa_rpc
 
   test-wallet:
     name: test wallet
