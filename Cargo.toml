@@ -78,7 +78,7 @@ members = [
     "crates/storage/utils",
     "crates/telemetry",
     "crates/utils",
-    "crates/vrrb_http",
+    "crates/versa_http",
     "crates/wasm_loader",
     "crates/wasm_cli",
     "crates/wasm_runtime",
@@ -119,7 +119,7 @@ reward = { path = "crates/consensus/reward" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
 vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
-vrrb_http = { path = "crates/vrrb_http" }
+versa_http = { path = "crates/versa_http" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 service_config = { path = "crates/service_config" }

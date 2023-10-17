@@ -62,7 +62,7 @@ ethereum-types = { workspace = true }
 quorum = { workspace = true }
 sha2 = { workspace = true }
 bulldag = { workspace = true }
-vrrb_http = { workspace = true }
+versa_http = { workspace = true }
 messr = { workspace = true }
 utils = { workspace = true }
 maglev = { workspace = true }

@@ -5,7 +5,7 @@ use telemetry::{info, warn};
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use tokio::task::JoinHandle;
 use versa_config::NodeConfig;
-use vrrb_http::indexer::{IndexerClient, IndexerClientConfig};
+use versa_http::indexer::{IndexerClient, IndexerClientConfig};
 
 use crate::{NodeError, Result};
 
