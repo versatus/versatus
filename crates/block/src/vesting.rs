@@ -186,7 +186,7 @@ fn create_txn_from_addresses(
         token: None,
         amount,
         signature: sk
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa")),
         validators: Some(validators),
         nonce: sender_acct.nonce() + 1,
     };

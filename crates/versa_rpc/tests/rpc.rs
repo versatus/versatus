@@ -3,9 +3,9 @@ use std::{collections::HashMap, net::SocketAddr};
 use events::{EventMessage, DEFAULT_BUFFER};
 use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
-use storage::storage_utils::remove_vrrb_data_dir;
+use storage::storage_utils::remove_versa_data_dir;
 use tokio::sync::mpsc::channel;
-use versa_core::transactions::{generate_transfer_digest_vec, Token, Transaction, TransactionKind};
+use versa_core::transactions::{generate_transfer_digest_vec, Token, TransactionKind};
 use versa_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
@@ -16,7 +16,7 @@ mod common;
 
 #[tokio::test]
 async fn server_can_publish_transactions_to_be_created() {
-    remove_vrrb_data_dir();
+    remove_versa_data_dir();
     let _: SocketAddr = "127.0.0.1:0"
         .parse()
         .expect("Unable to create Socket Address");
@@ -74,7 +74,7 @@ async fn server_can_publish_transactions_to_be_created() {
     let rec = client.create_txn(txn.clone()).await.unwrap();
 
     let mock_digest =
-        "d9e444c59d773094d8aa755b9f412383ce0c15a99bc342d39b025a7cbf0b3d1a".to_string();
+        "b036da40485f18d300f03369d2805d44185f384b7b704746576379b8b7883da4".to_string();
 
     let mock_record = RpcTransactionRecord {
         id: mock_digest,

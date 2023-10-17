@@ -9,11 +9,11 @@ use versa_core::keypair::Keypair;
 #[tokio::test]
 #[ignore = "temporarily broken because of GH actions issue"]
 pub async fn cli_should_show_help_text() {
-    let mut cmd = Command::cargo_bin("vrrb").unwrap();
+    let mut cmd = Command::cargo_bin("versa").unwrap();
     let help_text = r#"cli 0.0.0
 
 USAGE:
-    vrrb [OPTIONS] [SUBCOMMAND]
+    versa [OPTIONS] [SUBCOMMAND]
 
 OPTIONS:
     -c, --config <FILE>    Sets a custom config file

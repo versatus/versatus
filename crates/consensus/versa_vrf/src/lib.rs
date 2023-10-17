@@ -1,4 +1,4 @@
-//! vrrb verifiable random function library crate
+//! versa verifiable random function library crate
 //!
 //! generates a random number or random word/mnemonic phrase
 

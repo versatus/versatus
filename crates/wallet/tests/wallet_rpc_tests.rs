@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use primitives::Address;
 use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
-use storage::storage_utils::remove_vrrb_data_dir;
+use storage::storage_utils::remove_versa_data_dir;
 use tokio::sync::mpsc::channel;
 use versa_core::transactions::Token;
 use versa_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
@@ -12,7 +12,7 @@ use wallet::v2::{Wallet, WalletConfig};
 #[tokio::test]
 #[serial]
 pub async fn create_wallet_with_rpc_client() {
-    remove_vrrb_data_dir();
+    remove_versa_data_dir();
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
@@ -32,7 +32,7 @@ pub async fn create_wallet_with_rpc_client() {
 #[tokio::test]
 #[serial]
 pub async fn wallet_sends_txn_to_rpc_server() {
-    remove_vrrb_data_dir();
+    remove_versa_data_dir();
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");
@@ -59,14 +59,14 @@ pub async fn wallet_sends_txn_to_rpc_server() {
     type H = secp256k1::hashes::sha256::Hash;
 
     let secp = Secp256k1::new();
-    let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
+    let secret_key = SecretKey::from_hashed_data::<H>(b"versa");
     let public_key = PublicKey::from_secret_key(&secp, &secret_key);
 
     wallet.create_account(0, public_key).await.unwrap();
 
     let timestamp = 0;
 
-    let recv_sk = SecretKey::from_hashed_data::<H>(b"recv_vrrb");
+    let recv_sk = SecretKey::from_hashed_data::<H>(b"recv_versa");
     let recv_pk = PublicKey::from_secret_key(&secp, &recv_sk);
 
     let txn_digest = wallet
@@ -76,14 +76,14 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     assert_eq!(
         &txn_digest.to_string(),
-        "2f47fdeda7ca47aa8d5fe1f18e47313c0804887571a3abbef7d03c55071d8760"
+        "bcbe339ef7e59edcc2811104896beb80e6212503143b9f2b799355a312e9f8d0"
     );
 }
 
 #[tokio::test]
 #[serial]
 pub async fn wallet_sends_create_account_request_to_rpc_server() {
-    remove_vrrb_data_dir();
+    remove_versa_data_dir();
     let _: SocketAddr = "127.0.0.1:9293"
         .parse()
         .expect("Unable to create Socket Address");

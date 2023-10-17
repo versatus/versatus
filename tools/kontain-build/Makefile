@@ -1,4 +1,4 @@
-PREFIX = /opt/vrrb
+PREFIX = /opt/versatus
 BUILD_DIR = ./build
 
 KM_URL = https://github.com/kontainapp/km.git

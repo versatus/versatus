@@ -24,7 +24,7 @@ const TEST_VERSION: i32 = 5432;
 const TEST_TX_ID: &str = "81b067ac-8693-483a-8354-d7de15ab6f2c";
 const TEST_LAST_BLOCK_TIME: i64 = 1689897402;
 const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
-const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
+const VERSATUS_CONTRACT_NAME: &str = "versa-contract"; //argv[0] for smart contracts
 
 /// This test checks that the stuff we send via stdin is available as part of
 /// the struct on stdout, per the wasm_test.wasm functionality. It shows we're
@@ -98,7 +98,7 @@ fn test_command_line_args() {
 
     let out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
 
-    assert_eq!(out.args[0], VRRB_CONTRACT_NAME);
+    assert_eq!(out.args[0], VERSATUS_CONTRACT_NAME);
     assert_eq!(out.args[1..], args);
 }
 

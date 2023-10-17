@@ -5,7 +5,7 @@ use std::{
 };
 
 use derive_builder::Builder;
-use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
+use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VERSATUS_DATA_DIR_PATH};
 use serde::Deserialize;
 use uuid::Uuid;
 use versa_core::keypair::Keypair;
@@ -20,7 +20,7 @@ pub struct NodeConfig {
     /// UUID that identifies each node
     pub id: NodeId,
 
-    /// Directory used to persist all VRRB node information to disk
+    /// Directory used to persist all VERSATUS node information to disk
     pub data_dir: PathBuf,
 
     /// Path where the database log file resides on disk
@@ -111,7 +111,7 @@ pub struct NodeConfig {
 impl NodeConfig {
     pub fn db_path(&self) -> &PathBuf {
         // TODO: refactor to Option and check if present and return configured db path
-        // or default path within vrrb's data dir
+        // or default path within versa's data dir
         &self.db_path
     }
 
@@ -153,8 +153,8 @@ impl Default for NodeConfig {
 
         Self {
             id: Uuid::new_v4().to_string(),
-            data_dir: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH),
-            db_path: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH)
+            data_dir: PathBuf::from(DEFAULT_VERSATUS_DATA_DIR_PATH),
+            db_path: PathBuf::from(DEFAULT_VERSATUS_DATA_DIR_PATH)
                 .join("node")
                 .join("db"),
             public_ip_address: ipv4_localhost_with_random_port,
@@ -166,7 +166,7 @@ impl Default for NodeConfig {
             rendezvous_server_address: ipv4_localhost_with_random_port,
             node_type: NodeType::Full,
             http_api_address: ipv4_localhost_with_random_port,
-            http_api_title: String::from("VRRB Node"),
+            http_api_title: String::from("VERSATUS Node"),
             http_api_version: String::from("v.0.1.0"),
             http_api_shutdown_timeout: None,
             jsonrpc_server_address: ipv4_localhost_with_random_port,

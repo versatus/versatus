@@ -4,7 +4,7 @@ use events::{EventPublisher, DEFAULT_BUFFER};
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
-use storage::versadb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
+use storage::versadb::{VersatusDb, VersatusDbConfig, VersatusDbReadHandle};
 use tokio::sync::mpsc::channel;
 
 use crate::rpc::{api::RpcApiServer, server_impl::RpcServerImpl};
@@ -12,7 +12,7 @@ use crate::rpc::{api::RpcApiServer, server_impl::RpcServerImpl};
 #[derive(Debug, Clone)]
 pub struct JsonRpcServerConfig {
     pub address: SocketAddr,
-    pub versadb_read_handle: VrrbDbReadHandle,
+    pub versadb_read_handle: VersatusDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub node_type: NodeType,
     pub events_tx: EventPublisher,
@@ -45,14 +45,14 @@ impl JsonRpcServer {
 impl Default for JsonRpcServerConfig {
     fn default() -> JsonRpcServerConfig {
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
-        let mut versadb_config = VrrbDbConfig::default();
+        let mut versadb_config = VersatusDbConfig::default();
 
         let temp_dir_path = std::env::temp_dir();
         let db_path = temp_dir_path.join(versa_core::helpers::generate_random_string());
 
         versadb_config.path = db_path;
 
-        let versadb = VrrbDb::new(versadb_config);
+        let versadb = VersatusDb::new(versadb_config);
         let versadb_read_handle = versadb.read_handle();
 
         let mempool = LeftRightMempool::default();

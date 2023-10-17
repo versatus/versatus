@@ -295,7 +295,7 @@ pub fn create_txn_from_accounts(
         token,
         amount,
         signature: sk
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa")),
         validators: Some(validators),
         nonce: sender.1.unwrap().nonce() + 1,
     };
@@ -344,7 +344,7 @@ pub fn create_txn_from_accounts_invalid_signature(
         token,
         amount,
         signature: sk2
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa")),
         validators: Some(validators),
         nonce: sender.1.unwrap().nonce() + 1,
     };
@@ -392,7 +392,7 @@ pub fn create_txn_from_accounts_invalid_timestamp(
         token,
         amount,
         signature: sk
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa")),
         validators: Some(validators),
         nonce: sender.1.unwrap().nonce() + 1,
     };
@@ -505,7 +505,7 @@ pub fn create_mock_transaction_args(n: usize) -> NewTransferArgs {
         token,
         amount,
         signature: sk
-            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb")),
+            .sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa")),
         validators: None,
         nonce: n as u128,
     }

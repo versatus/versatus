@@ -29,7 +29,7 @@ pub fn _generate_random_transaction(
     type H = secp256k1::hashes::sha256::Hash;
 
     let secp = Secp256k1::new();
-    let message = Message::from_hashed_data::<H>(b"vrrb");
+    let message = Message::from_hashed_data::<H>(b"versa");
     let signature = secp.sign_ecdsa(&message, &secret_key);
 
     TransactionKind::Transfer(Transfer::new(NewTransferArgs {
@@ -52,7 +52,7 @@ pub fn _generate_random_valid_transaction() -> TransactionKind {
     type H = secp256k1::hashes::sha256::Hash;
 
     let secp = Secp256k1::new();
-    let message = Message::from_hashed_data::<H>(b"vrrb");
+    let message = Message::from_hashed_data::<H>(b"versa");
     let signature = secp.sign_ecdsa(&message, &sender_secret_key);
 
     TransactionKind::Transfer(Transfer::new(NewTransferArgs {

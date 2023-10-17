@@ -1,6 +1,6 @@
 use config::{Config, ConfigError, File};
 use node::Node;
-use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
+use primitives::{NodeType, DEFAULT_VERSATUS_DATA_DIR_PATH, DEFAULT_VERSATUS_DB_PATH};
 use serde::Deserialize;
 use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
 use std::{
@@ -42,10 +42,10 @@ pub struct RunOpts {
     #[clap(short = 't', long, value_parser, default_value = "full")]
     pub node_type: String,
 
-    #[clap(long, value_parser, default_value = DEFAULT_VRRB_DATA_DIR_PATH)]
+    #[clap(long, value_parser, default_value = DEFAULT_VERSATUS_DATA_DIR_PATH)]
     pub data_dir: PathBuf,
 
-    #[clap(long, value_parser, default_value = DEFAULT_VRRB_DB_PATH)]
+    #[clap(long, value_parser, default_value = DEFAULT_VERSATUS_DB_PATH)]
     pub db_path: PathBuf,
 
     #[clap(long, value_parser, default_value = DEFAULT_UDP_GOSSIP_ADDRESS)]
@@ -184,8 +184,8 @@ impl RunOpts {
 
         let s = Config::builder()
             .set_default("id", Uuid::new_v4().to_string())?
-            .set_default("data_dir", DEFAULT_VRRB_DATA_DIR_PATH)?
-            .set_default("db_path", DEFAULT_VRRB_DB_PATH)?
+            .set_default("data_dir", DEFAULT_VERSATUS_DATA_DIR_PATH)?
+            .set_default("db_path", DEFAULT_VERSATUS_DB_PATH)?
             .set_default("node_type", "full")?
             .set_default("jsonrpc_api_address", DEFAULT_JSONRPC_ADDRESS)?
             .set_default("http_api_address", DEFAULT_OS_ASSIGNED_PORT_ADDRESS)?
@@ -265,7 +265,7 @@ impl RunOpts {
     }
 }
 
-/// Configures and runs a VRRB Node
+/// Configures and runs a VERSATUS Node
 pub async fn run(args: RunOpts) -> Result<()> {
     let keypair = keygen::keygen(false)?;
 
@@ -333,11 +333,11 @@ pub fn deserialize_whitelisted_quorum_members(
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let vrrb_node = Node::start(node_config)
+    let versa_node = Node::start(node_config)
         .await
         .map_err(|err| CliError::Other(err.to_string()))?;
 
-    let node_type = vrrb_node.node_type();
+    let node_type = versa_node.node_type();
 
     info!("running {node_type:?} node in blocking mode");
 
@@ -345,7 +345,7 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
         .await
         .map_err(|err| CliError::Other(format!("failed to listen for ctrl+c: {err}")))?;
 
-    vrrb_node.stop().await?;
+    versa_node.stop().await?;
 
     info!("Node stopped");
 

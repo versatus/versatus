@@ -7,7 +7,7 @@ use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// The unit of time within VRRB.
+/// The unit of time within VERSATUS.
 /// It lasts for some number
 pub type Epoch = u128;
 pub type Round = u128;
@@ -24,9 +24,9 @@ pub const SECOND: u128 = MILLI * 1000;
 pub const VALIDATOR_THRESHOLD: f64 = 0.60;
 
 pub const NUMBER_OF_NETWORK_PACKETS: usize = 32;
-pub const DEFAULT_VRRB_DATA_DIR_PATH: &str = ".vrrb";
-pub const DEFAULT_VRRB_DB_PATH: &str = ".vrrb/node/db";
-pub const DEFAULT_VRRB_WALLET_DATA_DIR_PATH: &str = ".vrrb/wallet";
+pub const DEFAULT_VERSATUS_DATA_DIR_PATH: &str = ".versa";
+pub const DEFAULT_VERSATUS_DB_PATH: &str = ".versa/node/db";
+pub const DEFAULT_VERSATUS_WALLET_DATA_DIR_PATH: &str = ".versa/wallet";
 pub const DEFAULT_CONNECTION_TIMEOUT_IN_SECS: u64 = 2;
 pub const RAPTOR_DECODER_CACHE_LIMIT: usize = 10000;
 pub const RAPTOR_DECODER_CACHE_TTL_IN_SECS: u64 = 1800000;

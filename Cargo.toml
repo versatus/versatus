@@ -128,16 +128,16 @@ platform = { path = "crates/platform" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
-trecho = { git = "https://github.com/vrrb-io/trecho" }
+trecho = { git = "https://github.com/versatus/trecho" }
 udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
-theater = { git = "https://github.com/vrrb-io/theater" }
-hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
-kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
-rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
-messr = { git = "https://github.com/vrrb-io/messr" }
-decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
-dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
+theater = { git = "https://github.com/versatus/theater" }
+hbbft = { git = "https://github.com/versatus/hbbft", branch = "master" }
+bulldag = { git = "https://github.com/versatus/bulldag", branch = "main" }
+kademlia-dht = { git = "https://github.com/versatus/kademlia-dht-rs" }
+rendezvous_dht = { git = "https://github.com/versatus/rendezvous_dht" }
+messr = { git = "https://github.com/versatus/messr" }
+decentrust = { git = "https://github.com/versatus/decentrust", branch = "main" }
+dyswarm = { git = "https://github.com/versatus/dyswarm" }
 integral-db = { git = "https://github.com/versatus/integral-db" }
 
 secp256k1 = { version = "0.25.0", features = [

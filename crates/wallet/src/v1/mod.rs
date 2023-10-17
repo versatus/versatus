@@ -72,9 +72,9 @@
 //         addresses.insert(1, address_prefix.clone());
 //
 //         let mut total_balances = LinkedHashMap::new();
-//         let mut vrrb_balances = LinkedHashMap::new();
-//         vrrb_balances.insert("VRRB".to_string(), STARTING_BALANCE);
-//         total_balances.insert(address_prefix.clone(), vrrb_balances);
+//         let mut versa_balances = LinkedHashMap::new();
+//         versa_balances.insert("VERSATUS".to_string(), STARTING_BALANCE);
+//         total_balances.insert(address_prefix.clone(), versa_balances);
 //
 //         // Generate a wallet struct by assigning the variables to the fields.
 //         Self {
@@ -162,9 +162,9 @@
 //         self.get_balances(network_state)
 //             .iter()
 //             .for_each(|(address, balance)| {
-//                 let mut vrrb_map = LinkedHashMap::new();
-//                 vrrb_map.insert("VRRB".to_string(), *balance);
-//                 balance_map.insert(address.clone(), vrrb_map);
+//                 let mut versa_map = LinkedHashMap::new();
+//                 versa_map.insert("VERSATUS".to_string(), *balance);
+//                 balance_map.insert(address.clone(), versa_map);
 //             });
 //
 //         self.total_balances = balance_map;
@@ -190,7 +190,7 @@
 //         self.update_balances(network_state);
 //         if let Some(address) = self.addresses.get(&address_number) {
 //             if let Some(entry) = self.total_balances.get(&address.clone()) {
-//                 entry.get("VRRB").copied()
+//                 entry.get("VERSATUS").copied()
 //             } else {
 //                 None
 //             }

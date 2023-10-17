@@ -1,6 +1,6 @@
 use events::{EventPublisher, EventSubscriber};
 use mempool::MempoolReadHandleFactory;
-use storage::versadb::VrrbDbReadHandle;
+use storage::versadb::VersatusDbReadHandle;
 use theater::{Actor, ActorImpl};
 use versa_config::NodeConfig;
 
@@ -16,7 +16,7 @@ pub struct NodeRuntimeComponentConfig {
 #[derive(Debug, Clone)]
 pub struct NodeRuntimeComponentResolvedData {
     pub node_config: NodeConfig,
-    pub state_read_handle: VrrbDbReadHandle,
+    pub state_read_handle: VersatusDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
 }
 

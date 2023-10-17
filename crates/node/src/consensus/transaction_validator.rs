@@ -11,7 +11,7 @@ use mempool::TxnRecord;
 use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
-use storage::versadb::VrrbDbReadHandle;
+use storage::versadb::VersatusDbReadHandle;
 use tracing::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use versa_config::NodeConfig;
@@ -45,19 +45,19 @@ use crate::NodeError;
 /// validator. This could include tasks such as validating transactions,
 /// managing the state of the blockchain, and communicating with other nodes in
 /// the network. The `Job
-/// * `versadb_read_handle`: VrrbDbReadHandle is likely a handle or reference to
+/// * `versadb_read_handle`: VersatusDbReadHandle is likely a handle or reference to
 ///   a database read
 /// operation for a specific database. It could be used by the
 /// JobSchedulerController to retrieve data from the database as needed for its
 /// job scheduling tasks. The specific implementation and functionality of
-/// VrrbDbReadHandle would depend on
+/// VersatusDbReadHandle would depend on
 pub struct TransactionValidatorEngine {
     pub job_scheduler: JobScheduler,
     events_tx: EventPublisher,
     sync_jobs_receiver: Receiver<Job>,
     _async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
-    pub versadb_read_handle: VrrbDbReadHandle,
+    pub versadb_read_handle: VersatusDbReadHandle,
 }
 
 pub enum Job {
@@ -92,7 +92,7 @@ impl TransactionValidatorEngine {
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
-        versadb_read_handle: VrrbDbReadHandle,
+        versadb_read_handle: VersatusDbReadHandle,
     ) -> Self {
         Self {
             job_scheduler: JobScheduler::new(peer_id),
@@ -362,7 +362,7 @@ pub fn setup_scheduler_module(
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
     events_tx: EventPublisher,
-    versadb_read_handle: VrrbDbReadHandle,
+    versadb_read_handle: VersatusDbReadHandle,
 ) -> JobSchedulerController {
     JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),

@@ -11,7 +11,7 @@ pub enum ConfigCmd {
     /// Assigns a value to a specific key in the configuration file
     Set,
 
-    /// Removes all data within VRRB's data directory
+    /// Removes all data within VERSATUS's data directory
     Clean,
 }
 

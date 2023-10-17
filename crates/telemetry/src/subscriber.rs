@@ -28,7 +28,7 @@ impl TelemetrySubscriber {
     where
         W: for<'s> MakeWriter<'s> + 'static + Sync + Send,
     {
-        let environ = primitives::get_vrrb_environment();
+        let environ = primitives::get_versa_environment();
         let is_local_env = matches!(environ, Environment::Local);
 
         let pretty_print_logs = get_pretty_print_logs();

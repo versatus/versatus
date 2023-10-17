@@ -18,6 +18,7 @@ run/
 crates/hbbft
 tmp_key
 .vrrb/
+.versa/
 .versatus/
 
 .idea

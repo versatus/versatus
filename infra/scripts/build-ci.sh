@@ -1,7 +1,7 @@
 #!/bin/bash
 
 build_with_tool() {
-    $1 build -t ghcr.io/vrrb-io/vrrb -f infra/ci/Dockerfile .
+    $1 build -t ghcr.io/versatus/versatus -f infra/ci/Dockerfile .
 }
 
 auto_detect_tool() {

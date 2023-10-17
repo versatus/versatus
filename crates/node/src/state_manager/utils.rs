@@ -11,7 +11,7 @@ use events::{Event, EventPublisher};
 use mempool::LeftRightMempool;
 use primitives::Address;
 use storage::versadb::types::*;
-use storage::versadb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
+use storage::versadb::{StateStoreReadHandle, VersatusDb, VersatusDbReadHandle};
 use telemetry::info;
 use theater::{ActorId, ActorState};
 use versa_core::{

@@ -9,7 +9,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
-  <img alt="VRRB Logo" src="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
+  <img alt="VERSATUS Logo" src="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
 </picture>
 
 Versatus is a fast, scalable Layer 1 blockchain truly designed for mass adoption.

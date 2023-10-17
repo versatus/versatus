@@ -7,7 +7,7 @@ use patriecia::{
     KeyHash, LeafNode, Node, NodeBatch, NodeKey, OwnedValue, Preimage, StaleNodeIndex, TreeReader,
     TreeUpdateBatch, TreeWriter, Vers, VersionedDatabase,
 };
-use primitives::{get_vrrb_environment, Environment, DEFAULT_VRRB_DB_PATH};
+use primitives::{get_versa_environment, Environment, DEFAULT_VERSATUS_DB_PATH};
 use rocksdb::{IteratorMode, DB, DEFAULT_COLUMN_FAMILY_NAME};
 use std::sync::Arc;
 use storage_utils::{get_node_data_dir, StorageError};
@@ -39,7 +39,7 @@ impl RocksDbInner {
 fn base_db_options() -> rocksdb::Options {
     let mut options = rocksdb::Options::default();
 
-    let environ = get_vrrb_environment();
+    let environ = get_versa_environment();
 
     if matches!(environ, Environment::Local) {
         options.set_keep_log_file_num(3);
@@ -159,7 +159,7 @@ impl Default for RocksDbAdapter {
         // TODO: fix this unwrap
         let db = new_db_instance(
             options,
-            DEFAULT_VRRB_DB_PATH.into(),
+            DEFAULT_VERSATUS_DB_PATH.into(),
             DEFAULT_COLUMN_FAMILY_NAME,
         )
         .unwrap();
@@ -264,7 +264,9 @@ impl TreeReader for RocksDbAdapter {
                 let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
                 let node_value: Node = bincode::deserialize(&boxed_value.into_vec())?;
                 if let Node::Leaf(leaf_node) = node_value {
-                    if key_and_node.is_none() || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash() {
+                    if key_and_node.is_none()
+                        || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash()
+                    {
                         key_and_node.replace((node_key.clone(), leaf_node.clone()));
                     }
                 }

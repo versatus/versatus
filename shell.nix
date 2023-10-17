@@ -1,4 +1,4 @@
-# A developement shell for the vrrb repository.
+# A developement shell for the versatus repository.
 #
 # For installation steps see: https://nix.dev/tutorials/install-nix
 #
@@ -20,7 +20,7 @@ let
   fenix = import (fetchTarball "https://github.com/nix-community/fenix/archive/main.tar.gz") {};
 in
 pkgs.mkShell {
-  name = "vrrb-dev";
+  name = "versatus-dev";
 
   nativeBuildInputs = [
     # rust toolchain

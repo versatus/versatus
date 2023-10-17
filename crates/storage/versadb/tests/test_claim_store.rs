@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use primitives::NodeId;
 use versa_core::claim::Claim;
-use versadb::{VrrbDb, VrrbDbConfig};
+use versadb::{VersatusDb, VersatusDbConfig};
 
 mod common;
 use common::_generate_random_claim;
@@ -11,7 +11,7 @@ use serial_test::serial;
 #[test]
 #[serial]
 fn claims_can_be_added() {
-    let mut db = VrrbDb::new(VrrbDbConfig::default());
+    let mut db = VersatusDb::new(VersatusDbConfig::default());
 
     let claim1 = _generate_random_claim();
     let claim2 = _generate_random_claim();

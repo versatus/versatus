@@ -20,7 +20,7 @@ use hbbft::{
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
 use signer::engine::QuorumData;
-use storage::versadb::VrrbDbReadHandle;
+use storage::versadb::VersatusDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use tracing::Subscriber;

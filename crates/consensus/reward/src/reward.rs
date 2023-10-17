@@ -10,7 +10,7 @@ pub const NIFADA: u128 = 1000 * TRIXIMO;
 pub const RIMA: u128 = 1000 * NIFADA;
 pub const SITARI: u128 = 1000 * RIMA;
 pub const PSIGMA: u128 = 1000 * SITARI;
-pub const VRRB: u128 = 1000 * PSIGMA;
+pub const VERSATUS: u128 = 1000 * PSIGMA;
 
 // Generate a random variable reward to include in new blocks
 

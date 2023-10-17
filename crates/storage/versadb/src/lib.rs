@@ -36,13 +36,13 @@ mod tests {
     //
     // #[test]
     // fn creates_new_database() {
-    //     let vdb = VrrbDb::new();
+    //     let vdb = VersatusDb::new();
     //     assert_eq!(vdb.len(), 0);
     // }
     //
     // #[test]
     // fn commiting_change_changes_last_refresh() {
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //     let key = new_random_keys(1);
     //     let initial_time = vdb.last_refresh();
     //     thread::sleep(Duration::from_secs(1));
@@ -57,7 +57,7 @@ mod tests {
     //     let mut account = Account::new();
     //     _ = account.update_field(AccountField::Credits(100));
     //
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //     if let Err(e) = vdb.insert(keys[0], account) {
     //         panic!("Failed to insert account with commitment: {:?}", e)
     //     }
@@ -72,32 +72,32 @@ mod tests {
     // #[test]
     // fn fail_to_insert_with_nonce() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //     let mut record = Account::new();
     //
     //     record.bump_nonce();
     //
     //     let result = vdb.insert(keys[0], record);
-    //     assert_eq!(result, Err(VrrbDbError::InitWithNonce))
+    //     assert_eq!(result, Err(VersatusDbError::InitWithNonce))
     // }
     //
     // #[test]
     // fn fail_to_insert_with_debit() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //     let mut account = Account::new();
     //     _ = account.update_field(AccountField::Credits(200));
     //     _ = account.update_field(AccountField::Debits(100));
     //     account.bump_nonce();
     //
     //     let result = vdb.insert(keys[0], account);
-    //     assert_eq!(result, Err(VrrbDbError::InitWithDebit))
+    //     assert_eq!(result, Err(VersatusDbError::InitWithDebit))
     // }
     //
     // #[test]
     // fn inserts_multiple_valid_k_v_pairs_with_commitment() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let mut record1 = Account::new();
     //     _ = record1.update_field(AccountField::Credits(100));
@@ -125,7 +125,7 @@ mod tests {
     // #[test]
     // fn insert_for_same_key_multiple_times_should_be_impossible() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let mut record1 = Account::new();
     //     _ = record1.update_field(AccountField::Credits(100));
@@ -141,7 +141,7 @@ mod tests {
     //
     //     match vdb.insert(keys[0], record2) {
     //         Err(e) => {
-    //             assert_eq!(e, VrrbDbError::RecordExists)
+    //             assert_eq!(e, VersatusDbError::RecordExists)
     //         },
     //         Ok(_) => {
     //             panic!("Multiple inserts for the same key!");
@@ -152,7 +152,7 @@ mod tests {
     // #[test]
     // fn inserts_multiple_k_v_pairs_some_invalid_with_commitment() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let mut record1 = Account::new();
     //     _ = record1.update_field(AccountField::Credits(100));
@@ -176,8 +176,8 @@ mod tests {
     //         },
     //         Some(fails) => {
     //             let expected = vec![
-    //                 (keys[0], record2, VrrbDbError::RecordExists),
-    //                 (keys[2], record3, VrrbDbError::InitWithDebit),
+    //                 (keys[0], record2, VersatusDbError::RecordExists),
+    //                 (keys[2], record3, VersatusDbError::InitWithDebit),
     //             ];
     //             for i in 0..2 {
     //                 assert_eq!(expected[i].0, fails[i].0);
@@ -191,7 +191,7 @@ mod tests {
     // #[test]
     // fn retain_properly_filters_the_values() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let mut record = Account::new();
     //     _ = record.update_field(AccountField::Credits(123));
@@ -225,7 +225,7 @@ mod tests {
     // #[test]
     // fn retain_with_some_more_filters() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let account = Account::new();
     //     let updates = vec![
@@ -311,7 +311,7 @@ mod tests {
     //
     // #[test]
     // fn get_should_return_account() {
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //     let account = Account::new();
     //     let keys = new_random_keys(10);
     //
@@ -321,7 +321,7 @@ mod tests {
     //
     // #[test]
     // fn get_should_return_none_for_nonexistant_account() {
-    //     let vdb = VrrbDb::new();
+    //     let vdb = VersatusDb::new();
     //     let keys = new_random_keys(10);
     //     assert_eq!(vdb.read_handle().get(keys[0]), None);
     // }
@@ -329,7 +329,7 @@ mod tests {
     // #[test]
     // fn update_with_valid_fields_should_work() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let account = Account::new();
     //     let updates = vec![
@@ -405,7 +405,7 @@ mod tests {
     // #[test]
     // fn update_batch_invalid_data_should_return_error() {
     //     let keys = new_random_keys(10);
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //
     //     let account = Account::new();
     //     let updates = vec![
@@ -484,11 +484,11 @@ mod tests {
     //         }
     //         assert_eq!(
     //             fails[debits_error_index].2,
-    //             Err(VrrbDbError::UpdateFailed(AccountField::Debits(90)))
+    //             Err(VersatusDbError::UpdateFailed(AccountField::Debits(90)))
     //         );
     //         assert_eq!(
     //             fails[nonce_error_index].2,
-    //             Err(VrrbDbError::InvalidUpdateNonce(
+    //             Err(VersatusDbError::InvalidUpdateNonce(
     //                 account.nonce + 1,
     //                 account.nonce + 3
     //             ))
@@ -500,7 +500,7 @@ mod tests {
     // #[test]
     // fn concurrency_test_with_writes_and_reads() {
     //     const WRITES: usize = 50;
-    //     let mut vdb = VrrbDb::new();
+    //     let mut vdb = VersatusDb::new();
     //     let keys = new_random_keys(WRITES);
     //     let keys2 = keys.clone();
     //     let read_handle = vdb.read_handle();

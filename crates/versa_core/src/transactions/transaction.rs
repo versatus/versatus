@@ -1,13 +1,16 @@
+use crate::helpers::gen_hex_encoded_string;
+use crate::transactions::{TransactionKind, TxAmount, TxNonce, TxTimestamp};
+use primitives::{
+    Address, ByteSlice, ByteVec, Digest as PrimitiveDigest, NodeIdx, PublicKey, RawSignature,
+    SecretKey, Signature, DIGEST_LENGTH,
+};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
-use primitives::{Address, ByteSlice, ByteVec, Digest as PrimitiveDigest, DIGEST_LENGTH, NodeIdx, PublicKey, RawSignature, SecretKey, Signature};
-use crate::helpers::gen_hex_encoded_string;
-use crate::transactions::{TransactionKind, TxAmount, TxNonce, TxTimestamp};
 
 pub const BASE_FEE: u128 = 0x2D79883D2000;
 
@@ -68,8 +71,8 @@ impl FromStr for Token {
 impl Default for Token {
     fn default() -> Self {
         Self {
-            name: "VRRB".to_string(),
-            symbol: "VRRB".to_string(),
+            name: "VERSATUS".to_string(),
+            symbol: "VERSATUS".to_string(),
             decimals: 18,
         }
     }
@@ -85,8 +88,7 @@ pub struct VoteReceipt {
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct QuorumCertifiedTxn
-{
+pub struct QuorumCertifiedTxn {
     sender_farmer_id: Vec<u8>,
     /// All valid vote receipts
     votes: Vec<VoteReceipt>,
@@ -96,8 +98,7 @@ pub struct QuorumCertifiedTxn
     pub is_txn_valid: bool,
 }
 
-impl QuorumCertifiedTxn
-{
+impl QuorumCertifiedTxn {
     pub fn new(
         sender_farmer_id: Vec<u8>,
         votes: Vec<VoteReceipt>,
@@ -210,8 +211,8 @@ pub const TRANSACTION_DIGEST_LENGTH: usize = DIGEST_LENGTH;
 
 #[cfg(test)]
 mod tests {
-    use crate::transactions::{TransactionDigest, Transfer};
     use super::*;
+    use crate::transactions::{TransactionDigest, Transfer};
 
     #[test]
     fn test_txn_digest_serde() {

@@ -14,7 +14,7 @@ use events::{AssignedQuorumMembership, Event, EventMessage, EventPublisher, Even
 use hbbft::{crypto::PublicKey as ThresholdSignaturePublicKey, sync_key_gen::Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{KademliaPeerId, NodeId, PublicKey};
-use storage::versadb::VrrbDbReadHandle;
+use storage::versadb::VersatusDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
@@ -38,7 +38,7 @@ pub struct NetworkModuleComponentConfig {
     pub node_id: NodeId,
     pub events_tx: EventPublisher,
     pub network_events_rx: EventSubscriber,
-    pub versadb_read_handle: VrrbDbReadHandle,
+    pub versadb_read_handle: VersatusDbReadHandle,
     pub membership_config: Option<QuorumMembershipConfig>,
     pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
     pub validator_public_key: PublicKey,

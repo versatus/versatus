@@ -339,7 +339,7 @@ jobs:
           command: test
           args: -p validator
 
-  test-vrrb-config:
+  test-versa-config:
     name: test versa_config
     runs-on: ubuntu-latest
     steps:
@@ -361,7 +361,7 @@ jobs:
           command: test
           args: -p versa_config
 
-  test-vrrb-core:
+  test-versa-core:
     name: test versa_core
     runs-on: ubuntu-latest
     steps:
@@ -383,7 +383,7 @@ jobs:
           command: test
           args: -p versa_core
 
-  test-vrrb-http:
+  test-versa-http:
     name: test versa_http
     runs-on: ubuntu-latest
     steps:
@@ -405,7 +405,7 @@ jobs:
           command: test
           args: -p versa_http
 
-  test-vrrb-rpc:
+  test-versa-rpc:
     name: test versa_rpc
     runs-on: ubuntu-latest
     steps:

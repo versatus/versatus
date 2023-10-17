@@ -7,7 +7,7 @@ use events::{Event, EventMessage, EventPublisher};
 use mempool::MempoolReadHandleFactory;
 use miner::Miner;
 use primitives::Address;
-use storage::versadb::VrrbDbReadHandle;
+use storage::versadb::VersatusDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
 use versa_config::NodeConfig;

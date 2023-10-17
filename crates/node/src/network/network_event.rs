@@ -13,7 +13,7 @@ use signer::engine::QuorumData;
 use versa_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
-/// Represents data trasmitted over the VRRB network by nodes that participate
+/// Represents data trasmitted over the VERSATUS network by nodes that participate
 /// in it
 pub enum NetworkEvent {
     ClaimCreated {

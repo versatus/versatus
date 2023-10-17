@@ -11,13 +11,13 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct VrrbDbReadHandle {
+pub struct VersatusDbReadHandle {
     state_store_handle_factory: StateStoreReadHandleFactory,
     transaction_store_handle_factory: TransactionStoreReadHandleFactory,
     claim_store_handle_factory: ClaimStoreReadHandleFactory,
 }
 
-impl VrrbDbReadHandle {
+impl VersatusDbReadHandle {
     pub fn new(
         state_store_handle_factory: StateStoreReadHandleFactory,
         transaction_store_handle_factory: TransactionStoreReadHandleFactory,

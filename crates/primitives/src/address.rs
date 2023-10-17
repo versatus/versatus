@@ -1,13 +1,13 @@
-use std::str::FromStr;
-use sha2::{Sha512, Sha256, Digest};
-use sha3::{Digest as KeccackDigest, Keccak256};
 use secp256k1::{rand::rngs::OsRng, Secp256k1};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256, Sha512};
+use sha3::{Digest as KeccackDigest, Keccak256};
+use std::str::FromStr;
 
 use crate::{ByteVec, PublicKey, SecretKey};
 
 /// Represents the lower 20 bytes
-/// of a secp256k1 public key, 
+/// of a secp256k1 public key,
 /// hashed with sha256::digest
 //pub struct Address(PublicKey);
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
@@ -21,7 +21,7 @@ impl Address {
     pub fn raw_address(&self) -> [u8; 20] {
         self.0
     }
-    
+
     #[deprecated]
     pub fn public_key_bytes(&self) -> ByteVec {
         // TODO: revisit later
@@ -61,10 +61,12 @@ impl From<PublicKey> for Address {
 impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let hex_address = format!(
-            "0x{}", 
-            self.0.iter().map(|b| {
-                format!("{:02x}", b)
-            }).collect::<String>());
+            "0x{}",
+            self.0
+                .iter()
+                .map(|b| { format!("{:02x}", b) })
+                .collect::<String>()
+        );
 
         f.write_str(&hex_address)
     }
@@ -78,8 +80,8 @@ impl FromStr for Address {
             return Err(hex::FromHexError::OddLength);
         }
 
-        let address_bytes = hex::decode(&s[2..])?; 
-        
+        let address_bytes = hex::decode(&s[2..])?;
+
         if address_bytes.len() != 20 {
             return Err(hex::FromHexError::OddLength);
         }
@@ -102,7 +104,7 @@ pub fn generate_mock_account_keypair() -> AccountKeypair {
     type H = secp256k1::hashes::sha256::Hash;
 
     let secp = Secp256k1::new();
-    let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
+    let secret_key = SecretKey::from_hashed_data::<H>(b"versa");
     let public_key = PublicKey::from_secret_key(&secp, &secret_key);
     (secret_key, public_key)
 }

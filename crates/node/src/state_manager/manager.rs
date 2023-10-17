@@ -16,7 +16,7 @@ use signer::engine::{QuorumMembers, SignerEngine};
 use storage::versadb::{types::*, ApplyBlockResult};
 use storage::{
     storage_utils::StorageError,
-    versadb::{Claims, VrrbDb, VrrbDbReadHandle},
+    versadb::{Claims, VersatusDb, VersatusDbReadHandle},
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};
@@ -38,7 +38,7 @@ use super::{
 /// StateManager
 #[derive(Debug, Clone)]
 pub struct StateManagerConfig {
-    pub database: VrrbDb,
+    pub database: VersatusDb,
     pub dag: Arc<RwLock<BullDag<Block, String>>>,
     pub mempool: LeftRightMempool,
     pub claim: Claim,
@@ -49,7 +49,7 @@ pub struct StateManager {
     pub(crate) actor_id: ActorId,
     pub(crate) status: ActorState,
     pub(crate) dag: DagModule,
-    pub(crate) database: VrrbDb,
+    pub(crate) database: VersatusDb,
     pub(crate) mempool: LeftRightMempool,
 }
 
@@ -114,10 +114,10 @@ impl StateManager {
         self.database.export_state();
     }
 
-    /// Produces the read handle for the VrrbDb instance in this
-    /// struct. VrrbDbReadHandle provides a ReadHandleFactory for
+    /// Produces the read handle for the VersatusDb instance in this
+    /// struct. VersatusDbReadHandle provides a ReadHandleFactory for
     /// each of the StateStore, TransactionStore and ClaimStore.
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
+    pub fn read_handle(&self) -> VersatusDbReadHandle {
         self.database.read_handle()
     }
 
@@ -264,7 +264,7 @@ impl StateManager {
         updates
     }
 
-    /// Inserts an account into the `VrrbDb` `StateStore`. This method Should
+    /// Inserts an account into the `VersatusDb` `StateStore`. This method Should
     /// only be used for *new* accounts
     pub fn insert_account(&mut self, key: Address, account: Account) -> Result<()> {
         self.database
@@ -484,16 +484,16 @@ impl StateManager {
 }
 
 #[async_trait::async_trait]
-impl DataStore<VrrbDbReadHandle> for VrrbDb {
+impl DataStore<VersatusDbReadHandle> for VersatusDb {
     type Error = StorageError;
 
-    fn state_reader(&self) -> VrrbDbReadHandle {
+    fn state_reader(&self) -> VersatusDbReadHandle {
         self.read_handle()
     }
 }
 
 #[async_trait::async_trait]
-impl StateReader for VrrbDbReadHandle {
+impl StateReader for VersatusDbReadHandle {
     /// Returns a full list of all accounts within state
     async fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
         self.state_snapshot().await

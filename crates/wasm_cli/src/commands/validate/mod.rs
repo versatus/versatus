@@ -38,9 +38,9 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
         expected_to_run = false;
     }
 
-    if !w.has_vrrb {
+    if !w.has_versa {
         // This, unlike the other checks, is not fatal
-        println!("WASM module doesn't make use of any VRRB extensions (not fatal)");
+        println!("WASM module doesn't make use of any VERSATUS extensions (not fatal)");
     }
 
     let mut extra_namespaces = vec![];
@@ -58,9 +58,9 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
     }
 
     if expected_to_run {
-        println!("WASM module is expected to run under the VRRB runtime");
+        println!("WASM module is expected to run under the VERSATUS runtime");
     } else {
-        println!("WASM module is not expected to run under the VRRB runtime");
+        println!("WASM module is not expected to run under the VERSATUS runtime");
     }
 
     Ok(())

@@ -11,11 +11,10 @@ use tokio::sync::broadcast::Receiver;
 
 use crate::{
     http::{router::create_router, HttpApiRouterConfig, HttpApiServerConfig},
-    ApiError,
-    Result,
+    ApiError, Result,
 };
 
-/// A JSON-RPC API layer for VRRB nodes.
+/// A JSON-RPC API layer for VERSATUS nodes.
 pub struct HttpApiServer {
     router: Router,
     listener: TcpListener,

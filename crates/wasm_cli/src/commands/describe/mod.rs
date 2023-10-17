@@ -28,7 +28,7 @@ pub fn run(opts: &DescribeOpts) -> Result<()> {
     println!("WASIX? {}", wasm_loader.is_wasix);
     println!("Javy?  {}", wasm_loader.needs_javy);
     println!("Start? {}", wasm_loader.has_start);
-    println!("VRRB?  {}", wasm_loader.has_vrrb);
+    println!("VERSATUS?  {}", wasm_loader.has_versa);
     println!("Namespaces: {:?}", wasm_loader.imports.keys());
 
     Ok(())

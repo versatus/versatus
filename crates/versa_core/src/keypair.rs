@@ -542,7 +542,7 @@ mod tests {
 
         //Testing signatures
         let mut hasher = sha2::Sha256::new();
-        let msg = b"Hello VRRB";
+        let msg = b"Hello VERSATUS";
         hasher.update(msg);
         let res = hasher.finalize();
         let msg = secp256k1::Message::from_slice(&res).unwrap();
@@ -581,12 +581,12 @@ mod tests {
         let miner_pkey = KeyPair::from_miner_pk_bytes(&miner_pbytes).unwrap();
         assert!(secp.verify_ecdsa(&msg, &sig, &miner_pkey).is_ok());
         let sig = KeyPair::ecdsa_sign(
-            "Hello VRRB".as_bytes(),
+            "Hello VERSATUS".as_bytes(),
             keypair.miner_kp.0.secret_bytes().to_vec(),
         );
         let status = KeyPair::verify_ecdsa_sign(
             sig.unwrap(),
-            "Hello VRRB".as_bytes(),
+            "Hello VERSATUS".as_bytes(),
             keypair.miner_kp.1.serialize().to_vec(),
         );
         assert!(status.is_ok());

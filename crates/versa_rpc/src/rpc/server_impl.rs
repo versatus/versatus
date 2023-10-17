@@ -9,7 +9,7 @@ use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType, Round};
 use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
-use storage::versadb::{Claims, VrrbDbReadHandle};
+use storage::versadb::{Claims, VersatusDbReadHandle};
 use telemetry::{debug, error};
 use versa_config::bootstrap_quorum::QuorumMembershipConfig;
 use versa_core::claim::Claim;
@@ -28,7 +28,7 @@ use crate::rpc::api::{FullStateSnapshot, RpcTransactionRecord};
 #[derive(Debug, Clone)]
 pub struct RpcServerImpl {
     pub node_type: NodeType,
-    pub versadb_read_handle: VrrbDbReadHandle,
+    pub versadb_read_handle: VersatusDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub events_tx: EventPublisher,
 }

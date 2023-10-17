@@ -3,8 +3,8 @@
 cargo run -- node run \
     --id abcdef \
     --idx 1 \
-    --data-dir .vrrb \
-    --db-path .vrrb/node/node.db \
+    --data-dir .versatus \
+    --db-path .versatus/node/node.db \
     --udp-gossip-address 127.0.0.1:8081 \
     --raptorq-gossip-address 127.0.0.1:8082 \
     --http-api-address 127.0.0.1:8080 \

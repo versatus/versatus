@@ -3,8 +3,8 @@ use node::test_utils::create_test_network;
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("VRRB_ENVIRONMENT", "main");
-    std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
+    std::env::set_var("VERSATUS_ENVIRONMENT", "main");
+    std::env::set_var("VERSATUS_PRETTY_PRINT_LOGS", "true");
     std::env::set_var("RUST_LOG", "error");
 
     // TelemetrySubscriber::init(std::io::stdout).unwrap();

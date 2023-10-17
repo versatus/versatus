@@ -28,7 +28,7 @@ pub enum Commands {
     /// Manage configuration for this CLI tool
     Config(ConfigOpts),
 
-    /// Interact with and control VRRB nodes
+    /// Interact with and control VERSATUS nodes
     Node(Box<NodeOpts>),
 
     /// Interact with with accounts and objects on the network

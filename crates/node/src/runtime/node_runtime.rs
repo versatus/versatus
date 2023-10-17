@@ -19,7 +19,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use storage::versadb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
+use storage::versadb::{StateStoreReadHandleFactory, VersatusDbConfig, VersatusDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -78,13 +78,13 @@ impl NodeRuntime {
         )
         .map_err(NodeError::from)?;
 
-        let mut versadb_config = VrrbDbConfig::default();
+        let mut versadb_config = VersatusDbConfig::default();
 
         if config.db_path() != &versadb_config.path {
             versadb_config.with_path(config.db_path().to_path_buf());
         }
 
-        let database = storage::versadb::VrrbDb::new(versadb_config);
+        let database = storage::versadb::VersatusDb::new(versadb_config);
         let mempool = LeftRightMempool::new();
 
         let state_driver = StateManager::new(StateManagerConfig {
@@ -205,7 +205,7 @@ impl NodeRuntime {
             .clone()
     }
 
-    pub fn state_read_handle(&self) -> VrrbDbReadHandle {
+    pub fn state_read_handle(&self) -> VersatusDbReadHandle {
         self.state_driver.read_handle()
     }
 

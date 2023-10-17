@@ -1,7 +1,7 @@
 //! Web Assembly loader and validator
 //!
 //! Provides some basic functionality to load Web Assembly bytes (or WAT
-//! strings) from files or other locations and perform some basic VRRB sanity
+//! strings) from files or other locations and perform some basic VERSATUS sanity
 //! checking or inspection of the loaded module(s).
 
 use std::collections::HashMap;
@@ -59,10 +59,10 @@ pub struct WasmLoader {
     #[builder(default = "false")]
     #[builder(private)]
     pub has_start: bool,
-    /// True if this WASM module exports any of the VRRB magic symbols
+    /// True if this WASM module exports any of the VERSATUS magic symbols
     #[builder(default = "false")]
     #[builder(private)]
-    pub has_vrrb: bool,
+    pub has_versa: bool,
     /// A HashMap where the key is a string representing the namespace, and
     /// the value is a set of strings representing symbols this
     /// module expects to be present. Used in determining
@@ -151,8 +151,8 @@ impl WasmLoaderBuilder {
                                     if export.name == constants::VRRB_WASM_MAGIC
                                         || export.name == constants::VRRB_WASM_VERSION
                                     {
-                                        debug!("Has VRRB symbol: {}", export.name);
-                                        new.has_vrrb = Some(true);
+                                        debug!("Has VERSATUS symbol: {}", export.name);
+                                        new.has_versa = Some(true);
                                     }
 
                                     // XXX: in the future, keep the exports list

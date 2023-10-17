@@ -22,8 +22,8 @@ mod tests {
     use serial_test::serial;
     use signer::engine::SignerEngine;
     use storage::versadb::types::*;
-    use storage::versadb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
-    use storage::{storage_utils::remove_vrrb_data_dir, versadb::types::*};
+    use storage::versadb::{RocksDbAdapter, VersatusDb, VersatusDbConfig};
+    use storage::{storage_utils::remove_versa_data_dir, versadb::types::*};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
     use versa_core::transactions::TransactionKind;
@@ -38,12 +38,12 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn state_runtime_receives_new_txn_event() {
-        remove_vrrb_data_dir();
+        remove_versa_data_dir();
         let _temp_dir_path = env::temp_dir().join("state.json");
 
-        let db_config = VrrbDbConfig::default();
+        let db_config = VersatusDbConfig::default();
 
-        let db = VrrbDb::new(db_config);
+        let db = VersatusDb::new(db_config);
         let mempool = LeftRightMempool::default();
 
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
@@ -72,8 +72,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn versadb_should_update_with_new_block() {
-        let db_config = VrrbDbConfig::default().with_path(std::env::temp_dir().join("db"));
-        let db = VrrbDb::new(db_config);
+        let db_config = VersatusDbConfig::default().with_path(std::env::temp_dir().join("db"));
+        let db = VersatusDb::new(db_config);
         let mempool = LeftRightMempool::default();
 
         let accounts: Vec<(Address, Option<Account>)> = produce_accounts(5);

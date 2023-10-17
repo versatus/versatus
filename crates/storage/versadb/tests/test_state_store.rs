@@ -1,5 +1,5 @@
 use versa_core::account::Account;
-use versadb::{VrrbDb, VrrbDbConfig};
+use versadb::{VersatusDb, VersatusDbConfig};
 
 mod common;
 use common::_generate_random_address;
@@ -8,7 +8,7 @@ use serial_test::serial;
 #[test]
 #[serial]
 fn accounts_can_be_added() {
-    let mut db = VrrbDb::new(VrrbDbConfig::default());
+    let mut db = VersatusDb::new(VersatusDbConfig::default());
 
     let (_secret_key, addr1) = _generate_random_address();
     let (_, addr2) = _generate_random_address();

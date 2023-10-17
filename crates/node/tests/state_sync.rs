@@ -15,14 +15,14 @@ async fn nodes_can_synchronize_state() {
     let node_config_1 = create_mock_full_node_config();
     let node_config_2 = create_mock_full_node_config();
 
-    let vrrb_node_1 = Node::start(node_config_1).await.unwrap();
-    let vrrb_node_2 = Node::start(node_config_2).await.unwrap();
+    let versa_node_1 = Node::start(node_config_1).await.unwrap();
+    let versa_node_2 = Node::start(node_config_2).await.unwrap();
 
-    let client_1 = create_client(vrrb_node_1.jsonrpc_server_address())
+    let client_1 = create_client(versa_node_1.jsonrpc_server_address())
         .await
         .unwrap();
 
-    let client_2 = create_client(vrrb_node_2.jsonrpc_server_address())
+    let client_2 = create_client(versa_node_2.jsonrpc_server_address())
         .await
         .unwrap();
 
@@ -31,7 +31,7 @@ async fn nodes_can_synchronize_state() {
         let (_, recv_pk) = generate_account_keypair();
 
         let signature =
-            sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+            sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa"));
 
         client_1
             .create_txn(
@@ -53,6 +53,6 @@ async fn nodes_can_synchronize_state() {
     let mempool_snapshot = client_2.get_full_mempool().await.unwrap();
 
     assert!(!mempool_snapshot.is_empty());
-    assert!(vrrb_node_1.stop().await.unwrap());
-    assert!(vrrb_node_2.stop().await.unwrap());
+    assert!(versa_node_1.stop().await.unwrap());
+    assert!(versa_node_2.stop().await.unwrap());
 }

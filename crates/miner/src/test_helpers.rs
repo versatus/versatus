@@ -167,7 +167,7 @@ pub(crate) fn create_txns(n: usize) -> impl Iterator<Item = (TransactionDigest, 
                 .amount(amount)
                 .signature(sk.sign_ecdsa(Message::from_hashed_data::<
                     secp256k1::hashes::sha256::Hash,
-                >(b"vrrb")))
+                >(b"versa")))
                 .nonce(n as u128)
                 .build_kind()
                 .expect("Failed to build transaction");

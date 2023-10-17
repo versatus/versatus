@@ -22,7 +22,7 @@ async fn process_full_node_event_flow() {
         let (_, recv_pk) = generate_account_keypair();
 
         let signature =
-            sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"vrrb"));
+            sk.sign_ecdsa(Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"versa"));
 
         client
             .create_txn(

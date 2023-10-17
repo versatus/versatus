@@ -14,11 +14,11 @@ use versa_core::{
 use crate::{
     ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, StateStore,
     StateStoreReadHandleFactory, TransactionStore, TransactionStoreReadHandleFactory,
-    VrrbDbReadHandle,
+    VersatusDbReadHandle,
 };
 
 #[derive(Debug, Clone)]
-pub struct VrrbDbConfig {
+pub struct VersatusDbConfig {
     pub path: PathBuf,
     pub state_store_path: Option<String>,
     pub transaction_store_path: Option<String>,
@@ -26,7 +26,7 @@ pub struct VrrbDbConfig {
     pub claim_store_path: Option<String>,
 }
 
-impl VrrbDbConfig {
+impl VersatusDbConfig {
     pub fn with_path(&mut self, path: PathBuf) -> Self {
         self.path = path;
 
@@ -60,7 +60,7 @@ impl ApplyBlockResult {
     }
 }
 
-impl Default for VrrbDbConfig {
+impl Default for VersatusDbConfig {
     fn default() -> Self {
         let path = storage_utils::get_node_data_dir()
             .unwrap_or_default()
@@ -77,14 +77,14 @@ impl Default for VrrbDbConfig {
 }
 
 #[derive(Debug, Default)]
-pub struct VrrbDb {
+pub struct VersatusDb {
     state_store: StateStore,
     transaction_store: TransactionStore,
     claim_store: ClaimStore,
 }
 
-impl VrrbDb {
-    pub fn new(config: VrrbDbConfig) -> Self {
+impl VersatusDb {
+    pub fn new(config: VersatusDbConfig) -> Self {
         let state_store = StateStore::new(&config.path);
         let transaction_store = TransactionStore::new(&config.path);
         let claim_store = ClaimStore::new(&config.path);
@@ -112,8 +112,8 @@ impl VrrbDb {
         self.claim_store.commit();
     }
 
-    pub fn read_handle(&self) -> VrrbDbReadHandle {
-        VrrbDbReadHandle::new(
+    pub fn read_handle(&self) -> VersatusDbReadHandle {
+        VersatusDbReadHandle::new(
             self.state_store.factory(),
             self.transaction_store_factory(),
             self.claim_store_factory(),
@@ -231,7 +231,7 @@ impl VrrbDb {
         todo!()
     }
 
-    fn apply_transfer(&mut self, read_handle: VrrbDbReadHandle, txn: Transfer) -> Result<()> {
+    fn apply_transfer(&mut self, read_handle: VersatusDbReadHandle, txn: Transfer) -> Result<()> {
         let txn = TransactionKind::Transfer(txn);
 
         let sender_address = txn.sender_address();
@@ -264,7 +264,7 @@ impl VrrbDb {
 
     fn apply_txn(
         &mut self,
-        read_handle: VrrbDbReadHandle,
+        read_handle: VersatusDbReadHandle,
         txn_kind: TransactionKind,
     ) -> Result<()> {
         match txn_kind {
@@ -353,8 +353,8 @@ impl VrrbDb {
     }
 }
 
-impl Clone for VrrbDb {
-    fn clone(&self) -> VrrbDb {
+impl Clone for VersatusDb {
+    fn clone(&self) -> VersatusDb {
         Self {
             state_store: self.state_store.clone(),
             transaction_store: self.transaction_store.clone(),
@@ -364,7 +364,7 @@ impl Clone for VrrbDb {
 }
 
 // TODO: uncomment this once `entries` is fixed
-// impl Display for VrrbDb {
+// impl Display for VersatusDb {
 //     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //         let state_entries = self.state_store_factory().handle().entries();
 //         let transaction_entries = self

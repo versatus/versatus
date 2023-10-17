@@ -18,7 +18,7 @@ endif
 all: $(DEFAULT)
 
 help:
-	$(Q)echo "VRRB Dev CLI - v0.0.1"
+	$(Q)echo "versatus Dev CLI - v0.0.1"
 	$(Q)echo "make run               - Runs main executable"
 	$(Q)echo "make build             - Builds the main executable"
 	$(Q)echo "make build-dev         - Builds a debug version of the main executable"
@@ -46,11 +46,11 @@ ci-build:
 	$(Q)echo "--- Done"
 
 ci-run: ci-build
-	$(Q)docker run --rm --name vrrb-node ghcr.io/vrrb-io/vrrb
+	$(Q)docker run --rm --name versatus-node ghcr.io/versatus/versatus
 	$(Q)echo "--- Done"
 
 ci-run-d:
-	$(Q)docker run -d --name vrrb-node ghcr.io/vrrb-io/vrrb
+	$(Q)docker run -d --name versatus-node ghcr.io/versatus/versatus
 	$(Q)echo "--- Done"
 
 clean: clean-ui

@@ -88,7 +88,7 @@ mod loader_tests {
     }
 
     #[test]
-    fn builder_check_vrrb_symbols() {
+    fn builder_check_versa_symbols() {
         let w = WasmLoaderBuilder::default()
             .wasm_bytes(std::fs::read(SIMPLE_WASI_TEST_MODULE).unwrap())
             .parse()
@@ -97,7 +97,7 @@ mod loader_tests {
         assert!(w.is_ok());
         if let Ok(wasm) = w {
             debug!("w: {:02x?}", wasm);
-            assert!(wasm.has_vrrb, "Didn't find VRRB symbols");
+            assert!(wasm.has_versa, "Didn't find VRRB symbols");
         }
     }
 
