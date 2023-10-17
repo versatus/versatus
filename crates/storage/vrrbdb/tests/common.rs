@@ -3,8 +3,8 @@ use std::net::SocketAddr;
 use primitives::{Address, SecretKey};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use secp256k1::{Message, Secp256k1};
-use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
-use vrrb_core::{claim::Claim, keypair::Keypair};
+use versa_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
+use versa_core::{claim::Claim, keypair::Keypair};
 
 // NOTE: this is used to generate random filenames so files created by tests
 // don't get overwritten

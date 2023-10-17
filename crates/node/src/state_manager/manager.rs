@@ -20,8 +20,8 @@ use storage::{
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};
-use vrrb_core::{account::Account, claim::Claim};
-use vrrb_core::{
+use versa_core::{account::Account, claim::Claim};
+use versa_core::{
     account::UpdateArgs,
     transactions::{Transaction, TransactionDigest, TransactionKind},
 };

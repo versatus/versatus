@@ -11,7 +11,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 versa_config = { workspace = true }
 telemetry = { workspace = true }
 primitives = { workspace = true }

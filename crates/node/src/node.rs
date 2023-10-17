@@ -14,8 +14,8 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use versa_config::NodeConfig;
-use vrrb_core::keypair::{KeyPair, Keypair};
-use vrrb_core::node_health_report::NodeHealthReport;
+use versa_core::keypair::{KeyPair, Keypair};
+use versa_core::node_health_report::NodeHealthReport;
 
 use crate::{
     data_store::DataStore, result::Result, runtime::setup_runtime_components,

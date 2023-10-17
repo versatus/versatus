@@ -10,7 +10,7 @@ use mempool::TxnRecord;
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
 use serde::{Deserialize, Serialize};
 use signer::engine::QuorumData;
-use vrrb_core::claim::Claim;
+use versa_core::claim::Claim;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 /// Represents data trasmitted over the VRRB network by nodes that participate

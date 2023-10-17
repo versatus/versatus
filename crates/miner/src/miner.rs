@@ -22,8 +22,8 @@ use secp256k1::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utils::{create_payload, hash_data};
-use vrrb_core::keypair::{MinerPublicKey, MinerSecretKey};
-use vrrb_core::{
+use versa_core::keypair::{MinerPublicKey, MinerSecretKey};
+use versa_core::{
     claim::{Claim, ClaimError},
     keypair::{MinerPk, MinerSk},
 };
@@ -58,7 +58,7 @@ pub enum MinerStatus {
 ///
 /// ```
 /// use std::net::SocketAddr;
-/// use vrrb_core::keypair::{MinerPk, MinerSk};
+/// use versa_core::keypair::{MinerPk, MinerSk};
 /// use std::sync::{Arc, RwLock};
 /// use bulldag::graph::BullDag;
 /// use primitives::Address;
@@ -88,7 +88,7 @@ pub struct MinerConfig {
 ///
 /// ```
 /// use std::net::SocketAddr;
-/// use vrrb_core::{claim::Claim, keypair::{MinerPk, MinerSk}};
+/// use versa_core::{claim::Claim, keypair::{MinerPk, MinerSk}};
 /// use primitives::Address;
 /// use miner::{conflict_resolver::Resolver, block_builder::BlockBuilder, miner::MinerStatus};
 /// use block::{Block, ConvergenceBlock, header::BlockHeader, InnerBlock};
@@ -147,7 +147,7 @@ impl Miner {
     /// use bulldag::graph::BullDag;
     /// use miner::miner::{Miner, MinerConfig};
     /// use primitives::{Address, NodeId};
-    /// use vrrb_core::{keypair::Keypair, claim::Claim};
+    /// use versa_core::{keypair::Keypair, claim::Claim};
     ///
     /// let keypair = Keypair::random();
     /// let (secret_key, public_key) = keypair.miner_kp;

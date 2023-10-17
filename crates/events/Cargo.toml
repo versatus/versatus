@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { workspace = true }
 block = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 telemetry = { workspace = true }
 primitives = { workspace = true }
 anyhow = { workspace = true }

@@ -1,5 +1,5 @@
 use primitives::Address;
-use vrrb_core::account::Account;
+use versa_core::account::Account;
 use wallet::v2::Wallet;
 
 use crate::result::{CliError, Result};

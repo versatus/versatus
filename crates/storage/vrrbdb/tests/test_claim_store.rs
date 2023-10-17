@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use primitives::NodeId;
-use vrrb_core::claim::Claim;
+use versa_core::claim::Claim;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;

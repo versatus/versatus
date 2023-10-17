@@ -4,7 +4,7 @@ use ethereum_types::U256;
 use primitives::{NodeId, PublicKey, QuorumKind};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use vrrb_core::{
+use versa_core::{
     claim::{Claim, Eligibility},
     keypair::KeyPair,
 };

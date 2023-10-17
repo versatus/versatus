@@ -5,8 +5,8 @@ use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
 use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;
+use versa_core::transactions::Token;
 use versa_rpc::rpc::{JsonRpcServer, JsonRpcServerConfig};
-use vrrb_core::transactions::Token;
 use wallet::v2::{Wallet, WalletConfig};
 
 #[tokio::test]

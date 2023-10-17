@@ -404,7 +404,7 @@ impl Signer for SignatureProvider {
 //     use primitives::SignatureType;
 //     use std::collections::BTreeMap;
 //     use versa_config::ThresholdConfig;
-//     use vrrb_core::is_enum_variant;
+//     use versa_core::is_enum_variant;
 
 //     use crate::{
 //         signer::{SignatureProvider, Signer},

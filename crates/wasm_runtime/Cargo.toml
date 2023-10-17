@@ -15,4 +15,4 @@ telemetry = { workspace = true }
 wasmer = { workspace = true }
 wasmer-wasix = { workspace = true }
 wasmer-wasix-types = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }

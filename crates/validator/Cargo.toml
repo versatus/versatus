@@ -17,7 +17,7 @@ bytebuffer = "0.2.1"
 blake3 = "0.3.8"
 bincode = { workspace = true }
 storage = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 primitives = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }

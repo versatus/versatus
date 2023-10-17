@@ -64,7 +64,7 @@ members = [
     "crates/consensus/job_pool",
     "crates/consensus/job_scheduler",
     "crates/consensus/vrrb_vrf",
-    "crates/vrrb_core",
+    "crates/versa_core",
     "crates/cli",
     "crates/versa_config",
     "crates/versa_rpc",
@@ -94,7 +94,7 @@ members = [
 cli = { path = "crates/cli" }
 node = { path = "crates/node" }
 primitives = { path = "crates/primitives" }
-vrrb_core = { path = "crates/vrrb_core" }
+versa_core = { path = "crates/versa_core" }
 versa_config = { path = "crates/versa_config" }
 versa_rpc = { path = "crates/versa_rpc" }
 block = { path = "crates/block" }

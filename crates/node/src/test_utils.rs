@@ -29,8 +29,7 @@ use versa_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
     ThresholdConfig,
 };
-use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
-use vrrb_core::{
+use versa_core::{
     account::{Account, AccountField},
     claim::Claim,
     keypair::Keypair,
@@ -39,13 +38,14 @@ use vrrb_core::{
         TransactionDigest, TransactionKind, Transfer,
     },
 };
+use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
 
 pub fn create_mock_full_node_config() -> NodeConfig {
     let data_dir = env::temp_dir();
     let id = Uuid::new_v4().simple().to_string();
 
     let temp_dir_path = std::env::temp_dir();
-    let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
+    let db_path = temp_dir_path.join(versa_core::helpers::generate_random_string());
 
     let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);

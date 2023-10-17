@@ -362,7 +362,7 @@ jobs:
           args: -p versa_config
 
   test-vrrb-core:
-    name: test vrrb_core
+    name: test versa_core
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -381,7 +381,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p vrrb_core
+          args: -p versa_core
 
   test-vrrb-http:
     name: test versa_http

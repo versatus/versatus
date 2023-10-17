@@ -14,8 +14,8 @@ use std::{
 };
 use versa_config::QuorumMember;
 use versa_config::QuorumMembershipConfig;
-use vrrb_core::claim::Claim;
-use vrrb_core::transactions::TransactionDigest;
+use versa_core::claim::Claim;
+use versa_core::transactions::TransactionDigest;
 
 impl ConsensusModule {
     pub async fn handle_node_added_to_peer_list(

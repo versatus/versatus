@@ -13,8 +13,8 @@ mod tests {
     use primitives::{Address, Signature};
     use rand::{rngs::StdRng, Rng};
     use secp256k1::ecdsa;
-    use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
-    use vrrb_core::{account::Account, keypair::KeyPair};
+    use versa_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
+    use versa_core::{account::Account, keypair::KeyPair};
 
     use crate::validator_core_manager::ValidatorCoreManager;
 

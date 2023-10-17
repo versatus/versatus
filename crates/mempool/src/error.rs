@@ -1,4 +1,4 @@
-use vrrb_core::transactions::TransactionDigest;
+use versa_core::transactions::TransactionDigest;
 
 #[derive(thiserror::Error, PartialEq, Eq, Debug)]
 pub enum MempoolError {

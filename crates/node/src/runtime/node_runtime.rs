@@ -24,7 +24,7 @@ use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use versa_config::{NodeConfig, QuorumMembershipConfig};
-use vrrb_core::{
+use versa_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
     transactions::{

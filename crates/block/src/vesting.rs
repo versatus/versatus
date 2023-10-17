@@ -1,7 +1,7 @@
 use primitives::{Address, PublicKey, SecretKey};
 use ritelinked::LinkedHashMap;
 use secp256k1::{Message, Secp256k1};
-use vrrb_core::{
+use versa_core::{
     account::Account,
     keypair::Keypair,
     transactions::{
@@ -216,7 +216,7 @@ mod tests {
 
     use crate::{generate_genesis_txns, GenesisConfig, GenesisReceiver};
     use primitives::Address;
-    use vrrb_core::keypair::KeyPair;
+    use versa_core::keypair::KeyPair;
 
     #[test]
     fn create_single_genesis_txn() {

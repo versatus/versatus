@@ -26,7 +26,7 @@ use signer::{
     signer::Signer,
 };
 use theater::{ActorId, ActorState};
-use vrrb_core::claim::Claim;
+use versa_core::claim::Claim;
 
 use crate::{NodeError, Result};
 
@@ -327,7 +327,6 @@ impl DagModule {
         }
         false
     }
-
 
     pub fn add_signer_to_convergence_block(
         &mut self,

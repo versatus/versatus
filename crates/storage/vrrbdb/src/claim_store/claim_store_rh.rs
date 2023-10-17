@@ -5,7 +5,7 @@ use patriecia::{JellyfishMerkleTree, Version};
 use primitives::NodeId;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
-use vrrb_core::claim::Claim;
+use versa_core::claim::Claim;
 
 use crate::RocksDbAdapter;
 

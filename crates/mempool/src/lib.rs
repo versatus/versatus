@@ -39,10 +39,8 @@ mod tests {
     use rand::{thread_rng, Rng};
     use secp256k1::ecdsa;
     use tokio;
-    use vrrb_core::{
-        keypair::KeyPair,
-    };
-    use vrrb_core::transactions::{Transaction, TransactionKind};
+    use versa_core::keypair::KeyPair;
+    use versa_core::transactions::{Transaction, TransactionKind};
 
     use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
 
@@ -69,7 +67,8 @@ mod tests {
         let recv_keypair = KeyPair::random();
         let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-        let txn = TransactionKind::transfer_builder().timestamp(0)
+        let txn = TransactionKind::transfer_builder()
+            .timestamp(0)
             .sender_address(Address::new(keypair.get_miner_public_key().clone()))
             .sender_public_key(keypair.get_miner_public_key().clone())
             .receiver_address(recv_address)
@@ -77,7 +76,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
         match mpooldb.insert(txn) {
@@ -107,7 +107,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -147,13 +148,17 @@ mod tests {
             .nonce(0)
             .signature(mock_txn_signature());
 
-        let txn1 = transfer_builder.clone()
+        let txn1 = transfer_builder
+            .clone()
             .receiver_address(Address::new(recv1_keypair.get_miner_public_key().clone()))
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
-        let txn2 = transfer_builder.clone()
+        let txn2 = transfer_builder
+            .clone()
             .receiver_address(Address::new(recv2_keypair.get_miner_public_key().clone()))
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -196,7 +201,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let txn_id = txn.digest();
 
@@ -227,7 +233,7 @@ mod tests {
         if let Some(txn_rec_retrieved) = mpooldb.get(&txn.digest()) {
             let txn_retrieved = txn_rec_retrieved.txn;
             assert_eq!(txn_retrieved.digest(), txn_id);
-            assert!((txn_retrieved.timestamp()- now) <= delta);
+            assert!((txn_retrieved.timestamp() - now) <= delta);
             assert_eq!(txn_retrieved.sender_address(), sender_address);
             assert_eq!(txn_retrieved.receiver_address(), receiver_address);
             assert_eq!(txn_retrieved.amount(), txn_amount);
@@ -257,9 +263,11 @@ mod tests {
             .signature(mock_txn_signature());
 
         for n in 1..101 {
-            let txn = transfer_builder.clone()
+            let txn = transfer_builder
+                .clone()
                 .amount(txn_amount + n)
-                .build_kind().expect("Failed to build transaction");
+                .build_kind()
+                .expect("Failed to build transaction");
 
             txns.insert(txn);
         }
@@ -315,7 +323,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let txn2 = TransactionKind::transfer_builder()
             .timestamp(0)
@@ -326,7 +335,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let txn2_id = txn2.digest();
 
@@ -379,7 +389,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let txn2 = TransactionKind::transfer_builder()
             .timestamp(0)
@@ -390,7 +401,8 @@ mod tests {
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature())
-            .build_kind().expect("Failed to build transaction");
+            .build_kind()
+            .expect("Failed to build transaction");
 
         let mut mpooldb = LeftRightMempool::new();
 
@@ -444,9 +456,11 @@ mod tests {
             .signature(mock_txn_signature());
 
         for n in 1..101 {
-            let txn = transfer_builder.clone()
+            let txn = transfer_builder
+                .clone()
                 .amount(txn_amount + n)
-                .build_kind().expect("Failed to build transaction");
+                .build_kind()
+                .expect("Failed to build transaction");
 
             txns.insert(txn);
         }
@@ -491,10 +505,12 @@ mod tests {
             let recv_keypair = KeyPair::random();
             let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
 
-            let txn = transfer_builder.clone()
+            let txn = transfer_builder
+                .clone()
                 .receiver_address(recv_address.clone())
                 .amount(txn_amount + n)
-                .build_kind().expect("Failed to build transaction");
+                .build_kind()
+                .expect("Failed to build transaction");
 
             txns.insert(txn);
         }

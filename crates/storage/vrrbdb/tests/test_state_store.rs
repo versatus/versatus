@@ -1,4 +1,4 @@
-use vrrb_core::account::Account;
+use versa_core::account::Account;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 
 mod common;

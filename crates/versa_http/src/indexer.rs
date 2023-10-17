@@ -47,7 +47,7 @@ impl IndexerClient {
 #[cfg(test)]
 mod tests {
     use mempool::TxnRecord;
-    use vrrb_core::transactions::{transfer::Transfer, TransactionKind};
+    use versa_core::transactions::{transfer::Transfer, TransactionKind};
 
     use wiremock::{
         http::Method,

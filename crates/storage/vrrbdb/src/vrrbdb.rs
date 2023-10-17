@@ -5,8 +5,8 @@ use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
-use vrrb_core::{
+use versa_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
+use versa_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
 };

@@ -8,7 +8,7 @@ use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use left_right::{Absorb, ReadHandle, ReadHandleFactory, WriteHandle};
 use serde::{Deserialize, Serialize};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, TxTimestamp};
+use versa_core::transactions::{Transaction, TransactionDigest, TransactionKind, TxTimestamp};
 
 use super::error::MempoolError;
 

@@ -10,7 +10,7 @@ derive_builder = { workspace = true }
 primitives = { workspace = true }
 hbbft = { workspace = true }
 rand = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 secp256k1 = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }

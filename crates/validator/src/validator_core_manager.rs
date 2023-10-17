@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
-use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
-use vrrb_core::transactions::{TransactionKind, TransactionDigest};
-use vrrb_core::{account::Account, claim::Claim};
+use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
+use versa_core::transactions::{TransactionDigest, TransactionKind};
+use versa_core::{account::Account, claim::Claim};
 
 use crate::{
     claim_validator::ClaimValidator,
@@ -16,7 +16,6 @@ use crate::{
 
 pub struct CoreAllocator {
     pub cache: HashSet<(usize, TransactionDigest)>,
-
 }
 
 #[derive(Debug)]
@@ -37,14 +36,19 @@ impl Clone for ValidatorCoreManager {
         let state_reader = self.state_reader.clone();
         let claim_reader = self.claim_reader.clone();
 
-        Self { core_pool, mempool_reader, state_reader, claim_reader }
+        Self {
+            core_pool,
+            mempool_reader,
+            state_reader,
+            claim_reader,
+        }
     }
 }
 
 impl ValidatorCoreManager {
     pub fn new(
-        cores: usize, 
-        mempool_reader: MempoolReadHandleFactory, 
+        cores: usize,
+        mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
         claim_reader: ClaimStoreReadHandleFactory,
     ) -> Result<Self> {
@@ -55,7 +59,12 @@ impl ValidatorCoreManager {
                 ValidatorError::Other(format!("Failed to create validator core pool: {err}"))
             })?;
 
-        Ok(Self { core_pool, mempool_reader, state_reader, claim_reader })
+        Ok(Self {
+            core_pool,
+            mempool_reader,
+            state_reader,
+            claim_reader,
+        })
     }
 
     pub fn validate_transaction_kind(
@@ -70,9 +79,7 @@ impl ValidatorCoreManager {
                 TxnValidator::new(),
                 ClaimValidator,
             );
-            let res = valcore.process_transaction_kind(
-                transaction, mempool_reader, state_reader
-            );
+            let res = valcore.process_transaction_kind(transaction, mempool_reader, state_reader);
             res
         })
     }
@@ -81,7 +88,7 @@ impl ValidatorCoreManager {
         &mut self,
         batch: Vec<TransactionKind>,
         mempool_reader: MempoolReadHandleFactory,
-        state_reader: StateStoreReadHandleFactory
+        state_reader: StateStoreReadHandleFactory,
     ) -> HashSet<(TransactionKind, crate::txn_validator::Result<()>)> {
         // ) -> HashSet<(Txn, bool)> {
         self.core_pool.install(|| {
@@ -90,9 +97,7 @@ impl ValidatorCoreManager {
                 TxnValidator::new(),
                 ClaimValidator,
             );
-            valcore.process_transactions(
-                batch, mempool_reader, state_reader
-            )
+            valcore.process_transactions(batch, mempool_reader, state_reader)
         })
     }
 

@@ -8,10 +8,10 @@ use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::Claims;
 use versa_config::bootstrap_quorum::QuorumMembershipConfig;
-use vrrb_core::account::Account;
-use vrrb_core::claim::Claim;
-use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{
+use versa_core::account::Account;
+use versa_core::claim::Claim;
+use versa_core::node_health_report::NodeHealthReport;
+use versa_core::transactions::{
     RpcTransactionDigest, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp,
 };
 

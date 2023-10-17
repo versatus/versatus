@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use events::{Event, EventMessage};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_core::serde_helpers::decode_from_binary_byte_slice;
-use vrrb_core::transactions::Transaction;
+use versa_core::serde_helpers::decode_from_binary_byte_slice;
+use versa_core::transactions::Transaction;
 
 use crate::state_manager::StateManager;
 
@@ -105,7 +105,7 @@ impl Handler<EventMessage> for StateManager {
                 todo!()
             },
             Event::UpdateState(block) => {
-                
+
                 //if let Err(err) = self.update_state(block.hash) {
                 //    telemetry::error!("error updating state: {}", err);
                 //}

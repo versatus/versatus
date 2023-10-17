@@ -14,8 +14,8 @@ use ritelinked::{LinkedHashMap, LinkedHashSet};
 use serde::{Deserialize, Serialize};
 use signer::engine::QuorumMembers;
 use tokio::task::JoinHandle;
-use vrrb_core::claim::Claim;
-use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
+use versa_core::claim::Claim;
+use versa_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;

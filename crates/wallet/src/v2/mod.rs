@@ -10,12 +10,12 @@ use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use telemetry::error;
 use thiserror::Error;
+use versa_core::account::Account;
+use versa_core::transactions::{RpcTransactionDigest, Token, Transaction, TransactionKind};
 use versa_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
 };
-use vrrb_core::account::Account;
-use vrrb_core::transactions::{RpcTransactionDigest, Token, Transaction, TransactionKind};
 
 type WalletResult<Wallet> = Result<Wallet, WalletError>;
 
@@ -237,7 +237,7 @@ impl Wallet {
     ) -> WalletResult<Self> {
         if let Ok(secretkey) = SecretKey::from_str(&secret_key) {
             let pubkey =
-                vrrb_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
+                versa_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
 
             let client = create_client(rpc_server).await?;
 

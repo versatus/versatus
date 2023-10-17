@@ -7,7 +7,7 @@ use primitives::{
 };
 use serde::{Deserialize, Serialize};
 use versa_config::QuorumMember;
-use vrrb_core::transactions::{TransactionDigest, TransactionKind};
+use versa_core::transactions::{TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PeerData {

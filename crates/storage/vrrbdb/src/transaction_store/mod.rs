@@ -9,7 +9,7 @@ use crate::RocksDbAdapter;
 
 mod transaction_store_rh;
 pub use transaction_store_rh::*;
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use versa_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 #[derive(Debug, Clone)]
 pub struct TransactionStore {

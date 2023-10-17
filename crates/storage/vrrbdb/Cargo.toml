@@ -11,7 +11,7 @@ sha2 = { workspace = true }
 secp256k1 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 primitives = { workspace = true }
 patriecia = { workspace = true }
 parking_lot = { workspace = true }

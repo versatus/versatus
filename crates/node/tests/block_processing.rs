@@ -1,8 +1,8 @@
 use node::{test_utils::create_mock_bootstrap_node_config, Node};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
+use versa_core::transactions::TransactionKind;
 use versa_rpc::rpc::{api::RpcApiClient, client::create_client};
-use vrrb_core::transactions::TransactionKind;
 
 #[tokio::test]
 #[ignore = "https://github.com/versatus/versatus/issues/495"]

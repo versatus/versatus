@@ -20,7 +20,7 @@ use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, Theate
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use versa_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
-use vrrb_core::claim::Claim;
+use versa_core::claim::Claim;
 
 use super::NetworkEvent;
 use crate::{

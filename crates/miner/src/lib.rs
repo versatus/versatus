@@ -18,8 +18,8 @@ mod tests {
     use bulldag::vertex::Vertex;
     use primitives::Address;
     use ritelinked::LinkedHashMap;
-    use vrrb_core::transactions::{TransactionDigest, TransactionKind};
-    use vrrb_core::{claim::Claim, keypair::Keypair};
+    use versa_core::transactions::{TransactionDigest, TransactionKind};
+    use versa_core::{claim::Claim, keypair::Keypair};
 
     use crate::test_helpers::{
         build_single_proposal_block, build_single_proposal_block_from_txns,

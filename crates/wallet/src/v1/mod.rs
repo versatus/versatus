@@ -17,7 +17,7 @@
 // use sha256::digest;
 // use state::state::NetworkState;
 // use uuid::Uuid;
-// use vrrb_core::{
+// use versa_core::{
 //     accountable::Accountable,
 //     claim::Claim,
 //     keypair::{KeyPair, MinerSk as SecretKey},
@@ -103,7 +103,7 @@
 //     pub fn restore_from_private_key(private_key: String) -> Self {
 //         let secretkey = SecretKey::from_str(&private_key).unwrap();
 //         let pubkey =
-// vrrb_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
+// versa_core::keypair::KeyPair::get_miner_public_key_from_secret_key(secretkey);
 //         let mut wallet = WalletAccount {
 //             secret_key: secretkey.secret_bytes().to_vec(),
 //             welcome_message: String::new(),
@@ -266,7 +266,7 @@
 //             .as_bytes()
 //             .to_vec();
 //
-//         let txn = Txn::new(vrrb_core::txn::NewTxnArgs {
+//         let txn = Txn::new(versa_core::txn::NewTxnArgs {
 //             sender_address: sender_address.to_string(),
 //             sender_public_key: self.public_key.clone(),
 //             receiver_address: receiver,

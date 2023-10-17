@@ -7,7 +7,7 @@ use miner::result::MinerError;
 use theater::TheaterError;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TryRecvError;
-use vrrb_core::claim::ClaimError;
+use versa_core::claim::ClaimError;
 
 #[derive(Debug, Error)]
 pub enum NodeError {
@@ -21,7 +21,7 @@ pub enum NodeError {
     AddrParse(#[from] AddrParseError),
 
     #[error("{0}")]
-    CoreStorage(#[from] vrrb_core::storage_utils::StorageError),
+    CoreStorage(#[from] versa_core::storage_utils::StorageError),
 
     #[error("{0}")]
     Storage(#[from] storage::storage_utils::StorageError),
@@ -56,7 +56,7 @@ pub enum NodeError {
     // #[error("DKG error: {0}")]
     // Dkg(#[from] DkgError),
     #[error("{0}")]
-    Core(#[from] vrrb_core::Error),
+    Core(#[from] versa_core::Error),
 
     #[error("{0}")]
     Other(String),

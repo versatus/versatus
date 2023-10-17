@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use secp256k1::{generate_keypair, rand};
-use vrrb_core::helpers::write_keypair_file;
+use versa_core::helpers::write_keypair_file;
 use wallet::v2::{AddressAlias, Wallet};
 
 use crate::result::CliError;

@@ -19,7 +19,7 @@ thiserror = { workspace = true }
 ritelinked = { workspace = true }
 reward = { workspace = true }
 primitives = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 telemetry = { workspace = true }
 utils = { workspace = true }
 vrrb_vrf = { workspace = true }

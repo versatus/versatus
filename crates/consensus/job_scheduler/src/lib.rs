@@ -6,7 +6,7 @@ use job_pool::{
 };
 use once_cell::sync::Lazy;
 use primitives::PeerId as PeerID;
-use vrrb_core::cache::Cache;
+use versa_core::cache::Cache;
 
 pub struct JobScheduler {
     local_peer_id: PeerID,

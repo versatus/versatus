@@ -2,7 +2,7 @@ use std::result::Result as StdResult;
 
 use hbbft::crypto::{PublicKey, Signature};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use vrrb_core::{
+use versa_core::{
     claim::{Claim, Eligibility},
     staking::{Stake, StakeUpdate, MIN_STAKE_FARMER, MIN_STAKE_VALIDATOR},
 };

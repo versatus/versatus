@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 primitives = { workspace = true }
 block = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 events = { workspace = true }
 telemetry = { workspace = true }
 versa_config = { workspace = true }

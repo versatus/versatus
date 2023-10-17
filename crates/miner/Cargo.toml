@@ -15,7 +15,7 @@ sha256 = { workspace = true }
 secp256k1 = { workspace = true }
 patriecia = { workspace = true }
 primitives = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 reward = { workspace = true }
 block = { workspace = true }
 mempool = { workspace = true }

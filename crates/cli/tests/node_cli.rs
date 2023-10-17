@@ -4,7 +4,7 @@ use cli::commands::node::GENESIS_QUORUM_SIZE;
 use primitives::{KademliaPeerId, NodeType};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use versa_config::QuorumMember;
-use vrrb_core::keypair::Keypair;
+use versa_core::keypair::Keypair;
 
 #[tokio::test]
 #[ignore = "temporarily broken because of GH actions issue"]

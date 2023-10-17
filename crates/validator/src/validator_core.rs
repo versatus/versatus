@@ -6,9 +6,9 @@ use std::{
 use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use storage::vrrbdb::{StateStoreReadHandleFactory, ClaimStoreReadHandleFactory};
-use vrrb_core::{account::Account, claim::Claim, transactions::TransactionDigest};
-use vrrb_core::transactions::TransactionKind;
+use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
+use versa_core::transactions::TransactionKind;
+use versa_core::{account::Account, claim::Claim, transactions::TransactionDigest};
 
 use crate::{claim_validator::ClaimValidator, txn_validator::TxnValidator};
 
@@ -62,11 +62,7 @@ impl Core {
     ///   propagate it's errors to main thread
     // pub fn new<D: Database>(id: CoreId, error_sender: Sender<(CoreId,
     // CoreError)>) -> Self {
-    pub fn new(
-        id: CoreId, 
-        txn_validator: TxnValidator, 
-        claims_validator: ClaimValidator,
-    ) -> Self {
+    pub fn new(id: CoreId, txn_validator: TxnValidator, claims_validator: ClaimValidator) -> Self {
         Self {
             id,
             txn_validator,
@@ -82,14 +78,14 @@ impl Core {
         &self,
         transaction: &TransactionDigest,
         mempool_reader: MempoolReadHandleFactory,
-        state_reader: StateStoreReadHandleFactory
+        state_reader: StateStoreReadHandleFactory,
     ) -> crate::txn_validator::Result<TransactionKind> {
         if let Some(txn) = mempool_reader.handle().get(transaction) {
             self.txn_validator.validate(state_reader, &txn.txn)?;
-            return Ok(txn.txn.clone())
+            return Ok(txn.txn.clone());
         }
 
-        return Err(crate::txn_validator::TxnValidatorError::NotFound)
+        return Err(crate::txn_validator::TxnValidatorError::NotFound);
     }
 
     pub fn process_transactions(

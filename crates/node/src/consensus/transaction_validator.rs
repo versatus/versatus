@@ -15,7 +15,7 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use tracing::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use versa_config::NodeConfig;
-use vrrb_core::txn::{TransactionDigest, Txn};
+use versa_core::txn::{TransactionDigest, Txn};
 
 use crate::NodeError;
 

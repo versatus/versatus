@@ -3,11 +3,8 @@ use std::collections::HashMap;
 use block::{Block, ClaimHash};
 use primitives::{Address, NodeId, Round};
 use storage::vrrbdb::Claims;
-use vrrb_core::{
-    account::Account,
-    claim::Claim,
-};
-use vrrb_core::transactions::{TransactionDigest, TransactionKind};
+use versa_core::transactions::{TransactionDigest, TransactionKind};
+use versa_core::{account::Account, claim::Claim};
 
 use crate::Result;
 
@@ -20,7 +17,10 @@ pub trait StateReader: std::fmt::Debug {
     async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>>;
 
     /// Get a transaction from state
-    async fn get_transaction(&self, transaction_digest: TransactionDigest) -> Result<TransactionKind>;
+    async fn get_transaction(
+        &self,
+        transaction_digest: TransactionDigest,
+    ) -> Result<TransactionKind>;
 
     /// List a group of transactions
     async fn list_transactions(

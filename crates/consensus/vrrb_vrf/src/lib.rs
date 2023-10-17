@@ -8,11 +8,11 @@ pub mod vvrf;
 #[cfg(test)]
 mod tests {
     use parity_wordlist::WORDS;
+    use versa_core::keypair::KeyPair;
     use vrf::{
         openssl::{CipherSuite, ECVRF},
         VRF,
     };
-    use vrrb_core::keypair::KeyPair;
 
     use crate::{vrng::VRNG, vvrf::VVRF};
 

@@ -18,7 +18,7 @@ mod tests {
 
     use crate::{test_utils::*, ThresholdConfig};
     use primitives::NodeType;
-    use vrrb_core::keypair::Keypair;
+    use versa_core::keypair::Keypair;
 
     use super::*;
 

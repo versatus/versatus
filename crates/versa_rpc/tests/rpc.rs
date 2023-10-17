@@ -5,12 +5,12 @@ use primitives::{generate_mock_account_keypair, Address};
 use secp256k1::Message;
 use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;
+use versa_core::transactions::{generate_transfer_digest_vec, Token, Transaction, TransactionKind};
 use versa_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
     *,
 };
-use vrrb_core::transactions::{generate_transfer_digest_vec, Token, Transaction, TransactionKind};
 
 mod common;
 

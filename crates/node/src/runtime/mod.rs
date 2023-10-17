@@ -129,8 +129,8 @@ mod tests {
     use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
     use storage::storage_utils::remove_vrrb_data_dir;
-    use vrrb_core::account::{self, Account, AccountField};
-    use vrrb_core::transactions::Transaction;
+    use versa_core::account::{self, Account, AccountField};
+    use versa_core::transactions::Transaction;
 
     #[tokio::test]
     #[serial_test::serial]

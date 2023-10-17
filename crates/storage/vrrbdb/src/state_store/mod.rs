@@ -5,7 +5,7 @@ use patriecia::RootHash;
 use primitives::Address;
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
-use vrrb_core::account::{Account, UpdateArgs};
+use versa_core::account::{Account, UpdateArgs};
 
 use crate::RocksDbAdapter;
 

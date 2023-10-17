@@ -14,7 +14,7 @@ use storage::vrrbdb::types::*;
 use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{ActorId, ActorState};
-use vrrb_core::{
+use versa_core::{
     account::{Account, AccountDigests, UpdateArgs},
     claim::Claim,
 };

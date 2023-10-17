@@ -1,4 +1,4 @@
-use vrrb_core::keypair::KeyPair;
+use versa_core::keypair::KeyPair;
 
 pub trait Election {
     ///generic types for running an election

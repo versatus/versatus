@@ -11,8 +11,8 @@ use bulldag::vertex::{Direction, Vertex};
 use ethereum_types::U256;
 use reward::reward::Reward;
 use ritelinked::LinkedHashSet;
-use vrrb_core::claim::Claim;
-use vrrb_core::transactions::TransactionDigest;
+use versa_core::claim::Claim;
+use versa_core::transactions::TransactionDigest;
 
 use crate::{block_builder::BlockBuilder, conflict_resolver::Resolver, Miner};
 

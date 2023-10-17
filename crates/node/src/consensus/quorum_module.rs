@@ -13,7 +13,7 @@ use quorum::{
 };
 use theater::{Actor, ActorId, ActorImpl, ActorState};
 use versa_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
-use vrrb_core::claim::{Claim, Eligibility};
+use versa_core::claim::{Claim, Eligibility};
 
 #[derive(Debug, Clone)]
 pub struct QuorumModule {

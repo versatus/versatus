@@ -8,7 +8,7 @@ use derive_builder::Builder;
 use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
 use serde::Deserialize;
 use uuid::Uuid;
-use vrrb_core::keypair::Keypair;
+use versa_core::keypair::Keypair;
 
 use crate::{
     bootstrap::BootstrapConfig, BootstrapQuorumConfig, QuorumMember, QuorumMembershipConfig,

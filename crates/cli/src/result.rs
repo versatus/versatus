@@ -18,7 +18,7 @@ pub enum CliError {
     Node(#[from] node::result::NodeError),
 
     #[error("storage error: {0}")]
-    Storage(#[from] vrrb_core::storage_utils::StorageError),
+    Storage(#[from] versa_core::storage_utils::StorageError),
 
     #[error("primitive error: {0}")]
     Primitive(#[from] primitives::Error),
@@ -30,7 +30,7 @@ pub enum CliError {
     WalletError(#[from] wallet::v2::WalletError),
 
     #[error("core error: {0}")]
-    CoreError(#[from] vrrb_core::result::Error),
+    CoreError(#[from] versa_core::result::Error),
 
     #[error("{0}")]
     Other(String),

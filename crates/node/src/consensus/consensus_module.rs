@@ -20,9 +20,9 @@ use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
 use versa_config::{NodeConfig, QuorumMembershipConfig};
-use vrrb_core::claim::Claim;
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
-use vrrb_core::{bloom::Bloom, keypair::Keypair};
+use versa_core::claim::Claim;
+use versa_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use versa_core::{bloom::Bloom, keypair::Keypair};
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 

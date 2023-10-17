@@ -9,8 +9,8 @@ use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
 use clap::{Parser, Subcommand};
 use primitives::Address;
 use serde_json;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
-use vrrb_core::transactions::Token;
+use versa_core::transactions::Token;
+use versa_core::{account::Account, helpers::read_or_generate_keypair_file};
 use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
@@ -73,8 +73,8 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
 
     let rpc_server_address = args.rpc_server_address;
 
-    let data_dir = vrrb_core::storage_utils::get_wallet_data_dir()?.join("keys");
-    let accounts_data_dir = vrrb_core::storage_utils::get_wallet_data_dir()?
+    let data_dir = versa_core::storage_utils::get_wallet_data_dir()?.join("keys");
+    let accounts_data_dir = versa_core::storage_utils::get_wallet_data_dir()?
         .join("keys")
         .join("accounts");
 
@@ -129,8 +129,8 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             Ok(())
         },
         WalletCmd::Get { address } => {
-            let address = Address::from_str(&address)
-                .map_err(|err| CliError::Other(err.to_string()))?;
+            let address =
+                Address::from_str(&address).map_err(|err| CliError::Other(err.to_string()))?;
 
             if let Ok(account) = get::exec(&mut wallet, address).await {
                 let account_info = serde_json::to_string_pretty(&account)

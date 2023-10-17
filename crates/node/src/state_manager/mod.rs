@@ -26,8 +26,8 @@ mod tests {
     use storage::{storage_utils::remove_vrrb_data_dir, vrrbdb::types::*};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
-    use vrrb_core::transactions::TransactionKind;
-    use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair};
+    use versa_core::transactions::TransactionKind;
+    use versa_core::{account::Account, claim::Claim, keypair::KeyPair};
 
     use super::*;
     use crate::test_utils::{

@@ -30,7 +30,7 @@ use quorum::{election::Election, quorum::Quorum};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
 use sha256::digest;
 use storage::storage_utils::remove_vrrb_data_dir;
-use vrrb_core::{
+use versa_core::{
     account::{Account, AccountField},
     claim::{Claim, Eligibility},
     keypair::{KeyPair, Keypair},

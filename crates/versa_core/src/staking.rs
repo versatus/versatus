@@ -63,7 +63,7 @@ pub enum StakeUpdate {
 /// ```
 /// use primitives::{Address, Signature};
 /// use serde::{Deserialize, Serialize};
-/// use vrrb_core::{
+/// use versa_core::{
 ///     keypair::{MinerPk, MinerSk},
 ///     staking::StakeUpdate,
 /// };
@@ -100,7 +100,7 @@ impl Stake {
     ///
     /// ```
     /// use primitives::Address;
-    /// use vrrb_core::{
+    /// use versa_core::{
     ///     keypair::{KeyPair, MinerSk},
     ///     staking::{Stake, StakeUpdate},
     /// };

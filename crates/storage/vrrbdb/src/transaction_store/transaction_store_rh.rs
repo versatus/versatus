@@ -4,7 +4,7 @@ use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
 use patriecia::{JellyfishMerkleTree, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use versa_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 use crate::RocksDbAdapter;
 

@@ -2,7 +2,7 @@ use crate::result::{CliError, Result};
 use clap::Parser;
 use std::path::PathBuf;
 use telemetry::{info, warn};
-use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
+use versa_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
 #[derive(Debug, Parser)]
 pub struct KeygenCmd {
@@ -19,7 +19,7 @@ pub fn exec(args: KeygenCmd) -> Result<()> {
 /// Attempts to read a keypair from file, and generates a new keypair
 /// if one does not exist at the expected path.
 pub fn keygen(overwrite: bool) -> Result<Keypair> {
-    let data_dir = vrrb_core::storage_utils::get_node_data_dir()?;
+    let data_dir = versa_core::storage_utils::get_node_data_dir()?;
     std::fs::create_dir_all(&data_dir)?;
     let keypair_file_path = PathBuf::from(&data_dir).join("keypair");
     match read_keypair_file(&keypair_file_path) {

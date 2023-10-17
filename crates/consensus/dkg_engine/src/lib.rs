@@ -18,7 +18,7 @@
 
 //     use hbbft::sync_key_gen::Ack;
 //     use primitives::{NodeId, NodeType};
-//     use vrrb_core::is_enum_variant;
+//     use versa_core::is_enum_variant;
 
 //     use crate::dkg::DkgGenerator;
 //     use crate::{prelude::*, result::DkgError, test_utils::generate_dkg_engines};

@@ -11,7 +11,7 @@ reqwest = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 mempool = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 telemetry = { workspace = true }
 thiserror = { workspace = true }
 wiremock = { workspace = true }

@@ -11,7 +11,7 @@ mod tests {
 
     use primitives::{Address, NodeId};
     use sha256::digest;
-    use vrrb_core::{claim::Claim, keypair::KeyPair};
+    use versa_core::{claim::Claim, keypair::KeyPair};
 
     use crate::{election::Election, quorum::Quorum};
 

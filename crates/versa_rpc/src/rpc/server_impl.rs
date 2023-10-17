@@ -12,12 +12,12 @@ use sha2::{Digest, Sha256};
 use storage::vrrbdb::{Claims, VrrbDbReadHandle};
 use telemetry::{debug, error};
 use versa_config::bootstrap_quorum::QuorumMembershipConfig;
-use vrrb_core::claim::Claim;
-use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{
+use versa_core::claim::Claim;
+use versa_core::node_health_report::NodeHealthReport;
+use versa_core::transactions::{
     RpcTransactionDigest, Transaction, TransactionDigest, TransactionKind,
 };
-use vrrb_core::{account::Account, serde_helpers::encode_to_binary};
+use versa_core::{account::Account, serde_helpers::encode_to_binary};
 
 use super::{
     api::{FullMempoolSnapshot, RpcApiServer},

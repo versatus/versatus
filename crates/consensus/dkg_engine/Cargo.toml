@@ -16,4 +16,4 @@ tokio = { workspace = true }
 hex = { workspace = true }
 primitives = { workspace = true }
 versa_config = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }

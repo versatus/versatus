@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
 block = { workspace = true }
 vrrb_vrf = { workspace = true }
 rand_chacha = { workspace = true }

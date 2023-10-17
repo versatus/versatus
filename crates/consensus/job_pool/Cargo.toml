@@ -11,4 +11,4 @@ waker-fn = { workspace = true }
 uuid = { workspace = true }
 concurrent-queue = { workspace = true }
 thiserror = { workspace = true }
-vrrb_core = { workspace = true }
+versa_core = { workspace = true }
