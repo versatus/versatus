@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use events::{Event, EventPublisher, EventSubscriber};
 use mempool::MempoolReadHandleFactory;
-use storage::vrrbdb::VrrbDbReadHandle;
+use storage::versadb::VrrbDbReadHandle;
 use telemetry::info;
 use tokio::task::JoinHandle;
 use versa_config::NodeConfig;
@@ -13,7 +13,7 @@ use crate::result::{NodeError, Result};
 pub async fn setup_rpc_api_server(
     config: &NodeConfig,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    versadb_read_handle: VrrbDbReadHandle,
     mempool_read_handle_factory: MempoolReadHandleFactory,
     mut jsonrpc_events_rx: EventSubscriber,
 ) -> Result<(JoinHandle<Result<()>>, SocketAddr)> {
@@ -21,7 +21,7 @@ pub async fn setup_rpc_api_server(
         address: config.jsonrpc_server_address,
         node_type: config.node_type,
         events_tx,
-        vrrbdb_read_handle,
+        versadb_read_handle,
         mempool_read_handle_factory,
     };
 

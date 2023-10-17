@@ -8,7 +8,7 @@ use versa_core::{
     claim::{Claim, Eligibility},
     keypair::KeyPair,
 };
-use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
+use versa_vrf::{vrng::VRNG, vvrf::VVRF};
 
 use crate::election::Election;
 
@@ -56,7 +56,7 @@ impl Election for Quorum {
     type Seed = Seed;
 
     /// A miner calls this fxn to generate a u64 seed for the election using the
-    /// vrrb_vrf crate
+    /// versa_vrf crate
     fn generate_seed(payload: Self::Payload, kp: KeyPair) -> Result<Seed, QuorumError> {
         if !Quorum::check_validity(payload.0) {
             return Err(QuorumError::InvalidChildBlockError);

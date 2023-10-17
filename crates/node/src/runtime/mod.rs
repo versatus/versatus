@@ -63,7 +63,7 @@ pub async fn setup_runtime_components(
         node_id: config.id.clone(),
         events_tx: events_tx.clone(),
         network_events_rx,
-        vrrbdb_read_handle: state_read_handle.clone(),
+        versadb_read_handle: state_read_handle.clone(),
         bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
         membership_config: config.quorum_config.clone(),
         validator_public_key: config.keypair.validator_public_key_owned(),

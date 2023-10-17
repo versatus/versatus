@@ -10,12 +10,15 @@ Cargo.lock
 **/*.rs.bk
 
 .vrrb_data/
+.versa_data/
+.versatus_data/
 target
 run/
 
 crates/hbbft
 tmp_key
 .vrrb/
+.versatus/
 
 .idea
 *.DS_Store

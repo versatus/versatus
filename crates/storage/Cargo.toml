@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-vrrbdb = { workspace = true }
+versadb = { workspace = true }
 storage_utils = { workspace = true }
 serial_test = { workspace = true }
 ethereum-types = { workspace = true }

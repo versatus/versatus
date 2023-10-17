@@ -23,7 +23,7 @@ use primitives::{
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
 use signer::engine::SignerEngine;
-use storage::vrrbdb::Claims;
+use storage::versadb::Claims;
 use uuid::Uuid;
 use versa_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,

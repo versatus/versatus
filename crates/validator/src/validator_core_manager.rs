@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::ThreadPoolBuilder;
-use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
+use storage::versadb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use versa_core::transactions::{TransactionDigest, TransactionKind};
 use versa_core::{account::Account, claim::Claim};
 

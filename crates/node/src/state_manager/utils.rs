@@ -10,8 +10,8 @@ use ethereum_types::U256;
 use events::{Event, EventPublisher};
 use mempool::LeftRightMempool;
 use primitives::Address;
-use storage::vrrbdb::types::*;
-use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
+use storage::versadb::types::*;
+use storage::versadb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
 use telemetry::info;
 use theater::{ActorId, ActorState};
 use versa_core::{

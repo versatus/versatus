@@ -3,7 +3,7 @@ use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
 use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use sha2::{Digest, Sha256};
-use storage::vrrbdb::{StateStoreReadHandle, StateStoreReadHandleFactory};
+use storage::versadb::{StateStoreReadHandle, StateStoreReadHandleFactory};
 use versa_core::transactions::{Transaction, TransactionKind};
 use versa_core::{account::Account, keypair::KeyPair};
 

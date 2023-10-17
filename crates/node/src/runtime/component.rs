@@ -1,6 +1,6 @@
 use events::{EventPublisher, EventSubscriber};
 use mempool::MempoolReadHandleFactory;
-use storage::vrrbdb::VrrbDbReadHandle;
+use storage::versadb::VrrbDbReadHandle;
 use theater::{Actor, ActorImpl};
 use versa_config::NodeConfig;
 

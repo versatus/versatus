@@ -19,7 +19,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
+use storage::versadb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -78,13 +78,13 @@ impl NodeRuntime {
         )
         .map_err(NodeError::from)?;
 
-        let mut vrrbdb_config = VrrbDbConfig::default();
+        let mut versadb_config = VrrbDbConfig::default();
 
-        if config.db_path() != &vrrbdb_config.path {
-            vrrbdb_config.with_path(config.db_path().to_path_buf());
+        if config.db_path() != &versadb_config.path {
+            versadb_config.with_path(config.db_path().to_path_buf());
         }
 
-        let database = storage::vrrbdb::VrrbDb::new(vrrbdb_config);
+        let database = storage::versadb::VrrbDb::new(versadb_config);
         let mempool = LeftRightMempool::new();
 
         let state_driver = StateManager::new(StateManagerConfig {
@@ -357,7 +357,7 @@ impl NodeRuntime {
             .take(PULL_TXN_BATCH_SIZE);
 
         // NOTE: Read updated claims
-        // let claim_map = self.vrrbdb_read_handle.claim_store_values();
+        // let claim_map = self.versadb_read_handle.claim_store_values();
         let claim_list = claim_map
             .values()
             .map(|from| (from.hash, from.clone()))

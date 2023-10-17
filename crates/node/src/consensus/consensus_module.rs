@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
 use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
-use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
+use storage::versadb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
 use versa_config::{NodeConfig, QuorumMembershipConfig};

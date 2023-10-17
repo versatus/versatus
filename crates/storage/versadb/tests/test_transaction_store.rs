@@ -2,7 +2,7 @@ use std::env;
 
 use patriecia::{KeyHash, Sha256};
 use serial_test::serial;
-use vrrbdb::{VrrbDb, VrrbDbConfig};
+use versadb::{VrrbDb, VrrbDbConfig};
 mod common;
 
 use common::{_generate_random_string, _generate_random_valid_transaction};

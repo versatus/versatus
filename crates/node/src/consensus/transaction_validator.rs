@@ -11,7 +11,7 @@ use mempool::TxnRecord;
 use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
-use storage::vrrbdb::VrrbDbReadHandle;
+use storage::versadb::VrrbDbReadHandle;
 use tracing::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use versa_config::NodeConfig;
@@ -45,7 +45,7 @@ use crate::NodeError;
 /// validator. This could include tasks such as validating transactions,
 /// managing the state of the blockchain, and communicating with other nodes in
 /// the network. The `Job
-/// * `vrrbdb_read_handle`: VrrbDbReadHandle is likely a handle or reference to
+/// * `versadb_read_handle`: VrrbDbReadHandle is likely a handle or reference to
 ///   a database read
 /// operation for a specific database. It could be used by the
 /// JobSchedulerController to retrieve data from the database as needed for its
@@ -57,7 +57,7 @@ pub struct TransactionValidatorEngine {
     sync_jobs_receiver: Receiver<Job>,
     _async_jobs_receiver: Receiver<Job>,
     pub validator_core_manager: ValidatorCoreManager,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub versadb_read_handle: VrrbDbReadHandle,
 }
 
 pub enum Job {
@@ -92,7 +92,7 @@ impl TransactionValidatorEngine {
         sync_jobs_receiver: Receiver<Job>,
         async_jobs_receiver: Receiver<Job>,
         validator_core_manager: ValidatorCoreManager,
-        vrrbdb_read_handle: VrrbDbReadHandle,
+        versadb_read_handle: VrrbDbReadHandle,
     ) -> Self {
         Self {
             job_scheduler: JobScheduler::new(peer_id),
@@ -100,7 +100,7 @@ impl TransactionValidatorEngine {
             sync_jobs_receiver,
             _async_jobs_receiver: async_jobs_receiver,
             validator_core_manager,
-            vrrbdb_read_handle,
+            versadb_read_handle,
         }
     }
 
@@ -116,7 +116,7 @@ impl TransactionValidatorEngine {
         let transactions: Vec<Txn> = txns.iter().map(|x| x.1.txn.clone()).collect();
         let validated_txns: Vec<_> = self
             .validator_core_manager
-            .validate(&self.vrrbdb_read_handle.state_store_values(), transactions)
+            .validate(&self.versadb_read_handle.state_store_values(), transactions)
             .into_iter()
             .collect();
 
@@ -186,7 +186,7 @@ impl TransactionValidatorEngine {
                         let transactions: Vec<Txn> = txns.iter().map(|x| x.1.txn.clone()).collect();
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
-                            .validate(&self.vrrbdb_read_handle.state_store_values(), transactions)
+                            .validate(&self.versadb_read_handle.state_store_values(), transactions)
                             .into_iter()
                             .collect();
 
@@ -273,7 +273,7 @@ impl TransactionValidatorEngine {
                         let validated_txns: Vec<_> = self
                             .validator_core_manager
                             .validate(
-                                &self.vrrbdb_read_handle.state_store_values(),
+                                &self.versadb_read_handle.state_store_values(),
                                 vec![txn.clone()],
                             )
                             .into_iter()
@@ -362,7 +362,7 @@ pub fn setup_scheduler_module(
     async_jobs_receiver: crossbeam_channel::Receiver<Job>,
     validator_core_manager: ValidatorCoreManager,
     events_tx: EventPublisher,
-    vrrbdb_read_handle: VrrbDbReadHandle,
+    versadb_read_handle: VrrbDbReadHandle,
 ) -> JobSchedulerController {
     JobSchedulerController::new(
         hex::decode(config.keypair.get_peer_id()).unwrap_or(vec![]),
@@ -370,6 +370,6 @@ pub fn setup_scheduler_module(
         sync_jobs_receiver,
         async_jobs_receiver,
         validator_core_manager,
-        vrrbdb_read_handle,
+        versadb_read_handle,
     )
 }

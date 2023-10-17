@@ -6,7 +6,7 @@ use std::{
 use mempool::MempoolReadHandleFactory;
 use primitives::Address;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
+use storage::versadb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use versa_core::transactions::TransactionKind;
 use versa_core::{account::Account, claim::Claim, transactions::TransactionDigest};
 

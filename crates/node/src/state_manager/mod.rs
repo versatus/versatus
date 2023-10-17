@@ -21,9 +21,9 @@ mod tests {
     use primitives::Address;
     use serial_test::serial;
     use signer::engine::SignerEngine;
-    use storage::vrrbdb::types::*;
-    use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
-    use storage::{storage_utils::remove_vrrb_data_dir, vrrbdb::types::*};
+    use storage::versadb::types::*;
+    use storage::versadb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
+    use storage::{storage_utils::remove_vrrb_data_dir, versadb::types::*};
     use theater::{Actor, ActorImpl, ActorState, Handler};
     use tokio::sync::mpsc::channel;
     use versa_core::transactions::TransactionKind;
@@ -71,7 +71,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn vrrbdb_should_update_with_new_block() {
+    async fn versadb_should_update_with_new_block() {
         let db_config = VrrbDbConfig::default().with_path(std::env::temp_dir().join("db"));
         let db = VrrbDb::new(db_config);
         let mempool = LeftRightMempool::default();

@@ -9,7 +9,7 @@ use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType, Round};
 use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
-use storage::vrrbdb::{Claims, VrrbDbReadHandle};
+use storage::versadb::{Claims, VrrbDbReadHandle};
 use telemetry::{debug, error};
 use versa_config::bootstrap_quorum::QuorumMembershipConfig;
 use versa_core::claim::Claim;
@@ -28,7 +28,7 @@ use crate::rpc::api::{FullStateSnapshot, RpcTransactionRecord};
 #[derive(Debug, Clone)]
 pub struct RpcServerImpl {
     pub node_type: NodeType,
-    pub vrrbdb_read_handle: VrrbDbReadHandle,
+    pub versadb_read_handle: VrrbDbReadHandle,
     pub mempool_read_handle_factory: MempoolReadHandleFactory,
     pub events_tx: EventPublisher,
 }
@@ -36,7 +36,7 @@ pub struct RpcServerImpl {
 #[async_trait]
 impl RpcApiServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
-        let values = self.vrrbdb_read_handle.state_store_values();
+        let values = self.versadb_read_handle.state_store_values();
 
         Ok(values)
     }
@@ -81,7 +81,7 @@ impl RpcApiServer for RpcServerImpl {
             .parse::<TransactionDigest>()
             .map_err(|_err| Error::Custom("unable to parse transaction digest".to_string()))?;
 
-        let values = self.vrrbdb_read_handle.transaction_store_values();
+        let values = self.versadb_read_handle.transaction_store_values();
         let value = values.get(&parsed_digest);
 
         match value {
@@ -107,7 +107,7 @@ impl RpcApiServer for RpcServerImpl {
                 .unwrap_or_default(); // TODO: report this error
 
             if let Some(txn) = self
-                .vrrbdb_read_handle
+                .versadb_read_handle
                 .transaction_store_values()
                 .get(&parsed_digest)
             {
@@ -163,7 +163,7 @@ impl RpcApiServer for RpcServerImpl {
     async fn get_account(&self, address: Address) -> Result<Account, Error> {
         telemetry::info!("retrieving account {address}");
 
-        let values = self.vrrbdb_read_handle.state_store_values();
+        let values = self.versadb_read_handle.state_store_values();
         let value = values.get(&address);
 
         debug!("Received getAccount RPC Request: {value:?}");
@@ -232,7 +232,7 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, Error> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = self.versadb_read_handle.claim_store_values();
         let claims = claims
             .iter()
             .map(|(_, claim)| claim.clone())
@@ -243,14 +243,14 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = self.versadb_read_handle.claim_store_values();
         let claim_hashes = claims.iter().map(|(_, claim)| claim.hash.clone()).collect();
 
         Ok(claim_hashes)
     }
 
     async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = self.versadb_read_handle.claim_store_values();
         let claims = claims
             .iter()
             .map(|(_, claim)| claim.clone())

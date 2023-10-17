@@ -22,7 +22,7 @@ primitives = { workspace = true }
 versa_core = { workspace = true }
 telemetry = { workspace = true }
 utils = { workspace = true }
-vrrb_vrf = { workspace = true }
+versa_vrf = { workspace = true }
 bulldag = { workspace = true }
 sha2 = { workspace = true }
 chrono = { workspace = true }

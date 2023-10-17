@@ -6,7 +6,7 @@ use jsonrpsee::{core::Error, proc_macros::rpc};
 use primitives::{Address, NodeType, Round};
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
-use storage::vrrbdb::Claims;
+use storage::versadb::Claims;
 use versa_config::bootstrap_quorum::QuorumMembershipConfig;
 use versa_core::account::Account;
 use versa_core::claim::Claim;

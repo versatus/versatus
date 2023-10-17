@@ -13,10 +13,10 @@ use events::Event;
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::{Address, NodeId, Round};
 use signer::engine::{QuorumMembers, SignerEngine};
-use storage::vrrbdb::{types::*, ApplyBlockResult};
+use storage::versadb::{types::*, ApplyBlockResult};
 use storage::{
     storage_utils::StorageError,
-    vrrbdb::{Claims, VrrbDb, VrrbDbReadHandle},
+    versadb::{Claims, VrrbDb, VrrbDbReadHandle},
 };
 use telemetry::info;
 use theater::{ActorId, ActorState};

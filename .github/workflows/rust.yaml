@@ -125,11 +125,11 @@ jobs:
         with:
           command: test
           args: -p signer
-      - name: cargo test vrrb_vrf
+      - name: cargo test versa_vrf
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p vrrb_vrf
+          args: -p versa_vrf
 
   test-events:
     name: test events
@@ -262,11 +262,11 @@ jobs:
         with:
           command: test
           args: -p storage
-      - name: cargo test vrrbdb
+      - name: cargo test versadb
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p vrrbdb
+          args: -p versadb
       - name: cargo test storage_utils
         uses: actions-rs/cargo@v1
         with:

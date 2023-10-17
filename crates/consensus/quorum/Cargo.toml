@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 versa_core = { workspace = true }
 block = { workspace = true }
-vrrb_vrf = { workspace = true }
+versa_vrf = { workspace = true }
 rand_chacha = { workspace = true }
 format-bytes = { workspace = true }
 thread_local = { workspace = true }

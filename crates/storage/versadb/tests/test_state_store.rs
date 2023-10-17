@@ -1,5 +1,5 @@
 use versa_core::account::Account;
-use vrrbdb::{VrrbDb, VrrbDbConfig};
+use versadb::{VrrbDb, VrrbDbConfig};
 
 mod common;
 use common::_generate_random_address;

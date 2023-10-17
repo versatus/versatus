@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use block::{Block, ClaimHash};
 use primitives::{Address, NodeId, Round};
-use storage::vrrbdb::Claims;
+use storage::versadb::Claims;
 use versa_core::transactions::{TransactionDigest, TransactionKind};
 use versa_core::{account::Account, claim::Claim};
 

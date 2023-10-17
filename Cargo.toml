@@ -63,7 +63,7 @@ members = [
     "crates/consensus/signer",
     "crates/consensus/job_pool",
     "crates/consensus/job_scheduler",
-    "crates/consensus/vrrb_vrf",
+    "crates/consensus/versa_vrf",
     "crates/versa_core",
     "crates/cli",
     "crates/versa_config",
@@ -74,7 +74,7 @@ members = [
     "crates/mempool",
     "crates/node",
     "crates/storage",
-    "crates/storage/vrrbdb",
+    "crates/storage/versadb",
     "crates/storage/utils",
     "crates/telemetry",
     "crates/utils",
@@ -108,7 +108,7 @@ utils = { path = "crates/utils" }
 events = { path = "crates/events" }
 
 storage = { path = "crates/storage" }
-vrrbdb = { path = "crates/storage/vrrbdb" }
+versadb = { path = "crates/storage/versadb" }
 storage_utils = { path = "crates/storage/utils" }
 
 consensus = { path = "crates/consensus" }
@@ -118,7 +118,7 @@ dkg_engine = { path = "crates/consensus/dkg_engine" }
 reward = { path = "crates/consensus/reward" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
-vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
+versa_vrf = { path = "crates/consensus/versa_vrf" }
 versa_http = { path = "crates/versa_http" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use primitives::NodeId;
 use versa_core::claim::Claim;
-use vrrbdb::{VrrbDb, VrrbDbConfig};
+use versadb::{VrrbDb, VrrbDbConfig};
 
 mod common;
 use common::_generate_random_claim;
