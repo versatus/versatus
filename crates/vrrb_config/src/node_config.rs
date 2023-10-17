@@ -36,7 +36,7 @@ pub struct NodeConfig {
     /// Address used by Kademlia DHT listens for liveness pings
     pub kademlia_liveness_address: SocketAddr,
 
-    /// Address the node listens for network events through udp2p
+    /// Address the node listens for network events through udp
     pub udp_gossip_address: SocketAddr,
 
     /// Address the node listens for network events through RaptorQ
