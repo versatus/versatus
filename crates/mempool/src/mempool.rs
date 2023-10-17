@@ -184,6 +184,10 @@ impl LeftRightMempool {
         self.pool().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.pool().is_empty()
+    }
+
     /// Adds a new transaction, makes sure it is unique in db.
     /// Pushes to the ReadHandle.
     #[deprecated(note = "use Self::insert instead")]
