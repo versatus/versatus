@@ -17,7 +17,7 @@ pub const WASM_MAGIC: &[u8; 4] = &[0x00, 0x61, 0x73, 0x6d];
 pub const WASM_PARSE_OFFSET: u64 = 0;
 /// Default entry point for WASM modules (think main()).
 pub const WASI_ENTRY_POINT: &str = "_start";
-/// A VRRB-specific magic string potentially exported by modules
-pub const VRRB_WASM_MAGIC: &str = "_vrrb_abi_magic";
-/// A VRRB-specific version number potentially exported by modules
-pub const VRRB_WASM_VERSION: &str = "_vrrb_abi_version";
+/// A VERSATUS-specific magic string potentially exported by modules
+pub const VERSATUS_WASM_MAGIC: &str = "_vrrb_abi_magic";
+/// A VERSATUS-specific version number potentially exported by modules
+pub const VERSATUS_WASM_VERSION: &str = "_vrrb_abi_version";

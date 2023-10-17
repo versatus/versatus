@@ -9,7 +9,7 @@ mod loader_tests {
     use crate::wasm_loader::WasmLoaderBuilder;
 
     // constants to some precompiled WASM modules to aid in some basic testing.
-    // A module containing some WASI symbols and some VRRB symbols
+    // A module containing some WASI symbols and some VERSATUS symbols
     const SIMPLE_WASI_TEST_MODULE: &str = "test_data/simple.wasi";
     // A module with a Javy dependency
     const SIMPLE_JAVY_TEST_MODULE: &str = "test_data/simple-javy.wasm";
@@ -97,7 +97,7 @@ mod loader_tests {
         assert!(w.is_ok());
         if let Ok(wasm) = w {
             debug!("w: {:02x?}", wasm);
-            assert!(wasm.has_versa, "Didn't find VRRB symbols");
+            assert!(wasm.has_versa, "Didn't find VERSATUS symbols");
         }
     }
 

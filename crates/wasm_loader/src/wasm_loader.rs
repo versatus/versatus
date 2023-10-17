@@ -148,8 +148,8 @@ impl WasmLoaderBuilder {
                                         new.has_start = Some(true);
                                     }
 
-                                    if export.name == constants::VRRB_WASM_MAGIC
-                                        || export.name == constants::VRRB_WASM_VERSION
+                                    if export.name == constants::VERSATUS_WASM_MAGIC
+                                        || export.name == constants::VERSATUS_WASM_VERSION
                                     {
                                         debug!("Has VERSATUS symbol: {}", export.name);
                                         new.has_versa = Some(true);
