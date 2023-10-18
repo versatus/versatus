@@ -38,30 +38,8 @@ fn create_node_config_with_whitelist() {
     // serialize a vec of QuorumMember and write it to whitelist.json
     let mut map: serde_json::Map<String, serde_json::Value> =
         serde_json::Map::with_capacity(GENESIS_QUORUM_SIZE);
-    // let mut quorum_members: Vec<QuorumMember> = Vec::with_capacity(GENESIS_QUORUM_SIZE);
     let mut quorum_members = create_test_genesis_quorum_member_list();
 
-    // for i in 1..=GENESIS_QUORUM_SIZE as u16 {
-    //     let udp_port: u16 = 11000 + i;
-    //     let raptor_port: u16 = 12000 + i;
-    //     let kademlia_port: u16 = 13000 + i;
-    //     let keypair = Keypair::random();
-    //     let validator_public_key = keypair.miner_public_key_owned();
-    //
-    //     let member = QuorumMember {
-    //         node_id: format!("node-{}", i),
-    //         kademlia_peer_id: KademliaPeerId::rand(),
-    //         node_type: NodeType::Validator,
-    //         udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
-    //         raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
-    //         kademlia_liveness_address: SocketAddr::new(
-    //             IpAddr::V4(Ipv4Addr::LOCALHOST),
-    //             kademlia_port,
-    //         ),
-    //         validator_public_key,
-    //     };
-    //     quorum_members.push(member);
-    // }
     assert_eq!(quorum_members.len(), GENESIS_QUORUM_SIZE);
     if let Some(bootstrap) = quorum_members.first_mut() {
         bootstrap.node_type = NodeType::Bootstrap;
