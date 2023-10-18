@@ -19,7 +19,6 @@ reward = { workspace = true }
 vrrb_rpc = { workspace = true }
 patriecia = { workspace = true }
 trecho = { workspace = true }
-udp2p = { workspace = true }
 secp256k1 = { workspace = true }
 sha256 = { workspace = true }
 rand = { workspace = true }
