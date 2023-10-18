@@ -302,7 +302,6 @@ pub async fn run(args: RunOpts) -> Result<()> {
             Ok(())
         })?;
 
-    // TODO: cascade kademlia_peer_id down to network component within node
     node_config.whitelisted_nodes = whitelisted_nodes;
 
     if args.debug_config {
