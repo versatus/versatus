@@ -51,8 +51,12 @@ pub fn derive_kademlia_peer_id_from_node_id(
     // NOTE: turns a node's id into a 32 byte array
     let node_key_bytes = digest_data_to_bytes(node_id);
 
-    let kademlia_key = kademlia_dht::Key::try_from(node_key_bytes)
-        .map_err(|err| CliError::Other(format!("Node key should have a 32 byte length: {err}")))?;
+    let kademlia_key = kademlia_dht::Key::try_from(node_key_bytes).map_err(|err| {
+        CliError::Other(format!(
+            "Failed to convert node key to Kademlia key: expected 32 byte length, got error: {}",
+            err
+        ))
+    })?;
 
     Ok(kademlia_key)
 }
