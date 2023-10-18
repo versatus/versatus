@@ -287,6 +287,9 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
 
+    let derived_kademlia_peer_id = derive_kademlia_peer_id_from_node_id(&node_config.id)?;
+    node_config.kademlia_peer_id = Some(derived_kademlia_peer_id);
+
     // TODO: prevent parsing errors when no kademlia peer id is present
     let mut whitelisted_nodes = args
         .whitelist_path

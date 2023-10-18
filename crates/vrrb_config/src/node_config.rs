@@ -31,6 +31,7 @@ pub struct NodeConfig {
 
     /// ID used to identify a given node within a Kademlia DHT.
     // TODO: figure out how to merge this with id field and have kademlia-dht-rs accept it
+    // TODO: make this non optional
     pub kademlia_peer_id: Option<KademliaPeerId>,
 
     /// Address used by Kademlia DHT listens for liveness pings
