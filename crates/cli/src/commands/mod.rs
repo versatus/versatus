@@ -1,7 +1,7 @@
 pub mod config;
 pub mod keygen;
 pub mod node;
-pub(crate) mod utils;
+pub mod utils;
 pub mod wallet;
 
 use crate::{
