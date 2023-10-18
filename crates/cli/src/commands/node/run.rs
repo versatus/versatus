@@ -1,6 +1,8 @@
 use config::{Config, ConfigError, File};
 use node::Node;
-use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
+use primitives::{
+    KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH,
+};
 use serde::Deserialize;
 use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
 use std::{
@@ -8,11 +10,15 @@ use std::{
     path::PathBuf,
 };
 use telemetry::{error, info};
+use utils::payload::digest_data_to_bytes;
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, QuorumMember};
 
 use crate::{
-    commands::keygen,
+    commands::{
+        keygen,
+        utils::{derive_kademlia_peer_id_from_node_id, deserialize_whitelisted_quorum_members},
+    },
     result::{CliError, Result},
 };
 
@@ -109,6 +115,15 @@ impl From<RunOpts> for NodeConfig {
         } else {
             default_node_config.http_api_title.clone()
         };
+
+        // let id = opts.id.clone().unwrap_or(default_node_config.id.clone());
+        //
+        // // NOTE: turns a node's id into a 32 byte array
+        // let node_key_bytes = digest_data_to_bytes(&id);
+        // //
+        // let kademlia_key = kademlia_dht::Key::try_from(node_key_bytes).map_err(|err| {
+        //     CliError::Other(format!("Node key should have a 32 byte length: {err}"))
+        // })?;
 
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
@@ -272,7 +287,8 @@ pub async fn run(args: RunOpts) -> Result<()> {
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
 
-    node_config.whitelisted_nodes = args
+    // TODO: prevent parsing errors when no kademlia peer id is present
+    let mut whitelisted_nodes = args
         .whitelist_path
         .and_then(|whitelist| {
             let mut finalized_whitelist = Vec::with_capacity(GENESIS_QUORUM_SIZE);
@@ -285,6 +301,16 @@ pub async fn run(args: RunOpts) -> Result<()> {
         })
         .unwrap_or_default();
 
+    whitelisted_nodes
+        .iter_mut()
+        .try_for_each(|member| -> Result<()> {
+            member.kademlia_peer_id = derive_kademlia_peer_id_from_node_id(&member.node_id)?;
+            Ok(())
+        })?;
+
+    // TODO: cascade kademlia_peer_id down to network component within node
+    node_config.whitelisted_nodes = whitelisted_nodes;
+
     if args.debug_config {
         dbg!(&node_config);
     }
@@ -294,41 +320,6 @@ pub async fn run(args: RunOpts) -> Result<()> {
     } else {
         run_blocking(node_config).await
     }
-}
-
-pub fn deserialize_whitelisted_quorum_members(
-    whitelist: String,
-    finalized_whitelist: &mut Vec<QuorumMember>,
-) -> Result<()> {
-    let whitelist_path = PathBuf::from(whitelist);
-    let whitelist_str =
-        std::fs::read_to_string(whitelist_path).map_err(|e| CliError::OptsError(e.to_string()))?;
-    let whitelist_values: JsonValue =
-        json_from_str(&whitelist_str).map_err(|e| CliError::OptsError(e.to_string()))?;
-    if let JsonValue::Object(whitelist_members) = whitelist_values {
-        for (node_type, value) in whitelist_members {
-            match node_type.as_str() {
-                "genesis-miner" => finalized_whitelist
-                    .push(json_from_value(value).map_err(|e| CliError::OptsError(e.to_string()))?),
-                "genesis-farmers" | "genesis-harvesters" => {
-                    if let JsonValue::Array(genesis_quorum_members) = value {
-                        for member in genesis_quorum_members {
-                            finalized_whitelist.push(
-                                json_from_value(member)
-                                    .map_err(|e| CliError::OptsError(e.to_string()))?,
-                            )
-                        }
-                    }
-                },
-                _ => {
-                    return Err(CliError::OptsError(
-                        "invalid genesis node type found in whitelist config".to_string(),
-                    ));
-                },
-            }
-        }
-    }
-    Ok(())
 }
 
 #[telemetry::instrument]
