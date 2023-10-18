@@ -77,6 +77,8 @@ pub struct NetworkModuleConfig {
     pub events_tx: EventPublisher,
 
     pub validator_public_key: PublicKey,
+
+    pub node_config: NodeConfig,
 }
 
 impl NetworkModule {
@@ -132,20 +134,20 @@ impl NetworkModule {
     fn setup_kademlia_node(config: NetworkModuleConfig) -> Result<KademliaNode> {
         // TODO: inspect that nodes are being created with the correct config when a
         // bootstrap is provided
+        //
         // TODO: provide safeguards to prevent nodes calling themselves bootstraps when
         // there's another one already running. Consider this a critical error
         // and a protocol concern
-        //
+
+        // NOTE: should force the node to crash if the CLI didn't fed it a kademlia id on startup
+        let kademlia_key = config.node_config.kademlia_peer_id.ok_or(NodeError::Other(
+            "Kademlia ID not present within NodeConfig".into(),
+        ))?;
+
         let kademlia_node = if let Some(bootstrap_node_config) = config.bootstrap_node_config {
-            // NOTE: turns a node's id into a 32 byte array
-            let node_key_bytes = digest_data_to_bytes(&bootstrap_node_config.id);
-
-            let kademlia_key = Key::try_from(node_key_bytes).map_err(|err| {
-                NodeError::Other(format!("Node key should have a 32 byte length: {err}"))
-            })?;
-
             // TODO: figure out why kademlia_dht needs the ip, port and then the whole
             // address separately
+            //
             // NOTE: this snippet turns the bootstrap node config into a NodeData struct
             // that kademlia_dht understands
             let bootstrap_node_data = NodeData::new(
@@ -156,7 +158,7 @@ impl NetworkModule {
             );
 
             KademliaNode::new(
-                config.kademlia_peer_id,
+                Some(kademlia_key),
                 config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
@@ -167,7 +169,7 @@ impl NetworkModule {
             info!("Becoming a bootstrap node");
 
             KademliaNode::new(
-                config.kademlia_peer_id,
+                Some(kademlia_key),
                 config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
