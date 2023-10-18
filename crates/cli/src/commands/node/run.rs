@@ -116,15 +116,6 @@ impl From<RunOpts> for NodeConfig {
             default_node_config.http_api_title.clone()
         };
 
-        // let id = opts.id.clone().unwrap_or(default_node_config.id.clone());
-        //
-        // // NOTE: turns a node's id into a 32 byte array
-        // let node_key_bytes = digest_data_to_bytes(&id);
-        // //
-        // let kademlia_key = kademlia_dht::Key::try_from(node_key_bytes).map_err(|err| {
-        //     CliError::Other(format!("Node key should have a 32 byte length: {err}"))
-        // })?;
-
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
             data_dir: opts.data_dir,
