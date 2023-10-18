@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use signer::engine::QuorumMembers;
 use tokio::task::JoinHandle;
 use vrrb_core::claim::Claim;
-use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[cfg(mainnet)]
 use crate::genesis;

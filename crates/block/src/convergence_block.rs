@@ -21,7 +21,7 @@ impl std::fmt::Display for ConvergenceBlockError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CertificateExists => f.write_str("certificate already exists"),
-            Self::Other(str) => f.write_str(&str)
+            Self::Other(str) => f.write_str(str),
         }
     }
 }
@@ -57,9 +57,9 @@ pub struct ConvergenceBlock {
 
 impl ConvergenceBlock {
     pub fn append_certificate(&mut self, cert: &Certificate) -> Result<(), ConvergenceBlockError> {
-        if let None = self.certificate {
+        if self.certificate.is_none() {
             self.certificate = Some(cert.clone());
-            return Ok(())
+            return Ok(());
         }
 
         Err(ConvergenceBlockError::CertificateExists)
