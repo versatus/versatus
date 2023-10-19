@@ -344,13 +344,13 @@ impl StateManager {
     ) -> Result<Event> {
         match block {
             Block::Genesis { ref mut block } => {
-                if let Err(e) = self.dag.append_genesis(&block) {
+                if let Err(e) = self.dag.append_genesis(block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 };
             },
             Block::Proposal { ref mut block } => {
-                if let Err(e) = self.dag.append_proposal(&block, sig_engine.clone()) {
+                if let Err(e) = self.dag.append_proposal(block, sig_engine.clone()) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
