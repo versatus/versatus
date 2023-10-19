@@ -335,6 +335,7 @@ pub fn build_multiple_proposal_blocks_single_round(
 ///   - Recursively calls itself passing in the GenesisBlock hash
 ///   as the last_block_hash and the updated round as the
 ///   round, as well as all the other data.
+#[allow(clippy::too_many_arguments)]
 pub fn build_multiple_rounds(
     dag: MinerDag,
     n_blocks: usize,
