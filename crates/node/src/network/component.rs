@@ -60,6 +60,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         args: NetworkModuleComponentConfig,
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
+        let node_config = args.config.clone();
 
         let network_module_config = NetworkModuleConfig {
             node_id: args.node_id.clone(),
@@ -72,6 +73,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             events_tx: args.events_tx,
             membership_config: args.membership_config,
             validator_public_key: args.validator_public_key,
+            node_config,
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;

@@ -161,7 +161,7 @@ fn create_genesis_keyset(m: usize) -> (SecretKey, PublicKey) {
 }
 
 fn create_genesis_keysets(n: usize) -> Vec<(SecretKey, PublicKey)> {
-    (0..n).map(|m| create_genesis_keyset(m)).collect()
+    (0..n).map(create_genesis_keyset).collect()
 }
 
 fn create_txn_from_addresses(
@@ -194,7 +194,7 @@ fn create_txn_from_addresses(
 
     let mut txn = TransactionKind::Transfer(Transfer::new(txn_args));
 
-    txn.sign(&sk);
+    txn.sign(sk);
 
     let txn_digest_vec = generate_transfer_digest_vec(
         txn.timestamp(),

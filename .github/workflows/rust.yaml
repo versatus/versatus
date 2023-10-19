@@ -50,7 +50,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/block/Cargo.toml
+          args: -p block
 
   test-cli:
     name: test cli
@@ -72,7 +72,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/cli/Cargo.toml
+          args: -p cli
 
   test-consensus:
     name: test consensus
@@ -90,11 +90,46 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: cargo test
+      - name: cargo test consensus
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/consensus/Cargo.toml
+          args: -p consensus
+      - name: cargo test dkg_engine
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p dkg_engine
+      - name: cargo test job_pool
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p job_pool
+      - name: cargo test job_scheduler
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p job_scheduler
+      - name: cargo test quorum
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p quorum
+      - name: cargo test reward
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p reward
+      - name: cargo test signer
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p signer
+      - name: cargo test vrrb_vrf
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p vrrb_vrf
 
   test-events:
     name: test events
@@ -116,7 +151,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/events/Cargo.toml
+          args: -p events
 
   test-mempool:
     name: test mempool
@@ -138,7 +173,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/mempool/Cargo.toml
+          args: -p mempool
 
   test-miner:
     name: test miner
@@ -160,7 +195,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/miner/Cargo.toml
+          args: -p miner
 
   test-node:
     name: test node
@@ -182,7 +217,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/node/Cargo.toml
+          args: -p node
 
   test-primitives:
     name: test primitives
@@ -204,7 +239,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/primitives/Cargo.toml
+          args: -p primitives
 
   test-storage:
     name: test storage
@@ -222,11 +257,21 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: cargo test
+      - name: cargo test storage
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/storage/Cargo.toml
+          args: -p storage
+      - name: cargo test vrrbdb
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p vrrbdb
+      - name: cargo test storage_utils
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p storage_utils
 
   test-telemetry:
     name: test telemetry
@@ -248,7 +293,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/telemetry/Cargo.toml
+          args: -p telemetry
 
   test-utils:
     name: test utils
@@ -270,7 +315,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/utils/Cargo.toml
+          args: -p utils
 
   test-validator:
     name: test validator
@@ -292,7 +337,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/validator/Cargo.toml
+          args: -p validator
 
   test-vrrb-config:
     name: test vrrb_config
@@ -314,7 +359,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/vrrb_config/Cargo.toml
+          args: -p vrrb_config
 
   test-vrrb-core:
     name: test vrrb_core
@@ -336,7 +381,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/vrrb_core/Cargo.toml
+          args: -p vrrb_core
 
   test-vrrb-http:
     name: test vrrb_http
@@ -358,7 +403,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/vrrb_http/Cargo.toml
+          args: -p vrrb_http
 
   test-vrrb-rpc:
     name: test vrrb_rpc
@@ -380,7 +425,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/vrrb_rpc/Cargo.toml
+          args: -p vrrb_rpc
 
   test-wallet:
     name: test wallet
@@ -402,4 +447,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path ./crates/wallet/Cargo.toml
+          args: -p wallet

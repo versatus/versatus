@@ -132,7 +132,6 @@ platform = { path = "crates/platform" }
 # NOTE: Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
-udp2p = { git = "https://github.com/ASmithOWL/udp2p" }
 theater = { git = "https://github.com/vrrb-io/theater" }
 hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }

@@ -1,22 +1,29 @@
 use config::{Config, ConfigError, File};
 use node::Node;
-use primitives::{NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
+use primitives::{
+    KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH,
+};
 use serde::Deserialize;
 use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-use telemetry::{error, info, warn};
+use telemetry::{error, info};
+use utils::payload::digest_data_to_bytes;
 use uuid::Uuid;
 use vrrb_config::{NodeConfig, QuorumMember};
-use vrrb_core::keypair::{read_keypair_file, write_keypair_file, Keypair};
 
-use crate::result::{CliError, Result};
+use crate::{
+    commands::{
+        keygen,
+        utils::{derive_kademlia_peer_id_from_node_id, deserialize_whitelisted_quorum_members},
+    },
+    result::{CliError, Result},
+};
 
 const DEFAULT_OS_ASSIGNED_PORT_ADDRESS: &str = "127.0.0.1:0";
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
-const DEFAULT_GRPC_ADDRESS: &str = "127.0.0.1:50051";
 const DEFAULT_UDP_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 const DEFAULT_RAPTORQ_GOSSIP_ADDRESS: &str = DEFAULT_OS_ASSIGNED_PORT_ADDRESS;
 pub const GENESIS_QUORUM_SIZE: usize = 5;
@@ -58,9 +65,6 @@ pub struct RunOpts {
 
     #[clap(long, value_parser, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub jsonrpc_api_address: SocketAddr,
-
-    #[clap(long, value_parser, default_value = DEFAULT_GRPC_ADDRESS)]
-    pub grpc_server_address: SocketAddr,
 
     #[clap(long)]
     pub bootstrap: bool,
@@ -165,7 +169,6 @@ impl Default for RunOpts {
             raptorq_gossip_address: ipv4_localhost_with_random_port,
             http_api_address: ipv4_localhost_with_random_port,
             jsonrpc_api_address: ipv4_localhost_with_random_port,
-            grpc_server_address: ipv4_localhost_with_random_port,
             bootstrap: Default::default(),
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
@@ -253,7 +256,6 @@ impl RunOpts {
             udp_gossip_address: other.udp_gossip_address,
             raptorq_gossip_address: other.raptorq_gossip_address,
             jsonrpc_api_address: other.jsonrpc_api_address,
-            grpc_server_address: other.grpc_server_address,
             bootstrap: other.bootstrap,
             bootstrap_node_addresses,
             http_api_address: other.http_api_address,
@@ -271,29 +273,16 @@ impl RunOpts {
 
 /// Configures and runs a VRRB Node
 pub async fn run(args: RunOpts) -> Result<()> {
-    let data_dir = vrrb_core::storage_utils::get_node_data_dir()?;
-
-    std::fs::create_dir_all(&data_dir)?;
-
-    let keypair_file_path = PathBuf::from(&data_dir).join("keypair");
-    let keypair = match read_keypair_file(&keypair_file_path) {
-        Ok(keypair) => keypair,
-        Err(err) => {
-            warn!("Failed to read keypair file: {err}");
-            info!("Generating new keypair");
-            let keypair = Keypair::random();
-
-            write_keypair_file(&keypair, &keypair_file_path)
-                .map_err(|err| CliError::Other(format!("failed to write keypair file: {err}")))?;
-
-            keypair
-        },
-    };
+    let keypair = keygen::keygen(false)?;
 
     let mut node_config = NodeConfig::from(args.clone());
     node_config.keypair = keypair;
 
-    node_config.whitelisted_nodes = args
+    let derived_kademlia_peer_id = derive_kademlia_peer_id_from_node_id(&node_config.id)?;
+    node_config.kademlia_peer_id = Some(derived_kademlia_peer_id);
+
+    // TODO: prevent parsing errors when no kademlia peer id is present
+    let mut whitelisted_nodes = args
         .whitelist_path
         .and_then(|whitelist| {
             let mut finalized_whitelist = Vec::with_capacity(GENESIS_QUORUM_SIZE);
@@ -306,6 +295,15 @@ pub async fn run(args: RunOpts) -> Result<()> {
         })
         .unwrap_or_default();
 
+    whitelisted_nodes
+        .iter_mut()
+        .try_for_each(|member| -> Result<()> {
+            member.kademlia_peer_id = derive_kademlia_peer_id_from_node_id(&member.node_id)?;
+            Ok(())
+        })?;
+
+    node_config.whitelisted_nodes = whitelisted_nodes;
+
     if args.debug_config {
         dbg!(&node_config);
     }
@@ -315,41 +313,6 @@ pub async fn run(args: RunOpts) -> Result<()> {
     } else {
         run_blocking(node_config).await
     }
-}
-
-pub fn deserialize_whitelisted_quorum_members(
-    whitelist: String,
-    finalized_whitelist: &mut Vec<QuorumMember>,
-) -> Result<()> {
-    let whitelist_path = PathBuf::from(whitelist);
-    let whitelist_str =
-        std::fs::read_to_string(whitelist_path).map_err(|e| CliError::OptsError(e.to_string()))?;
-    let whitelist_values: JsonValue =
-        json_from_str(&whitelist_str).map_err(|e| CliError::OptsError(e.to_string()))?;
-    if let JsonValue::Object(whitelist_members) = whitelist_values {
-        for (node_type, value) in whitelist_members {
-            match node_type.as_str() {
-                "genesis-miner" => finalized_whitelist
-                    .push(json_from_value(value).map_err(|e| CliError::OptsError(e.to_string()))?),
-                "genesis-farmers" | "genesis-harvesters" => {
-                    if let JsonValue::Array(genesis_quorum_members) = value {
-                        for member in genesis_quorum_members {
-                            finalized_whitelist.push(
-                                json_from_value(member)
-                                    .map_err(|e| CliError::OptsError(e.to_string()))?,
-                            )
-                        }
-                    }
-                },
-                _ => {
-                    return Err(CliError::OptsError(
-                        "invalid genesis node type found in whitelist config".to_string(),
-                    ));
-                },
-            }
-        }
-    }
-    Ok(())
 }
 
 #[telemetry::instrument]

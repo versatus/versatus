@@ -128,12 +128,14 @@ mod tests {
     use block::Block;
     use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
+    use storage::storage_utils::remove_vrrb_data_dir;
     use vrrb_core::account::{self, Account, AccountField};
     use vrrb_core::transactions::Transaction;
 
     #[tokio::test]
     #[serial_test::serial]
     async fn bootstrap_node_runtime_cannot_be_assigned_to_quorum() {
+        remove_vrrb_data_dir();
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(1, events_tx.clone()).await;
@@ -158,6 +160,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn validator_node_runtime_can_be_assigned_to_quorum() {
+        remove_vrrb_data_dir();
         let (events_tx, _) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
         let mut nodes = create_node_runtime_network(2, events_tx.clone()).await;
@@ -419,7 +422,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial]
-    #[ignore = "redundant tested in ../node/tests/harvesters"]
+    #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
