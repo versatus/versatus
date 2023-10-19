@@ -12,7 +12,9 @@ pub struct KeygenCmd {
 }
 
 pub fn exec(args: KeygenCmd) -> Result<()> {
-    keygen(args.force)?;
+    let public_key = keygen(args.force)?.miner_public_key_owned();
+    println!("PublicKey:\n{public_key}");
+
     Ok(())
 }
 
@@ -28,6 +30,7 @@ pub fn keygen(overwrite: bool) -> Result<Keypair> {
                 info!("Found stale keypair file, overwriting with new keypair");
                 write_new_keypair(&keypair_file_path)
             } else {
+                info!("Found existing keypair");
                 Ok(keypair)
             }
         },
@@ -43,10 +46,7 @@ fn write_new_keypair(outfile: &PathBuf) -> Result<Keypair> {
     let keypair = Keypair::random();
     write_keypair_file(&keypair, outfile)
         .map_err(|err| CliError::Other(format!("failed to write keypair file: {err}")))?;
-    info!(
-        "Successfully wrote new keypair to file. PublicKey: {}",
-        keypair.miner_public_key_owned()
-    );
+    info!("Successfully wrote new keypair to file");
 
     Ok(keypair)
 }
