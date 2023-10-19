@@ -46,8 +46,8 @@ pub struct StateManagerConfig {
 
 #[derive(Debug, Clone)]
 pub struct StateManager {
-    pub(crate) actor_id: ActorId,
-    pub(crate) status: ActorState,
+    pub(crate) _actor_id: ActorId,
+    pub(crate) _status: ActorState,
     pub(crate) dag: DagModule,
     pub(crate) database: VrrbDb,
     pub(crate) mempool: LeftRightMempool,
@@ -58,9 +58,9 @@ impl StateManager {
         let dag_module = DagModule::new(config.dag.clone(), config.claim.clone());
 
         Self {
-            actor_id: uuid::Uuid::new_v4().to_string(),
+            _actor_id: uuid::Uuid::new_v4().to_string(),
             database: config.database,
-            status: ActorState::Stopped,
+            _status: ActorState::Stopped,
             dag: dag_module,
             mempool: config.mempool,
         }

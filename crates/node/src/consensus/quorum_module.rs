@@ -41,8 +41,8 @@ impl QuorumModule {
             bootstrap_quorum_available_nodes = quorum_config
                 .membership_config
                 .quorum_members
-                .into_iter()
-                .map(|(_, member)| {
+                .into_values()
+                .map(|member| {
                     let peer = PeerData {
                         node_id: member.node_id,
                         node_type: member.node_type,

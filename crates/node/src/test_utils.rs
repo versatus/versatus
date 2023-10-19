@@ -427,18 +427,6 @@ pub fn create_txn_from_accounts_invalid_timestamp(
 //     DagModule::new(miner.dag, events_tx, claim)
 // }
 
-/// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(
-    threshold_signature: Vec<(NodeId, Signature)>,
-) -> block::Certificate {
-    block::Certificate {
-        signatures: threshold_signature,
-        inauguration: None,
-        root_hash: "".to_string(),
-        block_hash: "".to_string(),
-    }
-}
-
 pub async fn create_dyswarm_client(addr: SocketAddr) -> Result<dyswarm::client::Client> {
     let client_config = dyswarm::client::Config { addr };
     let client = dyswarm::client::Client::new(client_config).await?;
