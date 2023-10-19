@@ -12,8 +12,10 @@ pub struct KeygenCmd {
 }
 
 pub fn exec(args: KeygenCmd) -> Result<()> {
-    let public_key = keygen(args.force)?.miner_public_key_owned();
-    println!("PublicKey:\n{public_key}");
+    println!(
+        "PublicKey: {}",
+        keygen(args.force)?.miner_public_key_owned()
+    );
 
     Ok(())
 }
