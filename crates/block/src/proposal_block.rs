@@ -1,12 +1,12 @@
+use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
 use hex::FromHexError;
-use primitives::{Epoch, Signature, NodeId};
+use primitives::{Epoch, Signature};
 use ritelinked::LinkedHashSet;
 use serde::{Deserialize, Serialize};
-use utils::hash_data;
-use vrrb_core::transactions::{QuorumCertifiedTxn, TransactionDigest, TransactionKind};
-use vrrb_core::claim::Claim;
 use signer::engine::SignerEngine;
-use crate::{BlockHash, ClaimList, ConvergenceBlock, QuorumCertifiedTxnList, RefHash};
+use utils::hash_data;
+use vrrb_core::claim::Claim;
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[repr(C)]
@@ -66,9 +66,7 @@ impl ProposalBlock {
                 .collect()
         };
         let payload = hash_data!(round, epoch, hashable_txns, claims, from);
-        let signature = if let Ok(signature) =
-            sig_engine.sign(&payload)
-        {
+        let signature = if let Ok(signature) = sig_engine.sign(payload) {
             Some(signature)
         } else {
             None
@@ -101,18 +99,18 @@ impl ProposalBlock {
 
     #[deprecated]
     pub fn decode_signature_share(&self) -> Result<[u8; 96], FromHexError> {
-//        let byte_vec = hex::decode(&self.signature)?;
+        //        let byte_vec = hex::decode(&self.signature)?;
 
-//        if byte_vec.len() != SIG_SIZE {
-//            return Err(FromHexError::InvalidStringLength);
-//        }
+        //        if byte_vec.len() != SIG_SIZE {
+        //            return Err(FromHexError::InvalidStringLength);
+        //        }
 
-//        let mut byte_array: [u8; 96] = [0u8; 96];
-//        (0..SIG_SIZE).for_each(|i| {
-//            byte_array[i] = byte_vec[i];
-//        });
+        //        let mut byte_array: [u8; 96] = [0u8; 96];
+        //        (0..SIG_SIZE).for_each(|i| {
+        //            byte_array[i] = byte_vec[i];
+        //        });
 
-//        Ok(byte_array)
+        //        Ok(byte_array)
         Ok([0u8; 96])
     }
 
