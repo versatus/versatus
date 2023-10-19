@@ -88,16 +88,12 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 pub fn create_mock_full_node_config_with_bootstrap(
     bootstrap_node_addresses: Vec<SocketAddr>,
 ) -> NodeConfig {
-    let mut node_config = create_mock_full_node_config();
-
-    node_config
+    create_mock_full_node_config()
 }
 
 #[deprecated]
 pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    let mut node_config = create_mock_full_node_config();
-
-    node_config
+    create_mock_full_node_config()
 }
 
 pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
