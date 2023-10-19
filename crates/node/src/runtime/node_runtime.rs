@@ -443,9 +443,9 @@ impl NodeRuntime {
         handle.claim_store_values()
     }
 
-    async fn get_transaction_by_id(
+    async fn _get_transaction_by_id(
         &self,
-        transaction_digest: TransactionDigest,
+        _transaction_digest: TransactionDigest,
     ) -> Result<TransactionKind> {
         todo!()
     }

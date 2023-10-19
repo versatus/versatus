@@ -60,12 +60,12 @@ pub type GraphResult<T> = std::result::Result<T, GraphError>;
 pub struct DagModule {
     dag: Arc<RwLock<BullDag<Block, String>>>,
     quorum_members: Option<QuorumMembers>,
-    harvester_quorum_threshold: Option<HarvesterQuorumThreshold>,
+    _harvester_quorum_threshold: Option<HarvesterQuorumThreshold>,
     last_confirmed_block_header: Option<BlockHeader>,
     last_confirmed_block: Option<Block>,
     // String in next 2 fields represent the block hash
     pending_convergence_blocks: IndexMap<String, ConvergenceBlock>,
-    pending_certificates: IndexMap<String, Certificate>,
+    _pending_certificates: IndexMap<String, Certificate>,
     partial_certificate_signatures: IndexMap<String, HashSet<(NodeId, Signature)>>,
     // TODO: Why is the Claim here?
     claim: Claim,
@@ -76,11 +76,11 @@ impl DagModule {
         Self {
             dag,
             quorum_members: None,
-            harvester_quorum_threshold: None,
+            _harvester_quorum_threshold: None,
             last_confirmed_block_header: None,
             last_confirmed_block: None,
             pending_convergence_blocks: IndexMap::new(),
-            pending_certificates: IndexMap::new(),
+            _pending_certificates: IndexMap::new(),
             partial_certificate_signatures: IndexMap::new(),
             claim,
         }
@@ -106,18 +106,6 @@ impl DagModule {
 
     pub fn set_quorum_members(&mut self, quorum_members: QuorumMembers) {
         self.quorum_members = Some(quorum_members);
-    }
-
-    pub fn set_harvester_quorum_threshold(&mut self, quorum_threshold: HarvesterQuorumThreshold) {
-        self.harvester_quorum_threshold = Some(quorum_threshold);
-    }
-
-    pub fn harvester_quorum_threshold(&self) -> Option<HarvesterQuorumThreshold> {
-        self.harvester_quorum_threshold
-    }
-
-    pub fn get_pending_convergence_block(&self) -> Option<ConvergenceBlock> {
-        todo!()
     }
 
     pub fn get_pending_convergence_block_mut(
@@ -297,7 +285,7 @@ impl DagModule {
         Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
-    fn check_valid_genesis(&self, block: &GenesisBlock, mut sig_engine: SignerEngine) -> bool {
+    fn _check_valid_genesis(&self, block: &GenesisBlock, mut sig_engine: SignerEngine) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             matches!(self.verify_signature(validation_data, sig_engine), Ok(true))
         } else {
@@ -362,29 +350,20 @@ impl DagModule {
             }
         }
 
-        Err(NodeError::Other(("threshold not reached".to_string())))
+        Err(NodeError::Other("threshold not reached".to_string()))
     }
 
-    fn check_invalid_partial_sig(&self, block_hash: String) -> SignerResult<NodeId> {
-        todo!()
-    }
-
-    // This is probably redundant
-    fn verify_certificate(&self, certificate: &Certificate) -> SignerResult<bool> {
-        todo!();
-    }
-
-    fn verify_certificate_signature(
+    fn _verify_certificate_signature(
         &self,
         signature: &mut Vec<(NodeId, Signature)>,
         sig_type: SignatureType,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         match sig_type {
             SignatureType::PartialSignature => {
                 if let Some((id, sig)) = signature.pop() {
-                    self.verify_certificate_partial_sig(sig, id, payload_hash, sig_engine)
+                    self._verify_certificate_partial_sig(sig, id, payload_hash, sig_engine)
                 } else {
                     Err(SignerError::PartialSignatureError(
                         "no signature provided".to_string(),
@@ -392,32 +371,37 @@ impl DagModule {
                 }
             },
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
-                self.verify_certificate_threshold_sig(signature.clone(), payload_hash, sig_engine)
+                self._verify_certificate_threshold_sig(signature.clone(), payload_hash, sig_engine)
             },
         }
     }
 
-    fn verify_certificate_partial_sig(
+    fn _verify_certificate_partial_sig(
         &self,
         sig: Signature,
         node_idx: NodeId,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
-        let public_keyshare = self.get_harvester_public_keyshare(node_idx)?;
-        self.verify_partial_sig_with_public_keyshare(sig, public_keyshare, payload_hash, sig_engine)
+        let public_keyshare = self._get_harvester_public_keyshare(node_idx)?;
+        self._verify_partial_sig_with_public_keyshare(
+            sig,
+            public_keyshare,
+            payload_hash,
+            sig_engine,
+        )
     }
 
-    fn verify_certificate_threshold_sig(
+    fn _verify_certificate_threshold_sig(
         &self,
         sigs: Vec<(NodeId, Signature)>,
         payload_hash: Vec<u8>,
         mut sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
-        self.verify_threshold_sig_with_public_keyset(sigs, payload_hash, sig_engine)
+        self._verify_threshold_sig_with_public_keyset(sigs, payload_hash, sig_engine)
     }
 
-    fn verify_threshold_sig_with_public_keyset(
+    fn _verify_threshold_sig_with_public_keyset(
         &self,
         sigs: Vec<(NodeId, Signature)>,
         payload_hash: Vec<u8>,
@@ -430,18 +414,18 @@ impl DagModule {
         Ok((true, SignatureType::ThresholdSignature))
     }
 
-    fn verify_partial_sig_with_public_keyshare(
+    fn _verify_partial_sig_with_public_keyshare(
         &self,
         sig: Signature,
         public_keyshare: PublicKey,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         if let Some(mut harvesters) = sig_engine.quorum_members().get_harvester_data() {
             harvesters.members.retain(|id, pk| *pk == public_keyshare);
             if let Some((id, pk)) = harvesters.members.iter().next() {
                 sig_engine.verify(id, &sig, &payload_hash).map_err(|err| {
-                    SignerError::PartialSignatureError(("unable to verify signature".to_string()))
+                    SignerError::PartialSignatureError("unable to verify signature".to_string())
                 })?;
                 Ok((true, SignatureType::PartialSignature))
             } else {
@@ -466,24 +450,15 @@ impl DagModule {
     }
 
     #[deprecated]
-    fn verify_partial_sig(
+    fn _verify_threshold_sig(
         &self,
         validation_data: BlockValidationData,
-        mut sig_engine: SignerEngine,
-    ) -> SignerResult<bool> {
-        todo!();
-    }
-
-    #[deprecated]
-    fn verify_threshold_sig(
-        &self,
-        validation_data: BlockValidationData,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> SignerResult<bool> {
         let sig_set = validation_data.signatures.clone();
         if sig_set.len() <= sig_engine.quorum_members().get_harvester_threshold() {
             return Err(SignerError::ThresholdSignatureError(
-                ("not enough signatures received to meet threshold".to_string()),
+                "not enough signatures received to meet threshold".to_string(),
             ));
         }
 
@@ -494,7 +469,7 @@ impl DagModule {
         Ok(true)
     }
 
-    fn get_harvester_public_keyshare(&self, node_id: NodeId) -> SignerResult<PublicKey> {
+    fn _get_harvester_public_keyshare(&self, node_id: NodeId) -> SignerResult<PublicKey> {
         let public_key_share = {
             if let Some(quorum_members) = self.quorum_members.clone() {
                 if let Some(data) = quorum_members.get_harvester_data() {
@@ -514,7 +489,7 @@ impl DagModule {
         Ok(public_key_share)
     }
 
-    fn get_harvester_public_keyset(&self) -> SignerResult<Vec<PublicKey>> {
+    fn _get_harvester_public_keyset(&self) -> SignerResult<Vec<PublicKey>> {
         let public_keyset = {
             if let Some(quorum_members) = self.quorum_members.clone() {
                 if let Some(data) = quorum_members.get_harvester_data() {
@@ -530,7 +505,7 @@ impl DagModule {
         Ok(public_keyset)
     }
 
-    fn get_harvester_node_ids(&self) -> SignerResult<Vec<NodeId>> {
+    fn _get_harvester_node_ids(&self) -> SignerResult<Vec<NodeId>> {
         let node_ids = {
             if let Some(quorum_members) = self.quorum_members.clone() {
                 if let Some(data) = quorum_members.get_harvester_data() {
