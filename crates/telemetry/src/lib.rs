@@ -4,5 +4,4 @@
 pub mod custom_subscriber;
 mod metrics;
 pub use metrics::*;
-pub use subscriber::*;
 pub use tracing::{self, *};
