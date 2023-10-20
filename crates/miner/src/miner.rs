@@ -8,25 +8,19 @@ use std::sync::{Arc, RwLock};
 
 use block::{
     block::Block, header::BlockHeader, ClaimHash, ClaimList, ConsolidatedClaims, ConsolidatedTxns,
-    ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, QuorumCertifiedTxnList, RefHash,
+    ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use ethereum_types::U256;
-use primitives::{Address, Epoch, NodeId, PublicKey, Signature};
+use primitives::{Address, NodeId, PublicKey, Signature};
 use reward::reward::Reward;
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
+use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use utils::{create_payload, hash_data};
+use utils::hash_data;
+use vrrb_core::claim::{Claim, ClaimError};
 use vrrb_core::keypair::{MinerPublicKey, MinerSecretKey};
-use vrrb_core::{
-    claim::{Claim, ClaimError},
-    keypair::{MinerPk, MinerSk},
-};
 
 use crate::{block_builder::BlockBuilder, result::MinerError};
 
@@ -179,7 +173,7 @@ impl Miner {
     ///
     /// assert_eq!(miner.unwrap().address(), address);
     /// ```
-    pub fn new(config: MinerConfig, node_id: NodeId) -> Result<Self> {
+    pub fn new(config: MinerConfig, _node_id: NodeId) -> Result<Self> {
         let address = Address::new(config.public_key);
 
         let claim = config.claim.clone();
