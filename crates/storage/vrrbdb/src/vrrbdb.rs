@@ -267,12 +267,6 @@ impl VrrbDb {
     ) -> Result<()> {
         match txn_kind {
             TransactionKind::Transfer(txn) => self.apply_transfer(read_handle, txn),
-            _ => {
-                telemetry::info!("unsupported transaction type: {:?}", txn_kind);
-                Err(StorageError::Other(
-                    "unsupported transaction type".to_string(),
-                ))
-            },
         }
     }
 
