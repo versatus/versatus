@@ -83,12 +83,10 @@ fn new_db_instance(
     let mut instance = rocksdb::DB::open_cf(&options, &path, cfs)
         .map_err(|err| StorageError::Other(err.to_string()))?;
 
-    if !column_family_exists {
-        if column_family != DEFAULT_COLUMN_FAMILY_NAME {
-            instance
-                .create_cf(column_family, &options)
-                .map_err(|err| StorageError::Other(err.to_string()))?;
-        }
+    if !column_family_exists && column_family != DEFAULT_COLUMN_FAMILY_NAME {
+        instance
+            .create_cf(column_family, &options)
+            .map_err(|err| StorageError::Other(err.to_string()))?;
     }
 
     Ok(instance)
@@ -264,7 +262,9 @@ impl TreeReader for RocksDbAdapter {
                 let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
                 let node_value: Node = bincode::deserialize(&boxed_value.into_vec())?;
                 if let Node::Leaf(leaf_node) = node_value {
-                    if key_and_node.is_none() || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash() {
+                    if key_and_node.is_none()
+                        || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash()
+                    {
                         key_and_node.replace((node_key.clone(), leaf_node.clone()));
                     }
                 }
