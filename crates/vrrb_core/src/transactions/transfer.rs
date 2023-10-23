@@ -88,7 +88,6 @@ pub struct TransferBuilder {
 }
 
 impl TransferBuilder {
-
     pub fn timestamp(mut self, timestamp: TxTimestamp) -> Self {
         self.timestamp = Some(timestamp);
         self
@@ -137,9 +136,16 @@ impl TransferBuilder {
     pub fn build(self) -> Result<Transfer, &'static str> {
         let id = generate_transfer_digest_vec(
             self.timestamp.ok_or("timestamp is missing")?,
-            self.sender_address.clone().ok_or("sender_address is missing")?.to_string(),
-            self.sender_public_key.ok_or("sender_public_key is missing")?,
-            self.receiver_address.clone().ok_or("receiver_address is missing")?.to_string(),
+            self.sender_address
+                .clone()
+                .ok_or("sender_address is missing")?
+                .to_string(),
+            self.sender_public_key
+                .ok_or("sender_public_key is missing")?,
+            self.receiver_address
+                .clone()
+                .ok_or("receiver_address is missing")?
+                .to_string(),
             self.token.clone().unwrap_or_default(),
             self.amount.ok_or("amount is missing")?,
             self.nonce.ok_or("nonce is missing")?,
@@ -193,13 +199,13 @@ impl Transfer {
         let token = args.token.clone().unwrap_or_default();
 
         let digest_vec = generate_transfer_digest_vec(
-            args.timestamp.clone(),
+            args.timestamp,
             args.sender_address.to_string(),
             args.sender_public_key,
             args.receiver_address.to_string(),
             token.clone(),
-            args.amount.clone(),
-            args.nonce.clone(),
+            args.amount,
+            args.nonce,
         );
 
         let digest = TransactionDigest::from(digest_vec);
@@ -421,8 +427,11 @@ impl FromStr for Transfer {
     type Err = TransferTransactionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str::<Transfer>(s)
-            .map_err(|err| TransferTransactionError::InvalidTransferTransaction(format!("failed to parse &str into Txn: {err}")))
+        serde_json::from_str::<Transfer>(s).map_err(|err| {
+            TransferTransactionError::InvalidTransferTransaction(format!(
+                "failed to parse &str into Txn: {err}"
+            ))
+        })
     }
 }
 

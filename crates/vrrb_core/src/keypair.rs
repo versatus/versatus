@@ -69,7 +69,7 @@ impl KeyPair {
         let (sk, pk) = secp.generate_keypair(&mut rng);
         KeyPair {
             // TODO: Consider renaming to simply sk and pk as this pair is not only used for mining
-            miner_kp: (sk.clone(), pk.clone()),
+            miner_kp: (sk, pk),
             validator_kp: (sk, pk),
         }
     }
@@ -108,7 +108,7 @@ impl KeyPair {
         let secp = Secp256k1::new();
         let pk = sk.public_key(&secp);
         KeyPair {
-            miner_kp: (sk.clone(), pk.clone()),
+            miner_kp: (sk, pk),
             validator_kp: (sk, pk),
         }
     }
@@ -271,7 +271,7 @@ impl KeyPair {
     }
 
     pub fn get_validator_secret_key_owned(&self) -> SecretKey {
-        self.validator_kp.0.clone()
+        self.validator_kp.0
     }
 
     /// It returns the public key of the validator.
