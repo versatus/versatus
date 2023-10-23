@@ -1,15 +1,11 @@
 use std::{
-    cmp::{Ord, Ordering, PartialOrd},
     collections::HashMap,
-    fmt::{self, Display, Formatter},
+    fmt,
     hash::{Hash, Hasher},
     str::FromStr,
 };
 
-use primitives::{
-    Address, ByteSlice, ByteVec, Digest as PrimitiveDigest, NodeIdx, PublicKey, RawSignature,
-    SecretKey,
-};
+use primitives::{Address, ByteSlice, ByteVec, PublicKey, SecretKey};
 use secp256k1::{ecdsa::Signature, Message};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -18,7 +14,6 @@ use utils::hash_data;
 use crate::transactions::transaction::Transaction;
 use crate::transactions::{Token, TransactionDigest, TransactionKind, BASE_FEE};
 use crate::{
-    helpers::gen_hex_encoded_string,
     keypair::Keypair,
     serde_helpers::{
         decode_from_binary_byte_slice, decode_from_json_byte_slice, encode_to_binary,
