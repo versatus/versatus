@@ -150,7 +150,8 @@ impl SignerEngine {
             quorum_members: QuorumMembers(HashMap::new()),
         }
     }
-    /// transaction sign method
+
+    /// Transaction sign method
     pub fn sign<T: AsRef<[u8]>>(&mut self, data: T) -> Result<Signature, Error> {
         let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
@@ -161,7 +162,7 @@ impl SignerEngine {
             .sign_ecdsa(message.map_err(|e| Error::SecpError(e.to_string()))?))
     }
 
-    /// signature verification
+    /// Signature verification
     pub fn verify<T: AsRef<[u8]>>(
         &self,
         node_id: &NodeId,

@@ -6,8 +6,8 @@ use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
     Address, ConvergencePartialSig, Epoch, FarmerQuorumThreshold, NodeId, NodeIdx,
-    ProgramExecutionOutput, PublicKeyShareVec, Round, RUNTIME_TOPIC_STR, Seed, Signature, TxnValidationStatus,
-    ValidatorPublicKeyShare,
+    ProgramExecutionOutput, PublicKeyShareVec, Round, Seed, Signature, TxnValidationStatus,
+    ValidatorPublicKeyShare, RUNTIME_TOPIC_STR,
 };
 
 use serde::{Deserialize, Serialize};
@@ -296,7 +296,7 @@ pub enum Event {
     BroadcastTransactionVote(Vote),
     BlockAppended(String),
     BuildProposalBlock(ConvergenceBlock),
-    BroadcastProposalBlock(ProposalBlock)
+    BroadcastProposalBlock(ProposalBlock),
 }
 
 impl From<&theater::Message> for Event {
@@ -329,8 +329,9 @@ impl From<Event> for messr::Message<Event> {
             Event::Stop => messr::Message::stop_signal(None),
             Event::CreateAccountRequested(_)
             | Event::NewTxnCreated(_)
-            | Event::TxnAddedToMempool(_) =>
-                messr::Message::new(Some(RUNTIME_TOPIC_STR.into()), evt),
+            | Event::TxnAddedToMempool(_) => {
+                messr::Message::new(Some(RUNTIME_TOPIC_STR.into()), evt)
+            },
             _ => messr::Message::new(None, evt),
         }
     }

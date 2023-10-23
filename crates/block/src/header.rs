@@ -30,7 +30,7 @@ pub struct BlockHeader {
     pub claim_list_hash: String,
     pub block_reward: Reward,
     pub next_block_reward: Reward,
-    pub miner_signature: String,
+    pub miner_signature: primitives::Signature,
 }
 
 impl BlockHeader {
@@ -80,7 +80,7 @@ impl BlockHeader {
             next_block_reward
         );
 
-        let miner_signature = secret_key.sign_ecdsa(payload).to_string();
+        let miner_signature = secret_key.sign_ecdsa(payload);
 
         BlockHeader {
             ref_hashes,
@@ -171,7 +171,7 @@ impl BlockHeader {
             next_block_reward
         );
 
-        let miner_signature = secret_key.sign_ecdsa(payload).to_string();
+        let miner_signature = secret_key.sign_ecdsa(payload);
 
         let block_header = BlockHeader {
             ref_hashes,

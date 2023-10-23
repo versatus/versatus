@@ -327,6 +327,21 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
+    pub fn verify_genesis_block_origin(
+        &self,
+        miner_id: &NodeId,
+        genesis_block: GenesisBlock,
+    ) -> Result<()> {
+        let miner_signature = genesis_block.header.miner_signature;
+
+        self.consensus_driver
+            .sig_engine()
+            .verify(miner_id, &miner_signature, &[])
+            .map_err(|err| NodeError::Other(format!("failed to verify miner signature: {err}")))?;
+
+        Ok(())
+    }
+
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
         let certs = self.state_driver.dag.check_certificate_threshold_reached(

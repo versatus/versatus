@@ -181,6 +181,8 @@ impl Handler<EventMessage> for NodeRuntime {
                     .handle_block_received(&mut block, self.consensus_driver.sig_engine.clone())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
+                self.handle_block_received(block)?;
+
                 self.events_tx
                     .send(next_event.into())
                     .await

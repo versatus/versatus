@@ -1,14 +1,19 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{hash_map::DefaultHasher, BTreeMap, HashMap, HashSet, VecDeque},
     env,
+    hash::{Hash, Hasher},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, RwLock},
     time::Duration,
 };
 
 use async_trait::async_trait;
-use block::{Block, BlockHash, ClaimHash, GenesisBlock, InnerBlock, ProposalBlock};
+use block::{
+    header::BlockHeader, Block, BlockHash, ClaimHash, ConvergenceBlock, GenesisBlock, InnerBlock,
+    ProposalBlock,
+};
 use bulldag::{graph::BullDag, vertex::Vertex};
+use quorum::{election::Election, quorum::Quorum};
 
 use crate::{
     data_store::DataStore, network::NetworkEvent, node_runtime::NodeRuntime,
@@ -22,6 +27,7 @@ use primitives::{
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
+use sha256::digest;
 use signer::engine::SignerEngine;
 use storage::vrrbdb::Claims;
 use uuid::Uuid;
@@ -32,7 +38,7 @@ use vrrb_config::{
 use vrrb_core::{
     account::{Account, AccountField},
     claim::Claim,
-    keypair::Keypair,
+    keypair::{KeyPair, Keypair},
     transactions::{
         generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
         TransactionDigest, TransactionKind, Transfer,
@@ -976,4 +982,206 @@ pub fn create_sender_receiver_addresses() -> ((Account, Address), Address) {
     let receiver_address = Address::new(receiver_public_key.into());
 
     ((sender_account, sender_address), receiver_address)
+}
+
+pub async fn setup_network(
+    n: usize,
+) -> (
+    NodeRuntime,
+    HashMap<NodeId, NodeRuntime>, // farmers
+    HashMap<NodeId, NodeRuntime>, // validators
+    HashMap<NodeId, NodeRuntime>, // Miners
+) {
+    let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+
+    let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
+
+    let mut node_0 = nodes.pop_front().unwrap();
+
+    node_0
+        .create_account(node_0.config_ref().keypair.miner_public_key_owned())
+        .unwrap();
+
+    let mut quorum_assignments = HashMap::new();
+
+    for node in nodes.iter() {
+        let peer_data = PeerData {
+            node_id: node.config.id.clone(),
+            node_type: node.config.node_type,
+            kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+            udp_gossip_addr: node.config.udp_gossip_address,
+            raptorq_gossip_addr: node.config.raptorq_gossip_address,
+            kademlia_liveness_addr: node.config.kademlia_liveness_address,
+            validator_public_key: node.config.keypair.validator_public_key_owned(),
+        };
+
+        let assignments = node_0
+            .handle_node_added_to_peer_list(peer_data.clone())
+            .await
+            .unwrap();
+
+        if let Some(assignments) = assignments {
+            quorum_assignments.extend(assignments);
+        }
+    }
+
+    let other_nodes_copy = nodes.clone();
+
+    // NOTE: let nodes be aware of each other
+    for node in nodes.iter_mut() {
+        for other_node in other_nodes_copy.iter() {
+            if node.config.id == other_node.config.id {
+                continue;
+            }
+
+            let peer_data = PeerData {
+                node_id: other_node.config.id.clone(),
+                node_type: other_node.config.node_type,
+                kademlia_peer_id: other_node.config.kademlia_peer_id.unwrap(),
+                udp_gossip_addr: other_node.config.udp_gossip_address,
+                raptorq_gossip_addr: other_node.config.raptorq_gossip_address,
+                kademlia_liveness_addr: other_node.config.kademlia_liveness_address,
+                validator_public_key: other_node.config.keypair.validator_public_key_owned(),
+            };
+
+            node.handle_node_added_to_peer_list(peer_data.clone())
+                .await
+                .unwrap();
+        }
+    }
+
+    let node_0_pubkey = node_0.config_ref().keypair.miner_public_key_owned();
+
+    // NOTE: create te bootstrap's node account as well as their accounts on everyone's state
+    for current_node in nodes.iter_mut() {
+        for node in other_nodes_copy.iter() {
+            let node_pubkey = node.config_ref().keypair.miner_public_key_owned();
+            node_0.create_account(node_pubkey).unwrap();
+            current_node.create_account(node_0_pubkey).unwrap();
+            current_node.create_account(node_pubkey).unwrap();
+        }
+    }
+
+    let nodes = nodes
+        .into_iter()
+        .map(|node| (node.config.id.clone(), node))
+        .collect::<HashMap<NodeId, NodeRuntime>>();
+
+    let mut validator_nodes = nodes
+        .clone()
+        .into_iter()
+        .filter(|(_, node)| node.config.node_type == NodeType::Validator)
+        .collect::<HashMap<NodeId, NodeRuntime>>();
+
+    for (_node_id, node) in validator_nodes.iter_mut() {
+        node.handle_quorum_membership_assigments_created(
+            quorum_assignments.clone().into_values().collect(),
+        )
+        .unwrap();
+    }
+
+    let farmer_nodes = validator_nodes
+        .clone()
+        .into_iter()
+        .filter(|(_, node)| node.quorum_membership().unwrap().quorum_kind == QuorumKind::Farmer)
+        .collect::<HashMap<NodeId, NodeRuntime>>();
+
+    let harvester_nodes = validator_nodes
+        .clone()
+        .into_iter()
+        .filter(|(_, node)| node.quorum_membership().unwrap().quorum_kind == QuorumKind::Harvester)
+        .collect::<HashMap<NodeId, NodeRuntime>>();
+
+    let miner_nodes = nodes
+        .clone()
+        .into_iter()
+        .filter(|(_, node)| node.config.node_type == NodeType::Miner)
+        .collect::<HashMap<NodeId, NodeRuntime>>();
+
+    (node_0, farmer_nodes, harvester_nodes, miner_nodes)
+}
+
+pub fn dummy_convergence_block() -> ConvergenceBlock {
+    let keypair = KeyPair::random();
+    let public_key = keypair.get_miner_public_key();
+    let mut hasher = DefaultHasher::new();
+    public_key.hash(&mut hasher);
+    let pubkey_hash = hasher.finish();
+
+    let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
+    pub_key_bytes.push(1u8);
+
+    let hash = digest(digest(&*pub_key_bytes).as_bytes());
+
+    let payload = (21_600, hash);
+    ConvergenceBlock {
+        header: BlockHeader {
+            ref_hashes: Default::default(),
+            epoch: Default::default(),
+            round: Default::default(),
+            block_seed: Default::default(),
+            next_block_seed: Quorum::generate_seed(payload, keypair).unwrap(),
+            block_height: 21_600,
+            timestamp: Default::default(),
+            txn_hash: Default::default(),
+            miner_claim: produce_random_claim(22),
+            claim_list_hash: Default::default(),
+            block_reward: Default::default(),
+            next_block_reward: Default::default(),
+            miner_signature: Signature::from_der(&[]).unwrap(),
+        },
+        txns: Default::default(),
+        claims: Default::default(),
+        hash: "dummy_convergence_block".into(),
+        certificate: None,
+    }
+}
+
+pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
+    let kp1 = Keypair::random();
+    let address1 = Address::new(kp1.miner_kp.1);
+    let kp2 = Keypair::random();
+    let address2 = Address::new(kp2.miner_kp.1);
+    let mut account1 = Account::new(address1.clone());
+    let update_field = AccountField::Credits(100000);
+    account1.update_field(update_field.clone());
+    let mut account2 = Account::new(address2.clone());
+    account2.update_field(update_field.clone());
+    produce_proposal_blocks(
+        "dummy_proposal_block".to_string(),
+        vec![(address1, Some(account1)), (address2, Some(account2))],
+        1,
+        2,
+        sig_engine,
+    )
+    .pop()
+    .unwrap()
+}
+
+pub fn dummy_proposal_block_and_accounts(
+    sig_engine: signer::engine::SignerEngine,
+) -> ((Address, Account), (Address, Account), ProposalBlock) {
+    let kp1 = Keypair::random();
+    let address1 = Address::new(kp1.miner_kp.1);
+    let kp2 = Keypair::random();
+    let address2 = Address::new(kp2.miner_kp.1);
+    let mut account1 = Account::new(address1.clone());
+    let update_field = AccountField::Credits(100000);
+    account1.update_field(update_field.clone());
+    let mut account2 = Account::new(address2.clone());
+    account2.update_field(update_field.clone());
+    let proposal_block = produce_proposal_blocks(
+        "dummy_proposal_block".to_string(),
+        vec![
+            (address1.clone(), Some(account1.clone())),
+            (address2.clone(), Some(account2.clone())),
+        ],
+        1,
+        1,
+        sig_engine,
+    )
+    .pop()
+    .unwrap();
+
+    ((address1, account1), (address2, account2), proposal_block)
 }

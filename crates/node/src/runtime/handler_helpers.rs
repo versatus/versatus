@@ -26,13 +26,7 @@ impl NodeRuntime {
     }
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
-        // TODO: append blocks to only one instance of the DAG
-        self.state_driver
-            .dag
-            .append_genesis(&block)
-            .map_err(|err| {
-                NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
-            })?;
+        self.verify_genesis_block_origin(&NodeId::from("node-8"), block.clone())?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 
@@ -52,7 +46,10 @@ impl NodeRuntime {
             let err_note = format!("Failed to append proposal block to DAG: {e:?}");
             return Err(NodeError::Other(err_note));
         }
-        todo!()
+
+        let apply_result = self.state_driver.apply_block(Block::Proposal { block })?;
+
+        Ok(apply_result)
     }
 
     /// Certifies and stores a convergence block within a node's state if certification succeeds
@@ -196,7 +193,6 @@ impl NodeRuntime {
             .ok_or(NodeError::Other(
                 "certificate not appended to convergence block".to_string(),
             ))?;
-        
 
         Ok(block.clone())
     }

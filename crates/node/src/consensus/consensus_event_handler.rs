@@ -131,6 +131,7 @@ impl ConsensusModule {
 
         let mut local_membership = assigned_memberships.clone();
         local_membership.retain(|membership| membership.node_id == local_node_id);
+
         if let Some(membership) = local_membership.pop() {
             let quorum_kind = membership.quorum_kind.clone();
             let config = QuorumMembershipConfig {
@@ -373,17 +374,20 @@ impl ConsensusModule {
         self.precheck_convergence_block_transactions(block, proposal_block_hashes, resolver, dag)
     }
 
-    pub fn precheck_convergence_block_miner_is_winner(&self, block: ConvergenceBlock) -> Result<()> {
+    pub fn precheck_convergence_block_miner_is_winner(
+        &self,
+        block: ConvergenceBlock,
+    ) -> Result<()> {
         let miner = block.header.miner_claim.clone();
 
         if let Some(results) = &self.miner_election_results {
             for (idx, claim) in results.clone().values().enumerate() {
                 if idx < 5 {
                     if claim == &miner {
-                        return Ok(())
+                        return Ok(());
                     }
                 } else {
-                    break
+                    break;
                 }
             }
         }
