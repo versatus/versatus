@@ -5,7 +5,7 @@ use crate::{
 };
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
+    GenesisBlock, GenesisReceiver, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
@@ -223,13 +223,12 @@ impl NodeRuntime {
 
     pub fn produce_genesis_transactions(
         &self,
-        n: usize,
+        receivers: Vec<GenesisReceiver>,
     ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
-        self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
+        self.has_required_node_type(NodeType::Miner, "produce genesis transactions")?;
 
         let sender_public_key = self.config.keypair.miner_public_key_owned();
         let address = Address::new(sender_public_key);
-
         let sender_secret_key = self.config.keypair.miner_secret_key_owned();
         let timestamp = chrono::Utc::now().timestamp();
         let token = Token::default();
@@ -261,13 +260,9 @@ impl NodeRuntime {
         };
 
         let txn = TransactionKind::Transfer(Transfer::new(args));
-        let mut genesis_config = GenesisConfig::new(address.clone());
-
-        let mut txns = block::vesting::generate_genesis_txns(
-            n,
-            self.config.keypair.clone(),
-            &mut genesis_config,
-        );
+        let genesis_config = GenesisConfig::new(address, receivers);
+        let mut txns =
+            block::vesting::generate_genesis_txns(self.config.keypair.clone(), &genesis_config);
         txns.insert(txn.id(), txn);
 
         Ok(txns)

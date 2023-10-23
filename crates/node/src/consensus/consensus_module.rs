@@ -4,6 +4,7 @@ use block::{
     header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 use bulldag::graph::BullDag;
+use ethereum_types::U256;
 use events::{SyncPeerData, Vote};
 use mempool::MempoolReadHandleFactory;
 use miner::conflict_resolver::Resolver;
@@ -22,7 +23,6 @@ use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 use vrrb_core::{bloom::Bloom, keypair::Keypair};
-use ethereum_types::U256;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -87,7 +87,7 @@ pub struct ConsensusModule {
     pub(crate) quorum_kind: Option<QuorumKind>,
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
-    pub miner_election_results: Option<BTreeMap<U256, Claim>> 
+    pub miner_election_results: Option<BTreeMap<U256, Claim>>,
 }
 
 impl ConsensusModule {
@@ -125,7 +125,7 @@ impl ConsensusModule {
             quorum_kind: None,
             validator_core_manager,
             votes_pool: Default::default(),
-            miner_election_results: None
+            miner_election_results: None,
         })
     }
 
@@ -569,7 +569,7 @@ impl ConsensusModule {
         Ok(())
     }
 
-    pub(crate) fn is_farmer(&self) -> Result<()> {
+    pub fn is_farmer(&self) -> Result<()> {
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Farmer) {
             return Err(NodeError::Other(format!("local node is not a Farmer Node")));
         }

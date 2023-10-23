@@ -125,9 +125,9 @@ mod tests {
         create_txn_from_accounts_invalid_signature, create_txn_from_accounts_invalid_timestamp,
     };
     use crate::NodeError;
-    use block::Block;
+    use block::{Block, GenesisConfig};
     use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
-    use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
+    use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use storage::storage_utils::remove_vrrb_data_dir;
     use vrrb_core::account::{self, Account, AccountField};
     use vrrb_core::transactions::Transaction;
@@ -196,18 +196,18 @@ mod tests {
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
         let (node_0, farmers, harvesters, miners) = setup_network(8).await;
-        node_0.produce_genesis_transactions(0).unwrap();
+        assert!(node_0.produce_genesis_transactions(vec![]).is_err());
 
         for (_, node) in farmers.iter() {
-            assert!(node.produce_genesis_transactions(0).is_err());
+            assert!(node.produce_genesis_transactions(vec![]).is_err());
         }
 
         for (_, node) in harvesters.iter() {
-            assert!(node.produce_genesis_transactions(0).is_err());
+            assert!(node.produce_genesis_transactions(vec![]).is_err());
         }
 
         for (_, node) in miners.iter() {
-            assert!(node.produce_genesis_transactions(0).is_err());
+            assert!(node.produce_genesis_transactions(vec![]).is_ok());
         }
     }
 
@@ -249,7 +249,7 @@ mod tests {
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -309,7 +309,7 @@ mod tests {
     async fn harvester_node_runtime_can_propose_blocks() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
 
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -384,7 +384,7 @@ mod tests {
     #[serial_test::serial]
     async fn harvester_node_runtime_can_handle_genesis_block_created() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -425,7 +425,7 @@ mod tests {
     #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
+        let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
             .clone()
