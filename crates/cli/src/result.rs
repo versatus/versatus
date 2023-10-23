@@ -12,7 +12,7 @@ pub enum CliError {
     OptsError(String),
 
     #[error("unable to setup telemetry subscriber: {0}")]
-    Telemetry(#[from] telemetry::TelemetryError),
+    Telemetry(#[from] telemetry::custom_subscriber::TelemetryError),
 
     #[error("node error: {0}")]
     Node(#[from] node::result::NodeError),

@@ -9,12 +9,6 @@ use tracing_subscriber::{
 pub enum TelemetryError {
     #[error("failed to initialize: {0}")]
     Init(#[from] TryInitError),
-
-    #[error("{0}")]
-    Other(String),
-
-    #[error("unknown error occurred")]
-    Unknown,
 }
 
 type Result<T> = std::result::Result<T, TelemetryError>;
@@ -59,13 +53,14 @@ impl TelemetrySubscriber {
             sub.try_init()?;
         }
 
-        set_panic_hook();
+        _set_panic_hook();
 
         Ok(())
     }
 }
 
-fn set_panic_hook() {
+// TODO: Fix implementation of std::panic::set_hook
+fn _set_panic_hook() {
     // std::panic::set_hook(Box::new(|panic_info| {
     //     let payload = panic_info.payload().downcast_ref::<&str>();
     //     let location = panic_info.location().map(|loc| loc.to_string());
