@@ -131,7 +131,7 @@ impl QuorumId {
 
         for (id, pubkey) in members.iter() {
             hasher.update(id.as_bytes());
-            hasher.update(&pubkey.serialize());
+            hasher.update(pubkey.serialize());
         }
         let result = hasher.finalize();
 
