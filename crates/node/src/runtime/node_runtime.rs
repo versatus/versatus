@@ -232,7 +232,7 @@ impl NodeRuntime {
         let sender_secret_key = self.config.keypair.miner_secret_key_owned();
         let timestamp = chrono::Utc::now().timestamp();
         let token = Token::default();
-        let amount = 0;
+        let amount = 100;
         let nonce = 0;
 
         let digest = generate_transfer_digest_vec(
