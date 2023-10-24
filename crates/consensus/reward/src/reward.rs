@@ -94,15 +94,6 @@ impl Reward {
         self.amount = BASELINE_REWARD;
     }
 
-    /// The function `new_epoch` is called when a new epoch is reached. It
-    /// increments the epoch number, calculates the next epoch block, and
-    /// adjusts the block reward
-    ///
-    /// Arguments:
-    ///
-    /// * `adjustment_to_next_epoch`: The amount of adjustment to the next
-    ///   epoch.
-
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
