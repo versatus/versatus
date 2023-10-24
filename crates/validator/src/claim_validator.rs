@@ -4,7 +4,7 @@ use hbbft::crypto::{PublicKey, Signature};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use vrrb_core::{
     claim::{Claim, Eligibility},
-    staking::{Stake, StakeUpdate, MIN_STAKE_FARMER, MIN_STAKE_VALIDATOR},
+    staking::{Stake, StakeUpdate, MIN_STAKE_VALIDATOR},
 };
 
 pub type Result<T> = StdResult<T, ClaimValidatorError>;
