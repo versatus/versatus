@@ -39,8 +39,9 @@ pub struct Wallet {
     welcome_message: String,
     client: Client,
     pub public_key: PublicKey,
-    pub addresses: HashMap<AddressAlias, Address>,
-    pub accounts: HashMap<Address, Account>,
+    pub address: Address,
+    // pub addresses: HashMap<AddressAlias, Address>,
+    // pub accounts: HashMap<Address, Account>,
     pub nonce: u128,
 }
 
@@ -49,15 +50,16 @@ pub struct WalletConfig {
     pub rpc_server_address: SocketAddr,
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
-    pub accounts: HashMap<Address, Account>,
-    pub addresses: HashMap<AddressAlias, Address>,
+    // pub accounts: HashMap<Address, Account>,
+    // pub addresses: HashMap<AddressAlias, Address>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WalletInfo {
     pub secret_key: SecretKey,
     pub public_key: String,
-    pub addresses: HashMap<u32, Address>,
+    pub address: String,
+    // pub addresses: HashMap<u32, Address>,
     pub nonce: u128,
 }
 
@@ -68,16 +70,17 @@ impl Default for WalletConfig {
         // CLI
         let secret_key = SecretKey::from_slice(&[0xcd; 32]).unwrap();
         let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+        let address = Address::from(public_key);
         let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
-        let accounts = HashMap::new();
-        let addresses = HashMap::new();
+        // let accounts = HashMap::new();
+        // let addresses = HashMap::new();
 
         Self {
             rpc_server_address,
             secret_key,
             public_key,
-            accounts,
-            addresses,
+            // accounts,
+            // addresses,
         }
     }
 }
@@ -91,8 +94,8 @@ impl Wallet {
         let secret_key = config.secret_key;
         let public_key = config.public_key;
 
-        let addresses = config.addresses;
-        let accounts = config.accounts;
+        // let addresses = config.addresses;
+        // let accounts = config.accounts;
 
         //TODO: get rpc server address from config file or env variable
         let client = create_client(config.rpc_server_address).await?;
@@ -105,10 +108,11 @@ impl Wallet {
         let wallet = Wallet {
             secret_key,
             public_key,
+            address: Address::from(public_key),
             welcome_message,
             client,
-            addresses,
-            accounts,
+            // addresses,
+            // accounts,
             nonce: 0,
         };
 
@@ -119,7 +123,8 @@ impl Wallet {
         WalletInfo {
             secret_key: self.secret_key,
             public_key: self.public_key.to_string(),
-            addresses: self.addresses.clone(),
+            address: Address::from(self.public_key).to_string(),
+            // addresses: self.addresses.clone(),
             nonce: self.nonce,
         }
     }
@@ -132,22 +137,24 @@ impl Wallet {
 
     pub async fn send_transaction(
         &mut self,
-        address_number: u32,
+        // address_number: u32,
         receiver: Address,
         amount: u128,
         token: Token,
         timestamp: i64,
     ) -> Result<RpcTransactionDigest, WalletError> {
-        let addresses = self.addresses.clone();
-        let sender_address = {
-            if let Some(addr) = addresses.get(&address_number) {
-                addr.clone()
-            } else if let Some(addr) = addresses.get(&0) {
-                addr.clone()
-            } else {
-                return Err(WalletError::Custom("wallet has no addresses".to_string()));
-            }
-        };
+        let sender_address = self.address.clone();
+        //TODO: revise this when we reimplement hierarchical deterministic wallets
+        // let addresses = self.addresses.clone();
+        // let sender_address = {
+        //     if let Some(addr) = addresses.get(&address_number) {
+        //         addr.clone()
+        //     } else if let Some(addr) = addresses.get(&0) {
+        //         addr.clone()
+        //     } else {
+        //         return Err(WalletError::Custom("wallet has no addresses".to_string()));
+        //     }
+        // };
 
         let payload = utils::hash_data!(
             timestamp,
@@ -247,28 +254,29 @@ impl Wallet {
                 welcome_message: String::new(),
                 client,
                 public_key: pubkey,
-                addresses: HashMap::new(),
-                accounts: HashMap::new(),
+                address: Address::from(pubkey),
+                // addresses: HashMap::new(),
+                // accounts: HashMap::new(),
                 nonce: 0,
             };
 
-            wallet.get_new_address();
+            // wallet.get_new_address();
 
-            let mut accounts = HashMap::new();
-            let addresses = wallet.addresses.clone();
-            for (_, addr) in addresses.iter() {
-                let account = wallet.get_account(addr.clone()).await?;
-                accounts.insert(addr.to_owned(), account);
-            }
+            // let mut accounts = HashMap::new();
+            // let addresses = wallet.addresses.clone();
+            // for (_, addr) in addresses.iter() {
+            //     let account = wallet.get_account(addr.clone()).await?;
+            //     accounts.insert(addr.to_owned(), account);
+            // }
 
-            wallet.accounts = accounts;
+            // wallet.accounts = accounts;
 
             let welcome_message = format!(
-                "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\nADDRESS: {}\n",
+                "{}\nSECRET KEY: {:?}\nPUBLIC KEY: {:?}\n",
                 "DO NOT SHARE OR LOSE YOUR SECRET KEY:",
                 &wallet.secret_key,
                 &wallet.public_key,
-                &wallet.addresses.get(&1).unwrap(),
+                // &wallet.addresses.get(&1).unwrap(),
             );
 
             wallet.welcome_message = welcome_message;
@@ -282,34 +290,35 @@ impl Wallet {
     }
 
     // Create an account for each address created
-    pub fn get_new_address(&mut self) {
-        let largest_address_index = self.addresses.len();
-        let pk = self.public_key;
-        let new_address = Address::new(pk);
-        self.addresses
-            .insert(largest_address_index as u32, new_address);
-    }
+    //TODO: revisit this when we reimplement hierarchical deterministic wallets
+    // pub fn get_new_address(&mut self) {
+    //     let largest_address_index = self.addresses.len();
+    //     let pk = self.public_key;
+    //     let new_address = Address::new(pk);
+    //     self.addresses
+    //         .insert(largest_address_index as u32, new_address);
+    // }
 
-    pub fn get_wallet_addresses(&self) -> HashMap<AddressAlias, Address> {
-        self.addresses.clone()
-    }
+    // pub fn get_wallet_addresses(&self) -> HashMap<AddressAlias, Address> {
+    //     self.addresses.clone()
+    // }
 
-    pub async fn create_account(
-        &mut self,
-        alias: AddressAlias,
-        public_key: PublicKey,
-    ) -> Result<(Address, Account), WalletError> {
-        let address = Address::new(public_key);
-        let account = Account::new(address.clone());
-
-        self.client
-            .create_account(address.clone(), account.clone())
-            .await
-            .map_err(|err| WalletError::Custom(err.to_string()))?;
-
-        self.addresses.insert(alias, address.clone());
-        self.accounts.insert(address.clone(), account.clone());
-
-        Ok((address, account))
-    }
+    // pub async fn create_account(
+    //     &mut self,
+    //     alias: AddressAlias,
+    //     public_key: PublicKey,
+    // ) -> Result<(Address, Account), WalletError> {
+    //     let address = Address::new(public_key);
+    //     let account = Account::new(address.clone());
+    //
+    //     self.client
+    //         .create_account(address.clone(), account.clone())
+    //         .await
+    //         .map_err(|err| WalletError::Custom(err.to_string()))?;
+    //
+    //     self.addresses.insert(alias, address.clone());
+    //     self.accounts.insert(address.clone(), account.clone());
+    //
+    //     Ok((address, account))
+    // }
 }
