@@ -4,9 +4,7 @@ use std::{
     future::Future,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc,
-        Condvar,
-        Mutex,
+        Arc, Condvar, Mutex,
     },
     thread,
     time::{Duration, Instant},
@@ -121,27 +119,27 @@ impl JobPool {
     fn join_deadline(self, deadline: Option<Instant>) -> bool {
         //inform all workers both running as well as idle,that pool is shutting down
         drop(self.waiting_queue.0);
-        if let Ok(mut workers_count) = self.state.jobs_count.lock() {
+        if let Ok(mut _workers_count) = self.state.jobs_count.lock() {
             if deadline.is_none() {
-                if let Ok(waiting_workers) = self.state.shutdown.wait(workers_count) {
+                if let Ok(waiting_workers) = self.state.shutdown.wait(_workers_count) {
                     //todo: this reassignment is never read, not sure what the intention is...
-                    workers_count = waiting_workers;
+                    _workers_count = waiting_workers;
                 };
             } else {
                 // Graceful shutdown of workers from the pool.
-                while *workers_count > 0 {
+                while *_workers_count > 0 {
                     if let Some(deadline) = deadline {
                         if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
-                            let value = self.state.shutdown.wait_timeout(workers_count, timeout);
+                            let value = self.state.shutdown.wait_timeout(_workers_count, timeout);
                             match value {
                                 Ok(value) => {
-                                    workers_count = value.0;
+                                    _workers_count = value.0;
                                     if value.1.timed_out() {
                                         return false;
                                     }
                                 },
                                 Err(e) => {
-                                    workers_count = e.into_inner().0;
+                                    _workers_count = e.into_inner().0;
                                 },
                             }
                         } else {
