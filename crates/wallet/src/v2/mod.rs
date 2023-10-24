@@ -40,6 +40,7 @@ pub struct Wallet {
     client: Client,
     pub public_key: PublicKey,
     pub address: Address,
+    // TODO: revise this when we reimplement hierarchical deterministic wallets
     // pub addresses: HashMap<AddressAlias, Address>,
     // pub accounts: HashMap<Address, Account>,
     pub nonce: u128,
@@ -50,6 +51,7 @@ pub struct WalletConfig {
     pub rpc_server_address: SocketAddr,
     pub secret_key: SecretKey,
     pub public_key: PublicKey,
+    // TODO: revise this when we reimplement hierarchical deterministic wallets
     // pub accounts: HashMap<Address, Account>,
     // pub addresses: HashMap<AddressAlias, Address>,
 }
@@ -58,6 +60,7 @@ pub struct WalletConfig {
 pub struct WalletInfo {
     pub secret_key: SecretKey,
     pub public_key: String,
+    // TODO: revise this when we reimplement hierarchical deterministic wallets
     pub address: String,
     // pub addresses: HashMap<u32, Address>,
     pub nonce: u128,
@@ -70,8 +73,8 @@ impl Default for WalletConfig {
         // CLI
         let secret_key = SecretKey::from_slice(&[0xcd; 32]).unwrap();
         let public_key = PublicKey::from_secret_key(&secp, &secret_key);
-        let address = Address::from(public_key);
         let rpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9293);
+        // TODO: revise this when we reimplement hierarchical deterministic wallets
         // let accounts = HashMap::new();
         // let addresses = HashMap::new();
 
@@ -94,6 +97,7 @@ impl Wallet {
         let secret_key = config.secret_key;
         let public_key = config.public_key;
 
+        // TODO: revise this when hierarchically deterministic accounts are implemented
         // let addresses = config.addresses;
         // let accounts = config.accounts;
 
@@ -111,6 +115,7 @@ impl Wallet {
             address: Address::from(public_key),
             welcome_message,
             client,
+            // TODO: revise this when we reimplement hierarchical deterministic wallets
             // addresses,
             // accounts,
             nonce: 0,
@@ -123,6 +128,7 @@ impl Wallet {
         WalletInfo {
             secret_key: self.secret_key,
             public_key: self.public_key.to_string(),
+            // TODO: revise this when we reimplement hierarchical deterministic wallets
             address: Address::from(self.public_key).to_string(),
             // addresses: self.addresses.clone(),
             nonce: self.nonce,
@@ -137,6 +143,7 @@ impl Wallet {
 
     pub async fn send_transaction(
         &mut self,
+        // TODO: revise this when we reimplement hierarchical deterministic wallets
         // address_number: u32,
         receiver: Address,
         amount: u128,
