@@ -17,7 +17,6 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
-use secp256k1::Message;
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -26,7 +25,7 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
-use utils::payload::digest_data_to_bytes;
+use utils::{create_payload, payload::digest_data_to_bytes};
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
@@ -35,6 +34,11 @@ use vrrb_core::{
         generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
         TransactionKind, Transfer,
     },
+};
+
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -333,27 +337,29 @@ impl NodeRuntime {
 
     pub fn verify_genesis_block_origin(
         &self,
+        // TODO: implement a getter to retrieve NodeId from state if given a claim
         miner_id: &NodeId,
         genesis_block: GenesisBlock,
     ) -> Result<()> {
         let miner_signature = genesis_block.header.miner_signature;
 
-        let claim = self.state_driver.dag.claim();
-        let claim_list = vec![(claim.hash, claim.clone())];
-        let claim_list_hash = digest_data_to_bytes(&claim_list);
-        let claim_list_hash = hex::encode(claim_list_hash);
-
-        let secret_key = self.config.keypair.miner_secret_key_owned();
-
-        let message =
-            genesis_block_header_hashed_payload(claim.clone(), secret_key, claim_list_hash);
-
-        let message: Vec<u8> = digest_data_to_bytes(&message.to_string());
+        let message = create_payload!(
+            genesis_block.header.ref_hashes,
+            genesis_block.header.round,
+            genesis_block.header.epoch,
+            genesis_block.header.block_seed,
+            genesis_block.header.next_block_seed,
+            genesis_block.header.block_height,
+            genesis_block.header.timestamp,
+            genesis_block.header.txn_hash,
+            genesis_block.header.miner_claim,
+            genesis_block.header.claim_list_hash,
+            genesis_block.header.txn_hash,
+            genesis_block.header.next_block_reward
+        );
 
         self.consensus_driver
-            .sig_engine()
-            .verify(miner_id, &miner_signature, &message)
-            .map_err(|err| NodeError::Other(format!("failed to verify miner signature: {err}")))?;
+            .verify_signature(miner_id, &miner_signature, &message)?;
 
         Ok(())
     }

@@ -185,6 +185,24 @@ impl SignerEngine {
         Err(Error::FailedVerification("missing public key".to_string()))
     }
 
+    /// Signature verification with a given message
+    pub fn verify_with_message(
+        &self,
+        node_id: &NodeId,
+        sig: &Signature,
+        message: &Message,
+    ) -> Result<(), Error> {
+        let pk = self
+            .quorum_members
+            .get_public_key_from_members(node_id)
+            .ok_or(Error::FailedVerification("missing public key".to_string()))?;
+
+        sig.verify(message, &pk)
+            .map_err(|e| Error::SecpError(e.to_string()))?;
+
+        Ok(())
+    }
+
     pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
         &self,
         batch_sigs: &Vec<(NodeId, Signature)>,

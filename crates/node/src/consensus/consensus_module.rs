@@ -4,6 +4,7 @@ use block::{
     header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 use bulldag::graph::BullDag;
+use ethereum_types::U256;
 use events::{SyncPeerData, Vote};
 use mempool::MempoolReadHandleFactory;
 use miner::conflict_resolver::Resolver;
@@ -11,6 +12,7 @@ use primitives::{
     NodeId, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
     QuorumPublicKey, RawSignature, Signature, ValidatorPublicKey,
 };
+use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
 use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
@@ -22,7 +24,6 @@ use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 use vrrb_core::{bloom::Bloom, keypair::Keypair};
-use ethereum_types::U256;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -87,7 +88,7 @@ pub struct ConsensusModule {
     pub(crate) quorum_kind: Option<QuorumKind>,
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
-    pub miner_election_results: Option<BTreeMap<U256, Claim>> 
+    pub miner_election_results: Option<BTreeMap<U256, Claim>>,
 }
 
 impl ConsensusModule {
@@ -125,7 +126,7 @@ impl ConsensusModule {
             quorum_kind: None,
             validator_core_manager,
             votes_pool: Default::default(),
-            miner_election_results: None
+            miner_election_results: None,
         })
     }
 
@@ -594,5 +595,19 @@ impl ConsensusModule {
         &self,
     ) -> HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)> {
         self.quorum_certified_txns.clone()
+    }
+
+    pub fn verify_signature(
+        &self,
+        node_id: &NodeId,
+        sig: &Signature,
+        // data: impl AsRef<[u8]>,
+        message: &Message,
+    ) -> Result<()> {
+        self.sig_engine()
+            .verify_with_message(node_id, sig, message)
+            .map_err(|err| NodeError::Other(format!("failed to verify miner signature: {err}")))?;
+
+        Ok(())
     }
 }
