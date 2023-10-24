@@ -5,7 +5,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use block::{Certificate, ConvergenceBlock};
+use block::{Block, Certificate, ConvergenceBlock};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -437,6 +437,32 @@ impl NetworkModule {
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
         let message = dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(vote));
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::BlockCreated(block));
+
         self.dyswarm_client
             .broadcast(BroadcastArgs {
                 config: Default::default(),

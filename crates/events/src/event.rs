@@ -168,6 +168,8 @@ pub enum Event {
 
     MinerElected((U256, Claim)),
 
+    GenesisMinerElected(NodeId),
+
     ProposalBlockCreated(ProposalBlock),
 
     ConvergenceBlockCreated(ConvergenceBlock),
