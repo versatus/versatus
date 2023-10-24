@@ -68,8 +68,8 @@ pub fn genesis_block_header_hashed_payload(
     let block_height = 0;
     let next_block_reward = Reward::default();
 
-    // let hashed = digest_data_to_bytes(&(
-    let hashed = bincode::serialize(&(
+    let hashed = format!(
+        "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
         ref_hashes,
         round,
         epoch,
@@ -82,10 +82,9 @@ pub fn genesis_block_header_hashed_payload(
         claim_list_hash,
         block_reward,
         next_block_reward,
-    ))
-    .unwrap_or_default();
+    );
 
-    Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed))
+    Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed.as_bytes()))
 }
 
 impl BlockHeader {

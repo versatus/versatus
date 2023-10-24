@@ -342,8 +342,8 @@ impl NodeRuntime {
 
         let miner_id = genesis_block.header.miner_claim.node_id.clone();
 
-        // let hashed = digest_data_to_bytes(&(
-        let hashed = bincode::serialize(&(
+        let hashed = format!(
+            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
             genesis_block.header.ref_hashes,
             genesis_block.header.round,
             genesis_block.header.epoch,
@@ -356,10 +356,9 @@ impl NodeRuntime {
             genesis_block.header.claim_list_hash,
             genesis_block.header.block_reward,
             genesis_block.header.next_block_reward,
-        ))
-        .unwrap_or_default();
+        );
 
-        let message = Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed));
+        let message = Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed.as_bytes()));
 
         self.consensus_driver
             .verify_signature(&miner_id, &miner_signature, &message)?;
