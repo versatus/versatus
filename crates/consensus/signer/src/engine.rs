@@ -171,9 +171,11 @@ impl SignerEngine {
     ) -> Result<(), Error> {
         let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
+
         let result = hasher.finalize().to_vec();
         let message = Message::from_slice(&result);
         let pk = self.quorum_members.get_public_key_from_members(node_id);
+
         if let Some(pk) = pk {
             return sig
                 .verify(&message.map_err(|e| Error::SecpError(e.to_string()))?, &pk)

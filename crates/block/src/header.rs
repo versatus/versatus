@@ -33,6 +33,59 @@ pub struct BlockHeader {
     pub miner_signature: primitives::Signature,
 }
 
+pub fn genesis_default_ref_hashes() -> Vec<String> {
+    vec![hex::encode(hash_data!("Genesis_Ref_hash".to_string()))]
+}
+
+pub fn genesis_block_header_signature_message(ref_hashes: Vec<String>) -> Vec<u8> {
+    let ref_hashes_hash = hex::encode(hash_data!(ref_hashes));
+    let genesis_last_hash = hex::encode(hash_data!("Genesis_Last_Hash".to_string()));
+
+    hex::encode(hash_data!(ref_hashes_hash, genesis_last_hash))
+        .as_bytes()
+        .to_vec()
+}
+
+pub fn genesis_block_header_hashed_payload(
+    miner_claim: Claim,
+    secret_key: SecretKey,
+    claim_list_hash: String,
+) -> Message {
+    let seed = 0;
+    let round = 0;
+    let epoch = 0;
+
+    let ref_hashes = genesis_default_ref_hashes();
+    let message = genesis_block_header_signature_message(ref_hashes.clone());
+
+    let mut vrf = VVRF::new(&message, secret_key.secret_bytes().as_ref());
+
+    let next_block_seed = vrf.generate_u64_in_range(u32::MAX as u64, u64::MAX);
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let txn_hash = hex::encode(hash_data!("Genesis_Txn_Hash".to_string()));
+    let block_reward = Reward::genesis(Some(miner_claim.address.to_string()));
+    let block_height = 0;
+    let next_block_reward = Reward::default();
+
+    let payload = create_payload!(
+        ref_hashes,
+        round,
+        epoch,
+        seed,
+        next_block_seed,
+        block_height,
+        timestamp,
+        txn_hash,
+        miner_claim,
+        claim_list_hash,
+        block_reward,
+        next_block_reward
+    );
+
+    payload
+}
+
 impl BlockHeader {
     //TODO: miners needs to wait on threshold signature before passing to this fxn
     pub fn genesis(
@@ -46,14 +99,15 @@ impl BlockHeader {
         //TODO: Determine data fields to be used as message in VPRNG, must be
         // known/revealed within block but cannot be predictable or gameable.
         // Leading candidates are some combination of last_hash and last_block_seed
-        let ref_hashes = vec![hex::encode(hash_data!("Genesis_Ref_hash".to_string()))];
-        let ref_hashes_hash = hex::encode(hash_data!(ref_hashes));
-        let genesis_last_hash = hex::encode(hash_data!("Genesis_Last_Hash".to_string()));
-        let message = {
-            hex::encode(hash_data!(ref_hashes_hash, genesis_last_hash))
-                .as_bytes()
-                .to_vec()
-        };
+
+        let ref_hashes = genesis_default_ref_hashes();
+        let message = genesis_block_header_signature_message(ref_hashes.clone());
+
+        let payload = genesis_block_header_hashed_payload(
+            miner_claim.clone(),
+            secret_key,
+            claim_list_hash.clone(),
+        );
 
         let mut vrf = VVRF::new(&message, secret_key.secret_bytes().as_ref());
 
@@ -62,23 +116,7 @@ impl BlockHeader {
         let timestamp = chrono::Utc::now().timestamp();
         let txn_hash = hex::encode(hash_data!("Genesis_Txn_Hash".to_string()));
         let block_reward = Reward::genesis(Some(miner_claim.address.to_string()));
-        let block_height = 0;
         let next_block_reward = Reward::default();
-
-        let payload = create_payload!(
-            ref_hashes,
-            round,
-            epoch,
-            seed,
-            next_block_seed,
-            block_height,
-            timestamp,
-            txn_hash,
-            miner_claim,
-            claim_list_hash,
-            block_reward,
-            next_block_reward
-        );
 
         let miner_signature = secret_key.sign_ecdsa(payload);
 

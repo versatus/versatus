@@ -175,13 +175,13 @@ impl Handler<EventMessage> for NodeRuntime {
                 // Claim should be added to pending claims
                 // Event to validate claim should be created
             },
-            Event::BlockReceived(mut block) => {
+            Event::BlockReceived(node_id, mut block) => {
                 let next_event = self
                     .state_driver
                     .handle_block_received(&mut block, self.consensus_driver.sig_engine.clone())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                self.handle_block_received(block)?;
+                self.handle_block_received(node_id, block)?;
 
                 self.events_tx
                     .send(next_event.into())

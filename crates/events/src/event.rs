@@ -70,10 +70,10 @@ pub enum Event {
         cutoff_transaction: TransactionDigest,
     },
 
-    /// `BlockReceived(Block)` represents a block that has been received from
+    /// `BlockReceived(NodeId, Block)` represents a block that has been received from
     /// peers in the network. The block can be a genesis block, a proposal
     /// block, or a convergence block.
-    BlockReceived(Block),
+    BlockReceived(NodeId, Block),
 
     //BlockConfirmed — Should we broadcast convergence block and certificate to all nodes
     // separately?

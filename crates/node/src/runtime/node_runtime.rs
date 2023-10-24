@@ -4,8 +4,12 @@ use crate::{
     state_manager::{StateManager, StateManagerConfig},
 };
 use block::{
-    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
+    header::{
+        genesis_block_header_hashed_payload, genesis_block_header_signature_message,
+        genesis_default_ref_hashes, BlockHeader,
+    },
+    vesting::GenesisConfig,
+    Block, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
@@ -334,9 +338,21 @@ impl NodeRuntime {
     ) -> Result<()> {
         let miner_signature = genesis_block.header.miner_signature;
 
+        let claim = self.state_driver.dag.claim();
+        let claim_list = vec![(claim.hash, claim.clone())];
+        let claim_list_hash = digest_data_to_bytes(&claim_list);
+        let claim_list_hash = hex::encode(claim_list_hash);
+
+        let secret_key = self.config.keypair.miner_secret_key_owned();
+
+        let message =
+            genesis_block_header_hashed_payload(claim.clone(), secret_key, claim_list_hash);
+
+        let message: Vec<u8> = digest_data_to_bytes(&message.to_string());
+
         self.consensus_driver
             .sig_engine()
-            .verify(miner_id, &miner_signature, &[])
+            .verify(miner_id, &miner_signature, &message)
             .map_err(|err| NodeError::Other(format!("failed to verify miner signature: {err}")))?;
 
         Ok(())
