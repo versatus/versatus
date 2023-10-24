@@ -1,8 +1,9 @@
 //! Genesis block should contain a list of value transfer transactions to pre configured addresses. These transactions should allocate a pre configurable number of tokens.
 use block::GenesisReceiver;
 use events::DEFAULT_BUFFER;
-use node::test_utils::create_quorum_assigned_node_runtime_network;
+use node::{node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network};
 use primitives::{Address, NodeType};
+use storage::vrrbdb::ApplyBlockResult;
 use vrrb_core::transactions::TransactionKind;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one transaction
@@ -65,6 +66,16 @@ async fn genesis_block_txns_are_applied_to_state() {
 
     let mut genesis_miner = nodes.first_mut().unwrap().clone();
     genesis_miner.config.node_type = NodeType::Miner;
+    let mut all_nodes: Vec<NodeRuntime> = nodes
+        .iter()
+        .filter_map(|node| {
+            if !node.consensus_driver.is_bootstrap_node() {
+                Some(node.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
     let receiver_addresses = nodes
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
@@ -76,8 +87,26 @@ async fn genesis_block_txns_are_applied_to_state() {
     let genesis_block = genesis_miner
         .mine_genesis_block(genesis_txns.clone())
         .unwrap();
-    nodes.iter_mut().for_each(|node| {
-        dbg!(&node.state_snapshot());
+    let results: Vec<ApplyBlockResult> = all_nodes
+        .iter_mut()
+        .map(|node| {
+            node.handle_block_received(block::Block::Genesis {
+                block: genesis_block.clone().into(),
+            })
+            .unwrap()
+        })
+        .collect();
+    let apply_block_result = results.first().unwrap();
+
+    results.iter().for_each(|res| {
+        assert_eq!(
+            res.transactions_root_hash_str(),
+            apply_block_result.transactions_root_hash_str()
+        );
+        assert_eq!(
+            res.state_root_hash_str(),
+            apply_block_result.state_root_hash_str()
+        );
     });
 }
 
