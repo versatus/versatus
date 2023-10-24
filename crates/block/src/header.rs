@@ -8,7 +8,7 @@ use secp256k1::{
     Message,
 };
 use serde::{Deserialize, Serialize};
-use utils::{create_payload, hash_data};
+use utils::{create_payload, hash_data, payload::digest_data_to_bytes};
 use vrrb_core::claim::Claim;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
@@ -68,7 +68,8 @@ pub fn genesis_block_header_hashed_payload(
     let block_height = 0;
     let next_block_reward = Reward::default();
 
-    let payload = create_payload!(
+    // let hashed = digest_data_to_bytes(&(
+    let hashed = bincode::serialize(&(
         ref_hashes,
         round,
         epoch,
@@ -80,10 +81,11 @@ pub fn genesis_block_header_hashed_payload(
         miner_claim,
         claim_list_hash,
         block_reward,
-        next_block_reward
-    );
+        next_block_reward,
+    ))
+    .unwrap_or_default();
 
-    payload
+    Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed))
 }
 
 impl BlockHeader {

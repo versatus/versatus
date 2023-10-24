@@ -17,24 +17,16 @@ use crate::{
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 impl NodeRuntime {
-    pub fn handle_block_received(
-        &mut self,
-        block_author_id: NodeId,
-        block: Block,
-    ) -> Result<ApplyBlockResult> {
+    pub fn handle_block_received(&mut self, block: Block) -> Result<ApplyBlockResult> {
         match block {
-            Block::Genesis { block } => self.handle_genesis_block_received(block_author_id, block),
+            Block::Genesis { block } => self.handle_genesis_block_received(block),
             Block::Proposal { block } => self.handle_proposal_block_received(block),
             Block::Convergence { block } => self.handle_convergence_block_received(block),
         }
     }
 
-    fn handle_genesis_block_received(
-        &mut self,
-        block_author_id: NodeId,
-        block: GenesisBlock,
-    ) -> Result<ApplyBlockResult> {
-        self.verify_genesis_block_origin(&block_author_id, block.clone())?;
+    fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
+        self.verify_genesis_block_origin(block.clone())?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 

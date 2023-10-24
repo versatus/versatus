@@ -3,6 +3,7 @@ use crate::{
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerConfig},
 };
+
 use block::{
     header::{
         genesis_block_header_hashed_payload, genesis_block_header_signature_message,
@@ -17,6 +18,7 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
+use sha2::{Digest, Sha256};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -335,15 +337,13 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
-    pub fn verify_genesis_block_origin(
-        &self,
-        // TODO: implement a getter to retrieve NodeId from state if given a claim
-        miner_id: &NodeId,
-        genesis_block: GenesisBlock,
-    ) -> Result<()> {
+    pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
         let miner_signature = genesis_block.header.miner_signature;
 
-        let message = create_payload!(
+        let miner_id = genesis_block.header.miner_claim.node_id.clone();
+
+        // let hashed = digest_data_to_bytes(&(
+        let hashed = bincode::serialize(&(
             genesis_block.header.ref_hashes,
             genesis_block.header.round,
             genesis_block.header.epoch,
@@ -354,12 +354,15 @@ impl NodeRuntime {
             genesis_block.header.txn_hash,
             genesis_block.header.miner_claim,
             genesis_block.header.claim_list_hash,
-            genesis_block.header.txn_hash,
-            genesis_block.header.next_block_reward
-        );
+            genesis_block.header.block_reward,
+            genesis_block.header.next_block_reward,
+        ))
+        .unwrap_or_default();
+
+        let message = Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed));
 
         self.consensus_driver
-            .verify_signature(miner_id, &miner_signature, &message)?;
+            .verify_signature(&miner_id, &miner_signature, &message)?;
 
         Ok(())
     }

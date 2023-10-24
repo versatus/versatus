@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 sha256 = { workspace = true }
+bincode = { workspace = true }
 rand = { workspace = true }
 uuid = { workspace = true }
 bytebuffer = { workspace = true }
@@ -28,5 +29,5 @@ sha2 = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }
 ethereum-types = { workspace = true }
-hbbft = { workspace = true } 
+hbbft = { workspace = true }
 signer = { workspace = true }

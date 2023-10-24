@@ -601,7 +601,6 @@ impl ConsensusModule {
         &self,
         node_id: &NodeId,
         sig: &Signature,
-        // data: impl AsRef<[u8]>,
         message: &Message,
     ) -> Result<()> {
         self.sig_engine()

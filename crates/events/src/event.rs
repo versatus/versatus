@@ -73,7 +73,7 @@ pub enum Event {
     /// `BlockReceived(NodeId, Block)` represents a block that has been received from
     /// peers in the network. The block can be a genesis block, a proposal
     /// block, or a convergence block.
-    BlockReceived(NodeId, Block),
+    BlockReceived(Block),
 
     //BlockConfirmed — Should we broadcast convergence block and certificate to all nodes
     // separately?

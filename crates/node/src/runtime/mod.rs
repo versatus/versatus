@@ -327,7 +327,7 @@ mod tests {
         let block = miner_node.mine_genesis_block(genesis_txns).unwrap();
 
         harvester
-            .handle_block_received(miner_node.config.id.clone(), block::Block::from(block))
+            .handle_block_received(block::Block::from(block))
             .unwrap();
     }
 
@@ -402,12 +402,9 @@ mod tests {
 
         for (_, harvester) in harvesters.iter_mut() {
             let apply_result = harvester
-                .handle_block_received(
-                    miner_node.config.id.clone(),
-                    Block::Genesis {
-                        block: genesis_block.clone(),
-                    },
-                )
+                .handle_block_received(Block::Genesis {
+                    block: genesis_block.clone(),
+                })
                 .unwrap();
 
             // let genesis_cert = harvester
@@ -419,12 +416,9 @@ mod tests {
         }
 
         miner_node
-            .handle_block_received(
-                miner_node.config.id.clone(),
-                Block::Genesis {
-                    block: genesis_block.clone(),
-                },
-            )
+            .handle_block_received(Block::Genesis {
+                block: genesis_block.clone(),
+            })
             .unwrap();
 
         for (_, harvester) in harvesters.iter_mut() {
@@ -464,12 +458,9 @@ mod tests {
 
         for (_, harvester) in harvesters.iter_mut() {
             let apply_result = harvester
-                .handle_block_received(
-                    miner_node.config.id.clone(),
-                    Block::Genesis {
-                        block: genesis_block.clone(),
-                    },
-                )
+                .handle_block_received(Block::Genesis {
+                    block: genesis_block.clone(),
+                })
                 .unwrap();
 
             apply_results.push(apply_result);
@@ -513,12 +504,9 @@ mod tests {
 
         for (_, harvester) in harvesters.iter_mut() {
             let apply_result = harvester
-                .handle_block_received(
-                    miner_node.config.id.clone(),
-                    Block::Genesis {
-                        block: genesis_block.clone(),
-                    },
-                )
+                .handle_block_received(Block::Genesis {
+                    block: genesis_block.clone(),
+                })
                 .unwrap();
 
             // let genesis_cert = harvester
@@ -530,12 +518,9 @@ mod tests {
         }
 
         miner_node
-            .handle_block_received(
-                miner_node.config.id.clone(),
-                Block::Genesis {
-                    block: genesis_block.clone(),
-                },
-            )
+            .handle_block_received(Block::Genesis {
+                block: genesis_block.clone(),
+            })
             .unwrap();
 
         let convergence_block = miner_node.mine_convergence_block().unwrap();
@@ -544,12 +529,9 @@ mod tests {
 
         for (_, harvester) in harvesters.iter_mut() {
             let apply_result = harvester
-                .handle_block_received(
-                    miner_node.config.id.clone(),
-                    Block::Convergence {
-                        block: convergence_block.clone(),
-                    },
-                )
+                .handle_block_received(Block::Convergence {
+                    block: convergence_block.clone(),
+                })
                 .unwrap();
 
             apply_results.push(apply_result);
