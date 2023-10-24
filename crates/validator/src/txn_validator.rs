@@ -1,11 +1,8 @@
-use std::{collections::HashMap, result::Result as StdResult, str::FromStr};
+use std::result::Result as StdResult;
 
-use mempool::MempoolReadHandleFactory;
-use primitives::Address;
-use storage::vrrbdb::{StateStoreReadHandle, StateStoreReadHandleFactory};
+use sha2::{Digest, Sha256};
+use storage::vrrbdb::StateStoreReadHandleFactory;
 use vrrb_core::transactions::{Transaction, TransactionKind};
-use vrrb_core::{account::Account, keypair::KeyPair};
-use sha2::{Sha256, Digest};
 
 pub type Result<T> = StdResult<T, TxnValidatorError>;
 
@@ -60,7 +57,7 @@ pub enum TxnValidatorError {
     #[error("transaction payload not valid")]
     PayloadInvalid(String),
     #[error("other")]
-    Other(String)
+    Other(String),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -91,8 +88,8 @@ impl TxnValidator {
     ) -> Result<()> {
         self.validate_amount(state_reader, txn)
             .and_then(|_| self.validate_public_key(txn))
- //           .and_then(|_| self.validate_sender_address(txn))
- //           .and_then(|_| self.validate_receiver_address(txn))
+            //           .and_then(|_| self.validate_sender_address(txn))
+            //           .and_then(|_| self.validate_receiver_address(txn))
             .and_then(|_| self.validate_signature(txn))
             .and_then(|_| self.validate_timestamp(txn))
     }
@@ -102,12 +99,11 @@ impl TxnValidator {
         let mut hasher = Sha256::new();
         hasher.update(txn.build_payload().as_bytes());
         let result = hasher.finalize().to_vec();
-        let message = secp256k1::Message::from_slice(&result).map_err(|err| {
-            TxnValidatorError::PayloadInvalid(err.to_string())
-        })?;
-        txn.signature().verify(&message, &txn.sender_public_key()).map_err(|err| {
-            TxnValidatorError::TxnSignatureIncorrect(err.to_string())
-        })
+        let message = secp256k1::Message::from_slice(&result)
+            .map_err(|err| TxnValidatorError::PayloadInvalid(err.to_string()))?;
+        txn.signature()
+            .verify(&message, &txn.sender_public_key())
+            .map_err(|err| TxnValidatorError::TxnSignatureIncorrect(err.to_string()))
     }
 
     /// Txn public key validator
@@ -134,19 +130,19 @@ impl TxnValidator {
 
     /// Txn receiver validator
     // TODO, to be synchronized with Wallet.
-//    pub fn validate_receiver_address(&self, txn: &TransactionKind) -> Result<()> {
-//        if !txn.receiver_address().to_string().is_empty()
-//            && txn
-//                .receiver_address()
-//                .to_string()
-//                .starts_with(ADDRESS_PREFIX)
-//            && txn.receiver_address().to_string().len() > 10
-//        {
-//            Ok(())
-//        } else {
-//            Err(TxnValidatorError::ReceiverAddressMissing)
-//        }
-//    }
+    //    pub fn validate_receiver_address(&self, txn: &TransactionKind) -> Result<()> {
+    //        if !txn.receiver_address().to_string().is_empty()
+    //            && txn
+    //                .receiver_address()
+    //                .to_string()
+    //                .starts_with(ADDRESS_PREFIX)
+    //            && txn.receiver_address().to_string().len() > 10
+    //        {
+    //            Ok(())
+    //        } else {
+    //            Err(TxnValidatorError::ReceiverAddressMissing)
+    //        }
+    //    }
 
     /// Txn timestamp validator
     pub fn validate_timestamp(&self, txn: &TransactionKind) -> Result<()> {
@@ -172,7 +168,9 @@ impl TxnValidator {
         txn: &TransactionKind,
     ) -> Result<()> {
         let address = txn.sender_address();
-        let account = state_reader.handle().get(&address)
+        let account = state_reader
+            .handle()
+            .get(&address)
             .map_err(|_| TxnValidatorError::SenderAddressIncorrect)?;
         if (account.credits() - account.debits())
             .checked_sub(txn.amount())
