@@ -1,27 +1,33 @@
 use std::path::Path;
 
 use secp256k1::{generate_keypair, rand};
+use primitives::Address;
+use vrrb_core::account::Account;
 use vrrb_core::helpers::write_keypair_file;
 use wallet::v2::{AddressAlias, Wallet};
 
 use crate::result::CliError;
 
-pub async fn exec(wallet: &mut Wallet, path: &Path, alias: AddressAlias) -> Result<(), CliError> {
+pub async fn exec(/*wallet: &mut Wallet, */ path: &Path, /*alias: AddressAlias*/) -> Result<(), CliError> {
+    // TODO: revise when hierarchically deterministic accounts are implemented
     // TODO: read keypair from file
 
     let (secret_key, public_key) = generate_keypair(&mut rand::thread_rng());
 
-    let account_data_dir = path.join(format!("{alias}"));
+    let account_data_dir = path.join(format!("account"));
+    // let account_data_dir = path.join(format!("{alias}"));
 
     std::fs::create_dir_all(&account_data_dir)?;
 
     let key_path = account_data_dir.join("keys");
     let account_path = account_data_dir.join("account.json");
 
-    let (_, account) = wallet
-        .create_account(alias, public_key)
-        .await
-        .map_err(|err| CliError::Other(format!("unable to create account in state: {err}")))?;
+    // let (_, account) = wallet
+    //     .create_account(alias, public_key)
+    //     .await
+    //     .map_err(|err| CliError::Other(format!("unable to create account in state: {err}")))?;
+    let address = Address::from(public_key);
+    let account = Account::new(address);
 
     write_keypair_file(key_path, &(secret_key, public_key))
         .map_err(|err| CliError::Other(format!("unable to write keypair file: {err}")))?;
