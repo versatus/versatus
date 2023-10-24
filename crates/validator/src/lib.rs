@@ -13,10 +13,8 @@ mod tests {
     use primitives::{Address, Signature};
     use rand::{rngs::StdRng, Rng};
     use secp256k1::ecdsa;
+    use vrrb_core::keypair::KeyPair;
     use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
-    use vrrb_core::{account::Account, keypair::KeyPair};
-
-    use crate::validator_core_manager::ValidatorCoreManager;
 
     // TODO: Use proper txns when there will be proper txn validation
     // implemented
@@ -24,7 +22,7 @@ mod tests {
         format!("{}", rng.gen::<u32>())
     }
 
-    fn mock_txn_signature() -> Signature {
+    fn _mock_txn_signature() -> Signature {
         ecdsa::Signature::from_compact(&[
             0xdc, 0x4d, 0xc2, 0x64, 0xa9, 0xfe, 0xf1, 0x7a, 0x3f, 0x25, 0x34, 0x49, 0xcf, 0x8c,
             0x39, 0x7a, 0xb6, 0xf1, 0x6f, 0xb3, 0xd6, 0x3d, 0x86, 0x94, 0x0b, 0x55, 0x86, 0x82,
@@ -35,7 +33,7 @@ mod tests {
         .unwrap()
     }
 
-    fn random_txn() -> TransactionKind {
+    fn _random_txn() -> TransactionKind {
         let sender_kp = KeyPair::random();
         let recv_kp = KeyPair::random();
 
@@ -49,7 +47,7 @@ mod tests {
             receiver_address: recv_address.clone(),
             token: None,
             amount: 0,
-            signature: mock_txn_signature(),
+            signature: _mock_txn_signature(),
             validators: Some(HashMap::<String, bool>::new()),
             nonce: 0,
         }))
