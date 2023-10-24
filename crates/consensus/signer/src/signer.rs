@@ -39,13 +39,13 @@ pub trait Signer {
 /// Converts a string slice into the Fr type.
 pub trait NodeIdFrBuilder: AsRef<str> {
     fn create_fr(&self) -> Fr {
-        let (m, l) = uuid::Uuid::from_str(&self.as_ref())
+        let (m, l) = uuid::Uuid::from_str(self.as_ref())
             .expect("failed to create uuid from string slice")
             .as_u64_pair();
-        let uuid_vec = vec![m, l, 0, 0];
-        let mut fr_repr = FrRepr::default();
-        for (mut fr_slot, uuid_slot) in fr_repr.0.iter().zip(uuid_vec.iter()) {
-            fr_slot = uuid_slot;
+        let uuid_vec = [m, l, 0, 0];
+        let fr_repr = FrRepr::default();
+        for (mut _fr_slot, uuid_slot) in fr_repr.0.iter().zip(uuid_vec.iter()) {
+            _fr_slot = uuid_slot;
         }
         Fr::from_repr(fr_repr).expect("failed to create Fr from FrRepr")
     }
