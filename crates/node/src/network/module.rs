@@ -1,10 +1,5 @@
-use std::{
-    collections::HashMap,
-    net::{AddrParseError, SocketAddr},
-    ops::AddAssign,
-};
+use std::net::SocketAddr;
 
-use async_trait::async_trait;
 use block::{Block, Certificate, ConvergenceBlock};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
@@ -13,16 +8,11 @@ use dyswarm::{
 use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote,
 };
-use hbbft::{
-    crypto::PublicKey as ThresholdSignaturePublicKey,
-    sync_key_gen::{Ack, Part},
-};
+use hbbft::sync_key_gen::{Ack, Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
-use signer::engine::QuorumData;
-use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
@@ -34,9 +24,13 @@ use crate::{
     DEFAULT_ERASURE_COUNT,
 };
 
+// TODO: change these magic numbers when retrieving the closest peers to a dynamically sized
+// network members count such that broadcast can happen across the whole network
+
 #[derive(Debug)]
 pub struct NetworkModule {
     pub(crate) id: ActorId,
+    pub(crate) node_config: NodeConfig,
     pub(crate) node_id: NodeId,
     pub(crate) node_type: NodeType,
     pub(crate) status: ActorState,
@@ -115,6 +109,7 @@ impl NetworkModule {
             node_id: config.node_id.clone(),
             node_type: config.node_type,
             status: ActorState::Stopped,
+            node_config: config.node_config.clone(),
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
             is_bootstrap: config.bootstrap_node_config.is_none(),
