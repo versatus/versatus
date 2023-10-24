@@ -249,7 +249,6 @@ mod tests {
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
         let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -260,6 +259,7 @@ mod tests {
         let miner_id = miner_ids.first().unwrap();
 
         let miner_node = miners.get(miner_id).unwrap();
+        let genesis_txns = miner_node.produce_genesis_transactions(vec![]).unwrap();
 
         assert!(node_0.mine_genesis_block(genesis_txns.clone()).is_err());
 
@@ -308,7 +308,7 @@ mod tests {
     #[serial_test::serial]
     async fn harvester_node_runtime_can_propose_blocks() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
-
+        node_0.config.node_type = NodeType::Miner;
         let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
@@ -384,6 +384,7 @@ mod tests {
     #[serial_test::serial]
     async fn harvester_node_runtime_can_handle_genesis_block_created() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
+        node_0.config.node_type = NodeType::Miner;
         let genesis_txns = node_0.produce_genesis_transactions(vec![]).unwrap();
 
         let miner_ids = miners
