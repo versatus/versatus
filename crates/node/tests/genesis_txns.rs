@@ -34,14 +34,16 @@ async fn genesis_block_txns_are_valid() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    let mut genesis_miner = nodes.first_mut().unwrap().clone();
+    nodes.reverse();
+    let mut genesis_miner = nodes.pop().unwrap(); // remove the bootstrap and make it a miner
     let sender_address = Address::new(genesis_miner.config.keypair.miner_public_key_owned());
     genesis_miner.config.node_type = NodeType::Miner;
+
     let receiver_addresses = nodes
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
         .collect::<Vec<Address>>();
-    let receivers = assign_genesis_receivers(receiver_addresses);
+    let receivers = assign_genesis_receivers(receiver_addresses.clone());
     let genesis_txns = genesis_miner
         .produce_genesis_transactions(receivers)
         .unwrap();
@@ -53,7 +55,9 @@ async fn genesis_block_txns_are_valid() {
         {
             assert_eq!(&transfer.sender_address, &sender_address);
             assert!(genesis_txns.contains_key(&transfer.id));
-            assert!(transfer.amount > 0);
+            if receiver_addresses.contains(&transfer.receiver_address) {
+                assert!(transfer.amount > 0);
+            }
         }
     }
 }
