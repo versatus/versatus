@@ -83,12 +83,10 @@ fn new_db_instance(
     let mut instance = rocksdb::DB::open_cf(&options, &path, cfs)
         .map_err(|err| StorageError::Other(err.to_string()))?;
 
-    if !column_family_exists {
-        if column_family != DEFAULT_COLUMN_FAMILY_NAME {
-            instance
-                .create_cf(column_family, &options)
-                .map_err(|err| StorageError::Other(err.to_string()))?;
-        }
+    if !column_family_exists && column_family != DEFAULT_COLUMN_FAMILY_NAME {
+        instance
+            .create_cf(column_family, &options)
+            .map_err(|err| StorageError::Other(err.to_string()))?;
     }
 
     Ok(instance)
@@ -193,19 +191,14 @@ impl VersionedDatabase for RocksDbAdapter {
         let locked = self.data.read();
         let iter = locked.db.iterator(IteratorMode::Start);
         let mut map = HashMap::new();
-        for res in iter {
-            match res {
-                Ok((boxed_key, boxed_node)) => {
-                    let key_bytes = boxed_key.into_vec();
-                    let node_bytes = boxed_node.into_vec();
-                    if let Ok(node_key) = bincode::deserialize::<NodeKey>(&key_bytes) {
-                        if let Ok(node) = bincode::deserialize::<Node>(&node_bytes) {
-                            map.insert(node_key, node);
-                        }
-                    };
-                },
-                _ => {},
-            }
+        for (boxed_key, boxed_node) in iter.flatten() {
+            let key_bytes = boxed_key.into_vec();
+            let node_bytes = boxed_node.into_vec();
+            if let Ok(node_key) = bincode::deserialize::<NodeKey>(&key_bytes) {
+                if let Ok(node) = bincode::deserialize::<Node>(&node_bytes) {
+                    map.insert(node_key, node);
+                }
+            };
         }
 
         map.into_iter()
@@ -259,14 +252,14 @@ impl TreeReader for RocksDbAdapter {
         let mut key_and_node: Option<(NodeKey, LeafNode)> = None;
 
         let iter = locked.db.iterator(IteratorMode::Start);
-        for res in iter {
-            if let Ok((boxed_key, boxed_value)) = res {
-                let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
-                let node_value: Node = bincode::deserialize(&boxed_value.into_vec())?;
-                if let Node::Leaf(leaf_node) = node_value {
-                    if key_and_node.is_none() || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash() {
-                        key_and_node.replace((node_key.clone(), leaf_node.clone()));
-                    }
+        for (boxed_key, boxed_value) in iter.flatten() {
+            let node_key: NodeKey = bincode::deserialize(&boxed_key.into_vec())?;
+            let node_value: Node = bincode::deserialize(&boxed_value.into_vec())?;
+            if let Node::Leaf(leaf_node) = node_value {
+                if key_and_node.is_none()
+                    || leaf_node.key_hash() > key_and_node.as_ref().unwrap().1.key_hash()
+                {
+                    key_and_node.replace((node_key.clone(), leaf_node.clone()));
                 }
             }
         }

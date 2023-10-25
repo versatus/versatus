@@ -110,7 +110,7 @@ impl Transaction for TransactionKind {
 
     fn digest(&self) -> TransactionDigest {
         match self {
-            TransactionKind::Transfer(transfer) => transfer.digest(),
+            TransactionKind::Transfer(transfer) => transfer.id(),
         }
     }
 

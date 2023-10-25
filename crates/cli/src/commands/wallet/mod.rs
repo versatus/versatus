@@ -36,8 +36,9 @@ pub enum WalletCmd {
     /// Transfer objects between accounts
     Transfer {
         #[clap(long)]
+        //TODO: revise this when hierarchically deterministic accounts are implemented
         // TODO: replace u32 with address aliases so they're easier to use
-        from: AddressAlias,
+        // from: AddressAlias,
 
         #[clap(long)]
         to: Address,
@@ -49,11 +50,12 @@ pub enum WalletCmd {
         token: Option<Token>,
     },
 
-    /// Create a new account on the network
-    New {
+    //TODO: revise this when hierarchically deterministic accounts are implemented
+    /// Create a new account
+    New /*{
         #[clap(long)]
         alias: AddressAlias,
-    },
+    }*/,
 
     /// Gets information about an account
     Get {
@@ -88,14 +90,14 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
 
     let (secret_key, public_key) = keypair;
 
-    let (accounts, addresses) = restore_accounts_and_addresses(&accounts_data_dir)?;
+    // let (accounts, addresses) = restore_accounts_and_addresses(&accounts_data_dir)?;
 
     let wallet_config = WalletConfig {
         rpc_server_address,
         secret_key,
         public_key,
-        accounts,
-        addresses,
+        // accounts,
+        // addresses,
     };
 
     let mut wallet = Wallet::new(wallet_config)
@@ -105,14 +107,15 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
     match sub_cmd {
         WalletCmd::Info => info::exec(&wallet).await,
         WalletCmd::Transfer {
-            from: address_number,
+            //TODO: revise this when hierarchically deterministic accounts are implemented
+            // from: address_number,
             to,
             amount,
             token,
         } => {
             let digest = transfer::exec(
                 &mut wallet,
-                address_number,
+                // address_number,
                 to,
                 amount,
                 token.unwrap_or_default(),
@@ -123,8 +126,10 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
 
             Ok(())
         },
-        WalletCmd::New { alias } => {
-            new::exec(&mut wallet, &accounts_data_dir, alias).await?;
+        //TODO: revise this when hierarchically deterministic accounts are implemented
+        //
+        WalletCmd::New { /*alias*/ } => {
+            new::exec(/*&mut wallet,*/ &accounts_data_dir /*, alias*/).await?;
 
             Ok(())
         },

@@ -50,7 +50,7 @@ impl QuorumMembers {
     pub fn get_public_key_from_members(&self, k: &NodeId) -> Option<PublicKey> {
         for (_, quorum_data) in self.0.iter() {
             if let Some(pub_key) = quorum_data.members.get(k) {
-                return Some(pub_key.clone());
+                return Some(*pub_key);
             }
         }
         None
@@ -58,12 +58,11 @@ impl QuorumMembers {
 
     pub fn get_harvester_data(&self) -> Option<QuorumData> {
         for (_, quorum_data) in self.0.iter() {
-            match &quorum_data.quorum_kind {
-                QuorumKind::Harvester => return Some(quorum_data.clone()),
-                _ => {},
+            if quorum_data.quorum_kind == QuorumKind::Harvester {
+                return Some(quorum_data.clone());
             }
         }
-        return None;
+        None
     }
 
     pub fn get_harvester_threshold(&self) -> usize {
@@ -99,7 +98,7 @@ impl QuorumMembers {
             }
         }
 
-        return Err(Error::IsNotFarmer);
+        Err(Error::IsNotFarmer)
     }
 
     pub fn is_harvester_quorum_member(
@@ -113,7 +112,7 @@ impl QuorumMembers {
             }
         }
 
-        return Err(Error::IsNotHarvester);
+        Err(Error::IsNotHarvester)
     }
 }
 
@@ -182,6 +181,7 @@ impl SignerEngine {
         Err(Error::FailedVerification("missing public key".to_string()))
     }
 
+    #[allow(clippy::ptr_arg)]
     pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
         &self,
         batch_sigs: &Vec<(NodeId, Signature)>,
@@ -209,7 +209,7 @@ impl SignerEngine {
     }
 
     pub fn public_key(&self) -> PublicKey {
-        self.local_node_public_key.clone()
+        self.local_node_public_key
     }
 
     pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>) {
