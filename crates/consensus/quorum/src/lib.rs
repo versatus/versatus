@@ -326,8 +326,8 @@ mod tests {
             if let Ok(seed2) = Quorum::generate_seed(payload.clone(), keypair.clone()) {
                 if let Ok(mut quorum1) = Quorum::new(seed1, 11, None) {
                     if let Ok(mut quorum2) = Quorum::new(seed2, 11, None) {
-                        if let Ok(q1) = quorum1.run_election(dummy_claims1) {
-                            if let Ok(q2) = quorum2.run_election(dummy_claims2) {
+                        if let Ok(_q1) = quorum1.run_election(dummy_claims1) {
+                            if let Ok(_q2) = quorum2.run_election(dummy_claims2) {
                                 // TODO
                                 // assert!(q1.master_pubkeys == q2.master_pubkeys);
                             }
