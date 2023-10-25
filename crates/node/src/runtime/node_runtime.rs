@@ -339,31 +339,34 @@ impl NodeRuntime {
 
     pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
         let miner_signature = genesis_block.header.miner_signature;
-
         let miner_id = genesis_block.header.miner_claim.node_id.clone();
-
-        let hashed = format!(
-            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
-            genesis_block.header.ref_hashes,
-            genesis_block.header.round,
-            genesis_block.header.epoch,
-            genesis_block.header.block_seed,
-            genesis_block.header.next_block_seed,
-            genesis_block.header.block_height,
-            genesis_block.header.timestamp,
-            genesis_block.header.txn_hash,
-            genesis_block.header.miner_claim,
-            genesis_block.header.claim_list_hash,
-            genesis_block.header.block_reward,
-            genesis_block.header.next_block_reward,
-        );
-
-        let message = Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed.as_bytes()));
+        let hashed = self.hash_block_header(&genesis_block.header);
+        let message = Message::from(hashed);
 
         self.consensus_driver
             .verify_signature(&miner_id, &miner_signature, &message)?;
 
         Ok(())
+    }
+
+    fn hash_block_header(&self, header: &BlockHeader) -> secp256k1::hashes::sha256::Hash {
+        let hashed = format!(
+            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+            header.ref_hashes,
+            header.round,
+            header.epoch,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+        );
+
+        secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes())
     }
 
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
