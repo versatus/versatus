@@ -273,25 +273,19 @@ impl NodeRuntime {
     }
 
     // TODO: This should be a const function
-    pub fn distribute_genesis_reward(&self, receivers: Vec<GenesisReceiver>) -> Vec<StateUpdate> {
+    pub fn distribute_genesis_reward(
+        &self,
+        receivers: Vec<GenesisReceiver>,
+    ) -> LinkedHashMap<Address, u128> {
         receivers
             .iter()
-            .map(|rc| StateUpdate {
-                address: rc.address.clone(),
-                token: Default::default(),
-                amount: 10000,
-                nonce: None,
-                storage: None,
-                package_address: None,
-                digest: Default::default(),
-                update_account: UpdateAccount::Reward,
-            })
+            .map(|rc| (rc.address.to_owned(), 10000))
             .collect()
     }
 
     pub fn mine_genesis_block(
         &self,
-        txns: LinkedHashMap<TransactionDigest, TransactionKind>,
+        genesis_rewards: LinkedHashMap<Address, u128>,
     ) -> Result<GenesisBlock> {
         self.has_required_node_type(NodeType::Miner, "mine genesis block")?;
 
@@ -334,7 +328,7 @@ impl NodeRuntime {
 
         let genesis = GenesisBlock {
             header: block_header,
-            txns,
+            genesis_rewards,
             claims,
             hash: hex::encode(block_hash),
             certificate: None,

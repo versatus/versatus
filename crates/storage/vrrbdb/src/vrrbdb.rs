@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use block::{convergence_block, Block, ConvergenceBlock, ProposalBlock};
+use block::{
+    convergence_block, Block, ConvergenceBlock, GenesisReceiver, GenesisRewards, ProposalBlock,
+};
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
@@ -13,7 +15,7 @@ use vrrb_core::{
 
 use crate::{
     ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, StateStore,
-    StateStoreReadHandleFactory, TransactionStore, TransactionStoreReadHandleFactory,
+    StateStoreReadHandleFactory, StateUpdate, TransactionStore, TransactionStoreReadHandleFactory,
     VrrbDbReadHandle,
 };
 
@@ -262,6 +264,28 @@ impl VrrbDb {
         Ok(())
     }
 
+    fn apply_genesis_rewards(
+        &mut self,
+        read_handle: VrrbDbReadHandle,
+        genesis_rewards: &LinkedHashMap<GenesisReceiver, u128>,
+    ) -> Result<()> {
+        for (receiver_address, reward) in genesis_rewards {
+            // TODO: create methods to check if these exist
+            if let Err(StorageError::Other(_err)) =
+                read_handle.get_account_by_address(&receiver_address)
+            {
+                let account = Account::new(receiver_address.clone());
+                self.insert_account(receiver_address.clone(), account)?;
+            };
+            let update = StateUpdate::from((receiver_address, reward)).into();
+            self.state_store
+                .update_uncommited(receiver_address.clone(), update)?;
+            self.state_store.commit();
+        }
+
+        Ok(())
+    }
+
     fn apply_txn(
         &mut self,
         read_handle: VrrbDbReadHandle,
@@ -320,14 +344,12 @@ impl VrrbDb {
 
         match block {
             Block::Genesis { block } => {
-                if block.txns.is_empty() {
+                if block.genesis_rewards.is_empty() {
                     return Err(StorageError::Other(
-                        "genesis block must contain at least one transaction".to_string(),
+                        "genesis block must contain at least one reward".to_string(),
                     ));
                 }
-                for (_, txn_kind) in block.txns {
-                    self.apply_txn(read_handle.clone(), txn_kind)?;
-                }
+                self.apply_genesis_rewards(read_handle.clone(), &block.genesis_rewards)?;
             },
             Block::Convergence { .. } => {
                 todo!()
