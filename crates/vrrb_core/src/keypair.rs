@@ -30,7 +30,7 @@ pub type PublicKeys = (MinerPublicKey, PublicKey);
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct KeyPair {
-    pub miner_kp: (MinerSk, MinerPk),
+    pub miner_kp: (MinerSecretKey, MinerPublicKey),
     pub validator_kp: (SecretKey, PublicKey),
 }
 
@@ -69,7 +69,7 @@ impl KeyPair {
         let (sk, pk) = secp.generate_keypair(&mut rng);
         KeyPair {
             // TODO: Consider renaming to simply sk and pk as this pair is not only used for mining
-            miner_kp: (sk.clone(), pk.clone()),
+            miner_kp: (sk, pk),
             validator_kp: (sk, pk),
         }
     }
@@ -104,11 +104,11 @@ impl KeyPair {
     /// Returns:
     ///
     /// A KeyPair struct
-    pub fn new(sk: SecretKey, _miner_sk: MinerSk) -> Self {
+    pub fn new(sk: SecretKey, _miner_sk: MinerSecretKey) -> Self {
         let secp = Secp256k1::new();
         let pk = sk.public_key(&secp);
         KeyPair {
-            miner_kp: (sk.clone(), pk.clone()),
+            miner_kp: (sk, pk),
             validator_kp: (sk, pk),
         }
     }
@@ -116,7 +116,7 @@ impl KeyPair {
     /// Returns this `Keypair` as a byte array
     pub fn from_bytes(validator_key_bytes: &[u8], miner_key_bytes: &[u8]) -> Result<KeyPair> {
         let result = bincode::deserialize::<SerdeSecret<SecretKey>>(validator_key_bytes);
-        let miner_sk = if let Ok(miner_sk) = MinerSk::from_slice(miner_key_bytes) {
+        let miner_sk = if let Ok(miner_sk) = MinerSecretKey::from_slice(miner_key_bytes) {
             miner_sk
         } else {
             return Err(KeyPairError::InvalidKeyPair);
@@ -138,8 +138,8 @@ impl KeyPair {
     }
 
     /// Returns this Miner `PublicKey` from byte array `key_bytes`.
-    pub fn from_miner_pk_bytes(key_bytes: &[u8]) -> Result<MinerPk> {
-        match MinerPk::from_slice(key_bytes) {
+    pub fn from_miner_pk_bytes(key_bytes: &[u8]) -> Result<MinerPublicKey> {
+        match MinerPublicKey::from_slice(key_bytes) {
             Ok(public_key) => Ok(public_key),
             Err(_) => Err(KeyPairError::InvalidPublicKey),
         }
@@ -165,13 +165,13 @@ impl KeyPair {
     }
 
     /// Gets this `Keypair`'s SecretKey
-    pub fn get_secret_keys(&self) -> (&SecretKey, &MinerSk) {
+    pub fn get_secret_keys(&self) -> (&SecretKey, &MinerSecretKey) {
         (&self.validator_kp.0, &self.miner_kp.0)
     }
 
     /// > This function returns a tuple of references to the public keys of the
     /// > validator and miner
-    pub fn get_public_keys(&self) -> (&PublicKey, &MinerPk) {
+    pub fn get_public_keys(&self) -> (&PublicKey, &MinerPublicKey) {
         (&self.validator_kp.1, &self.miner_kp.1)
     }
 
@@ -238,9 +238,9 @@ impl KeyPair {
     /// Returns:
     ///
     /// The public key of the miner.
-    pub fn get_miner_public_key_from_secret_key(key: MinerSk) -> MinerPk {
+    pub fn get_miner_public_key_from_secret_key(key: MinerSecretKey) -> MinerPublicKey {
         let secp = Secp256k1::new();
-        MinerPk::from_secret_key(&secp, &key)
+        MinerPublicKey::from_secret_key(&secp, &key)
     }
 
     /// It returns the miner secret key.
@@ -248,7 +248,7 @@ impl KeyPair {
     /// Returns:
     ///
     /// The miner secret key.
-    pub fn get_miner_secret_key(&self) -> &MinerSk {
+    pub fn get_miner_secret_key(&self) -> &MinerSecretKey {
         &self.miner_kp.0
     }
 
@@ -257,7 +257,7 @@ impl KeyPair {
     /// Returns:
     ///
     /// The public key of the miner.
-    pub fn get_miner_public_key(&self) -> &MinerPk {
+    pub fn get_miner_public_key(&self) -> &MinerPublicKey {
         &self.miner_kp.1
     }
 
@@ -271,7 +271,7 @@ impl KeyPair {
     }
 
     pub fn get_validator_secret_key_owned(&self) -> SecretKey {
-        self.validator_kp.0.clone()
+        self.validator_kp.0
     }
 
     /// It returns the public key of the validator.
