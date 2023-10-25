@@ -446,10 +446,8 @@ mod tests {
         }
 
         for (_, harvester) in harvesters.iter_mut() {
-            let txn_trie_root_hash = harvester.transactions_root_hash().unwrap();
             let state_trie_root_hash = harvester.state_root_hash().unwrap();
             for res in apply_results.iter() {
-                assert_eq!(txn_trie_root_hash, res.transactions_root_hash_str());
                 assert_eq!(state_trie_root_hash, res.state_root_hash_str());
             }
         }

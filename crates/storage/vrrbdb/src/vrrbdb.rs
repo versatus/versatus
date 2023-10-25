@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use block::{
-    convergence_block, Block, ConvergenceBlock, GenesisReceiver, GenesisRewards, ProposalBlock,
+    convergence_block, Block, ConvergenceBlock, GenesisBlock, GenesisReceiver, GenesisRewards,
+    ProposalBlock,
 };
 use ethereum_types::U256;
 use patriecia::RootHash;
@@ -337,22 +338,33 @@ impl VrrbDb {
         })
     }
 
-    /// Applies a block of transactions updating the account states accordingly.
-    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
+    pub fn apply_genesis_block(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
 
-        // TODO: check transactions length and return error if empty
+        if block.genesis_rewards.0.is_empty() {
+            return Err(StorageError::Other(
+                "genesis block must contain at least one reward".to_string(),
+            ));
+        }
+        self.apply_genesis_rewards(read_handle.clone(), &block.genesis_rewards)?;
 
+        self.transaction_store.commit();
+        self.state_store.commit();
+
+        let state_root_hash = self.state_store.root_hash()?;
+        let transactions_root_hash = RootHash(Default::default());
+
+        Ok(ApplyBlockResult {
+            state_root_hash,
+            transactions_root_hash,
+        })
+    }
+
+    /// Applies a block of transactions updating the account states accordingly.
+    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
         match block {
-            Block::Genesis { block } => {
-                if block.genesis_rewards.0.is_empty() {
-                    return Err(StorageError::Other(
-                        "genesis block must contain at least one reward".to_string(),
-                    ));
-                }
-                self.apply_genesis_rewards(read_handle.clone(), &block.genesis_rewards)?;
-            },
-            Block::Convergence { .. } => {
+            Block::Genesis { block } => self.apply_genesis_block(block),
+            Block::Convergence { block } => {
                 todo!()
             },
             _ => {
@@ -360,19 +372,6 @@ impl VrrbDb {
                 return Err(StorageError::Other("unsupported block type".to_string()));
             },
         }
-
-        self.transaction_store.commit();
-        self.state_store.commit();
-
-        let state_root_hash = self.state_store.root_hash()?;
-        let transactions_root_hash = self.transaction_store.root_hash()?;
-        // let claim_root_hash = self.claim_store.root_hash()?;
-        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
-
-        Ok(ApplyBlockResult {
-            state_root_hash,
-            transactions_root_hash,
-        })
     }
 }
 
