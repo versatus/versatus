@@ -184,13 +184,6 @@ impl NetworkModule {
     }
 
     /// Address this module listens on for network events via UDP
-    // NOTE: currently assume UDP is the primary means of communication however this
-    // may not be entirely accurate in the near future.
-    pub fn local_addr(&self) -> SocketAddr {
-        self.udp_gossip_addr()
-    }
-
-    /// Address this module listens on for network events via UDP
     pub fn udp_gossip_addr(&self) -> SocketAddr {
         self.udp_gossip_addr
     }
@@ -214,16 +207,8 @@ impl NetworkModule {
         &self.kademlia_node
     }
 
-    pub fn node_mut(&mut self) -> &mut KademliaNode {
-        &mut self.kademlia_node
-    }
-
     pub fn validator_public_key(&self) -> PublicKey {
         self.validator_public_key
-    }
-
-    pub fn set_validator_public_key(&mut self, public_key: PublicKey) {
-        self.validator_public_key = public_key;
     }
 
     pub async fn broadcast_join_intent(&mut self) -> Result<()> {
@@ -431,7 +416,8 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
-        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(vote));
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
         self.dyswarm_client
             .broadcast(BroadcastArgs {
                 config: Default::default(),

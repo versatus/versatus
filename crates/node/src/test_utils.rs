@@ -94,34 +94,30 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 pub fn create_mock_full_node_config_with_bootstrap(
     bootstrap_node_addresses: Vec<SocketAddr>,
 ) -> NodeConfig {
-    let mut node_config = create_mock_full_node_config();
-
-    node_config
+    create_mock_full_node_config()
 }
 
 #[deprecated]
 pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    let mut node_config = create_mock_full_node_config();
-
-    node_config
+    create_mock_full_node_config()
 }
 
 pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
     (0..n)
         .map(|_| {
             let kp = generate_account_keypair();
-            let mut account = Some(Account::new(kp.1.clone().into()));
+            let mut account = Some(Account::new(kp.1.into()));
             account
                 .as_mut()
                 .unwrap()
                 .set_credits(1_000_000_000_000_000_000_000_000_000u128);
-            (kp.1.clone().into(), account)
+            (kp.1.into(), account)
         })
         .collect()
 }
 
 pub fn produce_random_claims(n: usize) -> HashSet<Claim> {
-    (0..n).map(|x| produce_random_claim(x)).collect()
+    (0..n).map(produce_random_claim).collect()
 }
 
 pub fn produce_random_claim(x: usize) -> Claim {
@@ -437,18 +433,6 @@ pub fn create_txn_from_accounts_invalid_timestamp(
 //     DagModule::new(miner.dag, events_tx, claim)
 // }
 
-/// Creates a blank `block::Certificate` from a `Claim` signature.
-pub(crate) fn create_blank_certificate(
-    threshold_signature: Vec<(NodeId, Signature)>,
-) -> block::Certificate {
-    block::Certificate {
-        signatures: threshold_signature,
-        inauguration: None,
-        root_hash: "".to_string(),
-        block_hash: "".to_string(),
-    }
-}
-
 pub async fn create_dyswarm_client(addr: SocketAddr) -> Result<dyswarm::client::Client> {
     let client_config = dyswarm::client::Config { addr };
     let client = dyswarm::client::Client::new(client_config).await?;
@@ -626,7 +610,7 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
     let mut nodes = vec![];
     let mut quorum_members = BTreeMap::new();
 
-    for i in 1..=n as u16 {
+    for i in 1..=n {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
@@ -730,7 +714,7 @@ pub async fn create_node_runtime_network(
     events_tx: EventPublisher,
 ) -> VecDeque<NodeRuntime> {
     let validator_count = (n as f64 * 0.8).ceil() as usize;
-    let miner_count = n as usize - validator_count;
+    let miner_count = n - validator_count;
 
     let mut nodes = VecDeque::new();
 
@@ -852,8 +836,7 @@ pub async fn create_quorum_assigned_node_runtime_network(
     assign_node_to_quorum(&quorums, &mut assigned_memberships);
     let mut quorums_only = quorums.into_iter().map(|(nr, _)| nr).collect();
     handle_assigned_memberships(&mut quorums_only, assigned_memberships);
-    let flattened = quorums_only.into_iter().flatten().collect();
-    flattened
+    quorums_only.into_iter().flatten().collect()
 }
 
 fn handle_assigned_memberships(
@@ -869,10 +852,10 @@ fn handle_assigned_memberships(
 }
 
 fn assign_node_to_quorum(
-    quorums: &Vec<(Vec<NodeRuntime>, Vec<PeerData>)>,
+    quorums: &[(Vec<NodeRuntime>, Vec<PeerData>)],
     assigned_memberships: &mut Vec<AssignedQuorumMembership>,
 ) {
-    for (idx, (group, peer_data)) in quorums.into_iter().enumerate() {
+    for (idx, (group, peer_data)) in quorums.iter().enumerate() {
         for node in group.iter() {
             let node_peer_data: Vec<PeerData> = peer_data
                 .clone()
@@ -888,13 +871,9 @@ fn assign_node_to_quorum(
 
             if idx == 0 {
                 //dbg!("calling assign node to harvester");
-                assign_node_to_harvester_quorum(
-                    &node,
-                    assigned_memberships,
-                    node_peer_data.clone(),
-                );
+                assign_node_to_harvester_quorum(node, assigned_memberships, node_peer_data.clone());
             } else {
-                assign_node_to_farmer_quorum(&node, assigned_memberships, node_peer_data.clone());
+                assign_node_to_farmer_quorum(node, assigned_memberships, node_peer_data.clone());
             }
         }
     }
@@ -979,7 +958,7 @@ pub fn create_sender_receiver_addresses() -> ((Account, Address), Address) {
     let sender_address = Address::new(sender_public_key);
 
     let (_, receiver_public_key) = generate_account_keypair();
-    let receiver_address = Address::new(receiver_public_key.into());
+    let receiver_address = Address::new(receiver_public_key);
 
     ((sender_account, sender_address), receiver_address)
 }

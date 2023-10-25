@@ -173,7 +173,7 @@ impl Quorum {
 
         let members: Vec<(NodeId, PublicKey)> = election_results
             .values()
-            .map(|claim| (claim.node_id().clone(), claim.public_key.clone()))
+            .map(|claim| (claim.node_id().clone(), claim.public_key))
             .collect();
 
         let final_pubkeys = Vec::from_iter(members[0..num_claims].iter().cloned());

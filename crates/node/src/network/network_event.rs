@@ -65,7 +65,7 @@ pub enum NetworkEvent {
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),
-    BroadcastTransactionVote(Vote),
+    BroadcastTransactionVote(Box<Vote>),
     Ping(NodeId),
 
     #[default]

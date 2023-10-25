@@ -89,41 +89,9 @@ impl Reward {
         }
     }
 
-    #[deprecated(note = "replaced by generate_next_reward method")]
-    pub fn update(&mut self, adjustment_to_next_epoch: i128) {
-        self.new_epoch(adjustment_to_next_epoch);
-    }
-
     /// This function resets the amount of reward to the baseline reward
     pub fn reset(&mut self) {
         self.amount = BASELINE_REWARD;
-    }
-
-    /// The function `new_epoch` is called when a new epoch is reached. It
-    /// increments the epoch number, calculates the next epoch block, and
-    /// adjusts the block reward
-    ///
-    /// Arguments:
-    ///
-    /// * `adjustment_to_next_epoch`: The amount of adjustment to the next
-    ///   epoch.
-    #[deprecated(note = "deprecated as a result of self.update() method being deprecated")]
-    pub fn new_epoch(&mut self, adjustment_to_next_epoch: i128) {
-        self.epoch += 1;
-
-        // Next nth Block for epoch to end
-        self.next_epoch_block += NUMBER_OF_BLOCKS_PER_EPOCH;
-
-        //Adjust Block Reward
-        let amount =
-            self.amount as i128 + adjustment_to_next_epoch / NUMBER_OF_BLOCKS_PER_EPOCH as i128;
-        if amount <= 0 {
-            self.amount = MIN_BASELINE_REWARD;
-        } else if amount >= MAX_BASELINE_REWARD as i128 {
-            self.amount = MAX_BASELINE_REWARD;
-        } else {
-            self.amount = amount as u128;
-        }
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -205,15 +173,15 @@ mod tests {
 
     #[test]
     fn test_reward_state_after_next_epoch() {
-        let mut reward = Reward::genesis(Some("MINER_1".to_string()));
-        reward.new_epoch(15);
+        let reward = Reward::genesis(Some("MINER_1".to_string()));
+        reward.generate_next_reward(15);
         assert!(reward.amount >= MIN_BASELINE_REWARD && reward.amount <= MAX_BASELINE_REWARD);
     }
 
     #[test]
     fn test_restored_reward_state() {
         let mut reward = Reward::genesis(Some("MINER".to_string()));
-        reward.new_epoch(15);
+        reward.generate_next_reward(15);
         assert!(reward.amount >= MIN_BASELINE_REWARD && reward.amount <= MAX_BASELINE_REWARD);
         assert!(reward.valid_reward());
         reward.reset();

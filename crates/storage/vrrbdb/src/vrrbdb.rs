@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use block::{convergence_block, Block, ConvergenceBlock, ProposalBlock};
+use block::{Block, ConvergenceBlock, ProposalBlock};
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
 use storage_utils::{Result, StorageError};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{Transaction, TransactionKind, Transfer};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
@@ -43,20 +43,18 @@ pub struct ApplyBlockResult {
 
 impl ApplyBlockResult {
     pub fn state_root_hash_str(&self) -> String {
-        let state_root_hash = self.state_root_hash.clone();
+        let state_root_hash = self.state_root_hash;
         // let transaction_root_hash = self.transaction_store.root_hash()?;
 
         // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
-        let state_root_hash_hex = hex::encode(state_root_hash.0);
+        hex::encode(state_root_hash.0)
         // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
-        state_root_hash_hex
     }
 
     pub fn transactions_root_hash_str(&self) -> String {
-        let txn_root_hash = self.transactions_root_hash.clone();
+        let txn_root_hash = self.transactions_root_hash;
 
-        let txn_root_hash_hex = hex::encode(txn_root_hash.0);
-        txn_root_hash_hex
+        hex::encode(txn_root_hash.0)
     }
 }
 
@@ -269,12 +267,6 @@ impl VrrbDb {
     ) -> Result<()> {
         match txn_kind {
             TransactionKind::Transfer(txn) => self.apply_transfer(read_handle, txn),
-            _ => {
-                telemetry::info!("unsupported transaction type: {:?}", txn_kind);
-                Err(StorageError::Other(
-                    "unsupported transaction type".to_string(),
-                ))
-            },
         }
     }
 
@@ -295,7 +287,7 @@ impl VrrbDb {
 
             let mut txns = block.txns.clone();
             txns.retain(|digest, _| txn_set.contains(digest));
-            for (digest, txn_kind) in txns {
+            for (_digest, txn_kind) in txns {
                 self.apply_txn(read_handle.clone(), txn_kind)?;
             }
         }

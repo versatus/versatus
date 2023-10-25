@@ -28,8 +28,8 @@ impl ConsensusModule {
             let quorum_member_ids = quorum_config
                 .membership_config
                 .quorum_members
-                .iter()
-                .map(|(_, member)| member.node_id.to_owned())
+                .values()
+                .map(|member| member.node_id.to_owned())
                 .collect::<Vec<NodeId>>();
 
             if quorum_member_ids.contains(&node_id) {
@@ -167,10 +167,10 @@ impl ConsensusModule {
                 .peers
                 .clone()
                 .into_iter()
-                .map(|peer| (peer.node_id.clone(), peer.validator_public_key.clone()))
+                .map(|peer| (peer.node_id.clone(), peer.validator_public_key))
                 .collect::<HashSet<(NodeId, PublicKey)>>();
 
-            peers.insert((mem.node_id.clone(), mem.pub_key.clone()));
+            peers.insert((mem.node_id.clone(), mem.pub_key));
             let mut peers = peers.into_iter().collect::<Vec<_>>();
             peers.sort();
 
@@ -268,12 +268,9 @@ impl ConsensusModule {
         let mut valid_txns = true;
         let comp: Vec<bool> = resolved
             .iter()
-            .filter_map(
-                |(pblock_hash, txn_id_set)| match block.txns.get(pblock_hash) {
-                    Some(set) => Some(set == txn_id_set),
-                    None => None,
-                },
-            )
+            .filter_map(|(pblock_hash, txn_id_set)| {
+                block.txns.get(pblock_hash).map(|set| set == txn_id_set)
+            })
             .collect();
 
         if comp.len() != block.txns.len() {
@@ -294,12 +291,7 @@ impl ConsensusModule {
         proposals
             .iter()
             .map(|block| {
-                let block_claims = block
-                    .claims
-                    .keys()
-                    .into_iter()
-                    .map(|key| key.clone())
-                    .collect();
+                let block_claims = block.claims.keys().copied().collect();
                 (block.hash.clone(), block_claims)
             })
             .collect()
@@ -340,12 +332,11 @@ impl ConsensusModule {
         let mut valid_claims = true;
         let comp: Vec<bool> = proposal_claims
             .iter()
-            .filter_map(
-                |(pblock_hash, claim_hash_set)| match convergence_claims.get(pblock_hash) {
-                    Some(set) => Some(set == claim_hash_set),
-                    None => None,
-                },
-            )
+            .filter_map(|(pblock_hash, claim_hash_set)| {
+                convergence_claims
+                    .get(pblock_hash)
+                    .map(|set| set == claim_hash_set)
+            })
             .collect();
 
         if comp.len() != convergence_claims.len() {
@@ -391,6 +382,6 @@ impl ConsensusModule {
                 }
             }
         }
-        return Err(NodeError::Other("miner was not elected".to_string()));
+        Err(NodeError::Other("miner was not elected".to_string()))
     }
 }
