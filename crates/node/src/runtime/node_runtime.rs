@@ -19,7 +19,9 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
+use storage::vrrbdb::{
+    StateStoreReadHandleFactory, StateUpdate, UpdateAccount, VrrbDbConfig, VrrbDbReadHandle,
+};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -221,6 +223,8 @@ impl NodeRuntime {
         self.mempool_read_handle_factory().entries()
     }
 
+    /// HELP: The genesis block should produce a reward which should be distributed
+    /// in some way, via a reward distribution mechanism.
     pub fn produce_genesis_transactions(
         &self,
         receivers: Vec<GenesisReceiver>,
@@ -266,6 +270,23 @@ impl NodeRuntime {
         txns.insert(txn.id(), txn);
 
         Ok(txns)
+    }
+
+    // TODO: This should be a const function
+    pub fn distribute_genesis_reward(&self, receivers: Vec<GenesisReceiver>) -> Vec<StateUpdate> {
+        receivers
+            .iter()
+            .map(|rc| StateUpdate {
+                address: rc.address.clone(),
+                token: Default::default(),
+                amount: 10000,
+                nonce: None,
+                storage: None,
+                package_address: None,
+                digest: Default::default(),
+                update_account: UpdateAccount::Reward,
+            })
+            .collect()
     }
 
     pub fn mine_genesis_block(

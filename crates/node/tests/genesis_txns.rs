@@ -85,12 +85,11 @@ async fn genesis_block_txns_are_applied_to_state() {
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
         .collect::<Vec<Address>>();
     let receivers = assign_genesis_receivers(receiver_addresses);
-    let genesis_txns = genesis_miner
-        .produce_genesis_transactions(receivers)
-        .unwrap();
+    let genesis_reward_state_updates = genesis_miner.distribute_genesis_reward(receivers);
     let genesis_block = genesis_miner
-        .mine_genesis_block(genesis_txns.clone())
+        .mine_genesis_block(genesis_reward_state_updates.clone())
         .unwrap();
+    // apply rewards
     let results: Vec<ApplyBlockResult> = all_nodes
         .iter_mut()
         .map(|node| {
