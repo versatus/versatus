@@ -4,8 +4,8 @@ use crate::{
     state_manager::{StateManager, StateManagerConfig},
 };
 use block::{
-    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
+    header::BlockHeader, Block, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock,
+    GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
@@ -221,58 +221,15 @@ impl NodeRuntime {
         self.mempool_read_handle_factory().entries()
     }
 
-    #[deprecated = "replaced by distrubute_genesis_rewards"]
-    pub fn produce_genesis_transactions(
+    // TODO: This should be a const function
+    pub fn distribute_genesis_reward(
         &self,
         receivers: Vec<GenesisReceiver>,
-    ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
+    ) -> Result<GenesisRewards> {
         self.has_required_node_type(NodeType::Miner, "produce genesis transactions")?;
-
-        let sender_public_key = self.config.keypair.miner_public_key_owned();
-        let address = Address::new(sender_public_key);
-        let sender_secret_key = self.config.keypair.miner_secret_key_owned();
-        let timestamp = chrono::Utc::now().timestamp();
-        let token = Token::default();
-        let amount = 0;
-        let nonce = 0;
-
-        let digest = generate_transfer_digest_vec(
-            timestamp,
-            address.to_string(),
-            sender_public_key,
-            address.to_string(),
-            token.clone(),
-            amount,
-            nonce,
-        );
-
-        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(&digest);
-        let signature = sender_secret_key.sign_ecdsa(msg);
-        let args = NewTransferArgs {
-            timestamp,
-            sender_address: address.clone(),
-            sender_public_key,
-            receiver_address: address.clone(),
-            token: Some(token),
-            amount,
-            signature,
-            validators: None,
-            nonce,
-        };
-
-        let txn = TransactionKind::Transfer(Transfer::new(args));
-        let genesis_config = GenesisConfig::new(address, receivers);
-        let mut txns =
-            block::vesting::generate_genesis_txns(self.config.keypair.clone(), &genesis_config);
-        txns.insert(txn.id(), txn);
-
-        Ok(txns)
-    }
-
-    // TODO: This should be a const function
-    pub fn distribute_genesis_reward(&self, receivers: Vec<GenesisReceiver>) -> GenesisRewards {
-        self.has_required_node_type(NodeType::Miner, "produce genesis transactions")?;
-        GenesisRewards(receivers.iter().map(|rc| (rc.to_owned(), 10000)).collect())
+        Ok(GenesisRewards(
+            receivers.iter().map(|rc| (rc.to_owned(), 10000)).collect(),
+        ))
     }
 
     pub fn mine_genesis_block(&self, genesis_rewards: GenesisRewards) -> Result<GenesisBlock> {
