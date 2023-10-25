@@ -123,7 +123,7 @@ mod tests {
         create_node_runtime_network, create_quorum_assigned_node_runtime_network,
         create_sender_receiver_addresses, create_txn_from_accounts,
         create_txn_from_accounts_invalid_signature, create_txn_from_accounts_invalid_timestamp,
-        setup_network,
+        setup_network, setup_whitelisted_nodes,
     };
     use crate::NodeError;
     use block::Block;
@@ -254,6 +254,8 @@ mod tests {
         let (mut node_0, farmers, harvesters, mut miners) = setup_network(8).await;
         let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
+        let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
+
         let miner_ids = miners
             .clone()
             .into_iter()
@@ -267,50 +269,6 @@ mod tests {
         let harvester_ids = harvesters.keys().cloned().collect::<Vec<NodeId>>();
         let harvester_id = harvester_ids.first().unwrap();
         let mut harvester = harvesters.get(harvester_id).unwrap().clone();
-
-        let whitelisted_harvesters = harvesters
-            .iter()
-            .map(|(_, node)| QuorumMember {
-                node_id: node.id.clone(),
-                kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
-                node_type: node.config.node_type,
-                udp_gossip_address: node.config.udp_gossip_address,
-                raptorq_gossip_address: node.config.raptorq_gossip_address,
-                kademlia_liveness_address: node.config.kademlia_liveness_address,
-                validator_public_key: node.config.keypair.miner_public_key_owned(),
-            })
-            .collect::<Vec<QuorumMember>>();
-
-        let whitelisted_farmers = harvesters
-            .iter()
-            .map(|(_, node)| QuorumMember {
-                node_id: node.id.clone(),
-                kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
-                node_type: node.config.node_type,
-                udp_gossip_address: node.config.udp_gossip_address,
-                raptorq_gossip_address: node.config.raptorq_gossip_address,
-                kademlia_liveness_address: node.config.kademlia_liveness_address,
-                validator_public_key: node.config.keypair.miner_public_key_owned(),
-            })
-            .collect::<Vec<QuorumMember>>();
-
-        let whitelisted_miners = harvesters
-            .iter()
-            .map(|(_, node)| QuorumMember {
-                node_id: node.id.clone(),
-                kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
-                node_type: node.config.node_type,
-                udp_gossip_address: node.config.udp_gossip_address,
-                raptorq_gossip_address: node.config.raptorq_gossip_address,
-                kademlia_liveness_address: node.config.kademlia_liveness_address,
-                validator_public_key: node.config.keypair.miner_public_key_owned(),
-            })
-            .collect::<Vec<QuorumMember>>();
-
-        let mut whitelisted_nodes = Vec::new();
-        whitelisted_nodes.extend(whitelisted_harvesters);
-        whitelisted_nodes.extend(whitelisted_farmers);
-        whitelisted_nodes.extend(whitelisted_miners);
 
         miner_node.config_mut().whitelisted_nodes = whitelisted_nodes;
 
@@ -364,7 +322,17 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn harvester_node_runtime_can_propose_blocks() {
-        let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
+        let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
+
+        let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
+
+        for (_, harvester) in harvesters.iter_mut() {
+            harvester.config_mut().whitelisted_nodes = whitelisted_nodes.clone();
+        }
+
+        for (_, miner_node) in miners.iter_mut() {
+            miner_node.config_mut().whitelisted_nodes = whitelisted_nodes.clone();
+        }
 
         let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
@@ -377,6 +345,7 @@ mod tests {
         let miner_id = miner_ids.first().unwrap();
 
         let mut miner_node = miners.get(miner_id).unwrap().to_owned();
+
         let claim = miner_node.state_driver.dag.claim();
 
         let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
@@ -696,9 +665,10 @@ mod tests {
         );
 
         for farmer in farmer_nodes.iter() {
-            dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
-            dbg!(&farmer.consensus_driver.is_farmer());
+            // dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
+            // dbg!(&farmer.consensus_driver.is_farmer());
         }
+
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
             let (transaction_kind, validity) = farmer

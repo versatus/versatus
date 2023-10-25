@@ -1185,3 +1185,54 @@ pub fn dummy_proposal_block_and_accounts(
 
     ((address1, account1), (address2, account2), proposal_block)
 }
+
+pub fn setup_whitelisted_nodes(
+    farmers: &HashMap<NodeId, NodeRuntime>,
+    harvesters: &HashMap<NodeId, NodeRuntime>,
+    miners: &HashMap<NodeId, NodeRuntime>,
+) -> Vec<QuorumMember> {
+    let whitelisted_harvesters = harvesters
+        .iter()
+        .map(|(_, node)| QuorumMember {
+            node_id: node.config.id.clone(),
+            kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+            node_type: node.config.node_type,
+            udp_gossip_address: node.config.udp_gossip_address,
+            raptorq_gossip_address: node.config.raptorq_gossip_address,
+            kademlia_liveness_address: node.config.kademlia_liveness_address,
+            validator_public_key: node.config.keypair.miner_public_key_owned(),
+        })
+        .collect::<Vec<QuorumMember>>();
+
+    let whitelisted_farmers = farmers
+        .iter()
+        .map(|(_, node)| QuorumMember {
+            node_id: node.config.id.clone(),
+            kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+            node_type: node.config.node_type,
+            udp_gossip_address: node.config.udp_gossip_address,
+            raptorq_gossip_address: node.config.raptorq_gossip_address,
+            kademlia_liveness_address: node.config.kademlia_liveness_address,
+            validator_public_key: node.config.keypair.miner_public_key_owned(),
+        })
+        .collect::<Vec<QuorumMember>>();
+
+    let whitelisted_miners = miners
+        .iter()
+        .map(|(_, node)| QuorumMember {
+            node_id: node.config.id.clone(),
+            kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
+            node_type: node.config.node_type,
+            udp_gossip_address: node.config.udp_gossip_address,
+            raptorq_gossip_address: node.config.raptorq_gossip_address,
+            kademlia_liveness_address: node.config.kademlia_liveness_address,
+            validator_public_key: node.config.keypair.miner_public_key_owned(),
+        })
+        .collect::<Vec<QuorumMember>>();
+
+    let mut whitelisted_nodes = Vec::new();
+    whitelisted_nodes.extend(whitelisted_harvesters);
+    whitelisted_nodes.extend(whitelisted_farmers);
+    whitelisted_nodes.extend(whitelisted_miners);
+    whitelisted_nodes
+}
