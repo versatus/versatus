@@ -23,7 +23,7 @@ async fn genesis_block_contains_txns() {
     let genesis_block = genesis_miner
         .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
-    assert!(genesis_block.genesis_rewards.len() >= 1);
+    assert!(genesis_block.genesis_rewards.0.len() >= 1);
 }
 
 /// The transactions within the genesis block should be valid and contain balance allocations to at least one address
@@ -48,7 +48,7 @@ async fn genesis_block_txns_are_valid() {
         .unwrap();
     for (genesis_receiver, reward) in genesis_block.genesis_rewards.0.iter() {
         assert!(genesis_rewards.0.contains_key(&genesis_receiver));
-        assert!(reward > 0);
+        assert!(*reward > 0);
     }
 }
 
@@ -106,6 +106,6 @@ async fn genesis_block_txns_are_applied_to_state() {
 fn assign_genesis_receivers(receiver_addresses: Vec<Address>) -> Vec<GenesisReceiver> {
     receiver_addresses
         .iter()
-        .map(|address| GenesisReceiver::new(address))
+        .map(|address| GenesisReceiver::new(address.clone()))
         .collect()
 }
