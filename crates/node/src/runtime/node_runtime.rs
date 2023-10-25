@@ -190,9 +190,9 @@ impl NodeRuntime {
                 )));
             }
         } else {
-            return Err(NodeError::Other(format!(
-                "No quorum configuration found for node"
-            )));
+            return Err(NodeError::Other(
+                "No quorum configuration found for node".to_string(),
+            ));
         }
 
         Ok(())
@@ -443,15 +443,15 @@ impl NodeRuntime {
         handle.claim_store_values()
     }
 
-    async fn get_transaction_by_id(
+    async fn _get_transaction_by_id(
         &self,
-        transaction_digest: TransactionDigest,
+        _transaction_digest: TransactionDigest,
     ) -> Result<TransactionKind> {
         todo!()
     }
 
     pub fn create_account(&mut self, public_key: PublicKey) -> Result<Address> {
-        let account = Account::new(public_key.clone().into());
+        let account = Account::new(public_key.into());
 
         self.state_driver
             .insert_account(public_key.into(), account)?;
@@ -472,9 +472,9 @@ impl NodeRuntime {
             self.state_driver
                 .dag
                 .last_confirmed_block_header()
-                .ok_or(NodeError::Other(format!(
-                    "failed to fetch latest block header from dag"
-                )))?;
+                .ok_or(NodeError::Other(
+                    "failed to fetch latest block header from dag".to_string(),
+                ))?;
 
         Ok(header.round)
     }
@@ -516,13 +516,13 @@ impl NodeRuntime {
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
         match validated_transaction_kind {
-            Ok(transaction_kind) => return Ok((transaction_kind, true)),
+            Ok(transaction_kind) => Ok((transaction_kind, true)),
             Err(_) => {
                 let handle = self.mempool_read_handle_factory().handle();
-                let transaction_record = handle.get(&digest).clone();
+                let transaction_record = handle.get(&digest);
                 match transaction_record {
-                    Some(record) => return Ok((record.txn.clone(), false)),
-                    None => return Err(NodeError::Other(format!("transaction record not found"))),
+                    Some(record) => Ok((record.txn.clone(), false)),
+                    None => Err(NodeError::Other("transaction record not found".to_string())),
                 }
             },
         }
