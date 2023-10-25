@@ -106,6 +106,6 @@ async fn genesis_block_txns_are_applied_to_state() {
 fn assign_genesis_receivers(receiver_addresses: Vec<Address>) -> Vec<GenesisReceiver> {
     receiver_addresses
         .iter()
-        .map(|address| GenesisReceiver::create_contributor(address))
+        .map(|address| GenesisReceiver::new(address))
         .collect()
 }
