@@ -1,8 +1,10 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
+use crate::transactions::{
+    Token, Transaction, TransactionDigest, Transfer, TransferBuilder, TxAmount, TxNonce,
+    TxTimestamp,
+};
 use primitives::{Address, PublicKey, SecretKey, Signature};
-use crate::transactions::{Token, Transaction, TransactionDigest, Transfer, TransferBuilder, TxAmount, TxNonce, TxTimestamp};
-
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Hash, Debug, Deserialize, Clone, Serialize, Eq, PartialEq)]
 pub enum TransactionKind {
@@ -108,7 +110,7 @@ impl Transaction for TransactionKind {
 
     fn digest(&self) -> TransactionDigest {
         match self {
-            TransactionKind::Transfer(transfer) => transfer.digest(),
+            TransactionKind::Transfer(transfer) => transfer.id(),
         }
     }
 

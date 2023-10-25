@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utils::hash_data;
 
-use crate::keypair::{MinerPk, MinerSk};
+use crate::keypair::{MinerPublicKey, MinerSecretKey};
 
 /// Represents a byte array that can be converted into a
 /// ThresholdSignature
@@ -80,7 +80,7 @@ pub enum StakeUpdate {
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Stake {
-    pubkey: MinerPk,
+    pubkey: MinerPublicKey,
     from: Address,
     to: Option<Address>,
     amount: StakeUpdate,
@@ -117,8 +117,8 @@ impl Stake {
     /// ```
     pub fn new(
         amount: StakeUpdate,
-        sk: MinerSk,
-        pk: MinerPk,
+        sk: MinerSecretKey,
+        pk: MinerPublicKey,
         from: Address,
         to: Option<Address>,
     ) -> Option<Self> {
@@ -156,7 +156,7 @@ impl Stake {
 
     /// returns the Stake public key which is used to verify
     /// the signature of the Stake transaction
-    pub fn get_pubkey(&self) -> MinerPk {
+    pub fn get_pubkey(&self) -> MinerPublicKey {
         self.pubkey
     }
 

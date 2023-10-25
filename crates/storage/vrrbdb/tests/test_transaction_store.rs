@@ -1,6 +1,5 @@
 use std::env;
 
-use patriecia::{KeyHash, Sha256};
 use serial_test::serial;
 use vrrbdb::{VrrbDb, VrrbDbConfig};
 mod common;
