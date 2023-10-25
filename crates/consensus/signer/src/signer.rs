@@ -35,7 +35,9 @@ pub trait Signer {
     ) -> SignerResult<bool>;
 }
 
-// TODO: make this cleaner if possible
+// TODO: make this cleaner if possible.
+// TODO: _fr_slot is not being used;
+// fr_repr will likely need to be mutable once it is being used.
 /// Converts a string slice into the Fr type.
 pub trait NodeIdFrBuilder: AsRef<str> {
     fn create_fr(&self) -> Fr {
