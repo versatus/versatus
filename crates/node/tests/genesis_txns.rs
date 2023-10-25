@@ -19,13 +19,11 @@ async fn genesis_block_contains_txns() {
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
         .collect::<Vec<Address>>();
     let receivers = assign_genesis_receivers(receiver_addresses);
-    let genesis_txns = genesis_miner
-        .produce_genesis_transactions(receivers)
-        .unwrap();
+    let genesis_rewards = genesis_miner.distribute_genesis_reward(receivers).unwrap();
     let genesis_block = genesis_miner
-        .mine_genesis_block(genesis_txns.clone())
+        .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
-    assert!(genesis_block.txns.len() >= 1);
+    assert!(genesis_block.genesis_rewards.len() >= 1);
 }
 
 /// The transactions within the genesis block should be valid and contain balance allocations to at least one address
@@ -44,21 +42,13 @@ async fn genesis_block_txns_are_valid() {
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
         .collect::<Vec<Address>>();
     let receivers = assign_genesis_receivers(receiver_addresses.clone());
-    let genesis_txns = genesis_miner
-        .produce_genesis_transactions(receivers)
-        .unwrap();
+    let genesis_rewards = genesis_miner.distribute_genesis_reward(receivers).unwrap();
     let genesis_block = genesis_miner
-        .mine_genesis_block(genesis_txns.clone())
+        .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
-    for (_, txn_kind) in genesis_block.txns.iter() {
-        let TransactionKind::Transfer(transfer) = txn_kind;
-        {
-            assert_eq!(&transfer.sender_address, &sender_address);
-            assert!(genesis_txns.contains_key(&transfer.id));
-            if receiver_addresses.contains(&transfer.receiver_address) {
-                assert!(transfer.amount > 0);
-            }
-        }
+    for (genesis_receiver, reward) in genesis_block.genesis_rewards.0.iter() {
+        assert!(genesis_rewards.0.contains_key(&genesis_receiver));
+        assert!(reward > 0);
     }
 }
 

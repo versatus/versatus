@@ -5,7 +5,7 @@ use crate::{
 };
 use block::{
     header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, GenesisReceiver, ProposalBlock, RefHash,
+    GenesisBlock, GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
@@ -19,9 +19,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use storage::vrrbdb::{
-    StateStoreReadHandleFactory, StateUpdate, UpdateAccount, VrrbDbConfig, VrrbDbReadHandle,
-};
+use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
@@ -223,8 +221,7 @@ impl NodeRuntime {
         self.mempool_read_handle_factory().entries()
     }
 
-    /// HELP: The genesis block should produce a reward which should be distributed
-    /// in some way, via a reward distribution mechanism.
+    #[deprecated = "replaced by distrubute_genesis_rewards"]
     pub fn produce_genesis_transactions(
         &self,
         receivers: Vec<GenesisReceiver>,
@@ -273,20 +270,12 @@ impl NodeRuntime {
     }
 
     // TODO: This should be a const function
-    pub fn distribute_genesis_reward(
-        &self,
-        receivers: Vec<GenesisReceiver>,
-    ) -> LinkedHashMap<Address, u128> {
-        receivers
-            .iter()
-            .map(|rc| (rc.address.to_owned(), 10000))
-            .collect()
+    pub fn distribute_genesis_reward(&self, receivers: Vec<GenesisReceiver>) -> GenesisRewards {
+        self.has_required_node_type(NodeType::Miner, "produce genesis transactions")?;
+        GenesisRewards(receivers.iter().map(|rc| (rc.to_owned(), 10000)).collect())
     }
 
-    pub fn mine_genesis_block(
-        &self,
-        genesis_rewards: LinkedHashMap<Address, u128>,
-    ) -> Result<GenesisBlock> {
+    pub fn mine_genesis_block(&self, genesis_rewards: GenesisRewards) -> Result<GenesisBlock> {
         self.has_required_node_type(NodeType::Miner, "mine genesis block")?;
 
         let claim = self.state_driver.dag.claim();

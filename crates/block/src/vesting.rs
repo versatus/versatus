@@ -7,8 +7,7 @@ use vrrb_core::{
     transactions::{NewTransferArgs, Transaction, TransactionDigest, TransactionKind, Transfer},
 };
 
-pub const N_ALPHANET_RECEIVERS: usize = 4;
-
+#[deprecated = "outdated vesting"]
 // 50% after one year, then monthly for 12 months
 const CONTRIBUTOR_VESTING: VestingConfig = VestingConfig {
     cliff_fraction: 0.5f64,
@@ -17,6 +16,7 @@ const CONTRIBUTOR_VESTING: VestingConfig = VestingConfig {
     unlock_years: 1f64,
 };
 
+#[deprecated = "outdated vesting"]
 // 25% after half year, then monthly for 18  months
 const INVESTOR_VESTING: VestingConfig = VestingConfig {
     cliff_fraction: 0.25f64,
@@ -26,6 +26,7 @@ const INVESTOR_VESTING: VestingConfig = VestingConfig {
 };
 
 #[derive(Debug, Clone)]
+#[deprecated = "outdated vesting model"]
 pub struct VestingConfig {
     pub cliff_fraction: f64,
     pub cliff_years: f64,
@@ -34,12 +35,14 @@ pub struct VestingConfig {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[deprecated = "replaced by block::GenesisReceiver, no longer necessary since we are not using this model"]
 pub enum GenesisReceiverKind {
     Investor,
     Contributor,
 }
 
 #[derive(Debug, Clone)]
+#[deprecated = "replaced by block::GenesisReceiver"]
 pub struct GenesisReceiver {
     pub address: Address,
     pub genesis_receiver_kind: GenesisReceiverKind,
@@ -75,6 +78,7 @@ impl GenesisReceiver {
 }
 
 #[derive(Debug, Clone)]
+#[deprecated = "replaced by block::GenesisConfig"]
 pub struct GenesisConfig {
     sender: Address,
     receivers: Vec<GenesisReceiver>,
@@ -90,7 +94,7 @@ impl GenesisConfig {
         &self.sender
     }
 }
-
+#[deprecated = "outdated vesting model will be replaced"]
 pub fn create_vesting(
     sender_keypair: &Keypair,
     sender_address: &Address,
@@ -104,7 +108,7 @@ pub fn create_vesting(
     );
     (tx_kind.id(), tx_kind)
 }
-
+#[deprecated = "replaced by genesis rewards"]
 pub fn generate_genesis_txns(
     sender_keypair: Keypair,
     genesis_config: &GenesisConfig,

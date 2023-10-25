@@ -6,6 +6,7 @@ use block::{
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
+use ritelinked::LinkedHashMap;
 use storage_utils::{Result, StorageError};
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
 use vrrb_core::{
@@ -267,19 +268,19 @@ impl VrrbDb {
     fn apply_genesis_rewards(
         &mut self,
         read_handle: VrrbDbReadHandle,
-        genesis_rewards: &LinkedHashMap<GenesisReceiver, u128>,
+        genesis_rewards: &GenesisRewards,
     ) -> Result<()> {
-        for (receiver_address, reward) in genesis_rewards {
+        for (receiver_address, reward) in &genesis_rewards.0 {
             // TODO: create methods to check if these exist
             if let Err(StorageError::Other(_err)) =
-                read_handle.get_account_by_address(&receiver_address)
+                read_handle.get_account_by_address(&receiver_address.0)
             {
-                let account = Account::new(receiver_address.clone());
-                self.insert_account(receiver_address.clone(), account)?;
+                let account = Account::new(receiver_address.0.clone());
+                self.insert_account(receiver_address.0.clone(), account)?;
             };
-            let update = StateUpdate::from((receiver_address, reward)).into();
+            let update = StateUpdate::from((receiver_address.0.clone(), *reward)).into();
             self.state_store
-                .update_uncommited(receiver_address.clone(), update)?;
+                .update_uncommited(receiver_address.0.clone(), update)?;
             self.state_store.commit();
         }
 
@@ -344,7 +345,7 @@ impl VrrbDb {
 
         match block {
             Block::Genesis { block } => {
-                if block.genesis_rewards.is_empty() {
+                if block.genesis_rewards.0.is_empty() {
                     return Err(StorageError::Other(
                         "genesis block must contain at least one reward".to_string(),
                     ));

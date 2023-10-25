@@ -49,7 +49,11 @@ impl From<(Address, u128)> for StateUpdate {
             address: value.0.to_owned(),
             token: Some(Token::default()),
             amount: value.1,
-            ..Default::default()
+            nonce: None,
+            storage: None,
+            package_address: None,
+            digest: Default::default(),
+            update_account: UpdateAccount::Reward,
         }
     }
 }

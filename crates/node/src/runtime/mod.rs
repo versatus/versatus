@@ -196,18 +196,18 @@ mod tests {
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
         let (node_0, farmers, harvesters, miners) = setup_network(8).await;
-        assert!(node_0.produce_genesis_transactions(vec![]).is_err());
+        assert!(node_0.distribute_genesis_reward(vec![]).is_err());
 
         for (_, node) in farmers.iter() {
-            assert!(node.produce_genesis_transactions(vec![]).is_err());
+            assert!(node.distribute_genesis_reward(vec![]).is_err());
         }
 
         for (_, node) in harvesters.iter() {
-            assert!(node.produce_genesis_transactions(vec![]).is_err());
+            assert!(node.distribute_genesis_reward(vec![]).is_err());
         }
 
         for (_, node) in miners.iter() {
-            assert!(node.produce_genesis_transactions(vec![]).is_ok());
+            assert!(node.distribute_genesis_reward(vec![]).is_ok());
         }
     }
 

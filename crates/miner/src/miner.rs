@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 //FEATURE TAG(S): Block Structure, VRF for Next Block Seed, Rewards
 use std::sync::{Arc, RwLock};
 
+use block::GenesisRewards;
 use block::{
     block::Block, header::BlockHeader, ClaimHash, ClaimList, ConsolidatedClaims, ConsolidatedTxns,
     ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, RefHash,
@@ -323,12 +324,12 @@ impl Miner {
         let txns = genesis::generate_genesis_txns();
 
         #[cfg(not(mainnet))]
-        let txns = LinkedHashMap::new();
+        let genesis_rewards = GenesisRewards(LinkedHashMap::new());
         let header = header;
 
         let genesis = GenesisBlock {
             header,
-            txns,
+            genesis_rewards,
             claims,
             hash: format!("{block_hash:x}"),
             certificate: None,
