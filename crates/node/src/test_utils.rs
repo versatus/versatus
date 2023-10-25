@@ -1062,23 +1062,23 @@ pub async fn setup_network(
         }
     }
 
-    let nodes = nodes
+    let mut nodes = nodes
         .into_iter()
         .map(|node| (node.config.id.clone(), node))
         .collect::<HashMap<NodeId, NodeRuntime>>();
+
+    for (_node_id, node) in nodes.iter_mut() {
+        node.handle_quorum_membership_assigments_created(
+            quorum_assignments.clone().into_values().collect(),
+        )
+        .unwrap();
+    }
 
     let mut validator_nodes = nodes
         .clone()
         .into_iter()
         .filter(|(_, node)| node.config.node_type == NodeType::Validator)
         .collect::<HashMap<NodeId, NodeRuntime>>();
-
-    for (_node_id, node) in validator_nodes.iter_mut() {
-        node.handle_quorum_membership_assigments_created(
-            quorum_assignments.clone().into_values().collect(),
-        )
-        .unwrap();
-    }
 
     let farmer_nodes = validator_nodes
         .clone()
@@ -1105,6 +1105,13 @@ pub fn dummy_convergence_block() -> ConvergenceBlock {
     let keypair = KeyPair::random();
     let public_key = keypair.get_miner_public_key();
     let mut hasher = DefaultHasher::new();
+
+    let secret_key = keypair.get_miner_secret_key();
+    let message =
+        Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>("Dummy block".as_bytes());
+
+    let signature = secret_key.sign_ecdsa(message);
+
     public_key.hash(&mut hasher);
     let pubkey_hash = hasher.finish();
 
@@ -1128,7 +1135,7 @@ pub fn dummy_convergence_block() -> ConvergenceBlock {
             claim_list_hash: Default::default(),
             block_reward: Default::default(),
             next_block_reward: Default::default(),
-            miner_signature: Signature::from_der(&[]).unwrap(),
+            miner_signature: signature,
         },
         txns: Default::default(),
         claims: Default::default(),
