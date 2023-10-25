@@ -12,8 +12,11 @@ async fn genesis_block_contains_txns() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    let mut genesis_miner = nodes.first_mut().unwrap().clone();
+    nodes.reverse();
+    nodes.pop(); // pop bootstrap node
+    let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
+
     let receiver_addresses = nodes
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
@@ -33,8 +36,8 @@ async fn genesis_block_txns_are_valid() {
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
     nodes.reverse();
-    let mut genesis_miner = nodes.pop().unwrap(); // remove the bootstrap and make it a miner
-    let sender_address = Address::new(genesis_miner.config.keypair.miner_public_key_owned());
+    nodes.pop(); // pop bootstrap node
+    let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
 
     let receiver_addresses = nodes
@@ -58,7 +61,9 @@ async fn genesis_block_txns_are_applied_to_state() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    let mut genesis_miner = nodes.first_mut().unwrap().clone();
+    nodes.reverse();
+    nodes.pop(); // pop bootstrap node
+    let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
     let mut all_nodes: Vec<NodeRuntime> = nodes
         .iter()
@@ -70,6 +75,7 @@ async fn genesis_block_txns_are_applied_to_state() {
             }
         })
         .collect();
+
     let receiver_addresses = nodes
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
