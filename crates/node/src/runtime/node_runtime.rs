@@ -3,9 +3,14 @@ use crate::{
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerConfig},
 };
+
 use block::{
-    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
+    header::{
+        genesis_block_header_hashed_payload, genesis_block_header_signature_message,
+        genesis_default_ref_hashes, BlockHeader,
+    },
+    vesting::GenesisConfig,
+    Block, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
@@ -13,7 +18,7 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
-use secp256k1::Message;
+use sha2::{Digest, Sha256};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -22,7 +27,7 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
-use utils::payload::digest_data_to_bytes;
+use utils::{create_payload, payload::digest_data_to_bytes};
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
@@ -31,6 +36,11 @@ use vrrb_core::{
         generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
         TransactionKind, Transfer,
     },
+};
+
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -190,9 +200,9 @@ impl NodeRuntime {
                 )));
             }
         } else {
-            return Err(NodeError::Other(format!(
-                "No quorum configuration found for node"
-            )));
+            return Err(NodeError::Other(
+                "No quorum configuration found for node".to_string(),
+            ));
         }
 
         Ok(())
@@ -327,6 +337,38 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
+    pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
+        let miner_signature = genesis_block.header.miner_signature;
+        let miner_id = genesis_block.header.miner_claim.node_id.clone();
+        let hashed = self.hash_block_header(&genesis_block.header);
+        let message = Message::from(hashed);
+
+        self.consensus_driver
+            .verify_signature(&miner_id, &miner_signature, &message)?;
+
+        Ok(())
+    }
+
+    fn hash_block_header(&self, header: &BlockHeader) -> secp256k1::hashes::sha256::Hash {
+        let hashed = format!(
+            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+            header.ref_hashes,
+            header.round,
+            header.epoch,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+        );
+
+        secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes())
+    }
+
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
         let certs = self.state_driver.dag.check_certificate_threshold_reached(
@@ -443,15 +485,15 @@ impl NodeRuntime {
         handle.claim_store_values()
     }
 
-    async fn get_transaction_by_id(
+    async fn _get_transaction_by_id(
         &self,
-        transaction_digest: TransactionDigest,
+        _transaction_digest: TransactionDigest,
     ) -> Result<TransactionKind> {
         todo!()
     }
 
     pub fn create_account(&mut self, public_key: PublicKey) -> Result<Address> {
-        let account = Account::new(public_key.clone().into());
+        let account = Account::new(public_key.into());
 
         self.state_driver
             .insert_account(public_key.into(), account)?;
@@ -472,9 +514,9 @@ impl NodeRuntime {
             self.state_driver
                 .dag
                 .last_confirmed_block_header()
-                .ok_or(NodeError::Other(format!(
-                    "failed to fetch latest block header from dag"
-                )))?;
+                .ok_or(NodeError::Other(
+                    "failed to fetch latest block header from dag".to_string(),
+                ))?;
 
         Ok(header.round)
     }
@@ -516,13 +558,13 @@ impl NodeRuntime {
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
         match validated_transaction_kind {
-            Ok(transaction_kind) => return Ok((transaction_kind, true)),
+            Ok(transaction_kind) => Ok((transaction_kind, true)),
             Err(_) => {
                 let handle = self.mempool_read_handle_factory().handle();
-                let transaction_record = handle.get(&digest).clone();
+                let transaction_record = handle.get(&digest);
                 match transaction_record {
-                    Some(record) => return Ok((record.txn.clone(), false)),
-                    None => return Err(NodeError::Other(format!("transaction record not found"))),
+                    Some(record) => Ok((record.txn.clone(), false)),
+                    None => Err(NodeError::Other("transaction record not found".to_string())),
                 }
             },
         }

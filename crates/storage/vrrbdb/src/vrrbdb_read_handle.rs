@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use primitives::{Address, NodeId};
 use storage_utils::StorageError;
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 use vrrb_core::{account::Account, claim::Claim};
 
 use crate::result::Result;

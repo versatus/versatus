@@ -48,7 +48,7 @@ impl TransactionStoreReadHandle {
                 if let Ok((_, txn)) = item {
                     let txn = bincode::deserialize::<TransactionKind>(&txn).unwrap_or_default();
 
-                    return Some((txn.digest(), txn));
+                    return Some((txn.id(), txn));
                 }
                 None
             })

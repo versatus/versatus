@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
 use events::{Event, EventMessage, EventPublisher, PeerData};
-use primitives::{NETWORK_TOPIC_STR, NodeId, RUNTIME_TOPIC_STR};
+use primitives::{NodeId, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 
 use crate::{network::NetworkEvent, NodeError};
 
@@ -96,6 +96,12 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     sender_id,
                     ack,
                 };
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+
+            NetworkEvent::BlockCreated(block) => {
+                let evt = Event::BlockCreated(block);
                 let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
