@@ -12,6 +12,7 @@ use primitives::{
     NodeId, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
     QuorumPublicKey, RawSignature, Signature, ValidatorPublicKey,
 };
+use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
 use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
@@ -590,5 +591,18 @@ impl ConsensusModule {
         &self,
     ) -> HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)> {
         self.quorum_certified_txns.clone()
+    }
+
+    pub fn verify_signature(
+        &self,
+        node_id: &NodeId,
+        sig: &Signature,
+        message: &Message,
+    ) -> Result<()> {
+        self.sig_engine()
+            .verify_with_message(node_id, sig, message)
+            .map_err(|err| NodeError::Other(format!("failed to verify miner signature: {err}")))?;
+
+        Ok(())
     }
 }

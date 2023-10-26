@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use block::{Certificate, ConvergenceBlock};
+use block::{Block, Certificate, ConvergenceBlock};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::PublicKeySet,
@@ -50,6 +50,8 @@ pub enum NetworkEvent {
         peer_id: PeerId,
         socket_addr: SocketAddr,
     },
+
+    BlockCreated(Block),
 
     ForwardedTxn(Box<TxnRecord>),
 
