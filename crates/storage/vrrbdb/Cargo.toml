@@ -26,6 +26,7 @@ integral-db = { workspace = true }
 microkv = { workspace = true }
 hex = { workspace = true }
 block = { workspace = true }
+ritelinked = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

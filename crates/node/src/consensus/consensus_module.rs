@@ -4,6 +4,7 @@ use block::{
     header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 use bulldag::graph::BullDag;
+use ethereum_types::U256;
 use events::{SyncPeerData, Vote};
 use mempool::MempoolReadHandleFactory;
 use miner::conflict_resolver::Resolver;
@@ -11,6 +12,7 @@ use primitives::{
     NodeId, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
     QuorumPublicKey, RawSignature, Signature, ValidatorPublicKey,
 };
+use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
 use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
@@ -22,7 +24,6 @@ use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 use vrrb_core::{bloom::Bloom, keypair::Keypair};
-use ethereum_types::U256;
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -87,7 +88,7 @@ pub struct ConsensusModule {
     pub(crate) quorum_kind: Option<QuorumKind>,
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
-    pub miner_election_results: Option<BTreeMap<U256, Claim>> 
+    pub miner_election_results: Option<BTreeMap<U256, Claim>>,
 }
 
 impl ConsensusModule {
@@ -109,8 +110,8 @@ impl ConsensusModule {
             )?;
 
         let sig_engine = SignerEngine::new(
-            cfg.keypair.get_miner_public_key().clone(),
-            cfg.keypair.get_miner_secret_key().clone(),
+            *cfg.keypair.get_miner_public_key(),
+            *cfg.keypair.get_miner_secret_key(),
         );
 
         Ok(Self {
@@ -125,7 +126,7 @@ impl ConsensusModule {
             quorum_kind: None,
             validator_core_manager,
             votes_pool: Default::default(),
-            miner_election_results: None
+            miner_election_results: None,
         })
     }
 
@@ -221,11 +222,7 @@ impl ConsensusModule {
             NodeError::Other(format!("failed to generate partial signature: {err}"))
         })?;
 
-        Ok((
-            block.hash.clone(),
-            self.sig_engine.public_key(),
-            signature.clone(),
-        ))
+        Ok((block.hash.clone(), self.sig_engine.public_key(), signature))
     }
 
     pub fn membership_config(&self) -> &Option<QuorumMembershipConfig> {
@@ -298,7 +295,7 @@ impl ConsensusModule {
         let signature = self.sig_engine.sign(txn_bytes).ok()?;
 
         Some(Vote {
-            farmer_id: receiver_farmer_id.clone().into(),
+            farmer_id: receiver_farmer_id.clone(),
             farmer_node_id: farmer_node_id.clone(),
             signature,
             txn: transaction.clone(),
@@ -387,7 +384,7 @@ impl ConsensusModule {
         if self.double_check_vote_threshold_reached(&set, quorum_members) {
             let batch_sigs = set
                 .iter()
-                .map(|vote| (vote.farmer_node_id.clone(), vote.signature.clone()))
+                .map(|vote| (vote.farmer_node_id.clone(), vote.signature))
                 .collect();
 
             let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
@@ -458,13 +455,11 @@ impl ConsensusModule {
 
     pub fn get_quorum_members(&self, quorum_id: &QuorumId) -> Result<QuorumData> {
         match self.sig_engine.quorum_members().0.get(quorum_id) {
-            Some(quorum_data) => return Ok(quorum_data.clone()),
-            None => {
-                return Err(NodeError::Other(format!(
-                    "quorum {:?} is not in the sig engine quorum members",
-                    quorum_id
-                )))
-            },
+            Some(quorum_data) => Ok(quorum_data.clone()),
+            None => Err(NodeError::Other(format!(
+                "quorum {:?} is not in the sig engine quorum members",
+                quorum_id
+            ))),
         }
     }
 
@@ -526,9 +521,9 @@ impl ConsensusModule {
             return Ok(());
         }
 
-        return Err(NodeError::Other(format!(
-            "node is not a member of currently active quorum"
-        )));
+        Err(NodeError::Other(
+            "node is not a member of currently active quorum".to_string(),
+        ))
     }
 
     fn get_node_quorum_id(&self, node_id: &NodeId) -> Option<(QuorumId, QuorumKind)> {
@@ -543,9 +538,9 @@ impl ConsensusModule {
 
     fn is_quorum_member(&self) -> Result<()> {
         if self.quorum_membership.is_none() {
-            return Err(NodeError::Other(format!(
-                "local node is not a quorum member"
-            )));
+            return Err(NodeError::Other(
+                "local node is not a quorum member".to_string(),
+            ));
         }
 
         Ok(())
@@ -561,17 +556,19 @@ impl ConsensusModule {
 
     pub fn is_harvester(&self) -> Result<()> {
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Harvester) {
-            return Err(NodeError::Other(format!(
-                "local node is not a Harvester Node"
-            )));
+            return Err(NodeError::Other(
+                "local node is not a Harvester Node".to_string(),
+            ));
         }
 
         Ok(())
     }
 
-    pub(crate) fn is_farmer(&self) -> Result<()> {
+    pub fn is_farmer(&self) -> Result<()> {
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Farmer) {
-            return Err(NodeError::Other(format!("local node is not a Farmer Node")));
+            return Err(NodeError::Other(
+                "local node is not a Farmer Node".to_string(),
+            ));
         }
 
         Ok(())
@@ -584,7 +581,7 @@ impl ConsensusModule {
             vote_shares
                 .entry(v.is_txn_valid)
                 .or_insert_with(BTreeMap::new)
-                .insert(v.farmer_node_id.clone(), v.signature.clone());
+                .insert(v.farmer_node_id.clone(), v.signature);
         }
 
         vote_shares
@@ -594,5 +591,18 @@ impl ConsensusModule {
         &self,
     ) -> HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)> {
         self.quorum_certified_txns.clone()
+    }
+
+    pub fn verify_signature(
+        &self,
+        node_id: &NodeId,
+        sig: &Signature,
+        message: &Message,
+    ) -> Result<()> {
+        self.sig_engine()
+            .verify_with_message(node_id, sig, message)
+            .map_err(|err| NodeError::Other(format!("failed to verify miner signature: {err}")))?;
+
+        Ok(())
     }
 }

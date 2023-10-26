@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use storage::vrrbdb::Claims;
 use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
 use vrrb_core::account::Account;
-use vrrb_core::claim::Claim;
 use vrrb_core::node_health_report::NodeHealthReport;
-use vrrb_core::transactions::{RpcTransactionDigest, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp};
+use vrrb_core::transactions::{
+    RpcTransactionDigest, Token, Transaction, TransactionKind, TxAmount, TxNonce, TxTimestamp,
+};
 
 use crate::rpc::SignOpts;
 

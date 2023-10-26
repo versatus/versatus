@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use node::test_utils::create_test_network;
-use telemetry::TelemetrySubscriber;
+use telemetry::custom_subscriber::TelemetrySubscriber;
 
 #[tokio::main]
 async fn main() {
