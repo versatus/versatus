@@ -1123,6 +1123,7 @@ pub fn dummy_convergence_block() -> ConvergenceBlock {
     }
 }
 
+//TODO: account1.update_field & account2.update_field are not being used.
 pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
     let kp1 = Keypair::random();
     let address1 = Address::new(kp1.miner_kp.1);
@@ -1130,9 +1131,9 @@ pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> Proposa
     let address2 = Address::new(kp2.miner_kp.1);
     let mut account1 = Account::new(address1.clone());
     let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
+    let _ = account1.update_field(update_field.clone());
     let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
+    let _ = account2.update_field(update_field.clone());
     produce_proposal_blocks(
         "dummy_proposal_block".to_string(),
         vec![(address1, Some(account1)), (address2, Some(account2))],
@@ -1144,6 +1145,7 @@ pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> Proposa
     .unwrap()
 }
 
+//TODO: account1.update_field & account2.update_field are not being used.
 pub fn dummy_proposal_block_and_accounts(
     sig_engine: signer::engine::SignerEngine,
 ) -> ((Address, Account), (Address, Account), ProposalBlock) {
@@ -1153,9 +1155,9 @@ pub fn dummy_proposal_block_and_accounts(
     let address2 = Address::new(kp2.miner_kp.1);
     let mut account1 = Account::new(address1.clone());
     let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
+    let _ = account1.update_field(update_field.clone());
     let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
+    let _ = account2.update_field(update_field.clone());
     let proposal_block = produce_proposal_blocks(
         "dummy_proposal_block".to_string(),
         vec![
