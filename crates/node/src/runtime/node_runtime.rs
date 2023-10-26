@@ -3,6 +3,7 @@ use crate::{
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerConfig},
 };
+
 use block::{
     header::BlockHeader, Block, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock,
     GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
@@ -13,7 +14,7 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
-use secp256k1::Message;
+use sha2::{Digest, Sha256};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -22,7 +23,7 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
-use utils::payload::digest_data_to_bytes;
+use utils::{create_payload, payload::digest_data_to_bytes};
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
@@ -31,6 +32,11 @@ use vrrb_core::{
         generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
         TransactionKind, Transfer,
     },
+};
+
+use secp256k1::{
+    hashes::{sha256 as s256, Hash},
+    Message,
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -281,6 +287,38 @@ impl NodeRuntime {
         };
 
         Ok(genesis)
+    }
+
+    pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
+        let miner_signature = genesis_block.header.miner_signature;
+        let miner_id = genesis_block.header.miner_claim.node_id.clone();
+        let hashed = self.hash_block_header(&genesis_block.header);
+        let message = Message::from(hashed);
+
+        self.consensus_driver
+            .verify_signature(&miner_id, &miner_signature, &message)?;
+
+        Ok(())
+    }
+
+    fn hash_block_header(&self, header: &BlockHeader) -> secp256k1::hashes::sha256::Hash {
+        let hashed = format!(
+            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+            header.ref_hashes,
+            header.round,
+            header.epoch,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+        );
+
+        secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes())
     }
 
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {

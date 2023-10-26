@@ -1,6 +1,6 @@
 use crate::{node_runtime::NodeRuntime, runtime::NETWORK_TOPIC_STR};
 use async_trait::async_trait;
-use block::Certificate;
+use block::{Block, Certificate};
 use events::{Event, EventMessage};
 use primitives::ConvergencePartialSig;
 use telemetry::info;
@@ -155,6 +155,26 @@ impl Handler<EventMessage> for NodeRuntime {
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
+            Event::GenesisMinerElected { node_id, whitelist } => {
+                // TODO: this call is changed by #595
+                let genesis_rewards = self
+                    .distribute_genesis_reward(whitelist)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                let block = self
+                    .mine_genesis_block(genesis_rewards)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                let event = EventMessage::new(
+                    Some("network-events".into()),
+                    Event::BlockCreated(Block::Genesis { block }),
+                );
+
+                self.events_tx
+                    .send(event)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
             Event::BuildProposalBlock(block) => {
                 let proposal_block = self
                     .handle_build_proposal_block_requested(block)
@@ -175,11 +195,13 @@ impl Handler<EventMessage> for NodeRuntime {
                 // Claim should be added to pending claims
                 // Event to validate claim should be created
             },
-            Event::BlockReceived(mut block) => {
+            Event::BlockCreated(mut block) => {
                 let next_event = self
                     .state_driver
                     .handle_block_received(&mut block, self.consensus_driver.sig_engine.clone())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                self.handle_block_received(block)?;
 
                 self.events_tx
                     .send(next_event.into())

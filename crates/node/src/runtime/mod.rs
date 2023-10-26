@@ -123,12 +123,15 @@ mod tests {
         create_node_runtime_network, create_quorum_assigned_node_runtime_network,
         create_sender_receiver_addresses, create_txn_from_accounts,
         create_txn_from_accounts_invalid_signature, create_txn_from_accounts_invalid_timestamp,
+        setup_network, setup_whitelisted_nodes,
     };
     use crate::NodeError;
     use block::{Block, GenesisConfig, GenesisReceiver};
     use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use storage::storage_utils::remove_vrrb_data_dir;
+    use tracing::instrument::WithSubscriber;
+    use vrrb_config::QuorumMember;
     use vrrb_core::account::{self, Account, AccountField};
     use vrrb_core::transactions::Transaction;
 
@@ -248,7 +251,9 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (mut node_0, farmers, harvesters, mut miners) = setup_network(8).await;
+
+        let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
         let miner_ids = miners
             .clone()
@@ -272,6 +277,13 @@ mod tests {
         let genesis_rewards = miner_node
             .distribute_genesis_reward(vec![receiver])
             .unwrap();
+        let miner_node = miners.get_mut(miner_id).unwrap();
+
+        let harvester_ids = harvesters.keys().cloned().collect::<Vec<NodeId>>();
+        let harvester_id = harvester_ids.first().unwrap();
+        let mut harvester = harvesters.get(harvester_id).unwrap().clone();
+
+        miner_node.config_mut().whitelisted_nodes = whitelisted_nodes;
 
         assert!(node_0.mine_genesis_block(genesis_rewards.clone()).is_err());
 
@@ -285,7 +297,11 @@ mod tests {
             assert!(farmer.mine_genesis_block(genesis_rewards.clone()).is_err());
         }
 
-        miner_node.mine_genesis_block(genesis_rewards).unwrap();
+        let block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
+
+        harvester
+            .handle_block_received(block::Block::from(block))
+            .unwrap();
     }
 
     #[tokio::test]
@@ -335,6 +351,16 @@ mod tests {
         ));
         let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
+        let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
+
+        for (_, harvester) in harvesters.iter_mut() {
+            harvester.config_mut().whitelisted_nodes = whitelisted_nodes.clone();
+        }
+
+        for (_, miner_node) in miners.iter_mut() {
+            miner_node.config_mut().whitelisted_nodes = whitelisted_nodes.clone();
+        }
+
         let miner_ids = miners
             .clone()
             .into_iter()
@@ -344,6 +370,7 @@ mod tests {
         let miner_id = miner_ids.first().unwrap();
 
         let mut miner_node = miners.get(miner_id).unwrap().to_owned();
+
         let claim = miner_node.state_driver.dag.claim();
 
         let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
@@ -366,7 +393,6 @@ mod tests {
         );
 
         let mut apply_results = Vec::new();
-        // let mut genesis_certs = Vec::new();
 
         for (_, harvester) in harvesters.iter_mut() {
             let apply_result = harvester
@@ -683,9 +709,10 @@ mod tests {
         );
 
         for farmer in farmer_nodes.iter() {
-            dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
-            dbg!(&farmer.consensus_driver.is_farmer());
+            // dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
+            // dbg!(&farmer.consensus_driver.is_farmer());
         }
+
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
             let (transaction_kind, validity) = farmer
@@ -1256,181 +1283,5 @@ mod tests {
                     == 1
             );
         }
-    }
-
-    //    async fn run_dkg_process(mut nodes: HashMap<NodeId, NodeRuntime>) {
-    //        let mut parts = HashMap::new();
-    //
-    //        for (node_id, node) in nodes.iter_mut() {
-    //            let (part, node_id) = node.generate_partial_commitment_message().unwrap();
-    //            parts.insert(node_id, part);
-    //        }
-    //
-    //        let parts = parts
-    //            .into_iter()
-    //            .map(|(node_id, part)| {
-    //                let quorum_kind = nodes
-    //                    .get(&node_id)
-    //                    .unwrap()
-    //                    .quorum_membership()
-    //                    .unwrap()
-    //                    .quorum_kind;
-    //
-    //                (node_id, (part, quorum_kind))
-    //            })
-    //            .collect::<HashMap<NodeId, (Part, QuorumKind)>>();
-    //
-    //        let mut acks = Vec::new();
-    //
-    //        let mut parts_handled = 0;
-    //        for (_, node) in nodes.iter_mut() {
-    //            for (sender_node_id, (part, quorum_kind)) in parts.iter() {
-    //                let ack = node
-    //                    .handle_part_commitment_created(sender_node_id.to_owned(), part.to_owned())
-    //                    .unwrap();
-    //
-    //                acks.push((ack, quorum_kind));
-    //
-    //                parts_handled += 1;
-    //            }
-    //        }
-    //
-    //        for (_, node) in nodes.iter_mut() {
-    //            for ((receiver_id, sender_id, ack), quorum_kind) in acks.iter() {
-    //                node.handle_part_commitment_acknowledged(
-    //                    receiver_id.to_owned(),
-    //                    sender_id.to_owned(),
-    //                    ack.to_owned(),
-    //                )
-    //                .unwrap();
-    //            }
-    //        }
-    //
-    //        for (_, node) in nodes.iter_mut() {
-    //            node.handle_all_ack_messages().unwrap();
-    //        }
-    //
-    //        for (_, node) in nodes.iter_mut() {
-    //            node.generate_keysets().await.unwrap();
-    //        }
-    //    }
-
-    async fn setup_network(
-        n: usize,
-    ) -> (
-        NodeRuntime,
-        HashMap<NodeId, NodeRuntime>, // farmers
-        HashMap<NodeId, NodeRuntime>, // validators
-        HashMap<NodeId, NodeRuntime>, // Miners
-    ) {
-        let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
-
-        let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
-
-        let mut node_0 = nodes.pop_front().unwrap();
-
-        node_0
-            .create_account(node_0.config_ref().keypair.miner_public_key_owned())
-            .unwrap();
-
-        let mut quorum_assignments = HashMap::new();
-
-        for node in nodes.iter() {
-            let peer_data = PeerData {
-                node_id: node.config.id.clone(),
-                node_type: node.config.node_type,
-                kademlia_peer_id: node.config.kademlia_peer_id.unwrap(),
-                udp_gossip_addr: node.config.udp_gossip_address,
-                raptorq_gossip_addr: node.config.raptorq_gossip_address,
-                kademlia_liveness_addr: node.config.kademlia_liveness_address,
-                validator_public_key: node.config.keypair.validator_public_key_owned(),
-            };
-
-            let assignments = node_0
-                .handle_node_added_to_peer_list(peer_data.clone())
-                .await
-                .unwrap();
-
-            if let Some(assignments) = assignments {
-                quorum_assignments.extend(assignments);
-            }
-        }
-
-        let other_nodes_copy = nodes.clone();
-
-        // NOTE: let nodes be aware of each other
-        for node in nodes.iter_mut() {
-            for other_node in other_nodes_copy.iter() {
-                if node.config.id == other_node.config.id {
-                    continue;
-                }
-
-                let peer_data = PeerData {
-                    node_id: other_node.config.id.clone(),
-                    node_type: other_node.config.node_type,
-                    kademlia_peer_id: other_node.config.kademlia_peer_id.unwrap(),
-                    udp_gossip_addr: other_node.config.udp_gossip_address,
-                    raptorq_gossip_addr: other_node.config.raptorq_gossip_address,
-                    kademlia_liveness_addr: other_node.config.kademlia_liveness_address,
-                    validator_public_key: other_node.config.keypair.validator_public_key_owned(),
-                };
-
-                node.handle_node_added_to_peer_list(peer_data.clone())
-                    .await
-                    .unwrap();
-            }
-        }
-
-        let node_0_pubkey = node_0.config_ref().keypair.miner_public_key_owned();
-
-        // NOTE: create te bootstrap's node account as well as their accounts on everyone's state
-        for current_node in nodes.iter_mut() {
-            for node in other_nodes_copy.iter() {
-                let node_pubkey = node.config_ref().keypair.miner_public_key_owned();
-                node_0.create_account(node_pubkey).unwrap();
-                current_node.create_account(node_0_pubkey).unwrap();
-                current_node.create_account(node_pubkey).unwrap();
-            }
-        }
-
-        let nodes = nodes
-            .into_iter()
-            .map(|node| (node.config.id.clone(), node))
-            .collect::<HashMap<NodeId, NodeRuntime>>();
-
-        let mut validator_nodes = nodes
-            .clone()
-            .into_iter()
-            .filter(|(_, node)| node.config.node_type == NodeType::Validator)
-            .collect::<HashMap<NodeId, NodeRuntime>>();
-
-        for (_node_id, node) in validator_nodes.iter_mut() {
-            node.handle_quorum_membership_assigments_created(
-                quorum_assignments.clone().into_values().collect(),
-            )
-            .unwrap();
-        }
-
-        let farmer_nodes = validator_nodes
-            .clone()
-            .into_iter()
-            .filter(|(_, node)| node.quorum_membership().unwrap().quorum_kind == QuorumKind::Farmer)
-            .collect::<HashMap<NodeId, NodeRuntime>>();
-
-        let harvester_nodes = validator_nodes
-            .clone()
-            .into_iter()
-            .filter(|(_, node)| {
-                node.quorum_membership().unwrap().quorum_kind == QuorumKind::Harvester
-            })
-            .collect::<HashMap<NodeId, NodeRuntime>>();
-
-        let miner_nodes = nodes
-            .clone()
-            .into_iter()
-            .filter(|(_, node)| node.config.node_type == NodeType::Miner)
-            .collect::<HashMap<NodeId, NodeRuntime>>();
-
-        (node_0, farmer_nodes, harvester_nodes, miner_nodes)
     }
 }

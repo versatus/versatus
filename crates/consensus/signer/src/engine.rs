@@ -149,7 +149,8 @@ impl SignerEngine {
             quorum_members: QuorumMembers(HashMap::new()),
         }
     }
-    /// transaction sign method
+
+    /// Transaction sign method
     pub fn sign<T: AsRef<[u8]>>(&mut self, data: T) -> Result<Signature, Error> {
         let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
@@ -160,7 +161,7 @@ impl SignerEngine {
             .sign_ecdsa(message.map_err(|e| Error::SecpError(e.to_string()))?))
     }
 
-    /// signature verification
+    /// Signature verification
     pub fn verify<T: AsRef<[u8]>>(
         &self,
         node_id: &NodeId,
@@ -169,9 +170,11 @@ impl SignerEngine {
     ) -> Result<(), Error> {
         let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
+
         let result = hasher.finalize().to_vec();
         let message = Message::from_slice(&result);
         let pk = self.quorum_members.get_public_key_from_members(node_id);
+
         if let Some(pk) = pk {
             return sig
                 .verify(&message.map_err(|e| Error::SecpError(e.to_string()))?, &pk)
@@ -181,7 +184,24 @@ impl SignerEngine {
         Err(Error::FailedVerification("missing public key".to_string()))
     }
 
-    #[allow(clippy::ptr_arg)]
+    /// Signature verification with a given message
+    pub fn verify_with_message(
+        &self,
+        node_id: &NodeId,
+        sig: &Signature,
+        message: &Message,
+    ) -> Result<(), Error> {
+        let pk = self
+            .quorum_members
+            .get_public_key_from_members(node_id)
+            .ok_or(Error::FailedVerification("missing public key".to_string()))?;
+
+        sig.verify(message, &pk)
+            .map_err(|e| Error::SecpError(e.to_string()))?;
+
+        Ok(())
+    }
+
     pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
         &self,
         batch_sigs: &Vec<(NodeId, Signature)>,
