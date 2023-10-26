@@ -6,15 +6,13 @@
 //! Integration tests are needed for testing that these `Certificate`s are broadcasted.
 
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
+    collections::{hash_map::DefaultHasher, BTreeMap},
     hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
 };
 
 use block::{
     header::BlockHeader, Block, Certificate, ConsolidatedTxns, ConvergenceBlock, ProposalBlock,
 };
-use bulldag::{graph::BullDag, vertex::Vertex};
 use events::DEFAULT_BUFFER;
 use miner::test_helpers::create_miner;
 use node::{

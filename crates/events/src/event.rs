@@ -1,3 +1,4 @@
+use block::GenesisReceiver;
 use block::{
     header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
 };
@@ -168,7 +169,9 @@ pub enum Event {
 
     MinerElected((U256, Claim)),
 
-    GenesisMinerElected(NodeId),
+    GenesisMinerElected {
+        genesis_receivers: Vec<GenesisReceiver>,
+    },
 
     ProposalBlockCreated(ProposalBlock),
 
