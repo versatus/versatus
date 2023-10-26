@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use block::{Certificate, ConvergenceBlock};
+use block::{Block, Certificate, ConvergenceBlock};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::PublicKeySet,
@@ -51,6 +51,8 @@ pub enum NetworkEvent {
         socket_addr: SocketAddr,
     },
 
+    BlockCreated(Block),
+
     ForwardedTxn(Box<TxnRecord>),
 
     PartCommitmentCreated(NodeId, Part),
@@ -63,7 +65,7 @@ pub enum NetworkEvent {
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),
-    BroadcastTransactionVote(Vote),
+    BroadcastTransactionVote(Box<Vote>),
     Ping(NodeId),
 
     #[default]

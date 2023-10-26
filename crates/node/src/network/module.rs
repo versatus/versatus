@@ -1,11 +1,6 @@
-use std::{
-    collections::HashMap,
-    net::{AddrParseError, SocketAddr},
-    ops::AddAssign,
-};
+use std::net::SocketAddr;
 
-use async_trait::async_trait;
-use block::{Certificate, ConvergenceBlock};
+use block::{Block, Certificate, ConvergenceBlock};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -13,16 +8,11 @@ use dyswarm::{
 use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote,
 };
-use hbbft::{
-    crypto::PublicKey as ThresholdSignaturePublicKey,
-    sync_key_gen::{Ack, Part},
-};
+use hbbft::sync_key_gen::{Ack, Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
-use signer::engine::QuorumData;
-use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
@@ -34,9 +24,13 @@ use crate::{
     DEFAULT_ERASURE_COUNT,
 };
 
+// TODO: change these magic numbers when retrieving the closest peers to a dynamically sized
+// network members count such that broadcast can happen across the whole network
+
 #[derive(Debug)]
 pub struct NetworkModule {
     pub(crate) id: ActorId,
+    pub(crate) node_config: NodeConfig,
     pub(crate) node_id: NodeId,
     pub(crate) node_type: NodeType,
     pub(crate) status: ActorState,
@@ -115,6 +109,7 @@ impl NetworkModule {
             node_id: config.node_id.clone(),
             node_type: config.node_type,
             status: ActorState::Stopped,
+            node_config: config.node_config.clone(),
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
             is_bootstrap: config.bootstrap_node_config.is_none(),
@@ -189,13 +184,6 @@ impl NetworkModule {
     }
 
     /// Address this module listens on for network events via UDP
-    // NOTE: currently assume UDP is the primary means of communication however this
-    // may not be entirely accurate in the near future.
-    pub fn local_addr(&self) -> SocketAddr {
-        self.udp_gossip_addr()
-    }
-
-    /// Address this module listens on for network events via UDP
     pub fn udp_gossip_addr(&self) -> SocketAddr {
         self.udp_gossip_addr
     }
@@ -219,16 +207,8 @@ impl NetworkModule {
         &self.kademlia_node
     }
 
-    pub fn node_mut(&mut self) -> &mut KademliaNode {
-        &mut self.kademlia_node
-    }
-
     pub fn validator_public_key(&self) -> PublicKey {
         self.validator_public_key
-    }
-
-    pub fn set_validator_public_key(&mut self, public_key: PublicKey) {
-        self.validator_public_key = public_key;
     }
 
     pub async fn broadcast_join_intent(&mut self) -> Result<()> {
@@ -436,7 +416,34 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
-        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(vote));
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::BlockCreated(block));
+
         self.dyswarm_client
             .broadcast(BroadcastArgs {
                 config: Default::default(),

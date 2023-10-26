@@ -20,7 +20,8 @@ use miner::test_helpers::create_miner;
 use node::{
     node_runtime::NodeRuntime,
     test_utils::{
-        create_quorum_assigned_node_runtime_network, produce_proposal_blocks, produce_random_claim,
+        create_quorum_assigned_node_runtime_network, dummy_convergence_block, dummy_proposal_block,
+        dummy_proposal_block_and_accounts, produce_proposal_blocks, produce_random_claim,
         produce_random_claims,
     },
     NodeError,
@@ -610,89 +611,4 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
                 .unwrap()
         );
     });
-}
-
-fn dummy_convergence_block() -> ConvergenceBlock {
-    let keypair = KeyPair::random();
-    let public_key = keypair.get_miner_public_key();
-    let mut hasher = DefaultHasher::new();
-    public_key.hash(&mut hasher);
-    let pubkey_hash = hasher.finish();
-
-    let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
-    pub_key_bytes.push(1u8);
-
-    let hash = digest(digest(&*pub_key_bytes).as_bytes());
-
-    let payload = (21_600, hash);
-    ConvergenceBlock {
-        header: BlockHeader {
-            ref_hashes: Default::default(),
-            epoch: Default::default(),
-            round: Default::default(),
-            block_seed: Default::default(),
-            next_block_seed: Quorum::generate_seed(payload, keypair).unwrap(),
-            block_height: 21_600,
-            timestamp: Default::default(),
-            txn_hash: Default::default(),
-            miner_claim: produce_random_claim(22),
-            claim_list_hash: Default::default(),
-            block_reward: Default::default(),
-            next_block_reward: Default::default(),
-            miner_signature: Default::default(),
-        },
-        txns: Default::default(),
-        claims: Default::default(),
-        hash: "dummy_convergence_block".into(),
-        certificate: None,
-    }
-}
-
-fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
-    let kp1 = Keypair::random();
-    let address1 = Address::new(kp1.miner_kp.1);
-    let kp2 = Keypair::random();
-    let address2 = Address::new(kp2.miner_kp.1);
-    let mut account1 = Account::new(address1.clone());
-    let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
-    let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
-    produce_proposal_blocks(
-        "dummy_proposal_block".to_string(),
-        vec![(address1, Some(account1)), (address2, Some(account2))],
-        1,
-        2,
-        sig_engine,
-    )
-    .pop()
-    .unwrap()
-}
-
-fn dummy_proposal_block_and_accounts(
-    sig_engine: signer::engine::SignerEngine,
-) -> ((Address, Account), (Address, Account), ProposalBlock) {
-    let kp1 = Keypair::random();
-    let address1 = Address::new(kp1.miner_kp.1);
-    let kp2 = Keypair::random();
-    let address2 = Address::new(kp2.miner_kp.1);
-    let mut account1 = Account::new(address1.clone());
-    let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
-    let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
-    let proposal_block = produce_proposal_blocks(
-        "dummy_proposal_block".to_string(),
-        vec![
-            (address1.clone(), Some(account1.clone())),
-            (address2.clone(), Some(account2.clone())),
-        ],
-        1,
-        1,
-        sig_engine,
-    )
-    .pop()
-    .unwrap();
-
-    ((address1, account1), (address2, account2), proposal_block)
 }

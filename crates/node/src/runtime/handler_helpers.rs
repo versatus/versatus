@@ -26,13 +26,7 @@ impl NodeRuntime {
     }
 
     fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
-        // TODO: append blocks to only one instance of the DAG
-        self.state_driver
-            .dag
-            .append_genesis(&block)
-            .map_err(|err| {
-                NodeError::Other(format!("Failed to append genesis block to DAG: {err:?}"))
-            })?;
+        self.verify_genesis_block_origin(block.clone())?;
 
         let apply_result = self.state_driver.apply_block(Block::Genesis { block })?;
 
@@ -52,7 +46,10 @@ impl NodeRuntime {
             let err_note = format!("Failed to append proposal block to DAG: {e:?}");
             return Err(NodeError::Other(err_note));
         }
-        todo!()
+
+        let apply_result = self.state_driver.apply_block(Block::Proposal { block })?;
+
+        Ok(apply_result)
     }
 
     /// Certifies and stores a convergence block within a node's state if certification succeeds
@@ -65,7 +62,7 @@ impl NodeRuntime {
         self.consensus_driver.is_harvester()?;
         let apply_result = self
             .state_driver
-            .append_convergence(&mut block)
+            .append_convergence(&block)
             .map_err(|err| {
                 NodeError::Other(format!(
                     "Could not append convergence block to DAG: {err:?}"
@@ -102,7 +99,7 @@ impl NodeRuntime {
                 .quorum_members()
                 .get_harvester_threshold()
         {
-            return Err(NodeError::Other(format!("threshold not reached yet")));
+            return Err(NodeError::Other("threshold not reached yet".to_string()));
         }
 
         let sig_set = set.into_iter().collect();
@@ -136,11 +133,7 @@ impl NodeRuntime {
         {
             let root_hash = block.header.txn_hash.clone();
             let block_hash = block.hash.clone();
-            let inauguration = if let Some(quorum) = &self.pending_quorum {
-                Some(quorum.clone())
-            } else {
-                None
-            };
+            let inauguration = self.pending_quorum.as_ref().cloned();
             let cert = Certificate {
                 signatures: sigs,
                 //TODO: handle inauguration blocks
@@ -196,7 +189,6 @@ impl NodeRuntime {
             .ok_or(NodeError::Other(
                 "certificate not appended to convergence block".to_string(),
             ))?;
-        
 
         Ok(block.clone())
     }
@@ -225,7 +217,7 @@ impl NodeRuntime {
         certificate: &Certificate,
     ) -> Result<Option<ConvergenceBlock>> {
         self.state_driver
-            .append_certificate_to_convergence_block(&certificate)
+            .append_certificate_to_convergence_block(certificate)
             .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
@@ -303,12 +295,10 @@ impl NodeRuntime {
                     .map_err(|err| NodeError::Other(err.to_string()))?;
                 Ok(())
             },
-            Err(err) => return Err(NodeError::Other(err.to_string())),
-            _ => {
-                return Err(NodeError::Other(
-                    "convergence block is not valid".to_string(),
-                ))
-            },
+            Err(err) => Err(NodeError::Other(err.to_string())),
+            _ => Err(NodeError::Other(
+                "convergence block is not valid".to_string(),
+            )),
         }
     }
 

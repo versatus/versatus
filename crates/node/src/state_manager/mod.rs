@@ -31,8 +31,8 @@ mod tests {
 
     use super::*;
     use crate::test_utils::{
-        create_blank_certificate, create_keypair, produce_accounts, produce_convergence_block,
-        produce_genesis_block, produce_proposal_blocks,
+        create_keypair, produce_accounts, produce_convergence_block, produce_genesis_block,
+        produce_proposal_blocks,
     };
 
     #[tokio::test]
