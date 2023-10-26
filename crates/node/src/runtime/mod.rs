@@ -337,7 +337,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn harvester_node_runtime_can_propose_blocks() {
-        let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
+        let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         node_0.config.node_type = NodeType::Miner;
         let receiver = GenesisReceiver(Address::new(
             farmers
