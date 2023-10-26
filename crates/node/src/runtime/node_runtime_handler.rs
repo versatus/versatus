@@ -1,8 +1,8 @@
 use crate::{node_runtime::NodeRuntime, runtime::NETWORK_TOPIC_STR};
 use async_trait::async_trait;
-use block::{Block, Certificate};
+use block::{Block, Certificate, GenesisReceiver};
 use events::{Event, EventMessage};
-use primitives::ConvergencePartialSig;
+use primitives::{Address, ConvergencePartialSig, NodeType, QuorumKind, RUNTIME_TOPIC_STR};
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 
@@ -54,6 +54,30 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 self.handle_quorum_membership_assigment_created(assigned_membership.clone())?;
+                if let Some(quorum_kind) = &self.consensus_driver.quorum_kind {
+                    if *quorum_kind == QuorumKind::Miner && self.config.node_type == NodeType::Miner
+                    {
+                        let event = EventMessage::new(
+                            Some(RUNTIME_TOPIC_STR.into()),
+                            Event::GenesisMinerElected {
+                                genesis_receivers: self
+                                    .config
+                                    .whitelisted_nodes
+                                    .iter()
+                                    .map(|quorum_member| {
+                                        GenesisReceiver::new(Address::new(
+                                            quorum_member.validator_public_key,
+                                        ))
+                                    })
+                                    .collect(),
+                            },
+                        );
+                        self.events_tx
+                            .send(event)
+                            .await
+                            .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    }
+                }
             },
             Event::QuorumMembershipAssigmentsCreated(assignments) => {
                 self.handle_quorum_membership_assigments_created(assignments)?
@@ -155,10 +179,10 @@ impl Handler<EventMessage> for NodeRuntime {
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
-            Event::GenesisMinerElected { node_id, whitelist } => {
+            Event::GenesisMinerElected { genesis_receivers } => {
                 // TODO: this call is changed by #595
                 let genesis_rewards = self
-                    .distribute_genesis_reward(whitelist)
+                    .distribute_genesis_reward(genesis_receivers)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 let block = self

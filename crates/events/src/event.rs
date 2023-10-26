@@ -170,8 +170,7 @@ pub enum Event {
     MinerElected((U256, Claim)),
 
     GenesisMinerElected {
-        node_id: NodeId,
-        whitelist: Vec<GenesisReceiver>,
+        genesis_receivers: Vec<GenesisReceiver>,
     },
 
     ProposalBlockCreated(ProposalBlock),
