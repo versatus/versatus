@@ -507,7 +507,7 @@ impl StateReader for VrrbDbReadHandle {
     /// Get a transaction from state
     async fn get_transaction(
         &self,
-        transaction_digest: TransactionDigest,
+        _transaction_digest: TransactionDigest,
     ) -> Result<TransactionKind> {
         todo!()
     }
@@ -515,12 +515,12 @@ impl StateReader for VrrbDbReadHandle {
     /// List a group of transactions
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
+        _digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
-    async fn get_account(&self, address: Address) -> Result<Account> {
+    async fn get_account(&self, _address: Address) -> Result<Account> {
         todo!()
     }
 
@@ -544,7 +544,7 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
         todo!()
     }
 
