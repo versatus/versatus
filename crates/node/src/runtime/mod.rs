@@ -126,9 +126,9 @@ mod tests {
         setup_network, setup_whitelisted_nodes,
     };
     use crate::NodeError;
-    use block::Block;
+    use block::{Block, GenesisConfig, GenesisReceiver};
     use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
-    use primitives::{generate_account_keypair, NodeId, NodeType, QuorumKind};
+    use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use storage::storage_utils::remove_vrrb_data_dir;
     use tracing::instrument::WithSubscriber;
     use vrrb_config::QuorumMember;
@@ -199,18 +199,18 @@ mod tests {
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_produce_genesis_transaction() {
         let (node_0, farmers, harvesters, miners) = setup_network(8).await;
-        node_0.produce_genesis_transactions(0).unwrap();
+        assert!(node_0.distribute_genesis_reward(vec![]).is_err());
 
         for (_, node) in farmers.iter() {
-            assert!(node.produce_genesis_transactions(0).is_err());
+            assert!(node.distribute_genesis_reward(vec![]).is_err());
         }
 
         for (_, node) in harvesters.iter() {
-            assert!(node.produce_genesis_transactions(0).is_err());
+            assert!(node.distribute_genesis_reward(vec![]).is_err());
         }
 
         for (_, node) in miners.iter() {
-            assert!(node.produce_genesis_transactions(0).is_err());
+            assert!(node.distribute_genesis_reward(vec![]).is_ok());
         }
     }
 
@@ -252,7 +252,6 @@ mod tests {
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
         let (mut node_0, farmers, harvesters, mut miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
@@ -264,6 +263,20 @@ mod tests {
 
         let miner_id = miner_ids.first().unwrap();
 
+        let miner_node = miners.get(miner_id).unwrap();
+        let receiver = GenesisReceiver(Address::new(
+            farmers
+                .iter()
+                .last()
+                .unwrap()
+                .1
+                .config
+                .keypair
+                .miner_public_key_owned(),
+        ));
+        let genesis_rewards = miner_node
+            .distribute_genesis_reward(vec![receiver])
+            .unwrap();
         let miner_node = miners.get_mut(miner_id).unwrap();
 
         let harvester_ids = harvesters.keys().cloned().collect::<Vec<NodeId>>();
@@ -272,17 +285,19 @@ mod tests {
 
         miner_node.config_mut().whitelisted_nodes = whitelisted_nodes;
 
-        assert!(node_0.mine_genesis_block(genesis_txns.clone()).is_err());
+        assert!(node_0.mine_genesis_block(genesis_rewards.clone()).is_err());
 
         for harvester in harvesters.values() {
-            assert!(harvester.mine_genesis_block(genesis_txns.clone()).is_err());
+            assert!(harvester
+                .mine_genesis_block(genesis_rewards.clone())
+                .is_err());
         }
 
         for farmer in farmers.values() {
-            assert!(farmer.mine_genesis_block(genesis_txns.clone()).is_err());
+            assert!(farmer.mine_genesis_block(genesis_rewards.clone()).is_err());
         }
 
-        let block = miner_node.mine_genesis_block(genesis_txns).unwrap();
+        let block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
         harvester
             .handle_block_received(block::Block::from(block))
@@ -323,6 +338,18 @@ mod tests {
     #[serial_test::serial]
     async fn harvester_node_runtime_can_propose_blocks() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
+        node_0.config.node_type = NodeType::Miner;
+        let receiver = GenesisReceiver(Address::new(
+            farmers
+                .iter()
+                .last()
+                .unwrap()
+                .1
+                .config
+                .keypair
+                .miner_public_key_owned(),
+        ));
+        let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
@@ -333,8 +360,6 @@ mod tests {
         for (_, miner_node) in miners.iter_mut() {
             miner_node.config_mut().whitelisted_nodes = whitelisted_nodes.clone();
         }
-
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -348,7 +373,7 @@ mod tests {
 
         let claim = miner_node.state_driver.dag.claim();
 
-        let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
+        let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
         // TODO: impl miner elections
         // TODO: create genesis block, certify it then append it to miner's dag
@@ -409,7 +434,18 @@ mod tests {
     #[serial_test::serial]
     async fn harvester_node_runtime_can_handle_genesis_block_created() {
         let (mut node_0, farmers, mut harvesters, miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
+        node_0.config.node_type = NodeType::Miner;
+        let receiver = GenesisReceiver(Address::new(
+            farmers
+                .iter()
+                .last()
+                .unwrap()
+                .1
+                .config
+                .keypair
+                .miner_public_key_owned(),
+        ));
+        let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -421,7 +457,7 @@ mod tests {
 
         let miner_node = miners.get(miner_id).unwrap();
 
-        let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
+        let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
         let mut apply_results = Vec::new();
 
@@ -436,10 +472,8 @@ mod tests {
         }
 
         for (_, harvester) in harvesters.iter_mut() {
-            let txn_trie_root_hash = harvester.transactions_root_hash().unwrap();
             let state_trie_root_hash = harvester.state_root_hash().unwrap();
             for res in apply_results.iter() {
-                assert_eq!(txn_trie_root_hash, res.transactions_root_hash_str());
                 assert_eq!(state_trie_root_hash, res.state_root_hash_str());
             }
         }
@@ -450,7 +484,17 @@ mod tests {
     #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
         let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
-        let genesis_txns = node_0.produce_genesis_transactions(0).unwrap();
+        let receiver = GenesisReceiver(Address::new(
+            farmers
+                .iter()
+                .last()
+                .unwrap()
+                .1
+                .config
+                .keypair
+                .miner_public_key_owned(),
+        ));
+        let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
         let miner_ids = miners
             .clone()
@@ -462,7 +506,7 @@ mod tests {
 
         let mut miner_node = miners.get_mut(miner_id).unwrap();
 
-        let genesis_block = miner_node.mine_genesis_block(genesis_txns).unwrap();
+        let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
         // TODO: impl miner elections
         // TODO: create genesis block, certify it then append it to miner's dag

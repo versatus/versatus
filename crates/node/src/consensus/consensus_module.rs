@@ -562,7 +562,7 @@ impl ConsensusModule {
         Ok(())
     }
 
-    pub(crate) fn is_farmer(&self) -> Result<()> {
+    pub fn is_farmer(&self) -> Result<()> {
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Farmer) {
             return Err(NodeError::Other(
                 "local node is not a Farmer Node".to_string(),
