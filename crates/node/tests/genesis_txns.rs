@@ -1,7 +1,9 @@
 //! Genesis block should contain a list of value transfer transactions to pre configured addresses. These transactions should allocate a pre configurable number of tokens.
-use block::{Block, GenesisReceiver};
+use block::{Block, Certificate, GenesisReceiver};
 use events::DEFAULT_BUFFER;
-use node::{node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network};
+use node::{
+    node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network, NodeError,
+};
 use primitives::{Address, NodeType, Signature};
 use storage::vrrbdb::ApplyBlockResult;
 
@@ -97,10 +99,11 @@ async fn genesis_block_can_be_certified() {
         );
         let _ = node.state_driver.append_genesis(&genesis_block);
     }
-
-    assert!(chosen_harvester
-        .certify_genesis_block(genesis_block)
-        .is_ok())
+    let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
+    for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+        res = chosen_harvester.certify_genesis_block(genesis_block.clone());
+    }
+    assert!(res.is_ok());
 }
 
 #[tokio::test]
