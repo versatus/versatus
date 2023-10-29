@@ -302,6 +302,7 @@ impl NodeRuntime {
         }
     }
 
+    // TODO: Does this need to be async?
     pub async fn handle_sign_convergence_block(
         &mut self,
         block: ConvergenceBlock,
@@ -317,6 +318,30 @@ impl NodeRuntime {
                     err
                 ))
             })
+    }
+
+    pub async fn handle_sign_genesis_block(&mut self, block: &GenesisBlock) -> Result<Signature> {
+        self.consensus_driver.is_harvester()?;
+        self.consensus_driver
+            .sig_engine
+            .sign(&block.hash)
+            .map_err(|err| {
+                NodeError::Other(format!(
+                    "could not generate partial_signature on block: {}. err: {}",
+                    block.hash, err
+                ))
+            })
+    }
+
+    // TODO: Replace uses of signing handlers for blocks with this method
+    pub async fn handle_sign_block(&mut self, block: Block) -> Result<Signature> {
+        match block {
+            Block::Convergence { block } => self.handle_sign_convergence_block(block).await,
+            Block::Genesis { block } => self.handle_sign_genesis_block(&block).await,
+            _ => Err(NodeError::Other(
+                "signature handler is not implemented for proposal blocks".into(),
+            )),
+        }
     }
 
     // TODO: Replace claims HashMap with claim_store_read_handle_factory

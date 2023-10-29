@@ -1,10 +1,9 @@
 //! Genesis block should contain a list of value transfer transactions to pre configured addresses. These transactions should allocate a pre configurable number of tokens.
-use block::GenesisReceiver;
+use block::{Block, GenesisReceiver};
 use events::DEFAULT_BUFFER;
 use node::{node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network};
-use primitives::{Address, NodeType};
+use primitives::{Address, NodeType, Signature};
 use storage::vrrbdb::ApplyBlockResult;
-use vrrb_core::transactions::TransactionKind;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one transaction
 #[tokio::test]
@@ -53,6 +52,90 @@ async fn genesis_block_txns_are_valid() {
         assert!(genesis_rewards.0.contains_key(&genesis_receiver));
         assert!(*reward > 0);
     }
+}
+
+#[tokio::test]
+async fn genesis_block_can_be_certified() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    nodes.reverse();
+    nodes.pop(); // pop bootstrap node
+    let mut genesis_miner = nodes.pop().unwrap();
+    genesis_miner.config.node_type = NodeType::Miner;
+
+    let receiver_addresses = nodes
+        .iter()
+        .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
+        .collect::<Vec<Address>>();
+    let receivers = assign_genesis_receivers(receiver_addresses.clone());
+    let genesis_rewards = genesis_miner.distribute_genesis_reward(receivers).unwrap();
+    let genesis_block = genesis_miner
+        .mine_genesis_block(genesis_rewards.clone())
+        .unwrap();
+
+    let mut harvesters: Vec<NodeRuntime> = nodes
+        .iter()
+        .filter_map(|node| {
+            if node.consensus_driver.is_harvester().is_ok() {
+                Some(node.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut chosen_harvester = harvesters.pop().unwrap();
+    let _ = chosen_harvester.state_driver.append_genesis(&genesis_block);
+    let mut sigs: Vec<Signature> = Vec::new();
+    for node in harvesters.iter_mut() {
+        sigs.push(
+            node.handle_sign_block(Block::Genesis {
+                block: genesis_block.clone(),
+            })
+            .await
+            .unwrap(),
+        );
+        let _ = node.state_driver.append_genesis(&genesis_block);
+    }
+
+    assert!(chosen_harvester
+        .certify_genesis_block(genesis_block)
+        .is_ok())
+}
+
+#[tokio::test]
+async fn certified_genesis_block_appended_to_dag() {
+    let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
+
+    nodes.reverse();
+    nodes.pop(); // pop bootstrap node
+    let mut genesis_miner = nodes.pop().unwrap();
+    genesis_miner.config.node_type = NodeType::Miner;
+
+    let receiver_addresses = nodes
+        .iter()
+        .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
+        .collect::<Vec<Address>>();
+    let receivers = assign_genesis_receivers(receiver_addresses.clone());
+    let genesis_rewards = genesis_miner.distribute_genesis_reward(receivers).unwrap();
+    let genesis_block = genesis_miner
+        .mine_genesis_block(genesis_rewards.clone())
+        .unwrap();
+
+    let mut harvesters: Vec<NodeRuntime> = nodes
+        .iter()
+        .filter_map(|node| {
+            if node.consensus_driver.is_harvester().is_ok() {
+                Some(node.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let harvester = harvesters.first_mut().unwrap();
+    let certificate = harvester.certify_genesis_block(genesis_block).unwrap();
+    // append cert to dag
 }
 
 /// All transactions within the genesis block should be applied to the network's state

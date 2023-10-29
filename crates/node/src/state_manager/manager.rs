@@ -3,7 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use block::{
+    Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -63,6 +65,20 @@ impl StateManager {
             _status: ActorState::Stopped,
             dag: dag_module,
             mempool: config.mempool,
+        }
+    }
+
+    pub fn append_genesis(
+        &mut self,
+        genesis_block: &GenesisBlock,
+    ) -> GraphResult<ApplyBlockResult> {
+        match self.dag.append_genesis(genesis_block) {
+            Ok(()) => Ok(self
+                .apply_block(Block::Genesis {
+                    block: genesis_block.clone(),
+                })
+                .map_err(|err| GraphError::Other(err.to_string()))?),
+            Err(err) => Err(err),
         }
     }
 
