@@ -1,4 +1,5 @@
 use node::test_utils::create_test_network;
+use telemetry::custom_subscriber::TelemetrySubscriber;
 // use telemetry::TelemetrySubscriber;
 
 #[tokio::main]
@@ -22,6 +23,10 @@ async fn main() {
     // dbg!(rpc_client.get_full_mempool().await.unwrap().len());
 
     tokio::signal::ctrl_c().await.unwrap();
+
+    for node in nodes.iter() {
+        dbg!(node.config().quorum_config);
+    }
 
     for node in nodes {
         println!();

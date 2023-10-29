@@ -42,9 +42,6 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     validator_public_key,
                 });
 
-                // TODO: once all known peers have been joined, send a `NetworkReady` event so a
-                // dkg can be started and the first quorums can be formed
-
                 let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), evt);
 
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
@@ -59,6 +56,19 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
 
                 let evt = Event::ClaimReceived(claim);
                 let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), evt);
+
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+
+            NetworkEvent::QuorumMembershipAssigmentsCreated(assignments) => {
+                telemetry::info!(
+                    "Node ID {} recieved {} assignments",
+                    self.node_id,
+                    assignments.len(),
+                );
+
+                let evt = Event::QuorumMembershipAssigmentsCreated(assignments);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
