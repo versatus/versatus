@@ -350,6 +350,7 @@ impl NodeRuntime {
             };
             inaug_members.0.insert(quorum_id, quorum_data);
         });
+
         self.pending_quorum = Some(inaug_members);
 
         //        let local_id = self.config.id.clone();

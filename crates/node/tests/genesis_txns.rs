@@ -8,6 +8,7 @@ use vrrb_core::transactions::TransactionKind;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one transaction
 #[tokio::test]
+#[serial_test::serial]
 async fn genesis_block_contains_txns() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
@@ -31,6 +32,7 @@ async fn genesis_block_contains_txns() {
 
 /// The transactions within the genesis block should be valid and contain balance allocations to at least one address
 #[tokio::test]
+#[serial_test::serial]
 async fn genesis_block_txns_are_valid() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
@@ -57,6 +59,7 @@ async fn genesis_block_txns_are_valid() {
 
 /// All transactions within the genesis block should be applied to the network's state
 #[tokio::test]
+#[serial_test::serial]
 async fn genesis_block_txns_are_applied_to_state() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
