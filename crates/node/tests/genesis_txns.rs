@@ -70,6 +70,7 @@ async fn genesis_block_can_be_certified() {
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
         .collect::<Vec<Address>>();
+
     let receivers = assign_genesis_receivers(receiver_addresses.clone());
     let genesis_rewards = genesis_miner.distribute_genesis_reward(receivers).unwrap();
     let genesis_block = genesis_miner
@@ -86,24 +87,44 @@ async fn genesis_block_can_be_certified() {
             }
         })
         .collect();
+
     let mut chosen_harvester = harvesters.pop().unwrap();
-    let _ = chosen_harvester.state_driver.append_genesis(&genesis_block);
+    chosen_harvester
+        .state_driver
+        .append_genesis(&genesis_block)
+        .unwrap();
+
     let mut sigs: Vec<Signature> = Vec::new();
     for node in harvesters.iter_mut() {
-        sigs.push(
-            node.handle_sign_block(Block::Genesis {
+        let sig = node
+            .handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
             .await
-            .unwrap(),
-        );
-        let _ = node.state_driver.append_genesis(&genesis_block);
+            .unwrap();
+
+        sigs.push(sig);
+
+        node.state_driver.append_genesis(&genesis_block).unwrap();
     }
-    let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
-    for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
-        res = chosen_harvester.certify_genesis_block(genesis_block.clone());
-    }
-    assert!(res.is_ok());
+
+    dbg!(harvesters.len(), sigs.len());
+
+    let cert = chosen_harvester
+        .certify_genesis_block(genesis_block.clone())
+        .unwrap();
+
+    dbg!(cert);
+
+    // let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
+    // for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+    //     let cert = chosen_harvester
+    //         .certify_genesis_block(genesis_block.clone())
+    //         .unwrap();
+    //
+    //     dbg!(cert);
+    // }
+    // assert!(res.is_ok());
 }
 
 #[tokio::test]

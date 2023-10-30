@@ -344,13 +344,26 @@ impl DagModule {
         block_hash: &String,
         sig_engine: &SignerEngine,
     ) -> Result<HashSet<(NodeId, Signature)>> {
-        if let Some(set) = self.partial_certificate_signatures.get(block_hash) {
-            if set.len() >= sig_engine.quorum_members().get_harvester_threshold() {
-                return Ok(set.clone());
-            }
+        dbg!(&self.partial_certificate_signatures);
+
+        let threshold = sig_engine.quorum_members().get_harvester_threshold();
+
+        let set = self
+            .partial_certificate_signatures
+            .get(block_hash)
+            .ok_or(NodeError::Other(format!(
+                "No signatures for block: {block_hash}"
+            )))?;
+
+        if set.len() <= threshold {
+            return Err(NodeError::Other(format!(
+                "Unable to reach required threshold: {}/{}",
+                set.len(),
+                threshold
+            )));
         }
 
-        Err(NodeError::Other("threshold not reached".to_string()))
+        Ok(set.clone())
     }
 
     fn _verify_certificate_signature(

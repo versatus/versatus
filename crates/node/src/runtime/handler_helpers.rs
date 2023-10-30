@@ -327,7 +327,7 @@ impl NodeRuntime {
             .sign(&block.hash)
             .map_err(|err| {
                 NodeError::Other(format!(
-                    "could not generate partial_signature on block: {}. err: {}",
+                    "could not generate partial_signature for block: {}: {}",
                     block.hash, err
                 ))
             })

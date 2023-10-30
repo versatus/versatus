@@ -323,10 +323,12 @@ impl NodeRuntime {
 
     pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
+
         let certs = self.state_driver.dag.check_certificate_threshold_reached(
             &genesis.hash,
             &self.consensus_driver.sig_engine,
         )?;
+
         let certificate = self
             .consensus_driver
             .certify_genesis_block(genesis, certs.into_iter().collect())?;
