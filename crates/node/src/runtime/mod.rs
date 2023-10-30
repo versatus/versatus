@@ -1,4 +1,4 @@
-use events::{Event, EventPublisher, EventRouter, Vote};
+use events::{EventPublisher, EventRouter};
 use primitives::{JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 use telemetry::info;
 use vrrb_config::NodeConfig;
@@ -99,15 +99,17 @@ pub async fn setup_runtime_components(
     runtime_manager.register_component("API".to_string(), jsonrpc_server_handle);
 
     if config.enable_block_indexing {
-        let handle = setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
+        let _handle =
+            setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
         // TODO: udpate this to return the proper component handle type
         // indexer_handle = Some(handle);
         // TODO: register indexer module handle
     }
 
-    let mut node_gui_handle = None;
+    //TODO: variable _node_gui_handle is never used.
+    let mut _node_gui_handle = None;
     if config.gui {
-        node_gui_handle = setup_node_gui(&config).await?;
+        _node_gui_handle = setup_node_gui(&config).await?;
         info!("Node UI started");
     }
 
@@ -116,8 +118,6 @@ pub async fn setup_runtime_components(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::node_runtime::NodeRuntime;
     use crate::test_utils::{
         create_node_runtime_network, create_quorum_assigned_node_runtime_network,
@@ -126,13 +126,11 @@ mod tests {
         setup_network, setup_whitelisted_nodes,
     };
     use crate::NodeError;
-    use block::{Block, GenesisConfig, GenesisReceiver};
+    use block::{Block, GenesisReceiver};
     use events::{AssignedQuorumMembership, PeerData, Vote, DEFAULT_BUFFER};
     use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
     use storage::storage_utils::remove_vrrb_data_dir;
-    use tracing::instrument::WithSubscriber;
-    use vrrb_config::QuorumMember;
-    use vrrb_core::account::{self, Account, AccountField};
+    use vrrb_core::account::{Account, AccountField};
     use vrrb_core::transactions::Transaction;
 
     #[tokio::test]
@@ -189,7 +187,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_assign_quorum_memberships_to_available_nodes() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (mut _node_0, farmers, harvesters, _miners) = setup_network(8).await;
 
         assert_eq!(farmers.len(), 4);
         assert_eq!(harvesters.len(), 2);
@@ -251,7 +249,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
-        let (mut node_0, farmers, harvesters, mut miners) = setup_network(8).await;
+        let (node_0, farmers, harvesters, mut miners) = setup_network(8).await;
 
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
@@ -378,6 +376,7 @@ mod tests {
         // TODO: impl miner elections
         // TODO: create genesis block, certify it then append it to miner's dag
         // TODO: store DAG on disk, separate from ledger
+        // TODO: variable _txn is never used
 
         let (_, public_key) = generate_account_keypair();
         let sender_account = Account::new(public_key.clone().into());
@@ -386,7 +385,7 @@ mod tests {
         let (_, public_key) = generate_account_keypair();
         let receiver_address = node_0.create_account(public_key).unwrap();
 
-        let txn = create_txn_from_accounts(
+        let _txn = create_txn_from_accounts(
             (sender_address, Some(sender_account)),
             receiver_address,
             vec![],
@@ -416,8 +415,8 @@ mod tests {
             .unwrap();
 
         for (_, harvester) in harvesters.iter_mut() {
-            let mut sig_engine = harvester.consensus_driver.sig_engine.clone();
-            let proposal_block = harvester
+            let sig_engine = harvester.consensus_driver.sig_engine.clone();
+            let _proposal_block = harvester // TODO: variable is never used
                 .mine_proposal_block(
                     genesis_block.hash.clone(),
                     Default::default(), // TODO: change to an actual map of harvester claims
@@ -483,7 +482,7 @@ mod tests {
     #[serial_test::serial]
     #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
-        let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
+        let (node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let receiver = GenesisReceiver(Address::new(
             farmers
                 .iter()
@@ -504,7 +503,7 @@ mod tests {
 
         let miner_id = miner_ids.first().unwrap();
 
-        let mut miner_node = miners.get_mut(miner_id).unwrap();
+        let miner_node = miners.get_mut(miner_id).unwrap();
 
         let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
@@ -707,11 +706,6 @@ mod tests {
             receiver_address,
             vec![],
         );
-
-        for farmer in farmer_nodes.iter() {
-            // dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
-            // dbg!(&farmer.consensus_driver.is_farmer());
-        }
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
@@ -1245,7 +1239,7 @@ mod tests {
         let _ = sender_account.update_field(update_field);
         let account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
 
-        let mut txn = create_txn_from_accounts(
+        let txn = create_txn_from_accounts(
             (sender_address.clone(), Some(sender_account.clone())),
             receiver_address,
             vec![],
@@ -1254,12 +1248,13 @@ mod tests {
         let votes: Vec<Vote> = farmers
             .iter_mut()
             .map(|nr| {
-                nr.handle_create_account_requested(sender_address.clone(), account_bytes.clone());
-                nr.insert_txn_to_mempool(txn.clone());
+                nr.handle_create_account_requested(sender_address.clone(), account_bytes.clone())
+                    .unwrap();
+                nr.insert_txn_to_mempool(txn.clone()).unwrap();
                 let mempool_reader = nr.mempool_read_handle_factory();
                 let state_reader = nr.state_store_read_handle_factory();
                 let res = nr
-                    .validate_transaction_kind(txn.digest(), mempool_reader, state_reader)
+                    .validate_transaction_kind(txn.id(), mempool_reader, state_reader)
                     .unwrap();
                 nr.cast_vote_on_transaction_kind(res.0, res.1).unwrap()
             })

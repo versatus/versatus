@@ -1,25 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-    sync::{Arc, RwLock},
-};
+use std::collections::{HashMap, HashSet};
 
-use block::{Block, BlockHash, ConvergenceBlock, ProposalBlock};
-use bulldag::{graph::BullDag, vertex::Vertex};
-use ethereum_types::U256;
-use events::{Event, EventPublisher};
-use mempool::LeftRightMempool;
 use primitives::Address;
 use storage::vrrbdb::types::*;
-use storage::vrrbdb::{StateStoreReadHandle, VrrbDb, VrrbDbReadHandle};
-use telemetry::info;
-use theater::{ActorId, ActorState};
-use vrrb_core::{
-    account::{Account, AccountDigests, UpdateArgs},
-    claim::Claim,
-};
-
-use crate::{NodeError, Result};
+use vrrb_core::account::UpdateArgs;
 
 /// Converts a HashSet of `StateUpdate`s into a HashSet of `UpdateArgs`s
 /// structs.
