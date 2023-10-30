@@ -17,7 +17,7 @@ pub struct MiningModuleConfig {
     pub miner: Miner,
 }
 
-//TODO: fn new is not being used.
+//TODO: pub fn new() is not being used.
 impl MiningModule {
     // pub fn new(cfg: MiningModuleConfig) -> Self {
     //     Self {

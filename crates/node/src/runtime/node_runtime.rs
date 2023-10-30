@@ -14,7 +14,6 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
 use ritelinked::LinkedHashMap;
-use sha2::{Digest, Sha256};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -23,21 +22,15 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
-use utils::{create_payload, payload::digest_data_to_bytes};
+use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
-    transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
-    },
+    transactions::{TransactionDigest, TransactionKind},
 };
 
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
-};
+use secp256k1::{hashes::Hash, Message};
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
@@ -357,9 +350,10 @@ impl NodeRuntime {
             .map(|from| (from.hash, from.clone()))
             .collect();
 
+        //TODO: variable _cert is not being used.
         let txns_list: LinkedHashMap<TransactionDigest, TransactionKind> = txns
             .into_iter()
-            .map(|(digest, (txn, cert))| {
+            .map(|(digest, (txn, _cert))| {
                 //                if let Err(err) = self
                 //                    .consensus_driver
                 //                    .certified_txns_filter
