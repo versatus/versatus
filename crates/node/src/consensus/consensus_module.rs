@@ -336,7 +336,7 @@ impl ConsensusModule {
 
         self.check_vote_threshold_reached(&quorum_id, &vote)
             .await
-            .map_err(|err| NodeError::Other("threhold net yet reached".to_string()))?;
+            .map_err(|err| NodeError::Other(format!("threhold net yet reached, err: {}", err)))?;
 
         self.certify_transaction(&vote, &quorum_id).await
     }
@@ -395,8 +395,9 @@ impl ConsensusModule {
                 .verify_batch(&batch_sigs, &data)
                 .map_err(|err| {
                     NodeError::Other(format!(
-                        "unable to batch verify vote signatures for txn: {}",
-                        &vote.txn.id().clone()
+                        "unable to batch verify vote signatures for txn: {}, err: {}",
+                        &vote.txn.id().clone(),
+                        err
                     ))
                 })?;
 
@@ -467,8 +468,9 @@ impl ConsensusModule {
             .is_farmer_quorum_member(quorum_id, &voter)
             .map_err(|err| {
                 NodeError::Other(format!(
-                    "node {} is not a farmer quorum member",
-                    voter.clone()
+                    "node {} is not a farmer quorum member, err: {}",
+                    voter.clone(),
+                    err
                 ))
             })?;
 
@@ -483,9 +485,10 @@ impl ConsensusModule {
             .verify(&voter, &vote.signature, &data)
             .map_err(|err| {
                 NodeError::Other(format!(
-                    "Unable to verify signature of {} on transaction {}",
+                    "Unable to verify signature of {} on transaction {}, err: {}",
                     voter.clone(),
-                    vote.txn.id().clone()
+                    vote.txn.id().clone(),
+                    err
                 ))
             })
     }

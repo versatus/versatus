@@ -1,12 +1,11 @@
 use block::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock,
-    ProposalBlock,
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
 };
 use events::{AccountBytes, AssignedQuorumMembership, Event, PeerData, Vote};
 use miner::conflict_resolver::Resolver;
-use primitives::{Address, NodeId, NodeType, PublicKey, QuorumId, QuorumKind, Signature};
+use primitives::{Address, NodeId, PublicKey, QuorumId, QuorumKind, Signature};
 use signer::engine::{QuorumData, QuorumMembers as InaugaratedMembers};
-use std::{collections::HashMap, fmt::format};
+use std::collections::HashMap;
 use storage::vrrbdb::ApplyBlockResult;
 
 use crate::{
@@ -57,7 +56,7 @@ impl NodeRuntime {
     // ConvergenceBlockPrecheckRequested
     fn handle_convergence_block_received(
         &mut self,
-        mut block: ConvergenceBlock,
+        block: ConvergenceBlock,
     ) -> Result<ApplyBlockResult> {
         self.consensus_driver.is_harvester()?;
         let apply_result = self
