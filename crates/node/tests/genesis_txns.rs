@@ -4,7 +4,7 @@ use events::DEFAULT_BUFFER;
 use node::{
     node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network, NodeError,
 };
-use primitives::{Address, NodeType, Signature};
+use primitives::{Address, NodeType, NodeTypeBytes, Signature};
 use storage::vrrbdb::ApplyBlockResult;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one transaction
@@ -61,11 +61,8 @@ async fn genesis_block_can_be_certified() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    nodes.reverse();
-    nodes.pop(); // pop bootstrap node
     let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
-
     let receiver_addresses = nodes
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
@@ -87,7 +84,10 @@ async fn genesis_block_can_be_certified() {
         })
         .collect();
     let mut chosen_harvester = harvesters.pop().unwrap();
-    let _ = chosen_harvester.state_driver.append_genesis(&genesis_block);
+    assert!(chosen_harvester
+        .state_driver
+        .append_genesis(&genesis_block)
+        .is_ok());
     let mut sigs: Vec<Signature> = Vec::new();
     for node in harvesters.iter_mut() {
         sigs.push(
@@ -97,12 +97,13 @@ async fn genesis_block_can_be_certified() {
             .await
             .unwrap(),
         );
-        let _ = node.state_driver.append_genesis(&genesis_block);
+        assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
         res = chosen_harvester.certify_genesis_block(genesis_block.clone());
     }
+    dbg!(&res);
     assert!(res.is_ok());
 }
 
