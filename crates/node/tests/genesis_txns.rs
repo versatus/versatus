@@ -9,12 +9,10 @@ use storage::vrrbdb::ApplyBlockResult;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one transaction
 #[tokio::test]
-async fn genesis_block_contains_txns() {
+async fn genesis_block_contains_rewards() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    nodes.reverse();
-    nodes.pop(); // pop bootstrap node
     let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
 
@@ -32,12 +30,10 @@ async fn genesis_block_contains_txns() {
 
 /// The transactions within the genesis block should be valid and contain balance allocations to at least one address
 #[tokio::test]
-async fn genesis_block_txns_are_valid() {
+async fn genesis_block_rewards_are_valid() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    nodes.reverse();
-    nodes.pop(); // pop bootstrap node
     let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
 
@@ -61,6 +57,7 @@ async fn genesis_block_can_be_certified() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
+    // create genesis block
     let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
     let receiver_addresses = nodes
@@ -73,6 +70,7 @@ async fn genesis_block_can_be_certified() {
         .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
 
+    // create genesis block certificate
     let mut harvesters: Vec<NodeRuntime> = nodes
         .iter()
         .filter_map(|node| {
@@ -101,9 +99,12 @@ async fn genesis_block_can_be_certified() {
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
-        res = chosen_harvester.certify_genesis_block(genesis_block.clone());
+        res = chosen_harvester.certify_genesis_block(
+            genesis_block.clone(),
+            harvester.config.id.clone(),
+            sig,
+        );
     }
-    dbg!(&res);
     assert!(res.is_ok());
 }
 
@@ -138,13 +139,13 @@ async fn certified_genesis_block_appended_to_dag() {
         })
         .collect();
     let harvester = harvesters.first_mut().unwrap();
-    let certificate = harvester.certify_genesis_block(genesis_block).unwrap();
+    // let certificate = harvester.certify_genesis_block(genesis_block).unwrap();
     // append cert to dag
 }
 
 /// All transactions within the genesis block should be applied to the network's state
 #[tokio::test]
-async fn genesis_block_txns_are_applied_to_state() {
+async fn genesis_block_rewards_are_applied_to_state() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 

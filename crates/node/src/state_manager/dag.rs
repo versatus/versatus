@@ -316,7 +316,7 @@ impl DagModule {
         false
     }
 
-    pub fn add_signer_to_convergence_block(
+    pub fn add_signer_to_block(
         &mut self,
         block_hash: String,
         sig: Signature,

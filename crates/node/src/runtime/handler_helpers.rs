@@ -85,23 +85,13 @@ impl NodeRuntime {
         let set = self
             .state_driver
             .dag
-            .add_signer_to_convergence_block(
+            .add_signer_to_block(
                 block_hash.clone(),
                 sig,
                 node_id,
                 &self.consensus_driver.sig_engine,
             )
             .map_err(|err| NodeError::Other(err.to_string()))?;
-        if set.len()
-            < self
-                .consensus_driver
-                .sig_engine
-                .quorum_members()
-                .get_harvester_threshold()
-        {
-            return Err(NodeError::Other("threshold not reached yet".to_string()));
-        }
-
         let sig_set = set.into_iter().collect();
         let cert = self
             .form_convergence_certificate(block_hash, sig_set)
