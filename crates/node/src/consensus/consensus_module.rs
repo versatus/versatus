@@ -145,9 +145,7 @@ impl ConsensusModule {
     pub fn certify_block(
         &mut self,
         block: Block,
-        _last_block_header: BlockHeader,
         prev_txn_root_hash: String,
-        //        next_txn_root_hash: String,
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let block = block.clone();
@@ -183,12 +181,7 @@ impl ConsensusModule {
         let txn_trie_hash = block.header.txn_hash.clone();
         let last_block_header = block.header.clone();
 
-        self.certify_block(
-            block.into(),
-            last_block_header,
-            txn_trie_hash.clone(),
-            certs,
-        )
+        self.certify_block(block.into(), txn_trie_hash.clone(), certs)
     }
 
     pub fn certify_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
@@ -208,7 +201,7 @@ impl ConsensusModule {
             resolver,
             dag.clone(),
         )?;
-        self.certify_block(block.into(), last_block_header, prev_txn_root_hash, certs)
+        self.certify_block(block.into(), prev_txn_root_hash, certs)
     }
 
     async fn sign_convergence_block(
