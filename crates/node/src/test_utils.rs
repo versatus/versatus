@@ -604,6 +604,10 @@ impl DataStore<MockStateReader> for MockStateStore {
 
 /// Creates `n` Node instances that make up a network.
 pub async fn create_test_network(n: u16) -> Vec<Node> {
+    create_test_network_from_config(n, None).await
+}
+
+pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeConfig>) -> Vec<Node> {
     let validator_count = (n as f64 * 0.8).ceil() as usize;
     let miner_count = n as usize - validator_count;
 
@@ -646,7 +650,11 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         genesis_transaction_threshold: (n / 2) as u64,
     };
 
-    let mut config = create_mock_full_node_config();
+    let mut config = if let Some(base_config) = base_config.clone() {
+        base_config
+    } else {
+        create_mock_full_node_config()
+    };
     config.id = String::from("node-0");
 
     config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
@@ -655,11 +663,18 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
+    let additional_receivers = if let Some(base_config) = base_config.clone() {
+        base_config.bootstrap_config.unwrap().additional_receivers
+    } else {
+        None
+    };
+
     let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
         id: node_0.kademlia_peer_id(),
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
+        additional_receivers,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
@@ -767,6 +782,7 @@ pub async fn create_node_runtime_network(
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
+        additional_receivers: None,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.config.udp_gossip_address;

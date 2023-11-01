@@ -57,19 +57,30 @@ impl Handler<EventMessage> for NodeRuntime {
                 if let Some(quorum_kind) = &self.consensus_driver.quorum_kind {
                     if *quorum_kind == QuorumKind::Miner && self.config.node_type == NodeType::Miner
                     {
+                        let mut genesis_receivers: Vec<GenesisReceiver> = self
+                            .config
+                            .whitelisted_nodes
+                            .iter()
+                            .map(|quorum_member| {
+                                GenesisReceiver::new(Address::new(
+                                    quorum_member.validator_public_key,
+                                ))
+                            })
+                            .collect();
+
+                        //add the addresses from config.bootstrap_config.additional_receivers to the genesis_receivers list
+                        if let (Some(bootstrap_config)) = (&self.config.bootstrap_config) {
+                            if let (Some(additional_receivers)) = (&bootstrap_config.additional_receivers) {
+                                for receiver in additional_receivers {
+                                    genesis_receivers.push(GenesisReceiver::new(receiver.clone()));
+                                }
+                            }
+                        }
+
                         let event = EventMessage::new(
                             Some(RUNTIME_TOPIC_STR.into()),
                             Event::GenesisMinerElected {
-                                genesis_receivers: self
-                                    .config
-                                    .whitelisted_nodes
-                                    .iter()
-                                    .map(|quorum_member| {
-                                        GenesisReceiver::new(Address::new(
-                                            quorum_member.validator_public_key,
-                                        ))
-                                    })
-                                    .collect(),
+                                genesis_receivers
                             },
                         );
                         self.events_tx
