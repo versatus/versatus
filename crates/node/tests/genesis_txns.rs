@@ -113,11 +113,9 @@ async fn certified_genesis_block_appended_to_dag() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    nodes.reverse();
-    nodes.pop(); // pop bootstrap node
+    // create genesis block
     let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
-
     let receiver_addresses = nodes
         .iter()
         .map(|node| Address::new(node.config.keypair.miner_public_key_owned()))
@@ -128,6 +126,7 @@ async fn certified_genesis_block_appended_to_dag() {
         .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
 
+    // create genesis block certificate
     let mut harvesters: Vec<NodeRuntime> = nodes
         .iter()
         .filter_map(|node| {
@@ -138,8 +137,31 @@ async fn certified_genesis_block_appended_to_dag() {
             }
         })
         .collect();
-    let harvester = harvesters.first_mut().unwrap();
-    // let certificate = harvester.certify_genesis_block(genesis_block).unwrap();
+    let mut chosen_harvester = harvesters.pop().unwrap();
+    assert!(chosen_harvester
+        .state_driver
+        .append_genesis(&genesis_block)
+        .is_ok());
+    let mut sigs: Vec<Signature> = Vec::new();
+    for node in harvesters.iter_mut() {
+        sigs.push(
+            node.handle_sign_block(Block::Genesis {
+                block: genesis_block.clone(),
+            })
+            .await
+            .unwrap(),
+        );
+        assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
+    }
+    let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
+    for (sig, harvester) in sigs.into_iter().zip(harvesters.iter()) {
+        res = chosen_harvester.certify_genesis_block(
+            genesis_block.clone(),
+            harvester.config.id.clone(),
+            sig,
+        );
+    }
+    let certificate = res.unwrap();
     // append cert to dag
 }
 
@@ -149,8 +171,6 @@ async fn genesis_block_rewards_are_applied_to_state() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
-    nodes.reverse();
-    nodes.pop(); // pop bootstrap node
     let mut genesis_miner = nodes.pop().unwrap();
     genesis_miner.config.node_type = NodeType::Miner;
     let mut all_nodes: Vec<NodeRuntime> = nodes
