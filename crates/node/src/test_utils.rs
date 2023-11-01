@@ -663,9 +663,9 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
-    let additional_receivers = if let Some(base_config) = base_config.clone() {
+    let additional_genesis_receivers = if let Some(base_config) = base_config.clone() {
         if let Some(base_config) = base_config.bootstrap_config {
-            base_config.additional_receivers
+            base_config.additional_genesis_receivers
         } else {
             None
         }
@@ -678,7 +678,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
-        additional_receivers,
+        additional_genesis_receivers,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
@@ -786,7 +786,7 @@ pub async fn create_node_runtime_network(
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
-        additional_receivers: None,
+        additional_genesis_receivers: None,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.config.udp_gossip_address;

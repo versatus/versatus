@@ -68,10 +68,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             })
                             .collect();
 
-                        //add the addresses from config.bootstrap_config.additional_receivers to the genesis_receivers list
+                        //add the addresses from config.bootstrap_config.additional_genesis_receivers to the genesis_receivers list
                         if let (Some(bootstrap_config)) = (&self.config.bootstrap_config) {
-                            if let (Some(additional_receivers)) = (&bootstrap_config.additional_receivers) {
-                                for receiver in additional_receivers {
+                            if let (Some(additional_genesis_receivers)) = (&bootstrap_config.additional_genesis_receivers) {
+                                for receiver in additional_genesis_receivers {
                                     genesis_receivers.push(GenesisReceiver::new(receiver.clone()));
                                 }
                             }

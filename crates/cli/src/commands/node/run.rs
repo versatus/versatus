@@ -184,7 +184,6 @@ impl Default for RunOpts {
 }
 
 impl RunOpts {
-    #[deprecated(note = "prefer global config file")]
     pub fn from_file(config_path: &str) -> std::result::Result<Self, ConfigError> {
         let default_bootstrap_addresses: Vec<String> = Vec::new();
 

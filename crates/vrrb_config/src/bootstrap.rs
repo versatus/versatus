@@ -9,7 +9,9 @@ pub struct BootstrapConfig {
     pub udp_gossip_addr: SocketAddr,
     pub raptorq_gossip_addr: SocketAddr,
     pub kademlia_liveness_addr: SocketAddr,
-    pub additional_receivers: Option<Vec<Address>>,
+    //this is a list of addresses that will receive genesis token allocations that are not part of
+    // the whitelisted node addresses
+    pub additional_genesis_receivers: Option<Vec<Address>>,
 }
 
 impl Default for BootstrapConfig {
@@ -20,7 +22,7 @@ impl Default for BootstrapConfig {
             raptorq_gossip_addr: addr,
             kademlia_liveness_addr: addr,
             udp_gossip_addr: addr,
-            additional_receivers: None,
+            additional_genesis_receivers: None,
         }
     }
 }
