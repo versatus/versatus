@@ -40,7 +40,7 @@ async fn drip(
 
     let digest = wallet
         .send_transaction(
-            0,
+            // 0,
             recipient,
             10,
             Token::default(),
