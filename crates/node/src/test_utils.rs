@@ -664,7 +664,11 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
     let additional_receivers = if let Some(base_config) = base_config.clone() {
-        base_config.bootstrap_config.unwrap().additional_receivers
+        if let Some(base_config) = base_config.bootstrap_config {
+            base_config.additional_receivers
+        } else {
+            None
+        }
     } else {
         None
     };

@@ -12,7 +12,7 @@ use std::{
 use telemetry::{error, info};
 use utils::payload::digest_data_to_bytes;
 use uuid::Uuid;
-use node::test_utils::create_test_network_from_config;
+use node::test_utils::{create_test_network, create_test_network_from_config};
 use vrrb_config::{NodeConfig, QuorumMember};
 
 use crate::{
