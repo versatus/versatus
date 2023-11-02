@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(mainnet)]
 use crate::genesis;
-use crate::{header::BlockHeader, BlockError, BlockHash, Certificate, ClaimList};
+use crate::{error::BlockError, header::BlockHeader, BlockHash, Certificate, ClaimList};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct GenesisRewards(pub LinkedHashMap<GenesisReceiver, u128>);
