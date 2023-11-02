@@ -126,6 +126,15 @@ impl StateManager {
             .append_certificate_to_convergence_block(certificate)
     }
 
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<GenesisBlock>> {
+        self.dag
+            .append_certificate_to_genesis_block(block_hash, certificate)
+    }
+
     pub fn export_state(&self) {
         self.database.export_state();
     }

@@ -153,12 +153,15 @@ impl NodeRuntime {
     }
 
     // harvester sign and create cert
+    // TODO: Make this less ambiguous, if it is only for handling convergence
+    // blocks, maybe a better name would be handle_convergence_block_certificate_received?
     pub async fn handle_block_certificate_created(
         &mut self,
         certificate: Certificate,
     ) -> Result<ConvergenceBlock> {
         // This is for when the local node is a harvester and forms the certificate
-        self.handle_block_certificate_received(certificate).await
+        self.handle_convergence_block_certificate_received(certificate)
+            .await
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
@@ -168,7 +171,7 @@ impl NodeRuntime {
     }
 
     // recieve cert from network
-    pub async fn handle_block_certificate_received(
+    pub async fn handle_convergence_block_certificate_received(
         &mut self,
         certificate: Certificate,
     ) -> Result<ConvergenceBlock> {
@@ -178,6 +181,22 @@ impl NodeRuntime {
             .append_certificate_to_convergence_block(&certificate)?
             .ok_or(NodeError::Other(
                 "certificate not appended to convergence block".to_string(),
+            ))?;
+
+        Ok(block.clone())
+    }
+
+    pub async fn handle_genesis_block_certificate_received(
+        &mut self,
+        block_hash: &str,
+        certificate: Certificate,
+    ) -> Result<GenesisBlock> {
+        // This is for when a certificate is received from the network.
+        self.verify_certificate(&certificate)?;
+        let block = self
+            .append_certificate_to_genesis_block(block_hash, &certificate)?
+            .ok_or(NodeError::Other(
+                "certificate not appended to genesis block".to_string(),
             ))?;
 
         Ok(block.clone())
@@ -208,6 +227,16 @@ impl NodeRuntime {
     ) -> Result<Option<ConvergenceBlock>> {
         self.state_driver
             .append_certificate_to_convergence_block(certificate)
+            .map_err(|err| NodeError::Other(format!("{:?}", err)))
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> Result<Option<GenesisBlock>> {
+        self.state_driver
+            .append_certificate_to_genesis_block(block_hash, certificate)
             .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 

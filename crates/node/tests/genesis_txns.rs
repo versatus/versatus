@@ -4,7 +4,7 @@ use events::DEFAULT_BUFFER;
 use node::{
     node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network, NodeError,
 };
-use primitives::{Address, NodeType, NodeTypeBytes, Signature};
+use primitives::{Address, NodeType, QuorumKind, Signature};
 use storage::vrrbdb::ApplyBlockResult;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one transaction
@@ -109,7 +109,7 @@ async fn genesis_block_can_be_certified() {
 }
 
 #[tokio::test]
-async fn certified_genesis_block_appended_to_dag() {
+async fn all_nodes_append_certified_genesis_block_to_dag() {
     let (events_tx, _rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
     let mut nodes = create_quorum_assigned_node_runtime_network(8, 3, events_tx.clone()).await;
 
@@ -137,6 +137,46 @@ async fn certified_genesis_block_appended_to_dag() {
             }
         })
         .collect();
+    let mut all_nodes: Vec<NodeRuntime> = nodes
+        .into_iter()
+        .filter_map(|nr| {
+            if nr.consensus_driver.quorum_kind() != Some(QuorumKind::Harvester)
+                && !nr.consensus_driver.is_bootstrap_node()
+            {
+                Some(nr.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let gblock: Block = genesis_block.clone().into();
+    let vtx = gblock.into();
+    all_nodes.iter_mut().for_each(|node| {
+        node.state_driver.write_vertex(&vtx).unwrap();
+    });
+
+    harvesters.iter_mut().for_each(|node| {
+        node.state_driver.write_vertex(&vtx).unwrap();
+        node.state_driver
+            .handle_block_received(
+                &mut block::Block::Genesis {
+                    block: genesis_block.clone(),
+                },
+                node.consensus_driver.sig_engine(),
+            )
+            .unwrap();
+    });
+
+    all_nodes.iter_mut().for_each(|node| {
+        node.state_driver
+            .handle_block_received(
+                &mut block::Block::Genesis {
+                    block: genesis_block.clone(),
+                },
+                node.consensus_driver.sig_engine(),
+            )
+            .unwrap();
+    });
     let mut chosen_harvester = harvesters.pop().unwrap();
     assert!(chosen_harvester
         .state_driver
@@ -162,7 +202,21 @@ async fn certified_genesis_block_appended_to_dag() {
         );
     }
     let certificate = res.unwrap();
-    // append cert to dag
+    all_nodes.extend(harvesters);
+    for node in all_nodes.iter_mut() {
+        let genesis_block = node
+            .handle_genesis_block_certificate_received(&genesis_block.hash, certificate.clone())
+            .await
+            .unwrap();
+        assert_eq!(&genesis_block.certificate.unwrap(), &certificate);
+        assert!(node.certified_genesis_block_exists_within_dag(genesis_block.hash));
+    }
+    let genesis_block = chosen_harvester
+        .handle_genesis_block_certificate_received(&genesis_block.hash, certificate.clone())
+        .await
+        .unwrap();
+    assert_eq!(&genesis_block.certificate.unwrap(), &certificate);
+    assert!(chosen_harvester.certified_genesis_block_exists_within_dag(genesis_block.hash));
 }
 
 /// All transactions within the genesis block should be applied to the network's state

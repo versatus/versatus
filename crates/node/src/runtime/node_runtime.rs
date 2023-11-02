@@ -151,6 +151,19 @@ impl NodeRuntime {
         false
     }
 
+    pub fn certified_genesis_block_exists_within_dag(&self, block_hash: String) -> bool {
+        if let Ok(guard) = self.state_driver.dag.read() {
+            if let Some(vertex) = guard.get_vertex(block_hash) {
+                if let Block::Genesis { block } = vertex.get_data() {
+                    return block.certificate.is_some();
+                } else {
+                    return false;
+                }
+            }
+        }
+        false
+    }
+
     pub fn config_ref(&self) -> &NodeConfig {
         &self.config
     }

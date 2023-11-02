@@ -12,12 +12,12 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum ConvergenceBlockError {
+pub enum BlockError {
     CertificateExists,
     Other(String),
 }
 
-impl std::fmt::Display for ConvergenceBlockError {
+impl std::fmt::Display for BlockError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CertificateExists => f.write_str("certificate already exists"),
@@ -26,7 +26,7 @@ impl std::fmt::Display for ConvergenceBlockError {
     }
 }
 
-impl std::error::Error for ConvergenceBlockError {}
+impl std::error::Error for BlockError {}
 
 pub struct MineArgs<'a> {
     pub claim: Claim,
@@ -56,13 +56,13 @@ pub struct ConvergenceBlock {
 }
 
 impl ConvergenceBlock {
-    pub fn append_certificate(&mut self, cert: &Certificate) -> Result<(), ConvergenceBlockError> {
+    pub fn append_certificate(&mut self, cert: &Certificate) -> Result<(), BlockError> {
         if self.certificate.is_none() {
             self.certificate = Some(cert.clone());
             return Ok(());
         }
 
-        Err(ConvergenceBlockError::CertificateExists)
+        Err(BlockError::CertificateExists)
     }
 
     pub fn txn_id_set(&self) -> LinkedHashSet<&TransactionDigest> {
