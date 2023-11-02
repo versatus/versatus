@@ -27,7 +27,9 @@ impl GenesisBlock {
             return Ok(());
         }
 
-        Err(BlockError::CertificateExists)
+        Err(BlockError::CertificateExists(crate::Block::Genesis {
+            block: self.clone(),
+        }))
     }
 }
 

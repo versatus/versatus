@@ -46,7 +46,9 @@ impl ConvergenceBlock {
             return Ok(());
         }
 
-        Err(BlockError::CertificateExists)
+        Err(BlockError::CertificateExists(Block::Convergence {
+            block: self.clone(),
+        }))
     }
 
     pub fn txn_id_set(&self) -> LinkedHashSet<&TransactionDigest> {
