@@ -264,7 +264,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 let confirmed_block = self
-                    .handle_block_certificate_received(certificate)
+                    .handle_convergence_block_certificate_received(certificate)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 

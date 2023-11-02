@@ -134,6 +134,33 @@ impl DagModule {
             .map_err(|err| GraphError::Other(format!("{:?}", err)))
     }
 
+    fn get_genesis_block_from_hash(&self, block_hash: &str) -> GraphResult<GenesisBlock> {
+        if let Ok(guard) = self.dag.read() {
+            if let Some(block) = guard.get_vertex(block_hash.to_owned()) {
+                if let Block::Genesis { block } = block.get_data() {
+                    return Ok(block);
+                }
+            }
+        }
+        Err(GraphError::Other(
+            "failed to retrieve genesis block from dag".to_string(),
+        ))
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<GenesisBlock>> {
+        let mut genesis_block = self.get_genesis_block_from_hash(block_hash)?;
+        genesis_block
+            .append_certificate(certificate)
+            .map_err(|err| GraphError::Other(err.to_string()))?;
+        self.append_genesis(&genesis_block)
+            .map_err(|err| GraphError::Other(format!("{:?}", err)))?;
+        Ok(Some(genesis_block))
+    }
+
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
         // TODO: re-enable checking genesis block certificates
         //
@@ -316,7 +343,7 @@ impl DagModule {
         false
     }
 
-    pub fn add_signer_to_convergence_block(
+    pub fn add_signer_to_block(
         &mut self,
         block_hash: String,
         sig: Signature,
