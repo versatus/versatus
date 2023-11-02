@@ -12,7 +12,7 @@ use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
+use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
 use ritelinked::LinkedHashMap;
 use sha2::{Digest, Sha256};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
@@ -142,6 +142,19 @@ impl NodeRuntime {
         if let Ok(guard) = self.state_driver.dag.read() {
             if let Some(vertex) = guard.get_vertex(block_hash) {
                 if let Block::Convergence { block } = vertex.get_data() {
+                    return block.certificate.is_some();
+                } else {
+                    return false;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn certified_genesis_block_exists_within_dag(&self, block_hash: String) -> bool {
+        if let Ok(guard) = self.state_driver.dag.read() {
+            if let Some(vertex) = guard.get_vertex(block_hash) {
+                if let Block::Genesis { block } = vertex.get_data() {
                     return block.certificate.is_some();
                 } else {
                     return false;
@@ -321,15 +334,31 @@ impl NodeRuntime {
         secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes())
     }
 
-    pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
+    // TODO: simplify logic to be under handle_harvester_signature_received
+    pub fn certify_genesis_block(
+        &mut self,
+        genesis: GenesisBlock,
+        node_id: String,
+        sig: Signature,
+    ) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
-        let certs = self.state_driver.dag.check_certificate_threshold_reached(
-            &genesis.hash,
-            &self.consensus_driver.sig_engine,
-        )?;
+        self.consensus_driver
+            .sig_engine
+            .verify(&node_id, &sig, &genesis.hash)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let set = self
+            .state_driver
+            .dag
+            .add_signer_to_block(
+                genesis.hash.clone(),
+                sig,
+                node_id,
+                &self.consensus_driver.sig_engine,
+            )
+            .map_err(|err| NodeError::Other(err.to_string()))?;
         let certificate = self
             .consensus_driver
-            .certify_genesis_block(genesis, certs.into_iter().collect())?;
+            .certify_genesis_block(genesis, set.into_iter().collect())?;
 
         Ok(certificate)
     }

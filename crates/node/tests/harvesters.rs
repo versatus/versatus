@@ -5,34 +5,23 @@
 //!
 //! Integration tests are needed for testing that these `Certificate`s are broadcasted.
 
-use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap},
-    hash::{Hash, Hasher},
-};
-
-use block::{
-    header::BlockHeader, Block, Certificate, ConsolidatedTxns, ConvergenceBlock, ProposalBlock,
-};
+use block::{Block, Certificate, ConsolidatedTxns};
 use events::DEFAULT_BUFFER;
 use miner::test_helpers::create_miner;
 use node::{
     node_runtime::NodeRuntime,
     test_utils::{
         create_quorum_assigned_node_runtime_network, dummy_convergence_block, dummy_proposal_block,
-        dummy_proposal_block_and_accounts, produce_proposal_blocks, produce_random_claim,
-        produce_random_claims,
+        dummy_proposal_block_and_accounts, produce_random_claims,
     },
     NodeError,
 };
-use primitives::{Address, QuorumKind, Signature};
-use quorum::{election::Election, quorum::Quorum};
+use primitives::{QuorumKind, Signature};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use sha256::digest;
+use std::collections::BTreeMap;
 use storage::storage_utils::remove_vrrb_data_dir;
 use vrrb_core::{
-    account::{Account, AccountField},
     claim::{Claim, Eligibility},
-    keypair::{KeyPair, Keypair},
     transactions::TransactionDigest,
 };
 
@@ -307,7 +296,7 @@ async fn all_nodes_append_certificate_to_convergence_block() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_block_certificate_received(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
             .await
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
@@ -349,7 +338,7 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
         })
         .collect();
     let sig_engine = all_nodes[0].consensus_driver.sig_engine();
-    let mut proposal_block = dummy_proposal_block(sig_engine);
+    let proposal_block = dummy_proposal_block(sig_engine);
     let mut convergence_block = dummy_convergence_block();
     convergence_block.header.ref_hashes = vec![proposal_block.hash.clone()];
     let pblock: Block = proposal_block.into();
@@ -411,7 +400,7 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_block_certificate_received(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
             .await
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
@@ -560,7 +549,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     let mut results = Vec::new();
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_block_certificate_received(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
             .await
             .unwrap();
 
