@@ -320,9 +320,6 @@ impl Miner {
         let mut claims = LinkedHashMap::new();
         claims.insert(claim.hash, claim);
 
-        #[cfg(mainnet)]
-        let txns = genesis::generate_genesis_txns();
-
         #[cfg(not(mainnet))]
         let genesis_rewards = GenesisRewards(LinkedHashMap::new());
         let header = header;
