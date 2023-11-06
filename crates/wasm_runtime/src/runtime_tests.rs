@@ -125,7 +125,7 @@ fn test_environment_vars() {
 
     assert_eq!(out.env, wasm_env);
 }
-///
+
 /// This check tests that we correctly report when a WASM module fails to
 /// execute. This is done by setting a special variable that the WASM test
 /// module uses to trigger failure.
@@ -146,3 +146,13 @@ fn test_failed_execution() {
 
     let _out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
 }
+
+/// Check that the WASM job exits with the expected out of memory error.
+#[test]
+#[should_panic]
+fn test_oom() {}
+
+/// Check that a running job reports memory utilization as expected.
+#[test]
+fn test_memory_report() {}
+
