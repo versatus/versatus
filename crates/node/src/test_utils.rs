@@ -724,10 +724,6 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     nodes
 }
 
-fn setup_kademlia_config() {
-    //
-}
-
 /// Creates n NodeRuntimes to simulate networks
 pub async fn create_node_runtime_network(
     n: usize,
