@@ -46,11 +46,6 @@ impl Handler<EventMessage> for NetworkModule {
             Event::QuorumMembershipAssigmentsCreated(assigments) => {
                 self.notify_quorum_membership_assignments(assigments)
                     .await?;
-
-                // for assigned_membership in assigments {
-                //     self.notify_quorum_membership_assignment(assigned_membership)
-                //         .await?;
-                // }
             },
 
             Event::ClaimCreated(claim) => {
