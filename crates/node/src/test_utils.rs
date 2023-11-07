@@ -22,8 +22,8 @@ use crate::{
 use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
-    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round, Signature,
+    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, Round,
+    Signature,
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
@@ -619,8 +619,6 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
 
-        // let threshold_sk = ValidatorSecretKey::random();
-        // let validator_public_key = threshold_sk.public_key();
         let keypair = Keypair::random();
         let validator_public_key = keypair.miner_public_key_owned();
 
@@ -642,6 +640,11 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         quorum_members.insert(node_id, member);
     }
 
+    let whitelisted_nodes = quorum_members
+        .values()
+        .cloned()
+        .collect::<Vec<QuorumMember>>();
+
     let bootstrap_quorum_config = BootstrapQuorumConfig {
         membership_config: QuorumMembershipConfig {
             quorum_members: quorum_members.clone(),
@@ -655,9 +658,12 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     } else {
         create_mock_full_node_config()
     };
+
     config.id = String::from("node-0");
 
     config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
+
+    config.whitelisted_nodes = whitelisted_nodes.clone();
 
     let node_0 = Node::start(config).await.unwrap();
 
@@ -700,6 +706,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
+        config.whitelisted_nodes = whitelisted_nodes.clone();
 
         let node = Node::start(config).await.unwrap();
         nodes.push(node);
@@ -718,6 +725,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
+        miner_config.whitelisted_nodes = whitelisted_nodes.clone();
 
         let miner_node = Node::start(miner_config).await.unwrap();
 

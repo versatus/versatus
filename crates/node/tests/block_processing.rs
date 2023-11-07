@@ -34,7 +34,8 @@ async fn process_full_node_event_flow() {
                     .amount(0)
                     .signature(signature)
                     .nonce(0)
-                    .build_kind().expect("Unable to build transfer transaction")
+                    .build_kind()
+                    .expect("Unable to build transfer transaction"),
             )
             .await
             .unwrap();
@@ -44,5 +45,8 @@ async fn process_full_node_event_flow() {
 
     assert!(!mempool_snapshot.is_empty());
 
-    bootstrap_node.stop().await.expect("Unable to stop bootstrap node");
+    bootstrap_node
+        .stop()
+        .await
+        .expect("Unable to stop bootstrap node");
 }
