@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use block::{Block, Certificate, ConvergenceBlock};
+use block::{header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::PublicKeySet,
@@ -64,6 +64,22 @@ pub enum NetworkEvent {
         ack: Ack,
     },
 
+    GenesisBlockCertificateRequested {
+        genesis_block: GenesisBlock,
+        block_header: BlockHeader,
+    },
+
+    GenesisBlockCertificateCreated(Certificate),
+
+    ConvergenceBlockCertificateCreated(Certificate),
+    ConvergenceBlockCertificateRequested {
+        convergence_block: ConvergenceBlock,
+        block_header: BlockHeader,
+    },
+
+    #[deprecated(
+        note = "prefer ConvergenceBlockCertificateCreated to stay consistent with Genesisblock events"
+    )]
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),

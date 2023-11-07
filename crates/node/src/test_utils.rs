@@ -38,7 +38,7 @@ use vrrb_config::{
 use vrrb_core::{
     account::{Account, AccountField},
     claim::Claim,
-    keypair::{KeyPair, Keypair},
+    keypair::{self, KeyPair, Keypair},
     transactions::{
         generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
         TransactionDigest, TransactionKind, Transfer,
@@ -507,29 +507,41 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 }
 
 pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeConfig>) -> Vec<Node> {
-    let validator_count = (n as f64 * 0.8).ceil() as usize;
+    let validator_count = (n as f64 * 0.9).ceil() as usize;
     let miner_count = n as usize - validator_count;
 
     let mut nodes = vec![];
     let mut quorum_members = BTreeMap::new();
-    let mut keypairs = vec![];
+    // let mut keypairs = vec![];
+    let keypairs = (1..=n)
+        .into_iter()
+        .map(|_| Keypair::random())
+        .collect::<Vec<Keypair>>();
 
     for i in 1..=n {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
 
-        let keypair = Keypair::random();
+        let index = i as usize;
+        let keypair = keypairs.get(index - 1).unwrap().clone();
         let validator_public_key = keypair.miner_public_key_owned();
 
-        keypairs.push(keypair);
-
         let node_id = format!("node-{}", i);
+
+        // TODO: reconsider this validator count proportion later
+        // let node_type = if i < validator_count as u16 {
+        //
+        let node_type = if i < n {
+            NodeType::Validator
+        } else {
+            NodeType::Miner
+        };
 
         let member = QuorumMember {
             node_id: format!("node-{}", i),
             kademlia_peer_id: KademliaPeerId::rand(),
-            node_type: NodeType::Validator,
+            node_type,
             udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
             raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
             kademlia_liveness_address: SocketAddr::new(

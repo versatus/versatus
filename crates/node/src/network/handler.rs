@@ -47,17 +47,28 @@ impl Handler<EventMessage> for NetworkModule {
                 self.notify_quorum_membership_assignments(assigments)
                     .await?;
             },
-
+            Event::GenesisBlockCertificateRequested {
+                genesis_block,
+                block_header,
+            } => {
+                if let Err(err) = self
+                    .broadcast_genesis_block_certificate_request(genesis_block, block_header)
+                    .await
+                {
+                    telemetry::error!("Failed to broacast certificate request: {}", err);
+                }
+            },
+            Event::GenesisBlockCertificateCreated(cert) => {
+                self.broadcast_genesis_block_certificate(cert).await?;
+            },
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
             },
-
             Event::PartCommitmentCreated(node_id, part) => {
                 info!("Broadcasting part commitment to peers in quorum");
                 self.broadcast_part_commitment(node_id, part).await?;
             },
-
             Event::PartCommitmentAcknowledged {
                 node_id,
                 sender_id,
@@ -91,12 +102,10 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
             },
-
             Event::BlockCreated(block) => {
                 info!("Broadcasting block to network");
                 self.broadcast_block(block).await?;
             },
-
             _ => {},
         }
 

@@ -9,10 +9,13 @@ use block::{
     GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
-use events::{EventPublisher, Vote};
+use events::{Event, EventMessage, EventPublisher, Vote};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
+use primitives::{
+    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature, NETWORK_TOPIC_STR,
+    RUNTIME_TOPIC_STR,
+};
 use ritelinked::LinkedHashMap;
 use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
@@ -21,7 +24,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
-use theater::{ActorId, ActorState};
+use theater::{ActorId, ActorState, TheaterError};
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
@@ -184,6 +187,37 @@ impl NodeRuntime {
         Ok(())
     }
 
+    /// Sends an EventMessage to the network's event channel so it can send it over the wire to other nodes
+    pub async fn send_event_to_network(
+        &mut self,
+        event: Event,
+    ) -> std::result::Result<(), TheaterError> {
+        self.send_event(NETWORK_TOPIC_STR, event).await
+    }
+
+    /// Sends an EventMessage to the node's event channel so it can handle it from the event loop
+    pub async fn send_event_to_self(
+        &mut self,
+        event: Event,
+    ) -> std::result::Result<(), TheaterError> {
+        self.send_event(RUNTIME_TOPIC_STR, event).await
+    }
+
+    async fn send_event(
+        &mut self,
+        topic: &str,
+        event: Event,
+    ) -> std::result::Result<(), TheaterError> {
+        let message = EventMessage::new(Some(topic.into()), event);
+
+        self.events_tx
+            .send(message)
+            .await
+            .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+        Ok(())
+    }
+
     pub fn belongs_to_correct_quorum(
         &self,
         intended_quorum: QuorumKind,
@@ -291,6 +325,15 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
+    pub fn verify_block_signature(&self, block: Block) -> Result<()> {
+        match block {
+            Block::Genesis { block } => self.verify_genesis_block_origin(block),
+            _ => Err(NodeError::Other(
+                "Unsupported block type for signature verification".to_string(),
+            )),
+        }
+    }
+
     pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
         let miner_signature = genesis_block.header.miner_signature;
         let miner_id = genesis_block.header.miner_claim.node_id.clone();
@@ -331,20 +374,29 @@ impl NodeRuntime {
         sig: Signature,
     ) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
-        self.consensus_driver
-            .sig_engine
-            .verify(&node_id, &sig, &genesis.hash)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        let genesis_hash = genesis.hash.clone();
+
+        // TODO: refactor redundant Block::Genesis wrapping
+        self.verify_block_signature(Block::Genesis {
+            block: genesis.clone(),
+        })
+        .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        dbg!("made it here after verifying block signature");
+
         let set = self
             .state_driver
             .dag
             .add_signer_to_block(
-                genesis.hash.clone(),
+                genesis_hash,
                 sig,
                 node_id,
                 &self.consensus_driver.sig_engine,
             )
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+            .unwrap();
+        // .map_err(|err| NodeError::Other(err.to_string()))?;
+
         let certificate = self
             .consensus_driver
             .certify_genesis_block(genesis, set.into_iter().collect())?;
@@ -523,6 +575,7 @@ impl NodeRuntime {
     ) -> Result<(TransactionKind, bool)> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
+
         let validated_transaction_kind =
             self.consensus_driver
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
@@ -547,5 +600,9 @@ impl NodeRuntime {
     ) -> Result<Vote> {
         self.consensus_driver
             .cast_vote_on_transaction_kind(transaction, validity)
+    }
+
+    pub fn update_state(&mut self, block: Block) -> Result<()> {
+        self.state_driver.update_state(block.hash())
     }
 }

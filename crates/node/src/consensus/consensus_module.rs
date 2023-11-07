@@ -533,21 +533,25 @@ impl ConsensusModule {
         self.node_config.node_type == NodeType::Bootstrap
     }
 
+    // TODO: move this up to NodeRuntime
     pub fn is_harvester(&self) -> Result<()> {
+        let node_id = &self.node_config.id;
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Harvester) {
-            return Err(NodeError::Other(
-                "local node is not a Harvester Node".to_string(),
-            ));
+            return Err(NodeError::Other(format!(
+                "Node {node_id} is not a Harvester Node"
+            )));
         }
 
         Ok(())
     }
 
+    // TODO: move this up to NodeRuntime
     pub fn is_farmer(&self) -> Result<()> {
+        let node_id = &self.node_config.id;
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Farmer) {
-            return Err(NodeError::Other(
-                "local node is not a Farmer Node".to_string(),
-            ));
+            return Err(NodeError::Other(format!(
+                "Node {node_id} is not a Farmer Node"
+            )));
         }
 
         Ok(())

@@ -73,6 +73,26 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
+            NetworkEvent::GenesisBlockCertificateRequested {
+                genesis_block,
+                block_header,
+            } => {
+                let evt = Event::GenesisBlockCertificateRequested {
+                    genesis_block,
+                    block_header,
+                };
+
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+            NetworkEvent::GenesisBlockCertificateCreated(cert) => {
+                let evt = Event::GenesisBlockCertificateCreated(cert);
+
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
             NetworkEvent::AssignmentToQuorumCreated {
                 assigned_membership,
             } => {

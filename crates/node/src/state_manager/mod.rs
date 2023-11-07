@@ -15,17 +15,13 @@ mod tests {
 
     use block::{Block, BlockHash};
     use bulldag::{graph::BullDag, vertex::Vertex};
-    use integral_db::LeftRightTrie;
     use mempool::LeftRightMempool;
     use miner::test_helpers::{create_address, create_claim};
     use primitives::Address;
     use serial_test::serial;
     use signer::engine::SignerEngine;
-    use storage::vrrbdb::types::*;
-    use storage::vrrbdb::{RocksDbAdapter, VrrbDb, VrrbDbConfig};
-    use storage::{storage_utils::remove_vrrb_data_dir, vrrbdb::types::*};
-    use theater::{Actor, ActorImpl, ActorState, Handler};
-    use tokio::sync::mpsc::channel;
+    use storage::storage_utils::remove_vrrb_data_dir;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use vrrb_core::transactions::TransactionKind;
     use vrrb_core::{account::Account, claim::Claim, keypair::KeyPair};
 

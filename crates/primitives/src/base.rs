@@ -83,11 +83,19 @@ impl std::fmt::Display for QuorumType {
 }
 
 #[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+#[deprecated(note = "use BlockPartialSignature instead")]
 pub struct ConvergencePartialSig {
     pub sig: Signature,
     pub block_hash: String,
     //TODO: add node_idx for checking sig along the way
     //pub node_idx: NodeIdx
+}
+
+#[derive(Serialize, Deserialize, Hash, Clone, Debug, Eq, PartialEq)]
+pub struct BlockPartialSignature {
+    pub node_id: NodeId,
+    pub signature: Signature,
+    pub block_hash: String,
 }
 
 pub type QuorumSize = usize;
