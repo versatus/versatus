@@ -8,6 +8,7 @@ use std::{
     path::PathBuf,
 };
 use std::str::FromStr;
+use secp256k1::PublicKey;
 use telemetry::{error, info};
 use utils::payload::digest_data_to_bytes;
 use uuid::Uuid;
@@ -340,6 +341,13 @@ async fn run_blocking(node_config: NodeConfig) -> Result<()> {
     let nodes = create_test_network_from_config(8, Some(node_config)).await;
 
     info!("running test network node in blocking mode");
+
+    for node in nodes.iter() {
+        println!("{}", node.jsonrpc_server_address());
+        let pubkey = PublicKey::from_str(&node.keypair.get_miner_public_key().to_string()).unwrap();
+        let address = Address::new(pubkey);
+        println!("Address: {}", address);
+    }
 
     tokio::signal::ctrl_c()
         .await

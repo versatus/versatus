@@ -656,11 +656,16 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         genesis_transaction_threshold: (n / 2) as u64,
     };
 
-    let mut config = if let Some(base_config) = base_config.clone() {
-        base_config
-    } else {
-        create_mock_full_node_config()
-    };
+    // let mut config = if let Some(base_config) = base_config.clone() {
+    //     telemetry::info!("Using base config");
+    //     telemetry::info!("{:?}", base_config);
+    //     telemetry::info!("{:?}", create_mock_full_node_config());
+    //     base_config
+    // } else {
+    //     create_mock_full_node_config()
+    // };
+
+    let mut config = create_mock_full_node_config();
 
     config.id = String::from("node-0");
 
