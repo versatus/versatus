@@ -613,6 +613,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
     let mut nodes = vec![];
     let mut quorum_members = BTreeMap::new();
+    let mut keypairs = vec![];
 
     for i in 1..=n {
         let udp_port: u16 = 11000 + i;
@@ -621,6 +622,8 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
         let keypair = Keypair::random();
         let validator_public_key = keypair.miner_public_key_owned();
+
+        keypairs.push(keypair);
 
         let node_id = format!("node-{}", i);
 
@@ -689,6 +692,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         config.id = format!("node-{}", i);
+        config.keypair = keypairs[i-1].clone();
         config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.node_type = NodeType::Validator;
         config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
@@ -708,6 +712,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         miner_config.id = format!("node-{}", i);
+        miner_config.keypair = keypairs[i-1].clone();
         miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
         miner_config.node_type = NodeType::Miner;
         miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
