@@ -398,8 +398,6 @@ impl ConsensusModule {
         set: &HashSet<Vote>,
         quorum_members: QuorumData,
     ) -> bool {
-        //dbg!(set.len());
-        //dbg!(quorum_members.members.len());
         set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD) as usize
     }
 

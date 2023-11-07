@@ -69,10 +69,12 @@ impl ConsensusModule {
         assigned_membership: AssignedQuorumMembership,
     ) -> Result<()> {
         if matches!(self.node_config.node_type, NodeType::Bootstrap) {
-            return Err(NodeError::Other(format!(
+            let err = NodeError::Other(format!(
                 "bootstrap node {} cannot belong to a quorum",
                 &self.node_config.id
-            )));
+            ));
+
+            return Err(err);
         }
 
         if let Some(membership_config) = &self.quorum_driver.membership_config {
@@ -81,38 +83,42 @@ impl ConsensusModule {
                 &self.node_config.id,
                 membership_config.quorum_kind
             );
+
             return Err(NodeError::Other(format!(
                 "{} already belongs to a {} quorum",
                 &self.node_config.id, membership_config.quorum_kind
             )));
         }
 
+        let quorum_members = assigned_membership
+            .peers
+            .into_iter()
+            .map(|peer| {
+                (
+                    peer.node_id.clone(),
+                    QuorumMember {
+                        node_id: peer.node_id,
+                        kademlia_peer_id: peer.kademlia_peer_id,
+                        // TODO: get from kademlia metadata
+                        node_type: NodeType::Validator,
+                        udp_gossip_address: peer.udp_gossip_addr,
+                        raptorq_gossip_address: peer.raptorq_gossip_addr,
+                        kademlia_liveness_address: peer.kademlia_liveness_addr,
+                        validator_public_key: peer.validator_public_key,
+                    },
+                )
+            })
+            .collect();
+
         let quorum_kind = assigned_membership.quorum_kind.clone();
         let quorum_membership_config = QuorumMembershipConfig {
-            quorum_members: assigned_membership
-                .peers
-                .into_iter()
-                .map(|peer| {
-                    (
-                        peer.node_id.clone(),
-                        QuorumMember {
-                            node_id: peer.node_id,
-                            kademlia_peer_id: peer.kademlia_peer_id,
-                            // TODO: get from kademlia metadata
-                            node_type: NodeType::Validator,
-                            udp_gossip_address: peer.udp_gossip_addr,
-                            raptorq_gossip_address: peer.raptorq_gossip_addr,
-                            kademlia_liveness_address: peer.kademlia_liveness_addr,
-                            validator_public_key: peer.validator_public_key,
-                        },
-                    )
-                })
-                .collect(),
+            quorum_members,
             quorum_kind,
         };
 
         self.quorum_driver.membership_config = Some(quorum_membership_config);
         self.quorum_kind = Some(assigned_membership.quorum_kind);
+
         Ok(())
     }
 
@@ -122,7 +128,6 @@ impl ConsensusModule {
         local_node_id: NodeId,
     ) -> Result<()> {
         if matches!(self.node_config.node_type, NodeType::Bootstrap) {
-            dbg!("node is boostrap, aborting");
             return Err(NodeError::Other(format!(
                 "bootstrap node {} cannot belong to a quorum",
                 &self.node_config.id

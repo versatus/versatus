@@ -45,6 +45,8 @@ pub enum NetworkEvent {
         assigned_membership: AssignedQuorumMembership,
     },
 
+    QuorumMembershipAssigmentsCreated(Vec<AssignedQuorumMembership>),
+
     /// Peer is unresponsive or signaled its intent to leave the network
     PeerUnregistered {
         peer_id: PeerId,
