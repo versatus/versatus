@@ -692,7 +692,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         config.id = format!("node-{}", i);
-        config.keypair = keypairs[i-1].clone();
+        config.keypair = keypairs.get(i-1).unwrap().clone();
         config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.node_type = NodeType::Validator;
         config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
@@ -712,7 +712,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         miner_config.id = format!("node-{}", i);
-        miner_config.keypair = keypairs[i-1].clone();
+        miner_config.keypair = keypairs.get(i-1).unwrap().clone();
         miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
         miner_config.node_type = NodeType::Miner;
         miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
