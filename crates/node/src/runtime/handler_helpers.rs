@@ -84,23 +84,13 @@ impl NodeRuntime {
         let set = self
             .state_driver
             .dag
-            .add_signer_to_convergence_block(
+            .add_signer_to_block(
                 block_hash.clone(),
                 sig,
                 node_id,
                 &self.consensus_driver.sig_engine,
             )
             .map_err(|err| NodeError::Other(err.to_string()))?;
-        if set.len()
-            < self
-                .consensus_driver
-                .sig_engine
-                .quorum_members()
-                .get_harvester_threshold()
-        {
-            return Err(NodeError::Other("threshold not reached yet".to_string()));
-        }
-
         let sig_set = set.into_iter().collect();
         let cert = self
             .form_convergence_certificate(block_hash, sig_set)
@@ -162,12 +152,15 @@ impl NodeRuntime {
     }
 
     // harvester sign and create cert
+    // TODO: Make this less ambiguous, if it is only for handling convergence
+    // blocks, maybe a better name would be handle_convergence_block_certificate_received?
     pub async fn handle_block_certificate_created(
         &mut self,
         certificate: Certificate,
     ) -> Result<ConvergenceBlock> {
         // This is for when the local node is a harvester and forms the certificate
-        self.handle_block_certificate_received(certificate).await
+        self.handle_convergence_block_certificate_received(certificate)
+            .await
     }
 
     pub async fn handle_quorum_formed(&mut self) -> Result<()> {
@@ -177,7 +170,7 @@ impl NodeRuntime {
     }
 
     // recieve cert from network
-    pub async fn handle_block_certificate_received(
+    pub async fn handle_convergence_block_certificate_received(
         &mut self,
         certificate: Certificate,
     ) -> Result<ConvergenceBlock> {
@@ -187,6 +180,22 @@ impl NodeRuntime {
             .append_certificate_to_convergence_block(&certificate)?
             .ok_or(NodeError::Other(
                 "certificate not appended to convergence block".to_string(),
+            ))?;
+
+        Ok(block.clone())
+    }
+
+    pub async fn handle_genesis_block_certificate_received(
+        &mut self,
+        block_hash: &str,
+        certificate: Certificate,
+    ) -> Result<GenesisBlock> {
+        // This is for when a certificate is received from the network.
+        self.verify_certificate(&certificate)?;
+        let block = self
+            .append_certificate_to_genesis_block(block_hash, &certificate)?
+            .ok_or(NodeError::Other(
+                "certificate not appended to genesis block".to_string(),
             ))?;
 
         Ok(block.clone())
@@ -217,6 +226,16 @@ impl NodeRuntime {
     ) -> Result<Option<ConvergenceBlock>> {
         self.state_driver
             .append_certificate_to_convergence_block(certificate)
+            .map_err(|err| NodeError::Other(format!("{:?}", err)))
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> Result<Option<GenesisBlock>> {
+        self.state_driver
+            .append_certificate_to_genesis_block(block_hash, certificate)
             .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
@@ -301,6 +320,7 @@ impl NodeRuntime {
         }
     }
 
+    // TODO: Does this need to be async?
     pub async fn handle_sign_convergence_block(
         &mut self,
         block: ConvergenceBlock,
@@ -316,6 +336,30 @@ impl NodeRuntime {
                     err
                 ))
             })
+    }
+
+    pub async fn handle_sign_genesis_block(&mut self, block: &GenesisBlock) -> Result<Signature> {
+        self.consensus_driver.is_harvester()?;
+        self.consensus_driver
+            .sig_engine
+            .sign(&block.hash)
+            .map_err(|err| {
+                NodeError::Other(format!(
+                    "could not generate partial_signature on block: {}. err: {}",
+                    block.hash, err
+                ))
+            })
+    }
+
+    // TODO: Replace uses of signing handlers for blocks with this method
+    pub async fn handle_sign_block(&mut self, block: Block) -> Result<Signature> {
+        match block {
+            Block::Convergence { block } => self.handle_sign_convergence_block(block).await,
+            Block::Genesis { block } => self.handle_sign_genesis_block(&block).await,
+            _ => Err(NodeError::Other(
+                "signature handler is not implemented for proposal blocks".into(),
+            )),
+        }
     }
 
     // TODO: Replace claims HashMap with claim_store_read_handle_factory

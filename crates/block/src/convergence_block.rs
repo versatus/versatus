@@ -8,25 +8,9 @@ use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
 use crate::{
-    header::BlockHeader, Block, BlockHash, Certificate, ConsolidatedClaims, ConsolidatedTxns,
+    error::BlockError, header::BlockHeader, Block, BlockHash, Certificate, ConsolidatedClaims,
+    ConsolidatedTxns,
 };
-
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum ConvergenceBlockError {
-    CertificateExists,
-    Other(String),
-}
-
-impl std::fmt::Display for ConvergenceBlockError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::CertificateExists => f.write_str("certificate already exists"),
-            Self::Other(str) => f.write_str(str),
-        }
-    }
-}
-
-impl std::error::Error for ConvergenceBlockError {}
 
 pub struct MineArgs<'a> {
     pub claim: Claim,
@@ -56,13 +40,15 @@ pub struct ConvergenceBlock {
 }
 
 impl ConvergenceBlock {
-    pub fn append_certificate(&mut self, cert: &Certificate) -> Result<(), ConvergenceBlockError> {
+    pub fn append_certificate(&mut self, cert: &Certificate) -> Result<(), BlockError> {
         if self.certificate.is_none() {
             self.certificate = Some(cert.clone());
             return Ok(());
         }
 
-        Err(ConvergenceBlockError::CertificateExists)
+        Err(BlockError::CertificateExists(Block::Convergence {
+            block: self.clone(),
+        }))
     }
 
     pub fn txn_id_set(&self) -> LinkedHashSet<&TransactionDigest> {

@@ -1,123 +1,15 @@
-use events::{EventPublisher, EventRouter};
-use primitives::{JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
-use telemetry::info;
-use vrrb_config::NodeConfig;
-
-use crate::{
-    api::setup_rpc_api_server,
-    component::NodeRuntimeComponentConfig,
-    indexer_module::setup_indexer_module,
-    network::{NetworkModule, NetworkModuleComponentConfig},
-    node_runtime::NodeRuntime,
-    result::Result,
-    ui::setup_node_gui,
-    RuntimeComponent, RuntimeComponentManager,
-};
-
 pub mod component;
 pub mod handler_helpers;
 pub mod node_runtime;
 pub mod node_runtime_handler;
+mod setup;
 
 pub use handler_helpers::*;
-
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
-
-pub async fn setup_runtime_components(
-    original_config: &NodeConfig,
-    router: &EventRouter,
-    events_tx: EventPublisher,
-) -> Result<(RuntimeComponentManager, NodeConfig)> {
-    let mut config = original_config.clone();
-
-    let runtime_events_rx = router.subscribe(Some(RUNTIME_TOPIC_STR.into()))?;
-    let network_events_rx = router.subscribe(Some(NETWORK_TOPIC_STR.into()))?;
-    let jsonrpc_events_rx = router.subscribe(Some(JSON_RPC_API_TOPIC_STR.into()))?;
-    let indexer_events_rx = router.subscribe(None)?;
-
-    let mut runtime_manager = RuntimeComponentManager::new();
-
-    let node_runtime_component_handle = NodeRuntime::setup(NodeRuntimeComponentConfig {
-        config: config.clone(),
-        events_tx: events_tx.clone(),
-        events_rx: runtime_events_rx,
-    })
-    .await?;
-
-    let handle_data = node_runtime_component_handle.data();
-
-    let node_config = handle_data.node_config.clone();
-
-    config = node_config;
-
-    let mempool_read_handle_factory = handle_data.mempool_read_handle_factory;
-    let state_read_handle = handle_data.state_read_handle;
-
-    runtime_manager.register_component(
-        node_runtime_component_handle.label(),
-        node_runtime_component_handle.handle(),
-    );
-
-    let network_component_handle = NetworkModule::setup(NetworkModuleComponentConfig {
-        config: config.clone(),
-        node_id: config.id.clone(),
-        events_tx: events_tx.clone(),
-        network_events_rx,
-        vrrbdb_read_handle: state_read_handle.clone(),
-        bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
-        membership_config: config.quorum_config.clone(),
-        validator_public_key: config.keypair.validator_public_key_owned(),
-    })
-    .await?;
-
-    let resolved_network_data = network_component_handle.data();
-    let network_component_handle_label = network_component_handle.label();
-
-    runtime_manager.register_component(
-        network_component_handle_label,
-        network_component_handle.handle(),
-    );
-
-    config.kademlia_peer_id = Some(resolved_network_data.kademlia_peer_id);
-    config.udp_gossip_address = resolved_network_data.resolved_udp_gossip_address;
-    config.raptorq_gossip_address = resolved_network_data.resolved_raptorq_gossip_address;
-    config.kademlia_liveness_address = resolved_network_data.resolved_kademlia_liveness_address;
-
-    let (jsonrpc_server_handle, resolved_jsonrpc_server_addr) = setup_rpc_api_server(
-        &config,
-        events_tx.clone(),
-        state_read_handle.clone(),
-        mempool_read_handle_factory.clone(),
-        jsonrpc_events_rx,
-    )
-    .await?;
-
-    config.jsonrpc_server_address = resolved_jsonrpc_server_addr;
-
-    info!("JSON-RPC server address: {}", config.jsonrpc_server_address);
-
-    runtime_manager.register_component("API".to_string(), jsonrpc_server_handle);
-
-    if config.enable_block_indexing {
-        let _handle =
-            setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
-        // TODO: udpate this to return the proper component handle type
-        // indexer_handle = Some(handle);
-        // TODO: register indexer module handle
-    }
-
-    //TODO: variable _node_gui_handle is never used.
-    let mut _node_gui_handle = None;
-    if config.gui {
-        _node_gui_handle = setup_node_gui(&config).await?;
-        info!("Node UI started");
-    }
-
-    Ok((runtime_manager, config))
-}
+pub use setup::*;
 
 #[cfg(test)]
 mod tests {
+
     use crate::node_runtime::NodeRuntime;
     use crate::test_utils::{
         create_node_runtime_network, create_quorum_assigned_node_runtime_network,
@@ -187,7 +79,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_assign_quorum_memberships_to_available_nodes() {
-        let (mut _node_0, farmers, harvesters, _miners) = setup_network(8).await;
+        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
 
         assert_eq!(farmers.len(), 4);
         assert_eq!(harvesters.len(), 2);
@@ -218,6 +110,7 @@ mod tests {
         let (_node_0, farmers, harvesters, _miners) = setup_network(8).await;
         let mut validators = farmers.clone();
         validators.extend(harvesters.clone().into_iter());
+
         for (farmer_id, farmer) in farmers.iter() {
             for (validator_id, member) in validators.iter() {
                 if validator_id == farmer_id {
@@ -249,7 +142,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
-        let (node_0, farmers, harvesters, mut miners) = setup_network(8).await;
+        let (mut node_0, farmers, harvesters, mut miners) = setup_network(8).await;
 
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
@@ -376,7 +269,6 @@ mod tests {
         // TODO: impl miner elections
         // TODO: create genesis block, certify it then append it to miner's dag
         // TODO: store DAG on disk, separate from ledger
-        // TODO: variable _txn is never used
 
         let (_, public_key) = generate_account_keypair();
         let sender_account = Account::new(public_key.clone().into());
@@ -385,7 +277,7 @@ mod tests {
         let (_, public_key) = generate_account_keypair();
         let receiver_address = node_0.create_account(public_key).unwrap();
 
-        let _txn = create_txn_from_accounts(
+        let txn = create_txn_from_accounts(
             (sender_address, Some(sender_account)),
             receiver_address,
             vec![],
@@ -415,8 +307,8 @@ mod tests {
             .unwrap();
 
         for (_, harvester) in harvesters.iter_mut() {
-            let sig_engine = harvester.consensus_driver.sig_engine.clone();
-            let _proposal_block = harvester // TODO: variable is never used
+            let mut sig_engine = harvester.consensus_driver.sig_engine.clone();
+            let proposal_block = harvester
                 .mine_proposal_block(
                     genesis_block.hash.clone(),
                     Default::default(), // TODO: change to an actual map of harvester claims
@@ -482,7 +374,7 @@ mod tests {
     #[serial_test::serial]
     #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
-        let (node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
+        let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let receiver = GenesisReceiver(Address::new(
             farmers
                 .iter()
@@ -503,7 +395,7 @@ mod tests {
 
         let miner_id = miner_ids.first().unwrap();
 
-        let miner_node = miners.get_mut(miner_id).unwrap();
+        let mut miner_node = miners.get_mut(miner_id).unwrap();
 
         let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
@@ -706,6 +598,11 @@ mod tests {
             receiver_address,
             vec![],
         );
+
+        for farmer in farmer_nodes.iter() {
+            // dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
+            // dbg!(&farmer.consensus_driver.is_farmer());
+        }
 
         for farmer in farmer_nodes.iter_mut() {
             let _ = farmer.insert_txn_to_mempool(txn.clone());
@@ -1239,7 +1136,7 @@ mod tests {
         let _ = sender_account.update_field(update_field);
         let account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
 
-        let txn = create_txn_from_accounts(
+        let mut txn = create_txn_from_accounts(
             (sender_address.clone(), Some(sender_account.clone())),
             receiver_address,
             vec![],
@@ -1248,13 +1145,12 @@ mod tests {
         let votes: Vec<Vote> = farmers
             .iter_mut()
             .map(|nr| {
-                nr.handle_create_account_requested(sender_address.clone(), account_bytes.clone())
-                    .unwrap();
-                nr.insert_txn_to_mempool(txn.clone()).unwrap();
+                nr.handle_create_account_requested(sender_address.clone(), account_bytes.clone());
+                nr.insert_txn_to_mempool(txn.clone());
                 let mempool_reader = nr.mempool_read_handle_factory();
                 let state_reader = nr.state_store_read_handle_factory();
                 let res = nr
-                    .validate_transaction_kind(txn.id(), mempool_reader, state_reader)
+                    .validate_transaction_kind(txn.digest(), mempool_reader, state_reader)
                     .unwrap();
                 nr.cast_vote_on_transaction_kind(res.0, res.1).unwrap()
             })
