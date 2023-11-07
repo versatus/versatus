@@ -154,5 +154,7 @@ fn test_oom() {}
 
 /// Check that a running job reports memory utilization as expected.
 #[test]
-fn test_memory_report() {}
+fn test_memory_report() {
+    
+}
 
