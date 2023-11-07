@@ -92,6 +92,15 @@ impl Node {
         // NOTE: wait for stop signal
         cancel_token.cancelled().await;
 
+        //
+        // let em = EventMessage::new(Some(Topic::from(JSON_RPC_API_TOPIC_STR)), Event::Stop);
+        // events_tx.send(em).await?;
+        //
+        // let em = EventMessage::new(Some(Topic::from(RUNTIME_TOPIC_STR)), Event::Stop);
+        // events_tx.send(em).await?;
+        //
+        // let em = EventMessage::new(Some(Topic::from(NETWORK_TOPIC_STR)), Event::Stop);
+        // events_tx.send(em).await?;
         events_tx.send(Event::Stop.into()).await?;
 
         runtime_component_manager.stop().await?;

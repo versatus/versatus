@@ -45,7 +45,6 @@ impl StateStoreReadHandle {
 
     pub fn entries(&self) -> Result<HashMap<Address, Account>> {
         // TODO: revisit and refactor into inner wrapper
-
         Ok(self
             .inner
             .iter(self.inner.version())

@@ -47,17 +47,22 @@ impl Handler<EventMessage> for NetworkModule {
                 self.notify_quorum_membership_assignments(assigments)
                     .await?;
             }
-
+            Event::NewTxnCreated(txn) => {
+                info!("Broadcasting transaction to known peers");
+                self.broadcast_transaction(txn).await?;
+            }
+            Event::TransactionVoteCreated(vote) => {
+                info!("Broadcasting transaction vote to network");
+                self.broadcast_transaction_vote(vote).await?;
+            }
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
             }
-
             Event::PartCommitmentCreated(node_id, part) => {
                 info!("Broadcasting part commitment to peers in quorum");
                 self.broadcast_part_commitment(node_id, part).await?;
             }
-
             Event::PartCommitmentAcknowledged {
                 node_id,
                 sender_id,
@@ -87,16 +92,10 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting certificate to network");
                 self.broadcast_certificate(cert).await?;
             }
-            Event::BroadcastTransactionVote(vote) => {
-                info!("Broadcasting transaction vote to network");
-                self.broadcast_transaction_vote(vote).await?;
-            }
-
             Event::BlockCreated(block) => {
                 info!("Broadcasting block to network");
                 self.broadcast_block(block).await?;
             }
-
             _ => {}
         }
 

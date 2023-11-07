@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
-use events::{Event, EventMessage, EventPublisher, PeerData};
+use events::{Event, EventMessage, EventPublisher, PeerData, Topic};
 use primitives::{NodeId, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 
 use crate::{network::NetworkEvent, NodeError, Result};
@@ -55,49 +55,52 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     validator_public_key,
                 });
 
-                self.send_event_to_network(evt).await?;
+                if let Err(err) = self.send_event_to_network(evt).await {
+                    telemetry::error!("{}", err);
+                }
             }
             NetworkEvent::ClaimCreated { node_id, claim } => {
                 telemetry::info!(
-                    "Node ID {} received claim from {}: {}",
+                    "Node ID {} recieved claim from {}: {}",
                     self.node_id,
                     node_id,
                     claim.public_key
                 );
 
                 let evt = Event::ClaimReceived(claim);
-
-                self.send_event_to_network(evt).await?;
+                if let Err(err) = self.send_event_to_network(evt).await {
+                    telemetry::error!("{}", err);
+                }
             }
 
             NetworkEvent::QuorumMembershipAssigmentsCreated(assignments) => {
                 telemetry::info!(
-                    "Node ID {} received {} assignments",
+                    "Node ID {} recieved {} assignments",
                     self.node_id,
                     assignments.len(),
                 );
 
                 let evt = Event::QuorumMembershipAssigmentsCreated(assignments);
-
-                self.send_event_to_runtime(evt).await?
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
             }
-
             NetworkEvent::AssignmentToQuorumCreated {
                 assigned_membership,
             } => {
                 telemetry::info!(
-                    "Node ID {} received assignment to quorum: {:?}",
+                    "Node ID {} recieved assignment to quorum: {:?}",
                     self.node_id,
                     assigned_membership.quorum_kind
                 );
 
                 let evt = Event::QuorumMembershipAssigmentCreated(assigned_membership);
-
-                self.send_event_to_runtime(evt).await?;
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
             }
             NetworkEvent::PartCommitmentCreated(node_id, part) => {
                 let evt = Event::PartCommitmentCreated(node_id, part);
-
                 if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);
                 }
@@ -114,13 +117,22 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     ack,
                 };
 
-                self.send_event_to_runtime(evt).await?;
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
             }
 
+            NetworkEvent::TransactionVoteCreated(vote) => {
+                let evt = Event::TransactionVoteCreated(vote);
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
+            }
             NetworkEvent::BlockCreated(block) => {
                 let evt = Event::BlockCreated(block);
-
-                self.send_event_to_runtime(evt).await?;
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
             }
 
             _ => {}
