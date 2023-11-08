@@ -14,7 +14,7 @@ use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
 use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
 use ritelinked::LinkedHashMap;
-use sha2::{Digest, Sha256};
+use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -23,20 +23,12 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
-use utils::{create_payload, payload::digest_data_to_bytes};
+use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
-    transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
-    },
-};
-
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
+    transactions::{TransactionDigest, TransactionKind},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -151,17 +143,14 @@ impl NodeRuntime {
         false
     }
 
-    pub fn certified_genesis_block_exists_within_dag(&self, block_hash: String) -> bool {
-        if let Ok(guard) = self.state_driver.dag.read() {
-            if let Some(vertex) = guard.get_vertex(block_hash) {
-                if let Block::Genesis { block } = vertex.get_data() {
-                    return block.certificate.is_some();
-                } else {
-                    return false;
-                }
+    pub fn certified_genesis_block_exists_within_dag(&self, block_hash: String) -> Result<bool> {
+        let guard = self.state_driver.dag.read()?;
+        Ok(guard.get_vertex(block_hash).is_some_and(|vertex| {
+            if let Block::Genesis { block } = vertex.get_data() {
+                return block.certificate.is_some();
             }
-        }
-        false
+            false
+        }))
     }
 
     pub fn config_ref(&self) -> &NodeConfig {

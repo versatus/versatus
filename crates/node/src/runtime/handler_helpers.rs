@@ -152,14 +152,12 @@ impl NodeRuntime {
         }
     }
 
-    // harvester sign and create cert
-    // TODO: Make this less ambiguous, if it is only for handling convergence
-    // blocks, maybe a better name would be handle_convergence_block_certificate_received?
-    pub async fn handle_block_certificate_created(
+    /// This is for when the local node is a harvester and forms the certificate.
+    /// Wrapper for `handle_convergence_block_certificate_received`.
+    pub async fn handle_convergence_block_certificate_created(
         &mut self,
         certificate: Certificate,
     ) -> Result<ConvergenceBlock> {
-        // This is for when the local node is a harvester and forms the certificate
         self.handle_convergence_block_certificate_received(certificate)
             .await
     }

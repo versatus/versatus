@@ -262,7 +262,7 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::BlockCertificateCreated(certificate) => {
                 let confirmed_block = self
-                    .handle_block_certificate_created(certificate)
+                    .handle_convergence_block_certificate_created(certificate)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
