@@ -12,20 +12,10 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use hbbft::crypto::{PublicKeySet, PublicKeyShare, SignatureShare, SIG_SIZE};
 use indexmap::IndexMap;
-use primitives::{
-    HarvesterQuorumThreshold, NodeId, PublicKey, QuorumType, RawSignature, Signature, SignatureType,
-};
-use signer::{
-    engine::VALIDATION_THRESHOLD,
-    types::{SignerError, SignerResult},
-};
-use signer::{
-    engine::{QuorumData, QuorumMembers, SignerEngine},
-    signer::Signer,
-};
-use theater::{ActorId, ActorState};
+use primitives::{HarvesterQuorumThreshold, NodeId, PublicKey, Signature, SignatureType};
+use signer::engine::{QuorumMembers, SignerEngine};
+use signer::types::{SignerError, SignerResult};
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
@@ -134,17 +124,18 @@ impl DagModule {
             .map_err(|err| GraphError::Other(format!("{:?}", err)))
     }
 
-    fn get_genesis_block_from_hash(&self, block_hash: &str) -> GraphResult<GenesisBlock> {
-        if let Ok(guard) = self.dag.read() {
-            if let Some(block) = guard.get_vertex(block_hash.to_owned()) {
-                if let Block::Genesis { block } = block.get_data() {
-                    return Ok(block);
-                }
-            }
+    fn get_genesis_block(&self, block_hash: &str) -> GraphResult<GenesisBlock> {
+        let guard = self
+            .dag
+            .read()
+            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
+        let block = guard
+            .get_vertex(block_hash.to_owned())
+            .ok_or_else(|| GraphError::Other("could not find genesis block in DAG".to_string()))?;
+        match block.get_data() {
+            Block::Genesis { block } => Ok(block),
+            block => Err(GraphError::Other(format!("block found in DAG for block hash \"{block_hash}\" is not a GenesisBlock, block: {block:?}"))),
         }
-        Err(GraphError::Other(
-            "failed to retrieve genesis block from dag".to_string(),
-        ))
     }
 
     pub fn append_certificate_to_genesis_block(
@@ -152,12 +143,12 @@ impl DagModule {
         block_hash: &str,
         certificate: &Certificate,
     ) -> GraphResult<Option<GenesisBlock>> {
-        let mut genesis_block = self.get_genesis_block_from_hash(block_hash)?;
+        let mut genesis_block = self.get_genesis_block(block_hash)?;
         genesis_block
             .append_certificate(certificate)
-            .map_err(|err| GraphError::Other(err.to_string()))?;
+            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
         self.append_genesis(&genesis_block)
-            .map_err(|err| GraphError::Other(format!("{:?}", err)))?;
+            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
         Ok(Some(genesis_block))
     }
 

@@ -72,14 +72,11 @@ impl StateManager {
         &mut self,
         genesis_block: &GenesisBlock,
     ) -> GraphResult<ApplyBlockResult> {
-        match self.dag.append_genesis(genesis_block) {
-            Ok(()) => Ok(self
-                .apply_block(Block::Genesis {
-                    block: genesis_block.clone(),
-                })
-                .map_err(|err| GraphError::Other(err.to_string()))?),
-            Err(err) => Err(err),
-        }
+        self.dag.append_genesis(genesis_block)?;
+        self.apply_block(Block::Genesis {
+            block: genesis_block.to_owned(),
+        })
+        .map_err(|err| GraphError::Other(format!("{err:?}")))
     }
 
     pub fn append_convergence(
