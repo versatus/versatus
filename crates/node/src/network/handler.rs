@@ -43,9 +43,8 @@ impl Handler<EventMessage> for NetworkModule {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
-            Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
-                self.notify_quorum_membership_assignment(assigned_membership)
+            Event::QuorumMembershipAssigmentsCreated(assigments) => {
+                self.notify_quorum_membership_assignments(assigments)
                     .await?;
             },
 
