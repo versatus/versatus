@@ -209,14 +209,18 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
             .await
             .unwrap();
         assert_eq!(&genesis_block.certificate.unwrap(), &certificate);
-        assert!(node.certified_genesis_block_exists_within_dag(genesis_block.hash));
+        assert!(node
+            .certified_genesis_block_exists_within_dag(genesis_block.hash)
+            .unwrap());
     }
     let genesis_block = chosen_harvester
         .handle_genesis_block_certificate_received(&genesis_block.hash, certificate.clone())
         .await
         .unwrap();
     assert_eq!(&genesis_block.certificate.unwrap(), &certificate);
-    assert!(chosen_harvester.certified_genesis_block_exists_within_dag(genesis_block.hash));
+    assert!(chosen_harvester
+        .certified_genesis_block_exists_within_dag(genesis_block.hash)
+        .unwrap());
 }
 
 /// All transactions within the genesis block should be applied to the network's state
