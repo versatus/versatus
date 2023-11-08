@@ -29,7 +29,7 @@ pub enum Commands {
     /// Manage configuration for this CLI tool
     Config(ConfigOpts),
 
-    /// Interact with and control a network of Versatus nodes
+    /// Interact with and control a network of local Versatus nodes for development
     Dev(Box<DevOpts>),
 
     /// Interact with and control Versatus nodes
