@@ -244,12 +244,14 @@ impl Handler<EventMessage> for NodeRuntime {
                 let apply_result = self.handle_block_received(block)?;
 
                 telemetry::info!(
-                    "state trie root after applying block {}",
+                    "New state root hash: {}",
                     apply_result.state_root_hash_str()
                 );
 
+                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), next_event);
+
                 self.events_tx
-                    .send(next_event.into())
+                    .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
@@ -297,14 +299,18 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.validate_transaction_kind(txn_hash, mempool_reader, state_reader)
                 {
                     if let Ok(vote) = self.cast_vote_on_transaction_kind(transaction, validity) {
+                        let em = EventMessage::new(
+                            Some(NETWORK_TOPIC_STR.into()),
+                            Event::TransactionsValidated {
+                                vote,
+                                quorum_threshold: self.config.threshold_config.threshold
+                                    as usize,
+                            },
+                        );
+
                         self.events_tx
                             .send(
-                                Event::TransactionsValidated {
-                                    vote,
-                                    quorum_threshold: self.config.threshold_config.threshold
-                                        as usize,
-                                }
-                                .into(),
+                                em
                             )
                             .await
                             .map_err(|err| TheaterError::Other(err.to_string()))?;
