@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
+use wasmer::{Cranelift, Target};
 
 use crate::wasm_runtime::WasmRuntime;
 
@@ -26,6 +27,10 @@ const TEST_LAST_BLOCK_TIME: i64 = 1689897402;
 const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
 const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
 
+fn create_test_wasm_runtime(target: &Target, wasm_bytes: &[u8]) -> anyhow::Result<WasmRuntime> {
+    WasmRuntime::new::<Cranelift>(target, wasm_bytes)
+}
+
 /// This test checks that the stuff we send via stdin is available as part of
 /// the struct on stdout, per the wasm_test.wasm functionality. It shows we're
 /// able to properly set up the stdin and stdout pipes.
@@ -41,7 +46,8 @@ fn test_multiline_input() {
         tx_id: TEST_TX_ID.to_string(),
         last_block_time: TEST_LAST_BLOCK_TIME,
     };
-    let mut runtime = WasmRuntime::new(&wasm_bytes)
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&serde_json::to_vec(&inputs).unwrap())
         .unwrap();
@@ -60,7 +66,8 @@ fn test_multiline_input() {
 fn test_single_line_input() {
     let wasm_bytes = std::fs::read("test_data/wasm_test.wasm").unwrap();
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
-    let mut runtime = WasmRuntime::new(&wasm_bytes)
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
         .unwrap();
@@ -88,7 +95,8 @@ fn test_command_line_args() {
         "to".to_string(),
         "us".to_string(),
     ];
-    let mut runtime = WasmRuntime::new(&wasm_bytes)
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
         .unwrap()
@@ -113,7 +121,8 @@ fn test_environment_vars() {
     wasm_env.insert("POKEY".to_string(), "pokey".to_string());
     wasm_env.insert("PRICKLE".to_string(), "prickle".to_string());
     wasm_env.insert("GOO".to_string(), "goo".to_string());
-    let mut runtime = WasmRuntime::new(&wasm_bytes)
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
         .unwrap()
@@ -136,7 +145,8 @@ fn test_failed_execution() {
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
     let mut wasm_env: HashMap<String, String> = HashMap::new();
     wasm_env.insert(TEST_RETURN_FAIL.to_string(), "true".to_string());
-    let mut runtime = WasmRuntime::new(&wasm_bytes)
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
         .unwrap()
