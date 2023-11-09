@@ -12,7 +12,7 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 chrono = "0.4.31"
 
-
+telemetry = { workspace = true }
 wallet = { workspace = true }
 vrrb_core = { workspace = true }
 primitives = { workspace = true }

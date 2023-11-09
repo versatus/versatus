@@ -13,7 +13,7 @@ use wallet::v2::{Wallet, WalletConfig, WalletError};
 
 #[derive(Deserialize)]
 struct FaucetRequest {
-    account: String,
+    address: String,
 }
 
 pub struct FaucetConfig {
@@ -31,7 +31,7 @@ async fn drip(
     Extension(wallet): Extension<Arc<Mutex<Wallet>>>,
     Json(req): Json<FaucetRequest>,
 ) -> Result<Json<RpcTransactionDigest>, StatusCode> {
-    let recipient: Address = req.account.parse().unwrap();
+    let recipient: Address = req.address.parse().unwrap();
 
     let timestamp = chrono::Utc::now().timestamp();
 
@@ -41,7 +41,7 @@ async fn drip(
     let digest = wallet
         .send_transaction(
             // 0,
-            recipient,
+            recipient.clone(),
             10,
             Token::default(),
             timestamp
@@ -51,8 +51,9 @@ async fn drip(
             eprintln!("Unable to send transaction: {}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    ;
-    //
+
+    telemetry::info!("Sent faucet drip to: {:?}", recipient.to_string());
+
     Ok(Json::from(digest))
 }
 
@@ -63,6 +64,8 @@ impl Faucet {
             config.secret_key.clone(),
             config.rpc_server_address,
         ).await?;
+
+        println!("Wallet restored from private key, Address: {:?}", wallet.address.to_string());
 
         let faucet = Faucet {
             config,
