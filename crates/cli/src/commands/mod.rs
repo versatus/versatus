@@ -1,5 +1,6 @@
 pub mod config;
 pub mod keygen;
+pub mod dev;
 pub mod node;
 pub mod utils;
 pub mod wallet;
@@ -16,6 +17,7 @@ pub async fn exec(args: Args) -> Result<()> {
     let cmd = args.command;
 
     match cmd {
+        Some(Commands::Dev(dev_args)) => dev::exec(*dev_args).await,
         Some(Commands::Node(node_args)) => node::exec(*node_args).await,
         Some(Commands::Wallet(wallet_args)) => wallet::exec(wallet_args).await,
         Some(Commands::Keygen(keygen_args)) => keygen::exec(keygen_args),

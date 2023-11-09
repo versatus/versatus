@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(mainnet)]
 use crate::genesis;
-use crate::{header::BlockHeader, BlockHash, Certificate, ClaimList};
+use crate::{error::BlockError, header::BlockHeader, BlockHash, Certificate, ClaimList};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct GenesisRewards(pub LinkedHashMap<GenesisReceiver, u128>);
@@ -19,6 +19,18 @@ pub struct GenesisBlock {
     pub claims: ClaimList,
     pub hash: BlockHash,
     pub certificate: Option<Certificate>,
+}
+impl GenesisBlock {
+    pub fn append_certificate(&mut self, certificate: &Certificate) -> Result<(), BlockError> {
+        if self.certificate.is_none() {
+            self.certificate = Some(certificate.clone());
+            return Ok(());
+        }
+
+        Err(BlockError::CertificateExists(crate::Block::Genesis {
+            block: self.clone(),
+        }))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]

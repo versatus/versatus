@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 use crate::commands::{config::ConfigOpts, keygen::KeygenCmd, node::NodeOpts, wallet::WalletOpts};
+use crate::commands::dev::DevOpts;
 use crate::commands::faucet::FaucetOpts;
 
 #[derive(Parser, Debug)]
@@ -29,7 +30,10 @@ pub enum Commands {
     /// Manage configuration for this CLI tool
     Config(ConfigOpts),
 
-    /// Interact with and control VRRB nodes
+    /// Interact with and control a network of local Versatus nodes for development
+    Dev(Box<DevOpts>),
+
+    /// Interact with and control Versatus nodes
     Node(Box<NodeOpts>),
 
     /// Interact with with accounts and objects on the network

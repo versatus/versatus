@@ -12,20 +12,10 @@ use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
 };
-use hbbft::crypto::{PublicKeySet, PublicKeyShare, SignatureShare, SIG_SIZE};
 use indexmap::IndexMap;
-use primitives::{
-    HarvesterQuorumThreshold, NodeId, PublicKey, QuorumType, RawSignature, Signature, SignatureType,
-};
-use signer::{
-    engine::VALIDATION_THRESHOLD,
-    types::{SignerError, SignerResult},
-};
-use signer::{
-    engine::{QuorumData, QuorumMembers, SignerEngine},
-    signer::Signer,
-};
-use theater::{ActorId, ActorState};
+use primitives::{HarvesterQuorumThreshold, NodeId, PublicKey, Signature, SignatureType};
+use signer::engine::{QuorumMembers, SignerEngine};
+use signer::types::{SignerError, SignerResult};
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
@@ -132,6 +122,34 @@ impl DagModule {
 
         self.append_convergence(&block)
             .map_err(|err| GraphError::Other(format!("{:?}", err)))
+    }
+
+    fn get_genesis_block(&self, block_hash: &str) -> GraphResult<GenesisBlock> {
+        let guard = self
+            .dag
+            .read()
+            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
+        let block = guard
+            .get_vertex(block_hash.to_owned())
+            .ok_or_else(|| GraphError::Other("could not find genesis block in DAG".to_string()))?;
+        match block.get_data() {
+            Block::Genesis { block } => Ok(block),
+            block => Err(GraphError::Other(format!("block found in DAG for block hash \"{block_hash}\" is not a GenesisBlock, block: {block:?}"))),
+        }
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<GenesisBlock>> {
+        let mut genesis_block = self.get_genesis_block(block_hash)?;
+        genesis_block
+            .append_certificate(certificate)
+            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
+        self.append_genesis(&genesis_block)
+            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
+        Ok(Some(genesis_block))
     }
 
     pub fn append_genesis(&mut self, genesis: &GenesisBlock) -> GraphResult<()> {
@@ -316,7 +334,7 @@ impl DagModule {
         false
     }
 
-    pub fn add_signer_to_convergence_block(
+    pub fn add_signer_to_block(
         &mut self,
         block_hash: String,
         sig: Signature,

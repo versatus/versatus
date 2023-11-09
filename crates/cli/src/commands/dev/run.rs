@@ -1,18 +1,19 @@
 use config::{Config, ConfigError, File};
 use node::Node;
-use primitives::{
-    KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH,
-};
+use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH, Address};
 use serde::Deserialize;
 use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
+use std::str::FromStr;
+use secp256k1::PublicKey;
 use telemetry::{error, info};
 use utils::payload::digest_data_to_bytes;
 use uuid::Uuid;
-use vrrb_config::{NodeConfig, QuorumMember};
+use node::test_utils::create_test_network_from_config;
+use vrrb_config::{BootstrapConfig, NodeConfig, QuorumMember};
 
 use crate::{
     commands::{
@@ -99,6 +100,9 @@ pub struct RunOpts {
 
     #[clap(long)]
     pub whitelist_path: Option<String>,
+
+    #[clap(long)]
+    pub additional_genesis_receivers: Option<String>,
 }
 
 impl From<RunOpts> for NodeConfig {
@@ -116,6 +120,22 @@ impl From<RunOpts> for NodeConfig {
             default_node_config.http_api_title.clone()
         };
 
+        let bootstrap_config = if let Some(additional_genesis_receivers) = opts.additional_genesis_receivers {
+            let additional_genesis_receivers: Vec<Address> = additional_genesis_receivers
+                .split(',')
+                .map(|s| Address::from_str(s).unwrap())
+                .collect::<Vec<Address>>();
+
+            let bootstrap_config = BootstrapConfig {
+                additional_genesis_receivers: Some(additional_genesis_receivers),
+                ..Default::default()
+            };
+
+            Some(bootstrap_config)
+        } else {
+            default_node_config.bootstrap_config
+        };
+
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
             data_dir: opts.data_dir,
@@ -130,7 +150,7 @@ impl From<RunOpts> for NodeConfig {
             http_api_shutdown_timeout: default_node_config.http_api_shutdown_timeout,
             jsonrpc_server_address: opts.jsonrpc_api_address,
             preload_mock_state: default_node_config.preload_mock_state,
-            bootstrap_config: default_node_config.bootstrap_config,
+            bootstrap_config,
             kademlia_liveness_address: default_node_config.kademlia_liveness_address,
             kademlia_peer_id: default_node_config.kademlia_peer_id,
 
@@ -179,6 +199,7 @@ impl Default for RunOpts {
             rendezvous_server_address: ipv4_localhost_with_random_port,
             public_ip_address: ipv4_localhost_with_random_port,
             whitelist_path: None,
+            additional_genesis_receivers: None,
         }
     }
 }
@@ -266,6 +287,7 @@ impl RunOpts {
             rendezvous_server_address: other.rendezvous_server_address,
             public_ip_address: other.public_ip_address,
             whitelist_path: other.whitelist_path.clone(),
+            additional_genesis_receivers: other.additional_genesis_receivers.clone(),
         }
     }
 }
@@ -316,21 +338,34 @@ pub async fn run(args: RunOpts) -> Result<()> {
 
 #[telemetry::instrument]
 async fn run_blocking(node_config: NodeConfig) -> Result<()> {
-    let vrrb_node = Node::start(node_config)
-        .await
-        .map_err(|err| CliError::Other(err.to_string()))?;
+    let nodes = create_test_network_from_config(8, Some(node_config)).await;
 
-    let node_type = vrrb_node.node_type();
+    info!("running test network node in blocking mode");
 
-    info!("running {node_type:?} node in blocking mode");
+    for node in nodes.iter() {
+        println!("{}", node.jsonrpc_server_address());
+        let pubkey = PublicKey::from_str(&node.keypair.get_miner_public_key().to_string()).unwrap();
+        let address = Address::new(pubkey);
+        println!("Address: {}", address);
+    }
 
     tokio::signal::ctrl_c()
         .await
         .map_err(|err| CliError::Other(format!("failed to listen for ctrl+c: {err}")))?;
 
-    vrrb_node.stop().await?;
+    for node in nodes {
+        println!();
+        println!(
+            "shutting down node {} type {:?}",
+            node.id(),
+            node.node_type()
+        );
+        println!();
 
-    info!("Node stopped");
+        node.stop().await.unwrap();
+    }
+
+    info!("Network stopped");
 
     Ok(())
 }

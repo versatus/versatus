@@ -3,7 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use block::{
+    Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -66,6 +68,17 @@ impl StateManager {
         }
     }
 
+    pub fn append_genesis(
+        &mut self,
+        genesis_block: &GenesisBlock,
+    ) -> GraphResult<ApplyBlockResult> {
+        self.dag.append_genesis(genesis_block)?;
+        self.apply_block(Block::Genesis {
+            block: genesis_block.to_owned(),
+        })
+        .map_err(|err| GraphError::Other(format!("{err:?}")))
+    }
+
     pub fn append_convergence(
         &mut self,
         convergence: &ConvergenceBlock,
@@ -108,6 +121,15 @@ impl StateManager {
     ) -> GraphResult<Option<ConvergenceBlock>> {
         self.dag
             .append_certificate_to_convergence_block(certificate)
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<GenesisBlock>> {
+        self.dag
+            .append_certificate_to_genesis_block(block_hash, certificate)
     }
 
     pub fn export_state(&self) {

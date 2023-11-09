@@ -144,24 +144,12 @@ impl ConsensusModule {
 
     pub fn certify_block(
         &mut self,
-        block: Block,
-        _last_block_header: BlockHeader,
+        block_hash: String,
         prev_txn_root_hash: String,
-        //        next_txn_root_hash: String,
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
-        let block = block.clone();
-        let block_hash = block.hash();
-        let quorum_threshold = self.node_config.threshold_config.threshold;
-
-        if certs.len() as u16 <= quorum_threshold {
-            return Err(NodeError::Other(
-                "Not enough partial signatures to create a certificate".to_string(),
-            ));
-        }
-
         self.sig_engine
-            .verify_batch(&certs, &block.hash())
+            .verify_batch(&certs, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         //TODO: If Quorums are pending inauguration include inauguration info
@@ -181,14 +169,7 @@ impl ConsensusModule {
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let txn_trie_hash = block.header.txn_hash.clone();
-        let last_block_header = block.header.clone();
-
-        self.certify_block(
-            block.into(),
-            last_block_header,
-            txn_trie_hash.clone(),
-            certs,
-        )
+        self.certify_block(block.hash, txn_trie_hash.clone(), certs)
     }
 
     pub fn certify_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
@@ -208,7 +189,7 @@ impl ConsensusModule {
             resolver,
             dag.clone(),
         )?;
-        self.certify_block(block.into(), last_block_header, prev_txn_root_hash, certs)
+        self.certify_block(block.hash, prev_txn_root_hash, certs)
     }
 
     async fn sign_convergence_block(
@@ -417,8 +398,6 @@ impl ConsensusModule {
         set: &HashSet<Vote>,
         quorum_members: QuorumData,
     ) -> bool {
-        //dbg!(set.len());
-        //dbg!(quorum_members.members.len());
         set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD) as usize
     }
 
