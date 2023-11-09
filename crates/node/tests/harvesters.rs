@@ -302,7 +302,7 @@ async fn all_nodes_append_certificate_to_convergence_block() {
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     }
     let convergence_block = chosen_harvester
-        .handle_block_certificate_created(certificate.clone())
+        .handle_convergence_block_certificate_created(certificate.clone())
         .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
@@ -407,7 +407,7 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
     }
     let convergence_block = chosen_harvester
-        .handle_block_certificate_created(certificate.clone())
+        .handle_convergence_block_certificate_created(certificate.clone())
         .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
@@ -562,7 +562,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
     }
     let convergence_block = chosen_harvester
-        .handle_block_certificate_created(certificate.clone())
+        .handle_convergence_block_certificate_created(certificate.clone())
         .await
         .unwrap();
     let block_apply_result = chosen_harvester
