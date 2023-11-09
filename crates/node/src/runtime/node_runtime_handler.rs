@@ -321,8 +321,13 @@ impl Handler<EventMessage> for NodeRuntime {
                 vote,
                 quorum_threshold,
             } => {
+                let em = EventMessage::new(
+                    Some(NETWORK_TOPIC_STR.into()),
+                    Event::BroadcastTransactionVote(vote),
+                );
+
                 self.events_tx
-                    .send(Event::BroadcastTransactionVote(vote).into())
+                    .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
