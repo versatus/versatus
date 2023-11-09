@@ -35,7 +35,7 @@ impl WasmRuntime {
     /// in.
     ///
     /// C represents the compiler to use, which at the time of writing is Cranelift.
-    pub fn new<C: Default + Into<Engine>>(target: &Target, wasm_bytes: &Vec<u8>) -> Result<Self> {
+    pub fn new<C: Default + Into<Engine>>(target: &Target, wasm_bytes: &[u8]) -> Result<Self> {
         // Setup Tunables
         let compiler = C::default();
         let base = BaseTunables::for_target(target);
