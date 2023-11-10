@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use anyhow::Error;
 use serde_derive::{Deserialize, Serialize};
-use wasmer::{Cranelift, Target};
+use wasmer::{Cranelift, RuntimeError, Target};
 
 use crate::wasm_runtime::WasmRuntime;
 
@@ -159,14 +160,14 @@ fn test_failed_execution() {
 
 /// This test checks for the return of a mock instance of infinite recursion.
 #[test]
-#[should_panic]
 fn test_infinite_recursion() {
-    let wasm_bytes = std::fs::read("test_data/infinite_recursion.wasm").unwrap();
+    let wasm_bytes = std::fs::read("test_data/should_panic/infinite_recursion.wasm").unwrap();
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
         .unwrap();
-    runtime.execute().unwrap();
+    let res = runtime.execute();
+    assert!(res.is_err());
 }
