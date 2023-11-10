@@ -59,10 +59,7 @@ pub fn run(opts: &ExecuteOpts) -> Result<()> {
 
     let target = Target::default();
     // Execute the WASM module.
-    let mut wasm = WasmRuntime::new::<Cranelift>(
-        &target,
-        &wasm_bytes
-    )?
+    let mut wasm = WasmRuntime::new::<Cranelift>(&target, &wasm_bytes)?
         .stdin(&json_data)?
         .env(&env_vars)?
         .args(&opts.args)?;
