@@ -156,3 +156,19 @@ fn test_failed_execution() {
 
     let _out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
 }
+
+/// This test checks for the return of a mock instance of infinite recursion.
+#[test]
+#[should_panic]
+fn test_infinite_recursion() {
+    let wasm_bytes = std::fs::read("test_data/infinite_recursion.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data)
+        .unwrap();
+    let res = runtime.execute();
+
+    assert!(res.is_err());
+}
