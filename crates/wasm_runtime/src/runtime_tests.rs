@@ -40,7 +40,7 @@ fn create_test_wasm_runtime(target: &Target, wasm_bytes: &[u8]) -> anyhow::Resul
             _ => 0,
         }
     };
-    let metering_config = MeteringConfig::new(10, cost_function);
+    let metering_config = MeteringConfig::new(1000000, cost_function);
     WasmRuntime::new::<Cranelift>(target, wasm_bytes, metering_config)
 }
 
