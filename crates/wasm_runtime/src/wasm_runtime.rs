@@ -42,14 +42,13 @@ impl WasmRuntime {
     /// in.
     ///
     /// C represents the compiler to use, which at the time of writing is Cranelift.
-    pub fn new<C, F>(
+    pub fn new<C>(
         target: &Target,
         wasm_bytes: &[u8],
-        metering_config: MeteringConfig<F>,
+        metering_config: MeteringConfig<impl Fn(&Operator<'_>) -> u64 + Send + Sync + 'static>,
     ) -> Result<Self>
     where
         C: Default + Into<Engine> + CompilerConfig,
-        F: Fn(&Operator) -> u64 + Send + Sync + 'static,
     {
         // Setup Tunables
         let mut compiler = C::default();

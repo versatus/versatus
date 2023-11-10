@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
-use wasmer::{Cranelift, Target};
+use wasmer::{wasmparser::Operator, Cranelift, Target};
 
 use crate::{metering::MeteringConfig, wasm_runtime::WasmRuntime};
 
@@ -28,7 +28,19 @@ const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
 const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
 
 fn create_test_wasm_runtime(target: &Target, wasm_bytes: &[u8]) -> anyhow::Result<WasmRuntime> {
-    let metering_config = MeteringConfig::new(10 /*define cost fn*/);
+    // Let's define our cost function.
+    //
+    // This function will be called for each `Operator` encountered during
+    // the Wasm module execution. It should return the cost of the operator
+    // that it received as it first argument.
+    let cost_function = |operator: &Operator| -> u64 {
+        match operator {
+            Operator::LocalGet { .. } | Operator::I32Const { .. } => 1,
+            Operator::I32Add { .. } => 2,
+            _ => 0,
+        }
+    };
+    let metering_config = MeteringConfig::new(10, cost_function);
     WasmRuntime::new::<Cranelift>(target, wasm_bytes, metering_config)
 }
 
