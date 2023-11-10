@@ -35,7 +35,10 @@ pub struct RpcServerImpl {
 #[async_trait]
 impl RpcApiServer for RpcServerImpl {
     async fn get_full_state(&self) -> Result<FullStateSnapshot, Error> {
-        let values = self.vrrbdb_read_handle.state_store_values();
+        let values = self
+            .vrrbdb_read_handle
+            .state_store_values()
+            .map_err(|err| Error::Custom(format!("failed to read values: {err}")))?;
 
         Ok(values)
     }
@@ -162,7 +165,11 @@ impl RpcApiServer for RpcServerImpl {
     async fn get_account(&self, address: Address) -> Result<Account, Error> {
         telemetry::info!("retrieving account {address}");
 
-        let values = self.vrrbdb_read_handle.state_store_values();
+        let values = self
+            .vrrbdb_read_handle
+            .state_store_values()
+            .map_err(|err| Error::Custom(format!("failed to read values: {err}")))?;
+
         let value = values.get(&address);
 
         debug!("Received getAccount RPC Request: {value:?}");

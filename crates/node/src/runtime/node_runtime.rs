@@ -440,9 +440,9 @@ impl NodeRuntime {
         self.state_driver.state_root_hash()
     }
 
-    pub fn state_snapshot(&self) -> HashMap<Address, Account> {
+    pub fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
         let handle = self.state_driver.read_handle();
-        handle.state_store_values()
+        Ok(handle.state_store_values()?)
     }
 
     pub fn transactions_snapshot(&self) -> HashMap<TransactionDigest, TransactionKind> {

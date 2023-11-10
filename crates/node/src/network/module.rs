@@ -448,6 +448,7 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
         let message =
             dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
         self.dyswarm_client

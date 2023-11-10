@@ -32,7 +32,7 @@ impl VrrbDbReadHandle {
 
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
-    pub fn state_store_values(&self) -> HashMap<Address, Account> {
+    pub fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
         self.state_store_handle_factory.handle().entries()
     }
 

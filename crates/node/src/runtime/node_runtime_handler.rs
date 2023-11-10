@@ -234,7 +234,7 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::BlockCreated(mut block) => {
                 let node_id = self.config_ref().id.clone();
-                telemetry::info!("node {} received block from network", node_id);
+                telemetry::info!("node {} received block from network with block id {}", node_id, block.hash());
 
                 let next_event = self
                     .state_driver
@@ -293,29 +293,19 @@ impl Handler<EventMessage> for NodeRuntime {
                 .await
                 .map_err(|err| TheaterError::Other(err.to_string()))?,
             Event::TxnAddedToMempool(txn_hash) => {
-                let mempool_reader = self.mempool_read_handle_factory().clone();
-                let state_reader = self.state_store_read_handle_factory().clone();
-                if let Ok((transaction, validity)) =
-                    self.validate_transaction_kind(txn_hash, mempool_reader, state_reader)
-                {
-                    if let Ok(vote) = self.cast_vote_on_transaction_kind(transaction, validity) {
-                        let em = EventMessage::new(
-                            Some(NETWORK_TOPIC_STR.into()),
-                            Event::TransactionsValidated {
-                                vote,
-                                quorum_threshold: self.config.threshold_config.threshold
-                                    as usize,
-                            },
-                        );
+                let vote = self
+                    .handle_txn_added_to_mempool(txn_hash)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
-                        self.events_tx
-                            .send(
-                                em
-                            )
-                            .await
-                            .map_err(|err| TheaterError::Other(err.to_string()))?;
-                    }
-                }
+                let em = EventMessage::new(
+                    Some(NETWORK_TOPIC_STR.into()),
+                    Event::BroadcastTransactionVote(vote),
+                );
+
+                self.events_tx
+                    .send(em)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::TransactionsValidated {
                 vote,
