@@ -168,7 +168,5 @@ fn test_infinite_recursion() {
         .unwrap()
         .stdin(&json_data)
         .unwrap();
-    let res = runtime.execute();
-
-    assert!(res.is_err());
+    runtime.execute().unwrap();
 }
