@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use anyhow::Error;
 use serde_derive::{Deserialize, Serialize};
-use wasmer::{Cranelift, RuntimeError, Target};
+use wasmer::{Cranelift, Target};
 
 use crate::wasm_runtime::WasmRuntime;
 
@@ -170,4 +169,18 @@ fn test_infinite_recursion() {
         .unwrap();
     let res = runtime.execute();
     assert!(res.is_err());
+}
+
+/// This test checks for the return of a non-existent file attempting to be read.
+#[test]
+fn test_file_not_found() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/file_not_found.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data)
+        .unwrap();
+    let res = runtime.execute();
+    dbg!(res);
 }
