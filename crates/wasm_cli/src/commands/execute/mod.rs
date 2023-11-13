@@ -21,10 +21,10 @@ pub struct ExecuteOpts {
     /// multiple times.
     #[clap(short, long, value_parser, value_name = "KEY=VALUE")]
     pub env: Vec<String>,
-    /// The initial limit of credits that the WASM module will use to track
+    /// The initial limit of credits that the WASM module's meter will use to track
     /// operation expenses.
     #[clap(short = 'l', long, value_parser, value_name = "UINT64")]
-    pub credit_limit: u64,
+    pub meter_limit: u64,
     /// Remaining arguments (after '--') are passed to the WASM module command
     /// line.
     #[clap(last = true)]
@@ -69,7 +69,7 @@ pub fn run(opts: &ExecuteOpts) -> Result<()> {
     let mut wasm = WasmRuntime::new::<Cranelift>(
         &target,
         &wasm_bytes,
-        MeteringConfig::new(opts.credit_limit, cost_function),
+        MeteringConfig::new(opts.meter_limit, cost_function),
     )?
     .stdin(&json_data)?
     .env(&env_vars)?
