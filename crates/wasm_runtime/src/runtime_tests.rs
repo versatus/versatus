@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
-use wasmer::{wasmparser::Operator, Cranelift, Target};
+use wasmer::{Cranelift, Target};
 
-use crate::{metering::MeteringConfig, wasm_runtime::WasmRuntime};
+use crate::{
+    metering::{cost_function, MeteringConfig},
+    wasm_runtime::WasmRuntime,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,21 +29,10 @@ const TEST_TX_ID: &str = "81b067ac-8693-483a-8354-d7de15ab6f2c";
 const TEST_LAST_BLOCK_TIME: i64 = 1689897402;
 const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
 const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
+const TEST_SPENDING_LIMIT: u64 = 1000000;
 
 fn create_test_wasm_runtime(target: &Target, wasm_bytes: &[u8]) -> anyhow::Result<WasmRuntime> {
-    // Let's define our cost function.
-    //
-    // This function will be called for each `Operator` encountered during
-    // the Wasm module execution. It should return the cost of the operator
-    // that it received as it first argument.
-    let cost_function = |operator: &Operator| -> u64 {
-        match operator {
-            Operator::LocalGet { .. } | Operator::I32Const { .. } => 1,
-            Operator::I32Add { .. } => 2,
-            _ => 0,
-        }
-    };
-    let metering_config = MeteringConfig::new(1000000, cost_function);
+    let metering_config = MeteringConfig::new(TEST_SPENDING_LIMIT, cost_function);
     WasmRuntime::new::<Cranelift>(target, wasm_bytes, metering_config)
 }
 

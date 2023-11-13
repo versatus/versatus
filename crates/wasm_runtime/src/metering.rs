@@ -1,6 +1,17 @@
 use wasmer::wasmparser::Operator;
 use wasmer_middlewares::Metering;
 
+// This function will be called for each `Operator` encountered during
+// the Wasm module execution. It should return the cost of the operator
+// that it received as it first argument.
+pub fn cost_function(operator: &Operator) -> u64 {
+    match operator {
+        Operator::LocalGet { .. } | Operator::I32Const { .. } => 1,
+        Operator::I32Add { .. } => 2,
+        _ => 0,
+    }
+}
+
 /// A convenience wrapper for creating a new `wasmer_middlewares::Metering`.
 pub struct MeteringConfig<F: Fn(&Operator) -> u64 + Send + Sync> {
     /// Initial limit of points.

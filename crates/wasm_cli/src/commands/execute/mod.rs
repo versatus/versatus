@@ -3,7 +3,10 @@ use std::{collections::HashMap, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use telemetry::info;
-use wasm_runtime::wasm_runtime::WasmRuntime;
+use wasm_runtime::{
+    metering::{cost_function, MeteringConfig},
+    wasm_runtime::WasmRuntime,
+};
 use wasmer::{Cranelift, Target};
 
 #[derive(Parser, Debug)]
@@ -18,6 +21,10 @@ pub struct ExecuteOpts {
     /// multiple times.
     #[clap(short, long, value_parser, value_name = "KEY=VALUE")]
     pub env: Vec<String>,
+    /// The initial limit of credits that the WASM module will use to track
+    /// operation expenses.
+    #[clap(short = 'l', long, value_parser, value_name = "UINT64")]
+    pub credit_limit: u64,
     /// Remaining arguments (after '--') are passed to the WASM module command
     /// line.
     #[clap(last = true)]
@@ -59,10 +66,14 @@ pub fn run(opts: &ExecuteOpts) -> Result<()> {
 
     let target = Target::default();
     // Execute the WASM module.
-    let mut wasm = WasmRuntime::new::<Cranelift>(&target, &wasm_bytes)?
-        .stdin(&json_data)?
-        .env(&env_vars)?
-        .args(&opts.args)?;
+    let mut wasm = WasmRuntime::new::<Cranelift>(
+        &target,
+        &wasm_bytes,
+        MeteringConfig::new(opts.credit_limit, cost_function),
+    )?
+    .stdin(&json_data)?
+    .env(&env_vars)?
+    .args(&opts.args)?;
     wasm.execute()?;
 
     // Temporary output for user -- will eventually be more structured and both
