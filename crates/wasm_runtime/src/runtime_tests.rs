@@ -182,5 +182,5 @@ fn test_file_not_found() {
         .stdin(&json_data)
         .unwrap();
     let res = runtime.execute();
-    dbg!(res);
+    assert!(res.is_err());
 }

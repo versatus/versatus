@@ -1,6 +1,11 @@
 #![allow(dead_code)]
+use std::fs::File;
 
-use std::io;
-fn main() -> io::Result<()> {
-    Ok({std::fs::File::open("fake.txt")?;})
+fn main() {
+    let ecode = real_main().err().unwrap().raw_os_error().unwrap();
+    std::process::exit(ecode);
+}
+
+fn real_main() -> Result<File, std::io::Error> {
+    std::fs::File::open("fake.txt")
 }
