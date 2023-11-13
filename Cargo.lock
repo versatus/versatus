@@ -7469,6 +7469,7 @@ dependencies = [
  "vrrb_rpc",
  "wasm_loader",
  "wasm_runtime",
+ "wasmer",
  "web3_pkg",
 ]
 
@@ -7961,6 +7962,9 @@ dependencies = [
  "telemetry",
  "wasm_loader",
  "wasm_runtime",
+ "wasmer",
+ "wasmer-wasix",
+ "wasmer-wasix-types",
 ]
 
 [[package]]
