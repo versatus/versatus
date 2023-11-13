@@ -21,6 +21,7 @@ use wasmer::{
     wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
     Store, Target,
 };
+use wasmer_middlewares::metering::get_remaining_points;
 use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
@@ -144,6 +145,11 @@ impl WasmRuntime {
         wasi_fn_env.initialize(store, instance.clone())?;
         let start = instance.exports.get_function("_start")?;
         start.call(store, &[])?;
+
+        telemetry::info!(
+            "MeteringPoints::{:?}",
+            get_remaining_points(store, &instance)
+        );
 
         Ok(wasi_fn_env.cleanup(store, None))
     }
