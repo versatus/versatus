@@ -574,8 +574,12 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    fn state_store_values(&self) -> HashMap<Address, Account> {
-        self.state_store_values()
+    fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
+        let values = self
+            .state_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read state: {err}")))?;
+
+        Ok(values)
     }
 
     fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {

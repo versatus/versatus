@@ -46,18 +46,23 @@ impl StateStoreReadHandle {
         accounts
     }
 
-    pub fn entries(&self) -> HashMap<Address, Account> { 
-        // TODO: revisit and refactor into inner wrapper 
-        self.inner
-            .iter(self.inner.version()).expect("unable to create iterator from merkle tree wrapper starting at key {starting_key} with version {version}") 
-            .filter_map(|item| { 
+    pub fn entries(&self) -> Result<HashMap<Address, Account>> {
+        // TODO: revisit and refactor into inner wrapper
+
+        Ok(self
+            .inner
+            .iter(self.inner.version())
+            .map_err(|err| {
+                StorageError::Other(format!("unable to create iterator from trie: {}", err))
+            })?
+            .filter_map(|item| {
                 if let Ok((_, account)) = item {
                     let account = bincode::deserialize::<Account>(&account).unwrap_or_default();
-                    return Some((account.address().clone(), account)); 
+                    return Some((account.address().clone(), account));
                 }
                 None
             })
-            .collect()
+            .collect())
     }
 
     /// Returns a number of initialized accounts in the database
