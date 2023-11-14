@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use serde_derive::{Deserialize, Serialize};
 use wasmer::{Cranelift, Target};
 
-use crate::wasm_runtime::WasmRuntime;
+use crate::{
+    metering::{cost_function, MeteringConfig},
+    wasm_runtime::WasmRuntime,
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,9 +29,11 @@ const TEST_TX_ID: &str = "81b067ac-8693-483a-8354-d7de15ab6f2c";
 const TEST_LAST_BLOCK_TIME: i64 = 1689897402;
 const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
 const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
+const TEST_SPENDING_LIMIT: u64 = 1000000;
 
 fn create_test_wasm_runtime(target: &Target, wasm_bytes: &[u8]) -> anyhow::Result<WasmRuntime> {
-    WasmRuntime::new::<Cranelift>(target, wasm_bytes)
+    let metering_config = MeteringConfig::new(TEST_SPENDING_LIMIT, cost_function);
+    WasmRuntime::new::<Cranelift>(target, wasm_bytes, metering_config)
 }
 
 /// This test checks that the stuff we send via stdin is available as part of
