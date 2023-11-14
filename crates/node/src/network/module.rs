@@ -249,6 +249,38 @@ impl NetworkModule {
         Ok(())
     }
 
+    pub(crate) async fn notify_quorum_membership_assignments(
+        &mut self,
+        assignments: Vec<AssignedQuorumMembership>,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            // TODO: fix this hardcoded peer count
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let message = dyswarm::types::Message::new(
+            NetworkEvent::QuorumMembershipAssigmentsCreated(assignments),
+        );
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn notify_quorum_membership_assignment(
         &mut self,
         assigned_membership: AssignedQuorumMembership,
@@ -416,6 +448,7 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
         let message =
             dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
         self.dyswarm_client

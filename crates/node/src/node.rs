@@ -113,7 +113,7 @@ impl Node {
         Ok(cancelled)
     }
 
-    pub async fn config(&self) -> NodeConfig {
+    pub fn config(&self) -> NodeConfig {
         self.config.clone()
     }
 

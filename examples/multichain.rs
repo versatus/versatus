@@ -1,25 +1,24 @@
+use std::str::FromStr;
 use node::test_utils::create_test_network;
-// use telemetry::TelemetrySubscriber;
+use telemetry::custom_subscriber::TelemetrySubscriber;
+use primitives::{Address, PublicKey};
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("VRRB_ENVIRONMENT", "main");
-    std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
-    std::env::set_var("RUST_LOG", "error");
+    // std::env::set_var("VRRB_ENVIRONMENT", "main");
+    // std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
+    // std::env::set_var("RUST_LOG", "error");
 
     // TelemetrySubscriber::init(std::io::stdout).unwrap();
 
     let nodes = create_test_network(8).await;
 
-    // let rpc_client = create_node_rpc_client(node_0_rpc_addr).await;
-    //
-    // for i in 0..10 {
-    //     let args = create_mock_transaction_args(i * 3);
-    //
-    //     rpc_client.create_txn(args).await.unwrap();
-    // }
-
-    // dbg!(rpc_client.get_full_mempool().await.unwrap().len());
+    for node in nodes.iter() {
+        println!("{}", node.jsonrpc_server_address());
+        let pubkey = PublicKey::from_str(&node.keypair.get_miner_public_key().to_string()).unwrap();
+        let address = Address::new(pubkey);
+        println!("Address: {}", address);
+    }
 
     tokio::signal::ctrl_c().await.unwrap();
 

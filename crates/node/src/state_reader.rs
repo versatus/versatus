@@ -45,7 +45,7 @@ pub trait StateReader: std::fmt::Debug {
     async fn get_last_block(&self) -> Result<Block>;
 
     /// Returns a copy of all values stored within the state trie
-    fn state_store_values(&self) -> HashMap<Address, Account>;
+    fn state_store_values(&self) -> Result<HashMap<Address, Account>>;
 
     /// Returns a copy of all values stored within the state trie
     fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind>;

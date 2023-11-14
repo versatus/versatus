@@ -8,6 +8,7 @@ use primitives::{Address, NodeId, NodeType, PublicKey, QuorumId, QuorumKind, Sig
 use signer::engine::{QuorumData, QuorumMembers as InaugaratedMembers};
 use std::{collections::HashMap, fmt::format};
 use storage::vrrbdb::ApplyBlockResult;
+use vrrb_core::transactions::TransactionDigest;
 
 use crate::{
     node_runtime::NodeRuntime,
@@ -152,14 +153,12 @@ impl NodeRuntime {
         }
     }
 
-    // harvester sign and create cert
-    // TODO: Make this less ambiguous, if it is only for handling convergence
-    // blocks, maybe a better name would be handle_convergence_block_certificate_received?
-    pub async fn handle_block_certificate_created(
+    /// This is for when the local node is a harvester and forms the certificate.
+    /// Wrapper for `handle_convergence_block_certificate_received`.
+    pub async fn handle_convergence_block_certificate_created(
         &mut self,
         certificate: Certificate,
     ) -> Result<ConvergenceBlock> {
-        // This is for when the local node is a harvester and forms the certificate
         self.handle_convergence_block_certificate_received(certificate)
             .await
     }
@@ -271,6 +270,18 @@ impl NodeRuntime {
         self.consensus_driver
             .handle_node_added_to_peer_list(peer_data)
             .await
+    }
+
+    pub fn handle_txn_added_to_mempool(&mut self, txn_hash: TransactionDigest) -> Result<Vote> {
+        let mempool_reader = self.mempool_read_handle_factory().clone();
+        let state_reader = self.state_store_read_handle_factory().clone();
+
+        let (transaction, validity) =
+            self.validate_transaction_kind(txn_hash, mempool_reader, state_reader)?;
+
+        let vote = self.cast_vote_on_transaction_kind(transaction, validity)?;
+
+        Ok(vote)
     }
 
     pub fn handle_quorum_membership_assigment_created(
