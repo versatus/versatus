@@ -53,6 +53,7 @@ hyper = { workspace = true }
 rand = { workspace = true }
 lazy_static = { workspace = true }
 wasmer = { workspace = true }
+metric_exporter = { workspace = true }
 
 [workspace]
 members = [
@@ -88,6 +89,7 @@ members = [
     "crates/service_config",
     "crates/web3_pkg",
     "crates/platform",
+    "crates/metric_exporter"
 ]
 
 [workspace.dependencies]
@@ -126,6 +128,7 @@ wasm_runtime = { path = "crates/wasm_runtime" }
 service_config = { path = "crates/service_config" }
 web3_pkg = { path = "crates/web3_pkg" }
 platform = { path = "crates/platform" }
+metric_exporter = { path = "crates/metric_exporter"}
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
