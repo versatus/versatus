@@ -1,4 +1,4 @@
-//! Genesis block should contain a list of value transfer transactions to pre configured addresses. These transactions should allocate a pre configurable number of tokens.
+//! Genesis block should contain a list of rewards to pre configured addresses. These rewards should allocate a pre configurable number of tokens.
 use block::{Block, Certificate, GenesisReceiver};
 use events::DEFAULT_BUFFER;
 use node::{
@@ -7,7 +7,7 @@ use node::{
 use primitives::{Address, NodeType, QuorumKind, Signature};
 use storage::vrrbdb::ApplyBlockResult;
 
-/// Genesis blocks created by elected Miner nodes should contain at least one transaction
+/// Genesis blocks created by elected Miner nodes should contain at least one reward
 #[tokio::test]
 #[serial_test::serial]
 async fn genesis_block_contains_rewards() {
@@ -29,7 +29,7 @@ async fn genesis_block_contains_rewards() {
     assert!(genesis_block.genesis_rewards.0.len() >= 1);
 }
 
-/// The transactions within the genesis block should be valid and contain balance allocations to at least one address
+/// The rewards within the genesis block should be valid and contain balance allocations to at least one address
 #[tokio::test]
 #[serial_test::serial]
 async fn genesis_block_rewards_are_valid() {
@@ -227,7 +227,7 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
         .unwrap());
 }
 
-/// All transactions within the genesis block should be applied to the network's state
+/// All rewards within the genesis block should be applied to the network's state
 #[tokio::test]
 #[serial_test::serial]
 async fn genesis_block_rewards_are_applied_to_state() {
