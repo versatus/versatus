@@ -23,6 +23,7 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
+use tracing::info;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
@@ -521,7 +522,6 @@ impl NodeRuntime {
         mempool_reader: MempoolReadHandleFactory,
         state_reader: StateStoreReadHandleFactory,
     ) -> Result<(TransactionKind, bool)> {
-        self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
         let validated_transaction_kind =
             self.consensus_driver

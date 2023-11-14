@@ -211,6 +211,34 @@ impl NetworkModule {
         self.validator_public_key
     }
 
+    pub async fn broadcast_event_to_known_peers(&mut self, nevent: NetworkEvent) -> Result<()> {
+        let nid = self.kademlia_node.node_data().id;
+        let rt = self.kademlia_node.get_routing_table();
+        let closest_nodes = rt.get_closest_nodes(&nid, 7);
+
+        let closest_nodes_udp_addrs = closest_nodes
+            .clone()
+            .into_iter()
+            .map(|n| n.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client
+            .add_peers(closest_nodes_udp_addrs)
+            .await?;
+
+        let message = dyswarm::types::Message::new(nevent);
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: DEFAULT_ERASURE_COUNT,
+            })
+            .await?;
+
+        Ok(())
+    }
+
     pub async fn broadcast_join_intent(&mut self) -> Result<()> {
         let msg = dyswarm::types::Message::new(NetworkEvent::PeerJoined {
             node_id: self.node_id.clone(),
@@ -448,16 +476,7 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
-        telemetry::info!("Broadcasting transaction vote to network");
-        let message =
-            dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
-        self.dyswarm_client
-            .broadcast(BroadcastArgs {
-                config: Default::default(),
-                message,
-                erasure_count: 0,
-            })
-            .await?;
+        self.broadcast_event_to_known_peers(NetworkEvent::BroadcastTransactionVote(Box::new(vote))).await?;
 
         Ok(())
     }

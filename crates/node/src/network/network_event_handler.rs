@@ -116,6 +116,12 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },
 
+            NetworkEvent::BroadcastTransactionVote(vote) => {
+                let evt = Event::BroadcastTransactionVote(*vote);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+
             _ => {},
         }
 

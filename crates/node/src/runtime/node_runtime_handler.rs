@@ -316,8 +316,16 @@ impl Handler<EventMessage> for NodeRuntime {
                     Event::BroadcastTransactionVote(vote),
                 );
 
+                info!("Sending BroadcastTransactionVote event to network");
+
                 self.events_tx
                     .send(em)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+            Event::BroadcastTransactionVote(vote) => {
+                info!("Handling BroadcastTransactionVote in node_runtime_handler");
+                self.handle_vote_received(vote)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
