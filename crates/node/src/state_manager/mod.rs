@@ -138,7 +138,7 @@ mod tests {
         state_module.commit();
 
         let handle = state_module.read_handle();
-        let store = handle.state_store_values();
+        let store = handle.state_store_values().unwrap();
 
         for (address, _) in accounts.iter() {
             let account = store.get(address).unwrap();
