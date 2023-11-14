@@ -22,7 +22,7 @@ fn accounts_can_be_added() {
         .unwrap();
     let read_handle = db.state_store_factory().handle();
 
-    let entries = read_handle.entries();
+    let entries = read_handle.entries().unwrap();
 
     assert_eq!(entries.len(), 2);
 
@@ -32,7 +32,7 @@ fn accounts_can_be_added() {
         (addr5.clone(), Some(Account::new(addr5))),
     ]);
 
-    let entries = db.state_store_factory().handle().entries();
+    let entries = db.state_store_factory().handle().entries().unwrap();
 
     assert_eq!(entries.len(), 5);
 }
