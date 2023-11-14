@@ -579,7 +579,7 @@ impl StateReader for MockStateReader {
         todo!()
     }
 
-    fn state_store_values(&self) -> HashMap<Address, Account> {
+    fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
         todo!()
     }
 
