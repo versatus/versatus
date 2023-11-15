@@ -8,11 +8,20 @@
 use std::{
     collections::HashMap,
     io::{Read, Write},
+    sync::Arc,
 };
 
+use super::{
+    limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT},
+    metering::MeteringConfig,
+};
 use anyhow::Result;
 use telemetry::debug;
-use wasmer::{Module, Store};
+use wasmer::{
+    wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
+    Store, Target,
+};
+use wasmer_middlewares::metering::get_remaining_points;
 use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
@@ -32,10 +41,26 @@ pub struct WasmRuntime {
 impl WasmRuntime {
     /// Creates a new WasmRuntime environment to execute the WASM binary passed
     /// in.
-    pub fn new(wasm_bytes: &Vec<u8>) -> Result<Self> {
+    ///
+    /// C represents the compiler to use, which at the time of writing is Cranelift.
+    pub fn new<C>(
+        target: &Target,
+        wasm_bytes: &[u8],
+        metering_config: MeteringConfig<impl Fn(&Operator<'_>) -> u64 + Send + Sync + 'static>,
+    ) -> Result<Self>
+    where
+        C: Default + Into<Engine> + CompilerConfig,
+    {
+        // Setup Tunables
+        let mut compiler = C::default();
+        compiler.push_middleware(Arc::new(metering_config.into_metering()));
+        let base = BaseTunables::for_target(target);
+        let tunables = LimitingTunables::new(base, DEFAULT_PAGE_LIMIT);
+        let mut engine: Engine = compiler.into();
+        engine.set_tunables(tunables);
         // Create an in-memory store for everything required to compile and run a WASM
         // module
-        let store = Store::default();
+        let store = Store::new(engine);
 
         debug!("Compiling {} bytes of WASM", wasm_bytes.len());
 
@@ -89,15 +114,43 @@ impl WasmRuntime {
         let (err_wasm, mut stderr) = Pipe::channel();
         stdin.write_all(&self.stdin)?;
         stdin.flush()?;
-        WasiEnv::builder(MODULE_ARGV0)
+
+        self.init_wasi_fn_env((in_wasm, out_wasm, err_wasm))?;
+
+        stdout.read_to_string(&mut self.stdout)?;
+        stderr.read_to_string(&mut self.stderr)?;
+        Ok(())
+    }
+
+    fn init_wasi_fn_env(
+        &mut self,
+        (in_wasm, out_wasm, err_wasm): (Pipe, Pipe, Pipe),
+    ) -> Result<()> {
+        let store = &mut self.store;
+        let module = &self.module;
+        let mut wasi_fn_env = WasiEnv::builder(MODULE_ARGV0)
             .stdin(Box::new(in_wasm))
             .stdout(Box::new(out_wasm))
             .stderr(Box::new(err_wasm))
             .args(Box::new(self.args.iter()))
             .envs(Box::new(self.env.iter()))
-            .run_with_store(self.module.to_owned(), &mut self.store)?;
-        stdout.read_to_string(&mut self.stdout)?;
-        stderr.read_to_string(&mut self.stderr)?;
-        Ok(())
+            .finalize(store)?;
+
+        let import_obj = wasi_fn_env.import_object(store, module)?;
+        let instance = Instance::new(store, module, &import_obj)?;
+
+        let mem_view = instance.exports.get_memory("memory")?.view(store);
+        telemetry::info!("Memory: {:?}", mem_view.size());
+
+        wasi_fn_env.initialize(store, instance.clone())?;
+        let start = instance.exports.get_function("_start")?;
+        start.call(store, &[])?;
+
+        telemetry::info!(
+            "MeteringPoints::{:?}",
+            get_remaining_points(store, &instance)
+        );
+
+        Ok(wasi_fn_env.cleanup(store, None))
     }
 }

@@ -579,7 +579,7 @@ impl StateReader for MockStateReader {
         todo!()
     }
 
-    fn state_store_values(&self) -> HashMap<Address, Account> {
+    fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
         todo!()
     }
 
@@ -656,11 +656,16 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         genesis_transaction_threshold: (n / 2) as u64,
     };
 
-    let mut config = if let Some(base_config) = base_config.clone() {
-        base_config
-    } else {
-        create_mock_full_node_config()
-    };
+    // let mut config = if let Some(base_config) = base_config.clone() {
+    //     telemetry::info!("Using base config");
+    //     telemetry::info!("{:?}", base_config);
+    //     telemetry::info!("{:?}", create_mock_full_node_config());
+    //     base_config
+    // } else {
+    //     create_mock_full_node_config()
+    // };
+
+    let mut config = create_mock_full_node_config();
 
     config.id = String::from("node-0");
 
@@ -672,11 +677,22 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
+    let additional_genesis_receivers = if let Some(base_config) = base_config.clone() {
+        if let Some(base_config) = base_config.bootstrap_config {
+            base_config.additional_genesis_receivers
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
         id: node_0.kademlia_peer_id(),
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
+        additional_genesis_receivers,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
@@ -788,6 +804,7 @@ pub async fn create_node_runtime_network(
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
+        additional_genesis_receivers: None,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.config.udp_gossip_address;
