@@ -77,7 +77,7 @@ impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // NOTE: does the same thing as before
         let encoded = hex::encode(self.0);
-        f.write_str(&format!("0x{}", encoded))
+        write!(f, "0x{}", encoded)
     }
 }
 
