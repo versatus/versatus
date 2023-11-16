@@ -8,12 +8,20 @@
 use std::{
     collections::HashMap,
     io::{Read, Write},
+    sync::Arc,
 };
 
-use super::limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT};
+use super::{
+    limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT},
+    metering::MeteringConfig,
+};
 use anyhow::Result;
 use telemetry::debug;
-use wasmer::{BaseTunables, Engine, Instance, Module, NativeEngineExt, Store, Target};
+use wasmer::{
+    wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
+    Store, Target,
+};
+use wasmer_middlewares::metering::get_remaining_points;
 use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
@@ -35,9 +43,17 @@ impl WasmRuntime {
     /// in.
     ///
     /// C represents the compiler to use, which at the time of writing is Cranelift.
-    pub fn new<C: Default + Into<Engine>>(target: &Target, wasm_bytes: &[u8]) -> Result<Self> {
+    pub fn new<C>(
+        target: &Target,
+        wasm_bytes: &[u8],
+        metering_config: MeteringConfig<impl Fn(&Operator<'_>) -> u64 + Send + Sync + 'static>,
+    ) -> Result<Self>
+    where
+        C: Default + Into<Engine> + CompilerConfig,
+    {
         // Setup Tunables
-        let compiler = C::default();
+        let mut compiler = C::default();
+        compiler.push_middleware(Arc::new(metering_config.into_metering()));
         let base = BaseTunables::for_target(target);
         let tunables = LimitingTunables::new(base, DEFAULT_PAGE_LIMIT);
         let mut engine: Engine = compiler.into();
@@ -129,6 +145,11 @@ impl WasmRuntime {
         wasi_fn_env.initialize(store, instance.clone())?;
         let start = instance.exports.get_function("_start")?;
         start.call(store, &[])?;
+
+        telemetry::info!(
+            "MeteringPoints::{:?}",
+            get_remaining_points(store, &instance)
+        );
 
         Ok(wasi_fn_env.cleanup(store, None))
     }
