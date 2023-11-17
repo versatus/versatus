@@ -459,6 +459,7 @@ impl StateManager {
             .claim_store_factory()
             .handle()
             .entries()
+            .map_err(|err| NodeError::Other(err.to_string()))?
             .clone()
             .into_iter()
             .filter(|(_, claim)| claim_hashes.contains(&claim.hash))
@@ -472,6 +473,7 @@ impl StateManager {
             .claim_store_factory()
             .handle()
             .entries()
+            .map_err(|err| NodeError::Other(err.to_string()))?
             .clone()
             .into_iter()
             .filter(|(_, claim)| &claim.address == address)
@@ -582,11 +584,17 @@ impl StateReader for VrrbDbReadHandle {
         Ok(values)
     }
 
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
-        self.transaction_store_values()
+    fn transaction_store_values(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
+        let values = self
+            .transaction_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read transactions: {err}")))?;
+        Ok(values)
     }
 
-    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        self.claim_store_values()
+    fn claim_store_values(&self) -> Result<HashMap<NodeId, Claim>> {
+        let values = self
+            .claim_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read claims: {err}")))?;
+        Ok(values)
     }
 }

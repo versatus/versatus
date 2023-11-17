@@ -78,7 +78,9 @@ impl Handler<EventMessage> for NodeRuntime {
 
                         //add the addresses from config.bootstrap_config.additional_genesis_receivers to the genesis_receivers list
                         if let (Some(bootstrap_config)) = (&self.config.bootstrap_config) {
-                            if let (Some(additional_genesis_receivers)) = (&bootstrap_config.additional_genesis_receivers) {
+                            if let (Some(additional_genesis_receivers)) =
+                                (&bootstrap_config.additional_genesis_receivers)
+                            {
                                 for receiver in additional_genesis_receivers {
                                     genesis_receivers.push(GenesisReceiver::new(receiver.clone()));
                                 }
@@ -87,9 +89,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                         let event = EventMessage::new(
                             Some(RUNTIME_TOPIC_STR.into()),
-                            Event::GenesisMinerElected {
-                                genesis_receivers
-                            },
+                            Event::GenesisMinerElected { genesis_receivers },
                         );
                         self.events_tx
                             .send(event)
@@ -106,7 +106,11 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::MinerElectionStarted(header) => {
-                let claims = self.state_driver.read_handle().claim_store_values();
+                let claims = self
+                    .state_driver
+                    .read_handle()
+                    .claim_store_values()
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 let results = self
                     .consensus_driver
@@ -260,7 +264,11 @@ impl Handler<EventMessage> for NodeRuntime {
             },
             Event::BlockCreated(mut block) => {
                 let node_id = self.config_ref().id.clone();
-                telemetry::info!("node {} received block from network with block id {}", node_id, block.hash());
+                telemetry::info!(
+                    "node {} received block from network with block id {}",
+                    node_id,
+                    block.hash()
+                );
 
                 let next_event = self
                     .state_driver
