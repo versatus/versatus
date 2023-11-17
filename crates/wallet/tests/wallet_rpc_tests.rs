@@ -59,10 +59,11 @@ pub async fn wallet_sends_txn_to_rpc_server() {
     type H = secp256k1::hashes::sha256::Hash;
 
     let secp = Secp256k1::new();
-    let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
-    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+    // TODO: revise this when hierarchically deterministic accounts are implemented
+    // let secret_key = SecretKey::from_hashed_data::<H>(b"vrrb");
+    // let public_key = PublicKey::from_secret_key(&secp, &secret_key);
 
-    wallet.create_account(0, public_key).await.unwrap();
+    // wallet.create_account(0, public_key).await.unwrap();
 
     let timestamp = 0;
 
@@ -71,7 +72,7 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     let txn_digest = wallet
         .send_transaction(
-            0,
+            // 0,
             Address::new(recv_pk),
             10,
             Token::default(),
@@ -82,38 +83,39 @@ pub async fn wallet_sends_txn_to_rpc_server() {
 
     assert_eq!(
         &txn_digest.to_string(),
-        "2f47fdeda7ca47aa8d5fe1f18e47313c0804887571a3abbef7d03c55071d8760"
+        "a327da47d1cc14f96c0048ce2e7ee70d704581ced66d1f9feef06a85eac5b137"
     );
 }
 
-#[tokio::test]
-#[serial]
-pub async fn wallet_sends_create_account_request_to_rpc_server() {
-    remove_vrrb_data_dir();
-    let _: SocketAddr = "127.0.0.1:9293"
-        .parse()
-        .expect("Unable to create Socket Address");
-
-    let (events_tx, _events_rx) = channel(100);
-
-    // Set up RPC Server to accept connection from client
-    let json_rpc_server_config = JsonRpcServerConfig {
-        events_tx,
-        ..Default::default()
-    };
-
-    let (handle, socket_addr) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
-
-    tokio::spawn(handle.stopped());
-
-    let wallet_config = WalletConfig {
-        rpc_server_address: socket_addr,
-        ..Default::default()
-    };
-
-    let mut wallet = Wallet::new(wallet_config).await.unwrap();
-
-    let (_, public_key) = generate_keypair(&mut rand::thread_rng());
-
-    wallet.create_account(1, public_key).await.unwrap();
-}
+// TODO: reconsider this when hierarchically deterministic accounts are implemented
+// #[tokio::test]
+// #[serial]
+// pub async fn wallet_sends_create_account_request_to_rpc_server() {
+//     remove_vrrb_data_dir();
+//     let _: SocketAddr = "127.0.0.1:9293"
+//         .parse()
+//         .expect("Unable to create Socket Address");
+//
+//     let (events_tx, _events_rx) = channel(100);
+//
+//     // Set up RPC Server to accept connection from client
+//     let json_rpc_server_config = JsonRpcServerConfig {
+//         events_tx,
+//         ..Default::default()
+//     };
+//
+//     let (handle, socket_addr) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
+//
+//     tokio::spawn(handle.stopped());
+//
+//     let wallet_config = WalletConfig {
+//         rpc_server_address: socket_addr,
+//         ..Default::default()
+//     };
+//
+//     let mut wallet = Wallet::new(wallet_config).await.unwrap();
+//
+//     let (_, public_key) = generate_keypair(&mut rand::thread_rng());
+//
+//     wallet.create_account(1, public_key).await.unwrap();
+// }

@@ -65,7 +65,8 @@ impl Block {
                 .sum(),
 
             Block::Genesis { block } => block
-                .txns
+                .genesis_rewards
+                .0
                 .iter()
                 .map(|(_, set)| set)
                 .map(std::mem::size_of_val)

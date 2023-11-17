@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use primitives::{Address, NodeId};
 use storage_utils::StorageError;
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
+use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 use vrrb_core::{account::Account, claim::Claim};
 
 use crate::result::Result;
@@ -32,19 +32,19 @@ impl VrrbDbReadHandle {
 
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
-    pub fn state_store_values(&self) -> HashMap<Address, Account> {
+    pub fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
         self.state_store_handle_factory.handle().entries()
     }
 
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
-    pub fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
+    pub fn transaction_store_values(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         self.transaction_store_handle_factory.handle().entries()
     }
 
     // TODO: rewrite these to get start at the first key available and the latest version
     /// Returns a copy of all values stored within the state trie
-    pub fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
+    pub fn claim_store_values(&self) -> Result<HashMap<NodeId, Claim>> {
         self.claim_store_handle_factory.handle().entries()
     }
 

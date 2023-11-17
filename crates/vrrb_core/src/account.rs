@@ -6,6 +6,7 @@ use std::{
 };
 
 use primitives::Address;
+use ritelinked::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

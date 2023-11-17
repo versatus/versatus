@@ -1,11 +1,6 @@
-use std::{
-    collections::HashMap,
-    net::{AddrParseError, SocketAddr},
-    ops::AddAssign,
-};
+use std::net::SocketAddr;
 
-use async_trait::async_trait;
-use block::{Certificate, ConvergenceBlock};
+use block::{Block, Certificate, ConvergenceBlock};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -13,16 +8,11 @@ use dyswarm::{
 use events::{
     AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote,
 };
-use hbbft::{
-    crypto::PublicKey as ThresholdSignaturePublicKey,
-    sync_key_gen::{Ack, Part},
-};
+use hbbft::sync_key_gen::{Ack, Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
-use signer::engine::QuorumData;
-use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler, TheaterError};
+use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
@@ -34,9 +24,13 @@ use crate::{
     DEFAULT_ERASURE_COUNT,
 };
 
+// TODO: change these magic numbers when retrieving the closest peers to a dynamically sized
+// network members count such that broadcast can happen across the whole network
+
 #[derive(Debug)]
 pub struct NetworkModule {
     pub(crate) id: ActorId,
+    pub(crate) node_config: NodeConfig,
     pub(crate) node_id: NodeId,
     pub(crate) node_type: NodeType,
     pub(crate) status: ActorState,
@@ -77,6 +71,8 @@ pub struct NetworkModuleConfig {
     pub events_tx: EventPublisher,
 
     pub validator_public_key: PublicKey,
+
+    pub node_config: NodeConfig,
 }
 
 impl NetworkModule {
@@ -113,6 +109,7 @@ impl NetworkModule {
             node_id: config.node_id.clone(),
             node_type: config.node_type,
             status: ActorState::Stopped,
+            node_config: config.node_config.clone(),
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
             is_bootstrap: config.bootstrap_node_config.is_none(),
@@ -132,20 +129,20 @@ impl NetworkModule {
     fn setup_kademlia_node(config: NetworkModuleConfig) -> Result<KademliaNode> {
         // TODO: inspect that nodes are being created with the correct config when a
         // bootstrap is provided
+        //
         // TODO: provide safeguards to prevent nodes calling themselves bootstraps when
         // there's another one already running. Consider this a critical error
         // and a protocol concern
-        //
+
+        // NOTE: should force the node to crash if the CLI didn't fed it a kademlia id on startup
+        let kademlia_key = config.node_config.kademlia_peer_id.ok_or(NodeError::Other(
+            "Kademlia ID not present within NodeConfig".into(),
+        ))?;
+
         let kademlia_node = if let Some(bootstrap_node_config) = config.bootstrap_node_config {
-            // NOTE: turns a node's id into a 32 byte array
-            let node_key_bytes = digest_data_to_bytes(&bootstrap_node_config.id);
-
-            let kademlia_key = Key::try_from(node_key_bytes).map_err(|err| {
-                NodeError::Other(format!("Node key should have a 32 byte length: {err}"))
-            })?;
-
             // TODO: figure out why kademlia_dht needs the ip, port and then the whole
             // address separately
+            //
             // NOTE: this snippet turns the bootstrap node config into a NodeData struct
             // that kademlia_dht understands
             let bootstrap_node_data = NodeData::new(
@@ -156,7 +153,7 @@ impl NetworkModule {
             );
 
             KademliaNode::new(
-                config.kademlia_peer_id,
+                Some(kademlia_key),
                 config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
@@ -167,7 +164,7 @@ impl NetworkModule {
             info!("Becoming a bootstrap node");
 
             KademliaNode::new(
-                config.kademlia_peer_id,
+                Some(kademlia_key),
                 config.node_id.clone(),
                 config.kademlia_liveness_addr,
                 config.udp_gossip_addr,
@@ -184,13 +181,6 @@ impl NetworkModule {
 
     pub fn is_bootstrap(&self) -> bool {
         self.is_bootstrap
-    }
-
-    /// Address this module listens on for network events via UDP
-    // NOTE: currently assume UDP is the primary means of communication however this
-    // may not be entirely accurate in the near future.
-    pub fn local_addr(&self) -> SocketAddr {
-        self.udp_gossip_addr()
     }
 
     /// Address this module listens on for network events via UDP
@@ -217,16 +207,8 @@ impl NetworkModule {
         &self.kademlia_node
     }
 
-    pub fn node_mut(&mut self) -> &mut KademliaNode {
-        &mut self.kademlia_node
-    }
-
     pub fn validator_public_key(&self) -> PublicKey {
         self.validator_public_key
-    }
-
-    pub fn set_validator_public_key(&mut self, public_key: PublicKey) {
-        self.validator_public_key = public_key;
     }
 
     pub async fn broadcast_join_intent(&mut self) -> Result<()> {
@@ -263,6 +245,38 @@ impl NetworkModule {
         if let Err(err) = self.dyswarm_client.broadcast(args).await {
             telemetry::warn!("Failed to broadcast join intent: {err}");
         }
+
+        Ok(())
+    }
+
+    pub(crate) async fn notify_quorum_membership_assignments(
+        &mut self,
+        assignments: Vec<AssignedQuorumMembership>,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            // TODO: fix this hardcoded peer count
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let message = dyswarm::types::Message::new(
+            NetworkEvent::QuorumMembershipAssigmentsCreated(assignments),
+        );
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
 
         Ok(())
     }
@@ -434,7 +448,35 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
-        let message = dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(vote));
+        telemetry::info!("Broadcasting transaction vote to network");
+        let message =
+            dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::BlockCreated(block));
+
         self.dyswarm_client
             .broadcast(BroadcastArgs {
                 config: Default::default(),

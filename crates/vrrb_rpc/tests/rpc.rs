@@ -24,7 +24,10 @@ async fn server_can_publish_transactions_to_be_created() {
     let (events_tx, _events_rx) = channel::<EventMessage>(DEFAULT_BUFFER);
 
     // Set up RPC Server to accept connection from client
-    let json_rpc_server_config = JsonRpcServerConfig { events_tx, ..Default::default() };
+    let json_rpc_server_config = JsonRpcServerConfig {
+        events_tx,
+        ..Default::default()
+    };
 
     let (handle, rpc_server_address) = JsonRpcServer::run(&json_rpc_server_config).await.unwrap();
 
@@ -65,7 +68,8 @@ async fn server_can_publish_transactions_to_be_created() {
         .amount(10)
         .signature(signature)
         .nonce(0)
-        .build_kind().expect("failed to build transfer transaction");
+        .build_kind()
+        .expect("failed to build transfer transaction");
 
     let rec = client.create_txn(txn.clone()).await.unwrap();
 

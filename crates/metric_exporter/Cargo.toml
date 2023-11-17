@@ -1,0 +1,20 @@
+[package]
+name = "metric_exporter"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyper = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true}
+log = { workspace = true}
+rand = { workspace = true}
+platform = { workspace = true}
+prometheus = { workspace = true}
+
+
+[[example]]
+name = "metrics_example"
+path = "src/examples/metrics_example.rs"

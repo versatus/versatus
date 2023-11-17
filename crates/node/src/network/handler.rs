@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use events::{Event, EventMessage};
+use primitives::RUNTIME_TOPIC_STR;
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
-use primitives::RUNTIME_TOPIC_STR;
 
 use super::NetworkModule;
 
@@ -43,9 +43,8 @@ impl Handler<EventMessage> for NetworkModule {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-
-            Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
-                self.notify_quorum_membership_assignment(assigned_membership)
+            Event::QuorumMembershipAssigmentsCreated(assigments) => {
+                self.notify_quorum_membership_assignments(assigments)
                     .await?;
             },
 
@@ -79,6 +78,7 @@ impl Handler<EventMessage> for NetworkModule {
                     .await?;
             },
             Event::Stop => {
+                // TODO: rely on cancellation token instead of this event
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
@@ -91,6 +91,12 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
             },
+
+            Event::BlockCreated(block) => {
+                info!("Broadcasting block to network");
+                self.broadcast_block(block).await?;
+            },
+
             _ => {},
         }
 

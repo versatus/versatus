@@ -1,19 +1,15 @@
 pub mod block;
 pub mod convergence_block;
+pub mod error;
 pub mod genesis;
 pub mod header;
-pub mod invalid;
 pub mod proposal_block;
-pub mod vesting;
-
 mod types;
 
-pub use crate::{
-    block::*, convergence_block::*, genesis::*, proposal_block::*, types::*, vesting::*,
-};
+pub use crate::{block::*, convergence_block::*, genesis::*, proposal_block::*, types::*};
 
 pub mod valid {
-    use primitives::{ByteVec, RawSignature, SignatureType, Signature, NodeId};
+    use primitives::{ByteVec, NodeId, Signature, SignatureType};
     use serde::{Deserialize, Serialize};
     use utils::hash_data;
 
@@ -113,7 +109,7 @@ pub mod valid {
 
         fn get_raw_signatures(&self) -> Result<Vec<(NodeId, Signature)>, Self::DecodeError> {
             if let Some(sig) = self.signature {
-                return Ok(vec![(self.from.node_id().clone(), sig.clone())])
+                return Ok(vec![(self.from.node_id().clone(), sig)]);
             }
 
             Err(hex::FromHexError::InvalidStringLength)

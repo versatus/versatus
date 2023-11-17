@@ -3,17 +3,18 @@ use crate::{
     result::{NodeError, Result},
     state_manager::{StateManager, StateManagerConfig},
 };
+
 use block::{
-    header::BlockHeader, vesting::GenesisConfig, Block, Certificate, ClaimHash, ConvergenceBlock,
-    GenesisBlock, ProposalBlock, RefHash,
+    header::BlockHeader, Block, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock,
+    GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
+use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
 use ritelinked::LinkedHashMap;
-use secp256k1::Message;
+use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -27,10 +28,7 @@ use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
-    transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
-    },
+    transactions::{TransactionDigest, TransactionKind},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -145,6 +143,16 @@ impl NodeRuntime {
         false
     }
 
+    pub fn certified_genesis_block_exists_within_dag(&self, block_hash: String) -> Result<bool> {
+        let guard = self.state_driver.dag.read()?;
+        Ok(guard.get_vertex(block_hash).is_some_and(|vertex| {
+            if let Block::Genesis { block } = vertex.get_data() {
+                return block.certificate.is_some();
+            }
+            false
+        }))
+    }
+
     pub fn config_ref(&self) -> &NodeConfig {
         &self.config
     }
@@ -190,9 +198,9 @@ impl NodeRuntime {
                 )));
             }
         } else {
-            return Err(NodeError::Other(format!(
-                "No quorum configuration found for node"
-            )));
+            return Err(NodeError::Other(
+                "No quorum configuration found for node".to_string(),
+            ));
         }
 
         Ok(())
@@ -221,62 +229,18 @@ impl NodeRuntime {
         self.mempool_read_handle_factory().entries()
     }
 
-    pub fn produce_genesis_transactions(
+    // TODO: This should be a const function
+    pub fn distribute_genesis_reward(
         &self,
-        n: usize,
-    ) -> Result<LinkedHashMap<TransactionDigest, TransactionKind>> {
-        self.has_required_node_type(NodeType::Bootstrap, "produce genesis transactions")?;
-
-        let sender_public_key = self.config.keypair.miner_public_key_owned();
-        let address = Address::new(sender_public_key);
-
-        let sender_secret_key = self.config.keypair.miner_secret_key_owned();
-        let timestamp = chrono::Utc::now().timestamp();
-        let token = Token::default();
-        let amount = 0;
-        let nonce = 0;
-
-        let digest = generate_transfer_digest_vec(
-            timestamp,
-            address.to_string(),
-            sender_public_key,
-            address.to_string(),
-            token.clone(),
-            amount,
-            nonce,
-        );
-
-        let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(&digest);
-        let signature = sender_secret_key.sign_ecdsa(msg);
-        let args = NewTransferArgs {
-            timestamp,
-            sender_address: address.clone(),
-            sender_public_key,
-            receiver_address: address.clone(),
-            token: Some(token),
-            amount,
-            signature,
-            validators: None,
-            nonce,
-        };
-
-        let txn = TransactionKind::Transfer(Transfer::new(args));
-        let mut genesis_config = GenesisConfig::new(address.clone());
-
-        let mut txns = block::vesting::generate_genesis_txns(
-            n,
-            self.config.keypair.clone(),
-            &mut genesis_config,
-        );
-        txns.insert(txn.id(), txn);
-
-        Ok(txns)
+        receivers: Vec<GenesisReceiver>,
+    ) -> Result<GenesisRewards> {
+        self.has_required_node_type(NodeType::Miner, "produce genesis transactions")?;
+        Ok(GenesisRewards(
+            receivers.iter().map(|rc| (rc.to_owned(), 10000)).collect(),
+        ))
     }
 
-    pub fn mine_genesis_block(
-        &self,
-        txns: LinkedHashMap<TransactionDigest, TransactionKind>,
-    ) -> Result<GenesisBlock> {
+    pub fn mine_genesis_block(&self, genesis_rewards: GenesisRewards) -> Result<GenesisBlock> {
         self.has_required_node_type(NodeType::Miner, "mine genesis block")?;
 
         let claim = self.state_driver.dag.claim();
@@ -318,7 +282,7 @@ impl NodeRuntime {
 
         let genesis = GenesisBlock {
             header: block_header,
-            txns,
+            genesis_rewards,
             claims,
             hash: hex::encode(block_hash),
             certificate: None,
@@ -327,15 +291,63 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
-    pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
+    pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
+        let miner_signature = genesis_block.header.miner_signature;
+        let miner_id = genesis_block.header.miner_claim.node_id.clone();
+        let hashed = self.hash_block_header(&genesis_block.header);
+        let message = Message::from(hashed);
+
+        self.consensus_driver
+            .verify_signature(&miner_id, &miner_signature, &message)?;
+
+        Ok(())
+    }
+
+    fn hash_block_header(&self, header: &BlockHeader) -> secp256k1::hashes::sha256::Hash {
+        let hashed = format!(
+            "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+            header.ref_hashes,
+            header.round,
+            header.epoch,
+            header.block_seed,
+            header.next_block_seed,
+            header.block_height,
+            header.timestamp,
+            header.txn_hash,
+            header.miner_claim,
+            header.claim_list_hash,
+            header.block_reward,
+            header.next_block_reward,
+        );
+
+        secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes())
+    }
+
+    // TODO: simplify logic to be under handle_harvester_signature_received
+    pub fn certify_genesis_block(
+        &mut self,
+        genesis: GenesisBlock,
+        node_id: String,
+        sig: Signature,
+    ) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
-        let certs = self.state_driver.dag.check_certificate_threshold_reached(
-            &genesis.hash,
-            &self.consensus_driver.sig_engine,
-        )?;
+        self.consensus_driver
+            .sig_engine
+            .verify(&node_id, &sig, &genesis.hash)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let set = self
+            .state_driver
+            .dag
+            .add_signer_to_block(
+                genesis.hash.clone(),
+                sig,
+                node_id,
+                &self.consensus_driver.sig_engine,
+            )
+            .map_err(|err| NodeError::Other(err.to_string()))?;
         let certificate = self
             .consensus_driver
-            .certify_genesis_block(genesis, certs.into_iter().collect())?;
+            .certify_genesis_block(genesis, set.into_iter().collect())?;
 
         Ok(certificate)
     }
@@ -428,30 +440,30 @@ impl NodeRuntime {
         self.state_driver.state_root_hash()
     }
 
-    pub fn state_snapshot(&self) -> HashMap<Address, Account> {
+    pub fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
         let handle = self.state_driver.read_handle();
-        handle.state_store_values()
+        Ok(handle.state_store_values()?)
     }
 
-    pub fn transactions_snapshot(&self) -> HashMap<TransactionDigest, TransactionKind> {
+    pub fn transactions_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         let handle = self.state_driver.read_handle();
-        handle.transaction_store_values()
+        Ok(handle.transaction_store_values()?)
     }
 
-    pub fn claims_snapshot(&self) -> HashMap<NodeId, Claim> {
+    pub fn claims_snapshot(&self) -> Result<HashMap<NodeId, Claim>> {
         let handle = self.state_driver.read_handle();
-        handle.claim_store_values()
+        Ok(handle.claim_store_values()?)
     }
 
-    async fn get_transaction_by_id(
+    async fn _get_transaction_by_id(
         &self,
-        transaction_digest: TransactionDigest,
+        _transaction_digest: TransactionDigest,
     ) -> Result<TransactionKind> {
         todo!()
     }
 
     pub fn create_account(&mut self, public_key: PublicKey) -> Result<Address> {
-        let account = Account::new(public_key.clone().into());
+        let account = Account::new(public_key.into());
 
         self.state_driver
             .insert_account(public_key.into(), account)?;
@@ -472,9 +484,9 @@ impl NodeRuntime {
             self.state_driver
                 .dag
                 .last_confirmed_block_header()
-                .ok_or(NodeError::Other(format!(
-                    "failed to fetch latest block header from dag"
-                )))?;
+                .ok_or(NodeError::Other(
+                    "failed to fetch latest block header from dag".to_string(),
+                ))?;
 
         Ok(header.round)
     }
@@ -516,13 +528,13 @@ impl NodeRuntime {
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
 
         match validated_transaction_kind {
-            Ok(transaction_kind) => return Ok((transaction_kind, true)),
+            Ok(transaction_kind) => Ok((transaction_kind, true)),
             Err(_) => {
                 let handle = self.mempool_read_handle_factory().handle();
-                let transaction_record = handle.get(&digest).clone();
+                let transaction_record = handle.get(&digest);
                 match transaction_record {
-                    Some(record) => return Ok((record.txn.clone(), false)),
-                    None => return Err(NodeError::Other(format!("transaction record not found"))),
+                    Some(record) => Ok((record.txn.clone(), false)),
+                    None => Err(NodeError::Other("transaction record not found".to_string())),
                 }
             },
         }

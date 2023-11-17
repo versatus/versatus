@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use block::{Certificate, ConvergenceBlock};
+use block::{Block, Certificate, ConvergenceBlock};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::PublicKeySet,
@@ -45,11 +45,15 @@ pub enum NetworkEvent {
         assigned_membership: AssignedQuorumMembership,
     },
 
+    QuorumMembershipAssigmentsCreated(Vec<AssignedQuorumMembership>),
+
     /// Peer is unresponsive or signaled its intent to leave the network
     PeerUnregistered {
         peer_id: PeerId,
         socket_addr: SocketAddr,
     },
+
+    BlockCreated(Block),
 
     ForwardedTxn(Box<TxnRecord>),
 
@@ -63,7 +67,7 @@ pub enum NetworkEvent {
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),
-    BroadcastTransactionVote(Vote),
+    BroadcastTransactionVote(Box<Vote>),
     Ping(NodeId),
 
     #[default]

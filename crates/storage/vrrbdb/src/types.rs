@@ -43,6 +43,21 @@ pub struct StateUpdate {
     pub update_account: UpdateAccount,
 }
 
+impl From<(Address, u128)> for StateUpdate {
+    fn from(value: (Address, u128)) -> Self {
+        Self {
+            address: value.0.to_owned(),
+            token: Some(Token::default()),
+            amount: value.1,
+            nonce: None,
+            storage: None,
+            package_address: None,
+            digest: Default::default(),
+            update_account: UpdateAccount::Reward,
+        }
+    }
+}
+
 /// A wrapper to provide convenient conversion from
 /// a Transaction to two StateUpdates, one for the
 /// sender, one for the receiver. Can also provide some

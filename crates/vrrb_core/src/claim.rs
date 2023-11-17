@@ -376,7 +376,7 @@ impl Claim {
     }
 
     pub fn public_key_owned(&self) -> PublicKey {
-        self.public_key.clone()
+        self.public_key
     }
 
     pub fn address_owned(&self) -> Address {

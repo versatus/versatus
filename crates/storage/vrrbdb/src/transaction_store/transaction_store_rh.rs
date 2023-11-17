@@ -39,20 +39,23 @@ impl TransactionStoreReadHandle {
         transactions
     }
 
-    pub fn entries(&self) -> HashMap<TransactionDigest, TransactionKind> {
+    pub fn entries(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         // TODO: revisit and refactor into inner wrapper
-        self.inner
+        Ok(self
+            .inner
             .iter(self.inner.version())
-            .unwrap()
+            .map_err(|err| {
+                StorageError::Other(format!("unable to create iterator from trie: {}", err))
+            })?
             .filter_map(|item| {
                 if let Ok((_, txn)) = item {
                     let txn = bincode::deserialize::<TransactionKind>(&txn).unwrap_or_default();
 
-                    return Some((txn.digest(), txn));
+                    return Some((txn.id(), txn));
                 }
                 None
             })
-            .collect()
+            .collect())
     }
 
     /// Returns a number of transactions in the ledger

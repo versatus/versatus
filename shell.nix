@@ -14,7 +14,7 @@
 # your own, for example `zsh`, you can open a new instance directly after: `zsh`.
 # For more information on this limitation see https://nixos.wiki/wiki/Development_environment_with_nix-shell#direnv
 
-{ pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-22.11.tar.gz") {} }:
+{ pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz") {} }:
 
 let
   fenix = import (fetchTarball "https://github.com/nix-community/fenix/archive/main.tar.gz") {};
@@ -39,7 +39,7 @@ pkgs.mkShell {
     rocksdb
     openssl.dev
     libiconv
-  ] ++ lib.optionals stdenv.isDarwin [darwin.apple_sdk.frameworks.Security];
+  ] ++ lib.optionals stdenv.isDarwin [darwin.apple_sdk.frameworks.Security darwin.apple_sdk.frameworks.SystemConfiguration];
 
   shellHook = ''
     export LIBCLANG_PATH="${pkgs.libclang.lib}/lib";

@@ -3,7 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use block::{
+    Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -46,8 +48,8 @@ pub struct StateManagerConfig {
 
 #[derive(Debug, Clone)]
 pub struct StateManager {
-    pub(crate) actor_id: ActorId,
-    pub(crate) status: ActorState,
+    pub(crate) _actor_id: ActorId,
+    pub(crate) _status: ActorState,
     pub(crate) dag: DagModule,
     pub(crate) database: VrrbDb,
     pub(crate) mempool: LeftRightMempool,
@@ -58,12 +60,23 @@ impl StateManager {
         let dag_module = DagModule::new(config.dag.clone(), config.claim.clone());
 
         Self {
-            actor_id: uuid::Uuid::new_v4().to_string(),
+            _actor_id: uuid::Uuid::new_v4().to_string(),
             database: config.database,
-            status: ActorState::Stopped,
+            _status: ActorState::Stopped,
             dag: dag_module,
             mempool: config.mempool,
         }
+    }
+
+    pub fn append_genesis(
+        &mut self,
+        genesis_block: &GenesisBlock,
+    ) -> GraphResult<ApplyBlockResult> {
+        self.dag.append_genesis(genesis_block)?;
+        self.apply_block(Block::Genesis {
+            block: genesis_block.to_owned(),
+        })
+        .map_err(|err| GraphError::Other(format!("{err:?}")))
     }
 
     pub fn append_convergence(
@@ -108,6 +121,15 @@ impl StateManager {
     ) -> GraphResult<Option<ConvergenceBlock>> {
         self.dag
             .append_certificate_to_convergence_block(certificate)
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<GenesisBlock>> {
+        self.dag
+            .append_certificate_to_genesis_block(block_hash, certificate)
     }
 
     pub fn export_state(&self) {
@@ -344,13 +366,13 @@ impl StateManager {
     ) -> Result<Event> {
         match block {
             Block::Genesis { ref mut block } => {
-                if let Err(e) = self.dag.append_genesis(&block) {
+                if let Err(e) = self.dag.append_genesis(block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 };
             },
             Block::Proposal { ref mut block } => {
-                if let Err(e) = self.dag.append_proposal(&block, sig_engine.clone()) {
+                if let Err(e) = self.dag.append_proposal(block, sig_engine.clone()) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
@@ -437,6 +459,7 @@ impl StateManager {
             .claim_store_factory()
             .handle()
             .entries()
+            .map_err(|err| NodeError::Other(err.to_string()))?
             .clone()
             .into_iter()
             .filter(|(_, claim)| claim_hashes.contains(&claim.hash))
@@ -450,6 +473,7 @@ impl StateManager {
             .claim_store_factory()
             .handle()
             .entries()
+            .map_err(|err| NodeError::Other(err.to_string()))?
             .clone()
             .into_iter()
             .filter(|(_, claim)| &claim.address == address)
@@ -552,15 +576,25 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    fn state_store_values(&self) -> HashMap<Address, Account> {
-        self.state_store_values()
+    fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
+        let values = self
+            .state_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read state: {err}")))?;
+
+        Ok(values)
     }
 
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
-        self.transaction_store_values()
+    fn transaction_store_values(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
+        let values = self
+            .transaction_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read transactions: {err}")))?;
+        Ok(values)
     }
 
-    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        self.claim_store_values()
+    fn claim_store_values(&self) -> Result<HashMap<NodeId, Claim>> {
+        let values = self
+            .claim_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read claims: {err}")))?;
+        Ok(values)
     }
 }

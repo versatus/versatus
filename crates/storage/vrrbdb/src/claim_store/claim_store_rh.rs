@@ -42,11 +42,14 @@ impl ClaimStoreReadHandle {
         claims
     }
 
-    pub fn entries(&self) -> HashMap<NodeId, Claim> {
+    pub fn entries(&self) -> Result<HashMap<NodeId, Claim>> {
         // TODO: revisit and refactor into inner wrapper
-        self.inner
+        Ok(self
+            .inner
             .iter(self.inner.version())
-            .unwrap()
+            .map_err(|err| {
+                StorageError::Other(format!("unable to create iterator from trie: {}", err))
+            })?
             .filter_map(|item| {
                 if let Ok((_, claim)) = item {
                     if let Ok(claim) = bincode::deserialize::<Claim>(&claim) {
@@ -56,7 +59,7 @@ impl ClaimStoreReadHandle {
                 }
                 None
             })
-            .collect()
+            .collect())
     }
 
     /// Returns a number of initialized claims in the database

@@ -4,7 +4,9 @@ use std::{
 };
 
 use events::{Event, EventPublisher, EventRouter, Topic};
-use primitives::{JSON_RPC_API_TOPIC_STR, KademliaPeerId, NETWORK_TOPIC_STR, NodeType, RUNTIME_TOPIC_STR};
+use primitives::{
+    KademliaPeerId, NodeType, JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR,
+};
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
@@ -111,7 +113,7 @@ impl Node {
         Ok(cancelled)
     }
 
-    pub async fn config(&self) -> NodeConfig {
+    pub fn config(&self) -> NodeConfig {
         self.config.clone()
     }
 

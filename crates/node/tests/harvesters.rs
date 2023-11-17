@@ -5,35 +5,23 @@
 //!
 //! Integration tests are needed for testing that these `Certificate`s are broadcasted.
 
-use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
-    hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
-};
-
-use block::{
-    header::BlockHeader, Block, Certificate, ConsolidatedTxns, ConvergenceBlock, ProposalBlock,
-};
-use bulldag::{graph::BullDag, vertex::Vertex};
+use block::{Block, Certificate, ConsolidatedTxns};
 use events::DEFAULT_BUFFER;
 use miner::test_helpers::create_miner;
 use node::{
     node_runtime::NodeRuntime,
     test_utils::{
-        create_quorum_assigned_node_runtime_network, produce_proposal_blocks, produce_random_claim,
-        produce_random_claims,
+        create_quorum_assigned_node_runtime_network, dummy_convergence_block, dummy_proposal_block,
+        dummy_proposal_block_and_accounts, produce_random_claims,
     },
     NodeError,
 };
-use primitives::{Address, QuorumKind, Signature};
-use quorum::{election::Election, quorum::Quorum};
+use primitives::{QuorumKind, Signature};
 use ritelinked::{LinkedHashMap, LinkedHashSet};
-use sha256::digest;
+use std::collections::BTreeMap;
 use storage::storage_utils::remove_vrrb_data_dir;
 use vrrb_core::{
-    account::{Account, AccountField},
     claim::{Claim, Eligibility},
-    keypair::{KeyPair, Keypair},
     transactions::TransactionDigest,
 };
 
@@ -308,13 +296,13 @@ async fn all_nodes_append_certificate_to_convergence_block() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_block_certificate_received(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
             .await
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     }
     let convergence_block = chosen_harvester
-        .handle_block_certificate_created(certificate.clone())
+        .handle_convergence_block_certificate_created(certificate.clone())
         .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
@@ -350,7 +338,7 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
         })
         .collect();
     let sig_engine = all_nodes[0].consensus_driver.sig_engine();
-    let mut proposal_block = dummy_proposal_block(sig_engine);
+    let proposal_block = dummy_proposal_block(sig_engine);
     let mut convergence_block = dummy_convergence_block();
     convergence_block.header.ref_hashes = vec![proposal_block.hash.clone()];
     let pblock: Block = proposal_block.into();
@@ -412,14 +400,14 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_block_certificate_received(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
             .await
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
     }
     let convergence_block = chosen_harvester
-        .handle_block_certificate_created(certificate.clone())
+        .handle_convergence_block_certificate_created(certificate.clone())
         .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
@@ -561,7 +549,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     let mut results = Vec::new();
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_block_certificate_received(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
             .await
             .unwrap();
 
@@ -574,7 +562,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
     }
     let convergence_block = chosen_harvester
-        .handle_block_certificate_created(certificate.clone())
+        .handle_convergence_block_certificate_created(certificate.clone())
         .await
         .unwrap();
     let block_apply_result = chosen_harvester
@@ -610,89 +598,4 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
                 .unwrap()
         );
     });
-}
-
-fn dummy_convergence_block() -> ConvergenceBlock {
-    let keypair = KeyPair::random();
-    let public_key = keypair.get_miner_public_key();
-    let mut hasher = DefaultHasher::new();
-    public_key.hash(&mut hasher);
-    let pubkey_hash = hasher.finish();
-
-    let mut pub_key_bytes = pubkey_hash.to_string().as_bytes().to_vec();
-    pub_key_bytes.push(1u8);
-
-    let hash = digest(digest(&*pub_key_bytes).as_bytes());
-
-    let payload = (21_600, hash);
-    ConvergenceBlock {
-        header: BlockHeader {
-            ref_hashes: Default::default(),
-            epoch: Default::default(),
-            round: Default::default(),
-            block_seed: Default::default(),
-            next_block_seed: Quorum::generate_seed(payload, keypair).unwrap(),
-            block_height: 21_600,
-            timestamp: Default::default(),
-            txn_hash: Default::default(),
-            miner_claim: produce_random_claim(22),
-            claim_list_hash: Default::default(),
-            block_reward: Default::default(),
-            next_block_reward: Default::default(),
-            miner_signature: Default::default(),
-        },
-        txns: Default::default(),
-        claims: Default::default(),
-        hash: "dummy_convergence_block".into(),
-        certificate: None,
-    }
-}
-
-fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
-    let kp1 = Keypair::random();
-    let address1 = Address::new(kp1.miner_kp.1);
-    let kp2 = Keypair::random();
-    let address2 = Address::new(kp2.miner_kp.1);
-    let mut account1 = Account::new(address1.clone());
-    let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
-    let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
-    produce_proposal_blocks(
-        "dummy_proposal_block".to_string(),
-        vec![(address1, Some(account1)), (address2, Some(account2))],
-        1,
-        2,
-        sig_engine,
-    )
-    .pop()
-    .unwrap()
-}
-
-fn dummy_proposal_block_and_accounts(
-    sig_engine: signer::engine::SignerEngine,
-) -> ((Address, Account), (Address, Account), ProposalBlock) {
-    let kp1 = Keypair::random();
-    let address1 = Address::new(kp1.miner_kp.1);
-    let kp2 = Keypair::random();
-    let address2 = Address::new(kp2.miner_kp.1);
-    let mut account1 = Account::new(address1.clone());
-    let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
-    let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
-    let proposal_block = produce_proposal_blocks(
-        "dummy_proposal_block".to_string(),
-        vec![
-            (address1.clone(), Some(account1.clone())),
-            (address2.clone(), Some(account2.clone())),
-        ],
-        1,
-        1,
-        sig_engine,
-    )
-    .pop()
-    .unwrap();
-
-    ((address1, account1), (address2, account2), proposal_block)
 }

@@ -50,7 +50,7 @@ impl QuorumMembers {
     pub fn get_public_key_from_members(&self, k: &NodeId) -> Option<PublicKey> {
         for (_, quorum_data) in self.0.iter() {
             if let Some(pub_key) = quorum_data.members.get(k) {
-                return Some(pub_key.clone());
+                return Some(*pub_key);
             }
         }
         None
@@ -58,12 +58,11 @@ impl QuorumMembers {
 
     pub fn get_harvester_data(&self) -> Option<QuorumData> {
         for (_, quorum_data) in self.0.iter() {
-            match &quorum_data.quorum_kind {
-                QuorumKind::Harvester => return Some(quorum_data.clone()),
-                _ => {},
+            if quorum_data.quorum_kind == QuorumKind::Harvester {
+                return Some(quorum_data.clone());
             }
         }
-        return None;
+        None
     }
 
     pub fn get_harvester_threshold(&self) -> usize {
@@ -99,7 +98,7 @@ impl QuorumMembers {
             }
         }
 
-        return Err(Error::IsNotFarmer);
+        Err(Error::IsNotFarmer)
     }
 
     pub fn is_harvester_quorum_member(
@@ -113,7 +112,7 @@ impl QuorumMembers {
             }
         }
 
-        return Err(Error::IsNotHarvester);
+        Err(Error::IsNotHarvester)
     }
 }
 
@@ -150,7 +149,8 @@ impl SignerEngine {
             quorum_members: QuorumMembers(HashMap::new()),
         }
     }
-    /// transaction sign method
+
+    /// Transaction sign method
     pub fn sign<T: AsRef<[u8]>>(&mut self, data: T) -> Result<Signature, Error> {
         let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
@@ -161,7 +161,7 @@ impl SignerEngine {
             .sign_ecdsa(message.map_err(|e| Error::SecpError(e.to_string()))?))
     }
 
-    /// signature verification
+    /// Signature verification
     pub fn verify<T: AsRef<[u8]>>(
         &self,
         node_id: &NodeId,
@@ -170,9 +170,11 @@ impl SignerEngine {
     ) -> Result<(), Error> {
         let mut hasher = Sha256::new();
         hasher.update(data.as_ref());
+
         let result = hasher.finalize().to_vec();
         let message = Message::from_slice(&result);
         let pk = self.quorum_members.get_public_key_from_members(node_id);
+
         if let Some(pk) = pk {
             return sig
                 .verify(&message.map_err(|e| Error::SecpError(e.to_string()))?, &pk)
@@ -180,6 +182,24 @@ impl SignerEngine {
         }
 
         Err(Error::FailedVerification("missing public key".to_string()))
+    }
+
+    /// Signature verification with a given message
+    pub fn verify_with_message(
+        &self,
+        node_id: &NodeId,
+        sig: &Signature,
+        message: &Message,
+    ) -> Result<(), Error> {
+        let pk = self
+            .quorum_members
+            .get_public_key_from_members(node_id)
+            .ok_or(Error::FailedVerification("missing public key".to_string()))?;
+
+        sig.verify(message, &pk)
+            .map_err(|e| Error::SecpError(e.to_string()))?;
+
+        Ok(())
     }
 
     pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
@@ -209,7 +229,7 @@ impl SignerEngine {
     }
 
     pub fn public_key(&self) -> PublicKey {
-        self.local_node_public_key.clone()
+        self.local_node_public_key
     }
 
     pub fn set_quorum_members(&mut self, quorums: Vec<(QuorumKind, Vec<(NodeId, PublicKey)>)>) {

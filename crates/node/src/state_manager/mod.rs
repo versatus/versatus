@@ -31,8 +31,8 @@ mod tests {
 
     use super::*;
     use crate::test_utils::{
-        create_blank_certificate, create_keypair, produce_accounts, produce_convergence_block,
-        produce_genesis_block, produce_proposal_blocks,
+        create_keypair, produce_accounts, produce_convergence_block, produce_genesis_block,
+        produce_proposal_blocks,
     };
 
     #[tokio::test]
@@ -70,7 +70,7 @@ mod tests {
     pub type StateDag = Arc<RwLock<BullDag<Block, BlockHash>>>;
 
     #[tokio::test]
-    #[ignore]
+    #[serial]
     async fn vrrbdb_should_update_with_new_block() {
         let db_config = VrrbDbConfig::default().with_path(std::env::temp_dir().join("db"));
         let db = VrrbDb::new(db_config);
@@ -138,7 +138,7 @@ mod tests {
         state_module.commit();
 
         let handle = state_module.read_handle();
-        let store = handle.state_store_values();
+        let store = handle.state_store_values().unwrap();
 
         for (address, _) in accounts.iter() {
             let account = store.get(address).unwrap();

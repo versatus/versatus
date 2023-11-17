@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
-use block::{convergence_block, Block, ConvergenceBlock, ProposalBlock};
+use block::{Block, ConvergenceBlock, GenesisBlock, GenesisRewards, ProposalBlock};
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
+use ritelinked::LinkedHashMap;
 use storage_utils::{Result, StorageError};
-use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind, Transfer};
+use vrrb_core::transactions::{Transaction, TransactionKind, Transfer};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
@@ -13,7 +14,7 @@ use vrrb_core::{
 
 use crate::{
     ClaimStore, ClaimStoreReadHandleFactory, FromTxn, IntoUpdates, StateStore,
-    StateStoreReadHandleFactory, TransactionStore, TransactionStoreReadHandleFactory,
+    StateStoreReadHandleFactory, StateUpdate, TransactionStore, TransactionStoreReadHandleFactory,
     VrrbDbReadHandle,
 };
 
@@ -43,20 +44,18 @@ pub struct ApplyBlockResult {
 
 impl ApplyBlockResult {
     pub fn state_root_hash_str(&self) -> String {
-        let state_root_hash = self.state_root_hash.clone();
+        let state_root_hash = self.state_root_hash;
         // let transaction_root_hash = self.transaction_store.root_hash()?;
 
         // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
-        let state_root_hash_hex = hex::encode(state_root_hash.0);
+        hex::encode(state_root_hash.0)
         // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
-        state_root_hash_hex
     }
 
     pub fn transactions_root_hash_str(&self) -> String {
-        let txn_root_hash = self.transactions_root_hash.clone();
+        let txn_root_hash = self.transactions_root_hash;
 
-        let txn_root_hash_hex = hex::encode(txn_root_hash.0);
-        txn_root_hash_hex
+        hex::encode(txn_root_hash.0)
     }
 }
 
@@ -262,6 +261,28 @@ impl VrrbDb {
         Ok(())
     }
 
+    fn apply_genesis_rewards(
+        &mut self,
+        read_handle: VrrbDbReadHandle,
+        genesis_rewards: &GenesisRewards,
+    ) -> Result<()> {
+        for (receiver_address, reward) in &genesis_rewards.0 {
+            // TODO: create methods to check if these exist
+            if let Err(StorageError::Other(_err)) =
+                read_handle.get_account_by_address(&receiver_address.0)
+            {
+                let account = Account::new(receiver_address.0.clone());
+                self.insert_account(receiver_address.0.clone(), account)?;
+            };
+            let update = StateUpdate::from((receiver_address.0.clone(), *reward)).into();
+            self.state_store
+                .update_uncommited(receiver_address.0.clone(), update)?;
+            self.state_store.commit();
+        }
+
+        Ok(())
+    }
+
     fn apply_txn(
         &mut self,
         read_handle: VrrbDbReadHandle,
@@ -269,12 +290,6 @@ impl VrrbDb {
     ) -> Result<()> {
         match txn_kind {
             TransactionKind::Transfer(txn) => self.apply_transfer(read_handle, txn),
-            _ => {
-                telemetry::info!("unsupported transaction type: {:?}", txn_kind);
-                Err(StorageError::Other(
-                    "unsupported transaction type".to_string(),
-                ))
-            },
         }
     }
 
@@ -295,7 +310,7 @@ impl VrrbDb {
 
             let mut txns = block.txns.clone();
             txns.retain(|digest, _| txn_set.contains(digest));
-            for (digest, txn_kind) in txns {
+            for (_digest, txn_kind) in txns {
                 self.apply_txn(read_handle.clone(), txn_kind)?;
             }
         }
@@ -312,24 +327,33 @@ impl VrrbDb {
         })
     }
 
-    /// Applies a block of transactions updating the account states accordingly.
-    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
+    pub fn apply_genesis_block(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
 
-        // TODO: check transactions length and return error if empty
+        if block.genesis_rewards.0.is_empty() {
+            return Err(StorageError::Other(
+                "genesis block must contain at least one reward".to_string(),
+            ));
+        }
+        self.apply_genesis_rewards(read_handle.clone(), &block.genesis_rewards)?;
 
+        self.transaction_store.commit();
+        self.state_store.commit();
+
+        let state_root_hash = self.state_store.root_hash()?;
+        let transactions_root_hash = RootHash(Default::default());
+
+        Ok(ApplyBlockResult {
+            state_root_hash,
+            transactions_root_hash,
+        })
+    }
+
+    /// Applies a block of transactions updating the account states accordingly.
+    pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
         match block {
-            Block::Genesis { block } => {
-                if block.txns.is_empty() {
-                    return Err(StorageError::Other(
-                        "genesis block must contain at least one transaction".to_string(),
-                    ));
-                }
-                for (_, txn_kind) in block.txns {
-                    self.apply_txn(read_handle.clone(), txn_kind)?;
-                }
-            },
-            Block::Convergence { .. } => {
+            Block::Genesis { block } => self.apply_genesis_block(block),
+            Block::Convergence { block } => {
                 todo!()
             },
             _ => {
@@ -337,19 +361,6 @@ impl VrrbDb {
                 return Err(StorageError::Other("unsupported block type".to_string()));
             },
         }
-
-        self.transaction_store.commit();
-        self.state_store.commit();
-
-        let state_root_hash = self.state_store.root_hash()?;
-        let transactions_root_hash = self.transaction_store.root_hash()?;
-        // let claim_root_hash = self.claim_store.root_hash()?;
-        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
-
-        Ok(ApplyBlockResult {
-            state_root_hash,
-            transactions_root_hash,
-        })
     }
 }
 
