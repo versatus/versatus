@@ -445,14 +445,14 @@ impl NodeRuntime {
         Ok(handle.state_store_values()?)
     }
 
-    pub fn transactions_snapshot(&self) -> HashMap<TransactionDigest, TransactionKind> {
+    pub fn transactions_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         let handle = self.state_driver.read_handle();
-        handle.transaction_store_values()
+        Ok(handle.transaction_store_values()?)
     }
 
-    pub fn claims_snapshot(&self) -> HashMap<NodeId, Claim> {
+    pub fn claims_snapshot(&self) -> Result<HashMap<NodeId, Claim>> {
         let handle = self.state_driver.read_handle();
-        handle.claim_store_values()
+        Ok(handle.claim_store_values()?)
     }
 
     async fn _get_transaction_by_id(

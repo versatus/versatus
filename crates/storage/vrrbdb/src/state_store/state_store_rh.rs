@@ -32,10 +32,7 @@ impl StateStoreReadHandle {
     ///
     /// Returns HashMap indexed by PublicKeys and containing either
     /// Some(account) or None if account was not found.
-    pub fn batch_get(
-        &self,
-        keys: Vec<Address>,
-    ) -> HashMap<Address, Option<Account>> {
+    pub fn batch_get(&self, keys: Vec<Address>) -> HashMap<Address, Option<Account>> {
         let mut accounts = HashMap::new();
 
         keys.iter().for_each(|key| {
