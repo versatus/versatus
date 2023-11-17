@@ -501,107 +501,6 @@ pub fn create_mock_transaction_args(n: usize) -> NewTransferArgs {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct MockStateStore {}
-
-impl MockStateStore {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct MockStateReader {}
-
-impl MockStateReader {
-    pub fn new() -> Self {
-        MockStateReader {}
-    }
-}
-
-#[async_trait]
-impl StateReader for MockStateReader {
-    /// Returns a full list of all accounts within state
-    async fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
-        todo!()
-    }
-
-    /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
-        todo!()
-    }
-
-    /// Get a transaction from state
-    async fn get_transaction(
-        &self,
-        _transaction_digest: TransactionDigest,
-    ) -> Result<TransactionKind> {
-        todo!()
-    }
-
-    /// List a group of transactions
-    async fn list_transactions(
-        &self,
-        _digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
-        todo!()
-    }
-
-    async fn get_account(&self, _address: Address) -> Result<Account> {
-        todo!()
-    }
-
-    async fn get_round(&self) -> Result<Round> {
-        todo!()
-    }
-
-    async fn get_blocks(&self) -> Result<Vec<Block>> {
-        todo!()
-    }
-
-    async fn get_transaction_count(&self) -> Result<usize> {
-        todo!()
-    }
-
-    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>> {
-        todo!()
-    }
-
-    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>> {
-        todo!()
-    }
-
-    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
-        todo!()
-    }
-
-    async fn get_last_block(&self) -> Result<Block> {
-        todo!()
-    }
-
-    fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
-        todo!()
-    }
-
-    /// Returns a copy of all values stored within the state trie
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
-        todo!()
-    }
-
-    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        todo!()
-    }
-}
-
-#[async_trait]
-impl DataStore<MockStateReader> for MockStateStore {
-    type Error = NodeError;
-
-    fn state_reader(&self) -> MockStateReader {
-        todo!()
-    }
-}
-
 /// Creates `n` Node instances that make up a network.
 pub async fn create_test_network(n: u16) -> Vec<Node> {
     create_test_network_from_config(n, None).await
@@ -708,7 +607,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         config.id = format!("node-{}", i);
-        config.keypair = keypairs.get(i-1).unwrap().clone();
+        config.keypair = keypairs.get(i - 1).unwrap().clone();
         config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.node_type = NodeType::Validator;
         config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
@@ -728,7 +627,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         miner_config.id = format!("node-{}", i);
-        miner_config.keypair = keypairs.get(i-1).unwrap().clone();
+        miner_config.keypair = keypairs.get(i - 1).unwrap().clone();
         miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
         miner_config.node_type = NodeType::Miner;
         miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;

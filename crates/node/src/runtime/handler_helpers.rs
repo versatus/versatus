@@ -375,7 +375,12 @@ impl NodeRuntime {
 
     // TODO: Replace claims HashMap with claim_store_read_handle_factory
     pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<()> {
-        let claims = self.state_driver.read_handle().claim_store_values();
+        let claims = self
+            .state_driver
+            .read_handle()
+            .claim_store_values()
+            .map_err(|err| NodeError::Other(format!("unable to read claims from store: {err}")))?;
+
         let quorums = self
             .consensus_driver
             .handle_quorum_election_started(header, claims)?;
@@ -404,6 +409,7 @@ impl NodeRuntime {
             };
             inaug_members.0.insert(quorum_id, quorum_data);
         });
+
         self.pending_quorum = Some(inaug_members);
 
         //        let local_id = self.config.id.clone();
