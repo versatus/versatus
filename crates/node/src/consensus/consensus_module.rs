@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
 use std::collections::{hash_map::Entry, BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, RwLock};
+use tracing::info;
 use storage::vrrbdb::{ClaimStoreReadHandleFactory, StateStoreReadHandleFactory};
 use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
@@ -318,9 +319,13 @@ impl ConsensusModule {
             },
         }
 
+        info!("Vote received for transaction: {}", vote.txn.id());
+
         self.check_vote_threshold_reached(&quorum_id, &vote)
             .await
             .map_err(|err| NodeError::Other("threhold net yet reached".to_string()))?;
+
+        info!("Vote threshold reached for transaction: {}", vote.txn.id());
 
         self.certify_transaction(&vote, &quorum_id).await
     }

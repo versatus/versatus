@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
+use tracing::info;
 use events::{Event, EventMessage, EventPublisher, PeerData};
 use primitives::{NodeId, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 
@@ -118,6 +119,13 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
 
             NetworkEvent::BroadcastTransactionVote(vote) => {
                 let evt = Event::BroadcastTransactionVote(*vote);
+                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+                self.events_tx.send(em).await.map_err(NodeError::from)?;
+            },
+
+            NetworkEvent::NewTxnCreated(txn) => {
+                info!("Received New Txn Created event, sending to runtime");
+                let evt = Event::NewTxnCreated(*txn);
                 let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
                 self.events_tx.send(em).await.map_err(NodeError::from)?;
             },

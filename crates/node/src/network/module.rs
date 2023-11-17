@@ -17,6 +17,7 @@ use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
+use vrrb_core::transactions::TransactionKind;
 
 use super::NetworkEvent;
 use crate::{
@@ -471,6 +472,12 @@ impl NetworkModule {
                 erasure_count: 0,
             })
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn broadcast_transaction(&mut self, txn: TransactionKind) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::NewTxnCreated(Box::new(txn))).await?;
 
         Ok(())
     }

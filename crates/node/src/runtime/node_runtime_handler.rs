@@ -7,6 +7,7 @@ use primitives::{
 };
 use telemetry::info;
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use vrrb_core::transactions::Transaction;
 
 #[async_trait]
 impl Handler<EventMessage> for NodeRuntime {
@@ -164,6 +165,31 @@ impl Handler<EventMessage> for NodeRuntime {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
             Event::NewTxnCreated(txn) => {
+                info!("Handling NewTxnCreated event in node_runtime_handler");
+                //check for txn in mempool, return if present
+                if self
+                    .state_driver
+                    .read_handle()
+                    .transaction_store_values()
+                    .contains_key(&txn.id())
+                {
+                    info!("Transaction already in mempool");
+                    return Ok(ActorState::Running);
+                }
+
+                info!("Transaction not in mempool, broadcasting transaction to network");
+                let event = EventMessage::new(
+                    Some(NETWORK_TOPIC_STR.into()),
+                    Event::NewTxnCreated(txn.clone()),
+                );
+
+                self.events_tx
+                    .send(event)
+                    .await
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+
+                info!("Transaction broadcasted to network, ");
+
                 let txn_hash = self
                     .state_driver
                     .handle_new_txn_created(txn)
@@ -293,10 +319,25 @@ impl Handler<EventMessage> for NodeRuntime {
                 .await
                 .map_err(|err| TheaterError::Other(err.to_string()))?,
             Event::TxnAddedToMempool(txn_hash) => {
+                //check to see if txn is already in mempool, return if present
+                info!("Handling TxnAddedToMempool event in node_runtime_handler: {:?}", txn_hash);
+
+                if self
+                    .state_driver
+                    .read_handle()
+                    .transaction_store_values()
+                    .contains_key(&txn_hash)
+                {
+                    info!("Transaction already in mempool");
+                    return Ok(ActorState::Running);
+                }
+
+                info!("Transaction not in mempool, adding to mempool");
                 let vote = self
-                    .handle_txn_added_to_mempool(txn_hash)
+                    .handle_txn_added_to_mempool(txn_hash.clone())
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
+                info!("Sending BroadcastTransactionVote event to network");
                 let em = EventMessage::new(
                     Some(NETWORK_TOPIC_STR.into()),
                     Event::BroadcastTransactionVote(vote),

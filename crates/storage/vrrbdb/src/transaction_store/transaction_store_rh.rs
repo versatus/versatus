@@ -4,6 +4,7 @@ use integral_db::{JellyfishMerkleTreeWrapper, ReadHandleFactory};
 use patriecia::{JellyfishMerkleTree, Version};
 use sha2::Sha256;
 use storage_utils::{Result, StorageError};
+use telemetry::info;
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
 
 use crate::RocksDbAdapter;
@@ -41,18 +42,19 @@ impl TransactionStoreReadHandle {
 
     pub fn entries(&self) -> HashMap<TransactionDigest, TransactionKind> {
         // TODO: revisit and refactor into inner wrapper
-        self.inner
-            .iter(self.inner.version())
-            .unwrap()
-            .filter_map(|item| {
-                if let Ok((_, txn)) = item {
-                    let txn = bincode::deserialize::<TransactionKind>(&txn).unwrap_or_default();
+        if let Ok(entries) = self.inner.iter(self.inner.version()) {
+            return entries
+                .filter_map(|item| {
+                    if let Ok((_, txn)) = item {
+                        let txn = bincode::deserialize::<TransactionKind>(&txn).unwrap_or_default();
 
-                    return Some((txn.id(), txn));
-                }
-                None
-            })
-            .collect()
+                        return Some((txn.id(), txn))
+                    }
+                    None
+                })
+                .collect();
+        }
+        HashMap::new()
     }
 
     /// Returns a number of transactions in the ledger

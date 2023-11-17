@@ -97,6 +97,11 @@ impl Handler<EventMessage> for NetworkModule {
                 self.broadcast_block(block).await?;
             },
 
+            Event::NewTxnCreated(txn) => {
+                info!("Broadcasting transaction to network");
+                self.broadcast_transaction(txn).await?;
+            },
+
             _ => {},
         }
 

@@ -11,6 +11,7 @@ use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId
 use serde::{Deserialize, Serialize};
 use signer::engine::QuorumData;
 use vrrb_core::claim::Claim;
+use vrrb_core::transactions::TransactionKind;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 /// Represents data trasmitted over the VRRB network by nodes that participate
@@ -68,6 +69,7 @@ pub enum NetworkEvent {
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),
     BroadcastTransactionVote(Box<Vote>),
+    NewTxnCreated(Box<TransactionKind>),
     Ping(NodeId),
 
     #[default]
