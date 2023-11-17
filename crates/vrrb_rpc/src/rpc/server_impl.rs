@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use block::block::Block;
 use block::ClaimHash;
 use events::{Event, EventPublisher};
+// TODO: alias to JsonRpcError so it's less ambiguous
 use jsonrpsee::core::Error;
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType, Round};
@@ -38,7 +39,7 @@ impl RpcApiServer for RpcServerImpl {
         let values = self
             .vrrbdb_read_handle
             .state_store_values()
-            .map_err(|err| Error::Custom(format!("failed to read values: {err}")))?;
+            .map_err(|err| Error::Custom(format!("Failed to read values: {err}")))?;
 
         Ok(values)
     }
@@ -83,7 +84,10 @@ impl RpcApiServer for RpcServerImpl {
             .parse::<TransactionDigest>()
             .map_err(|_err| Error::Custom("unable to parse transaction digest".to_string()))?;
 
-        let values = self.vrrbdb_read_handle.transaction_store_values();
+        let values = self
+            .vrrbdb_read_handle
+            .transaction_store_values()
+            .map_err(|err| Error::Custom(format!("Failed to read values: {err}")))?;
         let value = values.get(&parsed_digest);
 
         match value {
@@ -103,16 +107,17 @@ impl RpcApiServer for RpcServerImpl {
 
         let mut values: HashMap<RpcTransactionDigest, RpcTransactionRecord> = HashMap::new();
 
+        let read_txns = self
+            .vrrbdb_read_handle
+            .transaction_store_values()
+            .map_err(|err| Error::Custom(format!("Failed to read values: {err}")))?;
+
         digests.iter().for_each(|digest_string| {
             let parsed_digest = digest_string
                 .parse::<TransactionDigest>()
                 .unwrap_or_default(); // TODO: report this error
 
-            if let Some(txn) = self
-                .vrrbdb_read_handle
-                .transaction_store_values()
-                .get(&parsed_digest)
-            {
+            if let Some(txn) = read_txns.get(&parsed_digest) {
                 let txn_record = RpcTransactionRecord::from(txn.clone());
 
                 values.insert(txn.id().to_string(), txn_record);
@@ -238,7 +243,11 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, Error> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = self
+            .vrrbdb_read_handle
+            .claim_store_values()
+            .map_err(|err| Error::Custom(format!("Failed to read values: {err}")))?;
+
         let claims = claims
             .values()
             .cloned()
@@ -249,14 +258,22 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, Error> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = self
+            .vrrbdb_read_handle
+            .claim_store_values()
+            .map_err(|err| Error::Custom(format!("Failed to read values: {err}")))?;
+
         let claim_hashes = claims.values().map(|claim| claim.hash).collect();
 
         Ok(claim_hashes)
     }
 
     async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, Error> {
-        let claims = self.vrrbdb_read_handle.claim_store_values();
+        let claims = self
+            .vrrbdb_read_handle
+            .claim_store_values()
+            .map_err(|err| Error::Custom(format!("Failed to read values: {err}")))?;
+
         let claims = claims
             .values()
             .cloned()
