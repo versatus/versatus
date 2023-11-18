@@ -178,7 +178,7 @@ impl DagModule {
     pub fn append_proposal(
         &mut self,
         proposal: &ProposalBlock,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> GraphResult<()> {
         let valid = self.check_valid_proposal(proposal, sig_engine);
 
@@ -303,7 +303,8 @@ impl DagModule {
         Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
-    fn _check_valid_genesis(&self, block: &GenesisBlock, mut sig_engine: SignerEngine) -> bool {
+    //TODO: function not being used & use of deprecated .verify_signature
+    fn _check_valid_genesis(&self, block: &GenesisBlock, sig_engine: SignerEngine) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             matches!(self.verify_signature(validation_data, sig_engine), Ok(true))
         } else {
@@ -311,7 +312,8 @@ impl DagModule {
         }
     }
 
-    fn check_valid_proposal(&self, block: &ProposalBlock, mut sig_engine: SignerEngine) -> bool {
+    //TODO: use of deprecated .verify_signature
+    fn check_valid_proposal(&self, block: &ProposalBlock, sig_engine: SignerEngine) -> bool {
         if let Ok(validation_data) = block.get_validation_data() {
             matches!(self.verify_signature(validation_data, sig_engine), Ok(true))
         } else {
@@ -414,7 +416,7 @@ impl DagModule {
         &self,
         sigs: Vec<(NodeId, Signature)>,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         self._verify_threshold_sig_with_public_keyset(sigs, payload_hash, sig_engine)
     }
@@ -423,7 +425,7 @@ impl DagModule {
         &self,
         sigs: Vec<(NodeId, Signature)>,
         payload_hash: Vec<u8>,
-        mut sig_engine: SignerEngine,
+        sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         sig_engine
             .verify_batch(&sigs, &payload_hash)
@@ -440,9 +442,9 @@ impl DagModule {
         sig_engine: SignerEngine,
     ) -> SignerResult<(bool, SignatureType)> {
         if let Some(mut harvesters) = sig_engine.quorum_members().get_harvester_data() {
-            harvesters.members.retain(|id, pk| *pk == public_keyshare);
-            if let Some((id, pk)) = harvesters.members.iter().next() {
-                sig_engine.verify(id, &sig, &payload_hash).map_err(|err| {
+            harvesters.members.retain(|_id, pk| *pk == public_keyshare);
+            if let Some((id, _pk)) = harvesters.members.iter().next() {
+                sig_engine.verify(id, &sig, &payload_hash).map_err(|_err| {
                     SignerError::PartialSignatureError("unable to verify signature".to_string())
                 })?;
                 Ok((true, SignatureType::PartialSignature))
@@ -461,8 +463,8 @@ impl DagModule {
     #[deprecated]
     fn verify_signature(
         &self,
-        validation_data: BlockValidationData,
-        mut sig_engine: SignerEngine,
+        _validation_data: BlockValidationData,
+        _sig_engine: SignerEngine,
     ) -> SignerResult<bool> {
         todo!()
     }

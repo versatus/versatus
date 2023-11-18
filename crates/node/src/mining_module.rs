@@ -1,26 +1,15 @@
-use std::sync::{Arc, RwLock};
-
 use async_trait::async_trait;
-use block::Block;
-use bulldag::graph::BullDag;
-use events::{Event, EventMessage, EventPublisher};
-use mempool::MempoolReadHandleFactory;
+use events::{Event, EventMessage};
 use miner::Miner;
-use primitives::Address;
-use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use theater::{Actor, ActorId, ActorImpl, ActorLabel, ActorState, Handler};
-use vrrb_config::NodeConfig;
-use vrrb_core::transactions::TransactionKind;
-
-use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
 
 #[derive(Debug, Clone)]
 pub struct MiningModule {
     status: ActorState,
-    label: ActorLabel,
+    _label: ActorLabel,
     id: ActorId,
-    miner: Miner,
+    _miner: Miner,
 }
 
 #[derive(Debug, Clone)]
@@ -28,15 +17,16 @@ pub struct MiningModuleConfig {
     pub miner: Miner,
 }
 
+//TODO: pub fn new() is not being used.
 impl MiningModule {
-    pub fn new(cfg: MiningModuleConfig) -> Self {
-        Self {
-            id: uuid::Uuid::new_v4().to_string(),
-            label: String::from("Miner"),
-            status: ActorState::Stopped,
-            miner: cfg.miner,
-        }
-    }
+    // pub fn new(cfg: MiningModuleConfig) -> Self {
+    //     Self {
+    //         id: uuid::Uuid::new_v4().to_string(),
+    //         label: String::from("Miner"),
+    //         status: ActorState::Stopped,
+    //         miner: cfg.miner,
+    //     }
+    // }
 }
 impl MiningModule {
     // fn _take_snapshot_until_cutoff(&self, cutoff_idx: usize) -> Vec<TransactionKind> {
