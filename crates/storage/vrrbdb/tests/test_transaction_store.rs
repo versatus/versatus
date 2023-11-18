@@ -26,7 +26,7 @@ fn transactions_can_be_added() {
     db.insert_transaction_unchecked(txn1).unwrap();
     db.insert_transaction_unchecked(txn2).unwrap();
 
-    let entries = db.transaction_store_factory().handle().entries();
+    let entries = db.transaction_store_factory().handle().entries().unwrap();
 
     assert_eq!(entries.len(), 2);
 
@@ -36,7 +36,7 @@ fn transactions_can_be_added() {
         _generate_random_valid_transaction(),
     ]);
 
-    let entries = db.transaction_store_factory().handle().entries();
+    let entries = db.transaction_store_factory().handle().entries().unwrap();
 
     assert_eq!(entries.len(), 5);
 }
