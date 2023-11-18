@@ -1,8 +1,6 @@
 use axum::{
     routing::{get, post, put},
-    Extension,
-    Json,
-    Router,
+    Extension, Json, Router,
 };
 use serde_json::{json, Value};
 

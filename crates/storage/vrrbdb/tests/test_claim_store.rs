@@ -23,7 +23,7 @@ fn claims_can_be_added() {
 
     db.insert_claim(claim2).unwrap();
 
-    let entries: HashMap<NodeId, Claim> = db.claim_store_factory().handle().entries();
+    let entries: HashMap<NodeId, Claim> = db.claim_store_factory().handle().entries().unwrap();
 
     assert_eq!(entries.len(), 2);
 
@@ -33,7 +33,7 @@ fn claims_can_be_added() {
         (claim5.hash, Some(claim5)),
     ]);
 
-    let entries = db.claim_store_factory().handle().entries();
+    let entries = db.claim_store_factory().handle().entries().unwrap();
 
     assert_eq!(entries.len(), 5);
 }

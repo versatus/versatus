@@ -3845,6 +3845,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "metric_exporter"
+version = "0.1.0"
+dependencies = [
+ "hyper",
+ "log",
+ "platform",
+ "prometheus",
+ "rand 0.8.5",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "microkv"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7489,6 +7502,7 @@ dependencies = [
  "hyper",
  "integral-db",
  "lazy_static",
+ "metric_exporter",
  "node",
  "platform",
  "primitives",
