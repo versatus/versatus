@@ -10,7 +10,7 @@ use mempool::MempoolReadHandleFactory;
 use miner::conflict_resolver::Resolver;
 use primitives::{
     NodeId, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
-    QuorumPublicKey, RawSignature, Signature, ValidatorPublicKey,
+    QuorumPublicKey, RawSignature, Signature,
 };
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
@@ -22,10 +22,8 @@ use validator::txn_validator::TxnValidatorError;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
+use vrrb_core::keypair::Keypair;
 use vrrb_core::transactions::{Transaction, TransactionDigest, TransactionKind};
-use vrrb_core::{bloom::Bloom, keypair::Keypair};
-
-pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 // TODO: Move this to primitives
 
@@ -80,7 +78,6 @@ pub struct ConsensusModule {
         HashMap<TransactionDigest, (TransactionKind, TransactionKindCertificate)>,
     pub(crate) quorum_certified_claims: HashMap<String, Claim>,
     pub(crate) keypair: Keypair,
-    pub(crate) certified_txns_filter: Bloom,
     pub(crate) quorum_driver: QuorumModule,
     pub(crate) sig_engine: SignerEngine,
     pub(crate) node_config: NodeConfig,
@@ -118,7 +115,6 @@ impl ConsensusModule {
             quorum_certified_txns: HashMap::new(),
             quorum_certified_claims: HashMap::new(),
             keypair: cfg.keypair,
-            certified_txns_filter: Bloom::new(10),
             quorum_driver: QuorumModule::new(quorum_module_config),
             sig_engine,
             node_config: cfg.node_config.clone(),
@@ -144,24 +140,12 @@ impl ConsensusModule {
 
     pub fn certify_block(
         &mut self,
-        block: Block,
-        _last_block_header: BlockHeader,
+        block_hash: String,
         prev_txn_root_hash: String,
-        //        next_txn_root_hash: String,
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
-        let block = block.clone();
-        let block_hash = block.hash();
-        let quorum_threshold = self.node_config.threshold_config.threshold;
-
-        if certs.len() as u16 <= quorum_threshold {
-            return Err(NodeError::Other(
-                "Not enough partial signatures to create a certificate".to_string(),
-            ));
-        }
-
         self.sig_engine
-            .verify_batch(&certs, &block.hash())
+            .verify_batch(&certs, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         //TODO: If Quorums are pending inauguration include inauguration info
@@ -181,14 +165,7 @@ impl ConsensusModule {
         certs: Vec<(NodeId, Signature)>,
     ) -> Result<Certificate> {
         let txn_trie_hash = block.header.txn_hash.clone();
-        let last_block_header = block.header.clone();
-
-        self.certify_block(
-            block.into(),
-            last_block_header,
-            txn_trie_hash.clone(),
-            certs,
-        )
+        self.certify_block(block.hash, txn_trie_hash.clone(), certs)
     }
 
     pub fn certify_convergence_block<R: Resolver<Proposal = ProposalBlock>>(
@@ -208,10 +185,11 @@ impl ConsensusModule {
             resolver,
             dag.clone(),
         )?;
-        self.certify_block(block.into(), last_block_header, prev_txn_root_hash, certs)
+        self.certify_block(block.hash, prev_txn_root_hash, certs)
     }
 
-    async fn sign_convergence_block(
+    //TODO: this function is never used.
+    async fn _sign_convergence_block(
         &mut self,
         block: ConvergenceBlock,
     ) -> Result<(String, PublicKey, Signature)> {
@@ -316,19 +294,19 @@ impl ConsensusModule {
         self.check_vote_is_valid(&quorum_id, &vote).await?;
         match self.votes_pool.entry(quorum_id.clone()) {
             Entry::Occupied(mut entry) => {
-                let mut map = entry.get_mut();
+                let map = entry.get_mut();
                 match map.entry(vote.txn.id()) {
                     Entry::Occupied(mut set) => {
                         set.get_mut().insert(vote.clone());
                     },
-                    Entry::Vacant(mut entry) => {
+                    Entry::Vacant(entry) => {
                         let mut set = HashSet::new();
                         set.insert(vote.clone());
                         entry.insert(set);
                     },
                 }
             },
-            Entry::Vacant(mut entry) => {
+            Entry::Vacant(entry) => {
                 let mut map = HashMap::new();
                 let mut set = HashSet::new();
                 set.insert(vote.clone());
@@ -339,7 +317,7 @@ impl ConsensusModule {
 
         self.check_vote_threshold_reached(&quorum_id, &vote)
             .await
-            .map_err(|err| NodeError::Other("threhold net yet reached".to_string()))?;
+            .map_err(|err| NodeError::Other(format!("threhold net yet reached, err: {}", err)))?;
 
         self.certify_transaction(&vote, &quorum_id).await
     }
@@ -390,7 +368,7 @@ impl ConsensusModule {
             let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
                 NodeError::Other(format!(
                     "unable to serialize txn: {} to verify vote signature. err: {}",
-                    &vote.txn.digest(),
+                    &vote.txn.id(),
                     err
                 ))
             })?;
@@ -398,8 +376,9 @@ impl ConsensusModule {
                 .verify_batch(&batch_sigs, &data)
                 .map_err(|err| {
                     NodeError::Other(format!(
-                        "unable to batch verify vote signatures for txn: {}",
-                        &vote.txn.id().clone()
+                        "unable to batch verify vote signatures for txn: {}, err: {}",
+                        &vote.txn.id().clone(),
+                        err
                     ))
                 })?;
 
@@ -417,8 +396,6 @@ impl ConsensusModule {
         set: &HashSet<Vote>,
         quorum_members: QuorumData,
     ) -> bool {
-        //dbg!(set.len());
-        //dbg!(quorum_members.members.len());
         set.len() >= (quorum_members.members.len() as f64 * VALIDATION_THRESHOLD) as usize
     }
 
@@ -470,15 +447,16 @@ impl ConsensusModule {
             .is_farmer_quorum_member(quorum_id, &voter)
             .map_err(|err| {
                 NodeError::Other(format!(
-                    "node {} is not a farmer quorum member",
-                    voter.clone()
+                    "node {} is not a farmer quorum member, err: {}",
+                    voter.clone(),
+                    err
                 ))
             })?;
 
         let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
             NodeError::Other(format!(
                 "unable to serialize txn: {} to verify vote signature. err: {}",
-                &vote.txn.digest(),
+                &vote.txn.id(),
                 err
             ))
         })?;
@@ -486,14 +464,16 @@ impl ConsensusModule {
             .verify(&voter, &vote.signature, &data)
             .map_err(|err| {
                 NodeError::Other(format!(
-                    "Unable to verify signature of {} on transaction {}",
+                    "Unable to verify signature of {} on transaction {}, err: {}",
                     voter.clone(),
-                    vote.txn.id().clone()
+                    vote.txn.id().clone(),
+                    err
                 ))
             })
     }
 
-    fn validate_single_transaction(
+    //TODO: this funciton is never used.
+    fn _validate_single_transaction(
         &mut self,
         txn: &TransactionKind,
         mempool_reader: MempoolReadHandleFactory,
@@ -574,7 +554,8 @@ impl ConsensusModule {
         Ok(())
     }
 
-    fn group_votes_by_validity(votes: &[Vote]) -> HashMap<bool, BTreeMap<NodeId, Signature>> {
+    //TODO: this funciton is never used.
+    fn _group_votes_by_validity(votes: &[Vote]) -> HashMap<bool, BTreeMap<NodeId, Signature>> {
         let mut vote_shares: HashMap<bool, BTreeMap<NodeId, Signature>> = HashMap::new();
 
         for v in votes.iter() {

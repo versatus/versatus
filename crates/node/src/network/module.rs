@@ -5,24 +5,17 @@ use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
-use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote,
-};
+use events::{AssignedQuorumMembership, EventPublisher, Vote};
 use hbbft::sync_key_gen::{Ack, Part};
-use kademlia_dht::{Key, Node as KademliaNode, NodeData};
+use kademlia_dht::{Node as KademliaNode, NodeData};
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
 use telemetry::info;
-use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
-use tracing::Subscriber;
-use utils::payload::digest_data_to_bytes;
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use theater::{ActorId, ActorState};
+use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::Claim;
 
 use super::NetworkEvent;
-use crate::{
-    network::DyswarmHandler, result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle,
-    DEFAULT_ERASURE_COUNT,
-};
+use crate::{network::DyswarmHandler, result::Result, NodeError, DEFAULT_ERASURE_COUNT};
 
 // TODO: change these magic numbers when retrieving the closest peers to a dynamically sized
 // network members count such that broadcast can happen across the whole network
@@ -30,7 +23,7 @@ use crate::{
 #[derive(Debug)]
 pub struct NetworkModule {
     pub(crate) id: ActorId,
-    pub(crate) node_config: NodeConfig,
+    pub(crate) _node_config: NodeConfig,
     pub(crate) node_id: NodeId,
     pub(crate) node_type: NodeType,
     pub(crate) status: ActorState,
@@ -39,10 +32,10 @@ pub struct NetworkModule {
     pub(crate) kademlia_node: KademliaNode,
     pub(crate) udp_gossip_addr: SocketAddr,
     pub(crate) raptorq_gossip_addr: SocketAddr,
-    pub(crate) kademlia_liveness_addr: SocketAddr,
-    pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
+    pub(crate) _kademlia_liveness_addr: SocketAddr,
+    pub(crate) _dyswarm_server_handle: dyswarm::server::ServerHandle,
     pub(crate) dyswarm_client: dyswarm::client::Client,
-    pub(crate) membership_config: Option<QuorumMembershipConfig>,
+    pub(crate) _membership_config: Option<QuorumMembershipConfig>,
     pub(crate) validator_public_key: PublicKey,
 }
 
@@ -109,17 +102,17 @@ impl NetworkModule {
             node_id: config.node_id.clone(),
             node_type: config.node_type,
             status: ActorState::Stopped,
-            node_config: config.node_config.clone(),
+            _node_config: config.node_config.clone(),
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
             is_bootstrap: config.bootstrap_node_config.is_none(),
             kademlia_node,
-            kademlia_liveness_addr: config.kademlia_liveness_addr,
+            _kademlia_liveness_addr: config.kademlia_liveness_addr,
             udp_gossip_addr: config.udp_gossip_addr,
             raptorq_gossip_addr: config.raptorq_gossip_addr,
-            dyswarm_server_handle,
+            _dyswarm_server_handle: dyswarm_server_handle,
             dyswarm_client,
-            membership_config: config.membership_config.clone(),
+            _membership_config: config.membership_config.clone(),
             validator_public_key: config.validator_public_key,
         };
 
@@ -245,6 +238,38 @@ impl NetworkModule {
         if let Err(err) = self.dyswarm_client.broadcast(args).await {
             telemetry::warn!("Failed to broadcast join intent: {err}");
         }
+
+        Ok(())
+    }
+
+    pub(crate) async fn notify_quorum_membership_assignments(
+        &mut self,
+        assignments: Vec<AssignedQuorumMembership>,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            // TODO: fix this hardcoded peer count
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let socket_address = closest_nodes
+            .iter()
+            .map(|node| node.udp_gossip_addr)
+            .collect();
+
+        self.dyswarm_client.add_peers(socket_address).await?;
+
+        let message = dyswarm::types::Message::new(
+            NetworkEvent::QuorumMembershipAssigmentsCreated(assignments),
+        );
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: 0,
+            })
+            .await?;
 
         Ok(())
     }
@@ -416,6 +441,7 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
         let message =
             dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
         self.dyswarm_client

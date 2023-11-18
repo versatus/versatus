@@ -12,9 +12,9 @@ use bulldag::graph::BullDag;
 use events::{EventPublisher, Vote};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round};
+use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
 use ritelinked::LinkedHashMap;
-use sha2::{Digest, Sha256};
+use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
 use std::{
     collections::HashMap,
@@ -23,20 +23,12 @@ use std::{
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
 use tokio::task::JoinHandle;
-use utils::{create_payload, payload::digest_data_to_bytes};
+use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
     account::{Account, UpdateArgs},
     claim::Claim,
-    transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, Token, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
-    },
-};
-
-use secp256k1::{
-    hashes::{sha256 as s256, Hash},
-    Message,
+    transactions::{TransactionDigest, TransactionKind},
 };
 
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
@@ -149,6 +141,16 @@ impl NodeRuntime {
             }
         }
         false
+    }
+
+    pub fn certified_genesis_block_exists_within_dag(&self, block_hash: String) -> Result<bool> {
+        let guard = self.state_driver.dag.read()?;
+        Ok(guard.get_vertex(block_hash).is_some_and(|vertex| {
+            if let Block::Genesis { block } = vertex.get_data() {
+                return block.certificate.is_some();
+            }
+            false
+        }))
     }
 
     pub fn config_ref(&self) -> &NodeConfig {
@@ -321,15 +323,31 @@ impl NodeRuntime {
         secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes())
     }
 
-    pub fn certify_genesis_block(&mut self, genesis: GenesisBlock) -> Result<Certificate> {
+    // TODO: simplify logic to be under handle_harvester_signature_received
+    pub fn certify_genesis_block(
+        &mut self,
+        genesis: GenesisBlock,
+        node_id: String,
+        sig: Signature,
+    ) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
-        let certs = self.state_driver.dag.check_certificate_threshold_reached(
-            &genesis.hash,
-            &self.consensus_driver.sig_engine,
-        )?;
+        self.consensus_driver
+            .sig_engine
+            .verify(&node_id, &sig, &genesis.hash)
+            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let set = self
+            .state_driver
+            .dag
+            .add_signer_to_block(
+                genesis.hash.clone(),
+                sig,
+                node_id,
+                &self.consensus_driver.sig_engine,
+            )
+            .map_err(|err| NodeError::Other(err.to_string()))?;
         let certificate = self
             .consensus_driver
-            .certify_genesis_block(genesis, certs.into_iter().collect())?;
+            .certify_genesis_block(genesis, set.into_iter().collect())?;
 
         Ok(certificate)
     }
@@ -357,9 +375,10 @@ impl NodeRuntime {
             .map(|from| (from.hash, from.clone()))
             .collect();
 
+        //TODO: variable _cert is not being used.
         let txns_list: LinkedHashMap<TransactionDigest, TransactionKind> = txns
             .into_iter()
-            .map(|(digest, (txn, cert))| {
+            .map(|(digest, (txn, _cert))| {
                 //                if let Err(err) = self
                 //                    .consensus_driver
                 //                    .certified_txns_filter
@@ -422,19 +441,19 @@ impl NodeRuntime {
         self.state_driver.state_root_hash()
     }
 
-    pub fn state_snapshot(&self) -> HashMap<Address, Account> {
+    pub fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
         let handle = self.state_driver.read_handle();
-        handle.state_store_values()
+        Ok(handle.state_store_values()?)
     }
 
-    pub fn transactions_snapshot(&self) -> HashMap<TransactionDigest, TransactionKind> {
+    pub fn transactions_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         let handle = self.state_driver.read_handle();
-        handle.transaction_store_values()
+        Ok(handle.transaction_store_values()?)
     }
 
-    pub fn claims_snapshot(&self) -> HashMap<NodeId, Claim> {
+    pub fn claims_snapshot(&self) -> Result<HashMap<NodeId, Claim>> {
         let handle = self.state_driver.read_handle();
-        handle.claim_store_values()
+        Ok(handle.claim_store_values()?)
     }
 
     async fn _get_transaction_by_id(

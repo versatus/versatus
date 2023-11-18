@@ -1,8 +1,8 @@
 pub mod block;
 pub mod convergence_block;
+pub mod error;
 pub mod genesis;
 pub mod header;
-pub mod invalid;
 pub mod proposal_block;
 mod types;
 

@@ -3,7 +3,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use block::{Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, ProposalBlock};
+use block::{
+    Block, BlockHash, Certificate, ClaimHash, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -66,6 +68,17 @@ impl StateManager {
         }
     }
 
+    pub fn append_genesis(
+        &mut self,
+        genesis_block: &GenesisBlock,
+    ) -> GraphResult<ApplyBlockResult> {
+        self.dag.append_genesis(genesis_block)?;
+        self.apply_block(Block::Genesis {
+            block: genesis_block.to_owned(),
+        })
+        .map_err(|err| GraphError::Other(format!("{err:?}")))
+    }
+
     pub fn append_convergence(
         &mut self,
         convergence: &ConvergenceBlock,
@@ -108,6 +121,15 @@ impl StateManager {
     ) -> GraphResult<Option<ConvergenceBlock>> {
         self.dag
             .append_certificate_to_convergence_block(certificate)
+    }
+
+    pub fn append_certificate_to_genesis_block(
+        &mut self,
+        block_hash: &str,
+        certificate: &Certificate,
+    ) -> GraphResult<Option<GenesisBlock>> {
+        self.dag
+            .append_certificate_to_genesis_block(block_hash, certificate)
     }
 
     pub fn export_state(&self) {
@@ -437,6 +459,7 @@ impl StateManager {
             .claim_store_factory()
             .handle()
             .entries()
+            .map_err(|err| NodeError::Other(err.to_string()))?
             .clone()
             .into_iter()
             .filter(|(_, claim)| claim_hashes.contains(&claim.hash))
@@ -450,6 +473,7 @@ impl StateManager {
             .claim_store_factory()
             .handle()
             .entries()
+            .map_err(|err| NodeError::Other(err.to_string()))?
             .clone()
             .into_iter()
             .filter(|(_, claim)| &claim.address == address)
@@ -507,7 +531,7 @@ impl StateReader for VrrbDbReadHandle {
     /// Get a transaction from state
     async fn get_transaction(
         &self,
-        transaction_digest: TransactionDigest,
+        _transaction_digest: TransactionDigest,
     ) -> Result<TransactionKind> {
         todo!()
     }
@@ -515,12 +539,12 @@ impl StateReader for VrrbDbReadHandle {
     /// List a group of transactions
     async fn list_transactions(
         &self,
-        digests: Vec<TransactionDigest>,
+        _digests: Vec<TransactionDigest>,
     ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
         todo!()
     }
 
-    async fn get_account(&self, address: Address) -> Result<Account> {
+    async fn get_account(&self, _address: Address) -> Result<Account> {
         todo!()
     }
 
@@ -544,7 +568,7 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
+    async fn get_claims(&self, _claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
         todo!()
     }
 
@@ -552,15 +576,25 @@ impl StateReader for VrrbDbReadHandle {
         todo!()
     }
 
-    fn state_store_values(&self) -> HashMap<Address, Account> {
-        self.state_store_values()
+    fn state_store_values(&self) -> Result<HashMap<Address, Account>> {
+        let values = self
+            .state_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read state: {err}")))?;
+
+        Ok(values)
     }
 
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
-        self.transaction_store_values()
+    fn transaction_store_values(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
+        let values = self
+            .transaction_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read transactions: {err}")))?;
+        Ok(values)
     }
 
-    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        self.claim_store_values()
+    fn claim_store_values(&self) -> Result<HashMap<NodeId, Claim>> {
+        let values = self
+            .claim_store_values()
+            .map_err(|err| StorageError::Other(format!("failed to read claims: {err}")))?;
+        Ok(values)
     }
 }

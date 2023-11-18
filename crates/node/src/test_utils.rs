@@ -22,8 +22,8 @@ use crate::{
 use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{
-    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, RawSignature,
-    Round, Signature,
+    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, Round,
+    Signature,
 };
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
@@ -40,8 +40,8 @@ use vrrb_core::{
     claim::Claim,
     keypair::{KeyPair, Keypair},
     transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
-        TransactionDigest, TransactionKind, Transfer,
+        generate_transfer_digest_vec, NewTransferArgs, Transaction, TransactionDigest,
+        TransactionKind, Transfer,
     },
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
@@ -92,7 +92,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
 #[deprecated]
 pub fn create_mock_full_node_config_with_bootstrap(
-    bootstrap_node_addresses: Vec<SocketAddr>,
+    _bootstrap_node_addresses: Vec<SocketAddr>,
 ) -> NodeConfig {
     create_mock_full_node_config()
 }
@@ -178,7 +178,7 @@ pub fn produce_proposal_blocks(
     accounts: Vec<(Address, Option<Account>)>,
     n: usize,
     ntx: usize,
-    mut sig_engine: SignerEngine,
+    sig_engine: SignerEngine,
 ) -> Vec<ProposalBlock> {
     (0..n)
         .map(|_| {
@@ -216,7 +216,7 @@ pub fn produce_proposal_blocks(
                 .map(|claim| (claim.hash, claim))
                 .collect();
 
-            let keypair = Keypair::random();
+            let _keypair = Keypair::random();
 
             ProposalBlock::build(
                 last_block_hash.clone(),
@@ -321,13 +321,14 @@ pub fn create_txn_from_accounts(
     txn
 }
 
+//TODO: sk1 & pk2 are not being used.
 pub fn create_txn_from_accounts_invalid_signature(
     sender: (Address, Option<Account>),
     receiver: Address,
     validators: Vec<(String, bool)>,
 ) -> TransactionKind {
-    let (sk1, pk1) = create_keypair();
-    let (sk2, pk2) = create_keypair();
+    let (_sk1, pk1) = create_keypair();
+    let (sk2, _pk2) = create_keypair();
     let saddr = sender.0.clone();
     let raddr = receiver;
     let amount = 100u128.pow(2);
@@ -456,7 +457,6 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
-    let farmer_count = n * 2 / total_elements;
     let harvester_count = n * 2 / total_elements;
     let miner_count = n * 4 / total_elements;
 
@@ -501,124 +501,28 @@ pub fn create_mock_transaction_args(n: usize) -> NewTransferArgs {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct MockStateStore {}
-
-impl MockStateStore {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct MockStateReader {}
-
-impl MockStateReader {
-    pub fn new() -> Self {
-        MockStateReader {}
-    }
-}
-
-#[async_trait]
-impl StateReader for MockStateReader {
-    /// Returns a full list of all accounts within state
-    async fn state_snapshot(&self) -> Result<HashMap<Address, Account>> {
-        todo!()
-    }
-
-    /// Returns a full list of transactions pending to be confirmed
-    async fn mempool_snapshot(&self) -> Result<HashMap<TransactionDigest, TransactionKind>> {
-        todo!()
-    }
-
-    /// Get a transaction from state
-    async fn get_transaction(
-        &self,
-        transaction_digest: TransactionDigest,
-    ) -> Result<TransactionKind> {
-        todo!()
-    }
-
-    /// List a group of transactions
-    async fn list_transactions(
-        &self,
-        digests: Vec<TransactionDigest>,
-    ) -> Result<HashMap<TransactionDigest, TransactionKind>> {
-        todo!()
-    }
-
-    async fn get_account(&self, address: Address) -> Result<Account> {
-        todo!()
-    }
-
-    async fn get_round(&self) -> Result<Round> {
-        todo!()
-    }
-
-    async fn get_blocks(&self) -> Result<Vec<Block>> {
-        todo!()
-    }
-
-    async fn get_transaction_count(&self) -> Result<usize> {
-        todo!()
-    }
-
-    async fn get_claims_by_account_id(&self) -> Result<Vec<Claim>> {
-        todo!()
-    }
-
-    async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>> {
-        todo!()
-    }
-
-    async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims> {
-        todo!()
-    }
-
-    async fn get_last_block(&self) -> Result<Block> {
-        todo!()
-    }
-
-    fn state_store_values(&self) -> HashMap<Address, Account> {
-        todo!()
-    }
-
-    /// Returns a copy of all values stored within the state trie
-    fn transaction_store_values(&self) -> HashMap<TransactionDigest, TransactionKind> {
-        todo!()
-    }
-
-    fn claim_store_values(&self) -> HashMap<NodeId, Claim> {
-        todo!()
-    }
-}
-
-#[async_trait]
-impl DataStore<MockStateReader> for MockStateStore {
-    type Error = NodeError;
-
-    fn state_reader(&self) -> MockStateReader {
-        todo!()
-    }
-}
-
 /// Creates `n` Node instances that make up a network.
 pub async fn create_test_network(n: u16) -> Vec<Node> {
+    create_test_network_from_config(n, None).await
+}
+
+pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeConfig>) -> Vec<Node> {
     let validator_count = (n as f64 * 0.8).ceil() as usize;
     let miner_count = n as usize - validator_count;
 
     let mut nodes = vec![];
     let mut quorum_members = BTreeMap::new();
+    let mut keypairs = vec![];
 
     for i in 1..=n {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
         let kademlia_port: u16 = 13000 + i;
 
-        // let threshold_sk = ValidatorSecretKey::random();
-        // let validator_public_key = threshold_sk.public_key();
         let keypair = Keypair::random();
         let validator_public_key = keypair.miner_public_key_owned();
+
+        keypairs.push(keypair);
 
         let node_id = format!("node-{}", i);
 
@@ -638,6 +542,11 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         quorum_members.insert(node_id, member);
     }
 
+    let whitelisted_nodes = quorum_members
+        .values()
+        .cloned()
+        .collect::<Vec<QuorumMember>>();
+
     let bootstrap_quorum_config = BootstrapQuorumConfig {
         membership_config: QuorumMembershipConfig {
             quorum_members: quorum_members.clone(),
@@ -646,20 +555,43 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         genesis_transaction_threshold: (n / 2) as u64,
     };
 
+    // let mut config = if let Some(base_config) = base_config.clone() {
+    //     telemetry::info!("Using base config");
+    //     telemetry::info!("{:?}", base_config);
+    //     telemetry::info!("{:?}", create_mock_full_node_config());
+    //     base_config
+    // } else {
+    //     create_mock_full_node_config()
+    // };
+
     let mut config = create_mock_full_node_config();
+
     config.id = String::from("node-0");
 
     config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
 
+    config.whitelisted_nodes = whitelisted_nodes.clone();
+
     let node_0 = Node::start(config).await.unwrap();
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+
+    let additional_genesis_receivers = if let Some(base_config) = base_config.clone() {
+        if let Some(base_config) = base_config.bootstrap_config {
+            base_config.additional_genesis_receivers
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
         id: node_0.kademlia_peer_id(),
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
+        additional_genesis_receivers,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
@@ -675,12 +607,14 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         config.id = format!("node-{}", i);
+        config.keypair = keypairs.get(i - 1).unwrap().clone();
         config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.node_type = NodeType::Validator;
         config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
         config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
+        config.whitelisted_nodes = whitelisted_nodes.clone();
 
         let node = Node::start(config).await.unwrap();
         nodes.push(node);
@@ -693,12 +627,14 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         miner_config.id = format!("node-{}", i);
+        miner_config.keypair = keypairs.get(i - 1).unwrap().clone();
         miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
         miner_config.node_type = NodeType::Miner;
         miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
         miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
+        miner_config.whitelisted_nodes = whitelisted_nodes.clone();
 
         let miner_node = Node::start(miner_config).await.unwrap();
 
@@ -767,6 +703,7 @@ pub async fn create_node_runtime_network(
         udp_gossip_addr: addr,
         raptorq_gossip_addr: addr,
         kademlia_liveness_addr: addr,
+        additional_genesis_receivers: None,
     };
 
     bootstrap_node_config.udp_gossip_addr = node_0.config.udp_gossip_address;
@@ -971,7 +908,7 @@ pub async fn setup_network(
     HashMap<NodeId, NodeRuntime>, // validators
     HashMap<NodeId, NodeRuntime>, // Miners
 ) {
-    let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let (events_tx, _events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
     let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
 
@@ -1053,7 +990,7 @@ pub async fn setup_network(
         .unwrap();
     }
 
-    let mut validator_nodes = nodes
+    let validator_nodes = nodes
         .clone()
         .into_iter()
         .filter(|(_, node)| node.config.node_type == NodeType::Validator)
@@ -1123,6 +1060,7 @@ pub fn dummy_convergence_block() -> ConvergenceBlock {
     }
 }
 
+//TODO: account1.update_field & account2.update_field are not being used.
 pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
     let kp1 = Keypair::random();
     let address1 = Address::new(kp1.miner_kp.1);
@@ -1130,9 +1068,9 @@ pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> Proposa
     let address2 = Address::new(kp2.miner_kp.1);
     let mut account1 = Account::new(address1.clone());
     let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
+    let _ = account1.update_field(update_field.clone());
     let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
+    let _ = account2.update_field(update_field.clone());
     produce_proposal_blocks(
         "dummy_proposal_block".to_string(),
         vec![(address1, Some(account1)), (address2, Some(account2))],
@@ -1144,6 +1082,7 @@ pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> Proposa
     .unwrap()
 }
 
+//TODO: account1.update_field & account2.update_field are not being used.
 pub fn dummy_proposal_block_and_accounts(
     sig_engine: signer::engine::SignerEngine,
 ) -> ((Address, Account), (Address, Account), ProposalBlock) {
@@ -1153,9 +1092,9 @@ pub fn dummy_proposal_block_and_accounts(
     let address2 = Address::new(kp2.miner_kp.1);
     let mut account1 = Account::new(address1.clone());
     let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
+    let _ = account1.update_field(update_field.clone());
     let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
+    let _ = account2.update_field(update_field.clone());
     let proposal_block = produce_proposal_blocks(
         "dummy_proposal_block".to_string(),
         vec![

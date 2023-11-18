@@ -6,19 +6,19 @@ use std::str::FromStr;
 
 use crate::{ByteVec, PublicKey, SecretKey};
 
+pub type AddressBytes = [u8; 20];
+
 /// Represents the lower 20 bytes
-/// of a secp256k1 public key,
-/// hashed with sha256::digest
-//pub struct Address(PublicKey);
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
-pub struct Address(pub [u8; 20]);
+/// of a secp256k1 public key, hashed with sha256::digest
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Address(pub AddressBytes);
 
 impl Address {
     pub fn new(public_key: PublicKey) -> Self {
         Self::from(public_key)
     }
 
-    pub fn raw_address(&self) -> [u8; 20] {
+    pub fn raw_address(&self) -> AddressBytes {
         self.0
     }
 
@@ -29,11 +29,25 @@ impl Address {
     }
 }
 
+impl serde::Serialize for Address {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.to_string().serialize(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Address {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        // NOTE: only deserialization from string is supported
+        // TODO: figure out how to embed a custom error message here
+        Address::from_str(&String::deserialize(d)?).map_err(serde::de::Error::custom)
+    }
+}
+
 impl Default for Address {
     fn default() -> Self {
         // NOTE: should never panic as it's a valid string
         // TODO: impl default null public keys to avoid this call to expect
-        let pk = PublicKey::from_str("null-address").expect("cant create null address");
+        let pk = PublicKey::from_str("null-address").expect("can't create null address");
         Self::from(pk)
     }
 }
@@ -50,6 +64,7 @@ impl From<PublicKey> for Address {
         let pk_bytes = item.serialize_uncompressed();
         let apk_bytes = &pk_bytes[1..];
         hasher.update(apk_bytes);
+
         let hash = hasher.finalize();
         let address_hash_slice = hash[(hash.len() - 20)..].to_vec();
         let mut address_bytes = [0u8; 20];
@@ -60,15 +75,9 @@ impl From<PublicKey> for Address {
 
 impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let hex_address = format!(
-            "0x{}",
-            self.0
-                .iter()
-                .map(|b| { format!("{:02x}", b) })
-                .collect::<String>()
-        );
-
-        f.write_str(&hex_address)
+        // NOTE: does the same thing as before
+        let encoded = hex::encode(self.0);
+        write!(f, "0x{}", encoded)
     }
 }
 

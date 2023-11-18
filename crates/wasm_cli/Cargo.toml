@@ -9,6 +9,9 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+wasmer = { workspace = true }
+wasmer-wasix = { workspace = true }
+wasmer-wasix-types = { workspace = true }
 wasm_loader = { workspace = true }
 wasm_runtime = { workspace = true }
 telemetry = { workspace = true }
