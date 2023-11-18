@@ -131,13 +131,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::ConvergenceBlockPartialSignatureCreated {
-                block_hash,
-                public_key_share,
-                partial_signature,
-            } => {
-                // This is likely redundant
-            },
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
                 block_header,
@@ -170,7 +163,7 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::NewTxnCreated(txn) => {
                 let txn_hash = self
                     .state_driver
-                    .handle_new_txn_created(txn)
+                    .insert_txn_to_mempool(txn)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 self.events_tx
@@ -293,9 +286,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
-            Event::BlockAppended(block_hash) => {
-                // This is likely redundant
-            },
             Event::QuorumFormed => self
                 .handle_quorum_formed()
                 .await
@@ -315,9 +305,10 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
             },
+            //TODO: variable _quorum_threshold is not being used.
             Event::TransactionsValidated {
                 vote,
-                quorum_threshold,
+                quorum_threshold: _quorum_threshold,
             } => {
                 let em = EventMessage::new(
                     Some(NETWORK_TOPIC_STR.into()),

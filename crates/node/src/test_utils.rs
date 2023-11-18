@@ -40,8 +40,8 @@ use vrrb_core::{
     claim::Claim,
     keypair::{KeyPair, Keypair},
     transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, QuorumCertifiedTxn, Transaction,
-        TransactionDigest, TransactionKind, Transfer,
+        generate_transfer_digest_vec, NewTransferArgs, Transaction, TransactionDigest,
+        TransactionKind, Transfer,
     },
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
@@ -92,7 +92,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
 
 #[deprecated]
 pub fn create_mock_full_node_config_with_bootstrap(
-    bootstrap_node_addresses: Vec<SocketAddr>,
+    _bootstrap_node_addresses: Vec<SocketAddr>,
 ) -> NodeConfig {
     create_mock_full_node_config()
 }
@@ -178,7 +178,7 @@ pub fn produce_proposal_blocks(
     accounts: Vec<(Address, Option<Account>)>,
     n: usize,
     ntx: usize,
-    mut sig_engine: SignerEngine,
+    sig_engine: SignerEngine,
 ) -> Vec<ProposalBlock> {
     (0..n)
         .map(|_| {
@@ -216,7 +216,7 @@ pub fn produce_proposal_blocks(
                 .map(|claim| (claim.hash, claim))
                 .collect();
 
-            let keypair = Keypair::random();
+            let _keypair = Keypair::random();
 
             ProposalBlock::build(
                 last_block_hash.clone(),
@@ -321,13 +321,14 @@ pub fn create_txn_from_accounts(
     txn
 }
 
+//TODO: sk1 & pk2 are not being used.
 pub fn create_txn_from_accounts_invalid_signature(
     sender: (Address, Option<Account>),
     receiver: Address,
     validators: Vec<(String, bool)>,
 ) -> TransactionKind {
-    let (sk1, pk1) = create_keypair();
-    let (sk2, pk2) = create_keypair();
+    let (_sk1, pk1) = create_keypair();
+    let (sk2, _pk2) = create_keypair();
     let saddr = sender.0.clone();
     let raddr = receiver;
     let amount = 100u128.pow(2);
@@ -456,7 +457,6 @@ pub async fn send_data_over_quic(data: String, addr: SocketAddr) -> Result<()> {
 
 pub fn generate_nodes_pattern(n: usize) -> Vec<NodeType> {
     let total_elements = 8; // Sum of occurrences: 2 + 2 + 4
-    let farmer_count = n * 2 / total_elements;
     let harvester_count = n * 2 / total_elements;
     let miner_count = n * 4 / total_elements;
 
@@ -908,7 +908,7 @@ pub async fn setup_network(
     HashMap<NodeId, NodeRuntime>, // validators
     HashMap<NodeId, NodeRuntime>, // Miners
 ) {
-    let (events_tx, mut events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
+    let (events_tx, _events_rx) = tokio::sync::mpsc::channel(DEFAULT_BUFFER);
 
     let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
 
@@ -990,7 +990,7 @@ pub async fn setup_network(
         .unwrap();
     }
 
-    let mut validator_nodes = nodes
+    let validator_nodes = nodes
         .clone()
         .into_iter()
         .filter(|(_, node)| node.config.node_type == NodeType::Validator)
@@ -1060,6 +1060,7 @@ pub fn dummy_convergence_block() -> ConvergenceBlock {
     }
 }
 
+//TODO: account1.update_field & account2.update_field are not being used.
 pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> ProposalBlock {
     let kp1 = Keypair::random();
     let address1 = Address::new(kp1.miner_kp.1);
@@ -1067,9 +1068,9 @@ pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> Proposa
     let address2 = Address::new(kp2.miner_kp.1);
     let mut account1 = Account::new(address1.clone());
     let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
+    let _ = account1.update_field(update_field.clone());
     let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
+    let _ = account2.update_field(update_field.clone());
     produce_proposal_blocks(
         "dummy_proposal_block".to_string(),
         vec![(address1, Some(account1)), (address2, Some(account2))],
@@ -1081,6 +1082,7 @@ pub fn dummy_proposal_block(sig_engine: signer::engine::SignerEngine) -> Proposa
     .unwrap()
 }
 
+//TODO: account1.update_field & account2.update_field are not being used.
 pub fn dummy_proposal_block_and_accounts(
     sig_engine: signer::engine::SignerEngine,
 ) -> ((Address, Account), (Address, Account), ProposalBlock) {
@@ -1090,9 +1092,9 @@ pub fn dummy_proposal_block_and_accounts(
     let address2 = Address::new(kp2.miner_kp.1);
     let mut account1 = Account::new(address1.clone());
     let update_field = AccountField::Credits(100000);
-    account1.update_field(update_field.clone());
+    let _ = account1.update_field(update_field.clone());
     let mut account2 = Account::new(address2.clone());
-    account2.update_field(update_field.clone());
+    let _ = account2.update_field(update_field.clone());
     let proposal_block = produce_proposal_blocks(
         "dummy_proposal_block".to_string(),
         vec![
