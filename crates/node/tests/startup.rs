@@ -1,9 +1,6 @@
 use node::test_utils;
 use node::{
-    test_utils::{
-        create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap,
-        MockStateStore,
-    },
+    test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
     Node,
 };
 use primitives::node::NodeType;

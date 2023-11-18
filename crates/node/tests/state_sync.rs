@@ -1,7 +1,4 @@
-use node::{
-    test_utils::{create_mock_full_node_config, MockStateStore},
-    Node, NodeState, RuntimeModuleState,
-};
+use node::{test_utils::create_mock_full_node_config, Node, NodeState, RuntimeModuleState};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
 use vrrb_core::transactions::TransactionKind;
