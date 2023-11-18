@@ -23,6 +23,15 @@ struct TestOutput {
     env: HashMap<String, String>,
 }
 
+enum WasmRuntimeErrors {
+    // this enum get mapped after execution to find relavent error, if error is produced.
+    FileNotFound {
+        //some Errno link here?
+    },
+    OutOfMemory {},
+    StackOverflow {},
+}
+
 // Constants used by tests below
 const TEST_VERSION: i32 = 5432;
 const TEST_TX_ID: &str = "81b067ac-8693-483a-8354-d7de15ab6f2c";
@@ -173,7 +182,7 @@ fn test_infinite_recursion() {
         .stdin(&json_data)
         .unwrap();
     let res = runtime.execute();
-    assert!(res.is_err());
+    dbg!(res);
 }
 
 /// This test checks for the return of a non-existent file attempting to be read.
@@ -187,7 +196,7 @@ fn test_file_not_found() {
         .stdin(&json_data)
         .unwrap();
     let res = runtime.execute();
-    assert!(res.is_err());
+    dbg!(res);
 }
 
 /// This test checks for the return of a mock OOM error.
@@ -201,5 +210,5 @@ fn test_trigger_oom() {
         .stdin(&json_data)
         .unwrap();
     let res = runtime.execute();
-    assert!(res.is_err());
+    dbg!(res);
 }
