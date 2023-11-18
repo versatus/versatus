@@ -79,7 +79,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_assign_quorum_memberships_to_available_nodes() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (node_0, farmers, harvesters, miners) = setup_network(8).await;
 
         assert_eq!(farmers.len(), 4);
         assert_eq!(harvesters.len(), 2);
@@ -142,7 +142,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn miner_node_runtime_can_mine_genesis_block() {
-        let (mut node_0, farmers, harvesters, mut miners) = setup_network(8).await;
+        let (node_0, farmers, harvesters, mut miners) = setup_network(8).await;
 
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
@@ -307,7 +307,7 @@ mod tests {
             .unwrap();
 
         for (_, harvester) in harvesters.iter_mut() {
-            let mut sig_engine = harvester.consensus_driver.sig_engine.clone();
+            let sig_engine = harvester.consensus_driver.sig_engine.clone();
             let proposal_block = harvester
                 .mine_proposal_block(
                     genesis_block.hash.clone(),
@@ -1136,7 +1136,7 @@ mod tests {
         let _ = sender_account.update_field(update_field);
         let account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
 
-        let mut txn = create_txn_from_accounts(
+        let txn = create_txn_from_accounts(
             (sender_address.clone(), Some(sender_account.clone())),
             receiver_address,
             vec![],

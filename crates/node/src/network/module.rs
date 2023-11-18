@@ -67,7 +67,7 @@ pub struct NetworkModuleConfig {
 
     pub node_config: NodeConfig,
 }
-
+#[allow(dead_code)] //TODO: pub method `notify_quorum_membership_assignment` not being used.
 impl NetworkModule {
     pub async fn new(config: NetworkModuleConfig) -> Result<Self> {
         let mut config = config.clone();
@@ -274,6 +274,7 @@ impl NetworkModule {
         Ok(())
     }
 
+    //TODO: this method is never used.
     pub(crate) async fn notify_quorum_membership_assignment(
         &mut self,
         assigned_membership: AssignedQuorumMembership,
