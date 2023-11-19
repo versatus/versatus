@@ -67,7 +67,7 @@ pub struct NetworkModuleConfig {
 
     pub node_config: NodeConfig,
 }
-//TODO: pub method `notify_quorum_membership_assignment` not being used.
+
 impl NetworkModule {
     pub async fn new(config: NetworkModuleConfig) -> Result<Self> {
         let mut config = config.clone();
@@ -269,36 +269,6 @@ impl NetworkModule {
                 message,
                 erasure_count: 0,
             })
-            .await?;
-
-        Ok(())
-    }
-
-    //TODO: this method is never used.
-    pub(crate) async fn _notify_quorum_membership_assignment(
-        &mut self,
-        assigned_membership: AssignedQuorumMembership,
-    ) -> Result<()> {
-        let closest_nodes = self
-            .node_ref()
-            .get_routing_table()
-            .get_closest_nodes(&self.node_ref().node_data().id, 8);
-
-        let found_peer = closest_nodes
-            .iter()
-            .find(|node| node.id == assigned_membership.kademlia_peer_id)
-            .ok_or(NodeError::Other(
-                "Could not find peer in routing table".to_string(),
-            ))?;
-
-        let addr = found_peer.udp_gossip_addr;
-
-        let message = dyswarm::types::Message::new(NetworkEvent::AssignmentToQuorumCreated {
-            assigned_membership,
-        });
-
-        self.dyswarm_client
-            .send_data_via_quic(message, addr)
             .await?;
 
         Ok(())
