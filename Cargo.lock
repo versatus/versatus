@@ -3139,6 +3139,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "internal_rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "service_config",
+ "tokio",
+]
+
+[[package]]
 name = "io-lifetimes"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"

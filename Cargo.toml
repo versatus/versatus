@@ -68,6 +68,7 @@ members = [
     "crates/consensus/vrrb_vrf",
     "crates/vrrb_core",
     "crates/cli",
+    "crates/internal_rpc",
     "crates/vrrb_config",
     "crates/vrrb_rpc",
     "crates/block",
