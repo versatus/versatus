@@ -7,29 +7,21 @@ use std::{
     time::Duration,
 };
 
-use async_trait::async_trait;
 use block::{
-    header::BlockHeader, Block, BlockHash, ClaimHash, ConvergenceBlock, GenesisBlock, InnerBlock,
+    header::BlockHeader, Block, BlockHash, ConvergenceBlock, GenesisBlock, InnerBlock,
     ProposalBlock,
 };
 use bulldag::{graph::BullDag, vertex::Vertex};
 use quorum::{election::Election, quorum::Quorum};
 
-use crate::{
-    data_store::DataStore, network::NetworkEvent, node_runtime::NodeRuntime,
-    state_reader::StateReader, Node, NodeError, Result,
-};
+use crate::{network::NetworkEvent, node_runtime::NodeRuntime, Node, Result};
 use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
-use primitives::{
-    generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind, Round,
-    Signature,
-};
+use primitives::{generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind};
 use rand::{seq::SliceRandom, thread_rng};
 use secp256k1::{Message, PublicKey, SecretKey};
 use sha256::digest;
 use signer::engine::SignerEngine;
-use storage::vrrbdb::Claims;
 use uuid::Uuid;
 use vrrb_config::{
     BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,

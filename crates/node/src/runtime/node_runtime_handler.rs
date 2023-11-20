@@ -57,7 +57,7 @@ impl Handler<EventMessage> for NodeRuntime {
                         .await
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
-            },
+            }
             Event::QuorumMembershipAssigmentsCreated(assignments) => {
                 self.handle_quorum_membership_assigments_created(assignments)?;
 
@@ -76,9 +76,9 @@ impl Handler<EventMessage> for NodeRuntime {
                             .collect();
 
                         //add the addresses from config.bootstrap_config.additional_genesis_receivers to the genesis_receivers list
-                        if let (Some(bootstrap_config)) = (&self.config.bootstrap_config) {
-                            if let (Some(additional_genesis_receivers)) =
-                                (&bootstrap_config.additional_genesis_receivers)
+                        if let Some(bootstrap_config) = &self.config.bootstrap_config {
+                            if let Some(additional_genesis_receivers) =
+                                &bootstrap_config.additional_genesis_receivers
                             {
                                 for receiver in additional_genesis_receivers {
                                     genesis_receivers.push(GenesisReceiver::new(receiver.clone()));
@@ -96,14 +96,14 @@ impl Handler<EventMessage> for NodeRuntime {
                             .map_err(|err| TheaterError::Other(err.to_string()))?;
                     }
                 }
-            },
+            }
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 self.handle_quorum_membership_assigment_created(assigned_membership.clone())?;
-            },
+            }
             Event::QuorumElectionStarted(header) => {
                 self.handle_quorum_election_started(header)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::MinerElectionStarted(header) => {
                 let claims = self
                     .state_driver
@@ -130,7 +130,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
                 block_header,
@@ -143,7 +143,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 )
                 .await
                 .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::SignConvergenceBlock(block) => {
                 let sig = self
                     .handle_sign_convergence_block(block.clone())
@@ -159,7 +159,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(Event::ConvergenceBlockPartialSignComplete(partial_sig).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::NewTxnCreated(txn) => {
                 let txn_hash = self
                     .state_driver
@@ -170,20 +170,20 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(Event::TxnAddedToMempool(txn_hash.clone()).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
 
             Event::TxnValidated(txn) => {
                 self.state_driver.handle_transaction_validated(txn).await?;
-            },
+            }
             Event::CreateAccountRequested((address, account_bytes)) => {
                 // I think we can get rid of this, as we now add accounts
                 // when they are a receiver of a transaction
                 self.handle_create_account_requested(address.clone(), account_bytes)?;
-            },
+            }
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 todo!()
                 // This can occur as a result of block application
-            },
+            }
             Event::UpdateState(block) => {
                 if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
                     telemetry::error!("error updating state: {}", err);
@@ -193,7 +193,7 @@ impl Handler<EventMessage> for NodeRuntime {
                         .await
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
-            },
+            }
             Event::GenesisMinerElected { genesis_receivers } => {
                 let genesis_rewards = self
                     .distribute_genesis_reward(genesis_receivers)
@@ -212,7 +212,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(event)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::BuildProposalBlock(block) => {
                 let proposal_block = self
                     .handle_build_proposal_block_requested(block)
@@ -223,12 +223,12 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(Event::BroadcastProposalBlock(proposal_block).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
                 // Claim should be added to pending claims
                 // Event to validate claim should be created
-            },
+            }
             Event::BlockCreated(mut block) => {
                 let node_id = self.config_ref().id.clone();
                 telemetry::info!(
@@ -255,12 +255,12 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
                 self.handle_harvester_signature_received(block_hash, node_id, sig)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::BlockCertificateCreated(certificate) => {
                 let confirmed_block = self
                     .handle_convergence_block_certificate_created(certificate)
@@ -271,7 +271,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(Event::UpdateState(confirmed_block).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::BlockConfirmed(cert_bytes) => {
                 let certificate: Certificate = bincode::deserialize(&cert_bytes)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
@@ -285,7 +285,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(Event::UpdateState(confirmed_block).into())
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::QuorumFormed => self
                 .handle_quorum_formed()
                 .await
@@ -304,7 +304,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             //TODO: variable _quorum_threshold is not being used.
             Event::TransactionsValidated {
                 vote,
@@ -319,9 +319,9 @@ impl Handler<EventMessage> for NodeRuntime {
                     .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
-            Event::NoOp => {},
-            _ => {},
+            }
+            Event::NoOp => {}
+            _ => {}
         }
 
         Ok(ActorState::Running)
