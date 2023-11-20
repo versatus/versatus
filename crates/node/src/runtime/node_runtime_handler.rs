@@ -174,7 +174,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 if self
                     .state_driver
                     .read_handle()
-                    .transaction_store_values()
+                    .transaction_store_values().unwrap_or_default()
                     .contains_key(&txn.id())
                 {
                     info!("Transaction already in mempool");
@@ -330,19 +330,8 @@ impl Handler<EventMessage> for NodeRuntime {
                 //check to see if txn is already in mempool, return if present
                 info!("Handling TxnAddedToMempool event in node_runtime_handler: {:?}", txn_hash);
 
-                if self
-                    .state_driver
-                    .read_handle()
-                    .transaction_store_values()
-                    .contains_key(&txn_hash)
-                {
-                    info!("Transaction already in mempool");
-                    return Ok(ActorState::Running);
-                }
-
-                info!("Transaction not in mempool, adding to mempool");
                 let vote = self
-                    .handle_txn_added_to_mempool(txn_hash.clone())
+                    .handle_txn_added_to_mempool(txn_hash)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Sending BroadcastTransactionVote event to network");

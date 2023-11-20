@@ -287,7 +287,9 @@ impl ConsensusModule {
     }
 
     pub async fn handle_vote_received(&mut self, vote: Vote) -> Result<()> {
+        info!("handle_vote_received: {}", vote.txn.id());
         self.is_harvester()?;
+        info!("Vote is from node: {}", vote.farmer_node_id.clone());
         let quorum_id = self
             .get_node_quorum_id(&vote.farmer_node_id.clone())
             .ok_or(NodeError::Other(format!(
@@ -319,7 +321,7 @@ impl ConsensusModule {
             },
         }
 
-        info!("Vote received for transaction: {}", vote.txn.id());
+        info!("Checked vote validity for transaction: {}", vote.txn.id());
 
         self.check_vote_threshold_reached(&quorum_id, &vote)
             .await
