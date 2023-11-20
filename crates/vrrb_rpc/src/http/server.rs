@@ -11,8 +11,7 @@ use tokio::sync::broadcast::Receiver;
 
 use crate::{
     http::{router::create_router, HttpApiRouterConfig, HttpApiServerConfig},
-    ApiError,
-    Result,
+    ApiError, Result,
 };
 
 /// A JSON-RPC API layer for VRRB nodes.

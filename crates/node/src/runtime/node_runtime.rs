@@ -376,9 +376,10 @@ impl NodeRuntime {
             .map(|from| (from.hash, from.clone()))
             .collect();
 
+        //TODO: variable _cert is not being used.
         let txns_list: LinkedHashMap<TransactionDigest, TransactionKind> = txns
             .into_iter()
-            .map(|(digest, (txn, cert))| {
+            .map(|(digest, (txn, _cert))| {
                 //                if let Err(err) = self
                 //                    .consensus_driver
                 //                    .certified_txns_filter

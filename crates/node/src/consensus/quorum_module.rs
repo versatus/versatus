@@ -1,24 +1,21 @@
 use std::collections::{BTreeMap, HashMap};
 
-use async_trait::async_trait;
 use block::header::BlockHeader;
 use ethereum_types::U256;
-use events::{
-    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, PeerData,
-};
+use events::{AssignedQuorumMembership, PeerData};
 use primitives::{NodeId, NodeType, QuorumKind};
 use quorum::{
     election::Election,
     quorum::{Quorum, QuorumError},
 };
-use theater::{Actor, ActorId, ActorImpl, ActorState};
+use theater::{ActorId, ActorState};
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 #[derive(Debug, Clone)]
 pub struct QuorumModule {
-    pub(crate) id: ActorId,
-    pub(crate) status: ActorState,
+    pub(crate) _id: ActorId,
+    pub(crate) _status: ActorState,
     pub(crate) node_config: NodeConfig,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
     pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
@@ -59,8 +56,8 @@ impl QuorumModule {
         }
 
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
-            status: ActorState::Stopped,
+            _id: uuid::Uuid::new_v4().to_string(),
+            _status: ActorState::Stopped,
             membership_config: None,
             node_config: cfg.node_config.clone(),
             bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config.clone(),
@@ -69,7 +66,8 @@ impl QuorumModule {
     }
 
     /// Replaces the current quorum membership configuration to the given one.
-    pub fn reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
+    /// TODO: this function is never used.
+    pub fn _reconfigure_quorum_membership(&mut self, membership_config: QuorumMembershipConfig) {
         self.membership_config = Some(membership_config);
     }
 
@@ -203,7 +201,10 @@ impl QuorumModule {
         (claim.get_election_result(block_seed), claim.clone())
     }
 
-    pub(crate) fn get_winner(&self, election_results: &mut BTreeMap<U256, Claim>) -> (U256, Claim) {
+    pub(crate) fn _get_winner(
+        &self,
+        election_results: &mut BTreeMap<U256, Claim>,
+    ) -> (U256, Claim) {
         let mut iter = election_results.iter();
         let first: (U256, Claim);
         loop {
