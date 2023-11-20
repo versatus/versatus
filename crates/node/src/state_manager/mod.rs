@@ -80,7 +80,7 @@ mod tests {
         let dag: StateDag = Arc::new(RwLock::new(BullDag::new()));
 
         let keypair = KeyPair::random();
-        let mut sig_engine = SignerEngine::new(
+        let sig_engine = SignerEngine::new(
             keypair.get_miner_public_key().clone(),
             keypair.get_miner_secret_key().clone(),
         );
