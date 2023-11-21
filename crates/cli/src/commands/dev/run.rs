@@ -1,18 +1,20 @@
 use config::{Config, ConfigError, File};
+use node::test_utils::create_test_network_from_config;
 use node::Node;
-use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH, Address};
+use primitives::{
+    Address, KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH,
+};
+use secp256k1::PublicKey;
 use serde::Deserialize;
 use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
+use std::str::FromStr;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-use std::str::FromStr;
-use secp256k1::PublicKey;
 use telemetry::{error, info};
 use utils::payload::digest_data_to_bytes;
 use uuid::Uuid;
-use node::test_utils::create_test_network_from_config;
 use vrrb_config::{BootstrapConfig, NodeConfig, QuorumMember};
 
 use crate::{
@@ -120,21 +122,22 @@ impl From<RunOpts> for NodeConfig {
             default_node_config.http_api_title.clone()
         };
 
-        let bootstrap_config = if let Some(additional_genesis_receivers) = opts.additional_genesis_receivers {
-            let additional_genesis_receivers: Vec<Address> = additional_genesis_receivers
-                .split(',')
-                .map(|s| Address::from_str(s).unwrap())
-                .collect::<Vec<Address>>();
+        let bootstrap_config =
+            if let Some(additional_genesis_receivers) = opts.additional_genesis_receivers {
+                let additional_genesis_receivers: Vec<Address> = additional_genesis_receivers
+                    .split(',')
+                    .map(|s| Address::from_str(s).unwrap())
+                    .collect::<Vec<Address>>();
 
-            let bootstrap_config = BootstrapConfig {
-                additional_genesis_receivers: Some(additional_genesis_receivers),
-                ..Default::default()
+                let bootstrap_config = BootstrapConfig {
+                    additional_genesis_receivers: Some(additional_genesis_receivers),
+                    ..Default::default()
+                };
+
+                Some(bootstrap_config)
+            } else {
+                default_node_config.bootstrap_config
             };
-
-            Some(bootstrap_config)
-        } else {
-            default_node_config.bootstrap_config
-        };
 
         Self {
             id: opts.id.unwrap_or(default_node_config.id),
