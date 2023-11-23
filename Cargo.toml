@@ -55,6 +55,7 @@ lazy_static = { workspace = true }
 wasmer = { workspace = true }
 metric_exporter = { workspace = true }
 wallet = { workspace = true }
+chrono = { workspace = true }
 
 [workspace]
 members = [

@@ -7472,6 +7472,7 @@ name = "versatus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap 3.2.25",
  "cli",
  "criterion 0.5.1",

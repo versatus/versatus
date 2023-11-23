@@ -188,32 +188,19 @@ impl NodeRuntime {
     }
 
     /// Sends an EventMessage to the network's event channel so it can send it over the wire to other nodes
-    pub async fn send_event_to_network(
-        &mut self,
-        event: Event,
-    ) -> std::result::Result<(), TheaterError> {
+    pub async fn send_event_to_network(&mut self, event: Event) -> Result<()> {
         self.send_event(NETWORK_TOPIC_STR, event).await
     }
 
     /// Sends an EventMessage to the node's event channel so it can handle it from the event loop
-    pub async fn send_event_to_self(
-        &mut self,
-        event: Event,
-    ) -> std::result::Result<(), TheaterError> {
+    pub async fn send_event_to_self(&mut self, event: Event) -> Result<()> {
         self.send_event(RUNTIME_TOPIC_STR, event).await
     }
 
-    async fn send_event(
-        &mut self,
-        topic: &str,
-        event: Event,
-    ) -> std::result::Result<(), TheaterError> {
+    async fn send_event(&mut self, topic: &str, event: Event) -> Result<()> {
         let message = EventMessage::new(Some(topic.into()), event);
 
-        self.events_tx
-            .send(message)
-            .await
-            .map_err(|err| TheaterError::Other(err.to_string()))?;
+        self.events_tx.send(message).await?;
 
         Ok(())
     }
@@ -264,6 +251,8 @@ impl NodeRuntime {
     }
 
     // TODO: This should be a const function
+    // TODO: rename to generate_genesis_reward_distributions to avoid confusing with the actual
+    // recording of the distributions
     pub fn distribute_genesis_reward(
         &self,
         receivers: Vec<GenesisReceiver>,

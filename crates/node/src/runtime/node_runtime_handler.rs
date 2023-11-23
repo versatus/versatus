@@ -6,9 +6,9 @@ use primitives::{
     Address, BlockPartialSignature, ConvergencePartialSig, NodeType, QuorumKind, NETWORK_TOPIC_STR,
     RUNTIME_TOPIC_STR,
 };
-use telemetry::info;
+use telemetry::{info, warn};
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_core::ownable;
+use vrrb_core::{ownable, transactions::Transaction};
 
 #[async_trait]
 impl Handler<EventMessage> for NodeRuntime {
@@ -26,6 +26,11 @@ impl Handler<EventMessage> for NodeRuntime {
 
     fn set_status(&mut self, actor_status: ActorState) {
         self.status = actor_status;
+    }
+
+    fn on_error(&self, err: TheaterError) {
+        dbg!(&err);
+        telemetry::error!("{}", err);
     }
 
     fn on_start(&self) {
@@ -115,12 +120,7 @@ impl Handler<EventMessage> for NodeRuntime {
                         .collect(),
                 };
 
-                let event = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), content);
-
-                self.events_tx
-                    .send(event)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_self(content).await?;
             },
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
                 self.handle_quorum_membership_assigment_created(assigned_membership.clone())?;
@@ -131,13 +131,9 @@ impl Handler<EventMessage> for NodeRuntime {
             // ==============================================================================================================
             //
             Event::GenesisMinerElected { genesis_receivers } => {
-                let genesis_rewards = self
-                    .distribute_genesis_reward(genesis_receivers)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let genesis_rewards = self.distribute_genesis_reward(genesis_receivers)?;
 
-                let block = self
-                    .mine_genesis_block(genesis_rewards)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let block = self.mine_genesis_block(genesis_rewards)?;
 
                 self.send_event_to_network(Event::BlockCreated(Block::Genesis {
                     block: block.clone(),
@@ -155,79 +151,15 @@ impl Handler<EventMessage> for NodeRuntime {
                     block.hash()
                 );
 
-                let next_event = self
-                    .handle_block_received(block)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let next_event = self.handle_block_received(block)?;
 
-                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), next_event);
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_network(next_event).await?;
             },
-            Event::GenesisBlockCertificateRequested {
-                genesis_block,
-                block_header,
-            } => {
-                //
-                // TODO: refactor other handlers to provide informative logs
-                let quorum_kind = self
-                    .quorum_membership()
-                    .ok_or(TheaterError::Other(format!(
-                        "No membership information found for node {}",
-                        &self.config.id
-                    )))?
-                    .quorum_kind;
-
-                if quorum_kind != QuorumKind::Harvester {
-                    telemetry::warn!(
-                        "Block certification requested, but node {} is not a harvester",
-                        &self.config.id
-                    );
-                    return Ok(ActorState::Running);
-                }
-
-                let certificate = self
-                    .certify_genesis_block(
-                        genesis_block.clone(),
-                        self.config.id.clone(),
-                        block_header.miner_signature,
-                    )
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                let em = EventMessage::new(
-                    Some(NETWORK_TOPIC_STR.into()),
-                    Event::GenesisBlockCertificateCreated(certificate),
-                );
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
-            Event::GenesisBlockCertificateCreated(certificate) => {
-                let block_hash = certificate.block_hash.clone();
-                let confirmed_block = self
-                    .handle_genesis_block_certificate_received(&block_hash, certificate)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                if let Err(err) = self.update_state(Block::from(confirmed_block.clone())) {
-                    telemetry::error!("error updating state: {}", err);
-                }
-
-                let em = EventMessage::new(
-                    Some(NETWORK_TOPIC_STR.into()),
-                    Event::StateUpdated(Block::from(confirmed_block)),
-                );
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            /// Triggered once a genesis block or convergence block makes it to state
+            // TODO: create a specific handler for this event
             Event::StateUpdated(block) => {
+                dbg!("state updated", block.hash());
+                //
                 // if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
                 //     telemetry::error!("error updating state: {}", err);
                 // } else {
@@ -247,6 +179,13 @@ impl Handler<EventMessage> for NodeRuntime {
                         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 }
             },
+            Event::ConvergenceBlockCertificateCreated(certificate) => {
+                self.handle_convergence_block_certificate_created(certificate)
+                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+            },
+            Event::ConvergenceBlockCertified(certified_block) => {
+                //
+            },
             //
             //
             //
@@ -262,50 +201,89 @@ impl Handler<EventMessage> for NodeRuntime {
             // FARMER HANDLERS
             // ==============================================================================================================
             //
+            // Event::NewTxnCreated(txn) => {
+            //     let txn_hash = self
+            //         .state_driver
+            //         .handle_new_txn_created(txn)
+            //         .map_err(|err| TheaterError::Other(err.to_string()))?;
+            //
+            //     self.events_tx
+            //         .send(Event::TxnAddedToMempool(txn_hash.clone()).into())
+            //         .await
+            //         .map_err(|err| TheaterError::Other(err.to_string()))?;
+            // },
+            //
+            //
             Event::NewTxnCreated(txn) => {
-                let txn_hash = self
-                    .state_driver
-                    .handle_new_txn_created(txn)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                self.events_tx
-                    .send(Event::TxnAddedToMempool(txn_hash.clone()).into())
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
-            Event::TxnAddedToMempool(txn_hash) => {
-                // if this txn exists on my mempool
-                //     return early
-                //
-                // if havent seen this txn bfore, broadcast it
-
-                let vote = self
-                    .handle_txn_added_to_mempool(txn_hash)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-
-                let em = EventMessage::new(
-                    Some(NETWORK_TOPIC_STR.into()),
-                    Event::BroadcastTransactionVote(vote),
+                info!(
+                    "Node {} received transaction: {}",
+                    self.id.clone(),
+                    txn.id().to_string(),
                 );
 
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let is_txn_in_mempool = self
+                    .state_driver
+                    .read_handle()
+                    .transaction_store_values()
+                    .unwrap_or_default()
+                    .contains_key(&txn.id());
+
+                // check for txn in mempool, return if present
+                if is_txn_in_mempool {
+                    warn!("Transaction {} already in mempool", txn.id().to_string());
+                    return Ok(ActorState::Running);
+                }
+
+                self.send_event_to_network(Event::NewTxnCreated(txn.clone()))
+                    .await?;
+
+                info!(
+                    "Transaction {} broadcasted to network",
+                    txn.id().to_string()
+                );
+
+                let txn_hash = self.state_driver.insert_txn_to_mempool(txn)?;
+
+                self.send_event_to_self(Event::TxnAddedToMempool(txn_hash.clone()))
+                    .await?;
+            },
+            Event::TxnAddedToMempool(txn_hash) => {
+                // check to see if txn is already in mempool, return if present
+                info!(
+                    "Node {} added transaction with hash {} to mempool",
+                    &self.id,
+                    txn_hash.digest_string()
+                );
+
+                let vote = self.handle_txn_added_to_mempool(txn_hash)?;
+
+                self.send_event_to_network(Event::TransactionVoteCreated(vote))
+                    .await?;
+            },
+            Event::TransactionVoteCreated(vote) => {
+                let txn_id = vote.txn.id();
+                info!(
+                    "Node {} received vote for {} from {}",
+                    self.config_ref().id,
+                    txn_id,
+                    vote.farmer_id
+                );
+
+                if let Err(err) = self.handle_vote_received(vote).await {
+                    telemetry::error!("failed to handle vote for {}: {}", txn_id, err);
+                }
             },
             Event::TxnValidated(txn) => {
                 self.state_driver.handle_transaction_validated(txn).await?;
             },
             Event::BuildProposalBlock(block) => {
-                let proposal_block = self
-                    .handle_build_proposal_block_requested(block)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let proposal_block = self.handle_build_proposal_block_requested(block).await?;
 
-                self.events_tx
-                    .send(Event::BroadcastProposalBlock(proposal_block).into())
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let evt = Event::BroadcastProposalBlock(proposal_block);
+
+                if let Err(err) = self.send_event_to_network(evt).await {
+                    telemetry::error!("failed to broadcast proposal block: {}", err);
+                }
             },
             //
             // ==============================================================================================================
@@ -313,8 +291,7 @@ impl Handler<EventMessage> for NodeRuntime {
             // ==============================================================================================================
             //
             Event::QuorumElectionStarted(header) => {
-                self.handle_quorum_election_started(header)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.handle_quorum_election_started(header)?;
             },
             Event::MinerElectionStarted(header) => {
                 let claims = self
@@ -325,8 +302,7 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let results = self
                     .consensus_driver
-                    .handle_miner_election_started(header, claims)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    .handle_miner_election_started(header, claims)?;
 
                 let winner = results
                     .clone()

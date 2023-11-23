@@ -47,19 +47,13 @@ impl Handler<EventMessage> for NetworkModule {
                 self.notify_quorum_membership_assignments(assigments)
                     .await?;
             },
-            Event::GenesisBlockCertificateRequested {
-                genesis_block,
-                block_header,
-            } => {
-                if let Err(err) = self
-                    .broadcast_genesis_block_certificate_request(genesis_block, block_header)
-                    .await
-                {
-                    telemetry::error!("Failed to broacast certificate request: {}", err);
-                }
+            Event::NewTxnCreated(txn) => {
+                info!("Broadcasting transaction to known peers");
+                self.broadcast_transaction(txn).await?;
             },
-            Event::GenesisBlockCertificateCreated(cert) => {
-                self.broadcast_genesis_block_certificate(cert).await?;
+            Event::TransactionVoteCreated(vote) => {
+                info!("Broadcasting transaction vote to network");
+                self.broadcast_transaction_vote(vote).await?;
             },
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
@@ -97,10 +91,6 @@ impl Handler<EventMessage> for NetworkModule {
             Event::BroadcastCertificate(cert) => {
                 info!("Broadcasting certificate to network");
                 self.broadcast_certificate(cert).await?;
-            },
-            Event::BroadcastTransactionVote(vote) => {
-                info!("Broadcasting transaction vote to network");
-                self.broadcast_transaction_vote(vote).await?;
             },
             Event::BlockCreated(block) => {
                 info!("Broadcasting block to network");

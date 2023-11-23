@@ -40,18 +40,6 @@ impl NodeRuntime {
             apply_result.state_root_hash_str(),
         );
 
-        // TODO: revisit later
-        if block.certificate.is_none() {
-            // if let Some(header) = self.state_driver.dag.last_confirmed_block_header() {
-            //     let event = Event::GenesisBlockCertificateRequested {
-            //         genesis_block: block.clone(),
-            //         block_header: header,
-            //     };
-            //
-            //     return Ok(event);
-            // }
-        }
-
         Ok(Event::StateUpdated(Block::from(block)))
     }
 
@@ -102,6 +90,10 @@ impl NodeRuntime {
             Block::Proposal { block } => self.handle_proposal_block_received(block),
             Block::Convergence { block } => self.handle_convergence_block_received(block),
         }
+    }
+
+    pub fn handle_state_updated(&mut self) -> Result<()> {
+        todo!()
     }
 
     pub async fn handle_harvester_signature_received(

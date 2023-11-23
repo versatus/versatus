@@ -10,7 +10,7 @@ use mempool::TxnRecord;
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
 use serde::{Deserialize, Serialize};
 use signer::engine::QuorumData;
-use vrrb_core::claim::Claim;
+use vrrb_core::{claim::Claim, transactions::TransactionKind};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 /// Represents data trasmitted over the VRRB network by nodes that participate
@@ -54,7 +54,7 @@ pub enum NetworkEvent {
     },
 
     BlockCreated(Block),
-
+    NewTxnCreated(TransactionKind),
     ForwardedTxn(Box<TxnRecord>),
 
     PartCommitmentCreated(NodeId, Part),
@@ -64,26 +64,21 @@ pub enum NetworkEvent {
         ack: Ack,
     },
 
-    GenesisBlockCertificateRequested {
-        genesis_block: GenesisBlock,
-        block_header: BlockHeader,
-    },
-
-    GenesisBlockCertificateCreated(Certificate),
-
     ConvergenceBlockCertificateCreated(Certificate),
     ConvergenceBlockCertificateRequested {
         convergence_block: ConvergenceBlock,
         block_header: BlockHeader,
     },
 
-    #[deprecated(
-        note = "prefer ConvergenceBlockCertificateCreated to stay consistent with Genesisblock events"
-    )]
+    #[deprecated(note = "prefer ConvergenceBlockCertificateCreated")]
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),
+
+    #[deprecated(note = "prefer TransactionVoteCreated")]
     BroadcastTransactionVote(Box<Vote>),
+    TransactionVoteCreated(Vote),
+
     Ping(NodeId),
 
     #[default]

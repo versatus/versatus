@@ -10,13 +10,15 @@ use events::{
 };
 use hbbft::sync_key_gen::{Ack, Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
-use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
+use primitives::{
+    ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey, RUNTIME_TOPIC_STR,
+};
 use telemetry::info;
 use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
-use vrrb_core::claim::Claim;
+use vrrb_core::{claim::Claim, transactions::TransactionKind};
 
 use super::NetworkEvent;
 use crate::{
@@ -237,6 +239,14 @@ impl NetworkModule {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn send_event_to_runtime(
+        &mut self,
+        evt: Event,
+    ) -> std::result::Result<(), NodeError> {
+        let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+        self.events_tx.send(em).await.map_err(NodeError::from)
     }
 
     pub async fn broadcast_join_intent(&mut self) -> Result<()> {
@@ -475,64 +485,20 @@ impl NetworkModule {
         Ok(())
     }
 
+    pub async fn broadcast_transaction(&mut self, txn: TransactionKind) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
+        self.broadcast_event_to_known_peers(NetworkEvent::NewTxnCreated(txn))
+            .await
+    }
+
     pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
         telemetry::info!("Broadcasting transaction vote to network");
-        let message =
-            dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
-
-        self.dyswarm_client
-            .broadcast(BroadcastArgs {
-                config: Default::default(),
-                message,
-                erasure_count: 0,
-            })
-            .await?;
-
-        Ok(())
+        self.broadcast_event_to_known_peers(NetworkEvent::TransactionVoteCreated(vote))
+            .await
     }
 
     pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
-        let closest_nodes = self
-            .node_ref()
-            .get_routing_table()
-            .get_closest_nodes(&self.node_ref().node_data().id, 8);
-
-        let socket_address = closest_nodes
-            .iter()
-            .map(|node| node.udp_gossip_addr)
-            .collect();
-
-        self.dyswarm_client.add_peers(socket_address).await?;
-
-        let message = dyswarm::types::Message::new(NetworkEvent::BlockCreated(block));
-
-        self.dyswarm_client
-            .broadcast(BroadcastArgs {
-                config: Default::default(),
-                message,
-                erasure_count: 0,
-            })
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn broadcast_genesis_block_certificate_request(
-        &mut self,
-        genesis_block: GenesisBlock,
-        block_header: BlockHeader,
-    ) -> Result<()> {
-        let nevent = NetworkEvent::GenesisBlockCertificateRequested {
-            genesis_block,
-            block_header,
-        };
-
-        self.broadcast_event_to_known_peers(nevent).await?;
-        Ok(())
-    }
-
-    pub async fn broadcast_genesis_block_certificate(&mut self, cert: Certificate) -> Result<()> {
-        let nevent = NetworkEvent::GenesisBlockCertificateCreated(cert);
-        self.broadcast_event_to_known_peers(nevent).await
+        self.broadcast_event_to_known_peers(NetworkEvent::BlockCreated(block))
+            .await
     }
 }
