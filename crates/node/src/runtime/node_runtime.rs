@@ -9,10 +9,13 @@ use block::{
     GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
-use events::{EventPublisher, Vote};
+use events::{Event, EventMessage, EventPublisher, Vote};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
+use primitives::{
+    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature, NETWORK_TOPIC_STR,
+    RUNTIME_TOPIC_STR,
+};
 use ritelinked::LinkedHashMap;
 use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
