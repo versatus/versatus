@@ -206,6 +206,24 @@ impl NodeRuntime {
         Ok(())
     }
 
+    /// Sends an EventMessage to the network's event channel so it can send it over the wire to other nodes
+    pub async fn send_event_to_network(&mut self, event: Event) -> Result<()> {
+        self.send_event(NETWORK_TOPIC_STR, event).await
+    }
+
+    /// Sends an EventMessage to the node's event channel so it can handle it from the event loop
+    pub async fn send_event_to_self(&mut self, event: Event) -> Result<()> {
+        self.send_event(RUNTIME_TOPIC_STR, event).await
+    }
+
+    async fn send_event(&mut self, topic: &str, event: Event) -> Result<()> {
+        let message = EventMessage::new(Some(topic.into()), event);
+
+        self.events_tx.send(message).await?;
+
+        Ok(())
+    }
+
     pub fn quorum_membership(&self) -> Option<QuorumMembershipConfig> {
         self.consensus_driver
             .quorum_driver
@@ -537,7 +555,7 @@ impl NodeRuntime {
                     Some(record) => Ok((record.txn.clone(), false)),
                     None => Err(NodeError::Other("transaction record not found".to_string())),
                 }
-            },
+            }
         }
     }
 

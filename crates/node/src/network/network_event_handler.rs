@@ -56,7 +56,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 });
 
                 self.send_event_to_network(evt).await?;
-            },
+            }
             NetworkEvent::ClaimCreated { node_id, claim } => {
                 telemetry::info!(
                     "Node ID {} received claim from {}: {}",
@@ -68,7 +68,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 let evt = Event::ClaimReceived(claim);
 
                 self.send_event_to_network(evt).await?;
-            },
+            }
 
             NetworkEvent::QuorumMembershipAssigmentsCreated(assignments) => {
                 telemetry::info!(
@@ -80,7 +80,7 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 let evt = Event::QuorumMembershipAssigmentsCreated(assignments);
 
                 self.send_event_to_runtime(evt).await?
-            },
+            }
 
             NetworkEvent::AssignmentToQuorumCreated {
                 assigned_membership,
@@ -94,14 +94,14 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 let evt = Event::QuorumMembershipAssigmentCreated(assigned_membership);
 
                 self.send_event_to_runtime(evt).await?;
-            },
+            }
             NetworkEvent::PartCommitmentCreated(node_id, part) => {
                 let evt = Event::PartCommitmentCreated(node_id, part);
 
                 if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);
                 }
-            },
+            }
 
             NetworkEvent::PartCommitmentAcknowledged {
                 node_id,
@@ -115,15 +115,15 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 };
 
                 self.send_event_to_runtime(evt).await?;
-            },
+            }
 
             NetworkEvent::BlockCreated(block) => {
                 let evt = Event::BlockCreated(block);
 
                 self.send_event_to_runtime(evt).await?;
-            },
+            }
 
-            _ => {},
+            _ => {}
         }
 
         Ok(())
