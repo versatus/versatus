@@ -1,6 +1,10 @@
 use crate::render::RenderToPrometheus;
+use hyper::server::conn::AddrIncoming;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
+use hyper_rustls::TlsAcceptor;
+use log::error;
+use platform::platform_stats::CgroupStats;
 use prometheus::proto::MetricFamily;
 use prometheus::{
     core::Collector, Counter, Encoder, Gauge, Histogram, HistogramOpts, IntCounter, IntGauge, Opts,
@@ -8,8 +12,8 @@ use prometheus::{
 };
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::{fs, io};
 use thiserror::Error;
-use platform::platform_stats::CgroupStats;
 
 #[derive(Debug, Error)]
 pub enum PrometheusFactoryError {
@@ -21,6 +25,8 @@ pub enum PrometheusFactoryError {
     Utf8ConversionError(#[from] std::string::FromUtf8Error),
     #[error("Error occurred while creating hyper server : {0}")]
     ServerError(#[from] hyper::Error),
+    #[error("Error while loading the Certificate :{0}")]
+    IoError(#[from] io::Error),
 }
 
 trait MetricRegistrar {
@@ -35,6 +41,8 @@ pub struct PrometheusFactory {
     pub registry: Registry,
     port: u16,
     pub base_metrics: HashMap<String, Counter>,
+    pub private_key_path: String,
+    pub certificate_path: String,
 }
 
 impl PrometheusFactory {
@@ -42,11 +50,15 @@ impl PrometheusFactory {
         port: u16,
         include_base_metrics: bool,
         base_labels: HashMap<String, String>,
+        private_key_path: String,
+        certificate_path: String,
     ) -> Self {
         let mut factory = Self {
             registry: Registry::new(),
             port,
             base_metrics: HashMap::new(),
+            private_key_path,
+            certificate_path,
         };
         if include_base_metrics {
             Self::append_base_metrics(base_labels, &mut factory);
@@ -56,12 +68,42 @@ impl PrometheusFactory {
 
     fn append_base_metrics(base_labels: HashMap<String, String>, factory: &mut PrometheusFactory) {
         let stats = CgroupStats::new().unwrap();
-        factory.set_or_update_base_counter_metric("cpu_total_usec", "CPU time used in usec total", base_labels.clone(), stats.cpu.cpu_total_usec as f64);
-        factory.set_or_update_base_counter_metric("cpu_user_usec", "CPU time used for userspace in usec", base_labels.clone(), stats.cpu.cpu_user_usec as f64);
-        factory.set_or_update_base_counter_metric("cpu_system_usec", "CPU time used for kernel in usec", base_labels.clone(), stats.cpu.cpu_system_usec as f64);
-        factory.set_or_update_base_counter_metric("mem_anon_bytes", "Anonymous memory used in bytes", base_labels.clone(), stats.mem.mem_anon_bytes as f64);
-        factory.set_or_update_base_counter_metric("mem_file_bytes", "File-backed memory used in bytes", base_labels.clone(), stats.mem.mem_file_bytes as f64);
-        factory.set_or_update_base_counter_metric("mem_sock_bytes", "Socket memory used in bytes", base_labels.clone(), stats.mem.mem_sock_bytes as f64);
+        factory.set_or_update_base_counter_metric(
+            "cpu_total_usec",
+            "CPU time used in usec total",
+            base_labels.clone(),
+            stats.cpu.cpu_total_usec as f64,
+        );
+        factory.set_or_update_base_counter_metric(
+            "cpu_user_usec",
+            "CPU time used for userspace in usec",
+            base_labels.clone(),
+            stats.cpu.cpu_user_usec as f64,
+        );
+        factory.set_or_update_base_counter_metric(
+            "cpu_system_usec",
+            "CPU time used for kernel in usec",
+            base_labels.clone(),
+            stats.cpu.cpu_system_usec as f64,
+        );
+        factory.set_or_update_base_counter_metric(
+            "mem_anon_bytes",
+            "Anonymous memory used in bytes",
+            base_labels.clone(),
+            stats.mem.mem_anon_bytes as f64,
+        );
+        factory.set_or_update_base_counter_metric(
+            "mem_file_bytes",
+            "File-backed memory used in bytes",
+            base_labels.clone(),
+            stats.mem.mem_file_bytes as f64,
+        );
+        factory.set_or_update_base_counter_metric(
+            "mem_sock_bytes",
+            "Socket memory used in bytes",
+            base_labels.clone(),
+            stats.mem.mem_sock_bytes as f64,
+        );
     }
     pub fn set_or_update_base_counter_metric(
         &mut self,
@@ -81,11 +123,9 @@ impl PrometheusFactory {
         metric.reset();
         metric.inc_by(value);
     }
-
 }
 
-
-    impl MetricRegistrar for PrometheusFactory {
+impl MetricRegistrar for PrometheusFactory {
     fn register(&self, metric: Box<dyn Collector>) -> Result<(), PrometheusFactoryError> {
         self.registry
             .register(metric)
@@ -107,6 +147,40 @@ impl PrometheusFactory {
     }
 }
 
+fn error(err: String) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, err)
+}
+// Load public certificate from file.
+fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
+    // Open certificate file.
+    let certfile = fs::File::open(filename)
+        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))
+        .unwrap();
+    let mut reader = io::BufReader::new(certfile);
+
+    // Load and return certificate.
+    let certs = rustls_pemfile::certs(&mut reader)
+        .map_err(|_| error("failed to load certificate".into()))
+        .unwrap();
+    Ok(certs.into_iter().map(rustls::Certificate).collect())
+}
+
+// Load private key from file.
+fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
+    // Open keyfile.
+    let keyfile = fs::File::open(filename)
+        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+    let mut reader = io::BufReader::new(keyfile);
+
+    // Load and return a single private key.
+    let keys = rustls_pemfile::rsa_private_keys(&mut reader)
+        .map_err(|_| error("failed to load private key".into()))?;
+    if keys.len() != 1 {
+        return Err(error("expected a single private key".into()));
+    }
+
+    Ok(rustls::PrivateKey(keys[0].clone()))
+}
 impl PrometheusFactory {
     pub fn build_counter(
         &self,
@@ -191,6 +265,21 @@ impl PrometheusFactory {
     }
     pub async fn serve(&self) -> Result<(), PrometheusFactoryError> {
         {
+            // Load public certificate.
+            let certs = load_certs("/etc/Demo/sample.pem")?;
+            // Load private key.
+            let key = load_private_key("/etc/Demo/sample.rsa")?;
+            // Build TLS configuration.
+
+            // Create a TCP listener via tokio.
+            let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
+            let incoming = AddrIncoming::bind(&socket_addr).unwrap();
+            let acceptor = TlsAcceptor::builder()
+                .with_single_cert(certs, key)
+                .map_err(|e| error(format!("{}", e)))?
+                .with_all_versions_alpn()
+                .with_incoming(incoming);
+
             let make_svc = make_service_fn(move |_conn| {
                 let factory = self.clone();
                 async move {
@@ -200,11 +289,9 @@ impl PrometheusFactory {
                     }))
                 }
             });
-
             let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
-            let server = Server::try_bind(&socket_addr)
-                .map_err(PrometheusFactoryError::ServerError)?
-                .serve(make_svc);
+
+            let server = Server::builder(acceptor).serve(make_svc);
 
             log::info!("Exporter listening on http://{}", socket_addr);
 
@@ -231,7 +318,7 @@ mod tests {
     use prometheus::labels;
     #[test]
     fn test_reset_factory() {
-        let mut factory = PrometheusFactory::new(8080, false, HashMap::new());
+        let mut factory = PrometheusFactory::new(8080, false, HashMap::new(),"examples/sample.rsa".to_string(),"examples/sample.pem".to_string());
         let labels = labels! {
                 "service".to_string() => "compute".to_string(),
                 "source".to_string() => "versatus".to_string(),

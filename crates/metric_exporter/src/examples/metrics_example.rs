@@ -17,7 +17,7 @@ async fn main() {
                 "source".to_string() => "versatus".to_string(),
     };
     // Prometheus factory for metrics
-    let factory = Arc::new(PrometheusFactory::new(port, false, HashMap::new()));
+    let factory = Arc::new(PrometheusFactory::new(port, false, HashMap::new(),"examples/sample.rsa".to_string(),"examples/sample.pem".to_string()));
 
     // Metrics: Block height, Transactions per minute, CPU load, Active peers, Block finality time
     let block_height = factory
