@@ -372,8 +372,6 @@ impl NodeRuntime {
         })
         .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        dbg!("made it here after verifying block signature");
-
         let set = self
             .state_driver
             .dag

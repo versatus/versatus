@@ -3,6 +3,7 @@ use thiserror::Error;
 use tracing_subscriber::{
     fmt::MakeWriter,
     util::{SubscriberInitExt, TryInitError},
+    EnvFilter,
 };
 
 #[derive(Debug, Error)]
@@ -35,6 +36,7 @@ impl TelemetrySubscriber {
                 .with_target(is_local_env)
                 .compact()
                 .pretty()
+                .with_env_filter(EnvFilter::from_default_env())
                 .finish();
 
             sub.try_init()?;

@@ -93,7 +93,7 @@ impl RpcApiServer for RpcServerImpl {
             Some(txn) => {
                 let txn_record = RpcTransactionRecord::from(txn.clone());
                 Ok(txn_record)
-            },
+            }
             None => return Err(RpseeError::Custom("unable to find transaction".to_string())),
         }
     }

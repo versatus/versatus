@@ -7,8 +7,8 @@ use wallet::v2::{Wallet, WalletConfig};
 
 #[tokio::main]
 async fn main() {
-    // std::env::set_var("VRRB_ENVIRONMENT", "main");
-    // std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
+    std::env::set_var("VRRB_ENVIRONMENT", "main");
+    std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
     std::env::set_var("RUST_LOG", "info");
 
     // TelemetrySubscriber::init(std::io::stdout).unwrap();
@@ -17,28 +17,20 @@ async fn main() {
 
     let rpc_server_address = nodes.get(2).unwrap().config().jsonrpc_server_address;
     // let rpc_client = create_client(rpc_server_address).await.unwrap();
-    dbg!(rpc_server_address);
-
-    // let wal_config = WalletConfig {
-    //     rpc_server_address,
-    //     ..Default::default()
-    // };
-    //
-    // let mut wal = Wallet::new(wal_config).await.unwrap();
-    // let res = wal.list_transactions(vec![]).await;
-    //
-    // let res = wal.get_mempool().await.unwrap();
-    //
-    // dbg!(res);
-    //
+    // dbg!(rpc_server_address);
 
     tokio::signal::ctrl_c().await.unwrap();
 
-    let mut node = nodes.get_mut(3).unwrap();
+    let mut node = nodes
+        .iter_mut()
+        .find(|node| node.read_handle().state_store_values().is_ok())
+        .unwrap();
+
     let node_id = node.id();
     let rpc_server_address = node.config().jsonrpc_server_address;
     let rpc_client = create_client(rpc_server_address).await.unwrap();
     let res = rpc_client.get_full_state().await;
+
     if let Ok(res) = res {
         println!();
 
@@ -61,6 +53,7 @@ async fn main() {
             .unwrap();
 
         dbg!(&wal_res.to_string());
+        dbg!(node.mempool_read_handle().entries());
 
         // for (addr, acc) in res.iter() {
         //     dbg!(&addr.to_string());
@@ -70,48 +63,21 @@ async fn main() {
         // println!();
         // println!("state of {node_id}: {res}");
         println!();
+    } else {
+        dbg!("error");
     }
 
-    // for node in nodes.iter_mut() {
-    //     let node_id = node.id();
-    //     let rpc_server_address = node.config().jsonrpc_server_address;
-    //     let rpc_client = create_client(rpc_server_address).await.unwrap();
-    //
-    //     let res = rpc_client.get_full_state().await;
-    //     if let Ok(res) = res {
-    //         println!();
-    //         for (addr, acc) in res.iter() {
-    //             dbg!(&addr.to_string());
-    //         }
-    //         // let res = serde_json::to_string_pretty(&res).unwrap();
-    //         // println!();
-    //         // println!("state of {node_id}: {res}");
-    //         println!();
-    //     } else {
-    //         println!();
-    //         println!("node {node_id} has no accounts in state");
-    //         println!();
-    //     }
-    // }
-
     for node in nodes {
-        // let node_id = node.id();
-        // let rpc_server_address = node.config().jsonrpc_server_address;
-        // let rpc_client = create_client(rpc_server_address).await.unwrap();
-        //
-        // let res = rpc_client.get_full_state().await;
-        // if let Ok(res) = res {
-        //     let res = serde_json::to_string_pretty(&res).unwrap();
-        //     println!();
-        //     // println!("state of {node_id}: {res}");
-        //     println!();
-        // } else {
-        //     println!();
-        //     println!("node {node_id} has no accounts in state");
-        //     println!();
-        // }
-
-        // println!();
+        println!(
+            "node {} mempool: {}, state: {}",
+            node.id(),
+            node.mempool_read_handle().entries().len(),
+            node.read_handle()
+                .state_store_values()
+                .unwrap_or_default()
+                .len(),
+        );
+        println!();
         println!(
             "shutting down node {} type {:?}",
             node.id(),

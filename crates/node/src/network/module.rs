@@ -18,7 +18,10 @@ use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
 use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
-use vrrb_core::{claim::Claim, transactions::TransactionKind};
+use vrrb_core::{
+    claim::Claim,
+    transactions::{Transaction, TransactionKind},
+};
 
 use super::NetworkEvent;
 use crate::{
@@ -222,7 +225,7 @@ impl NetworkModule {
             .clone()
             .into_iter()
             .map(|n| n.udp_gossip_addr)
-            .collect();
+            .collect::<Vec<SocketAddr>>();
 
         self.dyswarm_client
             .add_peers(closest_nodes_udp_addrs)
@@ -262,7 +265,7 @@ impl NetworkModule {
 
         let nid = self.kademlia_node.node_data().id;
         let rt = self.kademlia_node.get_routing_table();
-        let closest_nodes = rt.get_closest_nodes(&nid, 7);
+        let closest_nodes = rt.get_closest_nodes(&nid, 8);
 
         let closest_nodes_udp_addrs = closest_nodes
             .clone()
@@ -486,7 +489,7 @@ impl NetworkModule {
     }
 
     pub async fn broadcast_transaction(&mut self, txn: TransactionKind) -> Result<()> {
-        telemetry::info!("Broadcasting transaction vote to network");
+        telemetry::info!("Broadcasting transaction {} vote to network", txn.id());
         self.broadcast_event_to_known_peers(NetworkEvent::NewTxnCreated(txn))
             .await
     }

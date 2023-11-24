@@ -28,10 +28,10 @@ impl Handler<EventMessage> for NodeRuntime {
         self.status = actor_status;
     }
 
-    fn on_error(&self, err: TheaterError) {
-        dbg!(&err);
-        telemetry::error!("{}", err);
-    }
+    // fn on_error(&self, err: TheaterError) {
+    //     dbg!(&err);
+    //     telemetry::error!("{}", err);
+    // }
 
     fn on_start(&self) {
         info!("{} starting", self.label());
@@ -51,23 +51,17 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::NodeAddedToPeerList(peer_data) => {
                 let assignments = self
                     .handle_node_added_to_peer_list(peer_data.clone())
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    .await?;
 
                 if let Some(assignments) = assignments {
                     let assignments = assignments
                         .into_values()
                         .collect::<Vec<AssignedQuorumMembership>>();
 
-                    let event = EventMessage::new(
-                        Some(NETWORK_TOPIC_STR.into()),
-                        Event::QuorumMembershipAssigmentsCreated(assignments),
-                    );
-
-                    self.events_tx
-                        .send(event)
-                        .await
-                        .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    self.send_event_to_network(Event::QuorumMembershipAssigmentsCreated(
+                        assignments,
+                    ))
+                    .await?;
                 }
             }
 
@@ -180,8 +174,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 }
             }
             Event::ConvergenceBlockCertificateCreated(certificate) => {
-                self.handle_convergence_block_certificate_created(certificate)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.handle_convergence_block_certificate_created(certificate)?;
             }
             Event::ConvergenceBlockCertified(certified_block) => {
                 //
@@ -269,7 +262,10 @@ impl Handler<EventMessage> for NodeRuntime {
                     vote.farmer_id
                 );
 
+                dbg!(&self.config_ref().id, &vote.farmer_id);
+
                 if let Err(err) = self.handle_vote_received(vote).await {
+                    dbg!(&err);
                     telemetry::error!("failed to handle vote for {}: {}", txn_id, err);
                 }
             }
@@ -310,14 +306,8 @@ impl Handler<EventMessage> for NodeRuntime {
                     .next()
                     .ok_or(TheaterError::Other("no winner found".to_string()))?;
 
-                let event = Event::MinerElected(winner);
-
-                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), event);
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_network(Event::MinerElected(winner))
+                    .await?;
             }
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
@@ -329,14 +319,11 @@ impl Handler<EventMessage> for NodeRuntime {
                     block_header,
                     resolver,
                 )
-                .await
-                .map_err(|err| TheaterError::Other(err.to_string()))?;
+                .await?;
             }
             Event::BlockSignatureRequested(block) => {
                 let block_hash = block.hash();
-                let signature = self
-                    .handle_sign_block(block)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let signature = self.handle_sign_block(block)?;
 
                 telemetry::info!("Node {} signed block: {}", self.config_ref().id, block_hash);
 
@@ -346,15 +333,8 @@ impl Handler<EventMessage> for NodeRuntime {
                     block_hash,
                 };
 
-                let em = EventMessage::new(
-                    Some(NETWORK_TOPIC_STR.into()),
-                    Event::BlockSignatureCreated(partial_signature),
-                );
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_network(Event::BlockSignatureCreated(partial_signature))
+                    .await?;
             }
 
             Event::BlockSignatureCreated(BlockPartialSignature {
@@ -364,41 +344,18 @@ impl Handler<EventMessage> for NodeRuntime {
             }) => {
                 let certificate = self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                    .await?;
 
-                let em = EventMessage::new(
-                    Some(NETWORK_TOPIC_STR.into()),
-                    Event::BlockCertificateCreated(certificate),
-                );
-
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
-            }
-            // NOTE: replaced by handler above
-            // Event::HarvesterSignatureReceived(block_hash, node_id, sig) => {
-            //     self.handle_harvester_signature_received(block_hash, node_id, sig)
-            //         .await
-            //         .map_err(|err| TheaterError::Other(err.to_string()))?;
-            // },
-            Event::GenesisBlockCertificateCreated(certificate) => {
-                let confirmed_block = self
-                    .handle_genesis_block_certificate_created(certificate)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_network(Event::BlockCertificateCreated(certificate))
+                    .await?;
             }
             Event::ConvergenceBlockCertificateCreated(certificate) => {
-                let confirmed_block = self
-                    .handle_convergence_block_certificate_created(certificate)
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                let confirmed_block =
+                    self.handle_convergence_block_certificate_created(certificate)?;
 
                 // TODO: update state after this
-
-                self.events_tx
-                    .send(Event::UpdateState(confirmed_block).into())
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_self(Event::UpdateState(confirmed_block))
+                    .await?;
             }
 
             // Event::BlockConfirmed(cert_bytes) => {
@@ -426,17 +383,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 // Claim should be added to pending claims
                 // Event to validate claim should be created
             }
-            Event::QuorumFormed => self
-                .handle_quorum_formed()
-                .await
-                .map_err(|err| TheaterError::Other(err.to_string()))?,
-
-            // TODO: remove events below
-            Event::CreateAccountRequested((address, account_bytes)) => {
-                // I think we can get rid of this, as we now add accounts
-                // when they are a receiver of a transaction
-                self.handle_create_account_requested(address.clone(), account_bytes)?;
-            }
+            Event::QuorumFormed => self.handle_quorum_formed().await?,
             _ => {}
         }
 

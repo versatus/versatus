@@ -54,6 +54,7 @@ impl Handler<EventMessage> for NetworkModule {
             Event::TransactionVoteCreated(vote) => {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
+                dbg!("vote broadcast");
             }
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
