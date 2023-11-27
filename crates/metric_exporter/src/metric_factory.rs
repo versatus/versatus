@@ -27,6 +27,10 @@ pub enum PrometheusFactoryError {
     ServerError(#[from] hyper::Error),
     #[error("Error while loading the Certificate :{0}")]
     IoError(#[from] io::Error),
+    #[error("Provide certificate path")]
+    CertificatePathEmpty,
+    #[error("Provide private key path")]
+    PrivateKeyPathEmpty,
 }
 
 trait MetricRegistrar {
@@ -265,13 +269,17 @@ impl PrometheusFactory {
     }
     pub async fn serve(&self) -> Result<(), PrometheusFactoryError> {
         {
+            if self.certificate_path.is_empty() {
+                return Err(PrometheusFactoryError::CertificatePathEmpty);
+            }
+            if self.private_key_path.is_empty() {
+                return Err(PrometheusFactoryError::PrivateKeyPathEmpty);
+            }
             // Load public certificate.
-            let certs = load_certs("/etc/Demo/sample.pem")?;
+            let certs = load_certs(self.certificate_path.as_str())?;
             // Load private key.
-            let key = load_private_key("/etc/Demo/sample.rsa")?;
-            // Build TLS configuration.
+            let key = load_private_key(self.private_key_path.as_str())?;
 
-            // Create a TCP listener via tokio.
             let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
             let incoming = AddrIncoming::bind(&socket_addr).unwrap();
             let acceptor = TlsAcceptor::builder()
@@ -289,10 +297,8 @@ impl PrometheusFactory {
                     }))
                 }
             });
-            let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
 
             let server = Server::builder(acceptor).serve(make_svc);
-
             log::info!("Exporter listening on http://{}", socket_addr);
 
             if let Err(e) = server.await {
@@ -318,7 +324,13 @@ mod tests {
     use prometheus::labels;
     #[test]
     fn test_reset_factory() {
-        let mut factory = PrometheusFactory::new(8080, false, HashMap::new(),"examples/sample.rsa".to_string(),"examples/sample.pem".to_string());
+        let mut factory = PrometheusFactory::new(
+            8080,
+            false,
+            HashMap::new(),
+            "examples/sample.rsa".to_string(),
+            "examples/sample.pem".to_string(),
+        );
         let labels = labels! {
                 "service".to_string() => "compute".to_string(),
                 "source".to_string() => "versatus".to_string(),
