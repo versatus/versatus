@@ -10,3 +10,4 @@ anyhow = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
 jsonrpsee = { workspace = true }
+bitmask-enum = { workspace = true }

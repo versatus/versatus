@@ -152,6 +152,7 @@ secp256k1 = { version = "0.25.0", features = [
 ] }
 
 # NOTE: External crates
+bitmask-enum = "2.2"
 clap = { version = "3.2.20", features = ["derive"] }
 assert_cmd = "2.0.4"
 sha256 = "1.1.1"
