@@ -204,7 +204,7 @@ fn test_file_not_found() {
 /// This test checks for the return of a mock OOM error.
 #[test]
 fn test_trigger_oom() {
-    let wasm_bytes = std::fs::read("test_data/should_panic/trigger_oom.wasm").unwrap();
+    let wasm_bytes = std::fs::read("test_data/should_panic/out_of_memory.wasm").unwrap();
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
