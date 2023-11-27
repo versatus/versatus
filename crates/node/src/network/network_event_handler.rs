@@ -4,7 +4,7 @@ use tracing::info;
 use events::{Event, EventMessage, EventPublisher, PeerData};
 use primitives::{NodeId, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
 
-use crate::{network::NetworkEvent, NodeError};
+use crate::{network::NetworkEvent, NodeError, Result};
 
 #[derive(Debug, Clone)]
 pub struct DyswarmHandler {
@@ -15,6 +15,19 @@ pub struct DyswarmHandler {
 impl DyswarmHandler {
     pub fn new(node_id: NodeId, events_tx: EventPublisher) -> Self {
         Self { node_id, events_tx }
+    }
+
+    async fn send_event(&self, topic: &str, evt: Event) -> Result<()> {
+        let em = EventMessage::new(Some(topic.into()), evt);
+        self.events_tx.send(em).await.map_err(NodeError::from)
+    }
+
+    pub async fn send_event_to_network(&self, evt: Event) -> Result<()> {
+        self.send_event(NETWORK_TOPIC_STR, evt).await
+    }
+
+    pub async fn send_event_to_runtime(&self, evt: Event) -> Result<()> {
+        self.send_event(RUNTIME_TOPIC_STR, evt).await
     }
 }
 
@@ -43,59 +56,53 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     validator_public_key,
                 });
 
-                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), evt);
-
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
+                self.send_event_to_network(evt).await?;
+            }
             NetworkEvent::ClaimCreated { node_id, claim } => {
                 telemetry::info!(
-                    "Node ID {} recieved claim from {}: {}",
+                    "Node ID {} received claim from {}: {}",
                     self.node_id,
                     node_id,
                     claim.public_key
                 );
 
                 let evt = Event::ClaimReceived(claim);
-                let em = EventMessage::new(Some(NETWORK_TOPIC_STR.into()), evt);
 
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
+                self.send_event_to_network(evt).await?;
+            }
 
             NetworkEvent::QuorumMembershipAssigmentsCreated(assignments) => {
                 telemetry::info!(
-                    "Node ID {} recieved {} assignments",
+                    "Node ID {} received {} assignments",
                     self.node_id,
                     assignments.len(),
                 );
 
                 let evt = Event::QuorumMembershipAssigmentsCreated(assignments);
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
+                self.send_event_to_runtime(evt).await?
+            }
 
             NetworkEvent::AssignmentToQuorumCreated {
                 assigned_membership,
             } => {
                 telemetry::info!(
-                    "Node ID {} recieved assignment to quorum: {:?}",
+                    "Node ID {} received assignment to quorum: {:?}",
                     self.node_id,
                     assigned_membership.quorum_kind
                 );
 
                 let evt = Event::QuorumMembershipAssigmentCreated(assigned_membership);
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
+                self.send_event_to_runtime(evt).await?;
+            }
             NetworkEvent::PartCommitmentCreated(node_id, part) => {
                 let evt = Event::PartCommitmentCreated(node_id, part);
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
-                if let Err(err) = self.events_tx.send(em).await {
+                if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);
                 }
-            },
+            }
 
             NetworkEvent::PartCommitmentAcknowledged {
                 node_id,
@@ -107,30 +114,17 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     sender_id,
                     ack,
                 };
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
+
+                self.send_event_to_runtime(evt).await?;
+            }
 
             NetworkEvent::BlockCreated(block) => {
                 let evt = Event::BlockCreated(block);
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
 
-            NetworkEvent::BroadcastTransactionVote(vote) => {
-                let evt = Event::BroadcastTransactionVote(*vote);
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
+                self.send_event_to_runtime(evt).await?;
+            }
 
-            NetworkEvent::NewTxnCreated(txn) => {
-                info!("Received New Txn Created event, sending to runtime");
-                let evt = Event::NewTxnCreated(*txn);
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
-                self.events_tx.send(em).await.map_err(NodeError::from)?;
-            },
-
-            _ => {},
+            _ => {}
         }
 
         Ok(())

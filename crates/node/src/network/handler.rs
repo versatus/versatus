@@ -42,21 +42,21 @@ impl Handler<EventMessage> for NetworkModule {
                     .send(em)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::QuorumMembershipAssigmentsCreated(assigments) => {
                 self.notify_quorum_membership_assignments(assigments)
                     .await?;
-            },
+            }
 
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
-            },
+            }
 
             Event::PartCommitmentCreated(node_id, part) => {
                 info!("Broadcasting part commitment to peers in quorum");
                 self.broadcast_part_commitment(node_id, part).await?;
-            },
+            }
 
             Event::PartCommitmentAcknowledged {
                 node_id,
@@ -66,43 +66,38 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting part commitment acknowledgement to peers in quorum");
                 self.broadcast_part_commitment_acknowledgement(node_id, sender_id, ack)
                     .await?;
-            },
+            }
 
             Event::ConvergenceBlockCertified(block) => {
                 info!("Broadcasting certified convergence block to network");
                 self.broadcast_certified_convergence_block(block).await?;
-            },
+            }
             Event::ConvergenceBlockPartialSignComplete(sig) => {
                 info!("Broadcasting partial signature of convergence block to network");
                 self.broadcast_convergence_block_partial_signature(sig)
                     .await?;
-            },
+            }
             Event::Stop => {
                 // TODO: rely on cancellation token instead of this event
                 // NOTE: stop the kademlia node instance
                 self.node_ref().kill();
                 return Ok(ActorState::Stopped);
-            },
+            }
             Event::BroadcastCertificate(cert) => {
                 info!("Broadcasting certificate to network");
                 self.broadcast_certificate(cert).await?;
-            },
+            }
             Event::BroadcastTransactionVote(vote) => {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
-            },
+            }
 
             Event::BlockCreated(block) => {
                 info!("Broadcasting block to network");
                 self.broadcast_block(block).await?;
-            },
+            }
 
-            Event::NewTxnCreated(txn) => {
-                info!("Broadcasting transaction to network");
-                self.broadcast_transaction(txn).await?;
-            },
-
-            _ => {},
+            _ => {}
         }
 
         Ok(ActorState::Running)

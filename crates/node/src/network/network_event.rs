@@ -2,14 +2,10 @@ use std::net::SocketAddr;
 
 use block::{Block, Certificate, ConvergenceBlock};
 use events::{AssignedQuorumMembership, Vote};
-use hbbft::{
-    crypto::PublicKeySet,
-    sync_key_gen::{Ack, Part},
-};
+use hbbft::sync_key_gen::{Ack, Part};
 use mempool::TxnRecord;
 use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
 use serde::{Deserialize, Serialize};
-use signer::engine::QuorumData;
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::TransactionKind;
 
