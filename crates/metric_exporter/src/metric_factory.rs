@@ -33,6 +33,8 @@ pub enum PrometheusFactoryError {
     PrivateKeyPathEmpty,
     #[error("Private Key is empty")]
     PrivateKeyEmpty,
+    #[error("Error occurred while fetching cgroup stats")]
+    FailedToFetchCGroupStatus,
 }
 
 trait MetricRegistrar {
@@ -76,7 +78,8 @@ impl PrometheusFactory {
         base_labels: HashMap<String, String>,
         factory: &mut PrometheusFactory,
     ) -> Result<(), PrometheusFactoryError> {
-        let stats = CgroupStats::new().unwrap();
+        let stats =
+            CgroupStats::new().map_err(|_| PrometheusFactoryError::FailedToFetchCGroupStatus)?;
         factory.set_or_update_base_counter_metric(
             "cpu_total_usec",
             "CPU time used in usec total",
@@ -304,6 +307,7 @@ impl PrometheusFactory {
             });
 
             let server = Server::builder(acceptor).serve(make_svc);
+
             info!("Exporter listening on http://{}", socket_addr);
 
             if let Err(e) = server.await {
