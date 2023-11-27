@@ -36,25 +36,21 @@ impl Handler<EventMessage> for NetworkModule {
                 );
 
                 let evt = Event::NodeAddedToPeerList(peer_data.clone());
-                let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
 
-                self.events_tx
-                    .send(em)
-                    .await
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                self.send_event_to_runtime(evt).await?;
             }
             Event::QuorumMembershipAssigmentsCreated(assigments) => {
                 self.notify_quorum_membership_assignments(assigments)
                     .await?;
             }
-            Event::NewTxnCreated(txn) => {
-                info!("Broadcasting transaction to known peers");
-                self.broadcast_transaction(txn).await?;
+            Event::NewTxnForwarded(node_id, txn) => {
+                println!("sending out transaction from {}", &node_id);
+                info!("Broadcasting transaction to known peers from {node_id}");
+                self.broadcast_forwarded_transaction(node_id, txn).await?;
             }
             Event::TransactionVoteCreated(vote) => {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
-                dbg!("vote broadcast");
             }
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
@@ -73,7 +69,6 @@ impl Handler<EventMessage> for NetworkModule {
                 self.broadcast_part_commitment_acknowledgement(node_id, sender_id, ack)
                     .await?;
             }
-
             Event::ConvergenceBlockCertified(block) => {
                 info!("Broadcasting certified convergence block to network");
                 self.broadcast_certified_convergence_block(block).await?;
@@ -83,19 +78,19 @@ impl Handler<EventMessage> for NetworkModule {
                 self.broadcast_convergence_block_partial_signature(sig)
                     .await?;
             }
-            Event::Stop => {
-                // TODO: rely on cancellation token instead of this event
-                // NOTE: stop the kademlia node instance
-                self.node_ref().kill();
-                return Ok(ActorState::Stopped);
-            }
-            Event::BroadcastCertificate(cert) => {
+            Event::ConvergenceBlockCertificateCreated(cert) => {
                 info!("Broadcasting certificate to network");
                 self.broadcast_certificate(cert).await?;
             }
             Event::BlockCreated(block) => {
                 info!("Broadcasting block to network");
                 self.broadcast_block(block).await?;
+            }
+            Event::Stop => {
+                // TODO: rely on cancellation token instead of this event
+                // NOTE: stop the kademlia node instance
+                self.node_ref().kill();
+                return Ok(ActorState::Stopped);
             }
             _ => {}
         }

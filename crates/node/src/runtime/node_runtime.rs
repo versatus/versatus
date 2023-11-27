@@ -381,8 +381,7 @@ impl NodeRuntime {
                 node_id,
                 &self.consensus_driver.sig_engine,
             )
-            .unwrap();
-        // .map_err(|err| NodeError::Other(err.to_string()))?;
+            .map_err(|err| NodeError::Other(err.to_string()))?;
 
         let certificate = self
             .consensus_driver

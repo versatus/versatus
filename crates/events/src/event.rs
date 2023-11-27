@@ -46,6 +46,8 @@ pub enum Event {
     /// that needs to be validated.
     NewTxnCreated(TransactionKind),
 
+    NewTxnForwarded(NodeId, TransactionKind),
+
     /// `TransactionValidated(Txn)` is an event that is triggered when a transaction has
     /// been validated by the validator module. The `Txn` parameter contains
     /// the details of the validated transaction. This event can be used to
@@ -382,7 +384,7 @@ impl From<Event> for messr::Message<Event> {
             | Event::NewTxnCreated(_)
             | Event::TxnAddedToMempool(_) => {
                 messr::Message::new(Some(RUNTIME_TOPIC_STR.into()), evt)
-            },
+            }
             _ => messr::Message::new(None, evt),
         }
     }

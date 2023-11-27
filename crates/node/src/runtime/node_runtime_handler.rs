@@ -153,6 +153,17 @@ impl Handler<EventMessage> for NodeRuntime {
             // TODO: create a specific handler for this event
             Event::StateUpdated(block) => {
                 dbg!("state updated", block.hash());
+                match block {
+                    Block::Genesis { block } => {
+                        // self.handle_genesis_block_received(block)?;
+                        dbg!("state updated with genesis");
+                    }
+                    Block::Convergence { block } => {
+                        // self.handle_convergence_block_received(block)?;
+                        dbg!("state updated with convergence block");
+                    }
+                    _ => {}
+                }
                 //
                 // if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
                 //     telemetry::error!("error updating state: {}", err);
@@ -210,7 +221,13 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::NewTxnCreated(txn) => {
                 info!(
                     "Node {} received transaction: {}",
-                    self.id.clone(),
+                    &self.config_ref().id,
+                    txn.id().to_string(),
+                );
+
+                println!(
+                    "Node {} received transaction {}",
+                    &self.config_ref().id,
                     txn.id().to_string(),
                 );
 
@@ -221,18 +238,56 @@ impl Handler<EventMessage> for NodeRuntime {
                     .unwrap_or_default()
                     .contains_key(&txn.id());
 
+                dbg!(&is_txn_in_mempool);
+
                 // check for txn in mempool, return if present
                 if is_txn_in_mempool {
                     warn!("Transaction {} already in mempool", txn.id().to_string());
                     return Ok(ActorState::Running);
                 }
 
-                self.send_event_to_network(Event::NewTxnCreated(txn.clone()))
+                info!(
+                    "Broadcasting {} to network from node {}",
+                    txn.id().to_string(),
+                    self.config_ref().id
+                );
+
+                println!(
+                    "Broadcasting {} to network from node {}",
+                    txn.id().to_string(),
+                    self.config_ref().id
+                );
+
+                self.send_event_to_network(Event::NewTxnForwarded(
+                    self.config_ref().id.clone(),
+                    txn.clone(),
+                ))
+                .await?;
+
+                info!("Transaction {} broadcast to network", txn.id().to_string());
+
+                let txn_hash = self.state_driver.insert_txn_to_mempool(txn)?;
+
+                self.send_event_to_self(Event::TxnAddedToMempool(txn_hash.clone()))
                     .await?;
+            }
+            Event::NewTxnForwarded(node_id, txn) => {
+                info!(
+                    "Node {} received transaction: {}",
+                    &self.config_ref().id,
+                    txn.id().to_string(),
+                );
+
+                println!(
+                    "Node {} received transaction {}",
+                    &self.config_ref().id,
+                    txn.id().to_string(),
+                );
 
                 info!(
-                    "Transaction {} broadcasted to network",
-                    txn.id().to_string()
+                    "Broadcasting {} to network from node {}",
+                    txn.id().to_string(),
+                    self.config_ref().id
                 );
 
                 let txn_hash = self.state_driver.insert_txn_to_mempool(txn)?;
@@ -262,10 +317,15 @@ impl Handler<EventMessage> for NodeRuntime {
                     vote.farmer_id
                 );
 
-                dbg!(&self.config_ref().id, &vote.farmer_id);
+                //self.belongs_to_correct_quorum(QuorumKind::Harvester, "handle transaction votes")?;
+
+                println!(
+                    "node {} received vote from farmer {}",
+                    &self.config_ref().id,
+                    &vote.farmer_id
+                );
 
                 if let Err(err) = self.handle_vote_received(vote).await {
-                    dbg!(&err);
                     telemetry::error!("failed to handle vote for {}: {}", txn_id, err);
                 }
             }

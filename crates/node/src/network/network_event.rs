@@ -55,7 +55,7 @@ pub enum NetworkEvent {
 
     BlockCreated(Block),
     NewTxnCreated(TransactionKind),
-    ForwardedTxn(Box<TxnRecord>),
+    NewTxnForwarded(NodeId, TransactionKind),
 
     PartCommitmentCreated(NodeId, Part),
     PartCommitmentAcknowledged {

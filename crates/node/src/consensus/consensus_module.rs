@@ -292,6 +292,7 @@ impl ConsensusModule {
             )))?
             .0;
 
+        dbg!("made it here");
         self.check_vote_is_valid(&quorum_id, &vote).await?;
 
         match self.votes_pool.entry(quorum_id.clone()) {
@@ -362,11 +363,7 @@ impl ConsensusModule {
         let set = self.get_quorum_pending_votes_for_transaction(quorum_id, vote)?;
         let quorum_members = self.get_quorum_members(quorum_id)?;
 
-        dbg!(&set.len());
-
         let is_threshold_met = self.double_check_vote_threshold_reached(&set, quorum_members);
-
-        dbg!(&is_threshold_met);
 
         if !is_threshold_met {
             return Err(NodeError::Other(format!(
@@ -374,8 +371,6 @@ impl ConsensusModule {
                 quorum_id
             )));
         }
-
-        dbg!(&is_threshold_met);
 
         let batch_sigs = set
             .iter()

@@ -1,3 +1,5 @@
+use std::os::unix::process::CommandExt;
+
 use node::test_utils::create_test_network;
 use primitives::Address;
 use telemetry::custom_subscriber::TelemetrySubscriber;
@@ -11,13 +13,8 @@ async fn main() {
     std::env::set_var("VRRB_PRETTY_PRINT_LOGS", "true");
     std::env::set_var("RUST_LOG", "info");
 
-    // TelemetrySubscriber::init(std::io::stdout).unwrap();
-
     let mut nodes = create_test_network(8).await;
-
-    let rpc_server_address = nodes.get(2).unwrap().config().jsonrpc_server_address;
-    // let rpc_client = create_client(rpc_server_address).await.unwrap();
-    // dbg!(rpc_server_address);
+    let rpc_server_address = nodes.get(4).unwrap().config().jsonrpc_server_address;
 
     tokio::signal::ctrl_c().await.unwrap();
 
@@ -52,24 +49,22 @@ async fn main() {
             .await
             .unwrap();
 
-        dbg!(&wal_res.to_string());
-        dbg!(node.mempool_read_handle().entries());
-
-        // for (addr, acc) in res.iter() {
-        //     dbg!(&addr.to_string());
-        // }
-        //
-        // let res = serde_json::to_string_pretty(&res).unwrap();
-        // println!();
-        // println!("state of {node_id}: {res}");
+        println!("{}", &wal_res.to_string());
+        println!("{:?}", node.mempool_read_handle().entries());
         println!();
     } else {
         dbg!("error");
     }
 
+    println!("press ctrl-c again to exit");
+
+    tokio::signal::ctrl_c().await.unwrap();
+
     for node in nodes {
+        println!();
         println!(
-            "node {} mempool: {}, state: {}",
+            "{} node {} mempool: {}, state: {}",
+            node.node_type(),
             node.id(),
             node.mempool_read_handle().entries().len(),
             node.read_handle()
@@ -77,12 +72,7 @@ async fn main() {
                 .unwrap_or_default()
                 .len(),
         );
-        println!();
-        println!(
-            "shutting down node {} type {:?}",
-            node.id(),
-            node.node_type()
-        );
+        println!("shutting down node {}", node.id(),);
         // println!();
 
         node.stop().await.unwrap();

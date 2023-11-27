@@ -219,7 +219,7 @@ impl NetworkModule {
     pub async fn broadcast_event_to_known_peers(&mut self, nevent: NetworkEvent) -> Result<()> {
         let nid = self.kademlia_node.node_data().id;
         let rt = self.kademlia_node.get_routing_table();
-        let closest_nodes = rt.get_closest_nodes(&nid, 7);
+        let closest_nodes = rt.get_closest_nodes(&nid, 8);
 
         let closest_nodes_udp_addrs = closest_nodes
             .clone()
@@ -315,7 +315,7 @@ impl NetworkModule {
             .broadcast(BroadcastArgs {
                 config: Default::default(),
                 message,
-                erasure_count: 0,
+                erasure_count: DEFAULT_ERASURE_COUNT,
             })
             .await?;
 
@@ -488,8 +488,22 @@ impl NetworkModule {
         Ok(())
     }
 
+    pub async fn broadcast_forwarded_transaction(
+        &mut self,
+        node_id: NodeId,
+        txn: TransactionKind,
+    ) -> Result<()> {
+        telemetry::info!(
+            "Broadcasting transaction {} to network from {}",
+            txn.id(),
+            node_id
+        );
+        self.broadcast_event_to_known_peers(NetworkEvent::NewTxnForwarded(node_id, txn))
+            .await
+    }
+
     pub async fn broadcast_transaction(&mut self, txn: TransactionKind) -> Result<()> {
-        telemetry::info!("Broadcasting transaction {} vote to network", txn.id());
+        telemetry::info!("Broadcasting transaction {} to network", txn.id());
         self.broadcast_event_to_known_peers(NetworkEvent::NewTxnCreated(txn))
             .await
     }

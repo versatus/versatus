@@ -26,4 +26,4 @@ pub use crate::node::*;
 
 /// Represents the number of packets that can be lost and still be able to
 /// reconstruct the message.
-pub(crate) const DEFAULT_ERASURE_COUNT: u32 = 10;
+pub(crate) const DEFAULT_ERASURE_COUNT: u32 = 0;
