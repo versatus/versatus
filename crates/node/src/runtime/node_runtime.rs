@@ -9,10 +9,13 @@ use block::{
     GenesisReceiver, GenesisRewards, ProposalBlock, RefHash,
 };
 use bulldag::graph::BullDag;
-use events::{EventPublisher, Vote};
+use events::{Event, EventMessage, EventPublisher, Vote};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory, TxnRecord};
 use miner::{Miner, MinerConfig};
-use primitives::{Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature};
+use primitives::{
+    Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature, NETWORK_TOPIC_STR,
+    RUNTIME_TOPIC_STR,
+};
 use ritelinked::LinkedHashMap;
 use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
@@ -202,6 +205,24 @@ impl NodeRuntime {
                 "No quorum configuration found for node".to_string(),
             ));
         }
+
+        Ok(())
+    }
+
+    /// Sends an EventMessage to the network's event channel so it can send it over the wire to other nodes
+    pub async fn send_event_to_network(&mut self, event: Event) -> Result<()> {
+        self.send_event(NETWORK_TOPIC_STR, event).await
+    }
+
+    /// Sends an EventMessage to the node's event channel so it can handle it from the event loop
+    pub async fn send_event_to_self(&mut self, event: Event) -> Result<()> {
+        self.send_event(RUNTIME_TOPIC_STR, event).await
+    }
+
+    async fn send_event(&mut self, topic: &str, event: Event) -> Result<()> {
+        let message = EventMessage::new(Some(topic.into()), event);
+
+        self.events_tx.send(message).await?;
 
         Ok(())
     }
@@ -537,7 +558,7 @@ impl NodeRuntime {
                     Some(record) => Ok((record.txn.clone(), false)),
                     None => Err(NodeError::Other("transaction record not found".to_string())),
                 }
-            },
+            }
         }
     }
 
