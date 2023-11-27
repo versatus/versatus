@@ -29,9 +29,9 @@ pub enum WasmRuntimeError {
     #[error("file not found")]
     FileNotFound(#[from] wasmer::MemoryAccessError),
     #[error("out of memory")]
-    OutOfMemory(#[from] wasmer::RuntimeError),
+    OutOfMemory(#[from] wasmer::MemoryError),
     #[error("stack overflow")]
-    StackOverflow(#[from] wasmer::MemoryError),
+    StackOverflow(#[from] wasmer::RuntimeError),
 }
 
 // Constants used by tests below
