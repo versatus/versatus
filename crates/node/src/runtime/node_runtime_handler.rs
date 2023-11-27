@@ -225,20 +225,12 @@ impl Handler<EventMessage> for NodeRuntime {
                     txn.id().to_string(),
                 );
 
-                println!(
-                    "Node {} received transaction {}",
-                    &self.config_ref().id,
-                    txn.id().to_string(),
-                );
-
                 let is_txn_in_mempool = self
                     .state_driver
                     .read_handle()
                     .transaction_store_values()
                     .unwrap_or_default()
                     .contains_key(&txn.id());
-
-                dbg!(&is_txn_in_mempool);
 
                 // check for txn in mempool, return if present
                 if is_txn_in_mempool {
@@ -247,12 +239,6 @@ impl Handler<EventMessage> for NodeRuntime {
                 }
 
                 info!(
-                    "Broadcasting {} to network from node {}",
-                    txn.id().to_string(),
-                    self.config_ref().id
-                );
-
-                println!(
                     "Broadcasting {} to network from node {}",
                     txn.id().to_string(),
                     self.config_ref().id
