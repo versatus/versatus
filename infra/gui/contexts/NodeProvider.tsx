@@ -58,7 +58,7 @@ const NodeProvider  = ({ children }: {children: ReactNode}) => {
 
   useEffect(() => {
     if (fullState && Object.keys(fullState).length > 0) {
-      setAddress(Object.keys(fullState ?? {})?.[0])
+      setAddress(Object.keys(fullState)[0])
     }
   }, [fullState])
 

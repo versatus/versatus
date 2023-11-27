@@ -28,11 +28,9 @@ export async function POST(request: Request) {
     .request(config)
     .then((response) => {
       if (response.data.error) throw new Error(response.data.error.message)
-      console.log("GOOD TO GO")
       return NextResponse.json(response.data)
     })
     .catch((error) => {
-      console.log("NOT GOOD!", error)
       const respInit: ResponseInit = {
         status: 400,
       }
