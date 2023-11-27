@@ -50,6 +50,7 @@ export const signTransaction = async (tx: {
   token: { symbol: string; decimals: number; name: string }
 }) => {
   try {
+    // @ts-ignore
     const response = await makeRPCCall('signTransaction', [tx])
     return response.data
   } catch (error) {
@@ -59,6 +60,7 @@ export const signTransaction = async (tx: {
 
 export const createTransaction = async (tx: any) => {
   try {
+    // @ts-ignore
     const response = await makeRPCCall('createTransaction', [tx])
     return response.data
   } catch (error) {
@@ -89,7 +91,7 @@ export const rpcFetcher = async ({
   return await axios(config).then((res) => res.data)
 }
 
-export const makeRPCCall = async (method: string, params = []) => {
+export const makeRPCCall = async (method: string, params: any[] = []) => {
   const config = {
     method: 'post',
     maxBodyLength: Infinity,
@@ -106,6 +108,7 @@ export const makeRPCCall = async (method: string, params = []) => {
   try {
     return await axios(config).then((res) => res.data)
   } catch (error) {
+    // @ts-ignore
     throw error.message
   }
 }

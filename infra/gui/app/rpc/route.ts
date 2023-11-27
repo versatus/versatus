@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { NextResponse } from 'next/server'
 
-const RPC_URL = 'http://127.0.0.1:9293'
+// const RPC_URL = 'http://127.0.0.1:9293'
 
 export async function POST(request: Request) {
   const { method, params = [] } = await request.json()
@@ -16,19 +16,23 @@ export async function POST(request: Request) {
   const config = {
     method: 'post',
     maxBodyLength: Infinity,
-    url: RPC_URL,
+    url: `http://${process.env["RPC_API_URL"]}`,
     headers: {
       'Content-Type': 'application/json',
     },
     data: data,
   }
+
+
   return await axios
     .request(config)
     .then((response) => {
       if (response.data.error) throw new Error(response.data.error.message)
+      console.log("GOOD TO GO")
       return NextResponse.json(response.data)
     })
     .catch((error) => {
+      console.log("NOT GOOD!", error)
       const respInit: ResponseInit = {
         status: 400,
       }

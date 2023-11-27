@@ -78,6 +78,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .bootstrap_quorum_config(None)
         .threshold_config(ThresholdConfig::default())
         .whitelisted_nodes(vec![])
+        .gui(true)
         .build()
         .unwrap()
 }

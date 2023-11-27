@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, {createContext, ReactNode, useContext, useEffect, useState} from 'react'
 import { getAccount, rpcFetcher } from '@/lib/methods'
 import useSWR from 'swr'
 
@@ -9,7 +9,7 @@ interface NodeContextProps {
   memPool: any[]
   memPoolLoading: boolean
   memPoolErr: any
-  nodeType: string | null
+  nodeType: string | null | undefined
   nodeTypeLoading: boolean
   nodeTypeErr: any
   account: any
@@ -29,11 +29,12 @@ const NodeContext = createContext<NodeContextProps>({
   nodeType: undefined,
   nodeTypeLoading: false,
   nodeTypeErr: undefined,
+  setAddress: (address: string) => {},
 } as NodeContextProps)
 
 const useNodeContext = () => useContext(NodeContext)
 
-const NodeProvider: React.FC = ({ children }) => {
+const NodeProvider  = ({ children }: {children: ReactNode}) => {
   const [account, setAccount] = useState<any>(null)
   const [address, setAddress] = useState<string>('')
 
@@ -61,11 +62,9 @@ const NodeProvider: React.FC = ({ children }) => {
     }
   }, [fullState])
 
-  console.log('fullState', fullState)
-
   useEffect(() => {
     getAccount(
-      '03f09c3ee3c5467ca11957395dd35fe60d004f8b664d51b3e720ca121f56b030f5'
+      '0xae903d06d636f451eb6c5189e453c38fd7b7d694'
     ).then((res) => {
       console.log('stuff', res)
       // setAccount(res.result)

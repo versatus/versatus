@@ -27,10 +27,10 @@ export default function Home() {
         <div className={'flex flex-col gap-3  mx-4'}>
           <PageHeader />
           <div className={'grid grid-cols-1 lg:grid-cols-3 gap-8'}>
-            <ReputationModule />
-            <GainsModule />
+            {/*<ReputationModule />*/}
+            {/*<GainsModule />*/}
             <NodeStatusModule />
-            <RPCMethodPreview address={''} />
+            {/*<RPCMethodPreview address={''} />*/}
           </div>
         </div>
       </NodeProvider>
