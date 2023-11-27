@@ -44,7 +44,6 @@ impl Handler<EventMessage> for NetworkModule {
                     .await?;
             }
             Event::NewTxnForwarded(node_id, txn) => {
-                println!("sending out transaction from {}", &node_id);
                 info!("Broadcasting transaction to known peers from {node_id}");
                 self.broadcast_forwarded_transaction(node_id, txn).await?;
             }

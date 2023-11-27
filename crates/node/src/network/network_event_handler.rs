@@ -123,19 +123,12 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                 }
             }
             NetworkEvent::NewTxnForwarded(node_id, txn) => {
-                println!("{} received txn {}", &self.node_id, txn.id(),);
                 let evt = Event::NewTxnForwarded(node_id, txn);
                 if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);
                 }
             }
             NetworkEvent::TransactionVoteCreated(vote) => {
-                println!(
-                    "{} received vote on {} from {}",
-                    &self.node_id,
-                    vote.txn.id(),
-                    vote.farmer_id,
-                );
                 let evt = Event::TransactionVoteCreated(vote);
                 if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);

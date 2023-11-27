@@ -292,7 +292,6 @@ impl ConsensusModule {
             )))?
             .0;
 
-        dbg!("made it here");
         self.check_vote_is_valid(&quorum_id, &vote).await?;
 
         match self.votes_pool.entry(quorum_id.clone()) {
