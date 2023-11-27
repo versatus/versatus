@@ -10,6 +10,9 @@ use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
 
+const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
+const DEFAULT_FAUCET_PORT: u16 = 9294;
+
 #[derive(Debug, Subcommand)]
 pub enum FaucetCmd {
     /// Run a faucet with the provided configuration
@@ -21,7 +24,7 @@ pub struct FaucetOpts {
     #[clap(subcommand)]
     pub subcommand: FaucetCmd,
 
-    #[clap(long, default_value = "127.0.0.1:9293")]
+    #[clap(long, default_value = DEFAULT_JSONRPC_ADDRESS)]
     pub rpc_server_address: SocketAddr,
 
     /// Secret key to use when signing transactions
@@ -29,7 +32,7 @@ pub struct FaucetOpts {
     pub secret_key: String,
 
     /// Secret key to use when signing transactions
-    #[clap(long, default_value = "9294")]
+    #[clap(long, default_value = DEFAULT_FAUCET_PORT)]
     pub host_port: String,
 }
 
