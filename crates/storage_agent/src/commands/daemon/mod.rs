@@ -1,59 +1,61 @@
 use anyhow::Result;
 use clap::Parser;
-use service_config::ServiceConfig;
 use hyper::{
     header::CONTENT_TYPE,
     service::{make_service_fn, service_fn},
-    Request,
-    Response,
-    Body,
-    Server
+    Body, Request, Response, Server,
 };
-use prometheus::{TextEncoder, Encoder, Counter, register_counter, opts, labels};
 use lazy_static::lazy_static;
 use platform::platform_stats::CgroupStats;
+use prometheus::{labels, opts, register_counter, Counter, Encoder, TextEncoder};
+use service_config::ServiceConfig;
 
 /// Structure representing command line options to the daemon subcommand
 #[derive(Parser, Debug)]
-pub struct DaemonOpts {
-}
+pub struct DaemonOpts;
 
-// Define some initial counters to expose from the platform crate, plus some metadata for 
-// the benefit of Prometheus and those consuming its timeseries data. Much of this is 
+// Define some initial counters to expose from the platform crate, plus some metadata for
+// the benefit of Prometheus and those consuming its timeseries data. Much of this is
 // identical to the code in the compute_agent crate. As we get a handle on how we want
 // to use this, and other metrics we want to expose, we'll put this in its own crate and
 // make it generic across all Versatus services.
 lazy_static! {
     static ref CPU_TOTAL_USEC: Counter = register_counter!(opts!(
-            "cpu_total_usec",
-            "CPU time used in usec total",
-            labels! { "service" => "storage", "source" => "versatus" }
-    )).unwrap();
+        "cpu_total_usec",
+        "CPU time used in usec total",
+        labels! { "service" => "storage", "source" => "versatus" }
+    ))
+    .unwrap();
     static ref CPU_USER_USEC: Counter = register_counter!(opts!(
-            "cpu_user_usec",
-            "CPU time used for userspace in usec",
-            labels! { "service" => "storage", "source" => "versatus" }
-    )).unwrap();
+        "cpu_user_usec",
+        "CPU time used for userspace in usec",
+        labels! { "service" => "storage", "source" => "versatus" }
+    ))
+    .unwrap();
     static ref CPU_SYSTEM_USEC: Counter = register_counter!(opts!(
-            "cpu_system_usec",
-            "CPU time used for kernel in usec",
-            labels! { "service" => "storage", "source" => "versatus" }
-    )).unwrap();
+        "cpu_system_usec",
+        "CPU time used for kernel in usec",
+        labels! { "service" => "storage", "source" => "versatus" }
+    ))
+    .unwrap();
     static ref MEM_ANON_BYTES: Counter = register_counter!(opts!(
-            "mem_anon_bytes",
-            "Anonymous memory used in bytes",
-            labels! { "service" => "storage", "source" => "versatus" }
-    )).unwrap();
+        "mem_anon_bytes",
+        "Anonymous memory used in bytes",
+        labels! { "service" => "storage", "source" => "versatus" }
+    ))
+    .unwrap();
     static ref MEM_FILE_BYTES: Counter = register_counter!(opts!(
-            "mem_file_bytes",
-            "File-backed memory used in bytes",
-            labels! { "service" => "storage", "source" => "versatus" }
-    )).unwrap();
+        "mem_file_bytes",
+        "File-backed memory used in bytes",
+        labels! { "service" => "storage", "source" => "versatus" }
+    ))
+    .unwrap();
     static ref MEM_SOCK_BYTES: Counter = register_counter!(opts!(
-            "mem_sock_bytes",
-            "Socket memory used in bytes",
-            labels! { "service" => "storage", "source" => "versatus" }
-    )).unwrap();
+        "mem_sock_bytes",
+        "Socket memory used in bytes",
+        labels! { "service" => "storage", "source" => "versatus" }
+    ))
+    .unwrap();
 }
 
 /// Serve Prometheus exporter requests
@@ -103,10 +105,10 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
         .expect("Invalid address/port for Prometheus Exporter service");
     // Execute this in the foreground til we have other work to do. Later, it can
     // end up in a long-lived thread.
-    Server::bind(&addr).serve(
-        make_service_fn(|_| async {
+    Server::bind(&addr)
+        .serve(make_service_fn(|_| async {
             Ok::<_, anyhow::Error>(service_fn(serve_req))
-        })
-    ).await?;
+        }))
+        .await?;
     Ok(())
 }

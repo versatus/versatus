@@ -9,3 +9,4 @@ edition = "2021"
 anyhow = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
+jsonrpsee = { workspace = true }

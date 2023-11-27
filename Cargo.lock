@@ -3143,6 +3143,7 @@ name = "internal_rpc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "jsonrpsee",
  "service_config",
  "tokio",
 ]
