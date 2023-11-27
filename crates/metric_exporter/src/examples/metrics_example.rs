@@ -16,8 +16,22 @@ async fn main() {
                 "service".to_string() => "compute".to_string(),
                 "source".to_string() => "versatus".to_string(),
     };
+
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+    let rsa_path = current_dir.join("src/examples/sample.rsa");
+    let pem_path = current_dir.join("src/examples/sample.pem");
+
     // Prometheus factory for metrics
-    let factory = Arc::new(PrometheusFactory::new(port, false, HashMap::new(),"examples/sample.rsa".to_string(),"examples/sample.pem".to_string()));
+    let factory = Arc::new(
+        PrometheusFactory::new(
+            port,
+            false,
+            HashMap::new(),
+            rsa_path.to_str().unwrap().to_string(),
+            pem_path.to_str().unwrap().to_string(),
+        )
+        .unwrap(),
+    );
 
     // Metrics: Block height, Transactions per minute, CPU load, Active peers, Block finality time
     let block_height = factory
