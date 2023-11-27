@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
+use thiserror::Error;
 use wasmer::{Cranelift, Target};
 
 use crate::{
@@ -23,13 +24,14 @@ struct TestOutput {
     env: HashMap<String, String>,
 }
 
-enum WasmRuntimeErrors {
-    // this enum get mapped after execution to find relavent error, if error is produced.
-    FileNotFound {
-        //some Errno link here?
-    },
-    OutOfMemory {},
-    StackOverflow {},
+#[derive(Error, Debug)]
+pub enum WasmRuntimeError {
+    #[error("file not found")]
+    FileNotFound(#[from] wasmer::MemoryAccessError),
+    #[error("out of memory")]
+    OutOfMemory(#[from] wasmer::RuntimeError),
+    #[error("stack overflow")]
+    StackOverflow(#[from] wasmer::MemoryError),
 }
 
 // Constants used by tests below

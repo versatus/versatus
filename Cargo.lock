@@ -8019,6 +8019,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "telemetry",
+ "thiserror",
  "vrrb_core",
  "wasmer",
  "wasmer-middlewares",
