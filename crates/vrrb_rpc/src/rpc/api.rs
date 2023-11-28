@@ -139,5 +139,5 @@ pub trait RpcApi {
     async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, RpseeError>;
 
     #[method(name = "getLastBlock")]
-    async fn get_last_block(&self) -> Result<Block, RpseeError>;
+    async fn get_last_block(&self) -> Result<Option<Block>, RpseeError>;
 }
