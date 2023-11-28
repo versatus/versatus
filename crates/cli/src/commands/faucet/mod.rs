@@ -11,7 +11,7 @@ use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 use crate::result::{CliError, Result};
 
 const DEFAULT_JSONRPC_ADDRESS: &str = "127.0.0.1:9293";
-const DEFAULT_FAUCET_PORT: u16 = 9294;
+const DEFAULT_FAUCET_PORT: &str = "9294";
 
 #[derive(Debug, Subcommand)]
 pub enum FaucetCmd {

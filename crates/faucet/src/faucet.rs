@@ -8,6 +8,7 @@ use axum::routing::post;
 use tokio::spawn;
 use tokio::sync::Mutex;
 use primitives::Address;
+use telemetry::error;
 use vrrb_core::transactions::{RpcTransactionDigest, Token};
 use wallet::v2::{Wallet, WalletConfig, WalletError};
 
@@ -48,6 +49,7 @@ async fn drip(
         )
         .await
         .map_err(|err| {
+            error!("Unable to send transaction: {}", err);
             eprintln!("Unable to send transaction: {}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
