@@ -68,10 +68,10 @@ impl InternalRpcServer {
     /// Starts the RPC server which listens for internal calls.
     /// The server will continue to run until the handle is consumed.
     pub async fn start(
-        service_config: ServiceConfig,
+        service_config: &ServiceConfig,
         service_type: ServiceType,
     ) -> RpcResult<(ServerHandle, SocketAddr)> {
-        let rpc = InternalRpc::new(&service_config, service_type);
+        let rpc = InternalRpc::new(service_config, service_type);
         let server = ServerBuilder::default()
             .build(format!(
                 "{}:{}",

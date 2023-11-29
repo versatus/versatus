@@ -5,8 +5,9 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
 };
+use internal_rpc::InternalRpcServer;
 use lazy_static::lazy_static;
-use platform::platform_stats::CgroupStats;
+use platform::{platform_stats::CgroupStats, services::ServiceType};
 use prometheus::{labels, opts, register_counter, Counter, Encoder, TextEncoder};
 use service_config::ServiceConfig;
 
@@ -97,6 +98,8 @@ async fn serve_req(_req: Request<Body>) -> Result<Response<Body>, anyhow::Error>
 pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     // XXX: This is where we should start the RPC server listener and process incoming requests
     // using the service name and service config provided in the global command line options.
+    let (server_handle, server_local_addr) =
+        InternalRpcServer::start(config, ServiceType::Storage).await?;
 
     // In the interim, start a stub of a Prometheus exporter. Later we'll fill this with valid
     // metrics.

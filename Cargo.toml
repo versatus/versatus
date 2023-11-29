@@ -55,6 +55,7 @@ rand = { workspace = true }
 lazy_static = { workspace = true }
 wasmer = { workspace = true }
 metric_exporter = { workspace = true }
+internal_rpc = { workspace = true }
 
 [workspace]
 members = [
@@ -98,6 +99,7 @@ members = [
 [workspace.dependencies]
 # NOTE: Internal crates 
 cli = { path = "crates/cli" }
+internal_rpc = { path = "crates/internal_rpc" }
 node = { path = "crates/node" }
 primitives = { path = "crates/primitives" }
 vrrb_core = { path = "crates/vrrb_core" }
