@@ -11,4 +11,3 @@ jsonrpsee = { workspace = true }
 platform = { workspace = true }
 serde = { workspace = true }
 service_config = { workspace = true }
-tokio = { workspace = true }
