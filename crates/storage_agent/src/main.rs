@@ -18,20 +18,22 @@ async fn main() -> Result<()> {
     };
 
     // Parse common services configuration
-    let config = Config::from_file(&cli.config)?
-        .find_service(&cli.service, &service)?;
+    let config = Config::from_file(&cli.config)?.find_service(&cli.service, &service)?;
 
-    info!("Matched service {}:{} to config: {:?}", cli.service, service, config);
+    info!(
+        "Matched service {}:{} to config: {:?}",
+        cli.service, service, config
+    );
 
     // Process subcommand
     match &cli.cmd {
         Some(cli::StorageCommands::Daemon(opts)) => {
             commands::daemon::run(opts, &config).await?;
-        },
+        }
         Some(cli::StorageCommands::Status(opts)) => {
             commands::status::run(opts, &config).await?;
-        },
-        None => {},
+        }
+        None => {}
     }
 
     Ok(())

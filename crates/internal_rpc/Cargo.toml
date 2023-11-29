@@ -7,7 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+jsonrpsee = { workspace = true }
+platform = { workspace = true }
+serde = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
-jsonrpsee = { workspace = true }
-bitmask-enum = { workspace = true }

@@ -1,18 +1,78 @@
 use std::net::SocketAddr;
 
 use anyhow::Result;
-use bitmask_enum::bitmask;
 use jsonrpsee::{
     core::async_trait,
     proc_macros::rpc,
     server::{ServerBuilder, ServerHandle},
 };
+use platform::services::*;
 use service_config::ServiceConfig;
+
+type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
+
+/// The methods available to the [`InternalRpcServer`] for both
+/// the client and the server.
+///
+/// This is meant to be extensible to meet the needs of the `InternalRpcServer`.
+#[rpc(server, client, namespace = "common")]
+pub trait InternalRpcApi {
+    /// Get the status of a job
+    #[method(name = "status")]
+    fn status(&self) -> RpcResult<()> {
+        Ok(())
+    }
+
+    /// Get info about the current service
+    #[method(name = "serviceStatusResponse")]
+    fn service_status_response(&self) -> RpcResult<ServiceStatusResponse>;
+
+    /// The name of this service definition
+    #[method(name = "name")]
+    fn name(&self) -> RpcResult<String>;
+
+    /// The address to bind to for RPC calls
+    #[method(name = "rpcAddress")]
+    fn rpc_address(&self) -> RpcResult<String>;
+
+    /// The port to bind to for RPC calls
+    #[method(name = "rpcPort")]
+    fn rpc_port(&self) -> RpcResult<u32>;
+
+    /// A preshared key for authenticating RPC calls
+    #[method(name = "preSharedKey")]
+    fn pre_shared_key(&self) -> RpcResult<String>;
+
+    /// A TLS private key for RPC transport privacy
+    #[method(name = "tlsPrivateKeyFile")]
+    fn tls_private_key_file(&self) -> RpcResult<String>;
+
+    /// A TLS public certificate for RPC transport privacy
+    #[method(name = "tlsPublicCertFile")]
+    fn tls_public_cert_file(&self) -> RpcResult<String>;
+
+    /// A TLS CA certificate for validating certificates
+    #[method(name = "tlsCaCertFile")]
+    fn tls_ca_cert_file(&self) -> RpcResult<String>;
+
+    /// Prometheus exporter bind address
+    #[method(name = "exporterAddress")]
+    fn exporter_address(&self) -> RpcResult<String>;
+
+    /// Prometheus exporter bind port
+    #[method(name = "exporterPort")]
+    fn exporter_port(&self) -> RpcResult<String>;
+}
 
 pub struct InternalRpcServer;
 impl InternalRpcServer {
     /// Starts the RPC server which listens for internal calls.
-    pub async fn start(service_config: ServiceConfig) -> Result<(ServerHandle, SocketAddr)> {
+    /// The server will continue to run until the handle is consumed.
+    pub async fn start(
+        service_config: ServiceConfig,
+        service_type: ServiceType,
+    ) -> Result<(ServerHandle, SocketAddr)> {
+        let rpc = InternalRpc::new(&service_config, service_type);
         let server = ServerBuilder::default()
             .build(format!(
                 "{}:{}",
@@ -21,75 +81,115 @@ impl InternalRpcServer {
             .await?;
 
         let addr = server.local_addr()?;
-        let handle = server.start(service_config.into_rpc())?;
+        let handle = server.start(rpc.into_rpc())?;
 
         Ok((handle, addr))
     }
 }
 
-#[rpc(server, client, namespace = "common")]
-pub trait InternalRpcApi {
-    #[method(name = "getStatus")]
-    async fn status(&self) -> Result<(), jsonrpsee::core::Error>;
+/// Represents all information available to the server and client.
+/// Calls to the [`InternalRpcApi`] rely on this structure.
+struct InternalRpc {
+    /// The name of this service definition
+    pub(crate) name: String,
+    /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
+    pub(crate) service_type: ServiceType,
+    /// The time of the creation of the `InternalRpc`, used to get the uptime of a service.
+    pub(crate) service_start: std::time::Instant,
+    /// A bitmask of capabilities supported by a particular service.
+    /// Subject to change, batteries not included.
+    pub(crate) service_capabilities: ServiceCapabilities,
+    /// The `CARGO_PKG_VERSION` as specified by `std::env`.
+    pub(crate) version: VersionNumber,
+    /// The address to bind to for RPC calls
+    pub(crate) rpc_address: String,
+    /// The port to bind to for RPC calls
+    pub(crate) rpc_port: u32,
+    /// A preshared key for authenticating RPC calls
+    pub(crate) pre_shared_key: String,
+    /// A TLS private key for RPC transport privacy
+    pub(crate) tls_private_key_file: String,
+    /// A TLS public certificate for RPC transport privacy
+    pub(crate) tls_public_cert_file: String,
+    /// A TLS CA certificate for validating certificates
+    pub(crate) tls_ca_cert_file: String,
+    /// Prometheus exporter bind address
+    pub(crate) exporter_address: String,
+    /// Prometheus exporter bind port
+    pub(crate) exporter_port: String,
 }
 
-#[async_trait]
-impl InternalRpcApiServer for ServiceConfig {
-    async fn status(&self) -> Result<(), jsonrpsee::core::Error> {
-        Ok(())
+impl InternalRpc {
+    pub fn new(service_config: &ServiceConfig, service_type: ServiceType) -> Self {
+        Self {
+            name: service_config.name.clone(),
+            service_type: service_type.clone(),
+            service_start: std::time::Instant::now(),
+            service_capabilities: ServiceCapabilities::Wasi,
+            version: VersionNumber::env(),
+            rpc_address: service_config.rpc_address.clone(),
+            rpc_port: service_config.rpc_port,
+            pre_shared_key: service_config.pre_shared_key.clone(),
+            tls_private_key_file: service_config.tls_private_key_file.clone(),
+            tls_public_cert_file: service_config.tls_public_cert_file.clone(),
+            tls_ca_cert_file: service_config.tls_ca_cert_file.clone(),
+            exporter_address: service_config.exporter_address.clone(),
+            exporter_port: service_config.exporter_port.clone(),
+        }
     }
 }
 
-/// An enum representing the service type. Compute, Storage, for example. More to come in the future.
-enum ServiceType {
-    /// A service that will accept (and execute) compute jobs
-    Compute,
-    /// A service that will handle web3 content-addressed persistence of binary blobs
-    Storage,
-    /// A service that supports the Versatus blockchain protocol(s)
-    Blockchain,
+#[async_trait]
+impl InternalRpcApiServer for InternalRpc {
+    fn service_status_response(&self) -> RpcResult<ServiceStatusResponse> {
+        Ok(ServiceStatusResponse::from(self))
+    }
+
+    fn name(&self) -> RpcResult<String> {
+        Ok(self.name.clone())
+    }
+
+    fn rpc_address(&self) -> RpcResult<String> {
+        Ok(self.rpc_address.clone())
+    }
+
+    fn rpc_port(&self) -> RpcResult<u32> {
+        Ok(self.rpc_port)
+    }
+
+    fn pre_shared_key(&self) -> RpcResult<String> {
+        Ok(self.pre_shared_key.clone())
+    }
+
+    fn tls_private_key_file(&self) -> RpcResult<String> {
+        Ok(self.tls_private_key_file.clone())
+    }
+
+    fn tls_public_cert_file(&self) -> RpcResult<String> {
+        Ok(self.tls_public_cert_file.clone())
+    }
+
+    fn tls_ca_cert_file(&self) -> RpcResult<String> {
+        Ok(self.tls_ca_cert_file.clone())
+    }
+
+    fn exporter_address(&self) -> RpcResult<String> {
+        Ok(self.exporter_address.clone())
+    }
+
+    fn exporter_port(&self) -> RpcResult<String> {
+        Ok(self.exporter_port.clone())
+    }
 }
 
-/// A bitmask of capabilities supported by a particular service.
-/// Subject to change, batteries not included.
-#[bitmask]
-enum ServiceCapabilities {
-    /// This compute service supports execution of WASM/WASI
-    Wasi,
-    /// This compute service supports execution of X86_64 code
-    Amd64,
-    /// This compute service supports execution of ARM64 code
-    Aarch64,
-    /// This compute service supports execution of RISC-V code
-    Riscv,
-    /// This compute service supports consensus (smart contract) jobs
-    Consensus,
-    /// This compute service supports Function-as-a-Service (FaaS) jobs
-    Faas,
-    /// This compute service supports long-running Node-JS jobs
-    NodeJs,
-    /// This storage service supports the IPFS web3 storage protocol
-    Ipfs,
-    /// This storage service's data store is on resilient storage
-    Resilient,
-}
-
-/// A version number
-struct VersionNumber {
-    major: u8,
-    minor: u8,
-    patch: u8,
-}
-
-struct ServiceStatusResponse {
-    /// Type of service (see above)
-    service_type: ServiceType,
-    /// Capabilities of this service (see above)
-    service_capabilities: ServiceCapabilities,
-    /// A string naming the implementation of this storage service (future proofing).
-    service_implementation: String,
-    /// The version number of this service
-    service_version: VersionNumber,
-    /// The current uptime (seconds.ns) of the service
-    service_uptime: std::time::Duration,
+impl<'a> From<&'a InternalRpc> for ServiceStatusResponse {
+    fn from(value: &'a InternalRpc) -> Self {
+        Self {
+            service_type: value.service_type.clone(),
+            service_capabilities: value.service_capabilities.clone(),
+            service_implementation: "".to_string(),
+            service_version: value.version.clone(),
+            service_uptime: value.service_start.elapsed().as_secs(),
+        }
+    }
 }
