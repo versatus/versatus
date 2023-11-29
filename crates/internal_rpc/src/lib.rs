@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 
-use anyhow::Result;
 use jsonrpsee::{
     core::async_trait,
     proc_macros::rpc,
@@ -71,7 +70,7 @@ impl InternalRpcServer {
     pub async fn start(
         service_config: ServiceConfig,
         service_type: ServiceType,
-    ) -> Result<(ServerHandle, SocketAddr)> {
+    ) -> RpcResult<(ServerHandle, SocketAddr)> {
         let rpc = InternalRpc::new(&service_config, service_type);
         let server = ServerBuilder::default()
             .build(format!(
