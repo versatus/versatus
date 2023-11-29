@@ -45,7 +45,7 @@ pub struct VersionNumber {
     patch: u8,
 }
 impl VersionNumber {
-    pub fn env() -> Self {
+    pub fn cargo_pkg() -> Self {
         let n = std::env!("CARGO_PKG_VERSION")
             .split('.')
             .map(|x| x.parse().unwrap_or(0))

@@ -124,8 +124,14 @@ impl InternalRpc {
             name: service_config.name.clone(),
             service_type: service_type.clone(),
             service_start: std::time::Instant::now(),
-            service_capabilities: ServiceCapabilities::Wasi,
-            version: VersionNumber::env(),
+
+            // TODO: fix this to be reliant on uname
+            service_capabilities: match service_type {
+                ServiceType::Compute => ServiceCapabilities::Wasi | ServiceCapabilities::Consensus,
+                ServiceType::Storage => ServiceCapabilities::Ipfs,
+                _ => unreachable!("not supported at this time"),
+            },
+            version: VersionNumber::cargo_pkg(),
             rpc_address: service_config.rpc_address.clone(),
             rpc_port: service_config.rpc_port,
             pre_shared_key: service_config.pre_shared_key.clone(),
