@@ -1,3 +1,4 @@
+use bitmask_enum::bitmask;
 use serde::{Deserialize, Serialize};
 
 /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
@@ -13,7 +14,8 @@ pub enum ServiceType {
 
 /// A bitmask of capabilities supported by a particular service.
 /// Subject to change, batteries not included.
-#[derive(Clone, Serialize, Deserialize)]
+#[bitmask]
+#[derive(Serialize, Deserialize)]
 pub enum ServiceCapabilities {
     /// This compute service supports execution of WASM/WASI
     Wasi,
