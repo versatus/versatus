@@ -45,7 +45,7 @@ impl ConsensusModule {
 
             if all_nodes_available {
                 telemetry::info!(
-                    "All quorum members are online. Triggering genesis quorum elections"
+                    "All pre-configured nodes are online. Assigning quorum memberships."
                 );
 
                 if matches!(
