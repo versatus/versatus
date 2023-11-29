@@ -89,8 +89,7 @@ impl InternalRpcServer {
 /// Represents all information available to the server and client.
 /// Calls to the [`InternalRpcApi`] rely on this structure.
 struct InternalRpc {
-    /// The name of this service definition
-    pub(crate) name: String,
+    pub(crate) service_config: ServiceConfig,
     /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
     pub(crate) service_type: ServiceType,
     /// The time of the creation of the `InternalRpc`, used to get the uptime of a service.
@@ -100,28 +99,12 @@ struct InternalRpc {
     pub(crate) service_capabilities: ServiceCapabilities,
     /// The `CARGO_PKG_VERSION` as specified by `std::env`.
     pub(crate) version: VersionNumber,
-    /// The address to bind to for RPC calls
-    pub(crate) rpc_address: String,
-    /// The port to bind to for RPC calls
-    pub(crate) rpc_port: u32,
-    /// A preshared key for authenticating RPC calls
-    pub(crate) pre_shared_key: String,
-    /// A TLS private key for RPC transport privacy
-    pub(crate) tls_private_key_file: String,
-    /// A TLS public certificate for RPC transport privacy
-    pub(crate) tls_public_cert_file: String,
-    /// A TLS CA certificate for validating certificates
-    pub(crate) tls_ca_cert_file: String,
-    /// Prometheus exporter bind address
-    pub(crate) exporter_address: String,
-    /// Prometheus exporter bind port
-    pub(crate) exporter_port: String,
 }
 
 impl InternalRpc {
     pub fn new(service_config: &ServiceConfig, service_type: ServiceType) -> Self {
         Self {
-            name: service_config.name.clone(),
+            service_config: service_config.clone(),
             service_type: service_type.clone(),
             service_start: std::time::Instant::now(),
 
@@ -132,14 +115,6 @@ impl InternalRpc {
                 _ => unreachable!("not supported at this time"),
             },
             version: VersionNumber::cargo_pkg(),
-            rpc_address: service_config.rpc_address.clone(),
-            rpc_port: service_config.rpc_port,
-            pre_shared_key: service_config.pre_shared_key.clone(),
-            tls_private_key_file: service_config.tls_private_key_file.clone(),
-            tls_public_cert_file: service_config.tls_public_cert_file.clone(),
-            tls_ca_cert_file: service_config.tls_ca_cert_file.clone(),
-            exporter_address: service_config.exporter_address.clone(),
-            exporter_port: service_config.exporter_port.clone(),
         }
     }
 }
@@ -151,39 +126,39 @@ impl InternalRpcApiServer for InternalRpc {
     }
 
     fn name(&self) -> RpcResult<String> {
-        Ok(self.name.clone())
+        Ok(self.service_config.name.clone())
     }
 
     fn rpc_address(&self) -> RpcResult<String> {
-        Ok(self.rpc_address.clone())
+        Ok(self.service_config.rpc_address.clone())
     }
 
     fn rpc_port(&self) -> RpcResult<u32> {
-        Ok(self.rpc_port)
+        Ok(self.service_config.rpc_port)
     }
 
     fn pre_shared_key(&self) -> RpcResult<String> {
-        Ok(self.pre_shared_key.clone())
+        Ok(self.service_config.pre_shared_key.clone())
     }
 
     fn tls_private_key_file(&self) -> RpcResult<String> {
-        Ok(self.tls_private_key_file.clone())
+        Ok(self.service_config.tls_private_key_file.clone())
     }
 
     fn tls_public_cert_file(&self) -> RpcResult<String> {
-        Ok(self.tls_public_cert_file.clone())
+        Ok(self.service_config.tls_public_cert_file.clone())
     }
 
     fn tls_ca_cert_file(&self) -> RpcResult<String> {
-        Ok(self.tls_ca_cert_file.clone())
+        Ok(self.service_config.tls_ca_cert_file.clone())
     }
 
     fn exporter_address(&self) -> RpcResult<String> {
-        Ok(self.exporter_address.clone())
+        Ok(self.service_config.exporter_address.clone())
     }
 
     fn exporter_port(&self) -> RpcResult<String> {
-        Ok(self.exporter_port.clone())
+        Ok(self.service_config.exporter_port.clone())
     }
 }
 
