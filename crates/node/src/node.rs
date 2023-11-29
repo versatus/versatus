@@ -1,9 +1,11 @@
 use std::net::SocketAddr;
 
 use events::{Event, EventPublisher, EventRouter, Topic};
+use mempool::MempoolReadHandleFactory;
 use primitives::{
     KademliaPeerId, NodeType, JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR,
 };
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
@@ -29,6 +31,8 @@ pub struct Node {
 
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
+    db_read_handle: VrrbDbReadHandle,
+    mempool_read_handle: MempoolReadHandleFactory,
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
@@ -53,7 +57,7 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
-        let (runtime_component_manager, updated_node_config) =
+        let (runtime_component_manager, updated_node_config, db_read_handle, mempool_read_handle) =
             setup_runtime_components(&config, &router, events_tx.clone()).await?;
 
         // TODO: report error from handle
@@ -71,6 +75,8 @@ impl Node {
             keypair,
             cancel_token,
             runtime_control_handle,
+            db_read_handle,
+            mempool_read_handle,
         })
     }
 
@@ -159,5 +165,13 @@ impl Node {
     /// Reports metrics about the node's health
     pub fn health_check(&self) -> Result<NodeHealthReport> {
         Ok(NodeHealthReport::default())
+    }
+
+    pub fn read_handle(&self) -> VrrbDbReadHandle {
+        self.db_read_handle.clone()
+    }
+
+    pub fn mempool_read_handle(&self) -> MempoolReadHandleFactory {
+        self.mempool_read_handle.clone()
     }
 }

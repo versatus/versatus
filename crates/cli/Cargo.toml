@@ -12,6 +12,7 @@ path = "src/lib.rs"
 
 [dependencies]
 clap = { workspace = true }
+faucet = { workspace = true }
 tokio = { workspace = true }
 node = { workspace = true }
 vrrb_config = { workspace = true }

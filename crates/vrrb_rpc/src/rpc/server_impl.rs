@@ -1,3 +1,4 @@
+use std::intrinsics::mir::Variant;
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
@@ -38,7 +39,10 @@ impl RpcApiServer for RpcServerImpl {
         let values = self
             .vrrbdb_read_handle
             .state_store_values()
-            .map_err(|err| RpseeError::Custom(format!("Failed to read values: {err}")))?;
+            .unwrap_or_else(|err| {
+                error!("Failed to read values: {err}");
+                FullStateSnapshot::new()
+            });
 
         Ok(values)
     }
@@ -86,14 +90,18 @@ impl RpcApiServer for RpcServerImpl {
         let values = self
             .vrrbdb_read_handle
             .transaction_store_values()
-            .map_err(|err| RpseeError::Custom(format!("Failed to read values: {err}")))?;
+            .unwrap_or_else(|err| {
+                error!("Failed to read values: {err}");
+                HashMap::new()
+            });
+
         let value = values.get(&parsed_digest);
 
         match value {
             Some(txn) => {
                 let txn_record = RpcTransactionRecord::from(txn.clone());
                 Ok(txn_record)
-            },
+            }
             None => return Err(RpseeError::Custom("unable to find transaction".to_string())),
         }
     }
@@ -109,7 +117,10 @@ impl RpcApiServer for RpcServerImpl {
         let read_txns = self
             .vrrbdb_read_handle
             .transaction_store_values()
-            .map_err(|err| RpseeError::Custom(format!("Failed to read values: {err}")))?;
+            .unwrap_or_else(|err| {
+                error!("Failed to read values: {err}");
+                HashMap::new()
+            });
 
         digests.iter().for_each(|digest_string| {
             let parsed_digest = digest_string
@@ -222,23 +233,28 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_blocks(&self) -> Result<Vec<Block>, RpseeError> {
-        todo!()
+        error!("getBlocks is not implemented");
+        Ok(Vec::new())
     }
 
     async fn get_program(&self) -> Result<(), RpseeError> {
-        todo!()
+        error!("getProgram is not implemented");
+        Ok(())
     }
 
     async fn call_program(&self) -> Result<(), RpseeError> {
-        todo!()
+        error!("callProgram is not implemented");
+        Ok(())
     }
 
     async fn get_transaction_count(&self, _account: Address) -> Result<usize, RpseeError> {
-        todo!()
+        error!("getTransactionCount is not implemented");
+        Ok(0)
     }
 
     async fn get_node_health(&self) -> Result<NodeHealthReport, RpseeError> {
-        todo!()
+        error!("getNodeHealth is not implemented");
+        Ok(Default::default())
     }
 
     async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, RpseeError> {
@@ -283,10 +299,12 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, RpseeError> {
-        todo!()
+        error!("getMembershipConfig is not implemented");
+        Ok(Default::default())
     }
 
-    async fn get_last_block(&self) -> Result<Block, RpseeError> {
-        todo!()
+    async fn get_last_block(&self) -> Result<Option<Block>, RpseeError> {
+        error!("getLastBlock is not implemented");
+        Ok(None)
     }
 }
