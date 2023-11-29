@@ -131,6 +131,7 @@ impl From<RunOpts> for NodeConfig {
             jsonrpc_server_address: opts.jsonrpc_api_address,
             preload_mock_state: default_node_config.preload_mock_state,
             bootstrap_config: default_node_config.bootstrap_config,
+            bootstrap_peer_data: default_node_config.bootstrap_peer_data,
             kademlia_liveness_address: default_node_config.kademlia_liveness_address,
             kademlia_peer_id: default_node_config.kademlia_peer_id,
 
@@ -143,7 +144,6 @@ impl From<RunOpts> for NodeConfig {
             gui: opts.gui,
             rendezvous_server_address: opts.rendezvous_server_address,
             public_ip_address: opts.raptorq_gossip_address,
-            bootstrap_quorum_config: default_node_config.bootstrap_quorum_config,
             quorum_config: default_node_config.quorum_config,
             enable_block_indexing: default_node_config.enable_block_indexing,
             threshold_config: default_node_config.threshold_config,

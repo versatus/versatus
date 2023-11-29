@@ -22,11 +22,12 @@ impl ConsensusModule {
         &mut self,
         peer_data: PeerData,
     ) -> Result<Option<HashMap<NodeId, AssignedQuorumMembership>>> {
-        if let Some(quorum_config) = self.quorum_driver.bootstrap_quorum_config.clone() {
+        if let Some(bootstrap_config) = self.quorum_driver.bootstrap_config.clone() {
+            let bootstrap_quorum_config = bootstrap_config.bootstrap_quorum_config.clone();
+
             let node_id = peer_data.node_id.clone();
 
-            let quorum_member_ids = quorum_config
-                .membership_config
+            let quorum_member_ids = bootstrap_quorum_config
                 .quorum_members
                 .values()
                 .map(|member| member.node_id.to_owned())
@@ -99,6 +100,7 @@ impl ConsensusModule {
                     QuorumMember {
                         node_id: peer.node_id,
                         kademlia_peer_id: peer.kademlia_peer_id,
+                        quorum_kind: assigned_membership.quorum_kind.clone(),
                         // TODO: get from kademlia metadata
                         node_type: NodeType::Validator,
                         udp_gossip_address: peer.udp_gossip_addr,
@@ -151,6 +153,7 @@ impl ConsensusModule {
                                 kademlia_peer_id: peer.kademlia_peer_id,
                                 // TODO: get from kademlia metadata
                                 node_type: NodeType::Validator,
+                                quorum_kind: membership.quorum_kind.clone(),
                                 udp_gossip_address: peer.udp_gossip_addr,
                                 raptorq_gossip_address: peer.raptorq_gossip_addr,
                                 kademlia_liveness_address: peer.kademlia_liveness_addr,
