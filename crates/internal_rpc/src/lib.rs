@@ -169,7 +169,7 @@ impl<'a> From<&'a InternalRpc> for ServiceStatusResponse {
     fn from(value: &'a InternalRpc) -> Self {
         Self {
             service_type: value.service_type.clone(),
-            service_capabilities: value.service_capabilities.clone(),
+            service_capabilities: value.service_capabilities,
             service_implementation: "".to_string(),
             service_version: value.version.clone(),
             service_uptime: value.service_start.elapsed().as_secs(),
