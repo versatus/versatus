@@ -23,11 +23,10 @@ impl ConsensusModule {
         peer_data: PeerData,
     ) -> Result<Option<HashMap<NodeId, AssignedQuorumMembership>>> {
         if let Some(bootstrap_config) = self.quorum_driver.bootstrap_config.clone() {
-            let bootstrap_quorum_config = bootstrap_config.bootstrap_quorum_config.clone();
-
             let node_id = peer_data.node_id.clone();
 
-            let quorum_member_ids = bootstrap_quorum_config
+            let quorum_member_ids = bootstrap_config
+                .bootstrap_quorum_config
                 .quorum_members
                 .values()
                 .map(|member| member.node_id.to_owned())
