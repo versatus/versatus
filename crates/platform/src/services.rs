@@ -1,7 +1,10 @@
 use bitmask_enum::bitmask;
 use serde::{Deserialize, Serialize};
 
-use crate::PlatformCapabilities;
+use crate::{
+    error::PlatformError,
+    sys::{MachineArchitecture, Utsname},
+};
 
 /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
 #[derive(Clone, Serialize, Deserialize)]
@@ -38,12 +41,17 @@ pub enum ServiceCapabilities {
     /// This storage service's data store is on resilient storage
     Resilient,
 }
-// impl From<PlatformCapabilities> for ServiceCapabilities {
-//     fn from(value: PlatformCapabilities) -> Self {
-//         // match on the machine and sysname to determine capabilities
-
-//     }
-// }
+impl TryFrom<Utsname> for ServiceCapabilities {
+    type Error = PlatformError;
+    fn try_from(value: Utsname) -> Result<Self, Self::Error> {
+        let res = match MachineArchitecture::try_from(&value)? {
+            MachineArchitecture::x86_64 => ServiceCapabilities::Amd64,
+            MachineArchitecture::Aarch64 => ServiceCapabilities::Aarch64,
+            MachineArchitecture::Riscv => ServiceCapabilities::Riscv,
+        };
+        Ok(res)
+    }
+}
 
 /// A version number
 #[derive(Clone, Serialize, Deserialize)]

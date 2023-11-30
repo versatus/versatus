@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-serde = { workspace = true }
 bitmask-enum = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
 uname-rs = "0.1.1"
