@@ -9,12 +9,12 @@ pub enum PlatformError {
     #[error("conversion error: {0}")]
     Conversion(String),
 }
-impl<'msg, A, B> From<ConversionError<'msg, A, B>> for PlatformError
+impl<'msg, F, I> From<ConversionError<'msg, F, I>> for PlatformError
 where
-    A: Debug,
-    B: Debug,
+    F: Debug,
+    I: Debug,
 {
-    fn from(value: ConversionError<A, B>) -> Self {
+    fn from(value: ConversionError<F, I>) -> Self {
         PlatformError::Conversion(value.to_string())
     }
 }
@@ -26,12 +26,12 @@ where
     into,
     msg
 )]
-pub struct ConversionError<'msg, A, B>
+pub struct ConversionError<'msg, F, I>
 where
-    A: Debug,
-    B: Debug,
+    F: Debug,
+    I: Debug,
 {
-    pub(crate) from: A,
-    pub(crate) into: B,
+    pub(crate) from: F,
+    pub(crate) into: I,
     pub(crate) msg: &'msg str,
 }
