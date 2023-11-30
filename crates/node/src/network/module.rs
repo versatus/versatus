@@ -56,8 +56,10 @@ pub struct NetworkModuleConfig {
 
     pub kademlia_peer_id: Option<KademliaPeerId>,
 
-    /// Configuration used to connect to a bootstrap node
+    /// Configuration for bootstrap nodes
     pub bootstrap_node_config: Option<vrrb_config::BootstrapConfig>,
+
+    pub bootstrap_peer_data: Option<vrrb_config::BootstrapPeerData>,
 
     pub membership_config: Option<QuorumMembershipConfig>,
 
@@ -105,7 +107,7 @@ impl NetworkModule {
             _node_config: config.node_config.clone(),
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
-            is_bootstrap: config.bootstrap_node_config.is_none(),
+            is_bootstrap: config.node_config.is_bootstrap(),
             kademlia_node,
             _kademlia_liveness_addr: config.kademlia_liveness_addr,
             udp_gossip_addr: config.udp_gossip_addr,
@@ -132,7 +134,7 @@ impl NetworkModule {
             "Kademlia ID not present within NodeConfig".into(),
         ))?;
 
-        let kademlia_node = if let Some(bootstrap_node_config) = config.bootstrap_node_config {
+        let kademlia_node = if let Some(bootstrap_peer_data) = config.bootstrap_peer_data {
             // TODO: figure out why kademlia_dht needs the ip, port and then the whole
             // address separately
             //
@@ -141,8 +143,8 @@ impl NetworkModule {
             let bootstrap_node_data = NodeData::new(
                 kademlia_key,
                 config.node_id.clone(),
-                bootstrap_node_config.kademlia_liveness_addr,
-                bootstrap_node_config.udp_gossip_addr,
+                bootstrap_peer_data.kademlia_liveness_addr,
+                bootstrap_peer_data.udp_gossip_addr,
             );
 
             KademliaNode::new(
