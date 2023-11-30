@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::BootstrapQuorumMember;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QuorumMember {
     pub node_id: NodeId,
     pub quorum_kind: QuorumKind,
