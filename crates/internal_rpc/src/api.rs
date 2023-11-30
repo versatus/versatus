@@ -1,7 +1,7 @@
 use jsonrpsee::proc_macros::rpc;
 use platform::services::ServiceStatusResponse;
 
-type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
+pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
 /// The methods available to the [`InternalRpcServer`] for both
 /// the client and the server.

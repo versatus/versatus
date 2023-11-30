@@ -1,14 +1,12 @@
 use std::net::SocketAddr;
 
-use crate::api::InternalRpcApiServer;
+use crate::api::{InternalRpcApiServer, RpcResult};
 use jsonrpsee::{
     core::async_trait,
     server::{ServerBuilder, ServerHandle},
 };
 use platform::{services::*, sys::Utsname};
 use service_config::ServiceConfig;
-
-type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
 pub struct InternalRpcServer;
 impl InternalRpcServer {
