@@ -17,6 +17,16 @@ async fn server_starts_and_stops() {
         tls_config: None,
     };
 
+    let config: HttpApiServerConfig = HttpApiServerConfigBuilder::default().build();
+    let http_api_server = HttpApiServerConfig::new(
+        self.address("127.0.0.1:0".into()),
+        self.api_title("Node HTTP API".into()),
+        self.api_version("1.0".into()),
+        self.server_timeout(None),
+        self.tls_config(None),
+        self.build();
+    )}
+
     let api = HttpApiServer::new(config).unwrap();
 
     let (ctrl_tx, mut ctrl_rx) = channel(1);

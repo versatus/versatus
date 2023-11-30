@@ -66,7 +66,7 @@ impl HttpApiServerConfigBuilder {
 /// Configuration store for an HttpApiRouter
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
 #[derive(Debug, Clone)]
-pub struct HttpApiRouterConfigBuilder {
+pub struct HttpApiRouterConfig {
     pub address: SocketAddr,
     pub api_title: String,
     pub api_version: String,
