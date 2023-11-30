@@ -28,6 +28,7 @@ name = "versa-storage"
 path = "crates/storage_agent/src/main.rs"
 
 [dependencies]
+faucet = { workspace = true }
 tokio = { workspace = true }
 telemetry = { workspace = true }
 cli = { workspace = true }
@@ -60,6 +61,7 @@ metric_exporter = { workspace = true }
 members = [
     "crates/primitives",
     "crates/events",
+    "crates/faucet",
     "crates/consensus",
     "crates/consensus/quorum",
     # "crates/consensus/dkg_engine",
@@ -101,6 +103,7 @@ primitives = { path = "crates/primitives" }
 vrrb_core = { path = "crates/vrrb_core" }
 vrrb_config = { path = "crates/vrrb_config" }
 vrrb_rpc = { path = "crates/vrrb_rpc" }
+faucet = { path = "crates/faucet" }
 block = { path = "crates/block" }
 miner = { path = "crates/miner" }
 wallet = { path = "crates/wallet" }

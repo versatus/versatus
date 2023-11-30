@@ -58,6 +58,7 @@ pub struct DagModule {
     _pending_certificates: IndexMap<String, Certificate>,
     partial_certificate_signatures: IndexMap<String, HashSet<(NodeId, Signature)>>,
     // TODO: Why is the Claim here?
+    // TODO: Move this elsewhere, should not be in the DAG
     claim: Claim,
 }
 
@@ -349,12 +350,12 @@ impl DagModule {
         {
             indexmap::map::Entry::Occupied(mut entry) => {
                 entry.get_mut().insert((node_id, sig));
-            },
+            }
             indexmap::map::Entry::Vacant(entry) => {
                 let mut set = HashSet::new();
                 set.insert((node_id, sig));
                 entry.insert(set);
-            },
+            }
         }
         self.check_certificate_threshold_reached(&block_hash, sig_engine)
     }
@@ -389,10 +390,10 @@ impl DagModule {
                         "no signature provided".to_string(),
                     ))
                 }
-            },
+            }
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
                 self._verify_certificate_threshold_sig(signature.clone(), payload_hash, sig_engine)
-            },
+            }
         }
     }
 
