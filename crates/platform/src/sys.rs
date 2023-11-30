@@ -69,9 +69,7 @@ impl<'a> TryFrom<&'a Utsname> for Sysname {
 pub struct Utsname(uname_rs::Uname);
 impl Utsname {
     pub fn new() -> anyhow::Result<Self> {
-        Ok(Self(
-            uname_rs::Uname::new().map_err(|err| PlatformError::POSIX(err))?,
-        ))
+        Ok(Self(uname_rs::Uname::new().map_err(PlatformError::POSIX)?))
     }
 
     /// Name of this implementation of the operating system.
