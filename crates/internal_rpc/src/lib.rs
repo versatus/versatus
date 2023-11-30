@@ -5,7 +5,7 @@ use jsonrpsee::{
     proc_macros::rpc,
     server::{ServerBuilder, ServerHandle},
 };
-use platform::services::*;
+use platform::{services::*, sys::Utsname};
 use service_config::ServiceConfig;
 
 type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
@@ -70,8 +70,8 @@ impl InternalRpcServer {
     pub async fn start(
         service_config: &ServiceConfig,
         service_type: ServiceType,
-    ) -> RpcResult<(ServerHandle, SocketAddr)> {
-        let rpc = InternalRpc::new(service_config, service_type);
+    ) -> anyhow::Result<(ServerHandle, SocketAddr)> {
+        let rpc = InternalRpc::new(service_config, service_type)?;
         let server = ServerBuilder::default()
             .build(format!(
                 "{}:{}",
@@ -102,20 +102,23 @@ struct InternalRpc {
 }
 
 impl InternalRpc {
-    pub fn new(service_config: &ServiceConfig, service_type: ServiceType) -> Self {
-        Self {
+    pub fn new(service_config: &ServiceConfig, service_type: ServiceType) -> anyhow::Result<Self> {
+        let extra_service_capabilities = ServiceCapabilities::try_from(Utsname::new()?)?;
+        Ok(Self {
             service_config: service_config.clone(),
             service_type: service_type.clone(),
             service_start: std::time::Instant::now(),
-
-            // TODO: fix this to be reliant on uname
             service_capabilities: match service_type {
-                ServiceType::Compute => ServiceCapabilities::Wasi | ServiceCapabilities::Consensus,
-                ServiceType::Storage => ServiceCapabilities::Ipfs,
-                _ => unreachable!("not supported at this time"),
+                ServiceType::Compute => {
+                    ServiceCapabilities::Wasi
+                        | ServiceCapabilities::Consensus
+                        | extra_service_capabilities
+                }
+                ServiceType::Storage => ServiceCapabilities::Ipfs | extra_service_capabilities,
+                _ => extra_service_capabilities,
             },
             version: VersionNumber::cargo_pkg(),
-        }
+        })
     }
 }
 
