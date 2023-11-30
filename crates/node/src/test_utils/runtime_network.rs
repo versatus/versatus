@@ -97,7 +97,7 @@ pub async fn create_node_runtime_network(
     let mut config = create_mock_full_node_config();
     config.id = String::from("node-0");
 
-    config.bootstrap_config = Some(bootstrap_node_config);
+    config.bootstrap_config = Some(bootstrap_node_config.clone());
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
@@ -119,6 +119,7 @@ pub async fn create_node_runtime_network(
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         config.id = format!("node-{}", i);
+        config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.bootstrap_peer_data = Some(bootstrap_peer_data.clone());
         config.node_type = NodeType::Validator;
         config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
@@ -137,6 +138,7 @@ pub async fn create_node_runtime_network(
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
 
         miner_config.id = format!("node-{}", i);
+        config.bootstrap_config = Some(bootstrap_node_config.clone());
         config.bootstrap_peer_data = Some(bootstrap_peer_data.clone());
         miner_config.node_type = NodeType::Miner;
         miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
