@@ -9,23 +9,13 @@ mod common;
 
 #[tokio::test]
 async fn server_starts_and_stops() {
-    let config = HttpApiServerConfig {
-        address: "127.0.0.1:0".into(),
-        api_title: "Node HTTP API".into(),
-        api_version: "1.0".into(),
-        server_timeout: None,
-        tls_config: None,
-    };
-
-    let config: HttpApiServerConfig = HttpApiServerConfigBuilder::default().build();
-    let http_api_server = HttpApiServerConfig::new(
-        self.address("127.0.0.1:0".into()),
-        self.api_title("Node HTTP API".into()),
-        self.api_version("1.0".into()),
-        self.server_timeout(None),
-        self.tls_config(None),
-        self.build();
-    )}
+    let config: HttpApiServerConfig = HttpApiServerConfigBuilder::default()
+        .address("127.0.0.1:0")
+        .api_title("Node HTTP API")
+        .api_version("1.0")
+        .server_timeout(None)
+        .tls_config(None)
+        .build();
 
     let api = HttpApiServer::new(config).unwrap();
 
