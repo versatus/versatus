@@ -44,15 +44,15 @@ pub struct HttpApiRouterConfigBuilder {
 
 impl HttpApiRouterConfigBuilder {
     pub fn address(mut self, address: SocketAddr) -> Self {
-        self.address = Some(address.into());
+        self.address = Some(address);
         self
     }
     pub fn api_title(mut self, api_title: &str) -> Self {
-        self.api_title = Some(api_title.into());
+        self.api_title = Some(api_title.to_string());
         self
     }
     pub fn api_version(mut self, api_version: &str) -> Self {
-        self.api_version = Some(api_version.into());
+        self.api_version = Some(api_version.to_string());
         self
     }
     pub fn server_timeout(mut self, server_timeout: Option<Duration>) -> Self {
