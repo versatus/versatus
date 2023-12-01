@@ -7,7 +7,7 @@ use crate::http::{
     HttpApiRouterConfig,
 };
 
-pub fn create_router(_config: &HttpApiRouterConfig) -> Router {
+pub fn create_router(config: HttpApiRouterConfig) -> Router {
     Router::new()
         .route("/", get(|| async { "index" }))
         .route("/health", get(health::health_check))
@@ -17,12 +17,13 @@ pub fn create_router(_config: &HttpApiRouterConfig) -> Router {
 
 #[cfg(test)]
 mod tests {
-    use std::net::SocketAddr;
+    use crate::http::HttpApiRouterConfigBuilder;
 
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
+    use std::net::SocketAddr;
     use tower::{Service, ServiceExt};
 
     use super::*;
@@ -30,19 +31,14 @@ mod tests {
     #[tokio::test]
     async fn index_should_exist() {
         let listener = std::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
-        let address = listener.local_addr().unwrap();
+        let config = HttpApiRouterConfigBuilder::default()
+            .address(listener.local_addr().unwrap())
+            .api_title("Node HTTP API")
+            .api_version("1.0")
+            .server_timeout(None)
+            .build();
 
-        let api_title = "Node HTTP API".to_string();
-        let api_version = "1.0".to_string();
-
-        let config = HttpApiRouterConfig {
-            address,
-            api_title,
-            api_version,
-            server_timeout: None,
-        };
-
-        let mut router = create_router(&config);
+        let mut router = create_router(&config); // builder might be needed when creating router outside of test fn
 
         let request = Request::builder()
             .uri("/")

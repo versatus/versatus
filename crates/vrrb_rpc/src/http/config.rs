@@ -36,10 +36,10 @@ impl From<HttpApiRouterConfigBuilder> for HttpApiRouterConfig {
 
 #[derive(Default, Debug, Clone)]
 pub struct HttpApiRouterConfigBuilder {
-    pub address: Option<SocketAddr>,
-    pub api_title: Option<String>,
-    pub api_version: Option<String>,
-    pub server_timeout: Option<Duration>,
+    address: Option<SocketAddr>,
+    api_title: Option<String>,
+    api_version: Option<String>,
+    server_timeout: Option<Duration>,
 }
 
 impl HttpApiRouterConfigBuilder {
