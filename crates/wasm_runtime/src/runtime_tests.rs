@@ -214,3 +214,17 @@ fn test_trigger_oom() {
     let res = runtime.execute();
     dbg!(res);
 }
+
+/// This test checks for the return of i32 integer using std::process::exit().
+#[test]
+fn test_process_exit() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/integer_test.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data)
+        .unwrap();
+    let res = runtime.execute();
+    dbg!(res);
+}
