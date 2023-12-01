@@ -1,49 +1,73 @@
-use std::{collections::BTreeMap, net::SocketAddr};
-
 use primitives::{KademliaPeerId, NodeId, NodeType, PublicKey, QuorumKind};
 use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, net::SocketAddr};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct QuorumMember {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BootstrapQuorumMember {
     pub node_id: NodeId,
-    pub kademlia_peer_id: KademliaPeerId,
     pub node_type: NodeType,
+    pub quorum_kind: QuorumKind,
+    pub kademlia_peer_id: KademliaPeerId,
     pub udp_gossip_address: SocketAddr,
     pub raptorq_gossip_address: SocketAddr,
     pub kademlia_liveness_address: SocketAddr,
     pub validator_public_key: PublicKey,
 }
 
-pub type QuorumMembers = BTreeMap<NodeId, QuorumMember>;
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct QuorumMembershipConfig {
-    pub quorum_kind: QuorumKind,
-    pub quorum_members: BTreeMap<NodeId, QuorumMember>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BootstrapQuorumConfig {
-    pub membership_config: QuorumMembershipConfig,
-    pub genesis_transaction_threshold: u64,
+    pub quorum_members: BTreeMap<NodeId, BootstrapQuorumMember>,
 }
 
 impl BootstrapQuorumConfig {
-    pub fn membership_config(&self) -> QuorumMembershipConfig {
-        self.membership_config.clone()
+    pub fn insert(&mut self, node_id: NodeId, member: BootstrapQuorumMember) {
+        self.quorum_members.insert(node_id, member);
     }
 
-    pub fn membership_config_ref(&self) -> &QuorumMembershipConfig {
-        &self.membership_config
-    }
-}
-
-impl QuorumMembershipConfig {
-    pub fn quorum_kind(&self) -> QuorumKind {
-        self.quorum_kind.clone()
+    pub fn get_member(&self, node_id: &NodeId) -> Option<&BootstrapQuorumMember> {
+        self.quorum_members.get(node_id)
     }
 
-    pub fn quorum_members(&self) -> QuorumMembers {
-        self.quorum_members.clone()
+    pub fn get_member_mut(&mut self, node_id: &NodeId) -> Option<&mut BootstrapQuorumMember> {
+        self.quorum_members.get_mut(node_id)
+    }
+
+    pub fn get_harvesters(&self) -> Vec<&BootstrapQuorumMember> {
+        self.quorum_members
+            .iter()
+            .filter_map(|(_, member)| {
+                if member.quorum_kind == QuorumKind::Harvester {
+                    Some(member)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn get_farmers(&self) -> Vec<&BootstrapQuorumMember> {
+        self.quorum_members
+            .iter()
+            .filter_map(|(_, member)| {
+                if member.quorum_kind == QuorumKind::Farmer {
+                    Some(member)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn get_miners(&self) -> Vec<&BootstrapQuorumMember> {
+        self.quorum_members
+            .iter()
+            .filter_map(|(_, member)| {
+                if member.node_type == NodeType::Miner {
+                    Some(member)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

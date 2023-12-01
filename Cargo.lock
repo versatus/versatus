@@ -472,6 +472,7 @@ checksum = "acee9fd5073ab6b045a275b3e709c163dd36c90685219cb21804a147b58dba43"
 dependencies = [
  "async-trait",
  "axum-core",
+ "axum-macros",
  "bitflags 1.3.2",
  "bytes",
  "futures-util",
@@ -509,6 +510,18 @@ dependencies = [
  "mime",
  "tower-layer",
  "tower-service",
+]
+
+[[package]]
+name = "axum-macros"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6293dae2ec708e679da6736e857cf8532886ef258e92930f38279c12641628b8"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "quote 1.0.33",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -643,6 +656,16 @@ name = "bitflags"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
+
+[[package]]
+name = "bitmask-enum"
+version = "2.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9990737a6d5740ff51cdbbc0f0503015cb30c390f6623968281eb214a520cfc0"
+dependencies = [
+ "quote 1.0.33",
+ "syn 2.0.39",
+]
 
 [[package]]
 name = "bitvec"
@@ -1141,6 +1164,7 @@ dependencies = [
  "clap 3.2.25",
  "config",
  "events",
+ "faucet",
  "hbbft",
  "hex",
  "kademlia-dht",
@@ -1201,6 +1225,7 @@ dependencies = [
  "anyhow",
  "clap 3.2.25",
  "hyper",
+ "internal_rpc",
  "lazy_static",
  "platform",
  "prometheus",
@@ -2258,6 +2283,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
 
 [[package]]
+name = "faucet"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "log",
+ "primitives",
+ "serde",
+ "serde_json",
+ "telemetry",
+ "tokio",
+ "vrrb_core",
+ "wallet",
+]
+
+[[package]]
 name = "filetime"
 version = "0.2.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3136,6 +3177,17 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "internal_rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "jsonrpsee",
+ "platform",
+ "serde",
+ "service_config",
 ]
 
 [[package]]
@@ -4497,6 +4549,10 @@ name = "platform"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitmask-enum",
+ "serde",
+ "thiserror",
+ "uname-rs",
 ]
 
 [[package]]
@@ -6383,6 +6439,7 @@ dependencies = [
  "anyhow",
  "clap 3.2.25",
  "hyper",
+ "internal_rpc",
  "lazy_static",
  "platform",
  "prometheus",
@@ -7286,6 +7343,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "uname-rs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6498db259318ceb970d57db6844044c0c2023c5dc15f33dfc1292306fa017906"
+
+[[package]]
 name = "unicase"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7463,9 +7526,11 @@ dependencies = [
  "criterion 0.5.1",
  "cuckoofilter",
  "ethereum-types",
+ "faucet",
  "hex",
  "hyper",
  "integral-db",
+ "internal_rpc",
  "lazy_static",
  "metric_exporter",
  "node",

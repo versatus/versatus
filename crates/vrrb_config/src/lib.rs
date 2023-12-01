@@ -1,6 +1,7 @@
 mod bootstrap;
 pub mod bootstrap_quorum;
 mod node_config;
+pub mod quorum;
 pub mod result;
 pub mod test_utils;
 pub mod threshold_config;
@@ -8,6 +9,7 @@ pub mod threshold_config;
 pub use bootstrap::*;
 pub use bootstrap_quorum::*;
 pub use node_config::*;
+pub use quorum::*;
 pub use result::*;
 pub use test_utils::*;
 pub use threshold_config::*;
@@ -47,7 +49,8 @@ mod tests {
             .keypair(keypair)
             .bootstrap_config(None)
             .threshold_config(ThresholdConfig::default())
-            .bootstrap_quorum_config(None)
+            .bootstrap_config(None)
+            .bootstrap_peer_data(None)
             .quorum_config(None)
             .whitelisted_nodes(vec![])
             .build()

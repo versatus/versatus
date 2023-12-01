@@ -323,7 +323,7 @@ impl NodeRuntime {
                     .await
                     .map_err(|err| NodeError::Other(err.to_string()))?;
                 Ok(())
-            },
+            }
             Err(err) => Err(NodeError::Other(err.to_string())),
             _ => Err(NodeError::Other(
                 "convergence block is not valid".to_string(),

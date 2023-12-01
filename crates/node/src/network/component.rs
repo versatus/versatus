@@ -22,7 +22,6 @@ pub struct NetworkModuleComponentConfig {
     pub network_events_rx: EventSubscriber,
     pub vrrbdb_read_handle: VrrbDbReadHandle,
     pub membership_config: Option<QuorumMembershipConfig>,
-    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
     pub validator_public_key: PublicKey,
 }
 
@@ -56,6 +55,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
             membership_config: args.membership_config,
             validator_public_key: args.validator_public_key,
             node_config,
+            bootstrap_peer_data: args.config.bootstrap_peer_data,
         };
 
         let mut network_module = NetworkModule::new(network_module_config).await?;

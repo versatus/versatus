@@ -6,16 +6,16 @@ use std::{
 
 use derive_builder::Builder;
 use primitives::{KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vrrb_core::keypair::Keypair;
 
 use crate::{
-    bootstrap::BootstrapConfig, BootstrapQuorumConfig, QuorumMember, QuorumMembershipConfig,
+    bootstrap::BootstrapConfig, BootstrapPeerData, QuorumMember, QuorumMembershipConfig,
     ThresholdConfig,
 };
 
-#[derive(Builder, Debug, Clone, Deserialize)]
+#[derive(Builder, Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NodeConfig {
     /// UUID that identifies each node
     pub id: NodeId,
@@ -76,14 +76,14 @@ pub struct NodeConfig {
     #[builder(default = "false")]
     pub preload_mock_state: bool,
 
-    /// Bootstrap configuration used to connect to a bootstrap node.
+    /// Bootstrap configuration.
     pub bootstrap_config: Option<BootstrapConfig>,
+
+    /// Configuration used to communicate with bootstrap nodes. Not to be confused with bootstrap_config
+    pub bootstrap_peer_data: Option<BootstrapPeerData>,
 
     /// Non-bootstrap pre-configured quorum membership configuration
     pub quorum_config: Option<QuorumMembershipConfig>,
-
-    /// Optional Genesis Quorum configuration used to bootstrap a new quorum
-    pub bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
 
     /// Keys used to mine blocks and sign transactions
     // TODO: rename type to more intuitive name that reflects that there's two keypairs contained
@@ -118,6 +118,13 @@ impl NodeConfig {
 
     pub fn data_dir(&self) -> &PathBuf {
         &self.data_dir
+    }
+
+    /// Indicates whether the node created with this config is a bootstrap node
+    pub fn is_bootstrap(&self) -> bool {
+        self.node_type == NodeType::Bootstrap
+            && self.bootstrap_peer_data.is_none()
+            && self.bootstrap_config.is_some()
     }
 
     pub fn merge(&self, other: NodeConfig) -> Self {
@@ -173,8 +180,8 @@ impl Default for NodeConfig {
             jsonrpc_server_address: ipv4_localhost_with_random_port,
             preload_mock_state: false,
             bootstrap_config: None,
+            bootstrap_peer_data: None,
             quorum_config: None,
-            bootstrap_quorum_config: None,
             keypair: Keypair::random(),
             gui: false,
             disable_networking: false,

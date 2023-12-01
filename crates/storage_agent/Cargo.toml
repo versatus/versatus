@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+internal_rpc = { workspace = true }
 telemetry = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
@@ -17,3 +18,4 @@ hyper = { workspace = true }
 rand = { workspace = true }
 lazy_static = { workspace = true }
 platform = { workspace = true }
+

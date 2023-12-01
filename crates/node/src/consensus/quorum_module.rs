@@ -9,7 +9,7 @@ use quorum::{
     quorum::{Quorum, QuorumError},
 };
 use theater::{ActorId, ActorState};
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use vrrb_config::{BootstrapConfig, BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ pub struct QuorumModule {
     pub(crate) _status: ActorState,
     pub(crate) node_config: NodeConfig,
     pub(crate) membership_config: Option<QuorumMembershipConfig>,
-    pub(crate) bootstrap_quorum_config: Option<BootstrapQuorumConfig>,
+    pub(crate) bootstrap_config: Option<BootstrapConfig>,
 
     /// A map of all nodes known to are available in the bootstrap quorum
     pub(crate) bootstrap_quorum_available_nodes: HashMap<NodeId, (PeerData, bool)>,
@@ -34,9 +34,10 @@ impl QuorumModule {
     pub fn new(cfg: QuorumModuleConfig) -> Self {
         let mut bootstrap_quorum_available_nodes = HashMap::new();
 
-        if let Some(quorum_config) = cfg.node_config.bootstrap_quorum_config.clone() {
+        if let Some(bootstrap_config) = cfg.node_config.bootstrap_config.clone() {
+            let quorum_config = bootstrap_config.bootstrap_quorum_config.clone();
+
             bootstrap_quorum_available_nodes = quorum_config
-                .membership_config
                 .quorum_members
                 .into_values()
                 .map(|member| {
@@ -60,7 +61,7 @@ impl QuorumModule {
             _status: ActorState::Stopped,
             membership_config: None,
             node_config: cfg.node_config.clone(),
-            bootstrap_quorum_config: cfg.node_config.bootstrap_quorum_config.clone(),
+            bootstrap_config: cfg.node_config.bootstrap_config.clone(),
             bootstrap_quorum_available_nodes,
         }
     }
@@ -92,12 +93,13 @@ impl QuorumModule {
         Ok(assigned_membership)
     }
 
-    // TODO: refactor to return a list of assigned quorum members instead so the handler can emit
-    // the event
     pub(super) async fn assign_peer_list_to_quorums(
         &self,
         peer_list: HashMap<NodeId, (PeerData, bool)>,
     ) -> crate::Result<HashMap<NodeId, AssignedQuorumMembership>> {
+        //
+        // TODO: override autoassignment if config is provided
+        //
         let unassigned_miner_peers = peer_list
             .iter()
             .filter(|(_, (peer_data, _))| peer_data.node_type == NodeType::Miner)
@@ -123,6 +125,12 @@ impl QuorumModule {
             .take(harvester_count)
             .collect::<Vec<PeerData>>();
 
+        let farmer_peers = unassigned_peers
+            .clone()
+            .into_iter()
+            .skip(harvester_count)
+            .collect::<Vec<PeerData>>();
+
         let mut quorum_assignments = HashMap::new();
 
         for intended_harvester in harvester_peers.iter() {
@@ -138,13 +146,13 @@ impl QuorumModule {
             quorum_assignments.insert(id, assignment);
         }
 
-        for intended_farmer in unassigned_peers.iter().skip(harvester_count) {
+        for intended_farmer in farmer_peers.iter() {
             let id = intended_farmer.node_id.clone();
             let assignment = self
                 .assign_membership_to_quorum(
                     QuorumKind::Farmer,
                     intended_farmer.clone(),
-                    unassigned_peers.clone(),
+                    farmer_peers.clone(),
                 )
                 .await?;
 
