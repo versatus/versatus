@@ -7,7 +7,7 @@ use crate::http::{
     HttpApiRouterConfig,
 };
 
-pub fn create_router(config: HttpApiRouterConfig) -> Router {
+pub fn create_router(config: &HttpApiRouterConfig) -> Router {
     Router::new()
         .route("/", get(|| async { "index" }))
         .route("/health", get(health::health_check))
@@ -38,7 +38,7 @@ mod tests {
             .server_timeout(None)
             .build();
 
-        let mut router = create_router(&config); // builder might be needed when creating router outside of test fn
+        let mut router = create_router(&config);
 
         let request = Request::builder()
             .uri("/")
