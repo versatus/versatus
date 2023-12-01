@@ -258,9 +258,9 @@ wasmer-wasix-types = "0.9.0"
 wasmparser = "0.107.0"
 ipfs-api = "0.17.0"
 microkv = "0.2.9"
-rustls = "0.21.8"
-rustls-pemfile = "1.0.4"
-hyper-rustls = { version = "0.24.2" , features = ["acceptor"] }
+rustls = "0.21"
+rustls-pemfile = "1.0"
+hyper-rustls = { version = "0.24", features = ["acceptor"] }
 
 
 [dev-dependencies]
