@@ -1,4 +1,3 @@
-use assert_cmd::prelude::OutputAssertExt;
 use assert_cmd::Command;
 use cli::commands::{
     node::GENESIS_QUORUM_SIZE,
@@ -146,6 +145,7 @@ fn create_test_genesis_quorum_member_list() -> Vec<QuorumMember> {
                 kademlia_port,
             ),
             validator_public_key,
+            quorum_kind: primitives::QuorumKind::Harvester,
         };
         quorum_members.push(member);
     }

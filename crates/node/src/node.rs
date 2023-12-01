@@ -43,6 +43,8 @@ impl Node {
         // Copy the original config to avoid overwriting the original
         let config = config.clone();
 
+        Self::verify_config(&config)?;
+
         info!("Launching Node {}", &config.id);
 
         let keypair = config.keypair.clone();
@@ -78,6 +80,17 @@ impl Node {
             db_read_handle,
             mempool_read_handle,
         })
+    }
+
+    // TODO: implement a more thorough config validation strategy
+    fn verify_config(node_config: &NodeConfig) -> Result<()> {
+        if node_config.bootstrap_peer_data.is_some() && node_config.bootstrap_config.is_some() {
+            return Err(NodeError::ConfigError(
+                format!("Node {} config cannot have bootstrap_peer_data and bootstrap_config simultaneously", node_config.id)
+                    .to_string(),
+            ));
+        }
+        Ok(())
     }
 
     async fn run_node_main_process(

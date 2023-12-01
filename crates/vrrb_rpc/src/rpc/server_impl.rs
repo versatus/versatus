@@ -11,7 +11,7 @@ use secp256k1::{Message, SecretKey};
 use sha2::{Digest, Sha256};
 use storage::vrrbdb::{Claims, VrrbDbReadHandle};
 use telemetry::{debug, error};
-use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
+use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::node_health_report::NodeHealthReport;
 use vrrb_core::transactions::{
     RpcTransactionDigest, Transaction, TransactionDigest, TransactionKind,
