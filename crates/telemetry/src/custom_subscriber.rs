@@ -34,8 +34,7 @@ impl TelemetrySubscriber {
                 .with_line_number(is_local_env)
                 .with_target(is_local_env)
                 .compact()
-                // .pretty()
-                .with_max_level(tracing::Level::ERROR)
+                .pretty()
                 .finish();
 
             sub.try_init()?;
