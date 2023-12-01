@@ -20,6 +20,8 @@ use tokio::sync::mpsc::Receiver;
 pub enum PrometheusFactoryError {
     #[error("Invalid Bind Address :{0}")]
     InvalidIpAddress(String),
+    #[error("Failed to fetch metric  :{0}")]
+    FailedToFetchMetric(String),
     #[error("Prometheus registration error: {0}")]
     RegistrationError(#[from] prometheus::Error),
     #[error("Prometheus deregistration error")]
@@ -136,7 +138,9 @@ impl PrometheusFactory {
             None => {
                 let counter = self.build_counter(name, help, labels)?;
                 self.base_metrics.insert(name.to_string(), counter);
-                self.base_metrics.get_mut(name).unwrap()
+                self.base_metrics
+                    .get_mut(name)
+                    .ok_or_else(|| PrometheusFactoryError::FailedToFetchMetric(name.to_string()))?
             }
         };
         metric.reset();
