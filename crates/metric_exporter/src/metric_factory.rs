@@ -10,14 +10,16 @@ use prometheus::{
     Registry, TextEncoder,
 };
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use tokio::sync::mpsc::Receiver;
+use std::net::{IpAddr, SocketAddr};
 use std::{fs, io};
 use telemetry::{error, info};
 use thiserror::Error;
+use tokio::sync::mpsc::Receiver;
 
 #[derive(Debug, Error)]
 pub enum PrometheusFactoryError {
+    #[error("Invalid Bind Address :{0}")]
+    InvalidIpAddress(String),
     #[error("Prometheus registration error: {0}")]
     RegistrationError(#[from] prometheus::Error),
     #[error("Prometheus deregistration error")]
@@ -48,6 +50,7 @@ trait MetricRegistrar {
 #[derive(Debug, Clone)]
 pub struct PrometheusFactory {
     pub registry: Registry,
+    pub bind_address: String,
     port: u16,
     pub base_metrics: HashMap<String, Counter>,
     pub private_key_path: String,
@@ -56,6 +59,7 @@ pub struct PrometheusFactory {
 
 impl PrometheusFactory {
     pub fn new(
+        bind_address: String,
         port: u16,
         include_base_metrics: bool,
         base_labels: HashMap<String, String>,
@@ -64,6 +68,7 @@ impl PrometheusFactory {
     ) -> Result<Self, PrometheusFactoryError> {
         let mut factory = Self {
             registry: Registry::new(),
+            bind_address,
             port,
             base_metrics: HashMap::new(),
             private_key_path,
@@ -269,6 +274,19 @@ impl PrometheusFactory {
                 Ok(gauge)
             })
     }
+
+    fn create_socket_address(
+        bind_address: &str,
+        port: u16,
+    ) -> Result<SocketAddr, PrometheusFactoryError> {
+        // Parse the bind address
+        let ip_addr: IpAddr = bind_address
+            .parse()
+            .map_err(|_| PrometheusFactoryError::InvalidIpAddress(bind_address.to_string()))?;
+
+        // Create a socket address based on the parsed IP address and port
+        Ok(SocketAddr::new(ip_addr, port))
+    }
     async fn handle_request(
         _req: Request<Body>,
         factory: PrometheusFactory,
@@ -277,32 +295,35 @@ impl PrometheusFactory {
         Ok(Response::new(Body::from(response_body)))
     }
 
-    pub async fn serve(&self, mut reload_config: Receiver<()>) -> Result<(), PrometheusFactoryError> {
+    pub async fn serve(
+        &self,
+        mut reload_config: Receiver<()>,
+    ) -> Result<(), PrometheusFactoryError> {
         {
             let (tx, mut rx) = tokio::sync::mpsc::channel(10);
             tokio::spawn(async move {
                 let tx = tx.clone();
-                while let Some(_) = reload_config.recv().await{
+                while (reload_config.recv().await).is_some() {
                     info!("SIGHUP received, now reloading the server with new configuration");
                     tx.send(()).await.ok();
                 }
             });
             loop {
-               // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 if self.certificate_path.is_empty() {
                     return Err(PrometheusFactoryError::CertificatePathEmpty);
                 }
                 if self.private_key_path.is_empty() {
                     return Err(PrometheusFactoryError::PrivateKeyPathEmpty);
                 }
-
                 // Load public certificate.
                 let certs = load_certs(self.certificate_path.as_str())?;
-
                 // Load private key.
                 let key = load_private_key(self.private_key_path.as_str())?;
-
-                let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
+                let socket_addr = PrometheusFactory::create_socket_address(
+                    self.bind_address.as_str(),
+                    self.port,
+                )?;
                 let incoming = AddrIncoming::bind(&socket_addr)?;
                 let acceptor = TlsAcceptor::builder()
                     .with_single_cert(certs, key)
@@ -330,9 +351,8 @@ impl PrometheusFactory {
                             error!("server error: {:?}", e);
                     }
                 }
-
                 if reloading_requested {
-                    println!("received SIGHUP,reloading server");
+                    info!("Received SIGHUP,reloading server with new certificate");
                     continue;
                 }
             }
@@ -357,6 +377,7 @@ mod tests {
     #[test]
     fn test_reset_factory() {
         let mut factory = PrometheusFactory::new(
+            String::from("127.0.0.1"),
             8080,
             false,
             HashMap::new(),

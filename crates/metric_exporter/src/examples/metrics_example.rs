@@ -6,12 +6,13 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
-use tokio::signal;
 use telemetry::info;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() {
     // Configuration
+    let bind_addr = String::from("127.0.0.1");
     let port = 8080u16;
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let labels = labels! {
@@ -26,6 +27,7 @@ async fn main() {
     // Prometheus factory for metrics
     let factory = Arc::new(
         PrometheusFactory::new(
+            bind_addr,
             port,
             false,
             HashMap::new(),
@@ -53,7 +55,7 @@ async fn main() {
         .unwrap();
 
     let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup()).unwrap();
-    let (sender, receiver) =tokio::sync::mpsc::channel::<()>(100);
+    let (sender, receiver) = tokio::sync::mpsc::channel::<()>(100);
     let server = factory.serve(receiver);
     tokio::spawn(async move {
         while let Some(_) = sighup_receiver.recv().await {
@@ -62,7 +64,7 @@ async fn main() {
                 // Handle the error if sending fails
                 info!("Failed to send signal");
                 break; // Break out of the loop if sending fails
-            }else{
+            } else {
                 info!("Sending signal to reload config")
             }
         }
