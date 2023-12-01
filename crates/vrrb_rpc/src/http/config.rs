@@ -6,24 +6,22 @@ use axum_server::tls_rustls::RustlsConfig;
 // Source<: https://doc.rust-lang.org/1.0.0/style/ownership/builders.html
 
 #[derive(Debug)]
-struct HttpApiServer {
-    address: String,
-    api_title: String,
-    api_version: String,
-    server_timeout: Duration,
-    tls_config: RustlsConfig,
+pub struct HttpApiServerConfig {
+    pub(crate) address: String,
+    pub(crate) api_title: String,
+    pub(crate) api_version: String,
+    pub(crate) server_timeout: Option<Duration>,
+    pub(crate) tls_config: Option<RustlsConfig>,
 }
 
-impl From<HttpApiServerConfigBuilder> for HttpApiServer {
-    fn from(value: HttpApiServerConfigBuilder) -> HttpApiServer {
-        HttpApiServer {
+impl From<HttpApiServerConfigBuilder> for HttpApiServerConfig {
+    fn from(value: HttpApiServerConfigBuilder) -> HttpApiServerConfig {
+        HttpApiServerConfig {
             address: value.address.expect("expected server address"),
             api_title: value.api_title.expect("expected server api title"),
             api_version: value.api_version.expect("expected server api version"),
-            server_timeout: value
-                .server_timeout
-                .expect("expected server timeout duration"),
-            tls_config: value.tls_config.expect("expected tls configuration"),
+            server_timeout: value.server_timeout,
+            tls_config: value.tls_config,
         }
     }
 }
@@ -38,27 +36,27 @@ pub struct HttpApiServerConfigBuilder {
 }
 
 impl HttpApiServerConfigBuilder {
-    fn address(mut self, address: &str) -> Self {
+    pub fn address(mut self, address: &str) -> Self {
         self.address = Some(address.into());
         self
     }
-    fn api_title(mut self, api_title: &str) -> Self {
+    pub fn api_title(mut self, api_title: &str) -> Self {
         self.api_title = Some(api_title.into());
         self
     }
-    fn api_version(mut self, api_version: &str) -> Self {
+    pub fn api_version(mut self, api_version: &str) -> Self {
         self.api_version = Some(api_version.into());
         self
     }
-    fn server_timeout(mut self, server_timeout: Duration) -> Self {
-        self.server_timeout = Some(server_timeout);
+    pub fn server_timeout(mut self, server_timeout: Option<Duration>) -> Self {
+        self.server_timeout = server_timeout;
         self
     }
-    fn tls_config(mut self, tls_config: RustlsConfig) -> Self {
-        self.tls_config = Some(tls_config);
+    pub fn tls_config(mut self, tls_config: Option<RustlsConfig>) -> Self {
+        self.tls_config = tls_config;
         self
     }
-    fn build(self) -> HttpApiServer {
+    pub fn build(self) -> HttpApiServerConfig {
         self.into()
     }
 }
