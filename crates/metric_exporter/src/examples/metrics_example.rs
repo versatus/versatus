@@ -6,6 +6,8 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
+use tokio::signal;
+use telemetry::info;
 
 #[tokio::main]
 async fn main() {
@@ -50,8 +52,22 @@ async fn main() {
         .build_histogram("block_finality_time", "Block Finality Time", labels)
         .unwrap();
 
+    let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup()).unwrap();
+    let (sender, receiver) =tokio::sync::mpsc::channel::<()>(100);
+    let server = factory.serve(receiver);
+    tokio::spawn(async move {
+        while let Some(_) = sighup_receiver.recv().await {
+            // Do something when a SIGHUP signal is received
+            if let Err(_) = sender.send(()).await {
+                // Handle the error if sending fails
+                info!("Failed to send signal");
+                break; // Break out of the loop if sending fails
+            }else{
+                info!("Sending signal to reload config")
+            }
+        }
+    });
     // Simulating blockchain metrics
-    let server = factory.serve();
 
     // Simulate block creation - Increment block height counter every 5 seconds
     thread::spawn({

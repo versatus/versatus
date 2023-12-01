@@ -11,6 +11,7 @@ use prometheus::{
 };
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use tokio::sync::mpsc::Receiver;
 use std::{fs, io};
 use telemetry::{error, info};
 use thiserror::Error;
@@ -275,43 +276,65 @@ impl PrometheusFactory {
         let response_body = factory.render_metrics()?;
         Ok(Response::new(Body::from(response_body)))
     }
-    pub async fn serve(&self) -> Result<(), PrometheusFactoryError> {
+
+    pub async fn serve(&self, mut reload_config: Receiver<()>) -> Result<(), PrometheusFactoryError> {
         {
-            if self.certificate_path.is_empty() {
-                return Err(PrometheusFactoryError::CertificatePathEmpty);
-            }
-            if self.private_key_path.is_empty() {
-                return Err(PrometheusFactoryError::PrivateKeyPathEmpty);
-            }
-            // Load public certificate.
-            let certs = load_certs(self.certificate_path.as_str())?;
-            // Load private key.
-            let key = load_private_key(self.private_key_path.as_str())?;
-
-            let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
-            let incoming = AddrIncoming::bind(&socket_addr)?;
-            let acceptor = TlsAcceptor::builder()
-                .with_single_cert(certs, key)
-                .map_err(|e| error(format!("{}", e)))?
-                .with_all_versions_alpn()
-                .with_incoming(incoming);
-
-            let make_svc = make_service_fn(move |_conn| {
-                let factory = self.clone();
-                async move {
-                    Ok::<_, hyper::Error>(service_fn(move |req| {
-                        let factory = factory.clone();
-                        Self::handle_request(req, factory)
-                    }))
+            let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+            tokio::spawn(async move {
+                let tx = tx.clone();
+                while let Some(_) = reload_config.recv().await{
+                    info!("SIGHUP received, now reloading the server with new configuration");
+                    tx.send(()).await.ok();
                 }
             });
+            loop {
+               // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                if self.certificate_path.is_empty() {
+                    return Err(PrometheusFactoryError::CertificatePathEmpty);
+                }
+                if self.private_key_path.is_empty() {
+                    return Err(PrometheusFactoryError::PrivateKeyPathEmpty);
+                }
 
-            let server = Server::builder(acceptor).serve(make_svc);
+                // Load public certificate.
+                let certs = load_certs(self.certificate_path.as_str())?;
 
-            info!("Exporter listening on http://{}", socket_addr);
+                // Load private key.
+                let key = load_private_key(self.private_key_path.as_str())?;
 
-            if let Err(e) = server.await {
-                error!("server error: {}", e);
+                let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port));
+                let incoming = AddrIncoming::bind(&socket_addr)?;
+                let acceptor = TlsAcceptor::builder()
+                    .with_single_cert(certs, key)
+                    .map_err(|e| error(format!("{}", e)))?
+                    .with_all_versions_alpn()
+                    .with_incoming(incoming);
+
+                let make_svc = make_service_fn(move |_conn| {
+                    let factory = self.clone();
+                    async move {
+                        Ok::<_, hyper::Error>(service_fn(move |req| {
+                            let factory = factory.clone();
+                            Self::handle_request(req, factory)
+                        }))
+                    }
+                });
+                let server = Server::builder(acceptor).serve(make_svc);
+                info!("Exporter listening on http://{}", socket_addr);
+                let mut reloading_requested = false;
+                tokio::select! {
+                    _ = rx.recv() => {
+                        reloading_requested = true;
+                    },
+                    e = server => {
+                            error!("server error: {:?}", e);
+                    }
+                }
+
+                if reloading_requested {
+                    println!("received SIGHUP,reloading server");
+                    continue;
+                }
             }
             Ok(())
         }
