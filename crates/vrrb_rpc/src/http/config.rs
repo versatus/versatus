@@ -28,11 +28,11 @@ impl From<HttpApiServerConfigBuilder> for HttpApiServerConfig {
 
 #[derive(Default, Debug, Clone)]
 pub struct HttpApiServerConfigBuilder {
-    pub address: Option<String>,
-    pub api_title: Option<String>,
-    pub api_version: Option<String>,
-    pub server_timeout: Option<Duration>,
-    pub tls_config: Option<RustlsConfig>,
+    address: Option<String>,
+    api_title: Option<String>,
+    api_version: Option<String>,
+    server_timeout: Option<Duration>,
+    tls_config: Option<RustlsConfig>,
 }
 
 impl HttpApiServerConfigBuilder {
