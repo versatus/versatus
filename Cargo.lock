@@ -657,6 +657,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
+name = "bitmask-enum"
+version = "2.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9990737a6d5740ff51cdbbc0f0503015cb30c390f6623968281eb214a520cfc0"
+dependencies = [
+ "quote 1.0.33",
+ "syn 2.0.39",
+]
+
+[[package]]
 name = "bitvec"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1215,6 +1225,7 @@ dependencies = [
  "anyhow",
  "clap 3.2.25",
  "hyper",
+ "internal_rpc",
  "lazy_static",
  "platform",
  "prometheus",
@@ -3184,6 +3195,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "internal_rpc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "jsonrpsee",
+ "platform",
+ "serde",
+ "service_config",
+]
+
+[[package]]
 name = "io-lifetimes"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4551,6 +4573,10 @@ name = "platform"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitmask-enum",
+ "serde",
+ "thiserror",
+ "uname-rs",
 ]
 
 [[package]]
@@ -6446,6 +6472,7 @@ dependencies = [
  "anyhow",
  "clap 3.2.25",
  "hyper",
+ "internal_rpc",
  "lazy_static",
  "platform",
  "prometheus",
@@ -7360,6 +7387,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "uname-rs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6498db259318ceb970d57db6844044c0c2023c5dc15f33dfc1292306fa017906"
+
+[[package]]
 name = "unicase"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7541,6 +7574,7 @@ dependencies = [
  "hex",
  "hyper",
  "integral-db",
+ "internal_rpc",
  "lazy_static",
  "metric_exporter",
  "node",

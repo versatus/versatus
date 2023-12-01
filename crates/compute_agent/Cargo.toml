@@ -8,6 +8,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+internal_rpc = { workspace = true }
 clap = { workspace = true }
 telemetry = { workspace = true }
 service_config = { workspace = true }
