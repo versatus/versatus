@@ -298,21 +298,21 @@ impl ConsensusModule {
                 match map.entry(vote.txn.id()) {
                     Entry::Occupied(mut set) => {
                         set.get_mut().insert(vote.clone());
-                    },
+                    }
                     Entry::Vacant(entry) => {
                         let mut set = HashSet::new();
                         set.insert(vote.clone());
                         entry.insert(set);
-                    },
+                    }
                 }
-            },
+            }
             Entry::Vacant(entry) => {
                 let mut map = HashMap::new();
                 let mut set = HashSet::new();
                 set.insert(vote.clone());
                 map.insert(vote.txn.id().clone(), set);
                 entry.insert(map);
-            },
+            }
         }
 
         self.check_vote_threshold_reached(&quorum_id, &vote)

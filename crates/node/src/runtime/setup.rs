@@ -1,5 +1,7 @@
 use events::{EventPublisher, EventRouter};
+use mempool::MempoolReadHandleFactory;
 use primitives::{JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
+use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use vrrb_config::NodeConfig;
 
@@ -18,7 +20,12 @@ pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     router: &EventRouter,
     events_tx: EventPublisher,
-) -> Result<(RuntimeComponentManager, NodeConfig)> {
+) -> Result<(
+    RuntimeComponentManager,
+    NodeConfig,
+    VrrbDbReadHandle,
+    MempoolReadHandleFactory,
+)> {
     let mut config = original_config.clone();
 
     let runtime_events_rx = router.subscribe(Some(RUNTIME_TOPIC_STR.into()))?;
@@ -55,7 +62,6 @@ pub async fn setup_runtime_components(
         events_tx: events_tx.clone(),
         network_events_rx,
         vrrbdb_read_handle: state_read_handle.clone(),
-        bootstrap_quorum_config: config.bootstrap_quorum_config.clone(),
         membership_config: config.quorum_config.clone(),
         validator_public_key: config.keypair.validator_public_key_owned(),
     })
@@ -90,8 +96,11 @@ pub async fn setup_runtime_components(
     runtime_manager.register_component("API".to_string(), jsonrpc_server_handle);
 
     if config.enable_block_indexing {
-        let _handle =
-            setup_indexer_module(&config, indexer_events_rx, mempool_read_handle_factory)?;
+        let _handle = setup_indexer_module(
+            &config,
+            indexer_events_rx,
+            mempool_read_handle_factory.clone(),
+        )?;
         // TODO: udpate this to return the proper component handle type
         // indexer_handle = Some(handle);
         // TODO: register indexer module handle
@@ -104,5 +113,10 @@ pub async fn setup_runtime_components(
         info!("Node UI started");
     }
 
-    Ok((runtime_manager, config))
+    Ok((
+        runtime_manager,
+        config,
+        state_read_handle.clone(),
+        mempool_read_handle_factory.clone(),
+    ))
 }
