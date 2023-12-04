@@ -10,4 +10,4 @@ anyhow = { workspace = true }
 bitmask-enum = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-uname-rs = "0.1.1"
+nix = { version = "0.27", features = ["feature"] }
