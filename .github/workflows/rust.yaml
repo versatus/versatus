@@ -52,7 +52,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --all-targets -- -D warnings
+          args: -- --check
 
   # tests all crates in parallel
   test-block:
