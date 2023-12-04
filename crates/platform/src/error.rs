@@ -19,7 +19,7 @@ where
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 #[error(
     "error occurred while attempting to convert {:?} into {:?}: {}",
     from,

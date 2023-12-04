@@ -5,7 +5,7 @@ use jsonrpsee::{
     core::async_trait,
     server::{ServerBuilder, ServerHandle},
 };
-use platform::{services::*, sys::Utsname};
+use platform::services::*;
 use service_config::ServiceConfig;
 
 pub struct InternalRpcServer;
@@ -48,7 +48,7 @@ struct InternalRpc {
 
 impl InternalRpc {
     pub fn new(service_config: &ServiceConfig, service_type: ServiceType) -> anyhow::Result<Self> {
-        let extra_service_capabilities = ServiceCapabilities::try_from(Utsname::new()?)?;
+        let extra_service_capabilities = ServiceCapabilities::try_from(platform::uname()?)?;
         Ok(Self {
             service_config: service_config.clone(),
             service_type: service_type.clone(),
