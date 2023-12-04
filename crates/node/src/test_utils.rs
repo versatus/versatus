@@ -78,6 +78,7 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .bootstrap_quorum_config(None)
         .threshold_config(ThresholdConfig::default())
         .whitelisted_nodes(vec![])
+        .gui(true)
         .build()
         .unwrap()
 }
@@ -607,9 +608,6 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
         config.whitelisted_nodes = whitelisted_nodes.clone();
-        if let Some(base_config) = &base_config {
-            config.gui = base_config.gui;
-        }
 
         let node = Node::start(config).await.unwrap();
         nodes.push(node);
