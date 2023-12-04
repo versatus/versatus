@@ -84,10 +84,10 @@ mod tests {
             Ok(_) => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
-            },
+            }
         };
 
         assert_eq!(1, mpooldb.size());
@@ -115,19 +115,19 @@ mod tests {
         match mpooldb.insert(txn.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
-            },
+            }
         };
 
         match mpooldb.insert(txn) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
         };
 
         assert_eq!(1, mpooldb.size());
@@ -165,19 +165,19 @@ mod tests {
         match mpooldb.insert(txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
-            },
+            }
         };
 
         match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
-            },
+            }
         };
     }
 
@@ -210,10 +210,10 @@ mod tests {
         match mpooldb.insert(txn.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
-            },
+            }
         };
 
         let now = chrono::offset::Utc::now().timestamp();
@@ -277,10 +277,10 @@ mod tests {
         match mpooldb.extend(txns.clone()) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding transaction was unsuccesful !");
-            },
+            }
         };
 
         let index = thread_rng().gen_range(0..txns.len());
@@ -345,28 +345,28 @@ mod tests {
         match mpooldb.insert(txn1) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
-            },
+            }
         };
 
         match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
-            },
+            }
         };
 
         match mpooldb.remove_txn_by_id(&txn2_id) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
-            },
+            }
         };
     }
 
@@ -409,28 +409,28 @@ mod tests {
         match mpooldb.insert(txn1.clone()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding first transaction was unsuccesful !");
-            },
+            }
         };
 
         match mpooldb.insert(txn2) {
             Ok(_) => {
                 assert_eq!(2, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
-            },
+            }
         };
 
         match mpooldb.remove_txn(&txn1, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding another, different transaction was unsuccesful !");
-            },
+            }
         };
     }
 
@@ -469,18 +469,18 @@ mod tests {
         match mpooldb.extend(txns.clone()) {
             Ok(_) => {
                 assert_eq!(100, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
-            },
+            }
         };
         match mpooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
             Ok(_) => {
                 assert_eq!(0, mpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Removing transactions was unsuccesful !");
-            },
+            }
         };
     }
 
@@ -518,10 +518,10 @@ mod tests {
         match lrmpooldb.extend(txns) {
             Ok(_) => {
                 assert_eq!(txn_id_max - 1, lrmpooldb.size());
-            },
+            }
             Err(_) => {
                 panic!("Adding transactions was unsuccesful !");
-            },
+            }
         };
 
         [0..txn_id_max]

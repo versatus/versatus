@@ -86,11 +86,11 @@ impl WasmLoaderBuilder {
                     error!("Invalid WASM bytes provided");
                     Err("WASM Magic header invalid".to_string())
                 }
-            },
+            }
             None => {
                 error!("No WASM bytes found");
                 Err("WASM Magic header not found".to_string())
-            },
+            }
         }
 
         // Is unreachable
@@ -136,7 +136,7 @@ impl WasmLoaderBuilder {
                         match p {
                             Payload::Version { .. } => {
                                 debug!("WASM Version Section");
-                            },
+                            }
                             Payload::ExportSection(s) => {
                                 for export in s {
                                     let export = export?;
@@ -158,7 +158,7 @@ impl WasmLoaderBuilder {
                                     // XXX: in the future, keep the exports list
                                     // too
                                 }
-                            },
+                            }
                             Payload::ImportSection(s) => {
                                 for import in s {
                                     let import = import.expect("Import section is malformed");
@@ -191,10 +191,10 @@ impl WasmLoaderBuilder {
                                         new.needs_javy = Some(true);
                                     }
                                 }
-                            },
-                            _other => {},
+                            }
+                            _other => {}
                         }
-                    },
+                    }
                     Err(e) => return Err(e.into()),
                 }
             }

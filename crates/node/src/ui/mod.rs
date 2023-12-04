@@ -15,7 +15,7 @@ pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHan
             Ok(_) => info!("NodeJS is installed"),
             Err(e) => {
                 return Err(NodeError::Other(format!("NodeJS is not installed: {e}")));
-            },
+            }
         }
 
         info!("Ensuring yarn is installed");
@@ -31,9 +31,9 @@ pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHan
                     Ok(_) => (),
                     Err(_) => {
                         return Err(NodeError::Other(format!("Failed to install yarn: {e}")));
-                    },
+                    }
                 }
-            },
+            }
         }
 
         info!("Installing dependencies");
@@ -47,7 +47,7 @@ pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHan
                 return Err(NodeError::Other(format!(
                     "Failed to install dependencies: {e}"
                 )));
-            },
+            }
         }
 
         info!("Spawning UI");
