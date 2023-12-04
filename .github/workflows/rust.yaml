@@ -28,8 +28,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --all-targets -- -D warnings
-          
-  # check workspace for formatability, and treat unformatted code as errors.
+
+  # check if workspace is formatted, and treat unformatted code as errors.
   fmt-check:
     name: fmt
     runs-on: ubuntu-latest
