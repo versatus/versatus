@@ -565,6 +565,10 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
     config.whitelisted_nodes = whitelisted_nodes.clone();
 
+        if let Some(base_config) = &base_config {
+            config.gui = base_config.gui;
+        }
+
     let node_0 = Node::start(config).await.unwrap();
 
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
@@ -608,6 +612,9 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
         config.whitelisted_nodes = whitelisted_nodes.clone();
+        if let Some(base_config) = &base_config {
+            config.gui = base_config.gui;
+        }
 
         let node = Node::start(config).await.unwrap();
         nodes.push(node);
@@ -628,6 +635,9 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
         miner_config.whitelisted_nodes = whitelisted_nodes.clone();
+        if let Some(base_config) = &base_config {
+            miner_config.gui = base_config.gui;
+        }
 
         let miner_node = Node::start(miner_config).await.unwrap();
 
