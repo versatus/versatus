@@ -93,7 +93,7 @@ pub struct NodeConfig {
     #[builder(default = "false")]
     /// Enables the node's reporting and control UI
     // TODO: consider renaming to enable_ui instead
-    pub gui: bool,
+    pub enable_ui: bool,
 
     #[builder(default = "false")]
     /// Disables all broadcasting or listening capabilities of the node
@@ -183,7 +183,7 @@ impl Default for NodeConfig {
             bootstrap_peer_data: None,
             quorum_config: None,
             keypair: Keypair::random(),
-            gui: false,
+            enable_ui: false,
             disable_networking: false,
             threshold_config: ThresholdConfig::default(),
             enable_block_indexing: false,
