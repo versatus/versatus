@@ -3866,10 +3866,13 @@ name = "metric_exporter"
 version = "0.1.0"
 dependencies = [
  "hyper",
- "log",
+ "hyper-rustls",
  "platform",
  "prometheus",
  "rand 0.8.5",
+ "rustls 0.21.8",
+ "rustls-pemfile 1.0.4",
+ "telemetry",
  "thiserror",
  "tokio",
 ]
@@ -7529,6 +7532,7 @@ dependencies = [
  "faucet",
  "hex",
  "hyper",
+ "hyper-rustls",
  "integral-db",
  "internal_rpc",
  "lazy_static",
