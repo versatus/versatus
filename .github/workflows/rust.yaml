@@ -51,7 +51,6 @@ jobs:
       - name: cargo fmt
         uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           args: -- --check
 
   # tests all crates in parallel
