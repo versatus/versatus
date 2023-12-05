@@ -168,7 +168,7 @@ fn test_infinite_recursion() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    dbg!(res);
+    assert!(res.is_err())
 }
 
 /// This test checks for the return of a non-existent file attempting to be read.
@@ -181,7 +181,7 @@ fn test_file_not_found() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    dbg!(res);
+    assert!(res.is_err())
 }
 
 /// This test checks for the return of i32 integer using std::process::exit().
@@ -194,5 +194,5 @@ fn test_process_exit() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    dbg!(res);
+    assert!(res.is_err())
 }
