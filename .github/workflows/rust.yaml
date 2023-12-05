@@ -2,6 +2,7 @@ name: cargo
 on: [pull_request]
 env:
   CARGO_TERM_COLOR: always
+  RUST_VERSION: ../../rust-toolchain.toml
 
 jobs:
   # check workspace for warnings & treat them as errors
