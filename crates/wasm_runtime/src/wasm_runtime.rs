@@ -7,6 +7,7 @@
 
 use std::{
     collections::HashMap,
+    error::Error,
     io::{Read, Write},
     sync::Arc,
 };
@@ -15,14 +16,14 @@ use super::{
     limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT},
     metering::MeteringConfig,
 };
-use anyhow::Result;
 use telemetry::debug;
 use wasmer::{
-    wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
-    Store, Target,
+    wasmparser::Operator, BaseTunables, CompileError, CompilerConfig, Engine, ExportError,
+    FrameInfo, Instance, InstantiationError, Module, NativeEngineExt, RuntimeError, Store, Target,
 };
 use wasmer_middlewares::metering::get_remaining_points;
-use wasmer_wasix::{Pipe, WasiEnv};
+use wasmer_vm::TrapCode;
+use wasmer_wasix::{Pipe, WasiEnv, WasiError, WasiRuntimeError};
 
 /// This is the first command line argument, traditionally reserved for the
 /// program name (argv[0] in C and others).
@@ -47,7 +48,7 @@ impl WasmRuntime {
         target: &Target,
         wasm_bytes: &[u8],
         metering_config: MeteringConfig<impl Fn(&Operator<'_>) -> u64 + Send + Sync + 'static>,
-    ) -> Result<Self>
+    ) -> RuntimeResult<Self>
     where
         C: Default + Into<Engine> + CompilerConfig,
     {
@@ -78,21 +79,21 @@ impl WasmRuntime {
     }
 
     /// Adds a set of command line arguments to the WASM module's execution
-    pub fn args(mut self, args: &[String]) -> Result<Self> {
+    pub fn args(mut self, args: &[String]) -> Self {
         self.args = args.to_vec();
-        Ok(self)
+        self
     }
 
     /// Optionally sets environment variables for the running WASM module.
-    pub fn env(mut self, env_vars: &HashMap<String, String>) -> Result<Self> {
+    pub fn env(mut self, env_vars: &HashMap<String, String>) -> Self {
         self.env = env_vars.clone();
-        Ok(self)
+        self
     }
 
     /// Writes a vector of bytes to stdin for the WASM module on execution.
-    pub fn stdin(mut self, input: &[u8]) -> Result<Self> {
+    pub fn stdin(mut self, input: &[u8]) -> Self {
         self.stdin = input.to_vec();
-        Ok(self)
+        self
     }
 
     /// Returns a string containing the output written to the WASM module's
@@ -108,7 +109,7 @@ impl WasmRuntime {
     }
 
     /// Execute the compiled WASM module and retrieve the result.
-    pub fn execute(&mut self) -> Result<()> {
+    pub fn execute(&mut self) -> RuntimeResult<()> {
         let (mut stdin, in_wasm) = Pipe::channel();
         let (out_wasm, mut stdout) = Pipe::channel();
         let (err_wasm, mut stderr) = Pipe::channel();
@@ -125,7 +126,7 @@ impl WasmRuntime {
     fn init_wasi_fn_env(
         &mut self,
         (in_wasm, out_wasm, err_wasm): (Pipe, Pipe, Pipe),
-    ) -> Result<()> {
+    ) -> RuntimeResult<()> {
         let store = &mut self.store;
         let module = &self.module;
         let mut wasi_fn_env = WasiEnv::builder(MODULE_ARGV0)
@@ -152,5 +153,80 @@ impl WasmRuntime {
         );
 
         Ok(wasi_fn_env.cleanup(store, None))
+    }
+}
+
+pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum WasmRuntimeError {
+    #[error(
+        "Encountered runtime error:
+reason: {:?}
+msg:    {}
+trace:  {:?}
+origin: {:?}",
+        reason,
+        msg,
+        trace,
+        origin
+    )]
+    RuntimeError {
+        reason: TrapCode,
+        msg: String,
+        trace: Vec<FrameInfo>,
+        origin: Option<String>,
+    },
+
+    #[error(
+        "Encountered runtime error:
+msg:    {}
+trace:  {:?}
+origin: {:?}",
+        msg,
+        trace,
+        origin
+    )]
+    RuntimeErrorLossy {
+        msg: String,
+        trace: Vec<FrameInfo>,
+        origin: Option<String>,
+    },
+
+    #[error(transparent)]
+    CompileError(#[from] CompileError),
+
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    WasiRuntimeError(#[from] WasiRuntimeError),
+
+    #[error(transparent)]
+    WasiError(#[from] WasiError),
+
+    #[error(transparent)]
+    InstantiationError(#[from] InstantiationError),
+
+    #[error(transparent)]
+    ExportError(#[from] ExportError),
+}
+
+impl From<RuntimeError> for WasmRuntimeError {
+    fn from(value: RuntimeError) -> Self {
+        if let Some(reason) = value.clone().to_trap() {
+            Self::RuntimeError {
+                reason,
+                msg: value.message(),
+                trace: value.trace().to_owned(),
+                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
+            }
+        } else {
+            Self::RuntimeErrorLossy {
+                msg: value.message(),
+                trace: value.trace().to_owned(),
+                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
+            }
+        }
     }
 }
