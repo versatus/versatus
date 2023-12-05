@@ -22,4 +22,4 @@ node_modules
 .cargo/
 config.toml
 
-**/whitelist.json
+crates/cli/tests/whitelist.json
