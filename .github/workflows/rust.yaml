@@ -31,6 +31,7 @@ jobs:
 
   # check if workspace is formatted, and treat unformatted code as errors.
   fmt-check:
+    name: fmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
