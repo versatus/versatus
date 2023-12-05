@@ -6,18 +6,36 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
+use telemetry::info;
+use tokio::signal;
 
 #[tokio::main]
 async fn main() {
     // Configuration
+    let bind_addr = String::from("127.0.0.1");
     let port = 8080u16;
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let labels = labels! {
                 "service".to_string() => "compute".to_string(),
                 "source".to_string() => "versatus".to_string(),
     };
+
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+    let rsa_path = current_dir.join("src/examples/sample.rsa");
+    let pem_path = current_dir.join("src/examples/sample.pem");
+
     // Prometheus factory for metrics
-    let factory = Arc::new(PrometheusFactory::new(port, false, HashMap::new()));
+    let factory = Arc::new(
+        PrometheusFactory::new(
+            bind_addr,
+            port,
+            false,
+            HashMap::new(),
+            rsa_path.to_str().unwrap().to_string(),
+            pem_path.to_str().unwrap().to_string(),
+        )
+        .unwrap(),
+    );
 
     // Metrics: Block height, Transactions per minute, CPU load, Active peers, Block finality time
     let block_height = factory
@@ -36,8 +54,22 @@ async fn main() {
         .build_histogram("block_finality_time", "Block Finality Time", labels)
         .unwrap();
 
+    let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup()).unwrap();
+    let (sender, receiver) = tokio::sync::mpsc::channel::<()>(100);
+    let server = factory.serve(receiver);
+    tokio::spawn(async move {
+        while let Some(_) = sighup_receiver.recv().await {
+            // Do something when a SIGHUP signal is received
+            if let Err(_) = sender.send(()).await {
+                // Handle the error if sending fails
+                info!("Failed to send signal");
+                break; // Break out of the loop if sending fails
+            } else {
+                info!("Sending signal to reload config")
+            }
+        }
+    });
     // Simulating blockchain metrics
-    let server = factory.serve();
 
     // Simulate block creation - Increment block height counter every 5 seconds
     thread::spawn({
