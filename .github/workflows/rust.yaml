@@ -2,7 +2,6 @@ name: cargo
 on: [pull_request]
 env:
   CARGO_TERM_COLOR: always
-  RUST_VERSION: ../../rust-toolchain.toml
 
 jobs:
   # check workspace for warnings & treat them as errors
@@ -36,9 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt
       - name: Check Formatting
         run: cargo fmt --all -- --check
