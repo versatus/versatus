@@ -22,5 +22,5 @@ node_modules
 .cargo/
 config.toml
 
-crates/cli/tests/whitelist.json
+crates/cli/tests/
 whitelist.json
