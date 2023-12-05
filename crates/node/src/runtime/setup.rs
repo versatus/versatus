@@ -108,7 +108,7 @@ pub async fn setup_runtime_components(
 
     // TODO: value assigned to `node_gui_handle` is never read.
     let mut _node_gui_handle = None;
-    if config.gui {
+    if config.enable_ui {
         _node_gui_handle = setup_node_gui(&config).await?;
         info!("Node UI started");
     }

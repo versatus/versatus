@@ -7,7 +7,7 @@ use vrrb_config::NodeConfig;
 use crate::result::{NodeError, Result};
 
 pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHandle<Result<()>>>> {
-    if config.gui {
+    if config.enable_ui {
         info!("Configuring Node {}", &config.id);
         info!("Ensuring environment has required dependencies");
 
@@ -51,9 +51,10 @@ pub(crate) async fn setup_node_gui(config: &NodeConfig) -> Result<Option<JoinHan
         }
 
         info!("Spawning UI");
-
+        let rpc_api_url = config.jsonrpc_server_address.to_string();
         let node_gui_handle = tokio::spawn(async move {
             if let Err(err) = Command::new("yarn")
+                .env("RPC_API_URL", rpc_api_url)
                 .args(["dev"])
                 .current_dir("infra/gui")
                 .spawn()
