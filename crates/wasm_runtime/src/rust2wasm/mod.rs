@@ -3,4 +3,3 @@
 pub mod file_not_found;
 pub mod infinite_recursion;
 pub mod process_exit;
-pub mod trigger_oom;

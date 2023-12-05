@@ -24,16 +24,6 @@ struct TestOutput {
     env: HashMap<String, String>,
 }
 
-#[derive(Error, Debug)]
-pub enum WasmRuntimeError {
-    #[error("file not found")]
-    FileNotFound(#[from] wasmer::MemoryAccessError),
-    #[error("out of memory")]
-    OutOfMemory(#[from] wasmer::MemoryError),
-    #[error("stack overflow")]
-    StackOverflow(#[from] wasmer::RuntimeError),
-}
-
 // Constants used by tests below
 const TEST_VERSION: i32 = 5432;
 const TEST_TX_ID: &str = "81b067ac-8693-483a-8354-d7de15ab6f2c";
@@ -186,20 +176,6 @@ fn test_infinite_recursion() {
 #[test]
 fn test_file_not_found() {
     let wasm_bytes = std::fs::read("test_data/should_panic/file_not_found.wasm").unwrap();
-    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
-    let target = Target::default();
-    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
-        .unwrap()
-        .stdin(&json_data)
-        .unwrap();
-    let res = runtime.execute();
-    dbg!(res);
-}
-
-/// This test checks for the return of a mock OOM error.
-#[test]
-fn test_trigger_oom() {
-    let wasm_bytes = std::fs::read("test_data/should_panic/out_of_memory.wasm").unwrap();
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
