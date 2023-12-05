@@ -3866,10 +3866,13 @@ name = "metric_exporter"
 version = "0.1.0"
 dependencies = [
  "hyper",
- "log",
+ "hyper-rustls",
  "platform",
  "prometheus",
  "rand 0.8.5",
+ "rustls 0.21.8",
+ "rustls-pemfile 1.0.4",
+ "telemetry",
  "thiserror",
  "tokio",
 ]
@@ -4047,6 +4050,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77a5d83df9f36fe23f0c3648c6bbb8b0298bb5f1939c8f2704431371f4b84d43"
 dependencies = [
  "smallvec",
+]
+
+[[package]]
+name = "nix"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+dependencies = [
+ "bitflags 2.4.1",
+ "cfg-if 1.0.0",
+ "libc",
 ]
 
 [[package]]
@@ -4550,9 +4564,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bitmask-enum",
+ "nix",
  "serde",
  "thiserror",
- "uname-rs",
 ]
 
 [[package]]
@@ -7343,12 +7357,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "uname-rs"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6498db259318ceb970d57db6844044c0c2023c5dc15f33dfc1292306fa017906"
-
-[[package]]
 name = "unicase"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7529,6 +7537,7 @@ dependencies = [
  "faucet",
  "hex",
  "hyper",
+ "hyper-rustls",
  "integral-db",
  "internal_rpc",
  "lazy_static",

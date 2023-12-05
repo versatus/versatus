@@ -6,3 +6,5 @@ pub mod error;
 pub mod platform_stats;
 pub mod services;
 pub mod sys;
+
+pub use nix::sys::utsname::*;
