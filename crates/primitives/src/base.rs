@@ -110,7 +110,7 @@ pub type PKShareBytes = ByteVec;
 pub type PayloadBytes = ByteVec;
 pub type LastBlockHeight = u128;
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum QuorumKind {
     #[default]
     Harvester,

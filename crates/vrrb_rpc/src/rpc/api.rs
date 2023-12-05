@@ -7,7 +7,7 @@ use primitives::{Address, NodeType, Round};
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use storage::vrrbdb::Claims;
-use vrrb_config::bootstrap_quorum::QuorumMembershipConfig;
+use vrrb_config::QuorumMembershipConfig;
 use vrrb_core::account::Account;
 use vrrb_core::node_health_report::NodeHealthReport;
 use vrrb_core::transactions::{
@@ -139,5 +139,5 @@ pub trait RpcApi {
     async fn get_membership_config(&self) -> Result<QuorumMembershipConfig, RpseeError>;
 
     #[method(name = "getLastBlock")]
-    async fn get_last_block(&self) -> Result<Block, RpseeError>;
+    async fn get_last_block(&self) -> Result<Option<Block>, RpseeError>;
 }

@@ -17,8 +17,11 @@ use quorum::{election::Election, quorum::Quorum};
 use crate::{network::NetworkEvent, node_runtime::NodeRuntime, Node, Result};
 use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
+pub use mock_config::*;
+pub use node_network::*;
 use primitives::{generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind};
 use rand::{seq::SliceRandom, thread_rng};
+pub use runtime_network::*;
 use secp256k1::{Message, PublicKey, SecretKey};
 use sha256::digest;
 use signer::engine::SignerEngine;
@@ -38,61 +41,9 @@ use vrrb_core::{
 };
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 
-pub fn create_mock_full_node_config() -> NodeConfig {
-    let data_dir = env::temp_dir();
-    let id = Uuid::new_v4().simple().to_string();
-
-    let temp_dir_path = std::env::temp_dir();
-    let db_path = temp_dir_path.join(vrrb_core::helpers::generate_random_string());
-
-    let http_api_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let jsonrpc_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let rendezvous_local_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let rendezvous_server_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let public_ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let kademlia_liveness_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-
-    NodeConfigBuilder::default()
-        .id(id)
-        .data_dir(data_dir)
-        .db_path(db_path)
-        .node_type(NodeType::Bootstrap)
-        .bootstrap_config(None)
-        .http_api_address(http_api_address)
-        .http_api_title(String::from("HTTP Node API"))
-        .http_api_version(String::from("1.0"))
-        .http_api_shutdown_timeout(Some(Duration::from_secs(5)))
-        .jsonrpc_server_address(jsonrpc_server_address)
-        .keypair(Keypair::random())
-        .rendezvous_local_address(rendezvous_local_address)
-        .rendezvous_server_address(rendezvous_server_address)
-        .udp_gossip_address(udp_gossip_address)
-        .raptorq_gossip_address(raptorq_gossip_address)
-        .kademlia_peer_id(Some(KademliaPeerId::rand()))
-        .kademlia_liveness_address(kademlia_liveness_address)
-        .public_ip_address(public_ip_address)
-        .disable_networking(false)
-        .quorum_config(None)
-        .bootstrap_quorum_config(None)
-        .threshold_config(ThresholdConfig::default())
-        .whitelisted_nodes(vec![])
-        .build()
-        .unwrap()
-}
-
-#[deprecated]
-pub fn create_mock_full_node_config_with_bootstrap(
-    _bootstrap_node_addresses: Vec<SocketAddr>,
-) -> NodeConfig {
-    create_mock_full_node_config()
-}
-
-#[deprecated]
-pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    create_mock_full_node_config()
-}
+mod mock_config;
+mod node_network;
+mod runtime_network;
 
 pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
     (0..n)
@@ -493,293 +444,6 @@ pub fn create_mock_transaction_args(n: usize) -> NewTransferArgs {
     }
 }
 
-/// Creates `n` Node instances that make up a network.
-pub async fn create_test_network(n: u16) -> Vec<Node> {
-    create_test_network_from_config(n, None).await
-}
-
-pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeConfig>) -> Vec<Node> {
-    let validator_count = (n as f64 * 0.9).ceil() as usize;
-    let miner_count = n as usize - validator_count;
-
-    let mut nodes = vec![];
-    let mut quorum_members = BTreeMap::new();
-    // let mut keypairs = vec![];
-    let keypairs = (1..=n)
-        .into_iter()
-        .map(|_| Keypair::random())
-        .collect::<Vec<Keypair>>();
-
-    for i in 1..=n {
-        let udp_port: u16 = 11000 + i;
-        let raptor_port: u16 = 12000 + i;
-        let kademlia_port: u16 = 13000 + i;
-
-        let index = i as usize;
-        let keypair = keypairs.get(index - 1).unwrap().clone();
-        let validator_public_key = keypair.miner_public_key_owned();
-
-        let node_id = format!("node-{}", i);
-
-        // TODO: reconsider this validator count proportion later
-        // let node_type = if i < validator_count as u16 {
-        //
-        let node_type = if i < n {
-            NodeType::Validator
-        } else {
-            NodeType::Miner
-        };
-
-        let member = QuorumMember {
-            node_id: format!("node-{}", i),
-            kademlia_peer_id: KademliaPeerId::rand(),
-            node_type,
-            udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
-            raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
-            kademlia_liveness_address: SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::LOCALHOST),
-                kademlia_port,
-            ),
-            validator_public_key,
-        };
-
-        quorum_members.insert(node_id, member);
-    }
-
-    let whitelisted_nodes = quorum_members
-        .values()
-        .cloned()
-        .collect::<Vec<QuorumMember>>();
-
-    let bootstrap_quorum_config = BootstrapQuorumConfig {
-        membership_config: QuorumMembershipConfig {
-            quorum_members: quorum_members.clone(),
-            quorum_kind: QuorumKind::Farmer,
-        },
-        genesis_transaction_threshold: (n / 2) as u64,
-    };
-
-    // let mut config = if let Some(base_config) = base_config.clone() {
-    //     telemetry::info!("Using base config");
-    //     telemetry::info!("{:?}", base_config);
-    //     telemetry::info!("{:?}", create_mock_full_node_config());
-    //     base_config
-    // } else {
-    //     create_mock_full_node_config()
-    // };
-
-    let mut config = create_mock_full_node_config();
-
-    config.id = String::from("node-0");
-
-    config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
-
-    config.whitelisted_nodes = whitelisted_nodes.clone();
-
-    let node_0 = Node::start(config).await.unwrap();
-
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-    let additional_genesis_receivers = if let Some(base_config) = base_config.clone() {
-        if let Some(base_config) = base_config.bootstrap_config {
-            base_config.additional_genesis_receivers
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
-        id: node_0.kademlia_peer_id(),
-        udp_gossip_addr: addr,
-        raptorq_gossip_addr: addr,
-        kademlia_liveness_addr: addr,
-        additional_genesis_receivers,
-    };
-
-    bootstrap_node_config.udp_gossip_addr = node_0.udp_gossip_address();
-    bootstrap_node_config.raptorq_gossip_addr = node_0.raptorq_gossip_address();
-    bootstrap_node_config.kademlia_liveness_addr = node_0.kademlia_liveness_address();
-
-    nodes.push(node_0);
-
-    for i in 1..=validator_count - 1 {
-        let mut config = create_mock_full_node_config();
-
-        let node_id = format!("node-{}", i);
-        let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
-
-        config.id = format!("node-{}", i);
-        config.keypair = keypairs.get(i - 1).unwrap().clone();
-        config.bootstrap_config = Some(bootstrap_node_config.clone());
-        config.node_type = NodeType::Validator;
-        config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
-        config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
-        config.udp_gossip_address = quorum_config.udp_gossip_address;
-        config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
-        config.whitelisted_nodes = whitelisted_nodes.clone();
-
-        let node = Node::start(config).await.unwrap();
-        nodes.push(node);
-    }
-
-    for i in validator_count..=validator_count + miner_count {
-        let mut miner_config = create_mock_full_node_config();
-
-        let node_id = format!("node-{}", i);
-        let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
-
-        miner_config.id = format!("node-{}", i);
-        miner_config.keypair = keypairs.get(i - 1).unwrap().clone();
-        miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
-        miner_config.node_type = NodeType::Miner;
-        miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
-        miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
-        miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
-        miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
-        miner_config.whitelisted_nodes = whitelisted_nodes.clone();
-
-        let miner_node = Node::start(miner_config).await.unwrap();
-
-        nodes.push(miner_node);
-    }
-
-    nodes
-}
-
-/// Creates n NodeRuntimes to simulate networks
-pub async fn create_node_runtime_network(
-    n: usize,
-    events_tx: EventPublisher,
-) -> VecDeque<NodeRuntime> {
-    let validator_count = (n as f64 * 0.8).ceil() as usize;
-    let miner_count = n - validator_count;
-
-    let mut nodes = VecDeque::new();
-
-    let mut quorum_members = BTreeMap::new();
-
-    for i in 1..=n as u16 {
-        let udp_port: u16 = 11000 + i;
-        let raptor_port: u16 = 12000 + i;
-        let kademlia_port: u16 = 13000 + i;
-        let keypair = Keypair::random();
-        let validator_public_key = keypair.miner_public_key_owned();
-
-        let node_id = format!("node-{}", i);
-
-        let member = QuorumMember {
-            node_id: node_id.clone(),
-            kademlia_peer_id: KademliaPeerId::rand(),
-            node_type: NodeType::Validator,
-            udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
-            raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
-            kademlia_liveness_address: SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::LOCALHOST),
-                kademlia_port,
-            ),
-            validator_public_key,
-        };
-
-        quorum_members.insert(node_id, member);
-    }
-
-    let bootstrap_quorum_config = BootstrapQuorumConfig {
-        membership_config: QuorumMembershipConfig {
-            quorum_members: quorum_members.clone(),
-            quorum_kind: QuorumKind::Farmer,
-        },
-        genesis_transaction_threshold: (n / 2) as u64,
-    };
-
-    let mut config = create_mock_full_node_config();
-    config.id = String::from("node-0");
-
-    config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
-
-    let node_0 = NodeRuntime::new(&config, events_tx.clone()).await.unwrap();
-
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
-        id: node_0.config.kademlia_peer_id.unwrap(),
-        udp_gossip_addr: addr,
-        raptorq_gossip_addr: addr,
-        kademlia_liveness_addr: addr,
-        additional_genesis_receivers: None,
-    };
-
-    bootstrap_node_config.udp_gossip_addr = node_0.config.udp_gossip_address;
-    bootstrap_node_config.raptorq_gossip_addr = node_0.config.raptorq_gossip_address;
-    bootstrap_node_config.kademlia_liveness_addr = node_0.config.kademlia_liveness_address;
-
-    nodes.push_back(node_0);
-
-    for i in 1..=validator_count - 1 {
-        let mut config = create_mock_full_node_config();
-
-        let node_id = format!("node-{}", i);
-        let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
-
-        config.id = format!("node-{}", i);
-        config.bootstrap_config = Some(bootstrap_node_config.clone());
-        config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
-        config.node_type = NodeType::Validator;
-        config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
-        config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
-        config.udp_gossip_address = quorum_config.udp_gossip_address;
-        config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
-
-        let node = NodeRuntime::new(&config, events_tx.clone()).await.unwrap();
-        nodes.push_back(node);
-    }
-
-    for i in validator_count..=validator_count + miner_count {
-        let mut miner_config = create_mock_full_node_config();
-
-        let node_id = format!("node-{}", i);
-        let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
-
-        miner_config.id = format!("node-{}", i);
-        miner_config.bootstrap_config = Some(bootstrap_node_config.clone());
-        miner_config.bootstrap_quorum_config = Some(bootstrap_quorum_config.clone());
-        miner_config.node_type = NodeType::Miner;
-        miner_config.kademlia_liveness_address = quorum_config.kademlia_liveness_address;
-        miner_config.raptorq_gossip_address = quorum_config.raptorq_gossip_address;
-        miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
-        miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
-
-        let miner_node = NodeRuntime::new(&miner_config, events_tx.clone())
-            .await
-            .unwrap();
-
-        nodes.push_back(miner_node);
-    }
-
-    nodes
-}
-
-pub async fn create_quorum_assigned_node_runtime_network(
-    n: usize,
-    min_quorum_size: usize,
-    events_tx: EventPublisher,
-) -> Vec<NodeRuntime> {
-    assert!(n > (1 + (min_quorum_size * 2)));
-    let mut nodes = create_node_runtime_network(n, events_tx.clone()).await;
-    // NOTE: remove bootstrap
-    nodes.pop_front().unwrap();
-
-    let mut quorums = vec![];
-    form_groups_with_peer_data(&mut nodes, min_quorum_size, &mut quorums);
-    add_group_peer_data_to_node(&mut quorums).await;
-    let mut assigned_memberships = vec![];
-    assign_node_to_quorum(&quorums, &mut assigned_memberships);
-    let mut quorums_only = quorums.into_iter().map(|(nr, _)| nr).collect();
-    handle_assigned_memberships(&mut quorums_only, assigned_memberships);
-    quorums_only.into_iter().flatten().collect()
-}
-
 fn handle_assigned_memberships(
     quorums: &mut Vec<Vec<NodeRuntime>>,
     assigned_memberships: Vec<AssignedQuorumMembership>,
@@ -1130,6 +794,7 @@ pub fn setup_whitelisted_nodes(
             raptorq_gossip_address: node.config.raptorq_gossip_address,
             kademlia_liveness_address: node.config.kademlia_liveness_address,
             validator_public_key: node.config.keypair.miner_public_key_owned(),
+            quorum_kind: QuorumKind::Harvester,
         })
         .collect::<Vec<QuorumMember>>();
 
@@ -1143,6 +808,7 @@ pub fn setup_whitelisted_nodes(
             raptorq_gossip_address: node.config.raptorq_gossip_address,
             kademlia_liveness_address: node.config.kademlia_liveness_address,
             validator_public_key: node.config.keypair.miner_public_key_owned(),
+            quorum_kind: QuorumKind::Farmer,
         })
         .collect::<Vec<QuorumMember>>();
 
@@ -1156,6 +822,8 @@ pub fn setup_whitelisted_nodes(
             raptorq_gossip_address: node.config.raptorq_gossip_address,
             kademlia_liveness_address: node.config.kademlia_liveness_address,
             validator_public_key: node.config.keypair.miner_public_key_owned(),
+            // TODO: figure out how to refactor this l8r, there's no miner quorum
+            quorum_kind: QuorumKind::Miner,
         })
         .collect::<Vec<QuorumMember>>();
 

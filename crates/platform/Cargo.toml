@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+bitmask-enum = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+nix = { version = "0.27", features = ["feature"] }

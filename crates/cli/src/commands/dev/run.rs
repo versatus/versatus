@@ -85,7 +85,7 @@ pub struct RunOpts {
 
     /// Enables the UI for the node
     #[clap(long, action, default_value = "false")]
-    pub gui: bool,
+    pub enable_ui: bool,
 
     /// Disables networking capabilities of the node
     #[clap(long, action, default_value = "false")]
@@ -154,6 +154,7 @@ impl From<RunOpts> for NodeConfig {
             jsonrpc_server_address: opts.jsonrpc_api_address,
             preload_mock_state: default_node_config.preload_mock_state,
             bootstrap_config,
+            bootstrap_peer_data: None,
             kademlia_liveness_address: default_node_config.kademlia_liveness_address,
             kademlia_peer_id: default_node_config.kademlia_peer_id,
 
@@ -163,10 +164,9 @@ impl From<RunOpts> for NodeConfig {
             // a hack, but it works for now.
             keypair: default_node_config.keypair,
             disable_networking: opts.disable_networking,
-            gui: opts.gui,
+            enable_ui: opts.enable_ui,
             rendezvous_server_address: opts.rendezvous_server_address,
             public_ip_address: opts.raptorq_gossip_address,
-            bootstrap_quorum_config: default_node_config.bootstrap_quorum_config,
             quorum_config: default_node_config.quorum_config,
             enable_block_indexing: default_node_config.enable_block_indexing,
             threshold_config: default_node_config.threshold_config,
@@ -196,7 +196,7 @@ impl Default for RunOpts {
             bootstrap_node_addresses: Default::default(),
             http_api_title: Default::default(),
             http_api_version: Default::default(),
-            gui: Default::default(),
+            enable_ui: Default::default(),
             disable_networking: Default::default(),
             rendezvous_local_address: ipv4_localhost_with_random_port,
             rendezvous_server_address: ipv4_localhost_with_random_port,
@@ -284,7 +284,7 @@ impl RunOpts {
             http_api_address: other.http_api_address,
             http_api_title,
             http_api_version,
-            gui: false,
+            enable_ui: false,
             disable_networking: false,
             rendezvous_local_address: other.rendezvous_local_address,
             rendezvous_server_address: other.rendezvous_server_address,

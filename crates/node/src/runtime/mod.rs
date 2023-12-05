@@ -510,6 +510,7 @@ mod tests {
             .handle_node_added_to_peer_list(node_1_peer_data.clone())
             .await
             .unwrap();
+
         assert!(node_2
             .consensus_driver
             .quorum_driver
@@ -550,10 +551,11 @@ mod tests {
             .handle_quorum_membership_assigments_created(assignments.clone())
             .unwrap();
 
+        // TODO: double check if this test really does need to check bootstrap_config
         assert!(node_1
             .consensus_driver
             .quorum_driver
-            .bootstrap_quorum_config
+            .bootstrap_config
             .is_some());
 
         assert!(node_1

@@ -1,11 +1,8 @@
-use std::os::unix::process::CommandExt;
+use std::str::FromStr;
 
 use node::test_utils::create_test_network;
 use primitives::Address;
-use telemetry::custom_subscriber::TelemetrySubscriber;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
-use wallet::v2::{Wallet, WalletConfig};
-// use wallet::v2::{Wallet, WalletConfig};
 
 #[tokio::main]
 async fn main() {

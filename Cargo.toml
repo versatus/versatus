@@ -28,6 +28,7 @@ name = "versa-storage"
 path = "crates/storage_agent/src/main.rs"
 
 [dependencies]
+faucet = { workspace = true }
 tokio = { workspace = true }
 telemetry = { workspace = true }
 cli = { workspace = true }
@@ -50,17 +51,20 @@ serde = { workspace = true }
 sha3 = { workspace = true }
 prometheus = { workspace = true }
 hyper = { workspace = true }
+hyper-rustls = { workspace = true }
 rand = { workspace = true }
 lazy_static = { workspace = true }
 wasmer = { workspace = true }
 metric_exporter = { workspace = true }
 wallet = { workspace = true }
 chrono = { workspace = true }
+internal_rpc = { workspace = true }
 
 [workspace]
 members = [
     "crates/primitives",
     "crates/events",
+    "crates/faucet",
     "crates/consensus",
     "crates/consensus/quorum",
     # "crates/consensus/dkg_engine",
@@ -70,6 +74,7 @@ members = [
     "crates/consensus/vrrb_vrf",
     "crates/vrrb_core",
     "crates/cli",
+    "crates/internal_rpc",
     "crates/vrrb_config",
     "crates/vrrb_rpc",
     "crates/block",
@@ -97,11 +102,13 @@ members = [
 [workspace.dependencies]
 # NOTE: Internal crates 
 cli = { path = "crates/cli" }
+internal_rpc = { path = "crates/internal_rpc" }
 node = { path = "crates/node" }
 primitives = { path = "crates/primitives" }
 vrrb_core = { path = "crates/vrrb_core" }
 vrrb_config = { path = "crates/vrrb_config" }
 vrrb_rpc = { path = "crates/vrrb_rpc" }
+faucet = { path = "crates/faucet" }
 block = { path = "crates/block" }
 miner = { path = "crates/miner" }
 wallet = { path = "crates/wallet" }
@@ -154,6 +161,7 @@ secp256k1 = { version = "0.25.0", features = [
 ] }
 
 # NOTE: External crates
+bitmask-enum = "2.2"
 clap = { version = "3.2.20", features = ["derive"] }
 assert_cmd = "2.0.4"
 sha256 = "1.1.1"
@@ -253,6 +261,10 @@ wasmer-wasix-types = "0.9.0"
 wasmparser = "0.107.0"
 ipfs-api = "0.17.0"
 microkv = "0.2.9"
+rustls = "0.21"
+rustls-pemfile = "1.0"
+hyper-rustls = { version = "0.24", features = ["acceptor"] }
+
 
 [dev-dependencies]
 cuckoofilter.workspace = true

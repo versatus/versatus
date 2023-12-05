@@ -11,6 +11,9 @@ use vrrb_core::claim::ClaimError;
 
 #[derive(Debug, Error)]
 pub enum NodeError {
+    #[error("invalid configuration value provided: {0}")]
+    ConfigError(String),
+
     #[error("invalid node type {0} provided")]
     InvalidNodeType(String),
 

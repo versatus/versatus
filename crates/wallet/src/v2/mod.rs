@@ -163,29 +163,19 @@ impl Wallet {
         //     }
         // };
 
-        let payload = utils::hash_data!(
-            timestamp,
-            sender_address.to_string(),
-            self.public_key.to_string(),
-            receiver.to_string(),
-            amount,
-            token,
-            self.nonce.clone()
-        );
-
-        let signature = self.sign_transaction(&payload[..]);
-
-        let transfer = TransactionKind::transfer_builder()
+        let transfer_builder = TransactionKind::transfer_builder()
             .timestamp(timestamp)
             .sender_address(sender_address)
             .sender_public_key(self.public_key)
             .receiver_address(receiver)
             .token(token)
             .amount(amount)
-            .signature(signature)
             .validators(HashMap::new())
-            .nonce(self.nonce)
-            .build_kind()
+            .nonce(self.nonce);
+
+        let signature = self.sign_transaction(transfer_builder.build_payload().as_bytes());
+
+        let transfer = transfer_builder.signature(signature).build_kind()
             .map_err(|_| WalletError::Custom("Failed to build transfer transaction".to_string()))?;
 
         self.client
