@@ -166,8 +166,7 @@ fn test_infinite_recursion() {
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
-        .stdin(&json_data)
-        .unwrap();
+        .stdin(&json_data);
     let res = runtime.execute();
     dbg!(res);
 }
@@ -180,8 +179,7 @@ fn test_file_not_found() {
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
-        .stdin(&json_data)
-        .unwrap();
+        .stdin(&json_data);
     let res = runtime.execute();
     dbg!(res);
 }
@@ -194,8 +192,7 @@ fn test_process_exit() {
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
-        .stdin(&json_data)
-        .unwrap();
+        .stdin(&json_data);
     let res = runtime.execute();
     dbg!(res);
 }
