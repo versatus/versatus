@@ -1,4 +1,4 @@
-import { Flash, Link, Share, User } from 'iconsax-react'
+import { Flash, Link, Share, User, Activity, Scanner, Transmit } from 'iconsax-react'
 import { ButtonBadge } from '@vrrb/ui'
 import { useNodeContext } from '@/contexts/NodeProvider'
 import { ReactNode } from 'react'
@@ -14,7 +14,14 @@ export const NodeStatusModule = () => {
         nodeType,
         nodeTypeLoading,
         nodeTypeErr,
+        membershipConfig,
+        membershipConfigLoading,
+        membershipConfigErr,
+        nodeHealth,
+        nodeHealthLoading,
+        nodeHealthErr
     } = useNodeContext()
+
 
     const LoadingButton = ({
         children,
@@ -62,6 +69,7 @@ export const NodeStatusModule = () => {
                     <div className={'grow'} />
                     <div className={'flex flex-row text-xs items-center gap-2'}>
                         <ButtonBadge
+                            // @ts-ignore
                             startIcon={
                                 <div
                                     className={'p-3 rounded-full bg-neon-energy items-center'}
@@ -125,6 +133,40 @@ export const NodeStatusModule = () => {
                         disableAnimation
                     >
                         {nodeType?.result}
+                    </LoadingButton>
+                </div>
+                <div className={'flex flex-row w-full items-center'}>
+                    <div className={'flex flex-row gap-2 items-center'}>
+                        <Activity />
+                        Quorum Kind
+                    </div>
+                    <div className={'grow'} />
+                    <LoadingButton
+                        size={'xs'}
+                        isError={!!membershipConfigErr}
+                        isLoading={membershipConfigLoading}
+                        tooltip={"This is the type of quorum you're a part of"}
+                        className={'border-0'}
+                        disableAnimation
+                    >
+                        {membershipConfig?.result?.quorum_kind}
+                    </LoadingButton>
+                </div>
+                <div className={'flex flex-row w-full items-center'}>
+                    <div className={'flex flex-row gap-2 items-center'}>
+                        <Scanner />
+                        Quorum Member Count
+                    </div>
+                    <div className={'grow'} />
+                    <LoadingButton
+                        size={'xs'}
+                        isError={!!membershipConfigErr}
+                        isLoading={membershipConfigLoading}
+                        tooltip={"This is the type of quorum you're a part of"}
+                        className={'border-0'}
+                        disableAnimation
+                    >
+                        {membershipConfig?.result && Object.keys(membershipConfig?.result?.quorum_members)?.length}
                     </LoadingButton>
                 </div>
             </div>
