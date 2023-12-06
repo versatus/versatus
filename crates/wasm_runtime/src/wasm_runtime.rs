@@ -7,7 +7,6 @@
 
 use std::{
     collections::HashMap,
-    error::Error,
     io::{Read, Write},
     sync::Arc,
 };
@@ -18,16 +17,18 @@ use super::{
 };
 use telemetry::debug;
 use wasmer::{
-    wasmparser::Operator, BaseTunables, CompileError, CompilerConfig, Engine, ExportError,
-    FrameInfo, Instance, InstantiationError, Module, NativeEngineExt, RuntimeError, Store, Target,
+    wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
+    Store, Target,
 };
 use wasmer_middlewares::metering::get_remaining_points;
-use wasmer_vm::TrapCode;
-use wasmer_wasix::{Pipe, WasiEnv, WasiError, WasiRuntimeError};
+use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
 /// program name (argv[0] in C and others).
 const MODULE_ARGV0: &str = "vrrb-contract";
+
+use crate::errors::WasmRuntimeError;
+pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
 
 pub struct WasmRuntime {
     store: Store,
@@ -153,80 +154,5 @@ impl WasmRuntime {
         );
 
         Ok(wasi_fn_env.cleanup(store, None))
-    }
-}
-
-pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
-
-#[derive(thiserror::Error, Debug)]
-pub enum WasmRuntimeError {
-    #[error(
-        "Encountered runtime error:
-reason: {:?}
-msg:    {}
-trace:  {:?}
-origin: {:?}",
-        reason,
-        msg,
-        trace,
-        origin
-    )]
-    RuntimeError {
-        reason: TrapCode,
-        msg: String,
-        trace: Vec<FrameInfo>,
-        origin: Option<String>,
-    },
-
-    #[error(
-        "Encountered runtime error:
-msg:    {}
-trace:  {:?}
-origin: {:?}",
-        msg,
-        trace,
-        origin
-    )]
-    RuntimeErrorLossy {
-        msg: String,
-        trace: Vec<FrameInfo>,
-        origin: Option<String>,
-    },
-
-    #[error(transparent)]
-    CompileError(#[from] CompileError),
-
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-
-    #[error(transparent)]
-    WasiRuntimeError(#[from] WasiRuntimeError),
-
-    #[error(transparent)]
-    WasiError(#[from] WasiError),
-
-    #[error(transparent)]
-    InstantiationError(#[from] InstantiationError),
-
-    #[error(transparent)]
-    ExportError(#[from] ExportError),
-}
-
-impl From<RuntimeError> for WasmRuntimeError {
-    fn from(value: RuntimeError) -> Self {
-        if let Some(reason) = value.clone().to_trap() {
-            Self::RuntimeError {
-                reason,
-                msg: value.message(),
-                trace: value.trace().to_owned(),
-                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
-            }
-        } else {
-            Self::RuntimeErrorLossy {
-                msg: value.message(),
-                trace: value.trace().to_owned(),
-                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
-            }
-        }
     }
 }

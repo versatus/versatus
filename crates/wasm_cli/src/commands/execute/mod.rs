@@ -9,6 +9,8 @@ use wasm_runtime::{
 };
 use wasmer::{Cranelift, Target};
 
+pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
+
 #[derive(Parser, Debug)]
 pub struct ExecuteOpts {
     /// The path to the WASM object file to load and describe

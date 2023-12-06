@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
-use thiserror::Error;
 use wasmer::{Cranelift, Target};
 
 use crate::{

@@ -1,3 +1,4 @@
+pub mod errors;
 pub mod limiting_tunables;
 pub mod metering;
 mod rust2wasm;
