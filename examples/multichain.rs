@@ -3,6 +3,7 @@ use std::str::FromStr;
 use node::test_utils::create_test_network;
 use primitives::Address;
 use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
+use wallet::v2::{Wallet, WalletConfig};
 
 #[tokio::main]
 async fn main() {
@@ -11,21 +12,22 @@ async fn main() {
     std::env::set_var("RUST_LOG", "info");
 
     let mut nodes = create_test_network(8).await;
-    let rpc_server_address = nodes.get(4).unwrap().config().jsonrpc_server_address;
+    let rpc_server_address = nodes
+        .get(4)
+        .expect("failed to get node 4")
+        .config()
+        .jsonrpc_server_address;
 
-    tokio::signal::ctrl_c().await.unwrap();
+    let mut node = nodes.first_mut().expect("expected a node");
 
-    let mut node = nodes
-        .iter_mut()
-        .find(|node| node.read_handle().state_store_values().is_ok())
-        .unwrap();
-
-    let node_id = node.id();
     let rpc_server_address = node.config().jsonrpc_server_address;
-    let rpc_client = create_client(rpc_server_address).await.unwrap();
+    let rpc_client = create_client(rpc_server_address)
+        .await
+        .expect("failed to create client from rpc server address");
     let res = rpc_client.get_full_state().await;
 
     if let Ok(res) = res {
+        dbg!(&res);
         println!();
 
         let addrs = res.keys().collect::<Vec<&Address>>();

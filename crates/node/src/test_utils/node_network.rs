@@ -84,7 +84,6 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
     let quorum_members = bootstrap_quorum_members
         .iter()
-        // .cloned()
         .map(|(k, v)| (k.clone(), v.clone().into()))
         .collect::<HashMap<NodeId, QuorumMember>>();
 
