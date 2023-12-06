@@ -9,8 +9,6 @@ use wasm_runtime::{
 };
 use wasmer::{Cranelift, Target};
 
-pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
-
 #[derive(Parser, Debug)]
 pub struct ExecuteOpts {
     /// The path to the WASM object file to load and describe
@@ -73,9 +71,9 @@ pub fn run(opts: &ExecuteOpts) -> Result<()> {
         &wasm_bytes,
         MeteringConfig::new(opts.meter_limit, cost_function),
     )?
-    .stdin(&json_data)?
-    .env(&env_vars)?
-    .args(&opts.args)?;
+    .stdin(&json_data)
+    .env(&env_vars)
+    .args(&opts.args);
     wasm.execute()?;
 
     // Temporary output for user -- will eventually be more structured and both
