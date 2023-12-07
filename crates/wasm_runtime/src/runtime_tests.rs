@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 use wasmer::{Cranelift, Target};
+use wasmer_vm::TrapCode;
 
 use crate::{
+    errors::WasmRuntimeError,
     metering::{cost_function, MeteringConfig},
     wasm_runtime::WasmRuntime,
 };
@@ -159,18 +161,31 @@ fn test_failed_execution() {
 
 /// This test checks for the return of a mock instance of infinite recursion.
 #[test]
-fn test_infinite_recursion() {
-    let wasm_bytes = std::fs::read("test_data/should_panic/infinite_recursion.wasm").unwrap();
+fn test_mem_alloc() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/mem_alloc.wasm").unwrap();
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    assert!(res.is_err())
+    assert_eq!(res.err().unwrap().inst_err().unwrap(), "Failed to create memory: A user-defined error occurred: Minimum exceeds the allowed memory limit".to_string());
 }
 
-/// This test checks for the return of a non-existent file attempting to be read.
+// This test checks for the return of a mock instance of stack overflow.
+#[test]
+fn test_stack_overflow() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/stack_overflow.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data);
+    let res = runtime.execute();
+    assert_eq!(res.err().unwrap().reason(), Some(TrapCode::StackOverflow));
+}
+
+// This test checks for the return of a non-existent file attempting to be read.
 #[test]
 fn test_file_not_found() {
     let wasm_bytes = std::fs::read("test_data/should_panic/file_not_found.wasm").unwrap();
@@ -180,10 +195,13 @@ fn test_file_not_found() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    dbg!(res);
+    assert_eq!(
+        res.err().unwrap().reason(),
+        Some(TrapCode::UnreachableCodeReached)
+    );
 }
 
-/// This test checks for the return of i32 integer using std::process::exit().
+// This test checks for the return of i32 integer using std::process::exit().
 #[test]
 fn test_process_exit() {
     let wasm_bytes = std::fs::read("test_data/should_panic/process_exit.wasm").unwrap();
@@ -193,5 +211,8 @@ fn test_process_exit() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    dbg!(res);
+    assert_eq!(
+        res.err().unwrap().origin(),
+        Some("Exit(ExitCode::2147483647)".to_string())
+    );
 }
