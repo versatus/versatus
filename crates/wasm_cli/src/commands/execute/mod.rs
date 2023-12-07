@@ -71,9 +71,9 @@ pub fn run(opts: &ExecuteOpts) -> Result<()> {
         &wasm_bytes,
         MeteringConfig::new(opts.meter_limit, cost_function),
     )?
-    .stdin(&json_data)?
-    .env(&env_vars)?
-    .args(&opts.args)?;
+    .stdin(&json_data)
+    .env(&env_vars)
+    .args(&opts.args);
     wasm.execute()?;
 
     // Temporary output for user -- will eventually be more structured and both
