@@ -169,7 +169,7 @@ fn test_mem_alloc() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    assert_eq!(res.err().unwrap().inst_err().unwrap(), "Failed to create memory: A user-defined error occurred: Minimum exceeds the allowed memory limit".to_string());
+    assert_eq!(res.err().unwrap().inst_err(), Some("Failed to create memory: A user-defined error occurred: Minimum exceeds the allowed memory limit".to_string()));
 }
 
 // This test checks for the return of a mock instance of stack overflow.
