@@ -3202,6 +3202,7 @@ dependencies = [
  "platform",
  "serde",
  "service_config",
+ "tokio",
 ]
 
 [[package]]
