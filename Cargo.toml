@@ -255,6 +255,7 @@ wasmer = "4.0.0"
 wasmer-middlewares = "4.0.0"
 wasmer-wasix = "0.9.0"
 wasmer-wasix-types = "0.9.0"
+wasmer-vm = "4.0.0"
 wasmparser = "0.107.0"
 ipfs-api = "0.17.0"
 microkv = "0.2.9"
@@ -272,6 +273,7 @@ hex.workspace = true
 criterion.workspace = true
 ethereum-types.workspace = true
 uuid.workspace = true
+
 
 [[bench]]
 name = "poc"
