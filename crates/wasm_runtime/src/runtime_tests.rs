@@ -5,7 +5,6 @@ use wasmer::{Cranelift, Target};
 use wasmer_vm::TrapCode;
 
 use crate::{
-    errors::WasmRuntimeError,
     metering::{cost_function, MeteringConfig},
     wasm_runtime::WasmRuntime,
 };
