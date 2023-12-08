@@ -1,32 +1,34 @@
 use crate::api::RpcResult;
+use jsonrpsee::core::client::Client;
 use jsonrpsee::ws_client::WsClientBuilder;
+use std::net::SocketAddr;
 
-// Stub for the client request cli
-#[derive(Debug)]
-pub struct ClientRequest;
+/// The websocket internal RPC client used for
+/// requesting services and obtaining responses
+/// from the `InternalRpcServer`.
+///
+/// To interact with the server, use the methods
+/// available on the `InternalRpcApi` interface.
+pub struct InternalRpcClient(pub Client);
+impl InternalRpcClient {
+    /// Accepts a URL to a server, and attempts to build a client bound to that URL.
+    /// The URL to the server MUST include the port.
+    pub async fn new(socket: &SocketAddr) -> RpcResult<Self> {
+        let client = WsClientBuilder::default()
+            .build(format!("ws://{socket}"))
+            .await?;
 
-async fn _run(request_opts: ClientRequest, server_url_with_port: &str) -> RpcResult<()> {
-    // Connect to the JSON-RPC server using WebSocket
-    let client = WsClientBuilder::default()
-        .build(&server_url_with_port)
-        .await?;
-
-    // Example: Call a JSON-RPC method
-    // This will be where we make requests from the server
-    // after establishing a connection
-    if client.is_connected() {
-        println!("connection to server established");
-        dbg!(&request_opts);
-        Ok(())
-    } else {
-        Err(jsonrpsee::core::Error::Custom(format!(
-            "failed to establish connection to server at {}",
-            server_url_with_port
-        )))
+        if client.is_connected() {
+            println!("connection to server established");
+            Ok(InternalRpcClient(client))
+        } else {
+            Err(jsonrpsee::core::Error::Custom(format!(
+                "failed to establish connection to server at {}",
+                socket
+            )))
+        }
     }
-}
-
-#[tokio::test]
-async fn test_client() {
-    assert!(_run(ClientRequest, "wss://localhost:443").await.is_ok());
+    pub fn is_connected(&self) -> bool {
+        self.0.is_connected()
+    }
 }
