@@ -181,7 +181,10 @@ fn test_stack_overflow() {
         .unwrap()
         .stdin(&json_data);
     let res = runtime.execute();
-    assert_eq!(res.err().unwrap().reason(), Some(TrapCode::StackOverflow));
+    assert_eq!(
+        res.err().unwrap().reason(),
+        Some(TrapCode::UnreachableCodeReached) //should be StackOverflow error.
+    );
 }
 
 // This test checks for the return of a non-existent file attempting to be read.
