@@ -75,7 +75,7 @@ jobs:
           args: -p cli
 
   test-compute-agent:
-    name: test compute_agent
+    name: test compute_cli
     runs-on: ubuntu-latest
     steps:
       - name: Install dev-dependencies
@@ -94,7 +94,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p compute_agent
+          args: -p compute_cli
 
   test-consensus:
     name: test consensus
