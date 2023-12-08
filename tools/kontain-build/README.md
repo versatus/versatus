@@ -1,4 +1,4 @@
-# contain-build
+# kontain-build
 
 This directory just contains a `Makefile` that creates a package of the Kontain
 components needed for the VRRB compute runtime. The package is currently a
