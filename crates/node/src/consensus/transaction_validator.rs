@@ -12,7 +12,7 @@ use primitives::{base::PeerId as PeerID, ByteVec, FarmerQuorumThreshold, NodeIdx
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use signer::signer::{SignatureProvider, Signer};
 use storage::vrrbdb::VrrbDbReadHandle;
-use tracing::error;
+use telemetry::error;
 use validator::validator_core_manager::ValidatorCoreManager;
 use vrrb_config::NodeConfig;
 use vrrb_core::txn::{TransactionDigest, Txn};
@@ -171,7 +171,8 @@ impl TransactionValidatorEngine {
         }
     }
 
-    pub async fn execute_sync_jobs(&mut self) -> Result<(), NodeError> {
+    pub fn execute_sync_jobs(&mut self) -> Result<(), NodeError> {
+        let rt = tokio::runtime::Runtime::new()?;
         loop {
             if let Ok(job) = self.sync_jobs_receiver.try_recv() {
                 match job {
@@ -190,9 +191,10 @@ impl TransactionValidatorEngine {
                             .into_iter()
                             .collect();
 
-                        //TODO  Add Delegation logic + Handling Double Spend by checking whether
-                        // MagLev Hashing over( Quorum Keys) to identify whether current farmer
-                        // quorum is supposed to vote on txn Txn is intended
+                        //TODO  Add Delegation logic + Handling Double Spend by checking
+                        // whether MagLev Hashing over( Quorum Keys) 
+                        // to identify whether current farmer quorum
+                        // is supposed to vote on txn Txn is intended
                         // to be validated by current validator
                         let _backpressure = self.job_scheduler.calculate_back_pressure();
                         //Delegation Principle need to be done
@@ -232,20 +234,17 @@ impl TransactionValidatorEngine {
                             })
                             .join();
                         if let Ok(votes) = votes_result {
-                            self.events_tx
-                                .send(
-                                    Event::ProcessedVotes(JobResult::Votes((
-                                        votes,
-                                        farmer_quorum_threshold,
-                                    )))
-                                    .into(),
-                                )
-                                .await
-                                .map_err(|err| {
-                                    NodeError::Other(format!(
-                                        "failed to send processed votes: {err}"
-                                    ))
-                                })?
+                            let event = JobResult::Votes((votes, farmer_quorum_threshold));
+                            rt.block_on(async {
+                                self.events_tx
+                                    .send(Event::ProcessedVotes(event.clone()).into())
+                                    .await
+                                    .unwrap_or_else(|err| {
+                                        error!(
+                                            "failed to send processed votes for {event:?}: {err}"
+                                        )
+                                    })
+                            });
                         }
                     },
                     Job::CertifyTxn((
@@ -285,30 +284,31 @@ impl TransactionValidatorEngine {
                             .map(|(key, votes_map)| (*key, votes_map.clone()));
                         if validated {
                             if let Some((is_txn_valid, votes_map)) = most_votes_share {
-                                let result = sig_provider.generate_quorum_signature(
+                                if let Ok(threshold_signature) = sig_provider
+                                .generate_quorum_signature(
                                     farmer_quorum_threshold as u16,
                                     votes_map.clone(),
-                                );
-                                if let Ok(threshold_signature) = result {
+                                )
+                            {
+                                rt.block_on(async {
+                                    let event = JobResult::CertifiedTxn(
+                                        votes.clone(),
+                                        threshold_signature,
+                                        txn_id.clone(),
+                                        farmer_quorum_key.clone(),
+                                        farmer_id.clone(),
+                                        Box::new(txn.clone()),
+                                        is_txn_valid,
+                                    );
                                     self.events_tx
-                                        .send(
-                                            Event::CertifiedTxn(JobResult::CertifiedTxn(
-                                                votes.clone(),
-                                                threshold_signature,
-                                                txn_id.clone(),
-                                                farmer_quorum_key.clone(),
-                                                farmer_id.clone(),
-                                                Box::new(txn.clone()),
-                                                is_txn_valid,
-                                            ))
-                                            .into(),
-                                        )
+                                        .send(Event::CertifiedTxn(event.clone()).into())
                                         .await
-                                        .map_err(|err| {
-                                            NodeError::Other(format!(
-                                                "failed to send certified txn: {err}"
-                                            ))
-                                        })?
+                                        .unwrap_or_else(|err| {
+                                            error!(
+                                                "failed to send certified txn for {event:?}: {err}"
+                                            )
+                                        })
+                                });
                                 } else {
                                     error!("Quorum signature generation failed");
                                 }
@@ -324,28 +324,32 @@ impl TransactionValidatorEngine {
                             if let Ok(signature) =
                                 sig_provider.generate_partial_signature(block_hash_bytes)
                             {
-                                if let Ok(Some(secret_share)) = sig_provider
+                                let secret_share_opt = sig_provider
                                     .dkg_state
                                     .read()
                                     .map(|dkg_state| dkg_state.secret_key_share.clone())
-                                {
-                                    self.events_tx
-                                        .send(
-                                            Event::ConvergenceBlockPartialSign(
-                                                JobResult::ConvergenceBlockPartialSign(
-                                                    block.hash.clone(),
-                                                    secret_share.public_key_share(),
-                                                    signature.clone(),
-                                                ),
+                                    .map_err(|err| NodeError::Other(format!("dkg_state lock was returned in a poisoned state: {err}")))?;
+                                if let Some(secret_share) = secret_share_opt {
+                                    let event = JobResult::ConvergenceBlockPartialSign(
+                                        block.hash.clone(),
+                                        secret_share.public_key_share(),
+                                        signature.clone(),
+                                    );
+                                    rt.block_on(async {
+                                        self.events_tx
+                                            .send(
+                                                Event::ConvergenceBlockPartialSign(
+                                                    event.clone()
+                                                )
+                                                .into(),
                                             )
-                                            .into(),
-                                        )
-                                        .await
-                                        .map_err(|err| {
-                                            NodeError::Other(format!(
-                                            "failed to send convergence block partial sign: {err}"
-                                        ))
-                                        })?
+                                            .await
+                                            .unwrap_or_else(|err| {
+                                                error!(
+                                                    "failed to send convergence block partial sign for {event:?}: {err}"
+                                                )
+                                            })
+                                    });
                                 }
                             }
                         }
