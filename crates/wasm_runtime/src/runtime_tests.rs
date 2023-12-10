@@ -158,7 +158,7 @@ fn test_failed_execution() {
     let _out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
 }
 
-// This test checks for the return of a mock instance of an instanciation error.
+// This test checks for the return of a mock instance of an instantiation error.
 #[test]
 fn test_mem_alloc() {
     let wasm_bytes = std::fs::read("test_data/should_panic/mem_alloc.wasm").unwrap();
