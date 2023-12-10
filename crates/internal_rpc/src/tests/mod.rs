@@ -1,7 +1,8 @@
-#![cfg(test)]
-use service_config::ServiceConfig;
+//! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
-use crate::{client::InternalRpcClient, server::InternalRpcServer};
+use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
+use serial_test::serial;
+use service_config::ServiceConfig;
 
 fn test_service_config() -> ServiceConfig {
     ServiceConfig {
@@ -18,6 +19,7 @@ fn test_service_config() -> ServiceConfig {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_start_server() {
     let (handle, _socket) = InternalRpcServer::start(
         &test_service_config(),
@@ -25,11 +27,12 @@ async fn test_start_server() {
     )
     .await
     .unwrap();
-    assert!(handle.stop().is_ok());
-    assert!(handle.is_stopped());
+    handle.stop().unwrap();
+    handle.stopped().await;
 }
 
 #[tokio::test]
+#[serial]
 async fn test_client_connection_to_server() {
     let (handle, socket) = InternalRpcServer::start(
         &test_service_config(),
@@ -39,6 +42,23 @@ async fn test_client_connection_to_server() {
     .unwrap();
     let client = InternalRpcClient::new(&socket).await.unwrap();
     assert!(client.is_connected());
+
     handle.stop().unwrap();
-    assert!(handle.is_stopped());
+    handle.stopped().await;
+    assert!(!client.is_connected());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_response_from_server() {
+    let (handle, socket) = InternalRpcServer::start(
+        &test_service_config(),
+        platform::services::ServiceType::Compute,
+    )
+    .await
+    .unwrap();
+    let client = InternalRpcClient::new(&socket).await.unwrap();
+    assert!(client.0.status().await.is_ok());
+    handle.stop().unwrap();
+    handle.stopped().await;
 }

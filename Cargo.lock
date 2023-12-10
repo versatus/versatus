@@ -3201,6 +3201,7 @@ dependencies = [
  "jsonrpsee",
  "platform",
  "serde",
+ "serial_test",
  "service_config",
  "tokio",
 ]
