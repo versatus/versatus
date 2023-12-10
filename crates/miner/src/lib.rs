@@ -263,8 +263,8 @@ mod tests {
                     Block::Convergence { ref block } => {
                         let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
                         assert_eq!(total_len, 15usize);
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
 
@@ -339,8 +339,8 @@ mod tests {
                     Ok(Block::Convergence { ref block }) => {
                         let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
                         assert_eq!(total_len, 5usize);
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
 

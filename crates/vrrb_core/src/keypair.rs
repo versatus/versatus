@@ -221,7 +221,7 @@ impl KeyPair {
                         Ok(status) => Ok(status),
                         Err(e) => Err(KeyPairError::SignatureVerificationFailed(e.to_string())),
                     }
-                },
+                }
                 Err(e) => Err(KeyPairError::InvalidSignature(e.to_string())),
             }
         } else {
@@ -334,7 +334,7 @@ pub fn read_keypair<R: Read>(reader: &mut R) -> Result<KeyPair> {
             }
             let keypair = KeyPair::from_bytes(key_bytes.0.as_slice(), key_bytes.1.as_slice())?;
             Ok(keypair)
-        },
+        }
         Err(e) => Err(KeyPairError::FailedToReadFromFile(e.to_string())),
     }
 }

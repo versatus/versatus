@@ -49,13 +49,13 @@ fn base_db_options() -> rocksdb::Options {
         Ok(node_data_dir) => {
             let log_path = node_data_dir.join("db").join("log");
             options.set_db_log_dir(log_path);
-        },
+        }
         Err(err) => {
             error!("could not get node data directory: {}", err);
             let default_data_dir = std::path::PathBuf::default();
             let log_path = default_data_dir.join("db").join("log");
             options.set_db_log_dir(log_path);
-        },
+        }
     }
 
     options
@@ -75,7 +75,7 @@ fn new_db_instance(
                 err.into_string()
             );
             vec![]
-        },
+        }
     };
 
     let column_family_exists = cfs.iter().any(|cf| cf == column_family);
@@ -242,7 +242,7 @@ impl TreeReader for RocksDbAdapter {
                     }
                 }
                 Ok(None)
-            },
+            }
             None => Ok(None),
         }
     }
@@ -302,16 +302,16 @@ pub fn put_value(
                     core::cmp::Ordering::Equal => {
                         *last_value = value;
                         return Ok(());
-                    },
+                    }
                     // If the new value has a higher version than the previous one, fall through and push it to the array
-                    core::cmp::Ordering::Greater => {},
+                    core::cmp::Ordering::Greater => {}
                 }
             }
             occupied.get_mut().push((version, value));
-        },
+        }
         Entry::Vacant(vacant) => {
             vacant.insert(vec![(version, value)]);
-        },
+        }
     }
     Ok(())
 }

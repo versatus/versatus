@@ -100,7 +100,7 @@ impl From<StateUpdate> for UpdateArgs {
                     package_address: Some(item.package_address.clone()),
                     digests: Some(digest.clone()),
                 }
-            },
+            }
             UpdateAccount::Receiver => {
                 digest.insert_recv(item.digest);
                 UpdateArgs {
@@ -112,7 +112,7 @@ impl From<StateUpdate> for UpdateArgs {
                     package_address: Some(item.package_address.clone()),
                     digests: Some(digest.clone()),
                 }
-            },
+            }
             UpdateAccount::Claim => {
                 // RFC: Should we separate "claim" txn from "stake" txn
                 digest.insert_stake(item.digest);
@@ -125,7 +125,7 @@ impl From<StateUpdate> for UpdateArgs {
                     package_address: None,
                     digests: Some(digest.clone()),
                 }
-            },
+            }
             UpdateAccount::Fee => UpdateArgs {
                 address: item.address,
                 nonce: item.nonce,

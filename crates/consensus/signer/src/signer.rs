@@ -246,7 +246,7 @@ impl Signer for SignatureProvider {
                     if let Ok(sig_share_result) = SignatureShare::from_bytes(signature_arr) {
                         sig_shares.push((node_id.create_fr(), sig_share_result));
                     }
-                },
+                }
                 Err(_) => continue,
             }
         }
@@ -258,7 +258,7 @@ impl Signer for SignatureProvider {
             Some(pub_key_set) => {
                 let shares = sig_shares.iter().map(|(idx, sig)| (idx, sig));
                 pub_key_set.combine_signatures(shares)
-            },
+            }
             None => return Err(SignerError::GroupPublicKeyMissing),
         };
 
@@ -269,7 +269,7 @@ impl Signer for SignatureProvider {
                     "Error while constructing threshold signature details: {:?}",
                     e.to_string()
                 )))
-            },
+            }
         };
         Ok(sig.to_bytes().to_vec())
     }
@@ -371,7 +371,7 @@ impl Signer for SignatureProvider {
                         "Signature must be 96 byte array",
                     )))
                 }
-            },
+            }
             SignatureType::ThresholdSignature | SignatureType::ChainLockSignature => {
                 let public_key_set_opt = self.public_key_set();
                 if public_key_set_opt.is_none() {
@@ -394,7 +394,7 @@ impl Signer for SignatureProvider {
                         "Signature must be 96 byte array",
                     )))
                 }
-            },
+            }
         }
     }
 }

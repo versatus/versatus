@@ -141,4 +141,3 @@ impl Web3Store {
         })
     }
 }
-
