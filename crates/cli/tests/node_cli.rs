@@ -82,7 +82,7 @@ fn create_node_config_with_whitelist() {
     );
 
     assert!(serde_json::to_writer(
-        std::fs::File::create("tests/whitelist_data/whitelist.json").expect("no such file"),
+        std::fs::File::create("tests/whitelist.json").expect("no such file"),
         &map,
     )
     .is_ok());
@@ -90,7 +90,7 @@ fn create_node_config_with_whitelist() {
     let mut finalized_whitelist: Vec<QuorumMember> = Vec::with_capacity(GENESIS_QUORUM_SIZE);
 
     deserialize_whitelisted_quorum_members(
-        "tests/whitelist_data/whitelist.json".into(),
+        "tests/whitelist.json".into(),
         &mut finalized_whitelist,
     )
     .unwrap();
