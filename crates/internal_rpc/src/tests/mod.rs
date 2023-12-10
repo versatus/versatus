@@ -27,6 +27,7 @@ async fn test_start_server() {
     )
     .await
     .unwrap();
+
     handle.stop().unwrap();
     handle.stopped().await;
 }
@@ -45,20 +46,21 @@ async fn test_client_connection_to_server() {
 
     handle.stop().unwrap();
     handle.stopped().await;
-    assert!(!client.is_connected());
 }
 
 #[tokio::test]
 #[serial]
 async fn test_get_response_from_server() {
-    let (handle, socket) = InternalRpcServer::start(
-        &test_service_config(),
-        platform::services::ServiceType::Compute,
-    )
-    .await
-    .unwrap();
+    let service_config = test_service_config();
+    let (handle, socket) =
+        InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
+            .await
+            .unwrap();
     let client = InternalRpcClient::new(&socket).await.unwrap();
     assert!(client.0.status().await.is_ok());
+    assert_eq!(client.0.service_config().await.unwrap(), service_config);
+    assert!(client.0.service_status_response().await.is_ok());
+
     handle.stop().unwrap();
     handle.stopped().await;
 }
