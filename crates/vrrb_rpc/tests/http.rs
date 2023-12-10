@@ -1,3 +1,4 @@
+use crate::{HttpApiServer, HttpApiServerConfig, HttpApiServerConfigBuilder};
 use axum::{body::Body, http::Request};
 use axum_server::tls_rustls::RustlsConfig;
 use events::Event;
@@ -9,13 +10,13 @@ mod common;
 
 #[tokio::test]
 async fn server_starts_and_stops() {
-    let config = HttpApiServerConfig {
-        address: "127.0.0.1:0".into(),
-        api_title: "Node HTTP API".into(),
-        api_version: "1.0".into(),
-        server_timeout: None,
-        tls_config: None,
-    };
+    let config: HttpApiServerConfig = HttpApiServerConfigBuilder::default()
+        .address("127.0.0.1:0")
+        .api_title("Node HTTP API")
+        .api_version("1.0")
+        .server_timeout(None)
+        .tls_config(None)
+        .build();
 
     let api = HttpApiServer::new(config).unwrap();
 
