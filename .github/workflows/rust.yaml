@@ -427,7 +427,7 @@ jobs:
           command: test
           args: -p vrrb_rpc
 
-  test-vrrb-rpc:
+  test-internal-rpc:
     name: test internal_rpc
     runs-on: ubuntu-latest
     steps:
