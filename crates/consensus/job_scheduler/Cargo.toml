@@ -13,4 +13,3 @@ job_pool = { workspace = true }
 vrrb_core = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
-

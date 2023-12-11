@@ -40,7 +40,10 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --all -- --check
       - name: Check TOML Formatting
-        run: taplo fmt --all -- --check
+        uses: actions-rs/cargo@v1
+        with:
+          command: taplo
+          args: format
 
   # tests all crates in parallel
   test-block:
