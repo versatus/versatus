@@ -57,6 +57,7 @@ lazy_static = { workspace = true }
 wasmer = { workspace = true }
 metric_exporter = { workspace = true }
 internal_rpc = { workspace = true }
+ethereum-types = { workspace = true }
 
 [workspace]
 members = [
@@ -197,7 +198,7 @@ sha3 = "0.10.8"
 chrono = "0.4.23"
 lru_time_cache = "0.11.11"
 strum_macros = "0.21.0"
-rocksdb = "0.19.0"
+rocksdb = "0.21.0"
 strum = "0.21.0"
 rayon = "1.6.1"
 config = "0.13.3"

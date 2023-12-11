@@ -15,3 +15,4 @@ wasmer-wasix-types = { workspace = true }
 wasm_loader = { workspace = true }
 wasm_runtime = { workspace = true }
 telemetry = { workspace = true }
+ethereum-types = { workspace = true }
