@@ -1,14 +1,14 @@
-use axum::{Extension, http::StatusCode, Json, Router};
+use axum::{http::StatusCode, Extension, Json, Router};
 
+use axum::routing::post;
+use primitives::Address;
 use serde::Deserialize;
 use serde_json::json;
-use std::{convert::Infallible, net::SocketAddr};
 use std::sync::Arc;
-use axum::routing::post;
+use std::{convert::Infallible, net::SocketAddr};
+use telemetry::error;
 use tokio::spawn;
 use tokio::sync::Mutex;
-use primitives::Address;
-use telemetry::error;
 use vrrb_core::transactions::{RpcTransactionDigest, Token};
 use wallet::v2::{Wallet, WalletConfig, WalletError};
 
@@ -45,7 +45,7 @@ async fn drip(
             recipient.clone(),
             10,
             Token::default(),
-            timestamp
+            timestamp,
         )
         .await
         .map_err(|err| {
@@ -61,13 +61,14 @@ async fn drip(
 
 impl Faucet {
     pub async fn new(config: FaucetConfig) -> Result<Self, WalletError> {
+        let wallet =
+            Wallet::restore_from_private_key(config.secret_key.clone(), config.rpc_server_address)
+                .await?;
 
-        let wallet = Wallet::restore_from_private_key(
-            config.secret_key.clone(),
-            config.rpc_server_address,
-        ).await?;
-
-        println!("Wallet restored from private key, Address: {:?}", wallet.address.to_string());
+        println!(
+            "Wallet restored from private key, Address: {:?}",
+            wallet.address.to_string()
+        );
 
         let faucet = Faucet {
             config,
@@ -77,14 +78,16 @@ impl Faucet {
         Ok(faucet)
     }
     pub async fn start(self) -> Result<(), axum::Error> {
-
         let app = Router::new()
             .route("/drip", post(drip))
             .layer(Extension(self.wallet));
 
         let addr = SocketAddr::from(([127, 0, 0, 1], self.config.server_port));
         println!("Server started at http://{}", addr);
-        axum::Server::bind(&addr).serve(app.into_make_service()).await.unwrap();
+        axum::Server::bind(&addr)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
 
         Ok(())
     }

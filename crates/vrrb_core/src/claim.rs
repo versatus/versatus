@@ -272,13 +272,13 @@ impl Claim {
                         acc = v;
                     }
                     acc
-                },
+                }
                 StakeUpdate::Withdrawal(value) => {
                     if let Some(v) = acc.checked_sub(value) {
                         acc = v;
                     }
                     acc
-                },
+                }
                 StakeUpdate::Slash(pct) => self.slash_calculator(pct, acc),
             })
     }

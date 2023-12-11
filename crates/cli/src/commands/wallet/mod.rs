@@ -9,8 +9,8 @@ use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
 use clap::{Parser, Subcommand};
 use primitives::Address;
 use serde_json;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
 use vrrb_core::transactions::Token;
+use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
 use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
@@ -39,7 +39,6 @@ pub enum WalletCmd {
         //TODO: revise this when hierarchically deterministic accounts are implemented
         // TODO: replace u32 with address aliases so they're easier to use
         // from: AddressAlias,
-
         #[clap(long)]
         to: Address,
 
@@ -52,10 +51,10 @@ pub enum WalletCmd {
 
     //TODO: revise this when hierarchically deterministic accounts are implemented
     /// Create a new account
-    New /*{
-        #[clap(long)]
-        alias: AddressAlias,
-    }*/,
+    New, /*{
+             #[clap(long)]
+             alias: AddressAlias,
+         }*/
 
     /// Gets information about an account
     Get {

@@ -68,7 +68,7 @@ impl Handler<EventMessage> for IndexerModule {
         match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
-            },
+            }
 
             Event::TxnAddedToMempool(transaction_digest) => {
                 info!("Sending transaction to indexer: NewTxnCreated");
@@ -79,18 +79,18 @@ impl Handler<EventMessage> for IndexerModule {
                     match client.post_tx(txn_record).await {
                         Ok(_) => {
                             info!("Successfully sent TxnRecord to indexer");
-                        },
+                        }
                         Err(e) => {
                             warn!("Could not send TxnRecord to indexer {}", e);
-                        },
+                        }
                     }
                 } else {
                     warn!("Transaction record not found in mempool");
                 }
-            },
+            }
 
-            Event::NoOp => {},
-            _ => {},
+            Event::NoOp => {}
+            _ => {}
         }
 
         Ok(ActorState::Running)

@@ -355,11 +355,11 @@ impl VrrbDb {
             Block::Genesis { block } => self.apply_genesis_block(block),
             Block::Convergence { block } => {
                 todo!()
-            },
+            }
             _ => {
                 telemetry::info!("unsupported block type: {:?}", block);
                 return Err(StorageError::Other("unsupported block type".to_string()));
-            },
+            }
         }
     }
 }

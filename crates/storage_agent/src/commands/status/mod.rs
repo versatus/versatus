@@ -4,8 +4,7 @@ use service_config::ServiceConfig;
 
 /// Command line options structure for status subcommand
 #[derive(Parser, Debug)]
-pub struct StatusOpts {
-}
+pub struct StatusOpts {}
 
 /// Make a status RPC query against a running agent.
 pub async fn run(_opts: &StatusOpts, _config: &ServiceConfig) -> Result<()> {
