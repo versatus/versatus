@@ -40,7 +40,7 @@ jobs:
       - name: Check Formatting
         run: cargo fmt --all -- --check
       - name: Install taplo
-        uses: baptiste0928/cargo-install@v2.2
+        uses: baptiste0928/cargo-install@v2.2.0
         with:
           crate: taplo
       - name: Run taplo linter
