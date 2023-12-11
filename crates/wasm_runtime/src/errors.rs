@@ -73,14 +73,11 @@ impl WasmRuntimeError {
         None
     }
     pub fn inst_err(&self) -> Option<String> {
-        if let WasmRuntimeError::InstantiationError(inst_err) = self {
-            match inst_err {
-                InstantiationError::Link(link_err) => match link_err {
-                    wasmer::LinkError::Resource(s) => Some(s.clone()),
-                    _ => None,
-                },
-                _ => None,
-            }
+        if let WasmRuntimeError::InstantiationError(InstantiationError::Link(
+            wasmer::LinkError::Resource(s),
+        )) = self
+        {
+            Some(s.to_owned())
         } else {
             None
         }

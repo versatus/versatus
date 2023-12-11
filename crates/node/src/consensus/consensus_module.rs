@@ -360,7 +360,7 @@ impl ConsensusModule {
         let set = self.get_quorum_pending_votes_for_transaction(quorum_id, vote)?;
         let quorum_members = self.get_quorum_members(quorum_id)?;
         if self.double_check_vote_threshold_reached(&set, quorum_members) {
-            let batch_sigs = set
+            let batch_sigs: Vec<(String, Signature)> = set
                 .iter()
                 .map(|vote| (vote.farmer_node_id.clone(), vote.signature))
                 .collect();
