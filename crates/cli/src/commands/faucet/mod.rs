@@ -32,9 +32,7 @@ pub struct FaucetOpts {
 }
 
 pub async fn exec(args: FaucetOpts) -> Result<()> {
-    let sub_cmd = args.subcommand;
-
-    match sub_cmd {
+    match args.subcommand {
         FaucetCmd::Run => {
             let config = FaucetConfig {
                 rpc_server_address: args.rpc_server_address,
@@ -57,6 +55,5 @@ pub async fn exec(args: FaucetOpts) -> Result<()> {
                 Err(CliError::Other("Failed to create faucet".to_string()))
             }
         }
-        _ => Err(CliError::InvalidCommand(format!("{sub_cmd:?}"))),
     }
 }

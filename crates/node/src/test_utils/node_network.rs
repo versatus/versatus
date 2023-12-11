@@ -84,9 +84,10 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         None
     };
 
-    let mut bootstrap_config = BootstrapConfig::default();
-    bootstrap_config.additional_genesis_receivers = additional_genesis_receivers;
-    bootstrap_config.bootstrap_quorum_config = bootstrap_quorum_config.clone();
+    let bootstrap_config = BootstrapConfig {
+        additional_genesis_receivers,
+        bootstrap_quorum_config: bootstrap_quorum_config.clone(),
+    };
 
     let mut config = create_mock_full_node_config();
     config.id = String::from("node-0");
