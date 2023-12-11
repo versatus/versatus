@@ -33,12 +33,12 @@ pub fn deserialize_whitelisted_quorum_members(
                             )
                         }
                     }
-                },
+                }
                 _ => {
                     return Err(CliError::OptsError(
                         "invalid genesis node type found in whitelist config".to_string(),
                     ));
-                },
+                }
             }
         }
     }

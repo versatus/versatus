@@ -75,7 +75,7 @@ impl Handler<EventMessage> for MiningModule {
         match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
-            },
+            }
             // Event::ElectedMiner((_winner_claim_hash, winner_claim)) => {
             //     if self.miner.check_claim(winner_claim.hash) {
             //         let mining_result = self.miner.try_mine();
@@ -122,8 +122,8 @@ impl Handler<EventMessage> for MiningModule {
             //         };
             //     }
             // },
-            Event::NoOp => {},
-            _ => {},
+            Event::NoOp => {}
+            _ => {}
         }
         Ok(ActorState::Running)
     }

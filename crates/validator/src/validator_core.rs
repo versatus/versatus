@@ -98,7 +98,7 @@ impl Core {
                     Err(err) => {
                         telemetry::error!("{err:?}");
                         (txn, Err(err))
-                    },
+                    }
                 },
             )
             .collect::<HashSet<(TransactionKind, crate::txn_validator::Result<()>)>>()
@@ -132,7 +132,7 @@ impl Core {
                 Err(err) => {
                     telemetry::error!("{err:?}");
                     (claim.clone(), Err(err))
-                },
+                }
             })
             .collect::<HashSet<(Claim, crate::claim_validator::Result<()>)>>()
     }

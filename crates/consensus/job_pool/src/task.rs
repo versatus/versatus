@@ -191,7 +191,7 @@ impl<T> Task<T> {
                 Some(Err(e)) => resume_unwind(e),
                 _ => {
                     return None;
-                },
+                }
             }
         }
         None
@@ -209,7 +209,7 @@ impl<T> Future for Task<T> {
                 None => {
                     inner.waker = Some(cx.waker().clone());
                     Poll::Pending
-                },
+                }
             };
         }
         Poll::Pending

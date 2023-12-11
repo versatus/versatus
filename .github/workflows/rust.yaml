@@ -29,6 +29,17 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --all-targets -- -D warnings
 
+  # check if workspace is formatted, and treat unformatted code as errors.
+  fmt-check:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install toolchain
+        uses: dsherret/rust-toolchain-file@v1
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
   # tests all crates in parallel
   test-block:
     name: test block

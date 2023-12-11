@@ -1,14 +1,16 @@
 use std::path::Path;
 
-use secp256k1::{generate_keypair, rand};
 use primitives::Address;
+use secp256k1::{generate_keypair, rand};
 use vrrb_core::account::Account;
 use vrrb_core::helpers::write_keypair_file;
 use wallet::v2::{AddressAlias, Wallet};
 
 use crate::result::CliError;
 
-pub async fn exec(/*wallet: &mut Wallet, */ path: &Path, /*alias: AddressAlias*/) -> Result<(), CliError> {
+pub async fn exec(
+    /*wallet: &mut Wallet, */ path: &Path, /*alias: AddressAlias*/
+) -> Result<(), CliError> {
     // TODO: revise when hierarchically deterministic accounts are implemented
     // TODO: read keypair from file
 

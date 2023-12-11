@@ -89,11 +89,8 @@ fn create_node_config_with_whitelist() {
 
     let mut finalized_whitelist: Vec<QuorumMember> = Vec::with_capacity(GENESIS_QUORUM_SIZE);
 
-    deserialize_whitelisted_quorum_members(
-        "tests/whitelist.json".into(),
-        &mut finalized_whitelist,
-    )
-    .unwrap();
+    deserialize_whitelisted_quorum_members("tests/whitelist.json".into(), &mut finalized_whitelist)
+        .unwrap();
     finalized_whitelist.sort();
 
     assert_eq!(quorum_members, finalized_whitelist);

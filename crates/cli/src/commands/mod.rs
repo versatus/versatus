@@ -1,10 +1,10 @@
 pub mod config;
-pub mod keygen;
 pub mod dev;
+pub mod faucet;
+pub mod keygen;
 pub mod node;
 pub mod utils;
 pub mod wallet;
-pub mod faucet;
 
 use crate::{
     cli::{Args, Commands},
