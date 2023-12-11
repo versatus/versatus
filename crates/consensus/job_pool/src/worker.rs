@@ -84,11 +84,11 @@ impl<L: JobListener> Worker<L> {
                     if self.pending_jobs.is_empty() && self.listener.on_idle() {
                         self.active = false;
                     }
-                },
+                }
                 PollingStatus::Busy => {
                     std::thread::sleep(Duration::from_millis(500));
                     //Then Poll again
-                },
+                }
             }
         }
     }
@@ -117,21 +117,21 @@ impl<L: JobListener> Worker<L> {
                 } else {
                     PollingStatus::ShutDown
                 }
-            },
+            }
             Ok(op) if Some(op.index()) == immediate_queue_id => {
                 if let Ok(job) = op.recv(&self.immediate_job_queue) {
                     PollingStatus::New(job)
                 } else {
                     PollingStatus::ShutDown
                 }
-            },
+            }
             Ok(op) if Some(op.index()) == pending_job_id => {
                 if let Ok(id) = op.recv(&self.pending_job_notifications.1) {
                     PollingStatus::Unpark(id)
                 } else {
                     PollingStatus::Busy
                 }
-            },
+            }
             //If we dont get any notifications,the pool is busy
             Ok(_) => PollingStatus::Busy,
             Err(_) => PollingStatus::Timeout,

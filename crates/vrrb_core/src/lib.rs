@@ -7,6 +7,7 @@ pub mod component;
 pub mod handler;
 pub mod helpers;
 pub mod keypair;
+pub mod node_health_report;
 pub mod nonceable;
 pub mod ownable;
 pub mod result;
@@ -16,6 +17,5 @@ pub mod storage_utils;
 pub mod transactions;
 pub mod updateable;
 pub mod verifiable;
-pub mod node_health_report;
 
 pub use result::*;
