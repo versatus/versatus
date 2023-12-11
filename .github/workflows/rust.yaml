@@ -43,7 +43,6 @@ jobs:
         uses: baptiste0928/cargo-install@master
         with:
           crate: taplo
-          version: '0.12.1'
       - name: Run taplo linter
         run: taplo format --check --verbose
 
