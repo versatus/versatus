@@ -39,10 +39,10 @@ jobs:
         uses: dsherret/rust-toolchain-file@v1
       - name: Check Formatting
         run: cargo fmt --all -- --check
-      - name: Install taplo
+      - name: Install taplo-cli
         uses: baptiste0928/cargo-install@v2.2.0
         with:
-          crate: taplo
+          crate: taplo-cli
       - name: Run taplo linter
         run: taplo format --check --verbose
 
