@@ -153,6 +153,7 @@ impl WasmRuntime {
             get_remaining_points(store, &instance)
         );
 
-        Ok(wasi_fn_env.cleanup(store, None))
+        wasi_fn_env.cleanup(store, None);
+        Ok(())
     }
 }

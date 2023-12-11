@@ -491,12 +491,9 @@ impl ConsensusModule {
         self.is_harvester()?;
 
         if let Some((quorum_id, QuorumKind::Farmer)) = self.get_node_quorum_id(&vote.farmer_id) {
-            let nested_map = self
-                .votes_pool
-                .entry(quorum_id)
-                .or_insert_with(HashMap::new);
+            let nested_map = self.votes_pool.entry(quorum_id).or_default();
             let digest = vote.txn.id();
-            let vote_set = nested_map.entry(digest).or_insert_with(HashSet::new);
+            let vote_set = nested_map.entry(digest).or_default();
             vote_set.insert(vote);
             return Ok(());
         }
@@ -561,7 +558,7 @@ impl ConsensusModule {
         for v in votes.iter() {
             vote_shares
                 .entry(v.is_txn_valid)
-                .or_insert_with(BTreeMap::new)
+                .or_default()
                 .insert(v.farmer_node_id.clone(), v.signature);
         }
 

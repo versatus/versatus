@@ -87,21 +87,21 @@ impl JobScheduler {
                 cores_allocation.0,
                 cores_allocation.0 + 4,
             )
-            .unwrap_or(PoolBuilder::default())
+            .unwrap_or_default()
             .stack_size(2 * 1024 * 1024)
             .build(),
             remote_pool: PoolBuilder::with_workers_capacity(
                 cores_allocation.1,
                 cores_allocation.1 + 4,
             )
-            .unwrap_or(PoolBuilder::default())
+            .unwrap_or_default()
             .stack_size(2 * 1024 * 1024)
             .build(),
             forwarding_pool: PoolBuilder::with_workers_capacity(
                 cores_allocation.2,
                 cores_allocation.2 + 2,
             )
-            .unwrap_or(PoolBuilder::default())
+            .unwrap_or_default()
             .stack_size(2 * 1024 * 1024)
             .build(),
             peers_back_pressure: Cache::new(1000, 50000),

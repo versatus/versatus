@@ -1,5 +1,5 @@
 use secp256k1::{rand::rngs::OsRng, Secp256k1};
-use serde::{Deserialize, Serialize};
+use serde;
 use sha2::Digest;
 use sha3::Keccak256;
 use std::str::FromStr;

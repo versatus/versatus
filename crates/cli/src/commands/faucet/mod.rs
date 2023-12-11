@@ -1,12 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
 use faucet::faucet::{Faucet, FaucetConfig};
-use primitives::Address;
-use serde_json;
-use vrrb_core::transactions::Token;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
-use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
 

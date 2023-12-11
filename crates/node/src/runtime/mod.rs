@@ -79,7 +79,7 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn bootstrap_node_runtime_can_assign_quorum_memberships_to_available_nodes() {
-        let (node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (_node_0, farmers, harvesters, _miners) = setup_network(8).await;
 
         assert_eq!(farmers.len(), 4);
         assert_eq!(harvesters.len(), 2);
@@ -277,7 +277,7 @@ mod tests {
         let (_, public_key) = generate_account_keypair();
         let receiver_address = node_0.create_account(public_key).unwrap();
 
-        let txn = create_txn_from_accounts(
+        let _txn = create_txn_from_accounts(
             (sender_address, Some(sender_account)),
             receiver_address,
             vec![],
@@ -308,7 +308,7 @@ mod tests {
 
         for (_, harvester) in harvesters.iter_mut() {
             let sig_engine = harvester.consensus_driver.sig_engine.clone();
-            let proposal_block = harvester
+            let _proposal_block = harvester
                 .mine_proposal_block(
                     genesis_block.hash.clone(),
                     Default::default(), // TODO: change to an actual map of harvester claims
@@ -374,7 +374,7 @@ mod tests {
     #[serial_test::serial]
     #[ignore = "https://github.com/versatus/versatus/issues/488"]
     async fn harvester_node_runtime_can_handle_convergence_block_created() {
-        let (mut node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
+        let (node_0, farmers, mut harvesters, mut miners) = setup_network(8).await;
         let receiver = GenesisReceiver(Address::new(
             farmers
                 .iter()
@@ -395,7 +395,7 @@ mod tests {
 
         let miner_id = miner_ids.first().unwrap();
 
-        let mut miner_node = miners.get_mut(miner_id).unwrap();
+        let miner_node = miners.get_mut(miner_id).unwrap();
 
         let genesis_block = miner_node.mine_genesis_block(genesis_rewards).unwrap();
 
@@ -455,7 +455,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "broken atm"]
     async fn node_runtime_can_form_quorum_with_valid_config() {
-        let (mut node_0, farmers, harvesters, miners) = setup_network(8).await;
+        let (_node_0, _farmers, _harvesters, _miners) = setup_network(8).await;
 
         // let res = node_0.generate_partial_commitment_message();
         // assert!(res.is_err(), "bootstrap nodes cannot participate in DKG");
@@ -601,7 +601,7 @@ mod tests {
             vec![],
         );
 
-        for farmer in farmer_nodes.iter() {
+        for _farmer in farmer_nodes.iter() {
             // dbg!(&farmer.consensus_driver.quorum_driver.node_config.node_type);
             // dbg!(&farmer.consensus_driver.is_farmer());
         }

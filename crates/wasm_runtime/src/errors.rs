@@ -68,7 +68,7 @@ impl WasmRuntimeError {
     }
     pub fn reason(&self) -> Option<TrapCode> {
         if let Self::RuntimeError { reason, .. } = self {
-            return Some(reason.clone());
+            return Some(*reason);
         }
         None
     }
@@ -94,13 +94,13 @@ impl From<RuntimeError> for WasmRuntimeError {
                 reason,
                 msg: value.message(),
                 trace: value.trace().to_owned(),
-                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
+                origin: value.source().map(|err| format!("{err:?}")),
             }
         } else {
             Self::RuntimeErrorLossy {
                 msg: value.message(),
                 trace: value.trace().to_owned(),
-                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
+                origin: value.source().map(|err| format!("{err:?}")),
             }
         }
     }

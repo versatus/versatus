@@ -4,7 +4,7 @@ use block::{Block, ConvergenceBlock, GenesisBlock, GenesisRewards, ProposalBlock
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
-use ritelinked::LinkedHashMap;
+
 use storage_utils::{Result, StorageError};
 use vrrb_core::transactions::{Transaction, TransactionKind, Transfer};
 use vrrb_core::{
@@ -353,12 +353,12 @@ impl VrrbDb {
     pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
         match block {
             Block::Genesis { block } => self.apply_genesis_block(block),
-            Block::Convergence { block } => {
+            Block::Convergence { block: _ } => {
                 todo!()
             }
             _ => {
                 telemetry::info!("unsupported block type: {:?}", block);
-                return Err(StorageError::Other("unsupported block type".to_string()));
+                Err(StorageError::Other("unsupported block type".to_string()))
             }
         }
     }
