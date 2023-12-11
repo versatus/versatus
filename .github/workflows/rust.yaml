@@ -39,6 +39,8 @@ jobs:
         uses: dsherret/rust-toolchain-file@v1
       - name: Check Formatting
         run: cargo fmt --all -- --check
+      - name: Check TOML Formatting
+        run: taplo fmt --all -- --check
 
   # tests all crates in parallel
   test-block:
