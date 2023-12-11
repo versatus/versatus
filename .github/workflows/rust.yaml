@@ -39,11 +39,13 @@ jobs:
         uses: dsherret/rust-toolchain-file@v1
       - name: Check Formatting
         run: cargo fmt --all -- --check
-      - name: Check TOML Formatting
-        uses: actions-rs/cargo@v1
+      - name: Install taplo
+        uses: baptiste0928/cargo-install@master
         with:
-          command: taplo
-          args: format
+          crate: taplo
+          version: '0.12.1'
+      - name: Run taplo linter
+        run: taplo format --check --verbose
 
   # tests all crates in parallel
   test-block:
