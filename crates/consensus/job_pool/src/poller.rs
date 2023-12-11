@@ -52,11 +52,11 @@ where
             Ok(Poll::Ready(value)) => {
                 self.result = Some(Ok(value));
                 JobExecutionStatus::Complete { is_err: false }
-            },
+            }
             Err(e) => {
                 self.result = Some(Err(e));
                 JobExecutionStatus::Complete { is_err: true }
-            },
+            }
         }
     }
 

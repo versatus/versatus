@@ -6,9 +6,7 @@ use ritelinked::LinkedHashMap;
 use secp256k1::generate_keypair;
 
 use crate::{
-    transactions::transfer::Transfer,
-    transactions::transaction::TransactionDigest,
-    Error,
+    transactions::transaction::TransactionDigest, transactions::transfer::Transfer, Error,
 };
 
 pub fn gen_hex_encoded_string<T: AsRef<[u8]>>(data: T) -> String {
@@ -66,7 +64,7 @@ pub fn read_or_generate_keypair_file<F: AsRef<Path>>(
             })?;
 
             keypair
-        },
+        }
     };
 
     Ok(keypair)
