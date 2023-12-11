@@ -1,6 +1,6 @@
-pub mod assertbalance;
+pub mod testbalance;
 pub mod describe;
 pub mod execute;
-pub mod inittestdb;
-pub mod test;
+pub mod testinitdb;
+pub mod testcontract;
 pub mod validate;

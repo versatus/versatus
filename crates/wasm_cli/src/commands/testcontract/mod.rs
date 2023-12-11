@@ -10,7 +10,7 @@ use wasm_runtime::{
 use wasmer::{Cranelift, Target};
 
 #[derive(Parser, Debug)]
-pub struct TestOpts {
+pub struct TestContractOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
     /// into the database driver.
     #[clap(short, long)]
@@ -48,7 +48,7 @@ pub struct TestOpts {
 /// targeted toward developers of WASM modules. It should attempt to describe
 /// how the module might, or might not, be viable as an off-chain smart contract
 /// compute job.
-pub fn run(opts: &TestOpts) -> Result<()> {
+pub fn run(opts: &TestContractOpts) -> Result<()> {
     let wasmfile = opts
         .wasm
         .to_str()

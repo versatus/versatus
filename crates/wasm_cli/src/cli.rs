@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    assertbalance::AssertBalanceOpts, describe::DescribeOpts, execute::ExecuteOpts,
-    inittestdb::InitTestDBOpts, test::TestOpts, validate::ValidateOpts,
+    testbalance::TestBalanceOpts, describe::DescribeOpts, execute::ExecuteOpts,
+    testinitdb::TestInitDBOpts, testcontract::TestContractOpts, validate::ValidateOpts,
 };
 
 #[derive(Parser)]
@@ -22,9 +22,9 @@ pub enum WasmCommands {
     /// Validates a WASM module's ability to execute
     Validate(ValidateOpts),
     /// Initialise a test database
-    InitTestDB(InitTestDBOpts),
+    TestInitDB(TestInitDBOpts),
     /// A test to check the balance of a given account
-    AssertBalance(AssertBalanceOpts),
+    TestBalance(TestBalanceOpts),
     /// A subcommand for executing/testing a smart contract function.
-    Test(TestOpts),
+    TestContract(TestContractOpts),
 }

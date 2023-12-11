@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-pub struct InitTestDBOpts {
+pub struct TestInitDBOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
     /// into the database driver.
     #[clap(short, long)]
@@ -22,7 +22,7 @@ pub struct InitTestDBOpts {
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
 /// can also potentially be integrated into common CI/CD frameworks.
-pub fn run(opts: &InitTestDBOpts) -> Result<()> {
+pub fn run(opts: &TestInitDBOpts) -> Result<()> {
     // #716, here we want to create a new database to be used by the rest of the functionality in
     // issue #716. This database could be SQLite3 or similar, but with some caveats:
     //  - The database can be written to a single file
