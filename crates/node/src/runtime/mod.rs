@@ -1147,12 +1147,13 @@ mod tests {
         let votes: Vec<Vote> = farmers
             .iter_mut()
             .map(|nr| {
-                nr.handle_create_account_requested(sender_address.clone(), account_bytes.clone());
-                nr.insert_txn_to_mempool(txn.clone());
+                let _ = nr
+                    .handle_create_account_requested(sender_address.clone(), account_bytes.clone());
+                let _ = nr.insert_txn_to_mempool(txn.clone());
                 let mempool_reader = nr.mempool_read_handle_factory();
                 let state_reader = nr.state_store_read_handle_factory();
                 let res = nr
-                    .validate_transaction_kind(txn.digest(), mempool_reader, state_reader)
+                    .validate_transaction_kind(txn.id(), mempool_reader, state_reader)
                     .unwrap();
                 nr.cast_vote_on_transaction_kind(res.0, res.1).unwrap()
             })
