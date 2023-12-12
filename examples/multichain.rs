@@ -1,7 +1,6 @@
 use node::test_utils::create_test_network;
 use primitives::{Address, PublicKey};
 use std::str::FromStr;
-use telemetry::custom_subscriber::TelemetrySubscriber;
 
 #[tokio::main]
 async fn main() {

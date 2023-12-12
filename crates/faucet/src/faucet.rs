@@ -3,14 +3,14 @@ use axum::{http::StatusCode, Extension, Json, Router};
 use axum::routing::post;
 use primitives::Address;
 use serde::Deserialize;
-use serde_json::json;
+
+use std::net::SocketAddr;
 use std::sync::Arc;
-use std::{convert::Infallible, net::SocketAddr};
 use telemetry::error;
-use tokio::spawn;
+
 use tokio::sync::Mutex;
 use vrrb_core::transactions::{RpcTransactionDigest, Token};
-use wallet::v2::{Wallet, WalletConfig, WalletError};
+use wallet::v2::{Wallet, WalletError};
 
 #[derive(Deserialize)]
 struct FaucetRequest {

@@ -10,4 +10,6 @@ anyhow = { workspace = true }
 jsonrpsee = { workspace = true }
 platform = { workspace = true }
 serde = { workspace = true }
+serial_test = { workspace = true }
 service_config = { workspace = true }
+tokio = { workspace = true }
