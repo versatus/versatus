@@ -350,7 +350,7 @@ impl DagModule {
         {
             indexmap::map::Entry::Occupied(mut entry) => {
                 entry.get_mut().insert((node_id, sig));
-            },
+            }
 
             indexmap::map::Entry::Vacant(entry) => {
                 let mut set = HashSet::new();
