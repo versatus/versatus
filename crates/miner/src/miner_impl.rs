@@ -249,7 +249,7 @@ impl Resolver for Miner {
                 Some(vtx) => bulldag.trace(vtx, Direction::Reference),
                 None => {
                     vec![]
-                },
+                }
             };
 
             // Get all the vertices corresponding to the references to the

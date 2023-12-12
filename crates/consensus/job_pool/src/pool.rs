@@ -137,10 +137,10 @@ impl JobPool {
                                     if value.1.timed_out() {
                                         return false;
                                     }
-                                },
+                                }
                                 Err(e) => {
                                     _workers_count = e.into_inner().0;
-                                },
+                                }
                             }
                         } else {
                             return false;

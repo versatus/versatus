@@ -316,8 +316,8 @@ impl StateManager {
                             proposals,
                         });
                     }
-                },
-                None => {},
+                }
+                None => {}
             }
         }
 
@@ -370,13 +370,13 @@ impl StateManager {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 };
-            },
+            }
             Block::Proposal { ref mut block } => {
                 if let Err(e) = self.dag.append_proposal(block, sig_engine.clone()) {
                     let err_note = format!("Encountered GraphError: {e:?}");
                     return Err(NodeError::Other(err_note));
                 }
-            },
+            }
             Block::Convergence { ref mut block } => {
                 if let Err(e) = self.dag.append_convergence(block) {
                     let err_note = format!("Encountered GraphError: {e:?}");
@@ -393,7 +393,7 @@ impl StateManager {
                         return Ok(event);
                     }
                 }
-            },
+            }
         }
 
         Ok(Event::BlockAppended(block.hash()))

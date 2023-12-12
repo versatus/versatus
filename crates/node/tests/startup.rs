@@ -1,7 +1,4 @@
-use node::{
-    test_utils::{create_mock_bootstrap_node_config, create_mock_full_node_config_with_bootstrap},
-    Node,
-};
+use node::{test_utils::create_mock_bootstrap_node_config, Node};
 use primitives::node::NodeType;
 use serial_test::serial;
 use storage::storage_utils::remove_vrrb_data_dir;

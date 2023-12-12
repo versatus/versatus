@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use telemetry::error;
 use thiserror::Error;
 use vrrb_core::account::Account;
-use vrrb_core::transactions::{Transaction, TransactionKind, Token, RpcTransactionDigest};
+use vrrb_core::transactions::{RpcTransactionDigest, Token, Transaction, TransactionKind};
 use vrrb_rpc::rpc::{
     api::{RpcApiClient, RpcTransactionRecord},
     client::create_client,
@@ -175,11 +175,12 @@ impl Wallet {
 
         let signature = self.sign_transaction(transfer_builder.build_payload().as_bytes());
 
-        let transfer = transfer_builder.signature(signature).build_kind()
+        let transfer = transfer_builder
+            .signature(signature)
+            .build_kind()
             .map_err(|_| WalletError::Custom("Failed to build transfer transaction".to_string()))?;
 
-        self
-            .client
+        self.client
             .create_txn(transfer.clone())
             .await
             .map_err(|err| {

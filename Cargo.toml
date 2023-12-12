@@ -60,41 +60,41 @@ internal_rpc = { workspace = true }
 
 [workspace]
 members = [
-    "crates/primitives",
-    "crates/events",
-    "crates/faucet",
-    "crates/consensus",
-    "crates/consensus/quorum",
-    # "crates/consensus/dkg_engine",
-    "crates/consensus/signer",
-    "crates/consensus/job_pool",
-    "crates/consensus/job_scheduler",
-    "crates/consensus/vrrb_vrf",
-    "crates/vrrb_core",
-    "crates/cli",
-    "crates/internal_rpc",
-    "crates/vrrb_config",
-    "crates/vrrb_rpc",
-    "crates/block",
-    "crates/miner",
-    "crates/wallet",
-    "crates/mempool",
-    "crates/node",
-    "crates/storage",
-    "crates/storage/vrrbdb",
-    "crates/storage/utils",
-    "crates/telemetry",
-    "crates/utils",
-    "crates/vrrb_http",
-    "crates/wasm_loader",
-    "crates/wasm_cli",
-    "crates/wasm_runtime",
-    "crates/compute_agent",
-    "crates/storage_agent",
-    "crates/service_config",
-    "crates/web3_pkg",
-    "crates/platform",
-    "crates/metric_exporter"
+  "crates/primitives",
+  "crates/events",
+  "crates/faucet",
+  "crates/consensus",
+  "crates/consensus/quorum",
+  # "crates/consensus/dkg_engine",
+  "crates/consensus/signer",
+  "crates/consensus/job_pool",
+  "crates/consensus/job_scheduler",
+  "crates/consensus/vrrb_vrf",
+  "crates/vrrb_core",
+  "crates/cli",
+  "crates/internal_rpc",
+  "crates/vrrb_config",
+  "crates/vrrb_rpc",
+  "crates/block",
+  "crates/miner",
+  "crates/wallet",
+  "crates/mempool",
+  "crates/node",
+  "crates/storage",
+  "crates/storage/vrrbdb",
+  "crates/storage/utils",
+  "crates/telemetry",
+  "crates/utils",
+  "crates/vrrb_http",
+  "crates/wasm_loader",
+  "crates/wasm_cli",
+  "crates/wasm_runtime",
+  "crates/compute_agent",
+  "crates/storage_agent",
+  "crates/service_config",
+  "crates/web3_pkg",
+  "crates/platform",
+  "crates/metric_exporter",
 ]
 
 [workspace.dependencies]
@@ -135,7 +135,7 @@ wasm_runtime = { path = "crates/wasm_runtime" }
 service_config = { path = "crates/service_config" }
 web3_pkg = { path = "crates/web3_pkg" }
 platform = { path = "crates/platform" }
-metric_exporter = { path = "crates/metric_exporter"}
+metric_exporter = { path = "crates/metric_exporter" }
 
 # NOTE: Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
@@ -151,10 +151,10 @@ dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
 integral-db = { git = "https://github.com/versatus/integral-db" }
 
 secp256k1 = { version = "0.25.0", features = [
-    "rand",
-    "serde",
-    "bitcoin_hashes",
-    "global-context",
+  "rand",
+  "serde",
+  "bitcoin_hashes",
+  "global-context",
 ] }
 
 # NOTE: External crates
@@ -183,12 +183,12 @@ anyhow = "1.0.65"
 async-trait = "0.1.58"
 derive_builder = "0.12.0"
 jsonrpsee = { version = "0.16.2", features = [
-    "macros",
-    "client-core",
-    "server-core",
-    "server",
-    "http-client",
-    "ws-client",
+  "macros",
+  "client-core",
+  "server-core",
+  "server",
+  "http-client",
+  "ws-client",
 ] }
 bytes = "1.3.0"
 reqwest = { version = "0.11.13", features = ["rustls-tls"] }
@@ -227,11 +227,11 @@ indexmap = "1.9.1"
 raptorq = "1.7.0"
 dirs = "4.0.0"
 tracing-subscriber = { version = "0.3.15", features = [
-    "fmt",
-    "registry",
-    "env-filter",
-    "tracing-log",
-    "json",
+  "fmt",
+  "registry",
+  "env-filter",
+  "tracing-log",
+  "json",
 ] }
 prometheus = { version = "0.13.3", features = ["process"] }
 lazy_static = "1.4.0"
@@ -255,6 +255,7 @@ wasmer = "4.0.0"
 wasmer-middlewares = "4.0.0"
 wasmer-wasix = "0.9.0"
 wasmer-wasix-types = "0.9.0"
+wasmer-vm = "4.0.0"
 wasmparser = "0.107.0"
 ipfs-api = "0.17.0"
 microkv = "0.2.9"
@@ -272,6 +273,7 @@ hex.workspace = true
 criterion.workspace = true
 ethereum-types.workspace = true
 uuid.workspace = true
+
 
 [[bench]]
 name = "poc"

@@ -264,8 +264,8 @@ impl RpcApiServer for RpcServerImpl {
 
         let claims = claims
             .values()
+            .filter(|&claim| claim.address == address)
             .cloned()
-            .filter(|claim| claim.address == address)
             .collect();
 
         Ok(claims)
@@ -290,8 +290,8 @@ impl RpcApiServer for RpcServerImpl {
 
         let claims = claims
             .values()
+            .filter(|&claim| claim_hashes.contains(&claim.hash))
             .cloned()
-            .filter(|claim| claim_hashes.contains(&claim.hash))
             .collect();
 
         Ok(claims)

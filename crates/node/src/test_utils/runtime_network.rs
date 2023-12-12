@@ -1,50 +1,21 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashMap, HashSet, VecDeque},
-    env,
-    hash::{Hash, Hasher},
+    collections::{BTreeMap, VecDeque},
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::{Arc, RwLock},
-    time::Duration,
 };
-
-use block::{
-    header::BlockHeader, Block, BlockHash, ConvergenceBlock, GenesisBlock, InnerBlock,
-    ProposalBlock,
-};
-use bulldag::{graph::BullDag, vertex::Vertex};
-use quorum::{election::Election, quorum::Quorum};
 
 use crate::{
-    network::NetworkEvent,
     node_runtime::NodeRuntime,
     test_utils::{
         add_group_peer_data_to_node, assign_node_to_quorum, form_groups_with_peer_data,
         handle_assigned_memberships,
     },
-    Node, Result,
 };
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
+use events::EventPublisher;
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
-use primitives::{generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind};
-use rand::{seq::SliceRandom, thread_rng};
-use secp256k1::{Message, PublicKey, SecretKey};
-use sha256::digest;
-use signer::engine::SignerEngine;
-use uuid::Uuid;
-use vrrb_config::{
-    BootstrapPeerData, BootstrapQuorumConfig, BootstrapQuorumMember, NodeConfig, NodeConfigBuilder,
-    QuorumMember, QuorumMembershipConfig, ThresholdConfig,
-};
-use vrrb_core::{
-    account::{Account, AccountField},
-    claim::Claim,
-    keypair::{KeyPair, Keypair},
-    transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
-    },
-};
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
+use primitives::{KademliaPeerId, NodeType, QuorumKind};
+
+use vrrb_config::{BootstrapPeerData, BootstrapQuorumConfig, BootstrapQuorumMember};
+use vrrb_core::keypair::Keypair;
 
 use super::create_mock_full_node_config;
 /// Creates n NodeRuntimes to simulate networks
@@ -89,7 +60,7 @@ pub async fn create_node_runtime_network(
         quorum_members: quorum_members.clone(),
     };
 
-    let mut bootstrap_node_config = vrrb_config::BootstrapConfig {
+    let bootstrap_node_config = vrrb_config::BootstrapConfig {
         additional_genesis_receivers: None,
         bootstrap_quorum_config,
     };
@@ -99,12 +70,12 @@ pub async fn create_node_runtime_network(
 
     config.bootstrap_config = Some(bootstrap_node_config.clone());
 
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+    let _addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
     let node_0 = NodeRuntime::new(&config, events_tx.clone()).await.unwrap();
 
-    let mut bootstrap_peer_data = BootstrapPeerData {
-        id: node_0.config.kademlia_peer_id.clone().unwrap(),
+    let bootstrap_peer_data = BootstrapPeerData {
+        id: node_0.config.kademlia_peer_id.unwrap(),
         udp_gossip_addr: node_0.config.udp_gossip_address,
         raptorq_gossip_addr: node_0.config.raptorq_gossip_address,
         kademlia_liveness_addr: node_0.config.kademlia_liveness_address,

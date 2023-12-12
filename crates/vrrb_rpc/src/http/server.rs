@@ -10,7 +10,7 @@ use events::Event;
 use tokio::sync::broadcast::Receiver;
 
 use crate::{
-    http::{router::create_router, HttpApiRouterConfig, HttpApiServerConfig},
+    http::{router::create_router, HttpApiRouterConfigBuilder, HttpApiServerConfig},
     ApiError, Result,
 };
 
@@ -33,23 +33,20 @@ impl HttpApiServer {
     pub fn new(config: HttpApiServerConfig) -> Result<Self> {
         let address = &config.address.parse().unwrap();
 
-        let router_config = HttpApiRouterConfig {
-            address: *address,
-            api_title: config.api_title.clone(),
-            api_version: config.api_version.clone(),
-            server_timeout: config.server_timeout,
-        };
-
-        let tls_config = config.tls_config;
-        let router = create_router(&router_config);
+        let router_config = HttpApiRouterConfigBuilder::default()
+            .address(*address)
+            .api_title(&config.api_title)
+            .api_version(&config.api_version)
+            .server_timeout(config.server_timeout)
+            .build();
         let listener = TcpListener::bind(address).map_err(|err| {
             ApiError::Other(format!("unable to bind to address {address}: {err}"))
         })?;
 
         Ok(Self {
-            router,
+            router: create_router(&router_config),
             listener,
-            tls_config,
+            tls_config: config.tls_config,
         })
     }
 
