@@ -1,42 +1,18 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashMap, HashSet, VecDeque},
-    env,
-    hash::{Hash, Hasher},
+    collections::{BTreeMap, HashMap},
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::{Arc, RwLock},
-    time::Duration,
 };
 
-use block::{
-    header::BlockHeader, Block, BlockHash, ConvergenceBlock, GenesisBlock, InnerBlock,
-    ProposalBlock,
-};
-use bulldag::{graph::BullDag, vertex::Vertex};
-use quorum::{election::Election, quorum::Quorum};
+use crate::Node;
 
-use crate::{network::NetworkEvent, node_runtime::NodeRuntime, Node, Result};
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
-use primitives::{generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind};
-use rand::{seq::SliceRandom, thread_rng};
-use secp256k1::{Message, PublicKey, SecretKey};
-use sha256::digest;
-use signer::engine::SignerEngine;
-use uuid::Uuid;
+use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind};
+
 use vrrb_config::{
     BootstrapConfig, BootstrapPeerData, BootstrapQuorumConfig, BootstrapQuorumMember, NodeConfig,
-    NodeConfigBuilder, QuorumMember, QuorumMembershipConfig, ThresholdConfig,
+    QuorumMember,
 };
-use vrrb_core::{
-    account::{Account, AccountField},
-    claim::Claim,
-    keypair::{KeyPair, Keypair},
-    transactions::{
-        generate_transfer_digest_vec, NewTransferArgs, Transaction, TransactionDigest,
-        TransactionKind, Transfer,
-    },
-};
-use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
+use vrrb_core::keypair::Keypair;
 
 use super::create_mock_full_node_config;
 
@@ -108,9 +84,10 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         None
     };
 
-    let mut bootstrap_config = BootstrapConfig::default();
-    bootstrap_config.additional_genesis_receivers = additional_genesis_receivers;
-    bootstrap_config.bootstrap_quorum_config = bootstrap_quorum_config.clone();
+    let bootstrap_config = BootstrapConfig {
+        additional_genesis_receivers,
+        bootstrap_quorum_config: bootstrap_quorum_config.clone(),
+    };
 
     let mut config = create_mock_full_node_config();
     config.id = String::from("node-0");
@@ -119,7 +96,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
     let node_0 = Node::start(config).await.unwrap();
 
-    let mut bootstrap_peer_data = BootstrapPeerData {
+    let bootstrap_peer_data = BootstrapPeerData {
         id: node_0.kademlia_peer_id(),
         udp_gossip_addr: node_0.udp_gossip_address(),
         raptorq_gossip_addr: node_0.raptorq_gossip_address(),

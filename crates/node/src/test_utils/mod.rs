@@ -1,10 +1,8 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, HashMap, HashSet, VecDeque},
-    env,
+    collections::{hash_map::DefaultHasher, HashMap, HashSet, VecDeque},
     hash::{Hash, Hasher},
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::SocketAddr,
     sync::{Arc, RwLock},
-    time::Duration,
 };
 
 use block::{
@@ -14,22 +12,19 @@ use block::{
 use bulldag::{graph::BullDag, vertex::Vertex};
 use quorum::{election::Election, quorum::Quorum};
 
-use crate::{network::NetworkEvent, node_runtime::NodeRuntime, Node, Result};
-use events::{AssignedQuorumMembership, EventPublisher, PeerData, DEFAULT_BUFFER};
+use crate::{network::NetworkEvent, node_runtime::NodeRuntime, Result};
+use events::{AssignedQuorumMembership, PeerData, DEFAULT_BUFFER};
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 pub use mock_config::*;
 pub use node_network::*;
-use primitives::{generate_account_keypair, Address, KademliaPeerId, NodeId, NodeType, QuorumKind};
+use primitives::{generate_account_keypair, Address, NodeId, NodeType, QuorumKind};
 use rand::{seq::SliceRandom, thread_rng};
 pub use runtime_network::*;
 use secp256k1::{Message, PublicKey, SecretKey};
 use sha256::digest;
 use signer::engine::SignerEngine;
-use uuid::Uuid;
-use vrrb_config::{
-    BootstrapQuorumConfig, NodeConfig, NodeConfigBuilder, QuorumMember, QuorumMembershipConfig,
-    ThresholdConfig,
-};
+
+use vrrb_config::QuorumMember;
 use vrrb_core::{
     account::{Account, AccountField},
     claim::Claim,

@@ -27,7 +27,7 @@ pub struct ServiceCollectionConfig {
 }
 
 /// A structure representing the necessary configuration items required for a network service
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceConfig {
     /// The name of this service definition

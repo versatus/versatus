@@ -360,7 +360,7 @@ impl ConsensusModule {
         let set = self.get_quorum_pending_votes_for_transaction(quorum_id, vote)?;
         let quorum_members = self.get_quorum_members(quorum_id)?;
         if self.double_check_vote_threshold_reached(&set, quorum_members) {
-            let batch_sigs = set
+            let batch_sigs: Vec<(String, Signature)> = set
                 .iter()
                 .map(|vote| (vote.farmer_node_id.clone(), vote.signature))
                 .collect();
@@ -491,12 +491,9 @@ impl ConsensusModule {
         self.is_harvester()?;
 
         if let Some((quorum_id, QuorumKind::Farmer)) = self.get_node_quorum_id(&vote.farmer_id) {
-            let nested_map = self
-                .votes_pool
-                .entry(quorum_id)
-                .or_insert_with(HashMap::new);
+            let nested_map = self.votes_pool.entry(quorum_id).or_default();
             let digest = vote.txn.id();
-            let vote_set = nested_map.entry(digest).or_insert_with(HashSet::new);
+            let vote_set = nested_map.entry(digest).or_default();
             vote_set.insert(vote);
             return Ok(());
         }
@@ -561,7 +558,7 @@ impl ConsensusModule {
         for v in votes.iter() {
             vote_shares
                 .entry(v.is_txn_valid)
-                .or_insert_with(BTreeMap::new)
+                .or_default()
                 .insert(v.farmer_node_id.clone(), v.signature);
         }
 

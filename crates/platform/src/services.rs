@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{error::PlatformError, sys::MachineArchitecture};
 
 /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ServiceType {
     /// A service that will accept (and execute) compute jobs
     Compute,
@@ -52,7 +52,7 @@ impl TryFrom<UtsName> for ServiceCapabilities {
 }
 
 /// A version number
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct VersionNumber {
     major: u8,
     minor: u8,
@@ -77,7 +77,7 @@ impl std::fmt::Display for VersionNumber {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceStatusResponse {
     /// Type of service (see above)
     pub service_type: ServiceType,

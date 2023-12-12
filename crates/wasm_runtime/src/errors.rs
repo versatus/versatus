@@ -68,19 +68,16 @@ impl WasmRuntimeError {
     }
     pub fn reason(&self) -> Option<TrapCode> {
         if let Self::RuntimeError { reason, .. } = self {
-            return Some(reason.clone());
+            return Some(*reason);
         }
         None
     }
     pub fn inst_err(&self) -> Option<String> {
-        if let WasmRuntimeError::InstantiationError(inst_err) = self {
-            match inst_err {
-                InstantiationError::Link(link_err) => match link_err {
-                    wasmer::LinkError::Resource(s) => Some(s.clone()),
-                    _ => None,
-                },
-                _ => None,
-            }
+        if let WasmRuntimeError::InstantiationError(InstantiationError::Link(
+            wasmer::LinkError::Resource(s),
+        )) = self
+        {
+            Some(s.to_owned())
         } else {
             None
         }
@@ -94,13 +91,13 @@ impl From<RuntimeError> for WasmRuntimeError {
                 reason,
                 msg: value.message(),
                 trace: value.trace().to_owned(),
-                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
+                origin: value.source().map(|err| format!("{err:?}")),
             }
         } else {
             Self::RuntimeErrorLossy {
                 msg: value.message(),
                 trace: value.trace().to_owned(),
-                origin: value.source().and_then(|err| Some(format!("{err:?}"))),
+                origin: value.source().map(|err| format!("{err:?}")),
             }
         }
     }
