@@ -69,44 +69,11 @@ impl InternalRpc {
 
 #[async_trait]
 impl InternalRpcApiServer for InternalRpc {
-    fn service_status_response(&self) -> RpcResult<ServiceStatusResponse> {
+    async fn service_status_response(&self) -> RpcResult<ServiceStatusResponse> {
         Ok(ServiceStatusResponse::from(self))
     }
-
-    fn name(&self) -> RpcResult<String> {
-        Ok(self.service_config.name.clone())
-    }
-
-    fn rpc_address(&self) -> RpcResult<String> {
-        Ok(self.service_config.rpc_address.clone())
-    }
-
-    fn rpc_port(&self) -> RpcResult<u32> {
-        Ok(self.service_config.rpc_port)
-    }
-
-    fn pre_shared_key(&self) -> RpcResult<String> {
-        Ok(self.service_config.pre_shared_key.clone())
-    }
-
-    fn tls_private_key_file(&self) -> RpcResult<String> {
-        Ok(self.service_config.tls_private_key_file.clone())
-    }
-
-    fn tls_public_cert_file(&self) -> RpcResult<String> {
-        Ok(self.service_config.tls_public_cert_file.clone())
-    }
-
-    fn tls_ca_cert_file(&self) -> RpcResult<String> {
-        Ok(self.service_config.tls_ca_cert_file.clone())
-    }
-
-    fn exporter_address(&self) -> RpcResult<String> {
-        Ok(self.service_config.exporter_address.clone())
-    }
-
-    fn exporter_port(&self) -> RpcResult<String> {
-        Ok(self.service_config.exporter_port.clone())
+    async fn service_config(&self) -> RpcResult<ServiceConfig> {
+        Ok(self.service_config.clone())
     }
 }
 
